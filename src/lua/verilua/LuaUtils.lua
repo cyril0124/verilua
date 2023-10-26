@@ -1,6 +1,14 @@
 local tablex = require("pl.tablex")
 local utils = {}
 
+ANSI_COLOR_RED     = "\27[31m"
+ANSI_COLOR_GREEN   = "\27[32m"
+ANSI_COLOR_YELLOW  = "\27[33m"
+ANSI_COLOR_BLUE    = "\27[34m"
+ANSI_COLOR_MAGENTA = "\27[35m"
+ANSI_COLOR_CYAN    = "\27[36m"
+ANSI_COLOR_RESET   = "\27[0m"
+
 local colors = {
     reset = "\27[0m",
     black = "\27[30m",

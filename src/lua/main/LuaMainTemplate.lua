@@ -80,6 +80,7 @@ local function lua_main()
 end
 
 
+-- For Verilator only
 local function create_lua_main_step()
     local cycles = 0
     print("hello from create lua main step")
