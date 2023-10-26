@@ -1,0 +1,7 @@
+.metals/
+.vscode/
+luajit2.1/
+*/.nfs*
+.nfs*
+tmp/
+shared/*
