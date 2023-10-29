@@ -4,6 +4,7 @@ CallableHDL = class()
 
 local BeatWidth = 32
 
+-- TODO: Optimize multi beat logic
 function CallableHDL:_init(fullpath, name, hdl)
     self.verbose = false
     self.fullpath = fullpath

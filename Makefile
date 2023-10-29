@@ -25,7 +25,7 @@ init:
 
 $(SHARED_DIR)/liblua_vpi.so: $(C_SOURCES)
 	mkdir -p shared
-	gcc -shared -fPIC $(CXX_FLAGS) $(PRJ_DIR)/src/lua_vpi.cpp $(LD_FLAGS) -o $@
+	g++ -shared -fPIC $(CXX_FLAGS) $(PRJ_DIR)/src/lua_vpi.cpp $(LD_FLAGS) -o $@
 
 $(SHARED_DIR)/liblua_vpi_1.so: $(C_SOURCES)
 	mkdir -p shared
