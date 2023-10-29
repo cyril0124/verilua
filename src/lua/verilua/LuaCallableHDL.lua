@@ -20,7 +20,7 @@ end
 
 function CallableHDL:__call()
     if self.is_multi_beat then
-        return vpi.get_value_multi(self.hdl, self.beat_num)
+        return vpi.get_value_multi(self.hdl, self.beat_num) -- This will return a table with multi beat datas, and each is 32-bit size data
     else
         return vpi.get_value(self.hdl)
     end
