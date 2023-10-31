@@ -19,6 +19,29 @@ TO_LUA void simulator_control(long long cmd) {
     vpi_control(cmd);
 }
 
+TO_LUA std::string get_top_module() {
+    vpiHandle iter, top_module;
+
+    // Get module handle 
+    iter = vpi_iterate(vpiModule, NULL);
+    m_assert(iter != NULL, "No module exist...\n");
+
+    // Scan the first module (Usually this will be the top module)
+    top_module = vpi_scan(iter);
+    m_assert(top_module != NULL, "Cannot find top module!\n");
+
+    if(setenv("DUT_TOP", vpi_get_str(vpiName, top_module), 1)) {
+        m_assert(false, "setenv error for DUT_TOP");
+    }
+    
+    if(const char* env_val = std::getenv("DUT_TOP")) {
+        std::cout << "DUT_TOP is " << env_val << '\n';
+        return std::string(env_val);
+    }
+    else
+        m_assert(false, "");
+}
+
 TO_LUA long long get_signal_value(const char *path) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
@@ -329,6 +352,7 @@ void lua_init(void) {
     // Register functions for lua
     luabridge::getGlobalNamespace(L)
         .beginNamespace("vpi")
+        .addFunction("get_top_module", get_top_module)
         .addFunction("read_signal", get_signal_value)
         .addFunction("write_signal", set_signal_value)
         .addFunction("simulator_control", simulator_control)

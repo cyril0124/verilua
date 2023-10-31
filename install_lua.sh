@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# https://luajit.org
+# https://github.com/openresty/luajit2
+
 curr_dir=$(pwd)
 luajit_dir=$(pwd)/luajit2.1
 luajit_branch=v2.1-20231006
@@ -13,4 +16,4 @@ cd $curr_dir
 hererocks luajit2.1 -j $luajit_dir -r latest
 
 # Bug fix...
-# cp $luajit_dir/lib/libluajit-5.1.so.2 $luajit_dir/lib/libluajit-5.1.so
+cp $luajit_dir/lib/libluajit-5.1.so.2 $luajit_dir/lib/libluajit-5.1.so
