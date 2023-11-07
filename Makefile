@@ -10,15 +10,15 @@ CXX_FLAGS += -I$(PRJ_DIR)/LuaBridge/Source/LuaBridge
 CXX_FLAGS += -I$(PRJ_DIR)/src
 CXX_FLAGS += -I$(PRJ_DIR)/src/include
 CXX_FLAGS += -I${LUA_DIR}/include
-CXX_FLAGS += -g 
+CXX_FLAGS += -g -std=c++17 
 
 LD_FLAGS  += -L$(LUA_DIR)/lib -lluajit-5.1
 
-default: build_so
+default: build_so without_bootstrap_so
 
 without_bootstrap_so: $(SHARED_DIR)/liblua_vpi_1.so
 
-build_so: without_bootstrap_so $(SHARED_DIR)/liblua_vpi.so
+build_so: $(SHARED_DIR)/liblua_vpi.so
 
 init:
 	git submodule update --init --recursive

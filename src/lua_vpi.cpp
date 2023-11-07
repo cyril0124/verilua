@@ -10,6 +10,48 @@
 // |________|____________|
 
 lua_State *L;
+luabridge::LuaRef sim_event(L);
+luabridge::LuaRef main_step(L);
+
+static IdPool edge_cb_idpool(50);
+static std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
+
+
+inline void execute_sim_event(int *id) {
+    try {
+        sim_event(id);
+    } catch (const luabridge::LuaException& e) {
+        m_assert(false, "Lua error: %s", e.what());
+    }
+}
+
+inline void execute_sim_event(int id) {
+    try {
+        sim_event(id);
+    } catch (const luabridge::LuaException& e) {
+        m_assert(false, "Lua error: %s", e.what());
+    }
+}
+
+inline void execute_final_callback() {
+    { // This is the working filed of LuaRef, when we leave this file, LuaRef will release the allocated memory thus not course segmentation fault when use lua_close(L).
+        try {
+            luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
+            lua_finish_callback();
+        } catch (const luabridge::LuaException& e) {
+            printf("[execute_final_callback] Lua error: %s", e.what());
+            assert(false);
+        }
+    }
+}
+
+inline void execute_main_step() {
+    try {
+        main_step();
+    } catch (const luabridge::LuaException& e) {
+        m_assert(false, "Lua error: %s", e.what());
+    }
+}
 
 TO_LUA void simulator_control(long long cmd) {
     // #define vpiStop                  66   /* execute simulator's $stop */
@@ -26,7 +68,7 @@ TO_LUA std::string get_top_module() {
     iter = vpi_iterate(vpiModule, NULL);
     m_assert(iter != NULL, "No module exist...\n");
 
-    // Scan the first module (Usually this will be the top module)
+    // Scan the first module (Usually this will be the top module of your DUT)
     top_module = vpi_scan(iter);
     m_assert(top_module != NULL, "Cannot find top module!\n");
 
@@ -38,8 +80,9 @@ TO_LUA std::string get_top_module() {
         std::cout << "DUT_TOP is " << env_val << '\n';
         return std::string(env_val);
     }
-    else
-        m_assert(false, "");
+    else {
+        m_assert(false, "Error while getenv(DUT_TOP)");
+    }
 }
 
 TO_LUA long long get_signal_value(const char *path) {
@@ -47,17 +90,15 @@ TO_LUA long long get_signal_value(const char *path) {
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
 
     s_vpi_value v;
-    v.format = vpiVectorVal;
+    v.format = vpiIntVal;
     vpi_get_value(handle, &v);
-    return v.value.vector[0].aval;
+    return v.value.integer;
 }
 
 // return datas with more than 64bit, each table entry is a 32bit value(4 byte)
 TO_LUA int get_signal_value_multi(lua_State *L) {
     const char *path = luaL_checkstring(L, 1);
     const int n = luaL_checkinteger(L, 2);
-
-    // printf("path: %s n: %d\n", path, n);
 
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
@@ -77,7 +118,6 @@ TO_LUA int get_signal_value_multi(lua_State *L) {
 }
 
 TO_LUA void set_signal_value(const char *path, long long value) {
-    // printf("set_signal_value: %s => value:%lld\n", path, value);
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
 
@@ -87,35 +127,33 @@ TO_LUA void set_signal_value(const char *path, long long value) {
     vpi_put_value(handle, &v, NULL, vpiNoDelay);
 }
 
-TO_LUA void set_signal_value_multi(const char *path, luabridge::LuaRef values_table) {
+TO_LUA int set_signal_value_multi(lua_State *L) {
+    const char *path = luaL_checkstring(L, 1);  // Check and get the first argument
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
-    
-    // Create a vector of s_vpi_vecval, and fill it with the values from the Lua table
-    std::vector<s_vpi_vecval> vector(values_table.length());
-    for (int i = 1; i <= values_table.length(); i++) {
-        vector[i - 1].aval = values_table[i].cast<uint32_t>();
-        vector[i - 1].bval = 0;  // Assuming you don't need the bval field
+
+    luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
+
+    // int table_length = luaL_len(L, 2);  // Get table length
+    int table_length = lua_objlen(L, 2);
+    std::vector<s_vpi_vecval> vector(table_length);
+
+    for (int idx = 1; idx <= table_length; idx++) {
+        lua_pushinteger(L, idx);  // Push the index onto the stack
+        lua_gettable(L, 2);  // Get the table value at the index
+
+        uint32_t value = luaL_checkinteger(L, -1);  // Check and get the value
+        vector[idx-1].aval = value;
+        vector[idx-1].bval = 0;
+
+        lua_pop(L, 1);  // Pop the value from the stack
     }
 
     s_vpi_value v;
     v.format = vpiVectorVal;
-    v.value.vector = vector.data();  // Pass the data of the vector to v.value.vector
+    v.value.vector = vector.data();
     vpi_put_value(handle, &v, NULL, vpiNoDelay);
-}
 
-
-static PLI_INT32 time_callback(p_cb_data cb_data) {
-    try {
-        luabridge::LuaRef sim_event = luabridge::getGlobal(L, "sim_event");
-        sim_event((int *)cb_data->user_data);
-    } catch (const luabridge::LuaException& e) {
-        m_assert(false, "Lua error: %s", e.what());
-    }
-    
-
-    free(cb_data->user_data);
-    return 0;
+    return 0;  // Number of return values
 }
 
 TO_LUA void register_time_callback(long long low, long long high, int id) {
@@ -124,10 +162,14 @@ TO_LUA void register_time_callback(long long low, long long high, int id) {
     vpi_time.type = vpiSimTime;
     vpi_time.high = high;
     vpi_time.low = low;
-    // printf("register low:%lld, high:%lld, id:%d\n", low, high, id);
 
     cb_data.reason = cbAfterDelay;
-    cb_data.cb_rtn = time_callback;
+    // cb_data.cb_rtn = time_callback;
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
+        execute_sim_event((int *)cb_data->user_data);
+        free(cb_data->user_data);
+        return 0;
+    };
     cb_data.time = &vpi_time;
     cb_data.value = NULL;
     int *id_p = (int *)malloc(sizeof(int));
@@ -136,46 +178,6 @@ TO_LUA void register_time_callback(long long low, long long high, int id) {
     vpi_register_cb(&cb_data);
 }
 
-static IdPool edge_cb_idpool(50);
-static std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
-static PLI_INT32 edge_callback(p_cb_data cb_data) {
-    vpi_get_value(cb_data->obj, cb_data->value);
-    int new_value = cb_data->value->value.vector[0].aval;
-
-    edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data;
-    if(new_value == user_data->expected_value || user_data->expected_value == 2) {
-        try {
-            luabridge::LuaRef sim_event = luabridge::getGlobal(L, "sim_event");
-            sim_event(user_data->task_id);
-        } catch (const luabridge::LuaException& e) {
-            m_assert(false, "Lua error: %s", e.what());
-        }
-
-        vpi_remove_cb(edge_cb_hdl_map[user_data->cb_hdl_id]);
-        edge_cb_idpool.release_id(user_data->cb_hdl_id);
-
-        free(cb_data->user_data);
-    }
-
-    return 0;
-}
-
-static PLI_INT32 edge_callback_always(p_cb_data cb_data) {
-    vpi_get_value(cb_data->obj, cb_data->value);
-    int new_value = cb_data->value->value.vector[0].aval;
-
-    edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data;
-    if(new_value == user_data->expected_value || user_data->expected_value == 2) {
-        try {
-            luabridge::LuaRef sim_event = luabridge::getGlobal(L, "sim_event");
-            sim_event(user_data->task_id);
-        } catch (const luabridge::LuaException& e) {
-            m_assert(false, "Lua error: %s", e.what());
-        }
-    }
-
-    return 0;
-}
 
 static void register_edge_callback_basic(vpiHandle handle, int edge_type, int id) {
     s_cb_data cb_data;
@@ -186,7 +188,22 @@ static void register_edge_callback_basic(vpiHandle handle, int edge_type, int id
     vpi_value.format = vpiVectorVal;
 
     cb_data.reason = cbValueChange;
-    cb_data.cb_rtn = edge_callback;
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
+        vpi_get_value(cb_data->obj, cb_data->value);
+        int new_value = cb_data->value->value.vector[0].aval;
+
+        edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data;
+        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+            execute_sim_event(user_data->task_id);
+
+            vpi_remove_cb(edge_cb_hdl_map[user_data->cb_hdl_id]);
+            edge_cb_idpool.release_id(user_data->cb_hdl_id);
+
+            free(cb_data->user_data);
+        }
+
+        return 0;
+    };
     cb_data.time = &vpi_time;
     cb_data.value = &vpi_value;
 
@@ -231,7 +248,21 @@ TO_LUA void register_edge_callback_hdl_always(long long handle, int edge_type, i
     vpi_value.format = vpiVectorVal;
 
     cb_data.reason = cbValueChange;
-    cb_data.cb_rtn = edge_callback_always;
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
+        vpi_get_value(cb_data->obj, cb_data->value);
+        int new_value = cb_data->value->value.vector[0].aval;
+
+        edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data;
+        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+            try {
+                sim_event(user_data->task_id);
+            } catch (const luabridge::LuaException& e) {
+                m_assert(false, "Lua error: %s", e.what());
+            }
+        }
+
+        return 0;
+    };
     cb_data.time = &vpi_time;
     cb_data.value = &vpi_value;
 
@@ -255,25 +286,21 @@ TO_LUA void register_edge_callback_hdl_always(long long handle, int edge_type, i
     edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
 }
 
-static PLI_INT32 read_write_synch_callback(p_cb_data cb_data) {
-    assert(false);
-    try {
-        assert(false);
-        luabridge::LuaRef sim_event = luabridge::getGlobal(L, "sim_event");
-        sim_event((int *)cb_data->user_data);
-    } catch (const luabridge::LuaException& e) {
-        m_assert(false, "Lua error: %s", e.what());
-    }
-
-    free(cb_data->user_data);
-    return 0;
-}
-
 TO_LUA void register_read_write_synch_callback(int id) {
     s_cb_data cb_data;
 
     cb_data.reason = cbReadWriteSynch;
-    cb_data.cb_rtn = read_write_synch_callback;
+    // cb_data.cb_rtn = read_write_synch_callback;
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
+        try {
+            sim_event((int *)cb_data->user_data);
+        } catch (const luabridge::LuaException& e) {
+            m_assert(false, "Lua error: %s", e.what());
+        }
+
+        free(cb_data->user_data);
+        return 0;
+    };
     cb_data.time = NULL;
     cb_data.value = NULL;
 
@@ -294,24 +321,29 @@ TO_LUA long long handle_by_name(const char *name) {
 TO_LUA long long get_value(long long handle) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
-    v.format = vpiVectorVal;
+
+    v.format = vpiIntVal;
     vpi_get_value(actual_handle, &v);
-    return v.value.vector[0].aval;
+    return v.value.integer;
 }
 
-TO_LUA luabridge::LuaRef get_value_multi(long long handle, int n, lua_State *L) {
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+TO_LUA int get_value_multi(lua_State *L) {
+    long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
+    int n = luaL_checkinteger(L, 2);  // Check and get the second argument
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
     s_vpi_value v;
     v.format = vpiVectorVal;
     vpi_get_value(actual_handle, &v);
 
-    // return a Lua table
-    luabridge::LuaRef t = luabridge::newTable(L);
+    lua_newtable(L);  // Create a new table and push it onto the stack
     for (int i = 0; i < n; i++) {
-        t[ i + 1 ] = v.value.vector[i].aval;
+        lua_pushinteger(L, i + 1);  // Push the index onto the stack (Lua indices start at 1)
+        lua_pushinteger(L, v.value.vector[i].aval);  // Push the value onto the stack
+        lua_settable(L, -3);  // Set the table value at the index to the value
     }
-    return t;
+
+    return 1;  // Number of return values (the table is already on the stack)
 }
 
 TO_LUA void set_value(long long handle, long long value) {
@@ -322,20 +354,33 @@ TO_LUA void set_value(long long handle, long long value) {
     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 }
 
-TO_LUA void set_value_multi(long long handle, luabridge::LuaRef values_table) {
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+TO_LUA int set_value_multi(lua_State *L) {
+    long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
-    // Create a vector of s_vpi_vecval, and fill it with the values from the Lua table
-    std::vector<s_vpi_vecval> vector(values_table.length());
-    for (int i = 1; i <= values_table.length(); i++) {
-        vector[i - 1].aval = values_table[i].cast<uint32_t>();
-        vector[i - 1].bval = 0;  // Assuming you don't need the bval field
+    luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
+
+    // int table_length = luaL_len(L, 2);  // Get table length
+    int table_length = lua_objlen(L, 2);
+    std::vector<s_vpi_vecval> vector(table_length);
+
+    for (int idx = 1; idx <= table_length; idx++) {
+        lua_pushinteger(L, idx);  // Push the index onto the stack
+        lua_gettable(L, 2);  // Get the table value at the index
+
+        uint32_t value = luaL_checkinteger(L, -1);  // Check and get the value
+        vector[idx-1].aval = value;
+        vector[idx-1].bval = 0;
+
+        lua_pop(L, 1);  // Pop the value from the stack
     }
 
     s_vpi_value v;
     v.format = vpiVectorVal;
-    v.value.vector = vector.data();  // Pass the data of the vector to v.value.vector
+    v.value.vector = vector.data();
     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+
+    return 0;  // Number of return values
 }
 
 TO_LUA long long get_signal_width(long long handle) {
@@ -345,42 +390,43 @@ TO_LUA long long get_signal_width(long long handle) {
 
 
 void lua_init(void) {
+    // Create lua virtual machine
     L = luaL_newstate();
 
+    // Open all the necessary libraried required by lua script. (e.g. os / math / jit/ bit32 / string / coroutine)
+    // Import all libraries if we pass no args in.
     luaL_openlibs(L);
 
     // Register functions for lua
     luabridge::getGlobalNamespace(L)
         .beginNamespace("vpi")
-        .addFunction("get_top_module", get_top_module)
-        .addFunction("read_signal", get_signal_value)
-        .addFunction("write_signal", set_signal_value)
-        .addFunction("simulator_control", simulator_control)
-        .addFunction("register_time_callback", register_time_callback)
-        .addFunction("register_edge_callback", register_edge_callback)
-        .addFunction("register_edge_callback_hdl", register_edge_callback_hdl)
-        .addFunction("register_edge_callback_hdl_always", register_edge_callback_hdl_always)
-        .addFunction("register_read_write_synch_callback", register_read_write_synch_callback)
-        .addFunction("handle_by_name", handle_by_name)
-        .addFunction("get_value", get_value)
-        .addFunction("set_value", set_value)
-        .addFunction("read_signal_multi", get_signal_value_multi)
-        .addFunction("write_signal_multi", set_signal_value_multi)
-        .addFunction("get_value_multi", get_value_multi)
-        .addFunction("set_value_multi", set_value_multi)
-        .addFunction("get_signal_width", get_signal_width)
+            .addFunction("get_top_module", get_top_module)
+            .addFunction("read_signal", get_signal_value)
+            .addFunction("write_signal", set_signal_value)
+            .addFunction("simulator_control", simulator_control)
+            .addFunction("register_time_callback", register_time_callback)
+            .addFunction("register_edge_callback", register_edge_callback)
+            .addFunction("register_edge_callback_hdl", register_edge_callback_hdl)
+            .addFunction("register_edge_callback_hdl_always", register_edge_callback_hdl_always)
+            .addFunction("register_read_write_synch_callback", register_read_write_synch_callback)
+            .addFunction("handle_by_name", handle_by_name)
+            .addFunction("get_value", get_value)
+            .addFunction("set_value", set_value)
+            .addFunction("read_signal_multi", get_signal_value_multi)
+            .addFunction("write_signal_multi", set_signal_value_multi)
+            .addFunction("get_value_multi", get_value_multi)
+            .addFunction("set_value_multi", set_value_multi)
+            .addFunction("get_signal_width", get_signal_width)
         .endNamespace();
 
-    
     // Load lua main script
     const char *LUA_SCRIPT = getenv("LUA_SCRIPT");
     if (luaL_dofile(L, LUA_SCRIPT) != LUA_OK) {
             const char *error_msg = lua_tostring(L, -1);
-            std::cerr << "Error calling LuaMain.lua: " << error_msg << std::endl;
+            std::cerr << "Error calling "<< LUA_SCRIPT << ": " << error_msg << std::endl;
             lua_pop(L, 1);
             m_assert(false, " ");
     }
-
 
     try {
         luabridge::LuaRef verilua_init = luabridge::getGlobal(L, "verilua_init");
@@ -388,6 +434,9 @@ void lua_init(void) {
     } catch (const luabridge::LuaException& e) {
         m_assert(false, "Lua error: %s", e.what());
     }
+
+    sim_event = luabridge::getGlobal(L, "sim_event");
+    main_step = luabridge::getGlobal(L, "lua_main_step");
 }
 
 
@@ -402,18 +451,6 @@ static PLI_INT32 start_callback(p_cb_data cb_data) {
     printf("[%s:%d] Start callback\n", __FILE__, __LINE__);
 
     return 0;
-}
-
-void execute_final_callback() {
-    { // This is the working filed of LuaRef, when we leave this file, LuaRef will release the allocated memory thus not course segmentation fault when use lua_close(L).
-        try {
-            luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
-            lua_finish_callback();
-        } catch (const luabridge::LuaException& e) {
-            printf("[execute_final_callback] Lua error: %s", e.what());
-            assert(false);
-        }
-    }
 }
 
 static PLI_INT32 final_callback(p_cb_data cb_data) {
@@ -474,11 +511,6 @@ void vlog_startup_routines_bootstrap() {
 }
 
 void lua_main_step(void) {
-    try {
-        luabridge::LuaRef main_step = luabridge::getGlobal(L, "lua_main_step");
-        main_step();
-    } catch (const luabridge::LuaException& e) {
-        m_assert(false, "Lua error: %s", e.what());
-    }
+    execute_main_step();
 }
 
