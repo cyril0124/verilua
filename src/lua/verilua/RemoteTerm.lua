@@ -20,18 +20,34 @@ function RemoteTerm:_init(port)
     self.domain = "localhost"
     self.port = port or 12345
     self.is_open = false
+    self.retry_max = 50
 
+    self:reconnect()
+    assert(self.client ~= nil)
+    self.is_open = true
+end
+
+function RemoteTerm:print(...)
+    if not self.is_open then return end
+
+    local msg = table.concat({...}, "\t")
+    -- assert(self.client:send(msg .. "\n"))
+
+    local ok, _ = pcall(function() assert(self.client:send(msg .. "\n")) end)
+    if not ok then self:reconnect() end
+end
+
+function RemoteTerm:reconnect()
     local success = false
     local retry_cnt = 0
-    local retry_max = 10
-    while not success and retry_cnt < retry_max do
+    while not success and retry_cnt < self.retry_max do
         client, msg = socket.connect(self.domain, self.port)
 
         if client then
             self.client = client
             success = true
         else
-            verilua_info(msg.." retrying... ["..retry_cnt.."/"..retry_max.."]")
+            verilua_info("["..self.domain..":"..self.port.."] ".. msg.." retrying... ["..retry_cnt.."/"..self.retry_max.."]")
             io.flush()
             socket.sleep(1)
             retry_cnt = retry_cnt + 1
@@ -43,16 +59,6 @@ function RemoteTerm:_init(port)
     else
         verilua_info(self.domain..":"..tostring(self.port).." connection good!")
     end
-    
-    assert(self.client ~= nil)
-    self.is_open = true
-end
-
-function RemoteTerm:print(...)
-    if not self.is_open then return end
-
-    local msg = table.concat({...}, "\t")
-    assert(self.client:send(msg .. "\n"))
 end
 
 function RemoteTerm:info(...)
