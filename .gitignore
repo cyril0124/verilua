@@ -5,3 +5,4 @@ luajit2.1/
 .nfs*
 tmp/
 shared/*
+scripts/rt_plot/*.out
