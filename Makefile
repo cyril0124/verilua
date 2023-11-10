@@ -7,12 +7,14 @@ C_SOURCES = $(shell find $(SOURCE_DIR) -name "*.c" -or -name "*.cpp" -or -name "
 
 CXX_FLAGS += -I$(PRJ_DIR)/extern/LuaBridge/Source
 CXX_FLAGS += -I$(PRJ_DIR)/extern/LuaBridge/Source/LuaBridge
+CXX_FLAGS += -I$(PRJ_DIR)/extern/fmt/include
 CXX_FLAGS += -I$(PRJ_DIR)/src
 CXX_FLAGS += -I$(PRJ_DIR)/src/include
 CXX_FLAGS += -I${LUA_DIR}/include
 CXX_FLAGS += -g -std=c++17 
 
 LD_FLAGS  += -L$(LUA_DIR)/lib -lluajit-5.1
+LD_FLAGS  += -L$(PRJ_DIR)/extern/fmt/build -lfmt
 
 default: build_so without_bootstrap_so
 
@@ -22,6 +24,8 @@ build_so: $(SHARED_DIR)/liblua_vpi.so
 
 init:
 	git submodule update --init --recursive
+	mkdir -p extern/fmt/build; 
+	cd extern/fmt/build; cmake -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE ..
 
 $(SHARED_DIR)/liblua_vpi.so: $(C_SOURCES)
 	mkdir -p shared

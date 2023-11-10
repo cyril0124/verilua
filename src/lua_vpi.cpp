@@ -39,7 +39,7 @@ inline void execute_final_callback() {
             luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
             lua_finish_callback();
         } catch (const luabridge::LuaException& e) {
-            printf("[execute_final_callback] Lua error: %s", e.what());
+            fmt::print("[{}:{}] [execute_final_callback] Lua error: {}\n", __FILE__, __LINE__, e.what());
             assert(false);
         }
     }
@@ -419,6 +419,29 @@ void lua_init(void) {
             .addFunction("get_signal_width", get_signal_width)
         .endNamespace();
 
+
+    // Register breakpoint function for lua
+    // DebugPort is 8818
+    const char *debug_enable = getenv("VL_DEBUG");
+    if (debug_enable != nullptr && (std::strcmp(debug_enable, "1") == 0 || std::strcmp(debug_enable, "enable") == 0) ) {
+        luabridge::getGlobalNamespace(L)
+            .addFunction("bp", [](lua_State *L){
+                    // Execute the Lua code when bp() is called
+                    luaL_dostring(L,"require('LuaPanda').start('localhost', 8818); local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP();");
+                    return 0;
+                }
+        );
+    } else {
+        luabridge::getGlobalNamespace(L)
+            .addFunction("bp", [](lua_State *L){
+                    // Execute the Lua code when bp() is called
+                    luaL_dostring(L,"print(\" Invalid breakpoint! \")");
+                    return 0;
+                }
+        );
+    }
+
+
     // Load lua main script
     const char *LUA_SCRIPT = getenv("LUA_SCRIPT");
     if (luaL_dofile(L, LUA_SCRIPT) != LUA_OK) {
@@ -448,8 +471,7 @@ static PLI_INT32 start_callback(p_cb_data cb_data) {
     // register_read_write_synch_callback();
     // register_read_only_synch_callback();
     
-    printf("[%s:%d] Start callback\n", __FILE__, __LINE__);
-
+    fmt::print("[{}:{}] Start callback\n", __FILE__, __LINE__);
     return 0;
 }
 
@@ -459,7 +481,7 @@ static PLI_INT32 final_callback(p_cb_data cb_data) {
 
     lua_close(L);
 
-    printf("[%s:%d] Final callback\n", __FILE__, __LINE__);
+    fmt::print("[{}:{}] Final callback\n", __FILE__, __LINE__);
     return 0;
 }
 

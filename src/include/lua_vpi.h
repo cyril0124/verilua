@@ -1,5 +1,6 @@
 #include "lua.hpp"
-#include "LuaBridge.h"
+#include <LuaBridge.h>
+#include <fmt/core.h>
 
 #include "vpi_user.h"
 
