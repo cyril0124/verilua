@@ -5,8 +5,8 @@ SHARED_DIR = $(PRJ_DIR)/shared
 
 C_SOURCES = $(shell find $(SOURCE_DIR) -name "*.c" -or -name "*.cpp" -or -name "*.cc")
 
-CXX_FLAGS += -I$(PRJ_DIR)/LuaBridge/Source
-CXX_FLAGS += -I$(PRJ_DIR)/LuaBridge/Source/LuaBridge
+CXX_FLAGS += -I$(PRJ_DIR)/extern/LuaBridge/Source
+CXX_FLAGS += -I$(PRJ_DIR)/extern/LuaBridge/Source/LuaBridge
 CXX_FLAGS += -I$(PRJ_DIR)/src
 CXX_FLAGS += -I$(PRJ_DIR)/src/include
 CXX_FLAGS += -I${LUA_DIR}/include

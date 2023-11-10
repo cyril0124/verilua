@@ -1,6 +1,6 @@
-[submodule "LuaBridge"]
-	path = LuaBridge
-	url = https://github.com/vinniefalco/LuaBridge
-[submodule "LuaPanda"]
-	path = LuaPanda
-	url = https://github.com/Tencent/LuaPanda
+[submodule "extern/LuaBridge"]
+	path = extern/LuaBridge
+	url = https://github.com/vinniefalco/LuaBridge.git
+[submodule "extern/LuaPanda"]
+	path = extern/LuaPanda
+	url = https://github.com/Tencent/LuaPanda.git
