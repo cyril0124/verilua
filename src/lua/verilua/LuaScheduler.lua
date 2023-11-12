@@ -1,4 +1,13 @@
 
+local ffi = require("ffi")
+local C = ffi.C
+
+ffi.cdef[[
+  void register_edge_callback_hdl(long long handle, int edge_type, int id);
+  void register_edge_callback_hdl_always(long long handle, int edge_type, int id);
+]]
+
+
 SimCtrl = {
     STOP = 66,
     FINISH = 67,
@@ -210,9 +219,13 @@ function SchedulerClass:schedule_tasks(id)
                 elseif yield_event.type == YieldType.SIGNAL_EDGE then -- edge callback
                     vpi.register_edge_callback(yield_event.signal, yield_event.value, task_id)
                 elseif yield_event.type == YieldType.SIGNAL_EDGE_HDL then
-                    vpi.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
+                    -- vpi.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
+                    -- ffi.C.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
+                   C.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
                 elseif yield_event.type == YieldType.SIGNAL_EDGE_ALWAYS then
-                    vpi.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
+                    -- vpi.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
+                    -- ffi.C.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
+                   C.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
                 elseif yield_event.type == YieldType.READ_WRITE_SYNCH then
                     vpi.register_read_write_synch_callback(task_id)
                 elseif yield_event.type == YieldType.NOOP then

@@ -1,4 +1,14 @@
 local class = require("pl.class")
+local ffi = require("ffi")
+local C = ffi.C
+
+ffi.cdef[[
+  long long get_signal_value(const char *path);
+  void set_value(long long handle, long long value);
+  unsigned int get_value(long long handle);
+  unsigned int get_signal_width(long long handle);
+]]
+
 
 CallableHDL = class()
 
@@ -22,7 +32,9 @@ function CallableHDL:__call()
     if self.is_multi_beat then
         return vpi.get_value_multi(self.hdl, self.beat_num) -- This will return a table with multi beat datas, and each is 32-bit size data
     else
-        return vpi.get_value(self.hdl)
+        -- return ffi.C.get_value(self.hdl)
+        return C.get_value(self.hdl)
+        -- return vpi.get_value(self.hdl)
     end
 end
 
@@ -33,7 +45,9 @@ function CallableHDL:set(value, force_single_beat)
         vpi.set_value_multi(self.hdl, value)
     else
         assert(type(value) ~= "table", self.fullpath .. " type is " .. type(value))
-        vpi.set_value(self.hdl, value)
+        -- vpi.set_value(self.hdl, value)
+        -- ffi.C.set_value(self.hdl, value)
+        C.set_value(self.hdl, value)
     end
 end
 
