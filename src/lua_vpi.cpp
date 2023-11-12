@@ -536,3 +536,11 @@ void lua_main_step(void) {
     execute_main_step();
 }
 
+// Only for test (LuaJIT FFI)
+// "TO_LUA" is necessary since FFI can only access C type function
+TO_LUA void hello() {
+  printf("hello from C\n");
+  fmt::print("hello from fmt:print\n");
+}
+
+
