@@ -3,8 +3,8 @@ local ffi = require("ffi")
 local C = ffi.C
 
 ffi.cdef[[
-  void register_edge_callback_hdl(long long handle, int edge_type, int id);
-  void register_edge_callback_hdl_always(long long handle, int edge_type, int id);
+  void c_register_edge_callback_hdl(long long handle, int edge_type, int id);
+  void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id);
 ]]
 
 
@@ -112,6 +112,7 @@ local SchedulerClass = class()
 
 function SchedulerClass:_init()
     self.id_max = 10000
+    self.task_max = 50 -- Feel free to modified this value if the default value is not enough
     self.verbose = false
     self.task_table = {}
     self.will_remove_tasks = {}
@@ -149,6 +150,7 @@ function SchedulerClass:alloc_task_id()
 end
 
 function SchedulerClass:append_task(id, name, task_func, param, schedule_task)
+    assert(#self.task_table <= self.task_max, "Cannot append other tasks. task_max is " .. self.task_max)
 
     local task_id = id
     if id ~= nil then
@@ -186,15 +188,20 @@ function SchedulerClass:list_tasks()
 end
 
 function SchedulerClass:schedule_tasks(id)
-    for i = 1, #self.will_remove_tasks do
+    -- for i = 1, #self.will_remove_tasks do
+    for i = 1, self.task_max do -- Better performance for LuaJIT
         local task_id = self.will_remove_tasks[i]
-        if self.task_table[task_id] ~= nil then
-            self:_log("remove task_id:" .. task_id .. " task_name:" .. self.task_table[task_id].name)
-            self.task_table[task_id] = nil
+        if task_id ~= nil then
+            if self.task_table[task_id] ~= nil then
+                self:_log("remove task_id:" .. task_id .. " task_name:" .. self.task_table[task_id].name)
+                self.task_table[task_id] = nil
+            end
         end
     end
     self.will_remove_tasks = {}
 
+    local coro_resume = coroutine.resume
+    local coro_status = coroutine.status
     for task_id, task in pairs(self.task_table) do
         local task_name = task.name
         local task_coro = task.func
@@ -202,10 +209,9 @@ function SchedulerClass:schedule_tasks(id)
 
         if id == task_id then
             task.cnt = task.cnt + 1
-
             self:_log("resume task_id:", task_id, "task_name:", task_name)
 
-            local ok, yield_event = coroutine.resume(task_coro, table.unpack(task_param))
+            local ok, yield_event = coro_resume(task_coro, table.unpack(task_param))
             if not ok then
                 err_msg = yield_event -- if there is an error, yield_event is act as error message
                 print(debug.traceback(task_coro, err_msg))
@@ -213,23 +219,50 @@ function SchedulerClass:schedule_tasks(id)
                 return -- Task finish
             end
 
-            if coroutine.status(task_coro) ~= 'dead' then
-                if yield_event.type == YieldType.TIMER then -- timer callback
+            if coro_status(task_coro) ~= 'dead' then
+                -------------------------
+                -- timer callback
+                -------------------------
+                if yield_event.type == YieldType.TIMER then
                     vpi.register_time_callback(yield_event.value, 0, task_id) -- TODO: high time
-                elseif yield_event.type == YieldType.SIGNAL_EDGE then -- edge callback
+                
+                -------------------------
+                -- edge callback
+                -------------------------
+                elseif yield_event.type == YieldType.SIGNAL_EDGE then
                     vpi.register_edge_callback(yield_event.signal, yield_event.value, task_id)
+                
+                -------------------------
+                -- edge callback hdl
+                -------------------------
                 elseif yield_event.type == YieldType.SIGNAL_EDGE_HDL then
                     -- vpi.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
                     -- ffi.C.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
-                   C.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
+                   C.c_register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
+                
+                -------------------------
+                -- edge callback hdl always
+                -------------------------
                 elseif yield_event.type == YieldType.SIGNAL_EDGE_ALWAYS then
                     -- vpi.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
                     -- ffi.C.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
-                   C.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
+                   C.c_register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
+                
+                -------------------------
+                -- read write synch callback
+                -------------------------
                 elseif yield_event.type == YieldType.READ_WRITE_SYNCH then
                     vpi.register_read_write_synch_callback(task_id)
+
+                -------------------------
+                -- noop
+                -------------------------
                 elseif yield_event.type == YieldType.NOOP then
                     -- do nothing
+                
+                -------------------------
+                -- others
+                -------------------------
                 else
                     assert(false, "Unknown yield_event! type:" .. yield_event.type .. " value:" .. yield_event.value)
                 end

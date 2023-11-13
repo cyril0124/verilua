@@ -16,21 +16,21 @@ function create_proxy(path)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
             
-            vpi.write_signal(fullpath, v)
+            vpi.set_value_by_name(fullpath, v)
         end,
 
         __call = function(t, v)
             -- print( "get " .. local_path) -- debug info
 
             if type(v) == "number" then -- assign value
-                vpi.write_signal(cfg.top .. "." .. t.path, v)
+                vpi.set_value_by_name(cfg.top .. "." .. t.path, v)
                 return
             else -- read signal value
                 data_type = v or "integer"
                 if data_type == "integer" then
-                    return vpi.read_signal(local_path)
+                    return vpi.get_value_by_name(local_path)
                 elseif data_type == "hex" then
-                    val = vpi.read_signal(local_path)
+                    val = vpi.get_value_by_name(local_path)
                     return string.format("0x%x", val)
                 elseif data_type == "name" then
                     return local_path
@@ -48,12 +48,12 @@ end
 
 
 function dut_get_signal_value(path)
-    return vpi.read_signal(self.top_path .. "." .. path)
+    return vpi.get_value_by_name(self.top_path .. "." .. path)
 end
 
 
 function dut_set_signal_value(path, value)
-    vpi.write_signal(self.top_path .. "." .. path, value)
+    vpi.set_value_by_name(self.top_path .. "." .. path, value)
 end
 
 

@@ -3,10 +3,10 @@ local ffi = require("ffi")
 local C = ffi.C
 
 ffi.cdef[[
-  long long get_signal_value(const char *path);
-  void set_value(long long handle, long long value);
-  unsigned int get_value(long long handle);
-  unsigned int get_signal_width(long long handle);
+  long long c_get_signal_value(const char *path);
+  void c_set_value(long long handle, long long value);
+  unsigned int c_get_value(long long handle);
+  unsigned int c_get_signal_width(long long handle);
 ]]
 
 
@@ -33,7 +33,7 @@ function CallableHDL:__call()
         return vpi.get_value_multi(self.hdl, self.beat_num) -- This will return a table with multi beat datas, and each is 32-bit size data
     else
         -- return ffi.C.get_value(self.hdl)
-        return C.get_value(self.hdl)
+        return C.c_get_value(self.hdl)
         -- return vpi.get_value(self.hdl)
     end
 end
@@ -47,7 +47,7 @@ function CallableHDL:set(value, force_single_beat)
         assert(type(value) ~= "table", self.fullpath .. " type is " .. type(value))
         -- vpi.set_value(self.hdl, value)
         -- ffi.C.set_value(self.hdl, value)
-        C.set_value(self.hdl, value)
+        C.c_set_value(self.hdl, value)
     end
 end
 

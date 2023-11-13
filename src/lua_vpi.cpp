@@ -53,7 +53,7 @@ inline void execute_main_step() {
     }
 }
 
-TO_LUA void simulator_control(long long cmd) {
+TO_LUA void c_simulator_control(long long cmd) {
     // #define vpiStop                  66   /* execute simulator's $stop */
     // #define vpiFinish                67   /* execute simulator's $finish */
     // #define vpiReset                 68   /* execute simulator's $reset */
@@ -61,7 +61,7 @@ TO_LUA void simulator_control(long long cmd) {
     vpi_control(cmd);
 }
 
-TO_LUA std::string get_top_module() {
+TO_LUA std::string c_get_top_module() {
     vpiHandle iter, top_module;
 
     // Get module handle 
@@ -85,7 +85,7 @@ TO_LUA std::string get_top_module() {
     }
 }
 
-TO_LUA long long get_signal_value(const char *path) {
+TO_LUA long long c_get_value_by_name(const char *path) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
 
@@ -96,7 +96,7 @@ TO_LUA long long get_signal_value(const char *path) {
 }
 
 // return datas with more than 64bit, each table entry is a 32bit value(4 byte)
-TO_LUA int get_signal_value_multi(lua_State *L) {
+TO_LUA int c_get_value_multi_by_name(lua_State *L) {
     const char *path = luaL_checkstring(L, 1);
     const int n = luaL_checkinteger(L, 2);
 
@@ -117,7 +117,7 @@ TO_LUA int get_signal_value_multi(lua_State *L) {
     return 1;
 }
 
-TO_LUA void set_signal_value(const char *path, long long value) {
+TO_LUA void c_set_value_by_name(const char *path, long long value) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
 
@@ -127,7 +127,7 @@ TO_LUA void set_signal_value(const char *path, long long value) {
     vpi_put_value(handle, &v, NULL, vpiNoDelay);
 }
 
-TO_LUA int set_signal_value_multi(lua_State *L) {
+TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     const char *path = luaL_checkstring(L, 1);  // Check and get the first argument
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
 
@@ -156,7 +156,7 @@ TO_LUA int set_signal_value_multi(lua_State *L) {
     return 0;  // Number of return values
 }
 
-TO_LUA void register_time_callback(long long low, long long high, int id) {
+TO_LUA void c_register_time_callback(long long low, long long high, int id) {
     s_cb_data cb_data;
     s_vpi_time vpi_time;
     vpi_time.type = vpiSimTime;
@@ -227,18 +227,18 @@ static void register_edge_callback_basic(vpiHandle handle, int edge_type, int id
     edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
 }
 
-TO_LUA void register_edge_callback(const char *path, int edge_type, int id) {
+TO_LUA void c_register_edge_callback(const char *path, int edge_type, int id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     m_assert(signal_handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
     register_edge_callback_basic(signal_handle, edge_type, id);
 }
 
-TO_LUA void register_edge_callback_hdl(long long handle, int edge_type, int id) {
+TO_LUA void c_register_edge_callback_hdl(long long handle, int edge_type, int id) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     register_edge_callback_basic(actual_handle, edge_type, id);
 }
 
-TO_LUA void register_edge_callback_hdl_always(long long handle, int edge_type, int id) {
+TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_cb_data cb_data;
     s_vpi_time vpi_time;
@@ -286,7 +286,7 @@ TO_LUA void register_edge_callback_hdl_always(long long handle, int edge_type, i
     edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
 }
 
-TO_LUA void register_read_write_synch_callback(int id) {
+TO_LUA void c_register_read_write_synch_callback(int id) {
     s_cb_data cb_data;
 
     cb_data.reason = cbReadWriteSynch;
@@ -311,14 +311,14 @@ TO_LUA void register_read_write_synch_callback(int id) {
     vpi_register_cb(&cb_data);
 }
 
-TO_LUA long long handle_by_name(const char *name) {
+TO_LUA long long c_handle_by_name(const char *name) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, name);
     long long handle_as_ll = reinterpret_cast<long long>(handle);
     return handle_as_ll;
 }
 
-TO_LUA long long get_value(long long handle) {
+TO_LUA long long c_get_value(long long handle) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
 
@@ -327,7 +327,7 @@ TO_LUA long long get_value(long long handle) {
     return v.value.integer;
 }
 
-TO_LUA int get_value_multi(lua_State *L) {
+TO_LUA int c_get_value_multi(lua_State *L) {
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     int n = luaL_checkinteger(L, 2);  // Check and get the second argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -346,7 +346,7 @@ TO_LUA int get_value_multi(lua_State *L) {
     return 1;  // Number of return values (the table is already on the stack)
 }
 
-TO_LUA void set_value(long long handle, long long value) {
+TO_LUA void c_set_value(long long handle, long long value) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -354,7 +354,7 @@ TO_LUA void set_value(long long handle, long long value) {
     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 }
 
-TO_LUA int set_value_multi(lua_State *L) {
+TO_LUA int c_set_value_multi(lua_State *L) {
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
@@ -383,7 +383,7 @@ TO_LUA int set_value_multi(lua_State *L) {
     return 0;  // Number of return values
 }
 
-TO_LUA long long get_signal_width(long long handle) {
+TO_LUA long long c_get_signal_width(long long handle) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     return vpi_get(vpiSize, actual_handle);
 }
@@ -400,23 +400,23 @@ void lua_init(void) {
     // Register functions for lua
     luabridge::getGlobalNamespace(L)
         .beginNamespace("vpi")
-            .addFunction("get_top_module", get_top_module)
-            .addFunction("read_signal", get_signal_value)
-            .addFunction("write_signal", set_signal_value)
-            .addFunction("simulator_control", simulator_control)
-            .addFunction("register_time_callback", register_time_callback)
-            .addFunction("register_edge_callback", register_edge_callback)
-            .addFunction("register_edge_callback_hdl", register_edge_callback_hdl)
-            .addFunction("register_edge_callback_hdl_always", register_edge_callback_hdl_always)
-            .addFunction("register_read_write_synch_callback", register_read_write_synch_callback)
-            .addFunction("handle_by_name", handle_by_name)
-            .addFunction("get_value", get_value)
-            .addFunction("set_value", set_value)
-            .addFunction("read_signal_multi", get_signal_value_multi)
-            .addFunction("write_signal_multi", set_signal_value_multi)
-            .addFunction("get_value_multi", get_value_multi)
-            .addFunction("set_value_multi", set_value_multi)
-            .addFunction("get_signal_width", get_signal_width)
+            .addFunction("get_top_module", c_get_top_module)
+            .addFunction("get_value_by_name", c_get_value_by_name)
+            .addFunction("set_value_by_name", c_set_value_by_name)
+            .addFunction("simulator_control", c_simulator_control)
+            .addFunction("register_time_callback", c_register_time_callback)
+            .addFunction("register_edge_callback", c_register_edge_callback)
+            .addFunction("register_edge_callback_hdl", c_register_edge_callback_hdl)
+            .addFunction("register_edge_callback_hdl_always", c_register_edge_callback_hdl_always)
+            .addFunction("register_read_write_synch_callback", c_register_read_write_synch_callback)
+            .addFunction("handle_by_name", c_handle_by_name)
+            .addFunction("get_value", c_get_value)
+            .addFunction("set_value", c_set_value)
+            .addFunction("get_value_multi_by_name", c_get_value_multi_by_name)
+            .addFunction("set_value_multi_by_name", c_set_value_multi_by_name)
+            .addFunction("get_value_multi", c_get_value_multi)
+            .addFunction("set_value_multi", c_set_value_multi)
+            .addFunction("get_signal_width", c_get_signal_width)
         .endNamespace();
 
 
@@ -465,11 +465,6 @@ void lua_init(void) {
 
 static PLI_INT32 start_callback(p_cb_data cb_data) {
     lua_init();
-    
-    // register_value_cb();
-    // register_time_callback();
-    // register_read_write_synch_callback();
-    // register_read_only_synch_callback();
     
     fmt::print("[{}:{}] Start callback\n", __FILE__, __LINE__);
     return 0;
