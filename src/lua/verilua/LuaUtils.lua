@@ -1,6 +1,9 @@
 local tablex = require("pl.tablex")
 local utils = {}
 
+local concat = table.concat
+local tohex = bit.tohex
+
 ANSI_COLOR_RED     = "\27[31m"
 ANSI_COLOR_GREEN   = "\27[32m"
 ANSI_COLOR_YELLOW  = "\27[33m"
@@ -57,40 +60,17 @@ function utils.reverse_table(tab)
     return new_tab
 end
 
--- function utils:to_hex_str(t, reverse)
---     reverse = reverse or true
-
---     if type(t) ~= "table" then
---         return bit.tohex(t)
---     end
-
---     for i = 1, #t do
---         t[i] = bit.tohex(t[i])
---     end
-
---     if reverse then
---         local i, n = 1, #t
---         while i < n do
---             t[i], t[n] = t[n], t[i]
---             i, n = i + 1, n - 1
---         end
---     end
-
---     return table.concat(t, " ")
--- end
-
 
 function utils:to_hex_str(t, reverse)
     reverse = reverse or true
 
-    local t_copy = {}
-    
     if type(t) ~= "table" then
-        return bit.tohex(t)
+        return tohex(t)
     end
 
+    local t_copy = {}
     for i = 1, #t do
-        t_copy[i] = bit.tohex(t[i])
+        t_copy[i] = tohex(t[i])
     end
 
     if reverse then
@@ -101,7 +81,7 @@ function utils:to_hex_str(t, reverse)
         end
     end
 
-    return table.concat(t_copy, " ")
+    return concat(t_copy, " ")
 end
 
 function utils:log2Ceil(n)
