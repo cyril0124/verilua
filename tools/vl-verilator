@@ -1,0 +1,23 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import subprocess
+
+verilua_path = os.getenv("VERILUA_HOME")
+libpath = os.getenv("VERILUA_HOME") + "/shared"
+luapath = os.getenv("VERILUA_HOME") + "/luajit2.1"
+libpath_lua =luapath + "/lib"
+assert libpath != None, "[vl-verilator] cannot find VERILUA_HOME!"
+assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator] cannot find liblua_vpi.so in " + libpath
+
+cmd_list = ["verilator"] + [
+                        "--vpi",
+                        "--public-flat-rw",
+                        "-LDFLAGS", f"-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi", 
+                        "-CFLAGS", f"-I{luapath}/include" ] + \
+            sys.argv[1:]
+cmd = " ".join(cmd_list)
+print(f"[vl-verilator] cmd is {cmd} ")
+
+exit(subprocess.call(cmd_list))

@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import subprocess
+
+has_vlt_file = any(arg.endswith('.vlt') for arg in sys.argv[1:])
+if not has_vlt_file:
+    raise ValueError("\033[31m" + "\n\
+        [vl-verilator-p Error] No *.vlt file exist! The *.vlt file is used to specify the access permission for the rtl which is indispensible for vpi usage.\n\
+        See https://veripool.org/guide/latest/exe_verilator.html#configuration-files for more detailed info." + "\033[0m"
+    )
+
+verilua_path = os.getenv("VERILUA_HOME")
+libpath = os.getenv("VERILUA_HOME") + "/shared"
+luapath = os.getenv("VERILUA_HOME") + "/luajit2.1"
+libpath_lua =luapath + "/lib"
+assert libpath != None, "[vl-verilator-p] cannot find VERILUA_HOME!"
+assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator-p] cannot find liblua_vpi.so in " + libpath
+
+cmd_list = ["verilator"] + [
+                        "--vpi", 
+                        "-LDFLAGS", f"-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi", 
+                        "-CFLAGS", f"-I{luapath}/include" ] + \
+            sys.argv[1:]
+cmd = " ".join(cmd_list)
+print(f"[vl-verilator-p] cmd is {cmd} ")
+
+exit(subprocess.call(cmd_list))
