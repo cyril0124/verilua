@@ -12,4 +12,4 @@ bash install.sh zsh
 ```
 
 ## Using verilua
-Before using verilua, you should type `source setup_verilua.sh` in your terminal which will setup basic lua script package path and link library path for so files used in lua.
+Before using verilua, you should type `source setup_verilua.sh` in your terminal which will setup basic lua script package path and link library path for `.so` files used in lua.
