@@ -85,14 +85,20 @@ TO_LUA std::string c_get_top_module() {
     }
 }
 
+// TODO: adapt for signals with bit-width greater than 32-bit
 TO_LUA long long c_get_value_by_name(const char *path) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
 
     s_vpi_value v;
-    v.format = vpiIntVal;
+
+    // v.format = vpiIntVal;
+    // vpi_get_value(handle, &v);
+    // return v.value.integer;
+
+    v.format = vpiVectorVal;
     vpi_get_value(handle, &v);
-    return v.value.integer;
+    return v.value.vector[0].aval;
 }
 
 // return datas with more than 64bit, each table entry is a 32bit value(4 byte)
