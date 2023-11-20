@@ -31,7 +31,7 @@ LuaDB = class()
 -------------------------------
 
 
-function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max)
+function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     -- Sanity check
     assert(table_name ~= nil)
     assert(pattern_str ~= nil)
@@ -45,7 +45,16 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max)
     self.cache = {}
     self.entries = {}
     self.stmt = nil
+    self.verbose = verbose or false
     
+    -- Remove data base before create it
+    local ret, err_msg = os.remove(self.fullpath_name)
+    if ret then
+        print(string.format("Remove %s success!", self.fullpath_name))
+    else
+        print(string.format("Remove %s failed! => %s", self.fullpath_name, err_msg))
+    end
+
     -- Open database
     self.db = sqlite3.open(self.fullpath_name)
     assert(self.db ~= nil)
@@ -94,6 +103,7 @@ function LuaDB:save(...)
 
     self.save_cnt = self.save_cnt + 1
     if self.save_cnt >= self.save_cnt_max then
+        if self.verbose == true then print(self.name, "commit!") end
         self:commit()
     end
 end
