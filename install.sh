@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# # Install python dependency
+# Install python dependency
 pip install -r requirements.txt
 
 
-# # Install LuaJIT-2.1
+# Install LuaJIT-2.1
 source install_lua.sh
 
 
-# # Install lua modules
+# Install lua modules
 source install_lua_modules.sh
 
 
@@ -29,3 +29,11 @@ else
     echo "VERILUA_HOME is set to $PWD"
 fi
 
+# Setup verilua tools path
+if grep -q "^[^#]*export PATH=\$VERILUA_HOME/tools:\$PATH" "$shell_rc"; then
+    echo "TOOL PATH is already set"
+else
+    echo "TOOL PATH is not set or is empty"
+    echo -e "# Verilua tool\nexport PATH=\$VERILUA_HOME/tools:\$PATH\n" >> $shell_rc
+    echo "TOOL PATH is set to $PWD/tools"
+fi
