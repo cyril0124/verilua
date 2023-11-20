@@ -133,6 +133,41 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
     vpi_put_value(handle, &v, NULL, vpiNoDelay);
 }
 
+// TODO: Force/Release statement only work in VCS. (Verilator cannot use Force/Release for some reason. It would be fix in the future. )
+TO_LUA void c_force_value_by_name(const char *path, long long value) {
+    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+
+    s_vpi_value v;
+    v.format = vpiIntVal;
+    v.value.integer = value;
+    vpi_put_value(handle, &v, NULL, vpiForceFlag);
+}
+
+TO_LUA void c_release_value_by_name(const char *path) {
+    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+
+    s_vpi_value v;
+    v.format = vpiSuppressVal;
+    vpi_put_value(handle, &v, NULL, vpiReleaseFlag);
+}
+
+TO_LUA void c_force_value(long long handle, long long value) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    s_vpi_value v;
+    v.format = vpiIntVal;
+    v.value.integer = value;
+    vpi_put_value(actual_handle, &v, NULL, vpiForceFlag);
+}
+
+TO_LUA void c_release_value(long long handle) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    s_vpi_value v;
+    v.format = vpiSuppressVal;
+    vpi_put_value(actual_handle, &v, NULL, vpiReleaseFlag);
+}
+
 TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     const char *path = luaL_checkstring(L, 1);  // Check and get the first argument
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
@@ -295,9 +330,12 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
 TO_LUA void c_register_read_write_synch_callback(int id) {
     s_cb_data cb_data;
 
+    fmt::print("Register cbReadWriteSynch {}\n", id);
+
     cb_data.reason = cbReadWriteSynch;
     // cb_data.cb_rtn = read_write_synch_callback;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
+        fmt::print("hello from cbReadWriteSynch id {}\n", *(int *)cb_data->user_data);
         try {
             sim_event((int *)cb_data->user_data);
         } catch (const luabridge::LuaException& e) {
@@ -314,7 +352,7 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
     *id_p = id;
     cb_data.user_data = (PLI_BYTE8*) id_p;
 
-    vpi_register_cb(&cb_data);
+    assert(vpi_register_cb(&cb_data) != NULL);
 }
 
 TO_LUA long long c_handle_by_name(const char *name) {

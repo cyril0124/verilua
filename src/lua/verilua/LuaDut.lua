@@ -15,13 +15,11 @@ function create_proxy(path)
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
-            
             vpi.set_value_by_name(fullpath, v)
         end,
 
         __call = function(t, v)
             -- print( "get " .. local_path) -- debug info
-
             if type(v) == "number" then -- assign value
                 vpi.set_value_by_name(cfg.top .. "." .. t.path, v)
                 return
@@ -34,6 +32,8 @@ function create_proxy(path)
                     return string.format("0x%x", val)
                 elseif data_type == "name" then
                     return local_path
+                elseif data_type == "hdl" then
+                    return vpi.handle_by_name(local_path)
                 else
                     assert(false, "invalid data type: " .. data_type)
                 end
