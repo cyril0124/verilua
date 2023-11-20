@@ -25,7 +25,7 @@ build_so: $(SHARED_DIR)/liblua_vpi.so
 init:
 	git submodule update --init --recursive
 	mkdir -p extern/fmt/build; 
-	cd extern/fmt/build; cmake -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE ..
+	cd extern/fmt/build; cmake -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE ..; make -j $(nproc)
 
 $(SHARED_DIR)/liblua_vpi.so: $(C_SOURCES)
 	mkdir -p shared
