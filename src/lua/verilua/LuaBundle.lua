@@ -7,13 +7,17 @@ Bundle = class()
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
     self.verbose = false
-    self.is_decoupled = is_decoupled or false
+    self.signals_table = signals_table
+    self.prefix = prefix
+    self.hierachy = hierachy
     self.name = name or "Unknown"
+    self.is_decoupled = is_decoupled or false
 
     local signals_list = List(signals_table)
     local valid_index = signals_list:index("valid")
     if is_decoupled == true then
         assert(valid_index ~= nil, "Decoupled Bundle should contains a valid signal!")
+        assert(prefix ~= nil, "prefix is required for decoupled bundle!")
     end
 
     local _ = self.verbose and print("New Bundle => ", "name: " .. self.name, "signals: {" .. table.concat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
@@ -31,7 +35,12 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
         end)
     else
         tablex.foreach( signals_table, function(signal)
-            local fullpath = hierachy .. "." .. prefix .. signal
+            local fullpath = ""
+            if prefix ~= nil then
+                fullpath = hierachy .. "." .. prefix .. signal
+            else
+                fullpath = hierachy .. "." .. signal
+            end
             rawset(self, signal, CallableHDL(fullpath, signal))
         end)
     end
