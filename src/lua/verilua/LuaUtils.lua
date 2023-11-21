@@ -76,7 +76,7 @@ function utils:to_hex_str(t, reverse)
     if reverse then
         local i, n = 1, #t
         while i < n do
-            t_copy[i], t_copy[n] = t[n], t[i]
+            t_copy[i], t_copy[n] = t_copy[n], t_copy[i]
             i, n = i + 1, n - 1
         end
     end
