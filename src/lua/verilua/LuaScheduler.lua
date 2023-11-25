@@ -3,6 +3,10 @@ local ffi = require("ffi")
 local C = ffi.C
 
 ffi.cdef[[
+  void c_register_edge_callback(const char *path, int edge_type, int id);
+  void c_register_read_write_synch_callback(int id);
+  void c_register_time_callback(long long low, long long high, int id);
+  void c_register_clock_posedge_callback(int id, uint64_t count);
   void c_register_edge_callback_hdl(long long handle, int edge_type, int id);
   void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id);
 ]]
@@ -20,7 +24,18 @@ SimCtrl = {
 --------------------------------
 local class = require("pl.class")
 YieldEvent = class()
-YieldType = { TIMER = 0, SIGNAL_EDGE = 1, SIGNAL_EDGE_HDL = 2, SIGNAL_EDGE_ALWAYS = 3, READ_WRITE_SYNCH = 4, NOOP = 44 }
+YieldType = {
+    TIMER = 0,
+    SIGNAL_EDGE = 1,
+    SIGNAL_EDGE_HDL = 2,
+    SIGNAL_EDGE_ALWAYS = 3,
+    READ_WRITE_SYNCH = 4,
+    CLOCK_POSEDGE = 5,
+    CLOCK_POSEDGE_ALWAYS = 6,
+    CLOCK_NEGEDGE = 7,
+    CLOCK_NEGEDGE_ALWAYS = 8,
+    NOOP = 44
+}
 EdgeType = { POSEDGE = 0, NEGEDGE = 1, EDGE = 2 }
 function YieldEvent:_init(type, value, signal)
     -- Yield type:
@@ -224,14 +239,16 @@ function SchedulerClass:schedule_tasks(id)
                 -- timer callback
                 -------------------------
                 if yield_event.type == YieldType.TIMER then
-                    vpi.register_time_callback(yield_event.value, 0, task_id) -- TODO: high time
-                
+                    -- vpi.register_time_callback(yield_event.value, 0, task_id) -- TODO: high time
+                    C.c_register_time_callback(yield_event.value, 0, task_id)
+
                 -------------------------
                 -- edge callback
                 -------------------------
                 elseif yield_event.type == YieldType.SIGNAL_EDGE then
-                    vpi.register_edge_callback(yield_event.signal, yield_event.value, task_id)
-                
+                    -- vpi.register_edge_callback(yield_event.signal, yield_event.value, task_id)
+                    C.c_register_edge_callback(yield_event.signal, yield_event.value, task_id)
+
                 -------------------------
                 -- edge callback hdl
                 -------------------------
@@ -252,7 +269,8 @@ function SchedulerClass:schedule_tasks(id)
                 -- read write synch callback
                 -------------------------
                 elseif yield_event.type == YieldType.READ_WRITE_SYNCH then
-                    vpi.register_read_write_synch_callback(task_id)
+                    -- vpi.register_read_write_synch_callback(task_id)
+                    C.c_register_read_write_synch_callback(task_id)
 
                 -------------------------
                 -- noop

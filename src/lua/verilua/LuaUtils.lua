@@ -1,4 +1,5 @@
 local tablex = require("pl.tablex")
+local ffi = require("ffi")
 local utils = {}
 
 local concat = table.concat
@@ -96,6 +97,16 @@ end
 
 function utils:bitfield32(begin, endd, val)
     return bit.rshift( bit.lshift(val, 32 - endd), begin + 32- endd )
+end
+
+function utils:bitfield64(begin, endd, val)
+    local val64 = ffi.new('uint64_t', val)
+    return bit.rshift( bit.lshift(val64, 64 - endd), begin + 64- endd )
+end
+
+-- Merge hi(32-bit) and lo(32-bit) into a 64-bit result
+function utils:to64bit(hi, lo)
+    return bit.lshift(hi, 32) + lo
 end
 
 function verilua_info(...)

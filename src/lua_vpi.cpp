@@ -53,6 +53,13 @@ inline void execute_main_step() {
     }
 }
 
+TO_LUA uint64_t bitfield64(uint64_t begin, uint64_t end, uint64_t val) {
+    // printf("bitfield64: val is 0x%lx\n", val);
+    uint64_t mask = ((1ULL << (end - begin + 1)) - 1) << begin;
+    // printf("bitfield64: return 0x%lx\n", (val & mask) >> begin);
+    return (val & mask) >> begin;
+}
+
 TO_LUA void c_simulator_control(long long cmd) {
     // #define vpiStop                  66   /* execute simulator's $stop */
     // #define vpiFinish                67   /* execute simulator's $finish */
@@ -362,13 +369,30 @@ TO_LUA long long c_handle_by_name(const char *name) {
     return handle_as_ll;
 }
 
-TO_LUA long long c_get_value(long long handle) {
+TO_LUA uint32_t c_get_value(long long handle) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
 
-    v.format = vpiIntVal;
+    // v.format = vpiIntVal;
+    // vpi_get_value(actual_handle, &v);
+    // return v.value.integer;
+
+    v.format = vpiVectorVal;
     vpi_get_value(actual_handle, &v);
-    return v.value.integer;
+    return v.value.vector[0].aval;
+}
+
+TO_LUA uint64_t c_get_value64(long long handle) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    s_vpi_value v;
+
+    v.format = vpiVectorVal;
+    vpi_get_value(actual_handle, &v);
+
+    uint32_t lo = v.value.vector[0].aval;
+    uint32_t hi = v.value.vector[1].aval;
+    uint64_t value = ((uint64_t)hi << 32) | lo; 
+    return value;
 }
 
 TO_LUA int c_get_value_multi(lua_State *L) {
@@ -390,12 +414,26 @@ TO_LUA int c_get_value_multi(lua_State *L) {
     return 1;  // Number of return values (the table is already on the stack)
 }
 
-TO_LUA void c_set_value(long long handle, long long value) {
+TO_LUA void c_set_value(long long handle, uint32_t value) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
     v.format = vpiIntVal;
     v.value.integer = value;
     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+}
+
+TO_LUA void c_set_value64(long long handle, uint64_t value) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    s_vpi_value v;
+
+    p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
+    vec_val[1].aval = value >> 32;
+    vec_val[0].aval = (value << 32) >> 32;
+    
+    v.format = vpiVectorVal;
+    v.value.vector = vec_val;
+    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    free(vec_val);
 }
 
 TO_LUA int c_set_value_multi(lua_State *L) {
@@ -461,6 +499,7 @@ void lua_init(void) {
             .addFunction("get_value_multi", c_get_value_multi)
             .addFunction("set_value_multi", c_set_value_multi)
             .addFunction("get_signal_width", c_get_signal_width)
+            .addFunction("bitfield64", bitfield64)
         .endNamespace();
 
 
@@ -582,4 +621,55 @@ TO_LUA void hello() {
   fmt::print("hello from fmt:print\n");
 }
 
+TO_LUA void c_get_value_parallel(long long *hdls, uint32_t *values, int length) {
+    for(int i = 0; i < length; i++) {
+        unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        s_vpi_value v;
 
+        v.format = vpiVectorVal;
+        vpi_get_value(actual_handle, &v);
+        values[i] = v.value.vector[0].aval;
+    }
+}
+
+TO_LUA void c_get_value64_parallel(long long *hdls, uint64_t *values, int length) {
+    for(int i = 0; i < length; i++) {
+        unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        s_vpi_value v;
+
+        v.format = vpiVectorVal;
+        vpi_get_value(actual_handle, &v);
+
+        uint32_t lo = v.value.vector[0].aval;
+        uint32_t hi = v.value.vector[1].aval;
+        uint64_t value = ((uint64_t)hi << 32) | lo; 
+        values[i] = value;
+    }
+}
+
+
+TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) {
+    for(int i = 0; i < length; i++) {
+        unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        s_vpi_value v;
+        v.format = vpiIntVal;
+        v.value.integer = values[i];
+        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    }
+}
+
+TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length) {
+    for(int i = 0; i < length; i++) {
+        unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        s_vpi_value v;
+
+        p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
+        vec_val[1].aval = values[i] >> 32;
+        vec_val[0].aval = (values[i] << 32) >> 32;
+
+        v.format = vpiVectorVal;
+        v.value.vector = vec_val;
+        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+        free(vec_val);
+    }
+}
