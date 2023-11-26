@@ -10,6 +10,7 @@ CXX_FLAGS += -I$(PRJ_DIR)/extern/LuaBridge/Source/LuaBridge
 CXX_FLAGS += -I$(PRJ_DIR)/extern/fmt/include
 CXX_FLAGS += -I$(PRJ_DIR)/src
 CXX_FLAGS += -I$(PRJ_DIR)/src/include
+CXX_FLAGS += -I$(PRJ_DIR)/src/include/sol
 CXX_FLAGS += -I${LUA_DIR}/include
 CXX_FLAGS += -g -std=c++17 
 
