@@ -5,7 +5,7 @@ local C = ffi.C
 ffi.cdef[[
   void c_register_edge_callback(const char *path, int edge_type, int id);
   void c_register_read_write_synch_callback(int id);
-  void c_register_time_callback(long long low, long long high, int id);
+  void c_register_time_callback(uint64_t time, int id);
   void c_register_clock_posedge_callback(int id, uint64_t count);
   void c_register_edge_callback_hdl(long long handle, int edge_type, int id);
   void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id);
@@ -240,7 +240,8 @@ function SchedulerClass:schedule_tasks(id)
                 -------------------------
                 if yield_event.type == YieldType.TIMER then
                     -- vpi.register_time_callback(yield_event.value, 0, task_id) -- TODO: high time
-                    C.c_register_time_callback(yield_event.value, 0, task_id)
+                    -- C.c_register_time_callback(yield_event.value, 0, task_id)
+                    C.c_register_time_callback(yield_event.value, task_id)
 
                 -------------------------
                 -- edge callback

@@ -20,7 +20,7 @@ static std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
 
 
 inline void execute_sim_event(int *id) {
-    auto ret = sim_event(id);
+    auto ret = sim_event(*id);
     if(!ret.valid()) {
         sol::error  err = ret;
         m_assert(false, "Lua error: %s", err.what());
@@ -60,10 +60,10 @@ inline void execute_final_callback() {
 }
 
 inline void execute_main_step() {
-    try {
-        main_step();
-    } catch (const luabridge::LuaException& e) {
-        m_assert(false, "Lua error: %s", e.what());
+    auto ret = main_step();
+    if(!ret.valid()) {
+        sol::error  err = ret;
+        m_assert(false, "Lua error: %s", err.what());
     }
 }
 
@@ -218,12 +218,13 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     return 0;  // Number of return values
 }
 
-TO_LUA void c_register_time_callback(long long low, long long high, int id) {
+// TO_LUA void c_register_time_callback(long long low, long long high, int id) {
+TO_LUA void c_register_time_callback(uint64_t time, int id) {
     s_cb_data cb_data;
     s_vpi_time vpi_time;
     vpi_time.type = vpiSimTime;
-    vpi_time.high = high;
-    vpi_time.low = low;
+    vpi_time.high = (time >> 32) << 32;
+    vpi_time.low = (time << 32) >> 32;
 
     cb_data.reason = cbAfterDelay;
     // cb_data.cb_rtn = time_callback;
@@ -247,12 +248,12 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     s_vpi_value vpi_value;
 
     vpi_time.type = vpiSuppressTime;
-    vpi_value.format = vpiVectorVal;
+    vpi_value.format = vpiIntVal;
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
         vpi_get_value(cb_data->obj, cb_data->value);
-        int new_value = cb_data->value->value.vector[0].aval;
+        int new_value = cb_data->value->value.integer;
 
         edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data;
         if(new_value == user_data->expected_value || user_data->expected_value == 2) {
@@ -285,7 +286,7 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
     cb_data.user_data = (PLI_BYTE8 *) user_data;
-    
+
     edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
 }
 
@@ -307,20 +308,15 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     s_vpi_value vpi_value;
 
     vpi_time.type = vpiSuppressTime;
-    vpi_value.format = vpiVectorVal;
+    vpi_value.format = vpiIntVal;
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
         vpi_get_value(cb_data->obj, cb_data->value);
-        int new_value = cb_data->value->value.vector[0].aval;
+        int new_value = cb_data->value->value.integer;
 
-        edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data;
+        edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data; 
         if(new_value == user_data->expected_value || user_data->expected_value == 2) {
-            // try {
-            //     sim_event(user_data->task_id);
-            // } catch (const luabridge::LuaException& e) {
-            //     m_assert(false, "Lua error: %s", e.what());
-            // }
             execute_sim_event(user_data->task_id);
         }
 
@@ -577,7 +573,7 @@ void lua_init(void) {
     // main_step = luabridge::getGlobal(L, "lua_main_step");
     sim_event = lua["sim_event"];
     sim_event.set_error_handler(lua["debug"]["traceback"]); 
-    main_step = lua["main_step"];
+    main_step = lua["lua_main_step"];
     main_step.set_error_handler(lua["debug"]["traceback"]); 
 }
 
