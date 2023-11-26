@@ -10,27 +10,41 @@
 // |________|____________|
 
 lua_State *L;
-luabridge::LuaRef sim_event(L);
-luabridge::LuaRef main_step(L);
+// luabridge::LuaRef sim_event(L);
+// luabridge::LuaRef main_step(L);
+sol::protected_function sim_event; 
+sol::protected_function main_step; 
 
 static IdPool edge_cb_idpool(50);
 static std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
 
 
 inline void execute_sim_event(int *id) {
-    try {
-        sim_event(id);
-    } catch (const luabridge::LuaException& e) {
-        m_assert(false, "Lua error: %s", e.what());
+    auto ret = sim_event(id);
+    if(!ret.valid()) {
+        sol::error  err = ret;
+        m_assert(false, "Lua error: %s", err.what());
     }
+    
+    // try {
+    //     sim_event(id);
+    // } catch (const luabridge::LuaException& e) {
+    //     m_assert(false, "Lua error: %s", e.what());
+    // }
 }
 
 inline void execute_sim_event(int id) {
-    try {
-        sim_event(id);
-    } catch (const luabridge::LuaException& e) {
-        m_assert(false, "Lua error: %s", e.what());
+    auto ret = sim_event(id);
+    if(!ret.valid()) {
+        sol::error  err = ret;
+        m_assert(false, "Lua error: %s", err.what());
     }
+    
+    // try {
+    //     sim_event(id);
+    // } catch (const luabridge::LuaException& e) {
+    //     m_assert(false, "Lua error: %s", e.what());
+    // }
 }
 
 inline void execute_final_callback() {
@@ -227,7 +241,7 @@ TO_LUA void c_register_time_callback(long long low, long long high, int id) {
 }
 
 
-static void register_edge_callback_basic(vpiHandle handle, int edge_type, int id) {
+static inline void register_edge_callback_basic(vpiHandle handle, int edge_type, int id) {
     s_cb_data cb_data;
     s_vpi_time vpi_time;
     s_vpi_value vpi_value;
@@ -302,11 +316,12 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
 
         edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data;
         if(new_value == user_data->expected_value || user_data->expected_value == 2) {
-            try {
-                sim_event(user_data->task_id);
-            } catch (const luabridge::LuaException& e) {
-                m_assert(false, "Lua error: %s", e.what());
-            }
+            // try {
+            //     sim_event(user_data->task_id);
+            // } catch (const luabridge::LuaException& e) {
+            //     m_assert(false, "Lua error: %s", e.what());
+            // }
+            execute_sim_event(user_data->task_id);
         }
 
         return 0;
@@ -343,11 +358,12 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
     // cb_data.cb_rtn = read_write_synch_callback;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
         fmt::print("hello from cbReadWriteSynch id {}\n", *(int *)cb_data->user_data);
-        try {
-            sim_event((int *)cb_data->user_data);
-        } catch (const luabridge::LuaException& e) {
-            m_assert(false, "Lua error: %s", e.what());
-        }
+        // try {
+        //     sim_event((int *)cb_data->user_data);
+        // } catch (const luabridge::LuaException& e) {
+        //     m_assert(false, "Lua error: %s", e.what());
+        // }
+        execute_sim_event((int *)cb_data->user_data);
 
         free(cb_data->user_data);
         return 0;
@@ -479,6 +495,9 @@ void lua_init(void) {
     // Import all libraries if we pass no args in.
     luaL_openlibs(L);
 
+    // Assign sol state
+    sol::state_view lua(L);
+
     // Register functions for lua
     luabridge::getGlobalNamespace(L)
         .beginNamespace("vpi")
@@ -527,22 +546,39 @@ void lua_init(void) {
 
     // Load lua main script
     const char *LUA_SCRIPT = getenv("LUA_SCRIPT");
-    if (luaL_dofile(L, LUA_SCRIPT) != LUA_OK) {
-            const char *error_msg = lua_tostring(L, -1);
-            std::cerr << "Error calling "<< LUA_SCRIPT << ": " << error_msg << std::endl;
-            lua_pop(L, 1);
-            m_assert(false, " ");
-    }
-
+    // if (luaL_dofile(L, LUA_SCRIPT) != LUA_OK) {
+    //         const char *error_msg = lua_tostring(L, -1);
+    //         std::cerr << "Error calling "<< LUA_SCRIPT << ": " << error_msg << std::endl;
+    //         lua_pop(L, 1);
+    //         m_assert(false, " ");
+    // }
     try {
-        luabridge::LuaRef verilua_init = luabridge::getGlobal(L, "verilua_init");
-        verilua_init();
-    } catch (const luabridge::LuaException& e) {
-        m_assert(false, "Lua error: %s", e.what());
+        lua.script_file(LUA_SCRIPT);
+    } catch (const sol::error& err) {
+        m_assert(false, "Error calling %s: %s", LUA_SCRIPT, err.what());
     }
 
-    sim_event = luabridge::getGlobal(L, "sim_event");
-    main_step = luabridge::getGlobal(L, "lua_main_step");
+    // try {
+    //     luabridge::LuaRef verilua_init = luabridge::getGlobal(L, "verilua_init");
+    //     verilua_init();
+    // } catch (const luabridge::LuaException& e) {
+    //     m_assert(false, "Lua error: %s", e.what());
+    // }
+    sol::protected_function verilua_init = lua["verilua_init"];
+    verilua_init.set_error_handler(lua["debug"]["traceback"]);
+    
+    auto ret = verilua_init();
+    if(!ret.valid()) {
+        sol::error  err = ret;
+        m_assert(false, "Lua error: %s", err.what());
+    }
+
+    // sim_event = luabridge::getGlobal(L, "sim_event");
+    // main_step = luabridge::getGlobal(L, "lua_main_step");
+    sim_event = lua["sim_event"];
+    sim_event.set_error_handler(lua["debug"]["traceback"]); 
+    main_step = lua["main_step"];
+    main_step.set_error_handler(lua["debug"]["traceback"]); 
 }
 
 
