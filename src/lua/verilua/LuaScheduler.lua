@@ -61,47 +61,55 @@ end
 -- Schedule events
 --------------------------------
 function await_time(time)
-    coroutine.yield(YieldEvent(YieldType.TIMER, time))
+    coroutine.yield(YieldType.TIMER, time)
 end
 
 function await_posedge(signal)
-    coroutine.yield(YieldEvent(YieldType.SIGNAL_EDGE, EdgeType.POSEDGE, tostring(signal)))
+    coroutine.yield(YieldType.SIGNAL_EDGE, EdgeType.POSEDGE, tostring(signal))
 end
 
 function await_negedge(signal)
-    coroutine.yield(YieldEvent(YieldType.SIGNAL_EDGE, EdgeType.NEGEDGE,  tostring(signal)))
+    coroutine.yield(YieldType.SIGNAL_EDGE, EdgeType.NEGEDGE,  tostring(signal))
 end
 
 function await_edge(signal)
-    coroutine.yield(YieldEvent(YieldType.SIGNAL_EDGE, EdgeType.EDGE,  tostring(signal)))
+    coroutine.yield(YieldType.SIGNAL_EDGE, EdgeType.EDGE,  tostring(signal))
 end
 
 
 function await_posedge_hdl(signal)
-    coroutine.yield(YieldEvent(YieldType.SIGNAL_EDGE_HDL, EdgeType.POSEDGE, signal))
+    coroutine.yield(YieldType.SIGNAL_EDGE_HDL, EdgeType.POSEDGE, signal)
 end
 
 function await_negedge_hdl(signal)
-    coroutine.yield(YieldEvent(YieldType.SIGNAL_EDGE_HDL, EdgeType.NEGEDGE,  signal))
+    coroutine.yield(YieldType.SIGNAL_EDGE_HDL, EdgeType.NEGEDGE,  signal)
 end
 
 function await_edge_hdl(signal)
-    coroutine.yield(YieldEvent(YieldType.SIGNAL_EDGE_HDL, EdgeType.EDGE,  signal))
+    coroutine.yield(YieldType.SIGNAL_EDGE_HDL, EdgeType.EDGE,  signal)
 end
 
 function await_read_write_synch()
-    coroutine.yield(YieldEvent(YieldType.READ_WRITE_SYNCH, nil,  nil))
+    coroutine.yield(YieldType.READ_WRITE_SYNCH, nil,  nil)
 end
 
+function always_await_posedge_hdl(signal)
+    coroutine.yield(YieldType.SIGNAL_EDGE_ALWAYS, EdgeType.POSEDGE, signal)
+end
+
+function await_noop()
+    coroutine.yield(YieldType.NOOP, nil, nil)
+end
 
 function register_always_await_posedge_hdl()
     local fired = false
+    assert(false, "deprecated!")
     return function(signal)
         if not fired then
             fired = true
-            coroutine.yield(YieldEvent(YieldType.SIGNAL_EDGE_ALWAYS, EdgeType.POSEDGE, signal))
+            coroutine.yield(YieldType.SIGNAL_EDGE_ALWAYS, EdgeType.POSEDGE, signal)
         else
-            coroutine.yield(YieldEvent(YieldType.NOOP, nil, nil))
+            coroutine.yield(YieldType.NOOP, nil, nil)
         end
     end
 end
@@ -146,7 +154,7 @@ function SchedulerClass:create_task_table(tasks)
         local task_func = tasks[i][2]
         local task_param = tasks[i][3]
         task_param = task_param or {}
-        self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
+        local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
         table.insert(self.task_table, id, SchedulerTask(id, task_name, coroutine.create(task_func), task_param))
     end
 end
@@ -175,7 +183,7 @@ function SchedulerClass:append_task(id, name, task_func, param, schedule_task)
         task_id = self:alloc_task_id()
     end
 
-    self:_log(string.format("append task id:%d name:%s", task_id, name))
+    local _ = self.verbose and self:_log(string.format("append task id:%d name:%s", task_id, name))
     table.insert(self.task_table, task_id, SchedulerTask(task_id, name, coroutine.create(task_func), param))
     if schedule_task or false then
         self:schedule_tasks(task_id) -- start the task right away
@@ -208,7 +216,7 @@ function SchedulerClass:schedule_tasks(id)
         local task_id = self.will_remove_tasks[i]
         if task_id ~= nil then
             if self.task_table[task_id] ~= nil then
-                self:_log("remove task_id:" .. task_id .. " task_name:" .. self.task_table[task_id].name)
+                local _ = self.verbose and self:_log("remove task_id:" .. task_id .. " task_name:" .. self.task_table[task_id].name)
                 self.task_table[task_id] = nil
             end
         end
@@ -224,11 +232,12 @@ function SchedulerClass:schedule_tasks(id)
 
         if id == task_id then
             task.cnt = task.cnt + 1
-            self:_log("resume task_id:", task_id, "task_name:", task_name)
+            local _ = self.verbose and self:_log("resume task_id:", task_id, "task_name:", task_name)
 
-            local ok, yield_event = coro_resume(task_coro, table.unpack(task_param))
+            local ok, types, value, signal = coro_resume(task_coro, table.unpack(task_param))
             if not ok then
-                err_msg = yield_event -- if there is an error, yield_event is act as error message
+                -- err_msg = yield_event -- if there is an error, yield_event is act as error message
+                local err_msg = types
                 print(debug.traceback(task_coro, err_msg))
                 assert(false)
                 return -- Task finish
@@ -238,52 +247,52 @@ function SchedulerClass:schedule_tasks(id)
                 -------------------------
                 -- timer callback
                 -------------------------
-                if yield_event.type == YieldType.TIMER then
+                if types == YieldType.TIMER then
                     -- vpi.register_time_callback(yield_event.value, 0, task_id) -- TODO: high time
                     -- C.c_register_time_callback(yield_event.value, 0, task_id)
-                    C.c_register_time_callback(yield_event.value, task_id)
+                    C.c_register_time_callback(value, task_id)
 
                 -------------------------
                 -- edge callback
                 -------------------------
-                elseif yield_event.type == YieldType.SIGNAL_EDGE then
+                elseif types == YieldType.SIGNAL_EDGE then
                     -- vpi.register_edge_callback(yield_event.signal, yield_event.value, task_id)
-                    C.c_register_edge_callback(yield_event.signal, yield_event.value, task_id)
+                    C.c_register_edge_callback(signal, value, task_id)
 
                 -------------------------
                 -- edge callback hdl
                 -------------------------
-                elseif yield_event.type == YieldType.SIGNAL_EDGE_HDL then
+                elseif types == YieldType.SIGNAL_EDGE_HDL then
                     -- vpi.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
                     -- ffi.C.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
-                   C.c_register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
+                   C.c_register_edge_callback_hdl(signal, value, task_id)
                 
                 -------------------------
                 -- edge callback hdl always
                 -------------------------
-                elseif yield_event.type == YieldType.SIGNAL_EDGE_ALWAYS then
+                elseif types == YieldType.SIGNAL_EDGE_ALWAYS then
                     -- vpi.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
                     -- ffi.C.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
-                   C.c_register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
+                   C.c_register_edge_callback_hdl_always(signal, value, task_id)
                 
                 -------------------------
                 -- read write synch callback
                 -------------------------
-                elseif yield_event.type == YieldType.READ_WRITE_SYNCH then
+                elseif types == YieldType.READ_WRITE_SYNCH then
                     -- vpi.register_read_write_synch_callback(task_id)
                     C.c_register_read_write_synch_callback(task_id)
 
                 -------------------------
                 -- noop
                 -------------------------
-                elseif yield_event.type == YieldType.NOOP then
+                elseif types == YieldType.NOOP then
                     -- do nothing
                 
                 -------------------------
                 -- others
                 -------------------------
                 else
-                    assert(false, "Unknown yield_event! type:" .. yield_event.type .. " value:" .. yield_event.value)
+                    assert(false, "Unknown yield_event! type:" .. types .. " value:" .. value)
                 end
             else
                 self:remove_task(id)

@@ -133,11 +133,11 @@ function LuaDB:clean_up()
     end
 
     if self.stmt ~= nil and count > 0 then
-        self:_log("stmt exist...")
+        local _ = self.verbose and self:_log("stmt exist...")
         self:commit()
     end
 
-    self:_log("Doing clean up...")
+    local _ = self.verbose and self:_log("Doing clean up...")
 end
 
 return LuaDB
