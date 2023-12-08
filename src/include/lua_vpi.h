@@ -26,7 +26,7 @@
         if (!(cond)) { \
             printf(ANSI_COLOR_BLUE); \
             printf(__VA_ARGS__); \
-            printf("\n[%s:<%s>:%d] ", __FILE__, __FUNCTION__, __LINE__); \
+            printf("\n[%s:%s:%d] ", __FILE__, __FUNCTION__, __LINE__); \
             printf(ANSI_COLOR_MAGENTA);\
             execute_final_callback(); \
             printf(ANSI_COLOR_RESET);\

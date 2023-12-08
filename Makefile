@@ -13,6 +13,7 @@ CXX_FLAGS += -I$(PRJ_DIR)/src/include
 CXX_FLAGS += -I$(PRJ_DIR)/src/include/sol
 CXX_FLAGS += -I${LUA_DIR}/include
 CXX_FLAGS += -g -std=c++17 
+CXX_FLAGS += -Ofast -funroll-loops -march=native
 
 LD_FLAGS  += -L$(LUA_DIR)/lib -lluajit-5.1
 LD_FLAGS  += -L$(PRJ_DIR)/extern/fmt/build -lfmt
@@ -23,6 +24,7 @@ without_bootstrap_so: $(SHARED_DIR)/liblua_vpi_1.so
 
 build_so: $(SHARED_DIR)/liblua_vpi.so
 
+CXX = clang++
 init:
 	git submodule update --init --recursive
 	mkdir -p extern/fmt/build; 
@@ -30,11 +32,11 @@ init:
 
 $(SHARED_DIR)/liblua_vpi.so: $(C_SOURCES)
 	mkdir -p shared
-	g++ -shared -fPIC $(CXX_FLAGS) $(PRJ_DIR)/src/lua_vpi.cpp $(LD_FLAGS) -o $@
+	$(CXX) -shared -fPIC $(CXX_FLAGS) $(PRJ_DIR)/src/lua_vpi.cpp $(LD_FLAGS) -o $@
 
 $(SHARED_DIR)/liblua_vpi_1.so: $(C_SOURCES)
 	mkdir -p shared
-	g++ -shared -fPIC $(CXX_FLAGS) -DWITHOUT_BOOT_STRAP $(PRJ_DIR)/src/lua_vpi.cpp $(LD_FLAGS) -o $@
+	$(CXX) -shared -fPIC $(CXX_FLAGS) -DWITHOUT_BOOT_STRAP $(PRJ_DIR)/src/lua_vpi.cpp $(LD_FLAGS) -o $@
 
 .PHONY: default build_so without_bootstrap_so init clean
 clean:
