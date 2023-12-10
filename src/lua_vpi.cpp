@@ -429,8 +429,28 @@ TO_LUA int c_get_value_multi(lua_State *L) {
 TO_LUA void c_set_value(long long handle, uint32_t value) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
-    v.format = vpiIntVal;
-    v.value.integer = value;
+
+    s_vpi_vecval vec_val;
+    vec_val.aval = value;
+    vec_val.bval = 0;
+    v.format = vpiVectorVal;
+    v.value.vector = &vec_val;
+    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+}
+
+TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t size) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    s_vpi_value v;
+
+    t_vpi_vecval vec_val[size];
+    for(int i = 0; i < size; i++) {
+        vec_val[i].aval = 0;
+        vec_val[i].bval = 0;
+    }
+    vec_val[0].aval = value;
+    
+    v.format = vpiVectorVal;
+    v.value.vector = vec_val;
     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 }
 
@@ -440,7 +460,9 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
 
     p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
     vec_val[1].aval = value >> 32;
+    vec_val[1].bval = 0;
     vec_val[0].aval = (value << 32) >> 32;
+    vec_val[0].bval = 0;
     
     v.format = vpiVectorVal;
     v.value.vector = vec_val;
@@ -697,7 +719,9 @@ TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length
 
         p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
         vec_val[1].aval = values[i] >> 32;
+        vec_val[1].bval = 0;
         vec_val[0].aval = (values[i] << 32) >> 32;
+        vec_val[0].bval = 0;
 
         v.format = vpiVectorVal;
         v.value.vector = vec_val;

@@ -109,6 +109,23 @@ function utils:to64bit(hi, lo)
     return bit.lshift(hi, 32) + lo
 end
 
+function utils:to_hex(hex_table)
+    local ret = ""
+    if type(hex_table) == "table" then
+        for index, value in ipairs(hex_table) do
+            ret = ret .. string.format("%x ", value)
+        end
+    else
+        ret = ret .. string.format("%x", hex_table)
+    end
+    ret = ret .. "\n"
+    return ret
+end
+
+function utils:print_hex(hex_table)
+    io.write(self:to_hex(hex_table))
+end
+
 function verilua_info(...)
     print(colors.cyan .. os.date() .. " [VERILUA INFO]", ...)
     io.write(colors.reset)

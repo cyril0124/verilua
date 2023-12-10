@@ -21,7 +21,8 @@ subfix = encode_string(os.path.abspath(os.curdir))
 pli_tab = f"/tmp/verilua_{subfix}/pli.tab"
 os.system(f"mkdir -p /tmp/verilua_{subfix} && touch {pli_tab}; echo \"acc+=rw,wn:*\" > {pli_tab} ")
 
-cmd_list = ["vcs"] + sys.argv[1:] + [
+vcs = os.getenv("VCS_HOME") + "/bin/vcs"
+cmd_list = [vcs] + sys.argv[1:] + [
                         "+acc+1", 
                         "+vpi", 
                         # "-CFLAGS", f"\"\"",
