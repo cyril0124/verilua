@@ -15,6 +15,7 @@ CXX_FLAGS += -I${LUA_DIR}/include
 CXX_FLAGS += -g -std=c++17 
 CXX_FLAGS += -Ofast -funroll-loops -march=native
 
+LD_FLAGS  += -Wl,--no-as-needed
 LD_FLAGS  += -L$(LUA_DIR)/lib -lluajit-5.1
 LD_FLAGS  += -L$(PRJ_DIR)/extern/fmt/build -lfmt
 
@@ -25,6 +26,7 @@ without_bootstrap_so: $(SHARED_DIR)/liblua_vpi_1.so
 build_so: $(SHARED_DIR)/liblua_vpi.so
 
 CXX = clang++
+# CXX = g++
 init:
 	git submodule update --init --recursive
 	mkdir -p extern/fmt/build; 

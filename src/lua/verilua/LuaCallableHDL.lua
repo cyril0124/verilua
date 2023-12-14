@@ -6,6 +6,7 @@ ffi.cdef[[
   long long c_get_signal_value(const char *path);
   void c_set_value(long long handle, uint32_t value);
   void c_set_value64(long long handle, uint64_t value);
+  void c_set_value_force_single(long long handle, uint32_t value, uint32_t size);
   uint32_t c_get_value(long long handle);
   uint64_t c_get_value64(long long handle);
   unsigned int c_get_signal_width(long long handle);
@@ -59,12 +60,15 @@ function CallableHDL:set(value, force_single_beat)
         vpi.set_value_multi(self.hdl, value)
     else
         assert(type(value) ~= "table", self.fullpath .. " type is " .. type(value))
-        if self.beat_num <= 2 then
-            C.c_set_value64(self.hdl, value)
+        
+        if force_single_beat == true then
+            C.c_set_value_force_single(self.hdl, value, self.beat_num)
         else
-            -- vpi.set_value(self.hdl, value)
-            -- ffi.C.set_value(self.hdl, value)
-            C.c_set_value(self.hdl, value)
+            if self.beat_num <= 2 then
+                C.c_set_value64(self.hdl, value)
+            else
+                C.c_set_value(self.hdl, value)
+            end
         end
     end
 end

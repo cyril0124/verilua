@@ -1,4 +1,3 @@
-local tablex = require("pl.tablex")
 local ffi = require("ffi")
 local utils = {}
 
@@ -118,12 +117,11 @@ function utils:to_hex(hex_table)
     else
         ret = ret .. string.format("%x", hex_table)
     end
-    ret = ret .. "\n"
     return ret
 end
 
 function utils:print_hex(hex_table)
-    io.write(self:to_hex(hex_table))
+    io.write(self:to_hex(hex_table).."\n")
 end
 
 function verilua_info(...)
