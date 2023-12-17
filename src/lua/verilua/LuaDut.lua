@@ -2,9 +2,6 @@ require("LuaSimConfig")
 local VERILUA_CFG, VERILUA_CFG_PATH = LuaSimConfig.get_cfg()
 local cfg = require(VERILUA_CFG)
 
-require("LuaScheduler")
-
-
 function create_proxy(path)
     local local_path = path
     return setmetatable({}, {
@@ -24,11 +21,11 @@ function create_proxy(path)
                 vpi.set_value_by_name(cfg.top .. "." .. t.path, v)
                 return
             else -- read signal value
-                data_type = v or "integer"
+                local data_type = v or "integer"
                 if data_type == "integer" then
                     return vpi.get_value_by_name(local_path)
                 elseif data_type == "hex" then
-                    val = vpi.get_value_by_name(local_path)
+                    local val = vpi.get_value_by_name(local_path)
                     return string.format("0x%x", val)
                 elseif data_type == "name" then
                     return local_path
@@ -47,14 +44,14 @@ function create_proxy(path)
 end
 
 
-function dut_get_signal_value(path)
-    return vpi.get_value_by_name(self.top_path .. "." .. path)
-end
+-- function dut_get_signal_value(path)
+--     return vpi.get_value_by_name(self.top_path .. "." .. path)
+-- end
 
 
-function dut_set_signal_value(path, value)
-    vpi.set_value_by_name(self.top_path .. "." .. path, value)
-end
+-- function dut_set_signal_value(path, value)
+--     vpi.set_value_by_name(self.top_path .. "." .. path, value)
+-- end
 
 
 -- local dut = create_proxy('Top')

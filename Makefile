@@ -13,7 +13,7 @@ CXX_FLAGS += -I$(PRJ_DIR)/src/include
 CXX_FLAGS += -I$(PRJ_DIR)/src/include/sol
 CXX_FLAGS += -I${LUA_DIR}/include
 CXX_FLAGS += -g -std=c++17 
-CXX_FLAGS += -Ofast -funroll-loops -march=native
+CXX_FLAGS += -Ofast -funroll-loops -march=native -fomit-frame-pointer
 
 LD_FLAGS  += -Wl,--no-as-needed
 LD_FLAGS  += -L$(LUA_DIR)/lib -lluajit-5.1

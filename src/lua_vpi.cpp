@@ -374,10 +374,33 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
     assert(vpi_register_cb(&cb_data) != NULL);
 }
 
-TO_LUA long long c_handle_by_name(const char *name) {
+// TO_LUA long long c_handle_by_name(const char *name) {
+//     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
+//     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, name);
+//     long long handle_as_ll = reinterpret_cast<long long>(handle);
+//     return handle_as_ll;
+// }
+
+// Cache to store handles
+static std::unordered_map<std::string, long long> handle_cache;
+
+TO_LUA long long c_handle_by_name(const char* name) {
+    // Check if the name is in the cache
+    auto search = handle_cache.find(name);
+    if (search != handle_cache.end()) {
+        // Name found in cache, return the stored handle
+        return search->second;
+    }
+
+    // Name not in cache, look it up
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, name);
+
+    // Cast the handle to long long and store it in the cache
     long long handle_as_ll = reinterpret_cast<long long>(handle);
+    handle_cache[name] = handle_as_ll;
+
+    // Return the handle
     return handle_as_ll;
 }
 

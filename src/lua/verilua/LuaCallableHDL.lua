@@ -55,11 +55,19 @@ function CallableHDL:set(value, force_single_beat)
     force_single_beat = force_single_beat or false
     if self.is_multi_beat and not force_single_beat then
         -- value is a table where <lsb ... msb>
-        assert(type(value) == "table", type(value) .. " =/= table \n" .. self.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
-        assert(#value == self.beat_num, "len: " .. #value .. " =/= " .. self.beat_num)
+        if type(value) ~= "table" then
+            assert(false, type(value) .. " =/= table \n" .. self.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
+        end
+
+        if #value ~= self.beat_num then
+            assert(false, "len: " .. #value .. " =/= " .. self.beat_num)
+        end
+        
         vpi.set_value_multi(self.hdl, value)
     else
-        assert(type(value) ~= "table", self.fullpath .. " type is " .. type(value))
+        if type(value) == "table" then
+            assert(false, self.fullpath .. " type is " .. type(value))
+        end
         
         if force_single_beat == true then
             C.c_set_value_force_single(self.hdl, value, self.beat_num)
