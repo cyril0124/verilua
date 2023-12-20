@@ -12,7 +12,8 @@ CXX_FLAGS += -I$(PRJ_DIR)/src
 CXX_FLAGS += -I$(PRJ_DIR)/src/include
 CXX_FLAGS += -I$(PRJ_DIR)/src/include/sol
 CXX_FLAGS += -I${LUA_DIR}/include
-CXX_FLAGS += -g -std=c++17 
+CXX_FLAGS += -std=c++17 
+# CXX_FLAGS += -g
 CXX_FLAGS += -Ofast -funroll-loops -march=native -fomit-frame-pointer
 
 LD_FLAGS  += -Wl,--no-as-needed

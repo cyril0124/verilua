@@ -584,27 +584,38 @@ void lua_init(void) {
         );
     }
 
+    
+    const char *VERILUA_HOME = getenv("VERILUA_HOME");
+    if (VERILUA_HOME == nullptr) {
+        fprintf(stderr, "Error: VERILUA_HOME environment variable is not set.\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("[liblua_vpi.cpp] VERILUA_HOME is %s\n", VERILUA_HOME);
+
+    std::string INIT_FILE = std::string(VERILUA_HOME) + "/src/lua/verilua/init.lua";
+    printf("[liblua_vpi.cpp] INIT_FILE is %s\n", INIT_FILE.c_str());
+
+    try {
+        lua.safe_script_file(INIT_FILE);
+    } catch (const sol::error& err) {
+        m_assert(false, "Error :%s", err.what());
+    }
+
 
     // Load lua main script
     const char *LUA_SCRIPT = getenv("LUA_SCRIPT");
-    // if (luaL_dofile(L, LUA_SCRIPT) != LUA_OK) {
-    //         const char *error_msg = lua_tostring(L, -1);
-    //         std::cerr << "Error calling "<< LUA_SCRIPT << ": " << error_msg << std::endl;
-    //         lua_pop(L, 1);
-    //         m_assert(false, " ");
-    // }
+    if (LUA_SCRIPT == nullptr) {
+        fprintf(stderr, "Error: LUA_SCRIPT environment variable is not set.\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("[liblua_vpi.cpp] LUA_SCRIPT is %s\n", LUA_SCRIPT);
+
     try {
-        lua.script_file(LUA_SCRIPT);
+        lua.safe_script_file(LUA_SCRIPT);
     } catch (const sol::error& err) {
         m_assert(false, "Error calling %s: %s", LUA_SCRIPT, err.what());
     }
 
-    // try {
-    //     luabridge::LuaRef verilua_init = luabridge::getGlobal(L, "verilua_init");
-    //     verilua_init();
-    // } catch (const luabridge::LuaException& e) {
-    //     m_assert(false, "Lua error: %s", e.what());
-    // }
     sol::protected_function verilua_init = lua["verilua_init"];
     verilua_init.set_error_handler(lua["debug"]["traceback"]);
     
