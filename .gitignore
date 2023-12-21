@@ -6,3 +6,4 @@ luajit2.1/
 tmp/
 shared/*
 scripts/rt_plot/*.out
+build/

@@ -41,7 +41,7 @@ double sc_time_stamp() {  // Called by $time in Verilog
 //}
 
 void vlog_startup_routines_bootstrap(void);
-void lua_main_step(); // Verilua step
+void verilua_main_step(); // Verilua step
 
 static inline bool settle_value_callbacks() {
     bool cbs_called, again;

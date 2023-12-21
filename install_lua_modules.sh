@@ -8,6 +8,7 @@ then
     luarocks install penlight
     luarocks install luasocket
     luarocks install lsqlite3
+    luarocks install inspect
     luarocks list
 else
     echo "luajit2.1 does not exist. start installing..."
@@ -18,5 +19,6 @@ else
     luarocks install penlight
     luarocks install luasocket
     luarocks install lsqlite3
+    luarocks install inspect
     luarocks list
 fi

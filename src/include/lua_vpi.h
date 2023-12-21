@@ -1,3 +1,6 @@
+#ifndef __LUA_VPI_H__
+#define __LUA_VPI_H__
+
 #include "lua.hpp"
 #include <LuaBridge.h>
 #include <sol.hpp>
@@ -84,10 +87,15 @@ public:
 };
 
 // TODO: add prefix: verilua
-void execute_final_callback();
-void lua_init();
-void lua_main_step();
-void register_start_calllback();
-void register_final_calllback();
+void verilua_init();
+void verilua_main_step();
+void verilua_final();
 void vlog_startup_routines_bootstrap();
 
+
+// used inside the verilua lib
+void execute_final_callback();
+void execute_sim_event(int *id);
+void execute_sim_event(int id);
+
+#endif // __LUA_VPI_H__
