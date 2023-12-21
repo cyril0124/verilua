@@ -1,4 +1,4 @@
-
+local class = require "pl.class"
 local ffi = require("ffi")
 local C = ffi.C
 
@@ -22,9 +22,7 @@ SimCtrl = {
 --------------------------------
 -- YieldEvent class
 --------------------------------
-local class = require("pl.class")
-YieldEvent = class()
-YieldType = {
+local YieldType = {
     TIMER = 0,
     SIGNAL_EDGE = 1,
     SIGNAL_EDGE_HDL = 2,
@@ -36,25 +34,8 @@ YieldType = {
     CLOCK_NEGEDGE_ALWAYS = 8,
     NOOP = 44
 }
-EdgeType = { POSEDGE = 0, NEGEDGE = 1, EDGE = 2 }
-function YieldEvent:_init(type, value, signal)
-    -- Yield type:
-    --     1) Timer:      0
-    --     2) SignalEdge: 1
-    self.type = type
-    -- Yield value:
-    --     1) for Timer type: value ==> delayed time
-    --     2) for SignalEdge: 
-    --          - Posedge:   0 
-    --          - Negedge:   1
-    --          - Both edge: 2
-    self.value = value
-    self.signal = signal -- signal path uesd by SignalEdge type
-end
+local EdgeType = { POSEDGE = 0, NEGEDGE = 1, EDGE = 2 }
 
-function YieldEvent:get_signal()
-    return tostring(self.signal)
-end
 
 
 --------------------------------
@@ -118,15 +99,21 @@ end
 --------------------------------
 -- Scheduler
 --------------------------------
-local SchedulerTask = class()
+local SchedulerTask = {}
 
-function SchedulerTask:_init(id, name, func, param)
-    self.id = id
-    self.name = name
-    self.func = func
-    self.param = param
-    self.fired = false
-    self.cnt = 0
+function SchedulerTask:new(id, name, func, param)
+    local obj = {}
+    setmetatable(obj, self)
+    obj.__index = self
+
+    obj.id = id
+    obj.name = name
+    obj.func = func
+    obj.param = param
+    obj.fired = false
+    obj.cnt = 0
+
+    return obj
 end
 
 
@@ -155,7 +142,7 @@ function SchedulerClass:create_task_table(tasks)
         local task_param = tasks[i][3]
         task_param = task_param or {}
         local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
-        table.insert(self.task_table, id, SchedulerTask(id, task_name, coroutine.create(task_func), task_param))
+        table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.create(task_func), task_param))
     end
 end
 
@@ -184,7 +171,7 @@ function SchedulerClass:append_task(id, name, task_func, param, schedule_task)
     end
 
     local _ = self.verbose and self:_log(string.format("append task id:%d name:%s", task_id, name))
-    table.insert(self.task_table, task_id, SchedulerTask(task_id, name, coroutine.create(task_func), param))
+    table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.create(task_func), param))
     if schedule_task or false then
         self:schedule_tasks(task_id) -- start the task right away
     end
@@ -265,7 +252,12 @@ function SchedulerClass:schedule_tasks(id)
                 elseif types == YieldType.SIGNAL_EDGE_HDL then
                     -- vpi.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
                     -- ffi.C.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
+                    -- s = os.clock()
                    C.c_register_edge_callback_hdl(signal, value, task_id)
+                    -- e = os.clock()
+                    -- ms = (e-s)*1000; us = ms * 1000
+                    -- print("register edge callback time is "..ms.." ms".." / "..us.." us")
+
                 
                 -------------------------
                 -- edge callback hdl always
@@ -299,6 +291,8 @@ function SchedulerClass:schedule_tasks(id)
             end
         end
     end
+    -- TODO: Register Callback after all tasks is executed, this will reduce C function called cost.
+    -- TODO: Merge tasks
 end
 
 scheduler = SchedulerClass()

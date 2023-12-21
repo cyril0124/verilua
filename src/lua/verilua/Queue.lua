@@ -1,4 +1,5 @@
 local class = require("pl.class")
+local isempty = require "table.isempty"
 
 Queue = class()
 
@@ -28,5 +29,5 @@ function Queue:query_first()
 end
 
 function Queue:is_empty()
-    return self.first > self.last
+    return isempty(self.data)
 end
