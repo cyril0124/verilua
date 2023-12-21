@@ -10,8 +10,6 @@
 // |________|____________|
 
 lua_State *L;
-// luabridge::LuaRef sim_event(L);
-// luabridge::LuaRef main_step(L);
 sol::protected_function sim_event; 
 sol::protected_function main_step; 
 
@@ -25,12 +23,6 @@ inline void execute_sim_event(int *id) {
         sol::error  err = ret;
         m_assert(false, "Lua error: %s", err.what());
     }
-    
-    // try {
-    //     sim_event(id);
-    // } catch (const luabridge::LuaException& e) {
-    //     m_assert(false, "Lua error: %s", e.what());
-    // }
 }
 
 inline void execute_sim_event(int id) {
@@ -39,12 +31,6 @@ inline void execute_sim_event(int id) {
         sol::error  err = ret;
         m_assert(false, "Lua error: %s", err.what());
     }
-    
-    // try {
-    //     sim_event(id);
-    // } catch (const luabridge::LuaException& e) {
-    //     m_assert(false, "Lua error: %s", e.what());
-    // }
 }
 
 inline void execute_final_callback() {
@@ -354,11 +340,6 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
     // cb_data.cb_rtn = read_write_synch_callback;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
         fmt::print("hello from cbReadWriteSynch id {}\n", *(int *)cb_data->user_data);
-        // try {
-        //     sim_event((int *)cb_data->user_data);
-        // } catch (const luabridge::LuaException& e) {
-        //     m_assert(false, "Lua error: %s", e.what());
-        // }
         execute_sim_event((int *)cb_data->user_data);
 
         free(cb_data->user_data);
@@ -373,13 +354,6 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
 
     assert(vpi_register_cb(&cb_data) != NULL);
 }
-
-// TO_LUA long long c_handle_by_name(const char *name) {
-//     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
-//     m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, name);
-//     long long handle_as_ll = reinterpret_cast<long long>(handle);
-//     return handle_as_ll;
-// }
 
 // Cache to store handles
 static std::unordered_map<std::string, long long> handle_cache;
@@ -428,6 +402,17 @@ TO_LUA uint64_t c_get_value64(long long handle) {
     uint32_t hi = v.value.vector[1].aval;
     uint64_t value = ((uint64_t)hi << 32) | lo; 
     return value;
+}
+
+TO_LUA void c_get_value_multi_1(long long handle, int n, uint32_t *result_arr) {
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+
+    s_vpi_value v;
+    v.format = vpiVectorVal;
+    vpi_get_value(actual_handle, &v);
+    for(int i = 0; i < n; i++) {
+        result_arr[i] = v.value.vector[i].aval;
+    }
 }
 
 TO_LUA int c_get_value_multi(lua_State *L) {
@@ -625,8 +610,6 @@ void lua_init(void) {
         m_assert(false, "Lua error: %s", err.what());
     }
 
-    // sim_event = luabridge::getGlobal(L, "sim_event");
-    // main_step = luabridge::getGlobal(L, "lua_main_step");
     sim_event = lua["sim_event"];
     sim_event.set_error_handler(lua["debug"]["traceback"]); 
     main_step = lua["lua_main_step"];

@@ -14,6 +14,7 @@ ffi.cdef[[
   void c_get_value64_parallel(long long *hdls, uint64_t *values, int length);
   void c_set_value_parallel(long long *hdls, uint32_t *values, int length);
   void c_set_value64_parallel(long long *hdls, uint64_t *values, int length);
+  void c_get_value_multi_1(long long handle, int n, uint32_t *c_results);
 ]]
 
 
@@ -32,6 +33,8 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
 
+    self.c_results = ffi.new("uint32_t[?]", self.beat_num) -- create a new array to store the result
+
     local _ = self.verbose and print("New CallableHDL => ", "name: " .. self.name, "fullpath: " .. self.fullpath, "width: " .. self.width, "beat_num: " .. self.beat_num, "is_multi_beat: " .. tostring(self.is_multi_beat))
 end
 
@@ -42,7 +45,15 @@ function CallableHDL:__call(force_multi_beat)
         if self.beat_num <= 2 and not force_multi_beat then
             return tonumber(C.c_get_value64(self.hdl))
         else
-            return vpi.get_value_multi(self.hdl, self.beat_num) -- This will return a table with multi beat datas, and each is 32-bit size data
+            C.c_get_value_multi_1(self.hdl, self.beat_num, self.c_results)
+            
+            local ret = {}
+            for i = 1, self.beat_num do
+                table.insert(ret, self.c_results[i-1])
+            end
+            
+            return ret
+            -- return vpi.get_value_multi(self.hdl, self.beat_num) -- This will return a table with multi beat datas, and each is 32-bit size data
         end
     else
         -- return ffi.C.get_value(self.hdl)
