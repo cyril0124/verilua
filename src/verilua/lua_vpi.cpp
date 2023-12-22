@@ -207,6 +207,17 @@ void verilua_init(void) {
 }
 
 
+void verilua_schedule_loop() {
+    sol::state_view lua(L);
+    sol::protected_function verilua_schedule_loop = lua["verilua_schedule_loop"];
+    
+    auto ret = verilua_schedule_loop();
+    if(!ret.valid()) {
+        sol::error  err = ret;
+        m_assert(false, "Lua error: %s", err.what());
+    }
+}
+
 // Only for test (LuaJIT FFI)
 // "TO_LUA" is necessary since FFI can only access C type function
 TO_LUA void hello() {
@@ -229,4 +240,14 @@ void vlog_startup_routines_bootstrap() {
         auto routine = *it;
         routine();
     }
+}
+
+
+vl_func_t verilator_next_sim_step_impl;
+void alloc_verilator_next_sim_step(vl_func_t func) {
+    verilator_next_sim_step_impl = func;
+}
+
+TO_LUA void verilator_next_sim_step(void) {
+    verilator_next_sim_step_impl();
 }

@@ -90,8 +90,11 @@ public:
 void verilua_init();
 void verilua_main_step();
 void verilua_final();
+void verilua_schedule_loop();
 void vlog_startup_routines_bootstrap();
 
+typedef void (*vl_func_t)(void);
+void alloc_verilator_next_sim_step(vl_func_t func);
 
 // used inside the verilua lib
 void execute_final_callback();

@@ -10,10 +10,13 @@
 #include "Vtb_top.h"
 #include "verilated.h"
 #include "verilated_vpi.h"
+
 #include <lua.hpp>
+#include "lua_vpi.h"
 
 #include <csignal>
 #include <cstdlib>
+#include "assert.h"
 
 #ifndef VM_TRACE_FST
 // emulate new verilator behavior for legacy versions
@@ -27,6 +30,9 @@
 #include <verilated_vcd_c.h>
 #endif
 #endif
+
+// std::unique_ptr<VTop> top(new VTop(""));
+std::unique_ptr<Vtb_top> top(new Vtb_top(""));
 
 static vluint64_t main_time = 0;  // Current simulation time
 
@@ -43,6 +49,10 @@ double sc_time_stamp() {  // Called by $time in Verilog
 void vlog_startup_routines_bootstrap(void);
 void verilua_main_step(); // Verilua step
 
+static inline void enter_verilua_loop() {
+    verilua_schedule_loop();
+}
+
 static inline bool settle_value_callbacks() {
     bool cbs_called, again;
 
@@ -57,27 +67,44 @@ static inline bool settle_value_callbacks() {
     return cbs_called;
 }
 
-// std::unique_ptr<VTop> top(new VTop(""));
-std::unique_ptr<Vtb_top> top(new Vtb_top(""));
+
+void verilator_next_sim_step_impl(void) {
+    if(Verilated::gotFinish()) {
+        printf("\n[verilator_main.cpp] Simulation end...\n");
+        assert(false);
+    }
+
+    top->eval_step();
+    top->clock = top->clock ? 0 : 1;
+    
+    main_time += 5; 
+}
+
+void verilator_next_negedge() {
+
+}
 
 void handle_sigabrt(int sig) {
     VerilatedVpi::callCbs(cbEndOfSimulation);
 }
 
-#ifndef STEP_MODE
-int main(int argc, char** argv) {
-    std::signal(SIGABRT, handle_sigabrt);
-    
-    Verilated::commandArgs(argc, argv);
-#ifdef VERILATOR_SIM_DEBUG
-    Verilated::debug(99);
-#endif
-    Verilated::fatalOnVpiError(false);  // otherwise it will fail on systemtf
+static inline void end_of_simulation() {
+    VerilatedVpi::callCbs(cbEndOfSimulation);
+    top->final();
 
-#ifdef VERILATOR_SIM_DEBUG
-    Verilated::internalsDump();
+#if VM_TRACE
+    tfp->close();
 #endif
 
+// VM_COVERAGE is a define which is set if Verilator is
+// instructed to collect coverage (when compiling the simulation)
+#if VM_COVERAGE
+    VerilatedCov::write("coverage.dat");
+#endif
+}
+
+
+inline int timming_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
@@ -171,23 +198,12 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-#else // SIGNLE_STEP
-int main(int argc, char** argv) {
-    std::signal(SIGABRT, handle_sigabrt);
-    
-    Verilated::commandArgs(argc, argv);
-#ifdef VERILATOR_SIM_DEBUG
-    Verilated::debug(99);
-#endif
-    Verilated::fatalOnVpiError(false);  // otherwise it will fail on systemtf
 
-#ifdef VERILATOR_SIM_DEBUG
-    Verilated::internalsDump();
-#endif
-
+inline int step_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
+    
 #if VM_TRACE
     Verilated::traceEverOn(true);
 #if VM_TRACE_FST
@@ -257,4 +273,57 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-#endif 
+
+inline int dominant_mode_main(int argc, char** argv) {
+    vlog_startup_routines_bootstrap();
+    VerilatedVpi::callCbs(cbStartOfSimulation);
+
+    alloc_verilator_next_sim_step(verilator_next_sim_step_impl);
+
+#if VM_TRACE
+    Verilated::traceEverOn(true);
+#if VM_TRACE_FST
+    std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
+    top->trace(tfp.get(), 99);
+    tfp->open("dump.fst");
+#else
+    std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
+    top->trace(tfp.get(), 99);
+    tfp->open("dump.vcd");
+#endif
+#endif
+
+    static uint64_t wave_ticks = 20;
+    
+    enter_verilua_loop();
+
+    printf("\n[verilator_main.cpp] Leaving verilua_loop...\n");
+    
+    end_of_simulation();
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    std::signal(SIGABRT, handle_sigabrt);
+    
+    Verilated::commandArgs(argc, argv);
+#ifdef VERILATOR_SIM_DEBUG
+    Verilated::debug(99);
+#endif
+    Verilated::fatalOnVpiError(false);  // otherwise it will fail on systemtf
+
+#ifdef VERILATOR_SIM_DEBUG
+    Verilated::internalsDump();
+#endif
+
+#ifdef STEP_MODE
+    return step_mode_main(argc, argv);
+#else
+    #ifdef DOMINANT_MODE
+        return dominant_mode_main(argc, argv);
+    #else
+        return timming_mode_main(argc, argv);
+    #endif
+#endif
+
+}
