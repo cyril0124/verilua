@@ -19,20 +19,41 @@ IdPool edge_cb_idpool(50);
 std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
 std::unordered_map<std::string, long long> handle_cache;
 
+#ifdef ACCUMULATE_LUA_TIME
+#include <chrono>
+double lua_time = 0.0;
+#endif
+
 void execute_sim_event(int *id) {
+#ifdef ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
     auto ret = sim_event(*id);
     if(!ret.valid()) {
         sol::error  err = ret;
         m_assert(false, "Lua error: %s", err.what());
     }
+#ifdef ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    lua_time += time_taken;
+#endif
 }
 
 void execute_sim_event(int id) {
+#ifdef ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
     auto ret = sim_event(id);
     if(!ret.valid()) {
         sol::error  err = ret;
         m_assert(false, "Lua error: %s", err.what());
     }
+#ifdef ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    lua_time += time_taken;
+#endif
 }
 
 inline void execute_final_callback() {
@@ -48,11 +69,19 @@ inline void execute_final_callback() {
 }
 
 inline void execute_main_step() {
+#ifdef ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
     auto ret = main_step();
     if(!ret.valid()) {
         sol::error  err = ret;
         m_assert(false, "Lua error: %s", err.what());
     }
+#ifdef ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    lua_time += time_taken;
+#endif
 }
 
 void verilua_main_step() {

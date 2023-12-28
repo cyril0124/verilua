@@ -22,6 +22,7 @@ CXX_FLAGS += $(INC_FLAGS)
 CXX_FLAGS += -w # disable warning
 CXX_FLAGS += -std=c++17
 CXX_FLAGS += -Ofast -funroll-loops -march=native -fomit-frame-pointer
+CXX_FLAGS += -DACCUMULATE_LUA_TIME
 # CXX_FLAGS += -g
 
 LD_FLAGS  += -Wl,--no-as-needed

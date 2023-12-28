@@ -5,6 +5,13 @@ extern lua_State *L;
 extern IdPool edge_cb_idpool;
 extern std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
 
+#ifdef ACCUMULATE_LUA_TIME
+#include <chrono>
+extern double lua_time;
+double start_time = 0.0;
+double end_time = 0.0;
+#endif
+
 TO_LUA void c_register_time_callback(uint64_t time, int id) {
     s_cb_data cb_data;
     s_vpi_time vpi_time;
@@ -158,7 +165,10 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
 
 static PLI_INT32 start_callback(p_cb_data cb_data) {
     verilua_init();
-    
+#ifdef ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+    start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
+#endif
     fmt::print("[{}:{}] Start callback\n", __FILE__, __LINE__);
     return 0;
 }
@@ -169,6 +179,14 @@ static PLI_INT32 final_callback(p_cb_data cb_data) {
 
     lua_close(L);
 
+#ifdef ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end.time_since_epoch()).count();
+    double time_taken = end_time - start_time;
+    double percent = lua_time * 100 / time_taken;
+
+    fmt::print("[{}:{}] time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", __FILE__, __LINE__, time_taken, lua_time, percent);
+#endif
     fmt::print("[{}:{}] Final callback\n", __FILE__, __LINE__);
     return 0;
 }
