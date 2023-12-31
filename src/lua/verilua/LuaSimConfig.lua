@@ -65,8 +65,8 @@ config.unit              = "ns"
 config.enable_shutdown   = true
 config.shutdown_cycles   = 20000000
 config.enable_luaPanda   = false
-config.mode              = VeriluaMode.DOMINANT
--- config.mode              = VeriluaMode.NORMAL
+-- config.mode              = VeriluaMode.DOMINANT
+config.mode              = VeriluaMode.NORMAL
 config.single_step_mode  = config.mode == VeriluaMode.STEP
 config.dominant_mode     = config.mode == VeriluaMode.DOMINANT
 

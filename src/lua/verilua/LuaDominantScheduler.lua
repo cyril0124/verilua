@@ -29,6 +29,7 @@ function SchedulerTask:new(id, name, func, param)
     obj.param = param
     obj.fired = false
     obj.cnt = 0
+    obj.time_taken = 0
 
     return obj
 end
@@ -138,8 +139,17 @@ end
 
 function SchedulerClass:list_tasks()
     print("--------------- Scheduler list task ---------------")
-    for task_id, task in pairs(self.task_table) do
-        print(("id: %5d\tcnt:%5d\tname: %.50s"):format(task_id, task.cnt, task.name))
+    if self.time_accumulate == true then
+        local total_time = 0
+        for task_id, task in pairs(self.task_table) do total_time = total_time + task.time_taken end
+        for task_id, task in pairs(self.task_table) do
+            local percent = task.time_taken * 100 / total_time
+            print(("id: %5d\tcnt:%5d\tname: %.50s\ttime:%.2f\toverhead:%.2f"):format(task_id, task.cnt, task.name, task.time_taken, percent).."%")
+        end
+    else
+        for task_id, task in pairs(self.task_table) do
+            print(("id: %5d\tcnt:%5d\tname: %.50s"):format(task_id, task.cnt, task.name))
+        end
     end
     print("-----------------------------------------")
 end
@@ -169,7 +179,10 @@ function SchedulerClass:schedule_tasks(id)
             task.cnt = task.cnt + 1
             local _ = self.verbose and self:_log("resume task_id:", task_id, "task_name:", task_name)
 
+            local s = self.time_accumulate and os.clock()
             local types, value, signal = task_func(table.unpack(task_param))
+            local e = self.time_accumulate and os.clock()
+            if self.time_accumulate == true then task.time_taken = task.time_taken + (e - s) end
 
             if types == nil then
                 self:remove_task(id)
