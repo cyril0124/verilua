@@ -3,8 +3,9 @@
 
 #include "lua.hpp"
 #include <LuaBridge.h>
-#include <sol.hpp>
 #include <fmt/core.h>
+#include <sol/sol.hpp>
+
 
 #include "vpi_user.h"
 
