@@ -98,6 +98,8 @@ default: run
 run: $(BIN)
 	$(BIN) $(RUN_FLAGS)
 
+simv: $(BIN)
+
 $(BIN): $(SIM_BUILD) $(SIM_FILE)
 	@echo -e "$(INFO) ${GREEN}-- BUILD SIMV ------------------------$(RESET)"
 	$(VCS) $(VCS_FLAGS) -f $(SIM_FILE) -o $@ | tee $(SIM_BUILD)/build.log
