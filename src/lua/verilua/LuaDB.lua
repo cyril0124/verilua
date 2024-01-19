@@ -39,6 +39,7 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     assert(name ~= nil)
     
     self.name = name
+    self.path = path
     self.fullpath_name = path .. "/" .. name
     self.save_cnt_max = save_cnt_max or 50000
     self.save_cnt = 0
@@ -47,6 +48,13 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     self.stmt = nil
     self.verbose = verbose or false
     
+    -- create path folder if not exist
+    local attributes, err = lfs.attributes(path .. "/")
+    if attributes == nil then
+        local success, message = lfs.mkdir(path .. "/")
+        assert(success, "cannot create folder: " .. path .. " err: " .. message)
+    end
+
     -- Remove data base before create it
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
