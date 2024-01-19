@@ -87,11 +87,11 @@ inline void execute_main_step() {
 #endif
 }
 
-void verilua_main_step() {
+VERILUA_EXPORT void verilua_main_step() {
     execute_main_step();
 }
 
-void verilua_final() {
+VERILUA_EXPORT void verilua_final() {
     execute_final_callback();
 
 #ifdef ACCUMULATE_LUA_TIME
@@ -144,7 +144,7 @@ TO_LUA std::string c_get_top_module() {
 }
 
 
-void verilua_init(void) {
+VERILUA_EXPORT void verilua_init(void) {
     // Create lua virtual machine
     L = luaL_newstate();
 
@@ -282,7 +282,7 @@ void (*vlog_startup_routines[])() = {
 #endif
 
 // For non-VPI compliant applications that cannot find vlog_startup_routines
-void vlog_startup_routines_bootstrap() {
+VERILUA_EXPORT void vlog_startup_routines_bootstrap() {
     // call each routine in turn like VPI would
     for (auto it = &vlog_startup_routines[0]; *it != nullptr; it++) {
         auto routine = *it;

@@ -42,7 +42,7 @@
 
 #define TO_LUA extern "C"
 #define TO_VERILATOR
-#define VERILUA_EXPORT
+#define VERILUA_EXPORT extern "C"
 #define VERILUA_PRIVATE
 
 typedef struct {

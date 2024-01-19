@@ -90,7 +90,7 @@ local sim = require "LuaSimulator"; sim.init()
 _G.sim     = sim
 
 -- setup mode
-if cfg.simulator == "verilator" then
+if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
     cfg.mode = sim.get_mode()
     verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
 end
