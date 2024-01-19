@@ -1,12 +1,9 @@
 
-
-SimCtrl = {
-    STOP = 66,
-    FINISH = 67,
-    RESET = 68,
-    SET_INTERATIVE_SCOPE = 69
-}
-
+local VeriluaMode = VeriluaMode
+local STEP = VeriluaMode.STEP
+local verilua_mode = cfg.mode
+local period = cfg.period
+local ceil = math.ceil
 
 YieldType = {
     TIMER = 0,
@@ -29,7 +26,14 @@ EdgeType = { POSEDGE = 0, NEGEDGE = 1, EDGE = 2 }
 -- Schedule events
 --------------------------------
 function await_time(time)
-    coroutine.yield(YieldType.TIMER, time)
+    if verilua_mode == STEP then
+        local t = ceil(time / period)
+        for i = 1, t do
+            coroutine.yield(YieldType.NOOP)
+        end
+    else
+        coroutine.yield(YieldType.TIMER, time)
+    end
 end
 
 function await_posedge(signal)

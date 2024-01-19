@@ -2,7 +2,7 @@
 
 
 extern lua_State *L;
-extern IdPool edge_cb_idpool;
+extern IDPool edge_cb_idpool;
 extern std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
 
 #ifdef ACCUMULATE_LUA_TIME

@@ -1,19 +1,38 @@
-function lua_main()
+--------------------------------
+-- Setup package path
+--------------------------------
+local vl = require("Verilua")
+
+
+--------------------------------
+-- Main body
+--------------------------------
+local function lua_main()
 
 end
 
-function lua_main_step()
 
-end
+--------------------------------
+-- Initialize scheduler task table
+--------------------------------
+vl.register_main_task(lua_main)
 
-function sim_event(id)
 
-end
+--------------------------------
+-- Lua side initialize
+--------------------------------
+vl.register_start_callback(
+    function ()
+        
+    end
+)
 
-function verilua_init()
 
-end
+--------------------------------
+-- Simulation finish callback
+--------------------------------
+vl.register_finish_callback(
+    function ()
 
-function finish_callback()
-
-end
+    end
+)

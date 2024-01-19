@@ -12,16 +12,19 @@
 // |________|____________|
 
 lua_State *L;
+bool verilua_is_init = false;
 sol::protected_function sim_event; 
 sol::protected_function main_step; 
 
-IdPool edge_cb_idpool(50);
+IDPool edge_cb_idpool(50);
 std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
 std::unordered_map<std::string, long long> handle_cache;
 
 #ifdef ACCUMULATE_LUA_TIME
 #include <chrono>
 double lua_time = 0.0;
+double start_time_for_step = 0.0;
+double end_time_for_step = 0.0;
 #endif
 
 void execute_sim_event(int *id) {
@@ -90,6 +93,15 @@ void verilua_main_step() {
 
 void verilua_final() {
     execute_final_callback();
+
+#ifdef ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    end_time_for_step = std::chrono::duration_cast<std::chrono::duration<double>>(end.time_since_epoch()).count();
+    double time_taken = end_time_for_step - start_time_for_step;
+    double percent = lua_time * 100 / time_taken;
+
+    fmt::print("[{}:{}] time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", __FILE__, __LINE__, time_taken, lua_time, percent);
+#endif
 }
 
 TO_LUA uint64_t bitfield64(uint64_t begin, uint64_t end, uint64_t val) {
@@ -233,6 +245,13 @@ void verilua_init(void) {
     sim_event.set_error_handler(lua["debug"]["traceback"]); 
     main_step = lua["lua_main_step"];
     main_step.set_error_handler(lua["debug"]["traceback"]); 
+
+#ifdef ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+    start_time_for_step = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
+#endif
+
+    verilua_is_init = true;
 }
 
 
@@ -272,11 +291,77 @@ void vlog_startup_routines_bootstrap() {
 }
 
 
-vl_func_t verilator_next_sim_step_impl;
-void alloc_verilator_next_sim_step(vl_func_t func) {
-    verilator_next_sim_step_impl = func;
+// ---------------------------------------
+// functions from verilator side
+// ---------------------------------------
+// TODO: default implementation
+vl_func_t verilator_next_sim_step_impl = NULL;
+vl_int_func_t verilator_get_mode_impl = NULL;
+
+namespace Verilua {
+    
+void alloc_verilator_func(vl_func_t func, std::string name) {
+    if (verilua_is_init == true) {
+        fmt::println("[{}:{}] you should alloc a verilator function before call verilua_init()", __FILE__, __LINE__);
+        assert(false);
+    }
+
+    fmt::println("[{}:{}] alloc verilator function name:{}", __FILE__, __LINE__, name);
+
+    if (name == "next_sim_step") {
+        verilator_next_sim_step_impl = func;
+    } else {
+        fmt::println("[{}:{}] name:{} did not match any functions", __FILE__, __LINE__, name);
+        assert(false);
+    }
+}
+
+void alloc_verilator_int_func(vl_int_func_t func, std::string name) {
+    if (verilua_is_init == true) {
+        fmt::println("[{}:{}] you should alloc a verilator function before call verilua_init()", __FILE__, __LINE__);
+        assert(false);
+    }
+
+    fmt::println("[{}:{}] alloc verilator int function name:{}", __FILE__, __LINE__, name);
+
+    if (name == "get_mode") {
+        verilator_get_mode_impl = func;
+    } else {
+        fmt::println("[{}:{}] name:{} did not match any functions", __FILE__, __LINE__, name);
+        assert(false);
+    }
+}
+
 }
 
 TO_LUA void verilator_next_sim_step(void) {
+    if (verilator_next_sim_step_impl == NULL) {
+        fmt::println("[{}:{}] verilator_next_sim_step_impl is NULL", __FILE__, __LINE__);
+        assert(false);
+    }
+
     verilator_next_sim_step_impl();
 }
+
+TO_LUA int verilator_get_mode(void) {
+    if (verilator_get_mode_impl == NULL) {
+        fmt::println("[{}:{}] verilator_get_mode_impl is NULL", __FILE__, __LINE__);
+        assert(false);
+    }
+
+    return verilator_get_mode_impl();
+}
+
+
+// ---------------------------------------
+// dpi releated functions
+// ---------------------------------------
+#include "svdpi.h"
+
+TO_LUA void dpi_set_scope(char *str) {
+    printf("[lua_vpi.cpp] set svScope name: %s\n", str);
+    const svScope scope = svGetScopeFromName("tb_top");
+    assert(scope);
+    svSetScope(scope);
+}
+

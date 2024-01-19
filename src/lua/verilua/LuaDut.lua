@@ -2,7 +2,7 @@ require("LuaSimConfig")
 local VERILUA_CFG, VERILUA_CFG_PATH = LuaSimConfig.get_cfg()
 local cfg = require(VERILUA_CFG)
 
-function create_proxy(path)
+local function create_proxy(path)
     local local_path = path
     return setmetatable({}, {
         __index = function(t, k)
@@ -55,7 +55,10 @@ end
 
 
 -- local dut = create_proxy('Top')
-local dut = create_proxy('tb_top')
+-- local dut = create_proxy('tb_top')
 
 
-return dut
+-- return dut
+return {
+    create_proxy = create_proxy
+}

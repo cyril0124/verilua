@@ -1,4 +1,6 @@
 local class = require "pl.class"
+local inspect = require "inspect"
+local coro_resume, coro_status = coroutine.resume, coroutine.status
 local ffi = require("ffi")
 local C = ffi.C
 
@@ -66,7 +68,8 @@ function SchedulerClass:create_task_table(tasks)
         local task_param = tasks[i][3]
         task_param = task_param or {}
         local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
-        table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.wrap(task_func), task_param))
+        -- table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.wrap(task_func), task_param))
+        table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.create(task_func), task_param))
     end
 end
 
@@ -96,7 +99,8 @@ function SchedulerClass:append_task(id, name, task_func, param, schedule_task)
     end
 
     local _ = self.verbose and self:_log(string.format("append task id:%d name:%s", task_id, name))
-    table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.wrap(task_func), param))
+    -- table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.wrap(task_func), param))
+    table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.create(task_func), param))
     if schedule_task or false then
         self:schedule_tasks(task_id) -- start the task right away
     end
@@ -128,7 +132,7 @@ function SchedulerClass:list_tasks()
             print(("id: %5d\tcnt:%5d\tname: %.50s"):format(task_id, task.cnt, task.name))
         end
     end
-    print("-----------------------------------------")
+    print()
 end
 
 function SchedulerClass:register_callback(types, value, task_id, signal)
@@ -212,11 +216,19 @@ function SchedulerClass:schedule_tasks(id)
             local _ = self.verbose and self:_log("resume task_id:", task_id, "task_name:", task_name)
 
             local s = self.time_accumulate and os.clock()
-            local types, value, signal = task_func(table.unpack(task_param))
+            -- local types, value, signal = task_func(table.unpack(task_param))
+            local ok, types, value, signal = coro_resume(task_func, table.unpack(task_param))
+            if not ok then
+                local err_msg = types
+                print(debug.traceback(task_func, err_msg))
+                assert(false)
+            end
+ 
             local e = self.time_accumulate and os.clock()
             if self.time_accumulate == true then task.time_taken = task.time_taken + (e - s) end
 
-            if types == nil then -- ! task is dead if the first return value is `nil` 
+            -- if types == nil then -- ! task is dead if the first return value is `nil` 
+            if coro_status(task_func) == 'dead' then
                 self:remove_task(id)
             else
                 self:register_callback(types, value, task_id, signal)

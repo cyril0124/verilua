@@ -20,7 +20,10 @@ function IDPool:alloc()
 end
 
 function IDPool:release(id)
-    assert(id <= self.size)
+    if id > self.size then
+        assert(false)
+    end
+
     return self.pool:append(id)
 end
 

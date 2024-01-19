@@ -31,8 +31,15 @@
 #endif
 #endif
 
-// std::unique_ptr<VTop> top(new VTop(""));
 std::unique_ptr<Vtb_top> top(new Vtb_top(""));
+
+#if VM_TRACE
+#if VM_TRACE_FST
+std::unique_ptr<VerilatedFstC> tfp;
+#else
+std::unique_ptr<VerilatedVcdC> tfp;
+#endif
+#endif
 
 static vluint64_t main_time = 0;  // Current simulation time
 
@@ -68,7 +75,7 @@ static inline bool settle_value_callbacks() {
 }
 
 
-void verilator_next_sim_step_impl(void) {
+void verilator_next_sim_step(void) {
     if(Verilated::gotFinish()) {
         printf("\n[verilator_main.cpp] Simulation end...\n");
         assert(false);
@@ -82,6 +89,33 @@ void verilator_next_sim_step_impl(void) {
 
 void verilator_next_negedge() {
 
+}
+
+int verilator_get_mode(void) {
+    int mode_defines = 0;
+    int mode = 0;
+
+#ifdef NORMAL_MODE
+    mode_defines++;
+    mode = (int)Verilua::VeriluaMode::Normal;
+#endif
+
+#ifdef DOMINANT_MODE
+    mode_defines++;
+    mode = (int)Verilua::VeriluaMode::Dominant;
+#endif
+
+#ifdef STEP_MODE
+    mode_defines++;
+    mode = (int)Verilua::VeriluaMode::Step;
+#endif
+
+    if (mode_defines > 1) {
+        printf("[%s:%d] multiple MODE macros are defined!\n", __FILE__, __LINE__);
+        assert(false);
+    }
+
+    return mode;
 }
 
 void handle_sigabrt(int sig) {
@@ -111,11 +145,13 @@ inline int timming_mode_main(int argc, char** argv) {
 #if VM_TRACE
     Verilated::traceEverOn(true);
 #if VM_TRACE_FST
-    std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
+    // std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
+    tfp.reset(new VerilatedFstC());
     top->trace(tfp.get(), 99);
     tfp->open("dump.fst");
 #else
-    std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
+    // std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
+    tfp.reset(new VerilatedVcdC());
     top->trace(tfp.get(), 99);
     tfp->open("dump.vcd");
 #endif
@@ -199,7 +235,7 @@ inline int timming_mode_main(int argc, char** argv) {
     return 0;
 }
 
-inline int step_mode_main(int argc, char** argv) {
+inline int normal_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
@@ -278,7 +314,7 @@ inline int dominant_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
-    alloc_verilator_next_sim_step(verilator_next_sim_step_impl);
+    // alloc_verilator_next_sim_step(verilator_next_sim_step);
 
 #if VM_TRACE
     Verilated::traceEverOn(true);
@@ -303,6 +339,56 @@ inline int dominant_mode_main(int argc, char** argv) {
     return 0;
 }
 
+inline int step_mode_main(int argc, char** argv) {
+    vlog_startup_routines_bootstrap();
+    VerilatedVpi::callCbs(cbStartOfSimulation);
+
+    
+#if VM_TRACE
+    Verilated::traceEverOn(true);
+#if VM_TRACE_FST
+    std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
+    top->trace(tfp.get(), 99);
+    tfp->open("dump.fst");
+#else
+    std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
+    top->trace(tfp.get(), 99);
+    tfp->open("dump.vcd");
+#endif
+#endif
+
+    static uint64_t wave_ticks = 20;
+    while (!Verilated::gotFinish()) {
+        top->clock = 0;
+        top->eval();
+        top->clock = 1;
+        top->eval();
+
+        verilua_main_step();
+
+#if VM_TRACE
+        tfp->dump(main_time);
+#endif
+        main_time += 5;
+    }
+
+    VerilatedVpi::callCbs(cbEndOfSimulation);
+
+    top->final();
+
+#if VM_TRACE
+    tfp->close();
+#endif
+
+// VM_COVERAGE is a define which is set if Verilator is
+// instructed to collect coverage (when compiling the simulation)
+#if VM_COVERAGE
+    VerilatedCov::write("coverage.dat");
+#endif
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
     std::signal(SIGABRT, handle_sigabrt);
     
@@ -316,13 +402,24 @@ int main(int argc, char** argv) {
     Verilated::internalsDump();
 #endif
 
-#ifdef STEP_MODE
-    return step_mode_main(argc, argv);
+    Verilua::alloc_verilator_func(verilator_next_sim_step, "next_sim_step");
+    Verilua::alloc_verilator_int_func(verilator_get_mode, "get_mode");
+
+#ifdef NORMAL_MODE
+    printf("[%s:%d] using verilua NORMAL_MODE\n", __FILE__, __LINE__);
+    return normal_mode_main(argc, argv);
 #else
     #ifdef DOMINANT_MODE
+        printf("[%s:%d] using verilua DOMINANT_MODE\n", __FILE__, __LINE__);
         return dominant_mode_main(argc, argv);
     #else
-        return timming_mode_main(argc, argv);
+        #ifdef STEP_MODE
+            printf("[%s:%d] using verilua STEP_MODE\n", __FILE__, __LINE__);
+            return step_mode_main(argc, argv);
+        #else
+            printf("[%s:%d] using verilua TIMMING_MODE\n", __FILE__, __LINE__);
+            return timming_mode_main(argc, argv);
+        #endif
     #endif
 #endif
 

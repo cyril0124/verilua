@@ -41,7 +41,9 @@
     } while (0)
 
 #define TO_LUA extern "C"
-
+#define TO_VERILATOR
+#define VERILUA_EXPORT
+#define VERILUA_PRIVATE
 
 typedef struct {
     int       task_id;
@@ -51,13 +53,13 @@ typedef struct {
 
 
 
-class IdPool {
+class IDPool {
 private:
     std::unordered_set<int> allocated_ids;  
     std::queue<int> available_ids;
 
 public:
-    IdPool(int size) {
+    IDPool(int size) {
         for (int i = 0; i < size; ++i) {
             available_ids.push(i);
         }
@@ -87,19 +89,33 @@ public:
     }
 };
 
-// TODO: add prefix: verilua
-void verilua_init();
-void verilua_main_step();
-void verilua_final();
-void verilua_schedule_loop();
-void vlog_startup_routines_bootstrap();
+
+VERILUA_EXPORT void verilua_init();
+VERILUA_EXPORT void verilua_main_step();
+VERILUA_EXPORT void verilua_final();
+VERILUA_EXPORT void vlog_startup_routines_bootstrap();
+
+
+TO_VERILATOR void verilua_schedule_loop();
+
 
 typedef void (*vl_func_t)(void);
-void alloc_verilator_next_sim_step(vl_func_t func);
+typedef int  (*vl_int_func_t)(void);
+namespace Verilua {
+    enum class VeriluaMode { 
+        Normal = 1, 
+        Step = 2, 
+        Dominant = 3
+    };
+
+    void alloc_verilator_func(vl_func_t func, std::string name);
+    void alloc_verilator_int_func(vl_int_func_t func, std::string name);
+}
+
 
 // used inside the verilua lib
-void execute_final_callback();
-void execute_sim_event(int *id);
-void execute_sim_event(int id);
+VERILUA_PRIVATE void execute_final_callback();
+VERILUA_PRIVATE void execute_sim_event(int *id);
+VERILUA_PRIVATE void execute_sim_event(int id);
 
 #endif // __LUA_VPI_H__

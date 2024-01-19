@@ -9,25 +9,12 @@ local scheduler = require("LuaScheduler")
 
 local verilua = {}
 
----@class single_step_task_table
----@field name string
----@field func thread
----@field param table
-verilua.single_step_task_table = {}
-verilua.single_step_task_cnt = 1
-verilua.single_step_is_register_task_table = false
-
-
 verilua.is_register_task_table = false
 verilua.start_time = 0
 verilua.end_time = 0
 
 verilua._main_task = function ()
     assert(false, "[main_task] Not implemented!")
-end
-
-verilua._step_main_task = function ()
-    assert(false, "[step_task] Not implemented!")
 end
 
 verilua._start_callback = function ()
@@ -40,22 +27,21 @@ end
 
 verilua.start_callback = function ()
     verilua_hello()
-    print("----------[Lua] Verilua Init!----------")
-    print((ANSI_COLOR_MAGENTA .. "configuration file is %s/%s.lua" .. ANSI_COLOR_RESET):format(VERILUA_CFG_PATH, VERILUA_CFG))
+    verilua_info("----------[Lua] Verilua Init!----------")
+    verilua_info(("configuration file is %s/%s.lua"):format(VERILUA_CFG_PATH, VERILUA_CFG))
     verilua.start_time = os.clock()
 
     -- User code
     verilua._start_callback()
     
-    print("----------[Lua] Verilua Init finish!----------")
-    if not cfg.single_step_mode then
-        scheduler:schedule_all_tasks()
-    end
+    verilua_info("----------[Lua] Verilua Init finish!----------")
+
+    scheduler:schedule_all_tasks()
 end
 
 verilua.finish_callback = function ()
     print("\n")
-    if not cfg.single_step_mode then
+    if not (cfg.mode == VeriluaMode.STEP) then
         scheduler:list_tasks()
     end
 
@@ -63,39 +49,22 @@ verilua.finish_callback = function ()
     verilua._finish_callback()
 
     verilua.end_time = os.clock()
-    print(ANSI_COLOR_MAGENTA)
-    print("----------[Lua] Simulation finish!----------")
-    print("----------[Lua] Time elapsed: " .. (verilua.end_time - verilua.start_time).. " seconds" .. "----------")
-    print(ANSI_COLOR_RESET)
+    verilua_info("----------[Lua] Simulation finish!----------")
+    verilua_info("----------[Lua] Time elapsed: " .. (verilua.end_time - verilua.start_time).. " seconds" .. "----------")
 end
 
 function verilua.register_tasks(task_table)
-    if not cfg.single_step_mode then
-        assert(verilua.is_register_task_table == false, "already reigister task table!")
-        verilua.is_register_task_table = true
+    assert(verilua.is_register_task_table == false, "already reigister task table!")
+    verilua.is_register_task_table = true
 
-        table.insert(task_table, {"main task", verilua.main_task, {}})
+    table.insert(task_table, {"main task", verilua.main_task, {}})
 
-        if task_table ~= nil and #task_table ~= 0 then
-            assert(task_table ~= nil)
-            assert(type(task_table) == "table")
-            assert(task_table[1] ~= nil)
-            assert(type(task_table[1]) == "table")
-            scheduler:create_task_table(task_table)
-        end
-    else
-        assert(verilua.single_step_is_register_task_table == false, "already reigister task table!")
-        verilua.single_step_is_register_task_table = true
-
-        table.insert(verilua.single_step_task_table, verilua.single_step_task_cnt, {name = "main task", func = coroutine.create(verilua._step_main_task), param = {}})
-        verilua.single_step_task_cnt = verilua.single_step_task_cnt + 1
-
-        for _it, task in ipairs(task_table) do
-            local id = verilua.single_step_task_cnt
-            print(string.format("[single step] append task, name: %s  id:%d", task[1], id))
-            table.insert(verilua.single_step_task_table, id, {name = task[1], func = coroutine.create(task[2]), param = task[3]})
-            verilua.single_step_task_cnt = verilua.single_step_task_cnt + 1
-        end
+    if task_table ~= nil and #task_table ~= 0 then
+        assert(task_table ~= nil)
+        assert(type(task_table) == "table")
+        assert(task_table[1] ~= nil)
+        assert(type(task_table[1]) == "table")
+        scheduler:create_task_table(task_table)
     end
 end
 
@@ -105,15 +74,11 @@ function verilua.main_task()
     verilua._main_task()
 
     verilua_info("Finish")
-    vpi.simulator_control(SimCtrl.FINISH)
+    sim.simulator_control(sim.SimCtrl.FINISH)
 end
 
 function verilua.register_main_task(func)
-    if not cfg.single_step_mode then
-        verilua._main_task = func
-    else
-        verilua._step_main_task = func
-    end
+    verilua._main_task = func
 end
 
 function verilua.register_start_callback(func)
@@ -138,40 +103,13 @@ function sim_event(id)
 end
 
 function lua_main_step()
-    local coro_resume = coroutine.resume
-    local coro_status = coroutine.status
-
-    local will_remove = {}
-
-    for id, task in pairs(verilua.single_step_task_table) do
-        local task_name = task.name
-        local task_coro = task.func
-        local task_param = task.param
-
-        local ok, msg = coro_resume(task_coro, table.unpack(task_param))
-        if not ok then
-            local err_msg = msg
-            print(debug.traceback(task_coro, err_msg))
-            assert(false, "failed at " .. task_name)
-        end
-
-        if coro_status(task_coro) == 'dead' then
-            -- print("will remove id:", id, "name:", task_name)
-            table.insert(will_remove, task_name)
-        end
-    end
-    
-    for id, _ in ipairs(will_remove) do
-        verilua.single_step_task_table[id] = nil
-    end
-    
-end
-
-function await_step()
-    coroutine.yield()
+    scheduler:schedule_all_tasks()
 end
 
 
+----------------------------------
+-- dominant mode
+------------------------------------
 local ffi = require("ffi")
 local C = ffi.C
 ffi.cdef[[
@@ -179,9 +117,6 @@ ffi.cdef[[
 ]]
 
 local next_sim_step = C.verilator_next_sim_step
-
-local dut = require('LuaDut')
-local inspect = require("inspect")
 
 
 function verilua_schedule_loop()
@@ -191,6 +126,7 @@ function verilua_schedule_loop()
     local MAIN_TIME_STEP = 5
 
     local main_time = 0LL
+    local coro_resume, coro_status = coroutine.resume, coroutine.status
     while true do
         local task_max = scheduler.task_max
         local task_table = scheduler.task_table
@@ -216,7 +152,14 @@ function verilua_schedule_loop()
             local callback = callback_table[id]
 
             if callback.valid == false then
-                local types, value, signal = task_func(table.unpack(task_param))
+                -- local types, value, signal = task_func(table.unpack(task_param))
+                local ok, types, value, signal = coro_resume(task_func, table.unpack(task_param))
+                if not ok then
+                    local err_msg = types
+                    print(debug.traceback(task_func, err_msg))
+                    assert(false)
+                end
+
                 task.cnt = task.cnt + 1
 
                 if types == nil then

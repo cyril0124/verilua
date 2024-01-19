@@ -1,11 +1,22 @@
 --------------------------------
 -- Default config
 --------------------------------
-VeriluaMode = {
+local enum_search =  function(t, v)
+    for name, value in pairs(t) do
+        if value == v then
+            return name
+        end
+    end
+    assert(false, "Key no found: " .. v .. " in " .. t.name)
+end
+
+VeriluaMode = setmetatable({
+    name = "VeriluaMode",
     NORMAL = 1,
     STEP = 2,
     DOMINANT = 3
-}
+}, { __call = enum_search })
+
 
 local config = {}
 
@@ -65,10 +76,9 @@ config.unit              = "ns"
 config.enable_shutdown   = true
 config.shutdown_cycles   = 20000000
 config.enable_luaPanda   = false
--- config.mode              = VeriluaMode.DOMINANT
 config.mode              = VeriluaMode.NORMAL
-config.single_step_mode  = config.mode == VeriluaMode.STEP
-config.dominant_mode     = config.mode == VeriluaMode.DOMINANT
+config.simulator         = os.getenv("SIM")
+assert(config.simulator ~= nil, "Enviroment argument SIM is not set")
 
 --------------------------------
 -- Get configuration module

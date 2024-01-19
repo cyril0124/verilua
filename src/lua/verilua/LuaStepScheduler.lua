@@ -1,6 +1,8 @@
+require("LuaSchedulerCommon")
+require("LuaUtils")
 local class = require "pl.class"
-local ffi = require("ffi")
-local C = ffi.C
+local coro_resume, coro_status = coroutine.resume, coroutine.status
+
 
 ffi.cdef[[
   void c_register_edge_callback(const char *path, int edge_type, int id);
@@ -10,9 +12,6 @@ ffi.cdef[[
   void c_register_edge_callback_hdl(long long handle, int edge_type, int id);
   void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id);
 ]]
-
-require("LuaSchedulerCommon")
-require("LuaUtils")
 
 
 --------------------------------
@@ -63,7 +62,7 @@ function SchedulerClass:create_task_table(tasks)
         local task_param = tasks[i][3]
         task_param = task_param or {}
         local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
-        table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.wrap(task_func), task_param))
+        table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.create(task_func), task_param))
     end
 end
 
@@ -93,10 +92,12 @@ function SchedulerClass:append_task(id, name, task_func, param, schedule_task)
     end
 
     local _ = self.verbose and self:_log(string.format("append task id:%d name:%s", task_id, name))
-    table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.wrap(task_func), param))
-    if schedule_task or false then
-        self:schedule_tasks(task_id) -- start the task right away
-    end
+    table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.create(task_func), param))
+    
+    -- not support (STEP)
+    -- if schedule_task or false then
+    --     self:schedule_tasks(task_id) -- start the task right away
+    -- end
 
     return task_id
 end
@@ -144,11 +145,23 @@ function SchedulerClass:schedule_tasks(id)
             task.cnt = task.cnt + 1
             local _ = self.verbose and self:_log("resume task_id:", task_id, "task_name:", task_name)
 
-            local types, value, signal = task_func(table.unpack(task_param))
-           
-            if types == nil then
-                self:remove_task(id)
+            -- local types, value, signal = task_func(table.unpack(task_param))
+            local ok, types, value, signal = coro_resume(task_func, table.unpack(task_param))
+            if not ok then
+                local err_msg = types
+                print(debug.traceback(task_func, err_msg))
+                assert(false)
             end
+
+            if coro_status(task_func) == 'dead' then
+                self:remove_task(id)
+            else
+                -- self:register_callback(types, value, task_id, signal)
+            end
+            
+            -- if types == nil then
+            --     self:remove_task(id)
+            -- end
         end
     end
 end
