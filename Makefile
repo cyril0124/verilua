@@ -47,7 +47,7 @@ init:
 # 	@echo -e "LINK \t $(notdir $@)"
 # 	@$(CXX) $(CXX_FLAGS) -fPIC -DWITHOUT_BOOT_STRAP -o $@ $^ -shared $(LD_FLAGS) 
 
-$(SHARED_DIR)/liblua_vpi.so: $(OBJECTS)
+$(SHARED_DIR)/liblua_vpi.so: $(SHARED_DIR) $(OBJECTS)
 	@echo -e "LINK \t $(notdir $@)"
 	@$(CXX) $(CXX_FLAGS) -fPIC -o $@ $^ -shared $(LD_FLAGS) 
 
@@ -56,6 +56,9 @@ $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.cpp $(C_HEADERS) $(BUILD_DIR)
 	@$(CXX) $(CXX_FLAGS) -fPIC -c $< -o $@
 
 $(BUILD_DIR):
+	mkdir -p $@
+
+$(SHARED_DIR):
 	mkdir -p $@
 
 .PHONY: default build_so without_bootstrap_so init clean

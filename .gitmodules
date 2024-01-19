@@ -7,3 +7,6 @@
 [submodule "extern/fmt"]
 	path = extern/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "extern/luafun"]
+	path = extern/luafun
+	url = https://github.com/luafun/luafun.git
