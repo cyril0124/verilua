@@ -9,6 +9,7 @@ luajit_branch=v2.1-20231006
 
 rm -rf $luajit_dir
 git clone https://github.com/openresty/luajit2.git $luajit_dir
+cp $curr_dir/scripts/luajit_makefile/Makefile $luajit_dir/src/Makefile
 cd $luajit_dir
 git checkout $luajit_branch
 cd $curr_dir

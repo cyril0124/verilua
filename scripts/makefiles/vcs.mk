@@ -41,6 +41,14 @@ VCS_FLAGS += +define+VCS
 
 
 # --------------------------------------------
+# verilua mode selection
+# --------------------------------------------
+VCS_FLAGS += +define+NORMAL_MODE
+# VCS_FLAGS += +define+STEP_MODE
+# VCS_FLAGS += +define+DOMINANT_MODE
+
+
+# --------------------------------------------
 # fgp enable
 # --------------------------------------------
 FGP_ENABLE ?= 1

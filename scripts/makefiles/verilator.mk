@@ -19,10 +19,11 @@ CONFIG_VLT ?=
 
 
 # --------------------------------------------
-# mode selection
+# verilua mode selection
 # --------------------------------------------
-# -DDOMINANT_MODE
 CFLAGS += -DNORMAL_MODE
+# CFLAGS += -DSTEP_MODE
+# CFLAGS += -DDOMINANT_MODE
 
 
 # --------------------------------------------
