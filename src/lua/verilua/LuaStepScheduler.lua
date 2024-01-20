@@ -44,6 +44,7 @@ function SchedulerClass:_init()
     self.verbose = false
     self.task_table = {}
     self.will_remove_tasks = {}
+    self.cycles = 0
 
     verilua_info("[Scheduler]", "Using STEP scheduler")
 end
@@ -110,6 +111,7 @@ function SchedulerClass:schedule_all_tasks()
     for task_id, task in pairs(self.task_table) do
         self:schedule_tasks(task_id)
     end
+    self.cycles = self.cycles + 1
 end
 
 function SchedulerClass:list_tasks()

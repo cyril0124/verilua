@@ -11,10 +11,14 @@ local enum_search =  function(t, v)
 end
 
 VeriluaMode = setmetatable({
-    name = "VeriluaMode",
-    NORMAL = 1,
-    STEP = 2,
-    DOMINANT = 3
+    name     = "VeriluaMode",
+    
+    NORMAL   = 1,
+    STEP     = 2,
+    DOMINANT = 3,
+    N        = 1, -- alias of NORMAL
+    S        = 2, -- alias of STEP
+    D        = 3  -- alias of DOMINANT
 }, { __call = enum_search })
 
 
@@ -76,9 +80,22 @@ config.unit              = "ns"
 config.enable_shutdown   = true
 config.shutdown_cycles   = 20000000
 config.enable_luaPanda   = false
-config.mode              = VeriluaMode.NORMAL
 config.simulator         = os.getenv("SIM")
 assert(config.simulator ~= nil, "Enviroment argument SIM is not set")
+
+--
+--  three mode: 
+--    (1) NORMAL(N); 
+--    (2) STEP(S); 
+--    (3) DOMINANT(D);
+-- 
+config.mode              = VeriluaMode.NORMAL
+
+-- 
+-- when you embed verilua in your own verification env, this value should be TRUE
+-- 
+config.attach            = false
+
 
 --------------------------------
 -- Get configuration module

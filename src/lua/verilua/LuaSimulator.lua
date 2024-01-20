@@ -1,4 +1,5 @@
 require("LuaCallableHDL")
+local scheduler = require "LuaScheduler"
 
 if cfg.simulator == "vcs" then
     ffi.cdef[[
@@ -20,14 +21,26 @@ ffi.cdef[[
 ]]
 
 local cycles_chdl = nil
+local use_step_cycles = false
 local init = function ()
     verilua_info("LuaSimulator initialize...")
-    cycles_chdl = CallableHDL(cfg.top..".cycles", "cycles_chdl for LuaSimulator")
-    assert(cycles_chdl ~= nil)
+    
+    use_step_cycles = cfg.mode == VeriluaMode.STEP and cfg.attach == true
+
+    if not use_step_cycles then
+        cycles_chdl = CallableHDL(cfg.top..".cycles", "cycles_chdl for LuaSimulator")
+        assert(cycles_chdl ~= nil)
+    else
+        assert(scheduler.cycles ~= nil)
+    end
 end
 
 local get_cycles = function()
-    return cycles_chdl()
+    if not use_step_cycles then
+        return cycles_chdl()
+    else
+        return scheduler.cycles
+    end
 end
 
 local initialize_trace = function (trace_file_path)

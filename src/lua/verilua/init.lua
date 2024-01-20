@@ -1,4 +1,5 @@
 local PWD = os.getenv("PWD")
+local PRJ_TOP = os.getenv("PRJ_TOP")
 local VERILUA_HOME = os.getenv("VERILUA_HOME")
 
 local function append_package_path(path)
@@ -22,6 +23,10 @@ append_package_path(VERILUA_HOME .. "/extern/luafun/?.lua")
 append_package_path(VERILUA_HOME .. "/luajit2.1/share/lua/5.1/?.lua")
 
 append_package_cpath(VERILUA_HOME .. "/extern/LuaPanda/Debugger/debugger_lib/?.so")
+
+if PRJ_TOP ~= nil then
+    append_package_path(PRJ_TOP .. "/?.lua")
+end
 
 
 -- load configuration
@@ -91,7 +96,9 @@ _G.sim     = sim
 
 -- setup mode
 if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-    cfg.mode = sim.get_mode()
+    if cfg.attach == false then
+        cfg.mode = sim.get_mode()
+    end
     verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
 end
 
