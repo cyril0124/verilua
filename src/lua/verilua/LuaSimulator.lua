@@ -11,6 +11,11 @@ ffi.cdef[[
     void simulation_initializeTrace(char *traceFilePath);
     void simulation_enableTrace(void);
     void simulation_disableTrace(void);
+
+    void verilator_simulation_initializeTrace(char *traceFilePath);
+    void verilator_simulation_enableTrace(void);
+    void verilator_simulation_disableTrace(void);
+
     int verilator_get_mode(void);
 ]]
 
@@ -26,22 +31,37 @@ local get_cycles = function()
 end
 
 local initialize_trace = function (trace_file_path)
-    assert(cfg.simulator == "vcs", "For now, only support VCS")
     assert(trace_file_path ~= nil)
-    ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
-    ffi.C.simulation_initializeTrace(ffi.cast("char *", trace_file_path))
+    if cfg.simulator == "vcs" then
+        ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+        ffi.C.simulation_initializeTrace(ffi.cast("char *", trace_file_path))
+    elseif cfg.simulator == "verilator" then
+        ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
+    else
+        assert(false, "Unknown simulator => " .. cfg.simulator)
+    end
 end
 
-local enable_trace = function ()
-    assert(cfg.simulator == "vcs", "For now, only support VCS")
-    ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
-    ffi.C.simulation_enableTrace()
+local enable_trace = function ()    
+    if cfg.simulator == "vcs" then
+        ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+        ffi.C.simulation_enableTrace()
+    elseif cfg.simulator == "verilator" then
+        ffi.C.verilator_simulation_enableTrace()
+    else
+        assert(false, "Unknown simulator => " .. cfg.simulator)
+    end
 end
 
 local disable_trace = function ()
-    assert(cfg.simulator == "vcs", "For now, only support VCS")
-    ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
-    ffi.C.simulation_disableTrace()
+    if cfg.simulator == "vcs" then
+        ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+        ffi.C.simulation_disableTrace()
+    elseif cfg.simulator == "verilator" then
+        ffi.C.verilator_simulation_disableTrace()
+    else
+        assert(false, "Unknown simulator => " .. cfg.simulator)
+    end
 end
 
 local SimCtrl = {

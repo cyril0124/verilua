@@ -34,7 +34,7 @@ default: build_so
 # without_bootstrap_so
 # without_bootstrap_so: $(SHARED_DIR)/liblua_vpi_1.so
 
-build_so: $(SHARED_DIR)/liblua_vpi.so
+build_so: $(SHARED_DIR) $(SHARED_DIR)/liblua_vpi.so
 
 CXX = clang++
 # CXX = g++
@@ -47,7 +47,7 @@ init:
 # 	@echo -e "LINK \t $(notdir $@)"
 # 	@$(CXX) $(CXX_FLAGS) -fPIC -DWITHOUT_BOOT_STRAP -o $@ $^ -shared $(LD_FLAGS) 
 
-$(SHARED_DIR)/liblua_vpi.so: $(SHARED_DIR) $(OBJECTS)
+$(SHARED_DIR)/liblua_vpi.so: $(OBJECTS)
 	@echo -e "LINK \t $(notdir $@)"
 	@$(CXX) $(CXX_FLAGS) -fPIC -o $@ $^ -shared $(LD_FLAGS) 
 

@@ -18,6 +18,7 @@ CFLAGS += f"-I{luapath}/include "
 CFLAGS += f"-I{verilua_path}/src/include "
 CFLAGS += f"-I{verilua_path}/src/include/sol "
 CFLAGS += f"-I{verilua_path}/extern/fmt/include "
+CFLAGS += f"-I{verilua_path}/extern/argparse/include "
 CFLAGS += f"-I{verilua_path}/extern/LuaBridge/Source "
 CFLAGS += f"-I{verilua_path}/extern/LuaBridge/Source/LuaBridge "
 

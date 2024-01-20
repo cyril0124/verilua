@@ -99,8 +99,7 @@ VERILUA_EXPORT void vlog_startup_routines_bootstrap();
 TO_VERILATOR void verilua_schedule_loop();
 
 
-typedef void (*vl_func_t)(void);
-typedef int  (*vl_int_func_t)(void);
+typedef void (*vl_func_t)(void *);
 namespace Verilua {
     enum class VeriluaMode { 
         Normal = 1, 
@@ -109,7 +108,6 @@ namespace Verilua {
     };
 
     void alloc_verilator_func(vl_func_t func, std::string name);
-    void alloc_verilator_int_func(vl_int_func_t func, std::string name);
 }
 
 

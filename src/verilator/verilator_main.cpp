@@ -3,20 +3,18 @@
 // https://github.com/cocotb/cocotb/tree/master/cocotb/share/lib/verilator
 
 // TODO: Command line argparser
-
-#include <memory>
-
-// #include "VTop.h"
 #include "Vtb_top.h"
 #include "verilated.h"
 #include "verilated_vpi.h"
 
-#include <lua.hpp>
-#include "lua_vpi.h"
-
+#include <memory>
 #include <csignal>
 #include <cstdlib>
-#include "assert.h"
+#include <cassert>
+#include <argparse/argparse.hpp>
+
+#include "lua_vpi.h"
+
 
 #ifndef VM_TRACE_FST
 // emulate new verilator behavior for legacy versions
@@ -24,21 +22,85 @@
 #endif
 
 #if VM_TRACE
-#if VM_TRACE_FST
-#include <verilated_fst_c.h>
-#else
-#include <verilated_vcd_c.h>
-#endif
+    #if VM_TRACE_FST
+        #include <verilated_fst_c.h>
+    #else
+        #include <verilated_vcd_c.h>
+    #endif
 #endif
 
 std::unique_ptr<Vtb_top> top(new Vtb_top(""));
 
 #if VM_TRACE
-#if VM_TRACE_FST
-std::unique_ptr<VerilatedFstC> tfp;
-#else
-std::unique_ptr<VerilatedVcdC> tfp;
+    #if VM_TRACE_FST
+        std::unique_ptr<VerilatedFstC> tfp;
+    #else
+        std::unique_ptr<VerilatedVcdC> tfp;
+    #endif
 #endif
+
+struct Config {
+    bool verbose           = false;
+    bool enable_wave       = false;
+    bool wave_is_enable    = false;
+    bool wave_is_close     = false;
+    char *trace_file       = "dump.vcd";
+    bool enable_coverage   = false;
+};
+
+Config cfg;
+
+#if VM_TRACE
+    #if VM_TRACE_FST
+        #define DUMP_WAVE_INIT() \
+            do { \
+                if (cfg.enable_wave && !cfg.wave_is_enable) { \
+                    Verilated::traceEverOn(true); \
+                    tfp.reset(new VerilatedFstC()); \
+                    top->trace(tfp.get(), 99); \
+                    tfp->open(cfg.trace_file); \
+                    cfg.wave_is_enable = true; \
+                } \
+            } while(0)
+    #else
+        #define DUMP_WAVE_INIT() \
+            do { \
+                if (cfg.enable_wave && !cfg.wave_is_enable) { \
+                    Verilated::traceEverOn(true); \
+                    tfp.reset(new VerilatedVcdC()); \
+                    top->trace(tfp.get(), 99); \
+                    tfp->open(cfg.trace_file); \
+                    cfg.wave_is_enable = true; \
+                } \
+            } while(0)
+    #endif
+#else
+    #define DUMP_WAVE_INIT() \
+        do { \
+        } while(0)
+#endif
+
+
+#if VM_TRACE
+    #define DUMP_WAVE(time) \
+        do { \
+            if (cfg.enable_wave) \
+                tfp->dump(time); \
+        } while(0)
+    #define DUMP_STOP() \
+        do { \
+            if (!cfg.wave_is_close) { \
+                tfp->close(); \
+                cfg.wave_is_close = true; \
+            } \
+        } while(0)
+#else
+    #define DUMP_WAVE(time) \
+        do { \
+        } while(0)
+    #define DUMP_STOP() \
+        do { \
+        } while(0)
 #endif
 
 static vluint64_t main_time = 0;  // Current simulation time
@@ -48,17 +110,10 @@ double sc_time_stamp() {  // Called by $time in Verilog
                           // what SystemC does
 }
 
-//extern "C" {
-// For non-VPI compliant applications that cannot find vlog_startup_routines
-//void vlog_startup_routines_bootstrap(void);
-//}
-
 void vlog_startup_routines_bootstrap(void);
 void verilua_main_step(); // Verilua step
 
-static inline void enter_verilua_loop() {
-    verilua_schedule_loop();
-}
+static inline void enter_verilua_loop() { verilua_schedule_loop(); }
 
 static inline bool settle_value_callbacks() {
     bool cbs_called, again;
@@ -74,8 +129,7 @@ static inline bool settle_value_callbacks() {
     return cbs_called;
 }
 
-
-void verilator_next_sim_step(void) {
+void verilator_next_sim_step(void *args) {
     if(Verilated::gotFinish()) {
         printf("\n[verilator_main.cpp] Simulation end...\n");
         assert(false);
@@ -84,14 +138,14 @@ void verilator_next_sim_step(void) {
     top->eval_step();
     top->clock = top->clock ? 0 : 1;
     
+    DUMP_WAVE(main_time);
+
     main_time += 5; 
 }
 
-void verilator_next_negedge() {
+void verilator_get_mode(void *mode_output) {
+    int *mode_ptr = (int *)mode_output;
 
-}
-
-int verilator_get_mode(void) {
     int mode_defines = 0;
     int mode = 0;
 
@@ -115,12 +169,44 @@ int verilator_get_mode(void) {
         assert(false);
     }
 
-    return mode;
+    *mode_ptr = mode;
 }
 
-void handle_sigabrt(int sig) {
-    VerilatedVpi::callCbs(cbEndOfSimulation);
+void simulation_initializeTrace(void *traceFilePath) {
+#if VM_TRACE
+    cfg.trace_file = new char[strlen((char *)traceFilePath) + 1];
+    strcpy(cfg.trace_file, (char *)traceFilePath);
+    printf("[%s:%d] initializeTrace: %s\n", __FILE__, __LINE__, cfg.trace_file);
+#else
+    printf("[%s:%d] VM_TRACE is not defined!\n", __FILE__, __LINE__);
+    assert(false);
+#endif
 }
+
+void simulation_enableTrace(void *args) {
+#if VM_TRACE
+    cfg.enable_wave = true;
+    cfg.wave_is_close = false;
+    printf("[%s:%d] simulation_enableTrace trace_file:%s\n", __FILE__, __LINE__, cfg.trace_file);
+    DUMP_WAVE_INIT();
+#else
+    printf("[%s:%d] VM_TRACE is not defined!\n", __FILE__, __LINE__);
+    assert(false);
+#endif
+}
+
+void simulation_disableTrace(void *args) {
+#if VM_TRACE
+    tfp->close();
+    cfg.enable_wave = false;
+    printf("[%s:%d] simulation_disableTrace trace_file:%s\n", __FILE__, __LINE__, cfg.trace_file);
+    DUMP_STOP();
+#else
+    printf("[%s:%d] VM_TRACE is not defined!\n", __FILE__, __LINE__);
+    assert(false);
+#endif
+}
+
 
 static inline void end_of_simulation() {
     VerilatedVpi::callCbs(cbEndOfSimulation);
@@ -137,25 +223,11 @@ static inline void end_of_simulation() {
 #endif
 }
 
-
 inline int timming_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
-#if VM_TRACE
-    Verilated::traceEverOn(true);
-#if VM_TRACE_FST
-    // std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
-    tfp.reset(new VerilatedFstC());
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.fst");
-#else
-    // std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
-    tfp.reset(new VerilatedVcdC());
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.vcd");
-#endif
-#endif
+    DUMP_WAVE_INIT();
 
     while (!Verilated::gotFinish()) {
         // Call registered timed callbacks (e.g. clock timer)
@@ -189,9 +261,8 @@ inline int timming_mode_main(int argc, char** argv) {
         // Call ReadOnly callbacks
         VerilatedVpi::callCbs(cbReadOnlySynch);
 
-#if VM_TRACE
-        tfp->dump(main_time);
-#endif
+        DUMP_WAVE(main_time);
+
         // cocotb controls the clock inputs using cbAfterDelay so
         // skip ahead to the next registered callback
         const vluint64_t NO_TOP_EVENTS_PENDING = static_cast<vluint64_t>(~0ULL);
@@ -222,14 +293,13 @@ inline int timming_mode_main(int argc, char** argv) {
 
     top->final();
 
-#if VM_TRACE
-    tfp->close();
-#endif
+    DUMP_STOP();
 
 // VM_COVERAGE is a define which is set if Verilator is
 // instructed to collect coverage (when compiling the simulation)
 #if VM_COVERAGE
-    VerilatedCov::write("coverage.dat");
+    if(cfg.enable_coverage)
+        VerilatedCov::write("coverage.dat");
 #endif
 
     return 0;
@@ -239,19 +309,7 @@ inline int normal_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
-    
-#if VM_TRACE
-    Verilated::traceEverOn(true);
-#if VM_TRACE_FST
-    std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.fst");
-#else
-    std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.vcd");
-#endif
-#endif
+    DUMP_WAVE_INIT();
 
     static uint64_t wave_ticks = 20;
     while (!Verilated::gotFinish()) {
@@ -287,9 +345,8 @@ inline int normal_mode_main(int argc, char** argv) {
         settle_value_callbacks();
         // lua_main_step();
 
-#if VM_TRACE
-        tfp->dump(main_time);
-#endif
+        DUMP_WAVE(main_time);
+        
         main_time += 5;
     }
 
@@ -297,14 +354,13 @@ inline int normal_mode_main(int argc, char** argv) {
 
     top->final();
 
-#if VM_TRACE
-    tfp->close();
-#endif
+    DUMP_STOP();
 
 // VM_COVERAGE is a define which is set if Verilator is
 // instructed to collect coverage (when compiling the simulation)
 #if VM_COVERAGE
-    VerilatedCov::write("coverage.dat");
+    if(cfg.enable_coverage)
+        VerilatedCov::write("coverage.dat");
 #endif
 
     return 0;
@@ -314,20 +370,7 @@ inline int dominant_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
-    // alloc_verilator_next_sim_step(verilator_next_sim_step);
-
-#if VM_TRACE
-    Verilated::traceEverOn(true);
-#if VM_TRACE_FST
-    std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.fst");
-#else
-    std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.vcd");
-#endif
-#endif
+    DUMP_WAVE_INIT();
 
     static uint64_t wave_ticks = 20;
     
@@ -336,6 +379,12 @@ inline int dominant_mode_main(int argc, char** argv) {
     printf("\n[verilator_main.cpp] Leaving verilua_loop...\n");
     
     end_of_simulation();
+
+#if VM_COVERAGE
+    if(cfg.enable_coverage)
+        VerilatedCov::write("coverage.dat");
+#endif
+
     return 0;
 }
 
@@ -343,19 +392,7 @@ inline int step_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
-    
-#if VM_TRACE
-    Verilated::traceEverOn(true);
-#if VM_TRACE_FST
-    std::unique_ptr<VerilatedFstC> tfp(new VerilatedFstC);
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.fst");
-#else
-    std::unique_ptr<VerilatedVcdC> tfp(new VerilatedVcdC);
-    top->trace(tfp.get(), 99);
-    tfp->open("dump.vcd");
-#endif
-#endif
+    DUMP_WAVE_INIT();
 
     static uint64_t wave_ticks = 20;
     while (!Verilated::gotFinish()) {
@@ -366,9 +403,8 @@ inline int step_mode_main(int argc, char** argv) {
 
         verilua_main_step();
 
-#if VM_TRACE
-        tfp->dump(main_time);
-#endif
+        DUMP_WAVE(main_time);
+
         main_time += 5;
     }
 
@@ -376,22 +412,24 @@ inline int step_mode_main(int argc, char** argv) {
 
     top->final();
 
-#if VM_TRACE
-    tfp->close();
-#endif
+    DUMP_STOP();
 
 // VM_COVERAGE is a define which is set if Verilator is
 // instructed to collect coverage (when compiling the simulation)
 #if VM_COVERAGE
-    VerilatedCov::write("coverage.dat");
+    if(cfg.enable_coverage)
+        VerilatedCov::write("coverage.dat");
 #endif
 
     return 0;
 }
 
 int main(int argc, char** argv) {
-    std::signal(SIGABRT, handle_sigabrt);
-    
+    std::signal(SIGABRT, [](int sig){
+        printf("[%s:%d] accept SIGABRT\n", __FILE__, __LINE__);
+        VerilatedVpi::callCbs(cbEndOfSimulation);
+    });
+
     Verilated::commandArgs(argc, argv);
 #ifdef VERILATOR_SIM_DEBUG
     Verilated::debug(99);
@@ -402,8 +440,36 @@ int main(int argc, char** argv) {
     Verilated::internalsDump();
 #endif
 
+    argparse::ArgumentParser program("verilator main for verilua");
+    
+    program.add_argument("-w", "--wave")
+      .help("wave enable")
+      .default_value(false)
+      .implicit_value(true);
+    
+    program.add_argument("-c", "--cov")
+      .help("coverage enable")
+      .default_value(false)
+      .implicit_value(true);
+
+    try {
+        program.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error& err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        exit(1);
+    }
+
+    cfg.enable_wave = program.get<bool>("--wave");
+    cfg.enable_coverage = program.get<bool>("--cov");
+
     Verilua::alloc_verilator_func(verilator_next_sim_step, "next_sim_step");
-    Verilua::alloc_verilator_int_func(verilator_get_mode, "get_mode");
+    Verilua::alloc_verilator_func(verilator_get_mode, "get_mode");
+    Verilua::alloc_verilator_func(simulation_initializeTrace, "simulation_initializeTrace");
+    Verilua::alloc_verilator_func(simulation_enableTrace, "simulation_enableTrace");
+    Verilua::alloc_verilator_func(simulation_disableTrace, "simulation_disableTrace");
+    
 
 #ifdef NORMAL_MODE
     printf("[%s:%d] using verilua NORMAL_MODE\n", __FILE__, __LINE__);

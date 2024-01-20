@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install python dependency
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 
 
 # Install LuaJIT-2.1
