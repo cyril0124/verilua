@@ -1,7 +1,3 @@
-require("LuaSimConfig")
-local VERILUA_CFG, VERILUA_CFG_PATH = LuaSimConfig.get_cfg()
-local cfg = require(VERILUA_CFG)
-
 local scheduler = nil
 
 if cfg.mode == VeriluaMode.NORMAL then

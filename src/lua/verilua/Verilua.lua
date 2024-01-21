@@ -1,9 +1,6 @@
 -- jit.opt.start(3)
 jit.opt.start("loopunroll=100")
 
-require("LuaSimConfig")
-local VERILUA_CFG, VERILUA_CFG_PATH = LuaSimConfig.get_cfg()
-local cfg = require(VERILUA_CFG)
 local scheduler = require("LuaScheduler")
 
 

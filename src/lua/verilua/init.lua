@@ -96,7 +96,7 @@ _G.sim     = sim
 
 -- setup mode
 if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-    if cfg.attach == false then
+    if cfg.attach == false or cfg.attach == nil then
         cfg.mode = sim.get_mode()
     end
     verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))

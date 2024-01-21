@@ -1,5 +1,4 @@
 require("LuaCallableHDL")
-local scheduler = require "LuaScheduler"
 
 if cfg.simulator == "vcs" then
     ffi.cdef[[
@@ -22,6 +21,7 @@ ffi.cdef[[
 
 local cycles_chdl = nil
 local use_step_cycles = false
+local scheduler = nil
 local init = function ()
     verilua_info("LuaSimulator initialize...")
     
@@ -31,6 +31,7 @@ local init = function ()
         cycles_chdl = CallableHDL(cfg.top..".cycles", "cycles_chdl for LuaSimulator")
         assert(cycles_chdl ~= nil)
     else
+        scheduler = require "LuaScheduler"
         assert(scheduler.cycles ~= nil)
     end
 end

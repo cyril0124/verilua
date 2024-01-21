@@ -1,6 +1,4 @@
-require("LuaSimConfig")
-local VERILUA_CFG, VERILUA_CFG_PATH = LuaSimConfig.get_cfg()
-local cfg = require(VERILUA_CFG)
+
 
 local function create_proxy(path)
     local local_path = path
