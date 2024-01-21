@@ -3,6 +3,10 @@ local this = utils
 local concat = table.concat
 local tohex = bit.tohex
 
+-- 
+-- t: table, values to be serialized
+-- conn: char / str, connector for the serialization
+-- 
 function utils.serialize(t, conn)
     local serialized = t
     local conn = conn or "_"
@@ -67,7 +71,9 @@ function utils.bitfield64(begin, endd, val)
     return bit.rshift( bit.lshift(val64, 64 - endd), begin + 64- endd )
 end
 
+-- 
 -- Merge hi(32-bit) and lo(32-bit) into a 64-bit result
+-- 
 function utils.to64bit(hi, lo)
     return bit.lshift(hi, 32) + lo
 end
@@ -98,6 +104,22 @@ function utils.num_to_binstr(num)
         num = math.floor(num / 2)
     end
     return binstr
+end
+
+-- 
+-- progress: float value, range from (0, 1)
+-- length: int value, length of the progress bar
+-- 
+function utils.get_progress_bar(progress, length)
+    -- https://cn.piliapp.com/symbol/
+    local completed = math.floor(progress * length)
+    local remaining = length - completed
+    local progressBar = "┃" .. string.rep("█", completed) .. "▉" .. string.rep(" ", remaining) .. "┃"
+    return progressBar
+end
+
+function utils.print_progress_bar(progress, length)
+    print(get_progress_bar(progress, length))
 end
 
 
