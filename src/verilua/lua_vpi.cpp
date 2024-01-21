@@ -34,7 +34,7 @@ void execute_sim_event(int *id) {
     auto ret = sim_event(*id);
     if(!ret.valid()) {
         sol::error  err = ret;
-        m_assert(false, "Lua error: %s", err.what());
+        VL_FATAL(false, "Error calling sim_event, {}", err.what());
     }
 #ifdef ACCUMULATE_LUA_TIME
     auto end = std::chrono::high_resolution_clock::now();
@@ -50,7 +50,7 @@ void execute_sim_event(int id) {
     auto ret = sim_event(id);
     if(!ret.valid()) {
         sol::error  err = ret;
-        m_assert(false, "Lua error: %s", err.what());
+        VL_FATAL(false, "Error calling sim_event, {}", err.what());
     }
 #ifdef ACCUMULATE_LUA_TIME
     auto end = std::chrono::high_resolution_clock::now();
@@ -60,13 +60,13 @@ void execute_sim_event(int id) {
 }
 
 inline void execute_final_callback() {
+    VL_INFO("execute_final_callback\n");
     { // This is the working filed of LuaRef, when we leave this file, LuaRef will release the allocated memory thus not course segmentation fault when use lua_close(L).
         try {
             luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
             lua_finish_callback();
         } catch (const luabridge::LuaException& e) {
-            fmt::print("[{}:{}] [execute_final_callback] Lua error: {}\n", __FILE__, __LINE__, e.what());
-            assert(false);
+            VL_FATAL(false, "Error calling finish_callback, {}", e.what());
         }
     }
 }
@@ -78,7 +78,7 @@ inline void execute_main_step() {
     auto ret = main_step();
     if(!ret.valid()) {
         sol::error  err = ret;
-        m_assert(false, "Lua error: %s", err.what());
+        VL_FATAL(false, "Error calling main_step, {}", err.what());
     }
 #ifdef ACCUMULATE_LUA_TIME
     auto end = std::chrono::high_resolution_clock::now();
@@ -92,6 +92,7 @@ VERILUA_EXPORT void verilua_main_step() {
 }
 
 VERILUA_EXPORT void verilua_final() {
+    VL_INFO("verilua_final\n");
     execute_final_callback();
 
 #ifdef ACCUMULATE_LUA_TIME
@@ -100,14 +101,12 @@ VERILUA_EXPORT void verilua_final() {
     double time_taken = end_time_for_step - start_time_for_step;
     double percent = lua_time * 100 / time_taken;
 
-    fmt::print("[{}:{}] time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", __FILE__, __LINE__, time_taken, lua_time, percent);
+    VL_INFO("time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", time_taken, lua_time, percent);
 #endif
 }
 
 TO_LUA uint64_t bitfield64(uint64_t begin, uint64_t end, uint64_t val) {
-    // printf("bitfield64: val is 0x%lx\n", val);
     uint64_t mask = ((1ULL << (end - begin + 1)) - 1) << begin;
-    // printf("bitfield64: return 0x%lx\n", (val & mask) >> begin);
     return (val & mask) >> begin;
 }
 
@@ -124,14 +123,14 @@ TO_LUA std::string c_get_top_module() {
 
     // Get module handle 
     iter = vpi_iterate(vpiModule, NULL);
-    m_assert(iter != NULL, "No module exist...\n");
+    VL_FATAL(iter != NULL, "No module exist...");
 
     // Scan the first module (Usually this will be the top module of your DUT)
     top_module = vpi_scan(iter);
-    m_assert(top_module != NULL, "Cannot find top module!\n");
+    VL_FATAL(top_module != NULL, "Cannot find top module!");
 
     if(setenv("DUT_TOP", vpi_get_str(vpiName, top_module), 1)) {
-        m_assert(false, "setenv error for DUT_TOP");
+        VL_FATAL(false, "setenv error for DUT_TOP");
     }
     
     if(const char* env_val = std::getenv("DUT_TOP")) {
@@ -139,7 +138,7 @@ TO_LUA std::string c_get_top_module() {
         return std::string(env_val);
     }
     else {
-        m_assert(false, "Error while getenv(DUT_TOP)");
+        VL_FATAL(false, "Error while getenv(DUT_TOP)");
     }
 }
 
@@ -183,6 +182,7 @@ VERILUA_EXPORT void verilua_init(void) {
     // DebugPort is 8818
     const char *debug_enable = getenv("VL_DEBUG");
     if (debug_enable != nullptr && (std::strcmp(debug_enable, "1") == 0 || std::strcmp(debug_enable, "enable") == 0) ) {
+        VL_WARN("VL_DEBUG is enable\n");
         luabridge::getGlobalNamespace(L)
             .addFunction("bp", [](lua_State *L){
                     // Execute the Lua code when bp() is called
@@ -191,6 +191,7 @@ VERILUA_EXPORT void verilua_init(void) {
                 }
         );
     } else {
+        VL_WARN("VL_DEBUG is disable\n");
         luabridge::getGlobalNamespace(L)
             .addFunction("bp", [](lua_State *L){
                     // Execute the Lua code when bp() is called
@@ -203,33 +204,31 @@ VERILUA_EXPORT void verilua_init(void) {
     
     const char *VERILUA_HOME = getenv("VERILUA_HOME");
     if (VERILUA_HOME == nullptr) {
-        fprintf(stderr, "Error: VERILUA_HOME environment variable is not set.\n");
-        exit(EXIT_FAILURE);
+        VL_FATAL(false, "Error: VERILUA_HOME environment variable is not set.");
     }
-    printf("[liblua_vpi.cpp] VERILUA_HOME is %s\n", VERILUA_HOME);
+    VL_INFO("VERILUA_HOME is {}\n", VERILUA_HOME);
 
     std::string INIT_FILE = std::string(VERILUA_HOME) + "/src/lua/verilua/init.lua";
-    printf("[liblua_vpi.cpp] INIT_FILE is %s\n", INIT_FILE.c_str());
+    VL_INFO("INIT_FILE is {}\n", INIT_FILE);
 
     try {
         lua.safe_script_file(INIT_FILE);
     } catch (const sol::error& err) {
-        m_assert(false, "Error :%s", err.what());
+        VL_FATAL(false, "Error calling INIT_FILE: {}, {}", INIT_FILE, err.what());
     }
 
 
     // Load lua main script
     const char *LUA_SCRIPT = getenv("LUA_SCRIPT");
     if (LUA_SCRIPT == nullptr) {
-        fprintf(stderr, "Error: LUA_SCRIPT environment variable is not set.\n");
-        exit(EXIT_FAILURE);
+        VL_FATAL(false, "Error: LUA_SCRIPT environment variable is not set.");
     }
-    printf("[liblua_vpi.cpp] LUA_SCRIPT is %s\n", LUA_SCRIPT);
+    VL_INFO("LUA_SCRIPT is {}\n", LUA_SCRIPT);
 
     try {
         lua.safe_script_file(LUA_SCRIPT);
     } catch (const sol::error& err) {
-        m_assert(false, "Error calling %s: %s", LUA_SCRIPT, err.what());
+        VL_FATAL(false, "Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, err.what());
     }
 
     sol::protected_function verilua_init = lua["verilua_init"];
@@ -238,7 +237,7 @@ VERILUA_EXPORT void verilua_init(void) {
     auto ret = verilua_init();
     if(!ret.valid()) {
         sol::error  err = ret;
-        m_assert(false, "Lua error: %s", err.what());
+        VL_FATAL(false, "Error calling verilua_init, {}", err.what());
     }
 
     sim_event = lua["sim_event"];
@@ -262,7 +261,7 @@ void verilua_schedule_loop() {
     auto ret = verilua_schedule_loop();
     if(!ret.valid()) {
         sol::error  err = ret;
-        m_assert(false, "Lua error: %s", err.what());
+        VL_FATAL(false, "{}", err.what());
     }
 }
 
@@ -305,11 +304,10 @@ namespace Verilua {
     
 void alloc_verilator_func(vl_func_t func, std::string name) {
     if (verilua_is_init == true) {
-        fmt::println("[{}:{}] you should alloc a verilator function before call verilua_init()", __FILE__, __LINE__);
-        assert(false);
+        VL_FATAL(false, "you should alloc a verilator function before call verilua_init()");
     }
 
-    fmt::println("[{}:{}] alloc verilator function name:{}", __FILE__, __LINE__, name);
+    VL_INFO("alloc verilator function name:{}\n", name);
 
     if (name == "next_sim_step") {
         verilator_next_sim_step_impl = func;
@@ -322,8 +320,7 @@ void alloc_verilator_func(vl_func_t func, std::string name) {
     } else if (name == "simulation_disableTrace") {
         verilator_simulation_disableTrace_impl = func;
     } else {
-        fmt::println("[{}:{}] name:{} did not match any functions", __FILE__, __LINE__, name);
-        assert(false);
+        VL_FATAL(false, "name:{} did not match any functions", name);
     }
 }
 
@@ -331,8 +328,7 @@ void alloc_verilator_func(vl_func_t func, std::string name) {
 
 TO_LUA void verilator_next_sim_step(void) {
     if (verilator_next_sim_step_impl == NULL) {
-        fmt::println("[{}:{}] verilator_next_sim_step_impl is NULL", __FILE__, __LINE__);
-        assert(false);
+        VL_FATAL(false, "verilator_next_sim_step_impl is NULL");
     }
 
     verilator_next_sim_step_impl(NULL);
@@ -340,8 +336,7 @@ TO_LUA void verilator_next_sim_step(void) {
 
 TO_LUA int verilator_get_mode(void) {
     if (verilator_get_mode_impl == NULL) {
-        fmt::println("[{}:{}] verilator_get_mode_impl is NULL", __FILE__, __LINE__);
-        assert(false);
+        VL_FATAL(false, "verilator_get_mode_impl is NULL");
     }
 
     int mode = 0;
@@ -350,25 +345,22 @@ TO_LUA int verilator_get_mode(void) {
 }
 
 TO_LUA void verilator_simulation_initializeTrace(char *traceFilePath) {
-    if (verilator_get_mode_impl == NULL) {
-        fmt::println("[{}:{}] verilator_simulation_initializeTrace_impl is NULL", __FILE__, __LINE__);
-        assert(false);
+    if (verilator_simulation_initializeTrace_impl == NULL) {
+        VL_FATAL(false, "verilator_simulation_initializeTrace_impl is NULL");
     }
     verilator_simulation_initializeTrace_impl((void *)traceFilePath);
 }
 
 TO_LUA void verilator_simulation_enableTrace(void) {
-    if (verilator_get_mode_impl == NULL) {
-        fmt::println("[{}:{}] verilator_simulation_enableTrace_impl is NULL", __FILE__, __LINE__);
-        assert(false);
+    if (verilator_simulation_enableTrace == NULL) {
+        VL_FATAL(false, "verilator_simulation_enableTrace_impl is NULL");
     }
     verilator_simulation_enableTrace_impl(NULL);
 }
 
 TO_LUA void verilator_simulation_disableTrace(void) {
-    if (verilator_get_mode_impl == NULL) {
-        fmt::println("[{}:{}] verilator_simulation_disableTrace_impl is NULL", __FILE__, __LINE__);
-        assert(false);
+    if (verilator_simulation_disableTrace == NULL) {
+        VL_FATAL(false, "verilator_simulation_disableTrace_impl is NULL");
     }
     verilator_simulation_disableTrace_impl(NULL);
 }
@@ -380,9 +372,9 @@ TO_LUA void verilator_simulation_disableTrace(void) {
 #include "svdpi.h"
 
 TO_LUA void dpi_set_scope(char *str) {
-    printf("[lua_vpi.cpp] set svScope name: %s\n", str);
+    VL_INFO("set svScope name: {}\n", str);
     const svScope scope = svGetScopeFromName("tb_top");
-    assert(scope);
+    VL_FATAL(scope, "scope is NULL");
     svSetScope(scope);
 }
 

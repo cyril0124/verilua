@@ -85,7 +85,7 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
 
 TO_LUA void c_register_edge_callback(const char *path, int edge_type, int id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    m_assert(signal_handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+    VL_FATAL(signal_handle, "No handle found: {}", path);
     register_edge_callback_basic(signal_handle, edge_type, id);
 }
 
@@ -141,12 +141,12 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
 TO_LUA void c_register_read_write_synch_callback(int id) {
     s_cb_data cb_data;
 
-    fmt::print("Register cbReadWriteSynch {}\n", id);
+    VL_INFO("Register cbReadWriteSynch {}\n", id);
 
     cb_data.reason = cbReadWriteSynch;
     // cb_data.cb_rtn = read_write_synch_callback;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        fmt::print("hello from cbReadWriteSynch id {}\n", *(int *)cb_data->user_data);
+        VL_INFO("hello from cbReadWriteSynch id {}\n", *(int *)cb_data->user_data);
         execute_sim_event((int *)cb_data->user_data);
 
         free(cb_data->user_data);
@@ -159,7 +159,7 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
     *id_p = id;
     cb_data.user_data = (PLI_BYTE8*) id_p;
 
-    assert(vpi_register_cb(&cb_data) != NULL);
+    VL_FATAL(vpi_register_cb(&cb_data) != NULL);
 }
 
 
@@ -169,7 +169,7 @@ static PLI_INT32 start_callback(p_cb_data cb_data) {
     auto start = std::chrono::high_resolution_clock::now();
     start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
 #endif
-    fmt::print("[{}:{}] Start callback\n", __FILE__, __LINE__);
+    VL_INFO("Start callback\n");
     return 0;
 }
 
@@ -185,9 +185,9 @@ static PLI_INT32 final_callback(p_cb_data cb_data) {
     double time_taken = end_time - start_time;
     double percent = lua_time * 100 / time_taken;
 
-    fmt::print("[{}:{}] time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", __FILE__, __LINE__, time_taken, lua_time, percent);
+    VL_INFO("time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", time_taken, lua_time, percent);
 #endif
-    fmt::print("[{}:{}] Final callback\n", __FILE__, __LINE__);
+    VL_INFO("Final callback\n");
     return 0;
 }
 

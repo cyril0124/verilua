@@ -12,7 +12,7 @@ TO_LUA long long c_handle_by_name(const char* name) {
 
     // Name not in cache, look it up
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
-    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, name);
+    VL_FATAL(handle, "No handle found: {}", name);
 
     // Cast the handle to long long and store it in the cache
     long long handle_as_ll = reinterpret_cast<long long>(handle);
@@ -30,7 +30,7 @@ TO_LUA long long c_get_signal_width(long long handle) {
 // TODO: adapt for signals with bit-width greater than 32-bit
 TO_LUA long long c_get_value_by_name(const char *path) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+    VL_FATAL(handle, "No handle found: {}", path);
 
     s_vpi_value v;
 
@@ -49,7 +49,7 @@ TO_LUA int c_get_value_multi_by_name(lua_State *L) {
     const int n = luaL_checkinteger(L, 2);
 
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+    VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
     v.format = vpiVectorVal;
@@ -67,7 +67,7 @@ TO_LUA int c_get_value_multi_by_name(lua_State *L) {
 
 TO_LUA void c_set_value_by_name(const char *path, long long value) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+    VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -107,7 +107,7 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
 // TODO: Force/Release statement only work in VCS. (Verilator cannot use Force/Release for some reason. It would be fix in the future. )
 TO_LUA void c_force_value_by_name(const char *path, long long value) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+    VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -117,7 +117,7 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
 
 TO_LUA void c_release_value_by_name(const char *path) {
     vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    m_assert(handle, "%s:%d No handle found: %s\n", __FILE__, __LINE__, path);
+    VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
     v.format = vpiSuppressVal;

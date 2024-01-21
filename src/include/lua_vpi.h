@@ -25,20 +25,30 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-#define m_assert(cond, ...) \
+#define VL_INFO(...) \
     do { \
-        if (!(cond)) { \
-            printf(ANSI_COLOR_BLUE); \
-            printf(__VA_ARGS__); \
-            printf("\n[%s:%s:%d] ", __FILE__, __FUNCTION__, __LINE__); \
-            printf(ANSI_COLOR_MAGENTA);\
-            execute_final_callback(); \
-            printf(ANSI_COLOR_RESET);\
+        fmt::print("[{}:{}:{}] [{}INFO{}] ", __FILE__, __func__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET); \
+        fmt::print(__VA_ARGS__); \
+    } while(0)
+
+#define VL_WARN(...) \
+    do { \
+        fmt::print("[{}:{}:{}] [{}WARN{}] ", __FILE__, __func__, __LINE__, ANSI_COLOR_YELLOW, ANSI_COLOR_RESET); \
+        fmt::print(__VA_ARGS__); \
+    } while(0)
+
+#define VL_FATAL(cond, ...) \
+    do { \
+        if (!cond) { \
+            fmt::println("\n"); \
+            fmt::print("[{}:{}:{}] [{}FATAL{}] ", __FILE__, __func__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+            fmt::println(__VA_ARGS__ __VA_OPT__(,) "A fatal error occurred without a message.\n"); \
+            fmt::println("\n"); \
             fflush(stdout); \
             fflush(stderr); \
-            assert(cond); \
+            assert(false); \
         } \
-    } while (0)
+    } while(0)
 
 #define TO_LUA extern "C"
 #define TO_VERILATOR

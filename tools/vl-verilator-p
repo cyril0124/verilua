@@ -31,7 +31,7 @@ CFLAGS += f"-I{verilua_path}/extern/LuaBridge/Source/LuaBridge "
 
 LDFLAGS += f"-L{liblua_path} -lluajit-5.1 "
 LDFLAGS += f"-L{libpath} -llua_vpi "
-
+LDFLAGS += f" -L{verilua_path}/extern/fmt/build -lfmt"
 
 cmd_list = ["verilator"] + [
                         "--vpi", 

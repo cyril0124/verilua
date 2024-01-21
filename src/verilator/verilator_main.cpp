@@ -131,8 +131,7 @@ static inline bool settle_value_callbacks() {
 
 void verilator_next_sim_step(void *args) {
     if(Verilated::gotFinish()) {
-        printf("\n[verilator_main.cpp] Simulation end...\n");
-        assert(false);
+        VL_FATAL(false, "Simulation end...");
     }
 
     top->eval_step();
@@ -165,8 +164,7 @@ void verilator_get_mode(void *mode_output) {
 #endif
 
     if (mode_defines > 1) {
-        printf("[%s:%d] multiple MODE macros are defined!\n", __FILE__, __LINE__);
-        assert(false);
+        VL_FATAL(false, "multiple MODE macros are defined!");
     }
 
     *mode_ptr = mode;
@@ -176,9 +174,9 @@ void simulation_initializeTrace(void *traceFilePath) {
 #if VM_TRACE
     cfg.trace_file = new char[strlen((char *)traceFilePath) + 1];
     strcpy(cfg.trace_file, (char *)traceFilePath);
-    printf("[%s:%d] initializeTrace: %s\n", __FILE__, __LINE__, cfg.trace_file);
+    VL_INFO("initializeTrace trace_file:{}\n", cfg.trace_file);
 #else
-    printf("[%s:%d] VM_TRACE is not defined!\n", __FILE__, __LINE__);
+    VL_INFO("VM_TRACE is not defined!\n");
     assert(false);
 #endif
 }
@@ -187,10 +185,10 @@ void simulation_enableTrace(void *args) {
 #if VM_TRACE
     cfg.enable_wave = true;
     cfg.wave_is_close = false;
-    printf("[%s:%d] simulation_enableTrace trace_file:%s\n", __FILE__, __LINE__, cfg.trace_file);
+    VL_INFO("simulation_enableTrace trace_file:{}\n", cfg.trace_file);
     DUMP_WAVE_INIT();
 #else
-    printf("[%s:%d] VM_TRACE is not defined!\n", __FILE__, __LINE__);
+    VL_INFO("VM_TRACE is not defined!\n");
     assert(false);
 #endif
 }
@@ -199,10 +197,10 @@ void simulation_disableTrace(void *args) {
 #if VM_TRACE
     tfp->close();
     cfg.enable_wave = false;
-    printf("[%s:%d] simulation_disableTrace trace_file:%s\n", __FILE__, __LINE__, cfg.trace_file);
+    VL_INFO("simulation_disableTrace trace_file:{}\n", cfg.trace_file);
     DUMP_STOP();
 #else
-    printf("[%s:%d] VM_TRACE is not defined!\n", __FILE__, __LINE__);
+    VL_INFO("VM_TRACE is not defined!\n");
     assert(false);
 #endif
 }
@@ -376,7 +374,7 @@ inline int dominant_mode_main(int argc, char** argv) {
     
     enter_verilua_loop();
 
-    printf("\n[verilator_main.cpp] Leaving verilua_loop...\n");
+    VL_INFO("Leaving verilua_loop...\n");
     
     end_of_simulation();
 
@@ -426,7 +424,7 @@ inline int step_mode_main(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     std::signal(SIGABRT, [](int sig){
-        printf("[%s:%d] accept SIGABRT\n", __FILE__, __LINE__);
+        VL_INFO("accept SIGABRT\n");
         VerilatedVpi::callCbs(cbEndOfSimulation);
     });
 
@@ -472,18 +470,18 @@ int main(int argc, char** argv) {
     
 
 #ifdef NORMAL_MODE
-    printf("[%s:%d] using verilua NORMAL_MODE\n", __FILE__, __LINE__);
+    VL_INFO("using verilua NORMAL_MODE\n");
     return normal_mode_main(argc, argv);
 #else
     #ifdef DOMINANT_MODE
-        printf("[%s:%d] using verilua DOMINANT_MODE\n", __FILE__, __LINE__);
+        VL_INFO("using verilua DOMINANT_MODE\n");
         return dominant_mode_main(argc, argv);
     #else
         #ifdef STEP_MODE
-            printf("[%s:%d] using verilua STEP_MODE\n", __FILE__, __LINE__);
+            VL_INFO("using verilua STEP_MODE\n");
             return step_mode_main(argc, argv);
         #else
-            printf("[%s:%d] using verilua TIMMING_MODE\n", __FILE__, __LINE__);
+            VL_INFO("using verilua TIMMING_MODE\n");
             return timming_mode_main(argc, argv);
         #endif
     #endif
