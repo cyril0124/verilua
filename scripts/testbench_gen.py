@@ -326,8 +326,12 @@ initial begin
   verilua_init();
 end
 
-always@(posedge clock) begin
-  verilua_main_step();
+// always@(posedge clock) begin
+// 	#1 verilua_main_step();
+// end
+
+always@(negedge clock) begin
+	verilua_main_step();
 end
 
 final begin

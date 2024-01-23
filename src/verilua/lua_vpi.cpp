@@ -13,6 +13,7 @@
 
 lua_State *L;
 bool verilua_is_init = false;
+bool verilua_is_final = false;
 sol::protected_function sim_event; 
 sol::protected_function main_step; 
 
@@ -33,6 +34,9 @@ void execute_sim_event(int *id) {
 #endif
     auto ret = sim_event(*id);
     if(!ret.valid()) {
+        if (!verilua_is_final) {
+            execute_final_callback();
+        }
         sol::error  err = ret;
         VL_FATAL(false, "Error calling sim_event, {}", err.what());
     }
@@ -49,6 +53,9 @@ void execute_sim_event(int id) {
 #endif
     auto ret = sim_event(id);
     if(!ret.valid()) {
+        if (!verilua_is_final) {
+            execute_final_callback();
+        }
         sol::error  err = ret;
         VL_FATAL(false, "Error calling sim_event, {}", err.what());
     }
@@ -65,6 +72,7 @@ inline void execute_final_callback() {
         try {
             luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
             lua_finish_callback();
+            verilua_is_final = true;
         } catch (const luabridge::LuaException& e) {
             VL_FATAL(false, "Error calling finish_callback, {}", e.what());
         }
@@ -77,6 +85,9 @@ inline void execute_main_step() {
 #endif
     auto ret = main_step();
     if(!ret.valid()) {
+        if (!verilua_is_final) {
+            execute_final_callback();
+        }
         sol::error  err = ret;
         VL_FATAL(false, "Error calling main_step, {}", err.what());
     }
@@ -195,7 +206,7 @@ VERILUA_EXPORT void verilua_init(void) {
         luabridge::getGlobalNamespace(L)
             .addFunction("bp", [](lua_State *L){
                     // Execute the Lua code when bp() is called
-                    luaL_dostring(L,"print(\" Invalid breakpoint! \")");
+                    luaL_dostring(L,"print(\"  \\27[31m [lua_vpi.cpp] ==> Invalid breakpoint! \\27[0m \")");
                     return 0;
                 }
         );
