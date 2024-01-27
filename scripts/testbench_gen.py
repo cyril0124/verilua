@@ -304,14 +304,14 @@ parameter DominantMode = 3;
 export "DPI-C" function vcs_get_mode;
 function int vcs_get_mode;
   `ifdef STEP_MODE
-    $display("[ERROR] @%0t [%s:%d] vcs using StepMode", $time, `__FILE__, `__LINE__);
+    $display("[INFO] @%0t [%s:%d] vcs using StepMode", $time, `__FILE__, `__LINE__);
     return StepMode;
   `else
     `ifdef DOMINANT_MODE
-      $display("[ERROR] @%0t [%s:%d] TODO: DominantMode", $time, `__FILE__, `__LINE__); $fatal;
+      $display("[INFO] @%0t [%s:%d] TODO: DominantMode", $time, `__FILE__, `__LINE__); $fatal;
       return DominantMode;
     `else
-      $display("[ERROR] @%0t [%s:%d] vcs using StepMode", $time, `__FILE__, `__LINE__);
+      $display("[INFO] @%0t [%s:%d] vcs using StepMode", $time, `__FILE__, `__LINE__);
       return NormalMode;
     `endif
   `endif
