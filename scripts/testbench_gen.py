@@ -1,9 +1,7 @@
 import argparse
 import pyslang
 import fnmatch
-import json
 import os
-import re
 
 class PortInfo:
   def __init__(self, name, width, dir, is_disable=False):
@@ -31,7 +29,7 @@ class PortInfo:
     return self.is_input()
 
 
-parser = argparse.ArgumentParser(description='')
+parser = argparse.ArgumentParser(description='A script used for automately generate verilua testbench.')
 parser.add_argument('--top', '-t', dest="top", type=str, help='top module name')
 parser.add_argument('--file', '-f', dest="file", type=str, help='input verilog file')
 # parser.add_argument('--ast', '-a', dest="ast", type=str, help='ast json file')

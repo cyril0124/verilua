@@ -1,8 +1,4 @@
--- jit.opt.start(3)
-jit.opt.start("loopunroll=100")
-
 local scheduler = require("LuaScheduler")
-
 
 local verilua = {}
 
@@ -25,7 +21,6 @@ end
 verilua.start_callback = function ()
     verilua_hello()
     verilua_info("----------[Lua] Verilua Init!----------")
-    verilua_info(("configuration file is %s/%s.lua"):format(VERILUA_CFG_PATH, VERILUA_CFG))
     verilua.start_time = os.clock()
 
     -- User code

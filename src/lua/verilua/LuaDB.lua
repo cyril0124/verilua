@@ -52,25 +52,34 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     local attributes, err = lfs.attributes(path .. "/")
     if attributes == nil then
         local success, message = lfs.mkdir(path .. "/")
-        assert(success, "cannot create folder: " .. path .. " err: " .. message)
+        if not success then
+            assert(false, "cannot create folder: " .. path .. " err: " .. message)
+        end
     end
 
     -- Remove data base before create it
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
-        print(string.format("Remove %s success!", self.fullpath_name))
+        debug_print(string.format("Remove %s success!", self.fullpath_name))
     else
-        print(string.format("Remove %s failed! => %s", self.fullpath_name, err_msg))
+        debug_print(string.format("Remove %s failed! => %s", self.fullpath_name, err_msg))
     end
 
     -- Open database
-    self.db = sqlite3.open(self.fullpath_name)
-    assert(self.db ~= nil)
+    self.db, err_msg = sqlite3.open(self.fullpath_name)
+    assert(self.db ~= nil, err_msg)
 
     local cmd = string.format("CREATE TABLE %s ( %s );", table_name, pattern_str)
     -- print(cmd)
 
-    self.db:exec(cmd)
+    local result_code = self.db:exec(cmd)
+    if result_code ~= sqlite3.OK then
+        local err_msg = self.db:errmsg()
+        assert(false, "SQLite3 error: "..err_msg)
+    else
+        debug_print("cmd execute success! cmd => "..cmd)
+    end
+
     self.db = sqlite3.open(self.fullpath_name)
     assert(self.db ~= nil)
 
@@ -89,7 +98,7 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     end
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
     self.prepare_cmd = self.prepare_cmd .. ")"
-    print(name.." prepare_cmd: "..self.prepare_cmd)
+    debug_print(name.." prepare_cmd: "..self.prepare_cmd)
 end
 
 function LuaDB:_log(...)

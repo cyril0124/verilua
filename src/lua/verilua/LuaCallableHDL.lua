@@ -64,31 +64,32 @@ end
 
 function CallableHDL:set(value, force_single_beat)
     force_single_beat = force_single_beat or false
-    if self.is_multi_beat and not force_single_beat then
-        -- value is a table where <lsb ... msb>
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. self.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
-        end
-
-        if #value ~= self.beat_num then
-            assert(false, "len: " .. #value .. " =/= " .. self.beat_num)
-        end
-        
-        vpi.set_value_multi(self.hdl, value)
-    else
-        if type(value) == "table" then
-            assert(false, self.fullpath .. " type is " .. type(value))
-        end
-        
-        if force_single_beat == true then
-            C.c_set_value_force_single(self.hdl, value, self.beat_num)
+    if self.is_multi_beat then
+        if force_single_beat and self.beat_num == 2 then
+            if type(value) == "table" then
+                assert(false)
+            end
+            C.c_set_value64(self.hdl, value)
         else
-            if self.beat_num <= 2 then
-                C.c_set_value64(self.hdl, value)
+            if force_single_beat then
+                if type(value) == "table" then
+                    assert(false)
+                end
+                C.c_set_value_force_single(self.hdl, value, self.beat_num)
             else
-                C.c_set_value(self.hdl, value)
+                -- value is a table where <lsb ... msb>
+                if type(value) ~= "table" then
+                    assert(false, type(value) .. " =/= table \n" .. self.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
+                end
+
+                if #value ~= self.beat_num then
+                    assert(false, "len: " .. #value .. " =/= " .. self.beat_num)
+                end
+                vpi.set_value_multi(self.hdl, value)
             end
         end
+    else
+        C.c_set_value(self.hdl, value)
     end
 end
 

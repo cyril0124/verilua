@@ -1,3 +1,4 @@
+local ffi = require "ffi"
 local utils = {}
 local this = utils
 local concat = table.concat
@@ -28,7 +29,12 @@ function utils.reverse_table(tab)
     return new_tab
 end
 
-
+-- 
+-- reverse == true(Default)
+--     MSB <=> LSB
+-- reverse == falase
+--     LSB <=> MSB
+-- 
 function utils.to_hex_str(t, reverse)
     reverse = reverse or true
 
@@ -78,6 +84,9 @@ function utils.to64bit(hi, lo)
     return bit.lshift(hi, 32) + lo
 end
 
+-- 
+-- LSB <==> MSB
+-- 
 function utils.to_hex(hex_table)
     local ret = ""
     if type(hex_table) == "table" then
@@ -121,6 +130,42 @@ end
 function utils.print_progress_bar(progress, length)
     print(get_progress_bar(progress, length))
 end
+
+
+-- 
+-- Usage Example:
+--   Direction = setmetatable({
+--       name = "Direction",
+--       INPUT = 0,
+--       OUTPUT = 1
+--   }, { __call = utils.enum_search })
+-- 
+function utils.enum_search(t, v)
+    for name, value in pairs(t) do
+        if value == v then
+            return name
+        end
+    end
+    assert(false, "Key no found: " .. v .. " in " .. t.name)
+end
+
+-- 
+-- format: <Year><Month><Day>_<Hour><Minute>
+-- Example:
+--   local str = utils.get_datetime_str()
+--         str == "20240124_2301" 
+-- 
+function utils.get_datetime_str()
+    local datetime = os.date("%Y%m%d_%H%M")
+    return datetime
+end
+
+
+local path = require "pl.path"
+function utils.abspath(...)
+    return path.abspath(...)
+end
+
 
 
 return utils

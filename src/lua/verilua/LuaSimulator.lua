@@ -92,7 +92,11 @@ end
 local get_mode = function()
     if cfg.simulator == "vcs" then
         ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
-        local mode = ffi.C.vcs_get_mode()
+        local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
+        if not success then
+            mode = VeriluaMode.NORMAL
+            verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
+        end
         return tonumber(mode)
     else
         assert(cfg.simulator == "verilator", "For now, only support Verilator")
