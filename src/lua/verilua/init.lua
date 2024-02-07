@@ -1,3 +1,6 @@
+-- jit.opt.start(3)
+-- jit.opt.start("loopunroll=100", "minstitch=0", "hotloop=1", "tryside=100")
+
 local PWD = os.getenv("PWD")
 local PRJ_TOP = os.getenv("PRJ_TOP")
 local VERILUA_HOME = os.getenv("VERILUA_HOME")
@@ -85,6 +88,21 @@ ____   ____                .__ .__
     verilua_info(hello)
 end
 
+-- debug info
+_G.get_debug_info = function (level)
+    local info = debug.getinfo(level or 2, "nSl") -- Level 2 because we're inside a function
+    
+    local file = info.short_src -- info.source
+    local line = info.currentline
+    local func = info.name or "<anonymous>"
+
+    return file, line, func
+end
+
+_G.debug_print = function (...)
+    local file, line, func = get_debug_info(3)
+    print(("[%s:%s:%d]"):format(file, func, line), ...)
+end
 
 -- global package
 _G.cfg     = cfg

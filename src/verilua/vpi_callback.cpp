@@ -164,12 +164,19 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
 
 
 static PLI_INT32 start_callback(p_cb_data cb_data) {
+    static bool already_start = false;
+
+    if (already_start) return 0;
+
     verilua_init();
 #ifdef ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
     start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
 #endif
+    
     VL_INFO("Start callback\n");
+    already_start = true;
+    
     return 0;
 }
 
@@ -192,6 +199,10 @@ static PLI_INT32 final_callback(p_cb_data cb_data) {
 }
 
 void register_start_calllback(void) {
+    static bool has_start_callback = false;
+
+    if(has_start_callback) return;
+
     vpiHandle callback_handle;
     s_cb_data cb_data_s;
 
@@ -204,9 +215,15 @@ void register_start_calllback(void) {
 
     callback_handle = vpi_register_cb(&cb_data_s);
     vpi_free_object(callback_handle); // Free the callback handle
+
+    VL_INFO("register_start_calllback\n");
+    has_start_callback = true;
 }
 
 void register_final_calllback(void) {
+    static bool has_final_callback = false;
+    if (has_final_callback) return;
+
     vpiHandle callback_handle;
     s_cb_data cb_data_s;
 
@@ -219,4 +236,7 @@ void register_final_calllback(void) {
 
     callback_handle = vpi_register_cb(&cb_data_s);
     vpi_free_object(callback_handle); // Free the callback handle
+
+    VL_INFO("register_final_calllback\n");
+    has_final_callback = true;
 }

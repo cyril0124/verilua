@@ -269,7 +269,7 @@ f"""`ifndef SIM_VERILATOR
   
   initial begin
     {clock_port.name:<10} = 0;
-    {reset_port.name:<10} = 0;
+    {reset_port.name:<10} = 1;
   end
   
   always #{clock_period} {clock_port.name} <= ~{clock_port.name};
@@ -309,7 +309,7 @@ function int vcs_get_mode;
       $display("[INFO] @%0t [%s:%d] TODO: DominantMode", $time, `__FILE__, `__LINE__); $fatal;
       return DominantMode;
     `else
-      $display("[INFO] @%0t [%s:%d] vcs using StepMode", $time, `__FILE__, `__LINE__);
+      $display("[INFO] @%0t [%s:%d] vcs using NormalMode", $time, `__FILE__, `__LINE__);
       return NormalMode;
     `endif
   `endif

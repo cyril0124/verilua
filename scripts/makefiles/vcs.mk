@@ -93,10 +93,12 @@ endif
 # --------------------------------------------
 # rules
 # --------------------------------------------
-default: run
+default: build
 
-run: $(BIN)
+run:
 	$(BIN) $(RUN_FLAGS)
+
+build: simv
 
 simv: $(BIN)
 

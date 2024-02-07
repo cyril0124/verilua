@@ -31,7 +31,14 @@ end
 -- Main body
 --------------------------------
 local function lua_main()
-    await_posedge(dut.reset)
+    await_posedge(dut.clock)
+
+    dut.reset = 1
+    for i=1, 20 do
+        await_posedge(dut.clock)
+    end
+    dut.reset = 0
+
     await_posedge(dut.clock)
 
     local cycles = 0
