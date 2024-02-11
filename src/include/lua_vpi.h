@@ -39,7 +39,7 @@
 
 #define VL_FATAL(cond, ...) \
     do { \
-        if (!cond) { \
+        if (!(cond)) { \
             fmt::println("\n"); \
             fmt::print("[{}:{}:{}] [{}FATAL{}] ", __FILE__, __func__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
             fmt::println(__VA_ARGS__ __VA_OPT__(,) "A fatal error occurred without a message.\n"); \

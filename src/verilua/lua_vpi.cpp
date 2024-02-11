@@ -145,7 +145,7 @@ TO_LUA std::string c_get_top_module() {
     }
     
     if(const char* env_val = std::getenv("DUT_TOP")) {
-        std::cout << "DUT_TOP is " << env_val << '\n';
+        VL_INFO("DUT_TOP is {}\n", env_val);
         return std::string(env_val);
     }
     else {
@@ -210,6 +210,12 @@ VERILUA_EXPORT void verilua_init(void) {
                     return 0;
                 }
         );
+    }
+
+    const char *DUT_TOP = getenv("DUT_TOP");
+    if(DUT_TOP == nullptr) {
+        auto dut_top = c_get_top_module();
+        VL_WARN("DUT_TOP is not set, automatically set DUT_TOP as {}\n", dut_top);
     }
 
     
