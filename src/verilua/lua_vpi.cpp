@@ -2,14 +2,6 @@
 #include "signal_access.h"
 #include "vpi_callback.h"
 
-// data type:
-//  _____________________
-// | Lua    |    C       |
-// |________|____________|
-// | string |  char *    |
-// | number |  long long |
-// | float  |  double    |
-// |________|____________|
 
 lua_State *L;
 bool verilua_is_init = false;

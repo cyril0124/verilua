@@ -103,6 +103,10 @@ Config cfg;
         } while(0)
 #endif
 
+
+// 
+// Verilator time step 
+// 
 static vluint64_t main_time = 0;  // Current simulation time
 
 double sc_time_stamp() {  // Called by $time in Verilog
@@ -110,6 +114,32 @@ double sc_time_stamp() {  // Called by $time in Verilog
                           // what SystemC does
 }
 
+
+// 
+// Signal handler
+// 
+// ref: https://stackoverflow.com/a/4217052
+static volatile int got_sigint = 0;
+void sigint_handler(int unused) {
+    got_sigint = 1;
+
+    VL_WARN("GET <<SIGINT>>\n\n");
+    VerilatedVpi::callCbs(cbEndOfSimulation);
+}
+
+static volatile int got_sigabrt = 0;
+void sigabrt_handler(int unused) {
+    got_sigabrt = 1;
+
+    VL_WARN("GET <<SIGABRT>>\n\n");
+    VerilatedVpi::callCbs(cbEndOfSimulation);
+}
+
+
+
+// 
+// Others
+// 
 void vlog_startup_routines_bootstrap(void);
 void verilua_main_step(); // Verilua step
 
@@ -129,6 +159,10 @@ static inline bool settle_value_callbacks() {
     return cbs_called;
 }
 
+
+// 
+// Used for dominant mode
+// 
 void verilator_next_sim_step(void *args) {
     if(Verilated::gotFinish()) {
         VL_FATAL(false, "Simulation end...");
@@ -142,6 +176,10 @@ void verilator_next_sim_step(void *args) {
     main_time += 5; 
 }
 
+
+// 
+// Get current simulation mode during simulation
+// 
 void verilator_get_mode(void *mode_output) {
     int *mode_ptr = (int *)mode_output;
 
@@ -170,6 +208,10 @@ void verilator_get_mode(void *mode_output) {
     *mode_ptr = mode;
 }
 
+
+// 
+// Trace interface
+// 
 void simulation_initializeTrace(void *traceFilePath) {
 #if VM_TRACE
     cfg.trace_file = new char[strlen((char *)traceFilePath) + 1];
@@ -206,6 +248,9 @@ void simulation_disableTrace(void *args) {
 }
 
 
+// 
+// Helper code for dominant mode
+// 
 static inline void end_of_simulation() {
     VerilatedVpi::callCbs(cbEndOfSimulation);
     top->final();
@@ -221,13 +266,17 @@ static inline void end_of_simulation() {
 #endif
 }
 
+
+// 
+// Timming mode main
+// 
 inline int timming_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
 
     DUMP_WAVE_INIT();
 
-    while (!Verilated::gotFinish()) {
+    while (!Verilated::gotFinish() | got_sigint | got_sigabrt) {
         // Call registered timed callbacks (e.g. clock timer)
         // These are called at the beginning of the time step
         // before the iterative regions (IEEE 1800-2012 4.4.1)
@@ -303,6 +352,10 @@ inline int timming_mode_main(int argc, char** argv) {
     return 0;
 }
 
+
+// 
+// Normal mode main
+// 
 inline int normal_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
@@ -310,7 +363,7 @@ inline int normal_mode_main(int argc, char** argv) {
     DUMP_WAVE_INIT();
 
     static uint64_t wave_ticks = 20;
-    while (!Verilated::gotFinish()) {
+    while (!Verilated::gotFinish() | got_sigint | got_sigabrt) {
         // Call registered timed callbacks (e.g. clock timer)
         // These are called at the beginning of the time step
         // before the iterative regions (IEEE 1800-2012 4.4.1)
@@ -364,6 +417,10 @@ inline int normal_mode_main(int argc, char** argv) {
     return 0;
 }
 
+
+// 
+// Dominant mode main
+// 
 inline int dominant_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
@@ -386,6 +443,10 @@ inline int dominant_mode_main(int argc, char** argv) {
     return 0;
 }
 
+
+// 
+// Step mode main
+// 
 inline int step_mode_main(int argc, char** argv) {
     vlog_startup_routines_bootstrap();
     VerilatedVpi::callCbs(cbStartOfSimulation);
@@ -393,7 +454,7 @@ inline int step_mode_main(int argc, char** argv) {
     DUMP_WAVE_INIT();
 
     static uint64_t wave_ticks = 20;
-    while (!Verilated::gotFinish()) {
+    while (!Verilated::gotFinish() | got_sigint | got_sigabrt) {
         top->clock = 0;
         top->eval();
         top->clock = 1;
@@ -422,11 +483,16 @@ inline int step_mode_main(int argc, char** argv) {
     return 0;
 }
 
+
+// 
+// Main
+// 
 int main(int argc, char** argv) {
-    std::signal(SIGABRT, [](int sig){
-        VL_INFO("accept SIGABRT\n");
-        VerilatedVpi::callCbs(cbEndOfSimulation);
-    });
+    // 
+    // Setup SIG handler
+    // 
+    std::signal(SIGINT, sigint_handler); // Deal with Ctrl-C
+    std::signal(SIGABRT, sigabrt_handler); // Deal with assert
 
     Verilated::commandArgs(argc, argv);
 #ifdef VERILATOR_SIM_DEBUG
@@ -438,6 +504,9 @@ int main(int argc, char** argv) {
     Verilated::internalsDump();
 #endif
 
+    // 
+    // Argument parsing
+    // 
     argparse::ArgumentParser program("verilator main for verilua");
     
     program.add_argument("-w", "--wave")
@@ -462,6 +531,10 @@ int main(int argc, char** argv) {
     cfg.enable_wave = program.get<bool>("--wave");
     cfg.enable_coverage = program.get<bool>("--cov");
 
+
+    // 
+    // Allocate Verilua system function
+    // 
     Verilua::alloc_verilator_func(verilator_next_sim_step, "next_sim_step");
     Verilua::alloc_verilator_func(verilator_get_mode, "get_mode");
     Verilua::alloc_verilator_func(simulation_initializeTrace, "simulation_initializeTrace");
@@ -469,6 +542,9 @@ int main(int argc, char** argv) {
     Verilua::alloc_verilator_func(simulation_disableTrace, "simulation_disableTrace");
     
 
+    // 
+    // Main loop based on the defined macro
+    // 
 #ifdef NORMAL_MODE
     VL_INFO("using verilua NORMAL_MODE\n");
     return normal_mode_main(argc, argv);

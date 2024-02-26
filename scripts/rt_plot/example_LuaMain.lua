@@ -3,9 +3,6 @@
 --------------------------------
 package.path = package.path .. ";" .. os.getenv("VERILUA_HOME") .. "/src/lua/verilua/?.lua"
 
-local srcs = require("LuaSrcs")
-for i, src in pairs(srcs) do package.path = package.path .. ";" .. src end
-
 
 --------------------------------
 -- Configuration load
