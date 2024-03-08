@@ -112,5 +112,17 @@ end
 
 
 
+function CONNECT_CONFIG(src, dest)
+    dest = dest or {}
+    local result = dest
+    for k, v in pairs(src) do
+        if result[k] ~= nil then
+            print(string.format("[WARN] duplicate key: %s value: %s", k, v))
+        end
+        result[k] = v
+    end
+    return result
+end
+
 
 return config

@@ -62,6 +62,11 @@ typedef struct {
 } edge_cb_data_t;
 
 
+enum class VpiPrivilege_t {
+    READ,
+    WRITE,
+};
+
 
 class IDPool {
 private:

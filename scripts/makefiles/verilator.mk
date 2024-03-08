@@ -75,6 +75,7 @@ EMU_FLAGS += -Mdir $(SIM_BUILD)
 EMU_FLAGS += -j $(shell nproc)
 EMU_FLAGS += --compiler clang
 EMU_FLAGS += --threads $(EMU_THREADS)
+EMU_FLAGS += --x-assign unique -O3
 EMU_FLAGS += -top $(TOPLEVEL)
 EMU_FLAGS += -CFLAGS "${CFLAGS}" -LDFLAGS "${LDFLAGS}"
 EMU_FLAGS += --Wno-PINMISSING  --Wno-MODDUP --Wno-WIDTHEXPAND --Wno-WIDTHTRUNC

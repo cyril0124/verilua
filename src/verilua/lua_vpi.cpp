@@ -11,7 +11,9 @@ sol::protected_function main_step;
 
 IDPool edge_cb_idpool(50);
 std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
-std::unordered_map<std::string, long long> handle_cache;
+std::unordered_map<std::string, vpiHandle> handle_cache;
+std::unordered_map<vpiHandle, VpiPrivilege_t> handle_cache_rev;
+bool enable_vpi_learn = false;
 
 #ifdef ACCUMULATE_LUA_TIME
 #include <chrono>
@@ -202,6 +204,12 @@ VERILUA_EXPORT void verilua_init(void) {
                     return 0;
                 }
         );
+    }
+
+    // Check is vpi learn is enable
+    const char *_enable_vpi_learn = getenv("VPI_LEARN");
+    if (_enable_vpi_learn != nullptr && (std::strcmp(_enable_vpi_learn, "1") == 0 || std::strcmp(_enable_vpi_learn, "enable") == 0) ) {
+        enable_vpi_learn = true;
     }
 
     const char *DUT_TOP = getenv("DUT_TOP");

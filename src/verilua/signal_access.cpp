@@ -1,8 +1,11 @@
 #include "signal_access.h"
 
 // Cache to store handles
-extern std::unordered_map<std::string, long long> handle_cache;
-TO_LUA long long c_handle_by_name(const char* name) {
+extern std::unordered_map<std::string, vpiHandle> handle_cache;
+extern std::unordered_map<vpiHandle, VpiPrivilege_t> handle_cache_rev;
+extern bool enable_vpi_learn;
+
+inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     // Check if the name is in the cache
     auto search = handle_cache.find(name);
     if (search != handle_cache.end()) {
@@ -10,13 +13,23 @@ TO_LUA long long c_handle_by_name(const char* name) {
         return search->second;
     }
 
+    auto hdl = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
+    if(hdl) {
+        handle_cache[name] = hdl;
+        if(enable_vpi_learn) handle_cache_rev[hdl] = VpiPrivilege_t::READ;
+    }
+
+    return hdl;
+}
+
+
+TO_LUA long long c_handle_by_name(const char* name) {
     // Name not in cache, look it up
-    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8*)name, NULL);
     VL_FATAL(handle, "No handle found: {}", name);
 
     // Cast the handle to long long and store it in the cache
     long long handle_as_ll = reinterpret_cast<long long>(handle);
-    handle_cache[name] = handle_as_ll;
 
     // Return the handle
     return handle_as_ll;
@@ -29,7 +42,7 @@ TO_LUA long long c_get_signal_width(long long handle) {
 
 // TODO: adapt for signals with bit-width greater than 32-bit
 TO_LUA long long c_get_value_by_name(const char *path) {
-    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}", path);
 
     s_vpi_value v;
@@ -48,7 +61,7 @@ TO_LUA int c_get_value_multi_by_name(lua_State *L) {
     const char *path = luaL_checkstring(L, 1);
     const int n = luaL_checkinteger(L, 2);
 
-    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
@@ -66,8 +79,10 @@ TO_LUA int c_get_value_multi_by_name(lua_State *L) {
 }
 
 TO_LUA void c_set_value_by_name(const char *path, long long value) {
-    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
+
+    if(enable_vpi_learn) handle_cache_rev[handle] = VpiPrivilege_t::WRITE;
 
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -77,7 +92,10 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
 
 TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     const char *path = luaL_checkstring(L, 1);  // Check and get the first argument
-    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    VL_FATAL(handle, "No handle found: {}\n", path);
+
+    if(enable_vpi_learn) handle_cache_rev[handle] = VpiPrivilege_t::WRITE;
 
     luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
 
@@ -106,7 +124,7 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
 
 // TODO: Force/Release statement only work in VCS. (Verilator cannot use Force/Release for some reason. It would be fix in the future. )
 TO_LUA void c_force_value_by_name(const char *path, long long value) {
-    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
@@ -116,7 +134,7 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
 }
 
 TO_LUA void c_release_value_by_name(const char *path) {
-    vpiHandle handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
@@ -196,7 +214,9 @@ TO_LUA int c_get_value_multi(lua_State *L) {
 }
 
 TO_LUA void c_set_value(long long handle, uint32_t value) {
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+    if(enable_vpi_learn)  handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+
     s_vpi_value v;
 
     s_vpi_vecval vec_val;
@@ -208,7 +228,9 @@ TO_LUA void c_set_value(long long handle, uint32_t value) {
 }
 
 TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t size) {
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+    if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+
     s_vpi_value v;
 
     t_vpi_vecval vec_val[size];
@@ -224,7 +246,9 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
 }
 
 TO_LUA void c_set_value64(long long handle, uint64_t value) {
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+    if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+
     s_vpi_value v;
 
     p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
@@ -242,6 +266,7 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
 TO_LUA int c_set_value_multi(lua_State *L) {
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+    if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
     luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
 
@@ -297,7 +322,9 @@ TO_LUA void c_get_value64_parallel(long long *hdls, uint64_t *values, int length
 
 TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) {
     for(int i = 0; i < length; i++) {
-        unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+
         s_vpi_value v;
         v.format = vpiIntVal;
         v.value.integer = values[i];
@@ -307,7 +334,8 @@ TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) 
 
 TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length) {
     for(int i = 0; i < length; i++) {
-        unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
+        if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
         s_vpi_value v;
 
         p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));

@@ -1,9 +1,13 @@
 #include "vpi_callback.h"
-
+#include <fstream>
+#include <iostream>
 
 extern lua_State *L;
 extern IDPool edge_cb_idpool;
 extern std::unordered_map<int, vpiHandle> edge_cb_hdl_map;
+extern std::unordered_map<std::string, vpiHandle> handle_cache;
+extern std::unordered_map<vpiHandle, VpiPrivilege_t> handle_cache_rev;
+extern bool enable_vpi_learn;
 
 #ifdef ACCUMULATE_LUA_TIME
 #include <chrono>
@@ -194,6 +198,28 @@ static PLI_INT32 final_callback(p_cb_data cb_data) {
 
     VL_INFO("time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", time_taken, lua_time, percent);
 #endif
+    
+    if (enable_vpi_learn) {
+        std::ofstream outfile("vpi_learn.log");
+        if (!outfile.is_open()) {
+            VL_FATAL("Failed to create or open the file.");
+        }
+
+        int index = 0;
+        VL_INFO("------------- VPI handle_cache -------------\n");
+        for(const auto& pair: handle_cache) {
+            auto search = handle_cache_rev.find(pair.second);
+            VL_FATAL(search != handle_cache_rev.end());
+
+            VL_INFO("[{}]\t{}\t{}\n", index, pair.first, (int)search->second);
+            outfile << pair.first << "\t" << "rw:" << (int)search->second << std::endl;
+            ++index;
+        }
+        VL_INFO("\n");
+
+        outfile.close();
+    }
+
     VL_INFO("Final callback\n");
     return 0;
 }

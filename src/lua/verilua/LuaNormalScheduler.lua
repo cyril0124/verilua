@@ -185,6 +185,13 @@ function SchedulerClass:register_callback(types, value, task_id, signal)
     elseif types == YieldType.NOOP then
         -- do nothing
 
+    
+    -------------------------
+    -- used by exist_task()
+    -------------------------
+    elseif types == nil and value == nil then
+        self:remove_task(task_id)
+
     -------------------------
     -- others
     -------------------------
