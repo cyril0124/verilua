@@ -13,3 +13,6 @@
 [submodule "extern/argparse"]
 	path = extern/argparse
 	url = https://github.com/p-ranav/argparse.git
+[submodule "extern/debugger.lua"]
+	path = extern/debugger.lua
+	url = https://github.com/slembcke/debugger.lua.git

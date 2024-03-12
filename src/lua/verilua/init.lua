@@ -23,6 +23,7 @@ append_package_path(VERILUA_HOME .. "/src/lua/?.lua")
 append_package_path(VERILUA_HOME .. "/src/lua/thirdparty_lib/?.lua")
 append_package_path(VERILUA_HOME .. "/extern/LuaPanda/Debugger/?.lua")
 append_package_path(VERILUA_HOME .. "/extern/luafun/?.lua")
+append_package_path(VERILUA_HOME .. "/extern/debugger.lua/?.lua")
 append_package_path(VERILUA_HOME .. "/luajit2.1/share/lua/5.1/?.lua")
 
 append_package_cpath(VERILUA_HOME .. "/extern/LuaPanda/Debugger/debugger_lib/?.so")
