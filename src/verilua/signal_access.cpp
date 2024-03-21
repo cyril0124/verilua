@@ -5,6 +5,8 @@ extern std::unordered_map<std::string, vpiHandle> handle_cache;
 extern std::unordered_map<vpiHandle, VpiPrivilege_t> handle_cache_rev;
 extern bool enable_vpi_learn;
 
+std::mutex vpi_lock_;
+
 inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     // Check if the name is in the cache
     auto search = handle_cache.find(name);
@@ -24,6 +26,8 @@ inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
 
 
 TO_LUA long long c_handle_by_name(const char* name) {
+    std::lock_guard guard(vpi_lock_);
+
     // Name not in cache, look it up
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8*)name, NULL);
     VL_FATAL(handle, "No handle found: {}", name);
@@ -36,12 +40,16 @@ TO_LUA long long c_handle_by_name(const char* name) {
 }
 
 TO_LUA long long c_get_signal_width(long long handle) {
+    std::lock_guard guard(vpi_lock_);
+    
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     return vpi_get(vpiSize, actual_handle);
 }
 
 // TODO: adapt for signals with bit-width greater than 32-bit
 TO_LUA long long c_get_value_by_name(const char *path) {
+    std::lock_guard guard(vpi_lock_);
+
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}", path);
 
@@ -58,6 +66,8 @@ TO_LUA long long c_get_value_by_name(const char *path) {
 
 // return datas with more than 64bit, each table entry is a 32bit value(4 byte)
 TO_LUA int c_get_value_multi_by_name(lua_State *L) {
+    std::lock_guard guard(vpi_lock_);
+
     const char *path = luaL_checkstring(L, 1);
     const int n = luaL_checkinteger(L, 2);
 
@@ -79,6 +89,8 @@ TO_LUA int c_get_value_multi_by_name(lua_State *L) {
 }
 
 TO_LUA void c_set_value_by_name(const char *path, long long value) {
+    std::lock_guard guard(vpi_lock_);
+
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
@@ -91,6 +103,8 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
 }
 
 TO_LUA int c_set_value_multi_by_name(lua_State *L) {
+    std::lock_guard guard(vpi_lock_);
+    
     const char *path = luaL_checkstring(L, 1);  // Check and get the first argument
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
@@ -124,6 +138,8 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
 
 // TODO: Force/Release statement only work in VCS. (Verilator cannot use Force/Release for some reason. It would be fix in the future. )
 TO_LUA void c_force_value_by_name(const char *path, long long value) {
+    std::lock_guard guard(vpi_lock_);
+
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
@@ -143,6 +159,8 @@ TO_LUA void c_release_value_by_name(const char *path) {
 }
 
 TO_LUA void c_force_value(long long handle, long long value) {
+    std::lock_guard guard(vpi_lock_);
+
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -151,6 +169,8 @@ TO_LUA void c_force_value(long long handle, long long value) {
 }
 
 TO_LUA void c_release_value(long long handle) {
+    std::lock_guard guard(vpi_lock_);
+
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
     v.format = vpiSuppressVal;
@@ -158,6 +178,8 @@ TO_LUA void c_release_value(long long handle) {
 }
 
 TO_LUA uint32_t c_get_value(long long handle) {
+    std::lock_guard guard(vpi_lock_);
+
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
 
@@ -171,6 +193,8 @@ TO_LUA uint32_t c_get_value(long long handle) {
 }
 
 TO_LUA uint64_t c_get_value64(long long handle) {
+    std::lock_guard guard(vpi_lock_);
+    
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
 
@@ -195,6 +219,8 @@ TO_LUA void c_get_value_multi_1(long long handle, int n, uint32_t *result_arr) {
 }
 
 TO_LUA int c_get_value_multi(lua_State *L) {
+    std::lock_guard guard(vpi_lock_);
+    
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     int n = luaL_checkinteger(L, 2);  // Check and get the second argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -214,6 +240,8 @@ TO_LUA int c_get_value_multi(lua_State *L) {
 }
 
 TO_LUA void c_set_value(long long handle, uint32_t value) {
+    std::lock_guard guard(vpi_lock_);
+
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     if(enable_vpi_learn) [[unlikely]]  handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
@@ -228,6 +256,8 @@ TO_LUA void c_set_value(long long handle, uint32_t value) {
 }
 
 TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t size) {
+    std::lock_guard guard(vpi_lock_);
+
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
@@ -246,6 +276,8 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
 }
 
 TO_LUA void c_set_value64(long long handle, uint64_t value) {
+    std::lock_guard guard(vpi_lock_);
+
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
@@ -264,6 +296,8 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
 }
 
 TO_LUA int c_set_value_multi(lua_State *L) {
+    std::lock_guard guard(vpi_lock_);
+
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
@@ -294,6 +328,8 @@ TO_LUA int c_set_value_multi(lua_State *L) {
 }
 
 TO_LUA void c_get_value_parallel(long long *hdls, uint32_t *values, int length) {
+    std::lock_guard guard(vpi_lock_);
+
     for(int i = 0; i < length; i++) {
         unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
         s_vpi_value v;
@@ -305,6 +341,8 @@ TO_LUA void c_get_value_parallel(long long *hdls, uint32_t *values, int length) 
 }
 
 TO_LUA void c_get_value64_parallel(long long *hdls, uint64_t *values, int length) {
+    std::lock_guard guard(vpi_lock_);
+
     for(int i = 0; i < length; i++) {
         unsigned int* actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
         s_vpi_value v;
@@ -321,6 +359,8 @@ TO_LUA void c_get_value64_parallel(long long *hdls, uint64_t *values, int length
 
 
 TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) {
+    std::lock_guard guard(vpi_lock_);
+
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
         if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
@@ -333,6 +373,8 @@ TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) 
 }
 
 TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length) {
+    std::lock_guard guard(vpi_lock_);
+
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
         if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
