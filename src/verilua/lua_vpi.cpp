@@ -147,8 +147,17 @@ TO_LUA std::string c_get_top_module() {
     }
 }
 
+static void sigabrt_handler(int signal) {
+    if (!verilua_is_final) {
+        verilua_final();
+    }
+    VL_WARN("GET <<SIGABRT>>\n\n");
+    exit(1);
+}
 
 VERILUA_EXPORT void verilua_init(void) {
+    signal(SIGABRT, sigabrt_handler);
+
     // Create lua virtual machine
     L = luaL_newstate();
 

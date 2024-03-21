@@ -13,6 +13,7 @@
 #include "stdio.h"
 
 #include <cstdlib>
+#include <csignal>
 #include <unordered_map>
 #include <unordered_set>
 #include <queue>

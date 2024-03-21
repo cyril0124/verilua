@@ -32,7 +32,9 @@ LuaDB = class()
 
 
 function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
+    -- 
     -- Sanity check
+    -- 
     assert(table_name ~= nil)
     assert(pattern_str ~= nil)
     assert(path ~= nil)
@@ -48,7 +50,9 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     self.stmt = nil
     self.verbose = verbose or false
     
+    -- 
     -- create path folder if not exist
+    -- 
     local attributes, err = lfs.attributes(path .. "/")
     if attributes == nil then
         local success, message = lfs.mkdir(path .. "/")
@@ -57,7 +61,9 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
         end
     end
 
+    -- 
     -- Remove data base before create it
+    -- 
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
         debug_print(string.format("Remove %s success!", self.fullpath_name))
@@ -65,7 +71,9 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
         debug_print(string.format("Remove %s failed! => %s", self.fullpath_name, err_msg))
     end
 
+    -- 
     -- Open database
+    -- 
     self.db, err_msg = sqlite3.open(self.fullpath_name)
     assert(self.db ~= nil, err_msg)
 
@@ -84,7 +92,9 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     assert(self.db ~= nil)
 
 
+    -- 
     -- Create prepare cmd for stmt
+    -- 
     self.prepare_cmd = "INSERT INTO "..table_name.." ("
     for key, value in string.gmatch(pattern_str, '([%w_]+)%s+(%w+)') do
         self.entries[key] = value
