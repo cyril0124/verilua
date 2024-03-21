@@ -8,15 +8,15 @@ extern bool enable_vpi_learn;
 inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     // Check if the name is in the cache
     auto search = handle_cache.find(name);
-    if (search != handle_cache.end()) {
+    if (search != handle_cache.end()) [[unlikely]] {
         // Name found in cache, return the stored handle
         return search->second;
     }
 
     auto hdl = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
-    if(hdl) {
+    if(hdl) [[likely]] {
         handle_cache[name] = hdl;
-        if(enable_vpi_learn) handle_cache_rev[hdl] = VpiPrivilege_t::READ;
+        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[hdl] = VpiPrivilege_t::READ;
     }
 
     return hdl;
@@ -82,7 +82,7 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
-    if(enable_vpi_learn) handle_cache_rev[handle] = VpiPrivilege_t::WRITE;
+    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[handle] = VpiPrivilege_t::WRITE;
 
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -95,7 +95,7 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
-    if(enable_vpi_learn) handle_cache_rev[handle] = VpiPrivilege_t::WRITE;
+    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[handle] = VpiPrivilege_t::WRITE;
 
     luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
 
@@ -215,7 +215,7 @@ TO_LUA int c_get_value_multi(lua_State *L) {
 
 TO_LUA void c_set_value(long long handle, uint32_t value) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn)  handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+    if(enable_vpi_learn) [[unlikely]]  handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
     s_vpi_value v;
 
@@ -229,7 +229,7 @@ TO_LUA void c_set_value(long long handle, uint32_t value) {
 
 TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t size) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
     s_vpi_value v;
 
@@ -247,7 +247,7 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
 
 TO_LUA void c_set_value64(long long handle, uint64_t value) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
     s_vpi_value v;
 
@@ -266,7 +266,7 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
 TO_LUA int c_set_value_multi(lua_State *L) {
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
     luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
 
@@ -323,7 +323,7 @@ TO_LUA void c_get_value64_parallel(long long *hdls, uint64_t *values, int length
 TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) {
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
-        if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
 
         s_vpi_value v;
         v.format = vpiIntVal;
@@ -335,7 +335,7 @@ TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) 
 TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length) {
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
-        if(enable_vpi_learn) handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
         s_vpi_value v;
 
         p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));

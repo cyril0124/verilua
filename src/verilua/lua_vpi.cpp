@@ -27,8 +27,8 @@ void execute_sim_event(int *id) {
     auto start = std::chrono::high_resolution_clock::now();
 #endif
     auto ret = sim_event(*id);
-    if(!ret.valid()) {
-        if (!verilua_is_final) {
+    if(!ret.valid()) [[unlikely]] {
+        if (!verilua_is_final) [[unlikely]] {
             execute_final_callback();
         }
         sol::error  err = ret;
@@ -46,7 +46,7 @@ void execute_sim_event(int id) {
     auto start = std::chrono::high_resolution_clock::now();
 #endif
     auto ret = sim_event(id);
-    if(!ret.valid()) {
+    if(!ret.valid()) [[unlikely]] {
         if (!verilua_is_final) {
             execute_final_callback();
         }
@@ -78,7 +78,7 @@ inline void execute_main_step() {
     auto start = std::chrono::high_resolution_clock::now();
 #endif
     auto ret = main_step();
-    if(!ret.valid()) {
+    if(!ret.valid()) [[unlikely]] {
         if (!verilua_is_final) {
             execute_final_callback();
         }
@@ -285,7 +285,7 @@ void verilua_schedule_loop() {
     sol::protected_function verilua_schedule_loop = lua["verilua_schedule_loop"];
     
     auto ret = verilua_schedule_loop();
-    if(!ret.valid()) {
+    if(!ret.valid()) [[unlikely]] {
         sol::error  err = ret;
         VL_FATAL(false, "{}", err.what());
     }
