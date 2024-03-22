@@ -73,6 +73,9 @@ end
 function SchedulerClass:_log(...)
     if self.verbose then
         print("[Scheduler]", ...)
+
+        -- local file, line, func = get_debug_info(3)
+        -- print(("[%s:%s:%d]"):format(file, func, line), ...)
     end
 end
 
@@ -175,7 +178,7 @@ function SchedulerClass:schedule_tasks(id)
 
         if id == task_id then
             task.cnt = task.cnt + 1
-            local _ = self.verbose and self:_log("resume task_id:", task_id, "task_name:", task_name)
+            local _ = self.verbose and self:_log("ENTER task_id:", task_id, "task_name:", task_name)
 
             local s = self.time_accumulate and os.clock()
             -- local types, value, signal = task_func(table.unpack(task_param))
@@ -189,6 +192,7 @@ function SchedulerClass:schedule_tasks(id)
             local e = self.time_accumulate and os.clock()
             if self.time_accumulate == true then task.time_taken = task.time_taken + (e - s) end
 
+            local _ = self.verbose and self:_log("LEAVE task_id:", task_id, "task_name:", task_name)
             -- if types == nil then
             if coro_status(task_func) == 'dead' then
                 self:remove_task(id)

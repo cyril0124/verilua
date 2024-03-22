@@ -218,7 +218,7 @@ void simulation_initializeTrace(void *traceFilePath) {
     strcpy(cfg.trace_file, (char *)traceFilePath);
     VL_INFO("initializeTrace trace_file:{}\n", cfg.trace_file);
 #else
-    VL_FATAL("VM_TRACE is not defined!\n");
+    VL_FATAL(false, "VM_TRACE is not defined!\n");
 #endif
 }
 
@@ -229,7 +229,7 @@ void simulation_enableTrace(void *args) {
     VL_INFO("simulation_enableTrace trace_file:{}\n", cfg.trace_file);
     DUMP_WAVE_INIT();
 #else
-    VL_FATAL("VM_TRACE is not defined!\n");
+    VL_FATAL(false, "VM_TRACE is not defined!\n");
 #endif
 }
 
@@ -240,7 +240,7 @@ void simulation_disableTrace(void *args) {
     VL_INFO("simulation_disableTrace trace_file:{}\n", cfg.trace_file);
     DUMP_STOP();
 #else
-    VL_FATAL("VM_TRACE is not defined!\n");
+    VL_FATAL(false, "VM_TRACE is not defined!\n");
 #endif
 }
 
