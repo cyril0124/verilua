@@ -15,7 +15,7 @@ libpath = os.getenv("VERILUA_HOME") + "/shared"
 luapath = os.getenv("VERILUA_HOME") + "/luajit2.1"
 libpath_lua = luapath + "/lib"
 assert libpath != None, "[vl-vcs] cannot find VERILUA_HOME!"
-assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-vcs] cannot find liblua_vpi.so in " + libpath
+assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find liblua_vpi_vcs.so in " + libpath
 
 subfix = encode_string(os.path.abspath(os.curdir))
 pli_tab = f"/tmp/verilua_{subfix}/pli.tab"
@@ -23,14 +23,15 @@ os.system(f"mkdir -p /tmp/verilua_{subfix} && touch {pli_tab}; echo \"acc+=rw,wn
 
 vcs = os.getenv("VCS_HOME") + "/bin/vcs"
 cmd_list = [vcs] + sys.argv[1:] + [
-                        "+acc+1", 
-                        "+vpi", 
+                        # "+acc+1", 
+                        "-debug_access+class", 
                         # "-CFLAGS", f"\"\"",
-                        "-LDFLAGS", f"-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi",
-                        "-load", libpath + "/liblua_vpi.so", 
+                        "-LDFLAGS", f"-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi_vcs",
+                        "-load", libpath + "/liblua_vpi_vcs.so", 
                         "-lluajit-5.1", 
-                        "-llua_vpi", 
-                        "-P", pli_tab]
+                        "-llua_vpi_vcs", 
+                        # "-P", pli_tab
+]
 cmd = " ".join(cmd_list)
 print(f"[vl-vcs] cmd is {cmd} ")
 
