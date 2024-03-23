@@ -1,3 +1,5 @@
+#!python3
+
 import argparse
 import subprocess
 import os
@@ -69,7 +71,7 @@ subprocess.run(f"mv ./*.sv ./dut", shell=True)
 
 subprocess.run("cp $VERILUA_HOME/src/lua/main/LuaMainTemplate.lua ./src/lua/main/LuaMain.lua", shell=True)
 subprocess.run("cp $VERILUA_HOME/scripts/makefiles/* .", shell=True)
-subprocess.run("cp $VERILUA_HOME/setvars.sh .", shell=True)
+subprocess.run("cp $VERILUA_HOME/scripts/setvars.sh .", shell=True)
 
 
 

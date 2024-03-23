@@ -43,7 +43,7 @@ CSRCS += $(VERILUA_HOME)/src/verilator/verilator_main.cpp
 # --------------------------------------------
 # compiler flags
 # --------------------------------------------
-CFLAGS +=  -std=c++17
+CFLAGS +=  -std=c++20
 CFLAGS += -O2 -funroll-loops -march=native
 LDFLAGS += -flto
 

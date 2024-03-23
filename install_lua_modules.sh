@@ -10,6 +10,7 @@ then
     luarocks install lsqlite3
     # luarocks install inspect
     luarocks install argparse
+    luarocks install busted
     luarocks list
 else
     echo "luajit2.1 does not exist. start installing..."
@@ -22,5 +23,6 @@ else
     luarocks install lsqlite3
     # luarocks install inspect
     luarocks install argparse
+    luarocks install busted
     luarocks list
 fi

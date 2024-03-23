@@ -38,6 +38,7 @@ VCS_FLAGS += -Mdir=$(SIM_BUILD)
 VCS_FLAGS += +vcs+initreg+random
 VCS_FLAGS += +define+SIM_VCS
 VCS_FLAGS += +define+VCS
+VCS_FLAGS += -j $(shell nproc)
 
 
 # --------------------------------------------
@@ -63,7 +64,6 @@ endif
 WAVE_ENABLE ?= 1
 ifeq ($(WAVE_ENABLE), 1)
 $(info $(INFO) Enable $(BOLD)$(GREEN)fsdb$(RESET)$(NORMAL) wave)
-VCS_FLAGS += -debug_all -debug_access+all # Enable fsdb dump for vcs compiler
 VCS_FLAGS += +define+WAVE_ENABLE=1
 
 ifndef VERDI_HOME

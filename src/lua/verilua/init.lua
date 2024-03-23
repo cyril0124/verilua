@@ -13,6 +13,7 @@ local function append_package_cpath(path)
     package.cpath = package.cpath .. ";" .. path
 end
 
+append_package_path(PWD .. "/?.lua")
 append_package_path(PWD .. "/src/lua/?.lua")
 append_package_path(PWD .. "/src/lua/main/?.lua")
 append_package_path(PWD .. "/src/lua/configs/?.lua")
@@ -32,13 +33,116 @@ if PRJ_TOP ~= nil then
     append_package_path(PRJ_TOP .. "/?.lua")
 end
 
+-- 
+-- debug info
+-- 
+_G.get_debug_info = function (level)
+    local info = debug.getinfo(level or 2, "nSl") -- Level 2 because we're inside a function
+    
+    local file = info.short_src -- info.source
+    local line = info.currentline
+    local func = info.name or "<anonymous>"
 
+    return file, line, func
+end
+
+_G.debug_str = function(...)
+    local file, line, func = get_debug_info(4)
+    return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. ...)
+end
+
+_G.debug_print = function (...)
+    print(debug_str(...))
+end
+
+
+-- 
 -- load configuration
-require "LuaSimConfig"
-local VERILUA_CFG, _ = LuaSimConfig.get_cfg()
-local cfg = require(VERILUA_CFG)
+-- 
+local LuaSimConfig = require "LuaSimConfig"
+local _cfg = LuaSimConfig.get_cfg()
+local cfg = require(_cfg)
+
+_G.CONNECT_CONFIG = LuaSimConfig.CONNECT_CONFIG
+_G.VeriluaMode = LuaSimConfig.VeriluaMode
 
 
+-- 
+-- we should load ffi setenv before setting up other environment variables
+-- 
+_G.ffi = require "ffi"
+ffi.cdef[[
+    int setenv(const char *name, const char *value, int overwrite);
+]]
+
+
+-- 
+-- setup LUA_SCRIPT inside init.lua, this can be overwrite by outer environment variable
+-- 
+local LUA_SCRIPT = cfg.script
+if LUA_SCRIPT ~= nil then
+    local ret = ffi.C.setenv("LUA_SCRIPT", tostring(LUA_SCRIPT), 1)
+    if ret == 0 then
+        debug_print("Environment variable <LUA_SCRIPT> set successfully.")
+    else
+        debug_print("Failed to set environment variable <LUA_SCRIPT>.")
+    end
+end
+
+
+-- 
+-- setup VL_DEBUG inside init.lua, this can be overwrite by outer environment variable
+-- 
+local VL_DEBUG = cfg.luapanda_debug
+if VL_DEBUG ~= nil then
+    local ret = ffi.C.setenv("VL_DEBUG", tostring(VL_DEBUG), 1)
+    if ret == 0 then
+        debug_print("Environment variable <VL_DEBUG> set successfully.")
+    else
+        debug_print("Failed to set environment variable <VL_DEBUG>.")
+    end
+end
+
+
+-- 
+-- setup VPI_LEARN inside init.lua, this can be overwrite by outer environment variable
+-- 
+local VPI_LEARN = cfg.vpi_learn
+if VPI_LEARN ~= nil then
+    local ret = ffi.C.setenv("VPI_LEARN", tostring(VPI_LEARN), 1)
+    if ret == 0 then
+        debug_print("Environment variable <VPI_LEARN> set successfully.")
+    else
+        debug_print("Failed to set environment variable <VPI_LEARN>.")
+    end
+end
+
+
+-- 
+-- add source file package path
+-- 
+local srcs = cfg.srcs
+assert(srcs ~= nil and type(srcs) == "table")
+for i, src in ipairs(srcs) do
+    package.path = package.path .. ";" .. src
+end
+
+
+-- 
+-- add dependencies package path
+-- 
+local deps = cfg.deps
+if deps ~= nil then
+    assert(type(deps) == "table")
+    for k, dep in pairs(deps) do
+        package.path = package.path .. ";" .. dep
+    end
+end
+
+
+-- 
+-- global debug log functions
+-- 
 _G.colors = {
     reset   = "\27[0m",
     black   = "\27[30m",
@@ -89,32 +193,24 @@ ____   ____                .__ .__
     verilua_info(hello)
 end
 
--- debug info
-_G.get_debug_info = function (level)
-    local info = debug.getinfo(level or 2, "nSl") -- Level 2 because we're inside a function
-    
-    local file = info.short_src -- info.source
-    local line = info.currentline
-    local func = info.name or "<anonymous>"
 
-    return file, line, func
-end
 
-_G.debug_print = function (...)
-    local file, line, func = get_debug_info(3)
-    print(("[%s:%s:%d]"):format(file, func, line), ...)
-end
 
+
+-- 
 -- global package
+-- 
 _G.cfg     = cfg
-_G.ffi     = require "ffi"
 _G.inspect = require "inspect"
 _G.pp      = function (...) print(inspect(...)) end
 _G.dut     = (require "LuaDut").create_proxy(cfg.top)
 local sim = require "LuaSimulator"; sim.init()
 _G.sim     = sim
 
+
+-- 
 -- setup mode
+-- 
 if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
     if cfg.attach == false or cfg.attach == nil then
         cfg.mode = sim.get_mode()
@@ -122,7 +218,10 @@ if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
     verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
 end
 
+
+-- 
 -- setup random seed
+-- 
 local ENV_SEED = os.getenv("SEED")
 verilua_info("ENV_SEED is " .. tostring(ENV_SEED))
 verilua_info("cfg.seed is " .. tostring(cfg.seed))

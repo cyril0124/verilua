@@ -64,9 +64,9 @@ inline void execute_final_callback() {
     VL_INFO("execute_final_callback\n");
     { // This is the working filed of LuaRef, when we leave this file, LuaRef will release the allocated memory thus not course segmentation fault when use lua_close(L).
         try {
+            verilua_is_final = true;
             luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
             lua_finish_callback();
-            verilua_is_final = true;
         } catch (const luabridge::LuaException& e) {
             VL_FATAL(false, "Error calling finish_callback, {}", e.what());
         }
