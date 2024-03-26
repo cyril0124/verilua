@@ -1,4 +1,4 @@
-
+local assert = assert
 
 local function create_proxy(path)
     local local_path = path

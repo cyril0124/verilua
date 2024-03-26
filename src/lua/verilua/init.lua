@@ -1,36 +1,38 @@
 -- jit.opt.start(3)
 -- jit.opt.start("loopunroll=100", "minstitch=0", "hotloop=1", "tryside=100")
 
-local PWD = os.getenv("PWD")
-local PRJ_TOP = os.getenv("PRJ_TOP")
-local VERILUA_HOME = os.getenv("VERILUA_HOME")
+do
+    local PWD = os.getenv("PWD")
+    local PRJ_TOP = os.getenv("PRJ_TOP")
+    local VERILUA_HOME = os.getenv("VERILUA_HOME")
 
-local function append_package_path(path)
-    package.path = package.path .. ";" .. path
-end
+    local function append_package_path(path)
+        package.path = package.path .. ";" .. path
+    end
 
-local function append_package_cpath(path)
-    package.cpath = package.cpath .. ";" .. path
-end
+    local function append_package_cpath(path)
+        package.cpath = package.cpath .. ";" .. path
+    end
 
-append_package_path(PWD .. "/?.lua")
-append_package_path(PWD .. "/src/lua/?.lua")
-append_package_path(PWD .. "/src/lua/main/?.lua")
-append_package_path(PWD .. "/src/lua/configs/?.lua")
-append_package_path(VERILUA_HOME .. "/?.lua")
-append_package_path(VERILUA_HOME .. "/configs/?.lua")
-append_package_path(VERILUA_HOME .. "/src/lua/verilua/?.lua")
-append_package_path(VERILUA_HOME .. "/src/lua/?.lua")
-append_package_path(VERILUA_HOME .. "/src/lua/thirdparty_lib/?.lua")
-append_package_path(VERILUA_HOME .. "/extern/LuaPanda/Debugger/?.lua")
-append_package_path(VERILUA_HOME .. "/extern/luafun/?.lua")
-append_package_path(VERILUA_HOME .. "/extern/debugger.lua/?.lua")
-append_package_path(VERILUA_HOME .. "/luajit2.1/share/lua/5.1/?.lua")
+    append_package_path(PWD .. "/?.lua")
+    append_package_path(PWD .. "/src/lua/?.lua")
+    append_package_path(PWD .. "/src/lua/main/?.lua")
+    append_package_path(PWD .. "/src/lua/configs/?.lua")
+    append_package_path(VERILUA_HOME .. "/?.lua")
+    append_package_path(VERILUA_HOME .. "/configs/?.lua")
+    append_package_path(VERILUA_HOME .. "/src/lua/verilua/?.lua")
+    append_package_path(VERILUA_HOME .. "/src/lua/?.lua")
+    append_package_path(VERILUA_HOME .. "/src/lua/thirdparty_lib/?.lua")
+    append_package_path(VERILUA_HOME .. "/extern/LuaPanda/Debugger/?.lua")
+    append_package_path(VERILUA_HOME .. "/extern/luafun/?.lua")
+    append_package_path(VERILUA_HOME .. "/extern/debugger.lua/?.lua")
+    append_package_path(VERILUA_HOME .. "/luajit2.1/share/lua/5.1/?.lua")
 
-append_package_cpath(VERILUA_HOME .. "/extern/LuaPanda/Debugger/debugger_lib/?.so")
+    append_package_cpath(VERILUA_HOME .. "/extern/LuaPanda/Debugger/debugger_lib/?.so")
 
-if PRJ_TOP ~= nil then
-    append_package_path(PRJ_TOP .. "/?.lua")
+    if PRJ_TOP ~= nil then
+        append_package_path(PRJ_TOP .. "/?.lua")
+    end
 end
 
 -- 
@@ -60,8 +62,30 @@ end
 -- load configuration
 -- 
 local LuaSimConfig = require "LuaSimConfig"
-local _cfg = LuaSimConfig.get_cfg()
-local cfg = require(_cfg)
+local cfg_name, cfg_path
+do
+    local path = require "pl.path"
+    local stringx = require "pl.stringx"
+
+    cfg_name, cfg_path = LuaSimConfig.get_cfg()
+    
+    if cfg_path == nil then
+        cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
+    end
+    
+    assert(type(cfg_path) == "string")
+
+    if string.len(cfg_path) ~= 0 then
+        package.path = package.path .. ";" .. cfg_path .. "/?.lua" 
+    end
+
+    cfg_name = path.basename(cfg_name) -- strip basename
+
+    if stringx.endswith(cfg_name, ".lua") then
+        cfg_name = stringx.rstrip(cfg_name, ".lua") -- strip ".lua" suffix
+    end
+end
+local cfg = require(cfg_name)
 
 _G.CONNECT_CONFIG = LuaSimConfig.CONNECT_CONFIG
 _G.VeriluaMode = LuaSimConfig.VeriluaMode
@@ -79,13 +103,15 @@ ffi.cdef[[
 -- 
 -- setup LUA_SCRIPT inside init.lua, this can be overwrite by outer environment variable
 -- 
-local LUA_SCRIPT = cfg.script
-if LUA_SCRIPT ~= nil then
-    local ret = ffi.C.setenv("LUA_SCRIPT", tostring(LUA_SCRIPT), 1)
-    if ret == 0 then
-        debug_print("Environment variable <LUA_SCRIPT> set successfully.")
-    else
-        debug_print("Failed to set environment variable <LUA_SCRIPT>.")
+do
+    local LUA_SCRIPT = cfg.script
+    if LUA_SCRIPT ~= nil then
+        local ret = ffi.C.setenv("LUA_SCRIPT", tostring(LUA_SCRIPT), 1)
+        if ret == 0 then
+            debug_print("Environment variable <LUA_SCRIPT> set successfully.")
+        else
+            debug_print("Failed to set environment variable <LUA_SCRIPT>.")
+        end
     end
 end
 
@@ -93,13 +119,15 @@ end
 -- 
 -- setup VL_DEBUG inside init.lua, this can be overwrite by outer environment variable
 -- 
-local VL_DEBUG = cfg.luapanda_debug
-if VL_DEBUG ~= nil then
-    local ret = ffi.C.setenv("VL_DEBUG", tostring(VL_DEBUG), 1)
-    if ret == 0 then
-        debug_print("Environment variable <VL_DEBUG> set successfully.")
-    else
-        debug_print("Failed to set environment variable <VL_DEBUG>.")
+do
+    local VL_DEBUG = cfg.luapanda_debug
+    if VL_DEBUG ~= nil then
+        local ret = ffi.C.setenv("VL_DEBUG", tostring(VL_DEBUG), 1)
+        if ret == 0 then
+            debug_print("Environment variable <VL_DEBUG> set successfully.")
+        else
+            debug_print("Failed to set environment variable <VL_DEBUG>.")
+        end
     end
 end
 
@@ -107,13 +135,15 @@ end
 -- 
 -- setup VPI_LEARN inside init.lua, this can be overwrite by outer environment variable
 -- 
-local VPI_LEARN = cfg.vpi_learn
-if VPI_LEARN ~= nil then
-    local ret = ffi.C.setenv("VPI_LEARN", tostring(VPI_LEARN), 1)
-    if ret == 0 then
-        debug_print("Environment variable <VPI_LEARN> set successfully.")
-    else
-        debug_print("Failed to set environment variable <VPI_LEARN>.")
+do
+    local VPI_LEARN = cfg.vpi_learn
+    if VPI_LEARN ~= nil then
+        local ret = ffi.C.setenv("VPI_LEARN", tostring(VPI_LEARN), 1)
+        if ret == 0 then
+            debug_print("Environment variable <VPI_LEARN> set successfully.")
+        else
+            debug_print("Failed to set environment variable <VPI_LEARN>.")
+        end
     end
 end
 
@@ -121,21 +151,25 @@ end
 -- 
 -- add source file package path
 -- 
-local srcs = cfg.srcs
-assert(srcs ~= nil and type(srcs) == "table")
-for i, src in ipairs(srcs) do
-    package.path = package.path .. ";" .. src
+do
+    local srcs = cfg.srcs
+    assert(srcs ~= nil and type(srcs) == "table")
+    for i, src in ipairs(srcs) do
+        package.path = package.path .. ";" .. src
+    end
 end
 
 
 -- 
 -- add dependencies package path
 -- 
-local deps = cfg.deps
-if deps ~= nil then
-    assert(type(deps) == "table")
-    for k, dep in pairs(deps) do
-        package.path = package.path .. ";" .. dep
+do
+    local deps = cfg.deps
+    if deps ~= nil then
+        assert(type(deps) == "table")
+        for k, dep in pairs(deps) do
+            package.path = package.path .. ";" .. dep
+        end
     end
 end
 
@@ -211,33 +245,30 @@ _G.sim     = sim
 -- 
 -- setup mode
 -- 
-if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-    if cfg.attach == false or cfg.attach == nil then
-        cfg.mode = sim.get_mode()
+do
+    if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
+        if cfg.attach == false or cfg.attach == nil then
+            cfg.mode = sim.get_mode()
+        end
+        verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
     end
-    verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
 end
 
 
 -- 
 -- setup random seed
 -- 
-local ENV_SEED = os.getenv("SEED")
-verilua_info("ENV_SEED is " .. tostring(ENV_SEED))
-verilua_info("cfg.seed is " .. tostring(cfg.seed))
+do
+    local ENV_SEED = os.getenv("SEED")
+    verilua_info("ENV_SEED is " .. tostring(ENV_SEED))
+    verilua_info("cfg.seed is " .. tostring(cfg.seed))
 
-local final_seed = ENV_SEED ~= nil and tonumber(ENV_SEED) or cfg.seed
-verilua_info("final_seed is "..final_seed)
+    local final_seed = ENV_SEED ~= nil and tonumber(ENV_SEED) or cfg.seed
+    verilua_info("final_seed is "..final_seed)
 
-verilua_info(("overwrite cfg.seed from %d to %d"):format(cfg.seed, final_seed))
-cfg.seed = final_seed
+    verilua_info(("overwrite cfg.seed from %d to %d"):format(cfg.seed, final_seed))
+    cfg.seed = final_seed
 
-verilua_info(("random seed is %d"):format(cfg.seed))
-math.randomseed(cfg.seed)
-
-
-
-return {
-    append_package_path = append_package_path,
-    append_package_cpath = append_package_cpath
-}
+    verilua_info(("random seed is %d"):format(cfg.seed))
+    math.randomseed(cfg.seed)
+end

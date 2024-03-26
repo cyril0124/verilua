@@ -36,7 +36,7 @@ function LuaSimConfig.get_cfg()
         package.path = package.path .. ";" .. VERILUA_CFG_PATH .. "/?.lua"
     end
 
-    return VERILUA_CFG
+    return VERILUA_CFG, VERILUA_CFG_PATH
 end
 
 

@@ -21,6 +21,12 @@ ffi.cdef[[
 CallableHDL = class()
 
 local BeatWidth = 32
+local type = type
+local assert = assert
+local tonumber = tonumber
+local table = table
+local table_insert = table.insert
+-- local table_unpack = table.unpack
 
 -- TODO: Optimize multi beat logic
 function CallableHDL:_init(fullpath, name, hdl)
@@ -49,7 +55,7 @@ function CallableHDL:__call(force_multi_beat)
             
             local ret = {}
             for i = 1, self.beat_num do
-                table.insert(ret, self.c_results[i-1])
+                table_insert(ret, self.c_results[i-1])
             end
             
             return ret

@@ -3,6 +3,7 @@ local inspect = require "inspect"
 local coro_resume, coro_status = coroutine.resume, coroutine.status
 local ffi = require("ffi")
 local C = ffi.C
+local assert = assert
 
 ffi.cdef[[
   void c_register_edge_callback(const char *path, int edge_type, int id);

@@ -1,8 +1,14 @@
 local ffi = require "ffi"
 local utils = {}
 local this = utils
+local math = math
+local type = type
+local bit = bit
+local tostring = tostring
+local string = string
 local concat = table.concat
 local tohex = bit.tohex
+
 
 -- 
 -- t: table, values to be serialized

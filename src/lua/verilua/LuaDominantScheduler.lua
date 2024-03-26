@@ -2,6 +2,7 @@ require("LuaSchedulerCommon")
 require("LuaUtils")
 local class = require "pl.class"
 local coro_resume, coro_status = coroutine.resume, coroutine.status
+local assert = assert
 
 ffi.cdef[[
   void c_register_edge_callback(const char *path, int edge_type, int id);
