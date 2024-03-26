@@ -91,14 +91,14 @@ default: run
 
 run: $(EMU_RUN_BIN)
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- RUN ---------------------$(COLOR_RESET)"
-	time ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
+	numactl -m 0 -C 0-7 ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- DONE --------------------$(COLOR_RESET)"
 
 build: $(EMU_RUN_BIN)
 
 emu-run:
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- RUN ---------------------$(COLOR_RESET)"
-	time ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
+	numactl -m 0 -C 0-7 ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- DONE --------------------$(COLOR_RESET)"
 
 $(EMU_RUN_BIN): $(SIM_BUILD) $(SIM_FILE)
