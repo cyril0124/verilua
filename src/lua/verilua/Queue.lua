@@ -1,7 +1,7 @@
 local class = require("pl.class")
 local isempty = require "table.isempty"
 
-Queue = class()
+local Queue = class()
 
 function Queue:_init()
     self.data = {}
@@ -31,3 +31,5 @@ end
 function Queue:is_empty()
     return isempty(self.data)
 end
+
+return Queue

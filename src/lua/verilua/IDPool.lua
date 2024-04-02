@@ -1,7 +1,7 @@
 local List = require("pl.List")
 local class = require("pl.class")
 
-IDPool = class()
+local IDPool = class()
 
 function IDPool:_init(size)
     self.size = size
@@ -34,3 +34,5 @@ end
 function IDPool:pool_size()
     return #self.pool
 end
+
+return IDPool

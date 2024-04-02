@@ -1,5 +1,6 @@
 local sqlite3 = require("lsqlite3")
 local class = require("pl.class")
+local fun = require "fun"
 
 LuaDB = class()
 
@@ -138,11 +139,11 @@ end
 function LuaDB:commit()
     assert(self.stmt ~= nil)
 
-    for _, data in ipairs(self.cache) do
+    fun.foreach(function (data)
         self.stmt:bind_values(table.unpack(data))
         self.stmt:step()
         self.stmt:reset()
-    end
+    end, self.cache)
 
     self.stmt:finalize()
 
@@ -155,9 +156,9 @@ end
 
 function LuaDB:clean_up()
     local count = 0
-    for _ in pairs(self.cache) do
+    fun.foreach(function (data)
         count = count + 1
-    end
+    end, self.cache)
 
     if self.stmt ~= nil and count > 0 then
         local _ = self.verbose and self:_log("stmt exist...")

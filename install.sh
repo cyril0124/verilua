@@ -26,6 +26,7 @@ if grep -q "^[^#]*export VERILUA_HOME=" "$shell_rc"; then
 else
     echo "VERILUA_HOME is not set or is empty"
     echo -e "# Verilua\nexport VERILUA_HOME=$PWD\n" >> $shell_rc
+    echo -e "# Activate luajit venv\nsource \$VERILUA_HOME/activate_verilua.sh\n" >> $shell_rc
     echo "VERILUA_HOME is set to $PWD"
 fi
 
@@ -37,3 +38,9 @@ else
     echo -e "# Verilua tool\nexport PATH=\$VERILUA_HOME/tools:\$PATH\n" >> $shell_rc
     echo "TOOL PATH is set to $PWD/tools"
 fi
+
+# Install xmake
+wget https://xmake.io/shget.text -O - | bash
+
+# Make shared lib
+xmake

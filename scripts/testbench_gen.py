@@ -459,6 +459,7 @@ function void simulation_enableTrace;
 `ifdef SIM_VCS
   $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
   $fsdbDumpon;
+  $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
 `endif
 endfunction
 

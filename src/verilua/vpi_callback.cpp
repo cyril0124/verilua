@@ -1,4 +1,5 @@
 #include "vpi_callback.h"
+#include "lua_vpi.h"
 #include <fstream>
 #include <iostream>
 
@@ -186,18 +187,10 @@ static PLI_INT32 start_callback(p_cb_data cb_data) {
 
 static PLI_INT32 final_callback(p_cb_data cb_data) {
 
-    execute_final_callback();
+    verilua_final();
 
     lua_close(L);
 
-#ifdef ACCUMULATE_LUA_TIME
-    auto end = std::chrono::high_resolution_clock::now();
-    end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end.time_since_epoch()).count();
-    double time_taken = end_time - start_time;
-    double percent = lua_time * 100 / time_taken;
-
-    VL_INFO("time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", time_taken, lua_time, percent);
-#endif
     
     if (enable_vpi_learn) {
         std::ofstream outfile("vpi_learn.log");

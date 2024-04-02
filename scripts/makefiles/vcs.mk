@@ -32,7 +32,7 @@ VCS_FLAGS += -LDFLAGS "$(VCS_LDFLAGS)"
 # other vcs flags
 # --------------------------------------------
 VCS_FLAGS += -sverilog -full64 -top $(TOPLEVEL)
-VCS_FLAGS += +v2k -timescale=1ns/1n
+VCS_FLAGS += +v2k -timescale=1ns/1ns
 # VCS_FLAGS += -debug # simulate the design in the interactive mode
 VCS_FLAGS += -Mdir=$(SIM_BUILD)
 VCS_FLAGS += +vcs+initreg+random

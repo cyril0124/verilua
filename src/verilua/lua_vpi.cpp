@@ -1,6 +1,7 @@
 #include "lua_vpi.h"
 #include "signal_access.h"
 #include "vpi_callback.h"
+#include "vpi_user.h"
 
 
 lua_State *L;
@@ -28,9 +29,7 @@ void execute_sim_event(int *id) {
 #endif
     auto ret = sim_event(*id);
     if(!ret.valid()) [[unlikely]] {
-        if (!verilua_is_final) [[unlikely]] {
-            execute_final_callback();
-        }
+        verilua_final();
         sol::error  err = ret;
         VL_FATAL(false, "Error calling sim_event, {}", err.what());
     }
@@ -47,9 +46,7 @@ void execute_sim_event(int id) {
 #endif
     auto ret = sim_event(id);
     if(!ret.valid()) [[unlikely]] {
-        if (!verilua_is_final) {
-            execute_final_callback();
-        }
+        verilua_final();
         sol::error  err = ret;
         VL_FATAL(false, "Error calling sim_event, {}", err.what());
     }
@@ -64,7 +61,6 @@ inline void execute_final_callback() {
     VL_INFO("execute_final_callback\n");
     { // This is the working filed of LuaRef, when we leave this file, LuaRef will release the allocated memory thus not course segmentation fault when use lua_close(L).
         try {
-            verilua_is_final = true;
             luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
             lua_finish_callback();
         } catch (const luabridge::LuaException& e) {
@@ -79,9 +75,7 @@ inline void execute_main_step() {
 #endif
     auto ret = main_step();
     if(!ret.valid()) [[unlikely]] {
-        if (!verilua_is_final) {
-            execute_final_callback();
-        }
+        verilua_final();
         sol::error  err = ret;
         VL_FATAL(false, "Error calling main_step, {}", err.what());
     }
@@ -97,8 +91,11 @@ VERILUA_EXPORT void verilua_main_step() {
 }
 
 VERILUA_EXPORT void verilua_final() {
+    if(verilua_is_final) return;
+
     VL_INFO("verilua_final\n");
     execute_final_callback();
+    verilua_is_final = true;
 
 #ifdef ACCUMULATE_LUA_TIME
     auto end = std::chrono::high_resolution_clock::now();
@@ -108,6 +105,9 @@ VERILUA_EXPORT void verilua_final() {
 
     VL_INFO("time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", time_taken, lua_time, percent);
 #endif
+
+    // Simulation end here...
+    vpi_control(vpiFinish);
 }
 
 TO_LUA uint64_t bitfield64(uint64_t begin, uint64_t end, uint64_t val) {

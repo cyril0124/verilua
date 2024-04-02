@@ -16,4 +16,6 @@ $VERILUA_HOME/luajit2.1/share/lua/5.1/?/init.lua;\
 $VERILUA_HOME/src/lua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/?.lua;\
 $VERILUA_HOME/src/lua/thirdparty_lib/?.lua;\
-$VERILUA_HOME/extern/luafun/?.lua"
+$VERILUA_HOME/extern/luafun/?.lua;\
+$VERILUA_HOME/extern/debugger.lua/?.lua;\
+"

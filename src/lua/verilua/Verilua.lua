@@ -11,11 +11,13 @@ verilua._main_task = function ()
 end
 
 verilua._start_callback = function ()
-    assert(false, "[start_callback] Not implemented!")
+    -- assert(false, "[start_callback] Not implemented!")
+    verilua_warning("[start_callback] Not implemented!")
 end
 
 verilua._finish_callback = function ()
-    assert(false, "[finishe_callback] Not implemented!")
+    -- assert(false, "[finishe_callback] Not implemented!")
+    verilua_warning("[finishe_callback] Not implemented!")
 end
 
 verilua.start_callback = function ()

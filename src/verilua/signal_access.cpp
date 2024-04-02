@@ -1,4 +1,5 @@
 #include "signal_access.h"
+#include "lua_vpi.h"
 
 // Cache to store handles
 extern std::unordered_map<std::string, vpiHandle> handle_cache;
@@ -14,9 +15,9 @@ std::mutex vpi_lock_;
 //         fmt::print(__VA_ARGS__); \
 //     } while(0)
 
-// #define VPI_LOCK_GUART() 
-#define VPI_LOCK_GUART() \
-        std::lock_guard guard(vpi_lock_);
+#define VPI_LOCK_GUART() 
+// #define VPI_LOCK_GUART() \
+//         std::lock_guard guard(vpi_lock_);
 
 #define ENTER_VPI_REGION() \
         VPI_REGION_LOG("TRY_GET\n"); \
@@ -184,6 +185,8 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
 
 // TODO: Force/Release statement only work in VCS. (Verilator cannot use Force/Release for some reason. It would be fix in the future. )
 TO_LUA void c_force_value_by_name(const char *path, long long value) {
+#ifdef VCS
+    // ! Make sure that the VCS compile cmd has included "-debug_access+all" instead of "-debug_access+class" although the later may contribute to better simulation performance.
     ENTER_VPI_REGION();
 
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
@@ -194,10 +197,18 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
     v.value.integer = value;
     vpi_put_value(handle, &v, NULL, vpiForceFlag);
 
+     VL_INFO("force {}  ==> 0x{:x}\n", path, value);
+
     LEAVE_VPI_REGION();
+#else
+    VL_FATAL(false, "force value only supported by VCS");
+#endif
 }
 
 TO_LUA void c_release_value_by_name(const char *path) {
+#ifdef VCS
+    ENTER_VPI_REGION();
+
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
@@ -206,9 +217,13 @@ TO_LUA void c_release_value_by_name(const char *path) {
     vpi_put_value(handle, &v, NULL, vpiReleaseFlag);
 
     LEAVE_VPI_REGION();
+#else
+    VL_FATAL(false, "release value only supported by VCS");
+#endif
 }
 
 TO_LUA void c_force_value(long long handle, long long value) {
+#ifdef VCS
     ENTER_VPI_REGION();
 
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -218,9 +233,13 @@ TO_LUA void c_force_value(long long handle, long long value) {
     vpi_put_value(actual_handle, &v, NULL, vpiForceFlag);
 
     LEAVE_VPI_REGION();
+#else
+    VL_FATAL(false, "force value only supported by VCS");
+#endif
 }
 
 TO_LUA void c_release_value(long long handle) {
+#ifdef VCS
     ENTER_VPI_REGION();
 
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -229,6 +248,9 @@ TO_LUA void c_release_value(long long handle) {
     vpi_put_value(actual_handle, &v, NULL, vpiReleaseFlag);
 
     LEAVE_VPI_REGION();
+#else
+    VL_FATAL(false, "release value only supported by VCS");
+#endif
 }
 
 TO_LUA uint32_t c_get_value(long long handle) {

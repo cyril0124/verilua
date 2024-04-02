@@ -11,6 +11,7 @@ then
     # luarocks install inspect
     luarocks install argparse
     luarocks install busted
+    luarocks install linenoise
     luarocks list
 else
     echo "luajit2.1 does not exist. start installing..."
@@ -24,5 +25,6 @@ else
     # luarocks install inspect
     luarocks install argparse
     luarocks install busted
+    luarocks install linenoise
     luarocks list
 fi

@@ -237,6 +237,7 @@ end
 _G.cfg     = cfg
 _G.inspect = require "inspect"
 _G.pp      = function (...) print(inspect(...)) end
+_G.dbg     = function (...) print(inspect(...)) end
 _G.dut     = (require "LuaDut").create_proxy(cfg.top)
 local sim = require "LuaSimulator"; sim.init()
 _G.sim     = sim
