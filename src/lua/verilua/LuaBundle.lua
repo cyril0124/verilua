@@ -1,9 +1,14 @@
-local class = require("pl.class")
-local tablex = require("pl.tablex")
-local List = require("pl.List")
-require("LuaCallableHDL")
+local class = require "pl.class"
+local tablex = require "pl.tablex"
+local List = require "pl.List"
+require "LuaCallableHDL"
 
 Bundle = class()
+
+local Bundle = Bundle
+local CallableHDL = CallableHDL
+local assert, print, rawset = assert, print, rawset
+local tconcat = table.concat
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
     self.verbose = false
@@ -20,7 +25,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
         assert(prefix ~= nil, "prefix is required for decoupled bundle!")
     end
 
-    local _ = self.verbose and print("New Bundle => ", "name: " .. self.name, "signals: {" .. table.concat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
+    local _ = self.verbose and print("New Bundle => ", "name: " .. self.name, "signals: {" .. tconcat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
     if is_decoupled == true then
         self.bits = {}
         tablex.foreach( signals_table, function(signal)

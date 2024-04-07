@@ -1,6 +1,6 @@
 local class = require "pl.class"
 local random = math.random
-local assert = assert
+local assert, ipairs = assert, ipairs
 
 local WeightedRandom = class()
 

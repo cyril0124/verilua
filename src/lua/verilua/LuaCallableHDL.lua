@@ -1,5 +1,5 @@
-local class = require("pl.class")
-local ffi = require("ffi")
+local class = require "pl.class"
+local ffi = require "ffi"
 local C = ffi.C
 
 ffi.cdef[[
@@ -21,11 +21,10 @@ ffi.cdef[[
 CallableHDL = class()
 
 local BeatWidth = 32
-local type = type
-local assert = assert
-local tonumber = tonumber
+local type, assert, tonumber = type, assert, tonumber
 local table = table
-local table_insert = table.insert
+local vpi = vpi
+local tinsert = table.insert
 -- local table_unpack = table.unpack
 
 -- TODO: Optimize multi beat logic
@@ -55,7 +54,7 @@ function CallableHDL:__call(force_multi_beat)
             
             local ret = {}
             for i = 1, self.beat_num do
-                table_insert(ret, self.c_results[i-1])
+                tinsert(ret, self.c_results[i-1])
             end
             
             return ret

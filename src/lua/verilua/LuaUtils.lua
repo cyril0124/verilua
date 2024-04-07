@@ -1,12 +1,10 @@
 local ffi = require "ffi"
 local utils = {}
 local this = utils
-local math = math
-local type = type
-local bit = bit
-local tostring = tostring
-local string = string
-local concat = table.concat
+
+local bit, io, math, string, os = bit, io, math, string, os
+local tostring, tonumber, ipairs, type, pairs, assert, print = tostring, tonumber, ipairs, type, pairs, assert, print
+local tconcat = table.concat
 local tohex = bit.tohex
 
 
@@ -21,7 +19,7 @@ function utils.serialize(t, conn)
     --     table.insert(serialized, tostring(k) .. "=" .. tostring(v))
     -- end
     -- table.sort(serialized)
-    return table.concat(serialized, conn)
+    return tconcat(serialized, conn)
 end
 
 function utils.reverse_table(tab)
@@ -61,7 +59,7 @@ function utils.to_hex_str(t, reverse)
         end
     end
 
-    return concat(t_copy, " ")
+    return tconcat(t_copy, " ")
 end
 
 function utils.log2Ceil(n)
@@ -134,7 +132,7 @@ function utils.get_progress_bar(progress, length)
 end
 
 function utils.print_progress_bar(progress, length)
-    print(get_progress_bar(progress, length))
+    print(utils.get_progress_bar(progress, length))
 end
 
 

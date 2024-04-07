@@ -1,8 +1,12 @@
-local sqlite3 = require("lsqlite3")
-local class = require("pl.class")
+local sqlite3 = require "lsqlite3"
+local class = require "pl.class"
+local lfs = require "lfs"
 local fun = require "fun"
 
-LuaDB = class()
+local assert, debug_print, ipairs, print = assert, debug_print, ipairs, print
+local string, format = string, string.format
+local tinsert, tunpack = table.insert, table.unpack
+local LuaDB = class()
 
 --------------------------------
 -- Example
@@ -67,9 +71,9 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     -- 
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
-        debug_print(string.format("Remove %s success!", self.fullpath_name))
+        debug_print(format("Remove %s success!", self.fullpath_name))
     else
-        debug_print(string.format("Remove %s failed! => %s", self.fullpath_name, err_msg))
+        debug_print(format("Remove %s failed! => %s", self.fullpath_name, err_msg))
     end
 
     -- 
@@ -78,7 +82,7 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     self.db, err_msg = sqlite3.open(self.fullpath_name)
     assert(self.db ~= nil, err_msg)
 
-    local cmd = string.format("CREATE TABLE %s ( %s );", table_name, pattern_str)
+    local cmd = format("CREATE TABLE %s ( %s );", table_name, pattern_str)
     -- print(cmd)
 
     local result_code = self.db:exec(cmd)
@@ -104,7 +108,7 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
     end
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
     self.prepare_cmd = self.prepare_cmd .. ") " .. "VALUES ("
-    for _ in pairs(self.entries) do
+    for _, _ in ipairs(self.entries) do
         self.prepare_cmd = self.prepare_cmd .. "?" .. ","
     end
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
@@ -113,11 +117,11 @@ function LuaDB:_init(table_name, pattern_str, path, name, save_cnt_max, verbose)
 end
 
 function LuaDB:_log(...)
-    print(string.format("[%s]", self.name), ...)
+    print(format("[%s]", self.name), ...)
 end
 
 function LuaDB:_save(...)
-    table.insert(self.cache, {...})
+    tinsert(self.cache, {...})
 end
 
 function LuaDB:save(...)
@@ -140,7 +144,7 @@ function LuaDB:commit()
     assert(self.stmt ~= nil)
 
     fun.foreach(function (data)
-        self.stmt:bind_values(table.unpack(data))
+        self.stmt:bind_values(tunpack(data))
         self.stmt:step()
         self.stmt:reset()
     end, self.cache)
