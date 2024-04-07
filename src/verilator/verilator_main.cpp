@@ -237,6 +237,7 @@ void simulation_disableTrace(void *args) {
 #if VM_TRACE
     tfp->close();
     cfg.enable_wave = false;
+    cfg.wave_is_enable = false;
     VL_INFO("simulation_disableTrace trace_file:{}\n", cfg.trace_file);
     DUMP_STOP();
 #else
