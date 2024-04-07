@@ -4,10 +4,12 @@
 
 For `bash` user
 ```
+make init
 bash install.sh bash
 ```
 For `zsh` user
 ```
+make init
 bash install.sh zsh
 ```
 

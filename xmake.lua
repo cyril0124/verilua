@@ -12,8 +12,7 @@ local shared_dir = prj_dir .. "/shared"
 local function build_common_info()
     before_build(function (target)
         print("--------------------- [Before Build] ---------------------- ")
-
-        
+        os.run(string.format("mkdir %s -p", shared_dir))
         print("---------------------------------------------------------- ")
     end)
 
