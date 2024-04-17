@@ -18,6 +18,7 @@ $VERILUA_HOME/src/lua/verilua/?.lua;\
 $VERILUA_HOME/src/lua/thirdparty_lib/?.lua;\
 $VERILUA_HOME/extern/luafun/?.lua;\
 $VERILUA_HOME/extern/debugger.lua/?.lua;\
-$VERILUA_HOME/extern/lua_inline_c/?/?.lua;\
-$VERILUA_HOME/extern/lua_inline_c/?.lua;\
 "
+
+source "$VERILUA_HOME/extern/lua_inline_c/setvars.sh"
+source "$VERILUA_HOME/extern/luajit_tcc/setvars.sh"
