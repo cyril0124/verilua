@@ -1,13 +1,14 @@
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local List = require "pl.List"
+local tinsert = table.insert
 require "LuaCallableHDL"
 
 Bundle = class()
 
 local Bundle = Bundle
 local CallableHDL = CallableHDL
-local assert, print, rawset = assert, print, rawset
+local assert, print, rawset, ipairs = assert, print, rawset, ipairs
 local tconcat = table.concat
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
@@ -39,14 +40,19 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
             end
         end)
     else
+        self.signals_table = {}
+
         tablex.foreach( signals_table, function(signal)
             local fullpath = ""
+
             if prefix ~= nil then
                 fullpath = hierachy .. "." .. prefix .. signal
             else
                 fullpath = hierachy .. "." .. signal
             end
+
             rawset(self, signal, CallableHDL(fullpath, signal))
+            tinsert(self.signals_table, prefix .. signal)
         end)
     end
 end
@@ -66,3 +72,27 @@ function Bundle:fire()
 end
 
 
+function Bundle:get_all()
+    if self.is_decoupled then
+        assert(false, "TODO: ")
+    else
+        local ret = {}
+
+        for i, sig in ipairs(self.signals_table) do
+            tinsert(ret, self[sig]())
+        end
+
+        return ret
+    end
+end
+
+
+function Bundle:set_all(values_tbl)
+    if self.is_decoupled then
+        assert(false, "TODO: ")
+    else
+        for i, sig in ipairs(self.signals_table) do
+            self[sig]:set(values_tbl[i])
+        end
+    end
+end

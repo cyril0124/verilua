@@ -20,8 +20,9 @@ ffi.cdef[[
 
 CallableHDL = class()
 
+local CallableHDL = CallableHDL
 local BeatWidth = 32
-local type, assert, tonumber = type, assert, tonumber
+local type, assert, tonumber, print = type, assert, tonumber, print
 local table = table
 local vpi = vpi
 local tinsert = table.insert

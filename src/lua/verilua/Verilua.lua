@@ -63,12 +63,10 @@ function verilua.register_tasks(task_table)
 end
 
 function verilua.main_task()
-    
+    -- 
     -- User code
+    -- 
     verilua._main_task()
-
-    verilua_info("Finish")
-    sim.simulator_control(sim.SimCtrl.FINISH)
 end
 
 function verilua.register_main_task(func)

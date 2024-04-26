@@ -1,4 +1,13 @@
-require("LuaCallableHDL")
+require "LuaCallableHDL"
+local cfg = cfg
+local ffi = require "ffi"
+local vpi = vpi
+local CallableHDL = CallableHDL
+local VeriluaMode = VeriluaMode
+local assert, tonumber, pcall = assert, tonumber, pcall
+local verilua_info, verilua_warning = verilua_info, verilua_warning
+
+
 
 if cfg.simulator == "vcs" then
     ffi.cdef[[
