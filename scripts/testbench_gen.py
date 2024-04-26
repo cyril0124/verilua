@@ -97,19 +97,30 @@ assert root != None, "root not found!"
 ports = []
 port_max_len = 0
 root_body = root.body
-for port in root_body.portList:
+for i, port in enumerate(root_body.portList):
   assert port.isAnsiPort
   name       = port.name
   direction  = port.direction.name
   ptype      = port.type.__str__()
-  width      = port.type.getBitVectorRange().width
-  is_disable = check_disable(name)
+  print(i, ptype, port.type)
   
-  if port_max_len < len(name):
-      port_max_len = len(name)
-  
-  verbose and print(f"find port => name: {name:<30} type: {ptype:<15} width: {width:<5} direction: {direction:<4} is_disable: {is_disable}")
-  ports.append(PortInfo(name, width, direction, is_disable))
+  if isinstance(port.type, pyslang.FixedSizeUnpackedArrayType):
+    # FixedSizeArray, e.g. logic[31:0]$[0:59] => 60 elements, ecach element has bit width of 32
+    # logic [arrayElementType_width]$[fixedRange_width]
+    arrayElementType_width = port.type.arrayElementType.getBitVectorRange().width
+    fixedRange_width = port.type.fixedRange.width
+    assert False, f"TODO: [{i}] " + f"name: {name} " + f"ptype: {ptype} " + f"arrayElement_width: {arrayElementType_width} " + f"fixedRange_width: {fixedRange_width}"
+  elif isinstance(port.type, pyslang.ScalarType) or isinstance(port.type, pyslang.PackedArrayType):
+    width      = port.type.getBitVectorRange().width
+    is_disable = check_disable(name)
+    
+    if port_max_len < len(name):
+        port_max_len = len(name)
+    
+    verbose and print(f"find port({type(port.type).__name__}) => name: {name:<30} type: {ptype:<15} width: {width:<5} direction: {direction:<4} is_disable: {is_disable}")
+    ports.append(PortInfo(name, width, direction, is_disable))
+  else:
+    assert False, f"Unknown type => {type(port.type)}"
 
 
 # assert False
