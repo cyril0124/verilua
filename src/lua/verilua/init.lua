@@ -35,6 +35,13 @@ do
     end
 end
 
+
+-- 
+-- strict lua, any undeclared global variables will lead to failed
+-- 
+require "strict"
+
+
 -- 
 -- debug info
 -- 
@@ -272,4 +279,10 @@ do
 
     verilua_info(("random seed is %d"):format(cfg.seed))
     math.randomseed(cfg.seed)
+end
+
+
+-- only used to test the ffi function invoke overhead
+function test_func()
+    
 end
