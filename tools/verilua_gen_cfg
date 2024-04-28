@@ -302,6 +302,8 @@ def gen_cfg_file(target):
                 v = '\"' + attr_value + '\"'
             if attr_name == "simulator":
                 print(f'cfg.{attr_name} = os.getenv("SIM") or {v}', file=f)
+            elif attr_name == "shutdown_cycles":
+                print(f'cfg.{attr_name} = os.getenv("SHUTDOWN_CYCLES") or {v}', file=f)
             elif attr_name == "top":
                 print(f'cfg.{attr_name} = os.getenv("DUT_TOP") or {v}', file=f)
             elif attr_name == "script":

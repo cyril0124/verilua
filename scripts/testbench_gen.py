@@ -456,8 +456,32 @@ function void simulation_initializeTrace;
 
 `ifdef SIM_VCS
   $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
-  $fsdbDumpfile({{traceFilePath, ".fsdb"}});
-  $fsdbDumpvars(0, {tb_top_name});
+
+  `ifdef FSDB_AUTO_SWITCH
+    `ifndef FILE_SIZE
+      `define FILE_SIZE 25
+    `endif
+    
+    `ifndef NUM_OF_FILES
+      `define NUM_OF_FILES 1000
+    `endif
+
+    $fsdbAutoSwitchDumpfile(`FILE_SIZE, {{traceFilePath, ".fsdb"}}, `NUM_OF_FILES);
+  `else
+    $fsdbDumpfile({{traceFilePath, ".fsdb"}});
+  `endif
+
+  //
+  // $fsdbDumpvars([depth, instance][, "option"]);
+  // options:
+  //   +all: Record all signals, including memories, MDA (Memory Data Array), packed arrays, structures, etc.
+  //   +mda: Record all memory and MDA signals. MDA (Memory Data Array) signals refer to those related to memory data arrays.
+  //   +IO_Only: Record only input and output port signals.
+  //   +Reg_Only: Record only signals of register type.
+  //   +parameter: Record parameters.
+  //   +fsdbfile+filename: Specify the fsdb file name.
+  // 
+  $fsdbDumpvars(0, {tb_top_name}, "+all");
 `endif
 endfunction
 
@@ -470,7 +494,7 @@ function void simulation_enableTrace;
 `ifdef SIM_VCS
   $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
   $fsdbDumpon;
-  $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
+  // $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
 `endif
 endfunction
 
