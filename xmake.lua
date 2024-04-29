@@ -26,7 +26,7 @@ local function build_common_info()
 
 
     add_cxflags(
-        "-Ofast -funroll-loops -march=native -fomit-frame-pointer",
+        "-O2 -funroll-loops -march=native -fomit-frame-pointer",
         {force = true}
     )
 
@@ -34,7 +34,8 @@ local function build_common_info()
     add_shflags(
         "-L".. lua_dir .. "/lib" .. " -lluajit-5.1",
         "-L".. extern_dir .. "/fmt/build" .. " -lfmt",
-        "-Wl,--no-as-needed", 
+        "-lrt", -- support shm_open
+        "-Wl,--no-as-needed",
         {force = true}
     )
 
