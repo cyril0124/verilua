@@ -3,7 +3,6 @@
 #include "vpi_callback.h"
 #include "vpi_user.h"
 
-
 lua_State *L;
 bool verilua_is_init = false;
 bool verilua_is_final = false;
@@ -92,6 +91,10 @@ VERILUA_EXPORT void verilua_main_step() {
 
 VERILUA_EXPORT void verilua_final() {
     if(verilua_is_final) return;
+    if(!verilua_is_init) {
+        verilua_is_final = true;
+        VL_FATAL(false, "FATAL! and verilua is NOT init yet.");
+    }
 
     VL_INFO("verilua_final\n");
     execute_final_callback();
@@ -270,6 +273,14 @@ VERILUA_EXPORT void verilua_init(void) {
     sim_event.set_error_handler(lua["debug"]["traceback"]); 
     main_step = lua["lua_main_step"];
     main_step.set_error_handler(lua["debug"]["traceback"]); 
+
+    sol::protected_function test_func = lua["test_func"];
+    auto start1 = std::chrono::high_resolution_clock::now();
+    test_func();
+    auto end1 = std::chrono::high_resolution_clock::now();
+    double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    VL_INFO("test_func time is {} us\n", (end_time - start_time) * 1000 * 1000);
 
 #ifdef ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
