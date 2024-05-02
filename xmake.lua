@@ -33,7 +33,7 @@ local function build_common_info()
     -- shared lib link flags (! instead of add_ldflags)
     add_shflags(
         -- "-L".. lua_dir .. "/lib" .. " -lluajit-5.1", -- dynamic link luajit2.1
-        -- "-L".. extern_dir .. "/fmt/build" .. " -lfmt",
+        "-L".. extern_dir .. "/fmt/build" .. " -lfmt",
         "-lrt", -- support shm_open
         "-Wl,--no-as-needed",
         {force = true}
@@ -43,7 +43,7 @@ local function build_common_info()
 
     add_files(
         lua_dir .. "/lib/libluajit-5.1.a",   -- static link luajit2.1
-        extern_dir .. "/fmt/build/libfmt.a", -- static link fmt
+        -- extern_dir .. "/fmt/build/libfmt.a", -- static link fmt
         src_dir .. "/verilua/*.cpp"
     )
 
