@@ -410,7 +410,7 @@ TO_LUA void verilator_simulation_disableTrace(void) {
 
 TO_LUA void dpi_set_scope(char *str) {
     VL_INFO("set svScope name: {}\n", str);
-    const svScope scope = svGetScopeFromName("tb_top");
+    const svScope scope = svGetScopeFromName(str);
     VL_FATAL(scope, "scope is NULL");
     svSetScope(scope);
 }
