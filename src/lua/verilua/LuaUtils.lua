@@ -171,5 +171,15 @@ function utils.abspath(...)
 end
 
 
+function utils.read_file_str(filename)
+    local file = io.open(utils.abspath(filename), "r") 
+    if not file then
+        assert(false, "cannot open " .. utils.abspath(filename))
+    end
+    local content = file:read("*a")
+    file:close()
+    return content
+end
+
 
 return utils
