@@ -23,7 +23,7 @@ CSRCS +=
 # --------------------------------------------
 VCS_CFLAGS += -Ofast -march=native -loop-unroll 
 VCS_LDFLAGS += -Wl,--no-as-needed -flto 
-VCS_FLAGS += -cc clang++
+VCS_FLAGS += -cc clang
 VCS_FLAGS += -CFLAGS "$(VCS_CFLAGS)" 
 VCS_FLAGS += -LDFLAGS "$(VCS_LDFLAGS)"
 
@@ -38,7 +38,7 @@ VCS_FLAGS += -Mdir=$(SIM_BUILD)
 VCS_FLAGS += +vcs+initreg+random
 VCS_FLAGS += +define+SIM_VCS
 VCS_FLAGS += +define+VCS
-VCS_FLAGS += -j $(shell nproc)
+VCS_FLAGS += -j 16 # $(shell nproc)
 
 
 # --------------------------------------------
