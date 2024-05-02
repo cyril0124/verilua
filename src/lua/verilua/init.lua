@@ -246,7 +246,7 @@ _G.inspect = require "inspect"
 _G.pp      = function (...) print(inspect(...)) end
 _G.dbg     = function (...) print(inspect(...)) end
 _G.dut     = (require "LuaDut").create_proxy(cfg.top)
-local sim = require "LuaSimulator"; sim.init()
+local sim = require "LuaSimulator";
 _G.sim     = sim
 
 
@@ -261,6 +261,12 @@ do
         verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
     end
 end
+
+-- 
+-- initialize simulator
+-- 
+sim.print_hierarchy()
+sim.init()
 
 
 -- 

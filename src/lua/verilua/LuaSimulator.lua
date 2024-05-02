@@ -1,6 +1,8 @@
 require "LuaCallableHDL"
 local cfg = cfg
 local ffi = require "ffi"
+local tcc = require "vl-tcc"
+local utils = require "LuaUtils"
 local vpi = vpi
 local CallableHDL = CallableHDL
 local VeriluaMode = VeriluaMode
@@ -114,6 +116,28 @@ local get_mode = function()
     end
 end
 
+
+local state = tcc.new()
+local VERILUA_HOME = os.getenv("VERILUA_HOME");
+assert(state:set_output_type(tcc.OUTPUT.MEMORY))
+assert(state:compile_string(utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c")))
+assert(state:relocate(tcc.RELOCATE.AUTO))
+
+local print_hierarchy_sym = assert(state:get_symbol("print_hierarchy"))
+local _print_hierarchy = ffi.cast("void (*)(unsigned int*, int)", print_hierarchy_sym)
+local print_hierarchy_sym_is_init = false
+
+local print_hierarchy = function (max_level)
+    local max_level = max_level or 0
+    if print_hierarchy_sym_is_init == false then
+        print_hierarchy_sym = assert(state:get_symbol("print_hierarchy"))
+        _print_hierarchy = ffi.cast("void (*)(unsigned int*, int)", print_hierarchy_sym)
+        print_hierarchy_sym_is_init = true
+    end
+    _print_hierarchy(ffi.new("unsigned int*", nil), max_level)
+end
+
+
 return {
     init              = init,
     get_cycles        = get_cycles,
@@ -122,5 +146,6 @@ return {
     disable_trace     = disable_trace,
     simulator_control = simulator_control,
     SimCtrl           = SimCtrl,
-    get_mode          = get_mode
+    get_mode          = get_mode,
+    print_hierarchy   = print_hierarchy
 }
