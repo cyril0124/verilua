@@ -1,5 +1,10 @@
 #include "signal_access.h"
 #include "lua_vpi.h"
+#include "vpi_user.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <sys/types.h>
 
 // Cache to store handles
 extern std::unordered_map<std::string, vpiHandle> handle_cache;
@@ -296,7 +301,7 @@ TO_LUA uint64_t c_get_value64(long long handle) {
     return value;
 }
 
-TO_LUA void c_get_value_multi_1(long long handle, int n, uint32_t *result_arr) {
+TO_LUA void c_get_value_multi_1(long long handle, uint32_t *ret, int n) {
 #ifndef VCS
     ENTER_VPI_REGION();
 #endif 
@@ -307,8 +312,30 @@ TO_LUA void c_get_value_multi_1(long long handle, int n, uint32_t *result_arr) {
     v.format = vpiVectorVal;
     vpi_get_value(actual_handle, &v);
     for(int i = 0; i < n; i++) {
-        result_arr[i] = v.value.vector[i].aval;
+        ret[i] = v.value.vector[i].aval;
     }
+
+#ifndef VCS
+    LEAVE_VPI_REGION();
+#endif
+}
+
+TO_LUA void c_get_value_multi_2(long long handle, uint32_t *ret, int n) {
+#ifndef VCS
+    ENTER_VPI_REGION();
+#endif 
+
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+
+    s_vpi_value v;
+    v.format = vpiVectorVal;
+    vpi_get_value(actual_handle, &v);
+
+    for(int i = 1; i < (n + 1); i++) {
+        ret[i] = v.value.vector[i - 1].aval;
+    }
+
+    ret[0] = n;
 
 #ifndef VCS
     LEAVE_VPI_REGION();
@@ -435,6 +462,104 @@ TO_LUA int c_set_value_multi(lua_State *L) {
     LEAVE_VPI_REGION();
     return 0;  // Number of return values
 }
+
+TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
+    ENTER_VPI_REGION();
+    
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+
+    s_vpi_vecval *vector = (s_vpi_vecval *)malloc(n * sizeof(s_vpi_vecval));
+    for(int i = 0; i < n; i++) {
+        vector[i].aval = values[i];
+        vector[i].bval = 0;
+    }
+
+    s_vpi_value v;
+    v.format = vpiVectorVal;
+    v.value.vector = vector;
+    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    
+    free((void *)vector)
+
+    LEAVE_VPI_REGION();
+}
+
+
+#define ARG_1  uint32_t v0
+#define ARG_2  ARG_1, uint32_t v1
+#define ARG_3  ARG_2, uint32_t v2
+#define ARG_4  ARG_3, uint32_t v3
+#define ARG_5  ARG_4, uint32_t v4
+#define ARG_6  ARG_5, uint32_t v5
+#define ARG_7  ARG_6, uint32_t v6
+#define ARG_8  ARG_7, uint32_t v7
+
+#define ASSIGN_1 vector[0].aval = v0;
+#define ASSIGN_2 ASSIGN_1 vector[1].aval = v1;
+#define ASSIGN_3 ASSIGN_2 vector[2].aval = v2;
+#define ASSIGN_4 ASSIGN_3 vector[3].aval = v3;
+#define ASSIGN_5 ASSIGN_4 vector[4].aval = v4;
+#define ASSIGN_6 ASSIGN_5 vector[5].aval = v5;
+#define ASSIGN_7 ASSIGN_6 vector[6].aval = v6;
+#define ASSIGN_8 ASSIGN_7 vector[7].aval = v7;
+
+#define ARG_SELECT(N) ARG_##N
+#define ASSIGN_SELECT(N) ASSIGN_##N
+
+#define GENERATE_FUNCTION(NUM) \
+    TO_LUA void c_set_value_multi_1_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
+        ENTER_VPI_REGION(); \
+        vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle); \
+        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE; \
+        s_vpi_vecval vector[NUM] = {0}; \
+        ASSIGN_SELECT(NUM); \
+        s_vpi_value v; \
+        v.format = vpiVectorVal; \
+        v.value.vector = vector; \
+        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay); \
+        LEAVE_VPI_REGION(); \
+    }
+
+GENERATE_FUNCTION(3)
+GENERATE_FUNCTION(4)
+GENERATE_FUNCTION(5)
+GENERATE_FUNCTION(6)
+GENERATE_FUNCTION(7)
+
+// 
+// Signal access function generator
+// Then macro GENERATE_FUNCTION(8) will be expanded as: 
+// 
+GENERATE_FUNCTION(8)
+// TO_LUA void c_set_value_multi_1_beat_8(
+//     long long handle, 
+//     uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, 
+//     uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7 
+// ) {
+//     ENTER_VPI_REGION();
+    
+//     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+//     if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
+
+//     s_vpi_vecval vector[8] = {0};
+//     vector[0].aval = v0;
+//     vector[1].aval = v1;
+//     vector[2].aval = v2;
+//     vector[3].aval = v3;
+//     vector[4].aval = v4;
+//     vector[5].aval = v5;
+//     vector[6].aval = v6;
+//     vector[7].aval = v7;
+
+//     s_vpi_value v;
+//     v.format = vpiVectorVal;
+//     v.value.vector = vector;
+//     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+
+//     LEAVE_VPI_REGION();
+// }
+
 
 TO_LUA void c_get_value_parallel(long long *hdls, uint32_t *values, int length) {
 #ifndef VCS

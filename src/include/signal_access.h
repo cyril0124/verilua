@@ -24,7 +24,7 @@ TO_LUA void c_release_value(long long handle);
 
 TO_LUA uint32_t c_get_value(long long handle);
 TO_LUA uint64_t c_get_value64(long long handle);
-TO_LUA void c_get_value_multi_1(long long handle, int n, uint32_t *result_arr);
+TO_LUA void c_get_value_multi_1(long long handle, uint32_t *ret, int n);
 TO_LUA int c_get_value_multi(lua_State *L);
 
 
