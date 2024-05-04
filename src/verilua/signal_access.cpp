@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sys/types.h>
+#include <vector>
 
 // Cache to store handles
 extern std::unordered_map<std::string, vpiHandle> handle_cache;
@@ -394,16 +395,17 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
 
     s_vpi_value v;
 
-    t_vpi_vecval vec_val[size];
+    s_vpi_vecval *vector = (s_vpi_vecval *)malloc(size * sizeof(s_vpi_vecval));
     for(int i = 0; i < size; i++) {
-        vec_val[i].aval = 0;
-        vec_val[i].bval = 0;
+        vector[i].aval = 0;
+        vector[i].bval = 0;
     }
-    vec_val[0].aval = value;
     
     v.format = vpiVectorVal;
-    v.value.vector = vec_val;
+    v.value.vector = vector;
     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+
+    free((void *)vector);
 
     LEAVE_VPI_REGION();
 }
@@ -416,16 +418,17 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
 
     s_vpi_value v;
 
-    p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
-    vec_val[1].aval = value >> 32;
-    vec_val[1].bval = 0;
-    vec_val[0].aval = (value << 32) >> 32;
-    vec_val[0].bval = 0;
+    s_vpi_vecval *vector = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
+    vector[1].aval = value >> 32;
+    vector[1].bval = 0;
+    vector[0].aval = (value << 32) >> 32;
+    vector[0].bval = 0;
     
     v.format = vpiVectorVal;
-    v.value.vector = vec_val;
+    v.value.vector = vector;
     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
-    free(vec_val);
+
+    free((void *)vector);
 
     LEAVE_VPI_REGION();
 }
@@ -626,16 +629,17 @@ TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length
         if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPrivilege_t::WRITE;
         s_vpi_value v;
 
-        p_vpi_vecval vec_val = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
-        vec_val[1].aval = values[i] >> 32;
-        vec_val[1].bval = 0;
-        vec_val[0].aval = (values[i] << 32) >> 32;
-        vec_val[0].bval = 0;
+        s_vpi_vecval *vector = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
+        vector[1].aval = values[i] >> 32;
+        vector[1].bval = 0;
+        vector[0].aval = (values[i] << 32) >> 32;
+        vector[0].bval = 0;
 
         v.format = vpiVectorVal;
-        v.value.vector = vec_val;
+        v.value.vector = vector;
         vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
-        free(vec_val);
+
+        free((void *)vector);
     }
 
     LEAVE_VPI_REGION();
