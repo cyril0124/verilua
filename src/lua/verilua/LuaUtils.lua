@@ -36,23 +36,33 @@ end
 -- 
 -- reverse == true(Default)
 --     MSB <=> LSB
--- reverse == falase
+-- reverse == false
 --     LSB <=> MSB
 -- 
 function utils.to_hex_str(t, reverse)
     reverse = reverse or true
+    
+    local t_type = type(t)
 
-    if type(t) ~= "table" then
+    if t_type == "number" then
         return tohex(t)
     end
 
+    local t_len
+    if t_type == "cdata" then
+        t_len = t[0]
+    else
+        assert(t_type == "table")
+        t_len = #t
+    end
+
     local t_copy = {}
-    for i = 1, #t do
+    for i = 1, t_len do
         t_copy[i] = tohex(t[i])
     end
 
     if reverse then
-        local i, n = 1, #t
+        local i, n = 1, t_len
         while i < n do
             t_copy[i], t_copy[n] = t_copy[n], t_copy[i]
             i, n = i + 1, n - 1
