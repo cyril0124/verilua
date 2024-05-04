@@ -14,7 +14,7 @@ cd $luajit_dir
 git checkout $luajit_branch
 cd $curr_dir
 
-hererocks luajit2.1 -j $luajit_dir -r latest
+hererocks luajit2.1 -j $luajit_dir -r latest --compat 5.2 --verbose
 
 # Bug fix...
 cp $luajit_dir/lib/libluajit-5.1.so.2 $luajit_dir/lib/libluajit-5.1.so
