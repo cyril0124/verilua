@@ -116,7 +116,6 @@ VERILUA_EXPORT void vlog_startup_routines_bootstrap();
 
 TO_VERILATOR void verilua_schedule_loop();
 
-
 typedef void (*vl_func_t)(void *);
 namespace Verilua {
     enum class VeriluaMode { 
@@ -129,7 +128,7 @@ namespace Verilua {
 }
 
 
-// used inside the verilua lib
+// used inside the verilua lib (cpp side)
 VERILUA_PRIVATE void execute_final_callback();
 VERILUA_PRIVATE void execute_sim_event(int *id);
 VERILUA_PRIVATE void execute_sim_event(int id);

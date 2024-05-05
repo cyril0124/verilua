@@ -79,7 +79,7 @@ function Bundle:get_all()
         local ret = {}
 
         for i, sig in ipairs(self.signals_table) do
-            tinsert(ret, self[sig]())
+            tinsert(ret, self[sig]:get())
         end
 
         return ret

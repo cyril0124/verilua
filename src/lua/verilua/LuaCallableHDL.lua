@@ -3,6 +3,9 @@ local ffi = require "ffi"
 local C = ffi.C
 
 ffi.cdef[[
+  long long c_handle_by_index(const char *parent_name, long long hdl, int index);
+
+  const char *c_get_hdl_type(long long handle);
   unsigned int c_get_signal_width(long long handle);
 
   void c_set_value(long long handle, uint32_t value);
@@ -34,7 +37,7 @@ CallableHDL = class()
 
 local CallableHDL = CallableHDL
 local BeatWidth = 32
-local type, assert, tonumber, print = type, assert, tonumber, print
+local type, assert, tonumber, print, format = type, assert, tonumber, print, string.format
 local table, math, vpi = table, math, vpi
 
 function CallableHDL:_init(fullpath, name, hdl)
@@ -43,7 +46,39 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.name = name or "Unknown"
 
     self.hdl = hdl or vpi.handle_by_name(fullpath)
-    self.width = vpi.get_signal_width(self.hdl)
+    self.hdl_type = ffi.string((C.c_get_hdl_type(self.hdl)))
+
+    self.is_array = false
+    self.array_size = 0
+    if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" then
+        self.is_array = false
+    elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiMemory" then
+        -- 
+        -- for multidimensional reg array, VCS vpi treat it as "vpiRegArray" while
+        -- Verilator treat it as "vpiMemory"
+        -- 
+        self.is_array = true
+        self.array_size = tonumber(C.c_get_signal_width(self.hdl))
+        self.array_hdls = {}
+        for i = 1, self.array_size do
+            self.array_hdls[i] = C.c_handle_by_index(self.fullpath, self.hdl, i - 1)
+        end
+    else
+        assert(false, format("Unknown hdl_type => %s fullpath => %s name => %s", self.hdl_type, self.fullpath, self.name))
+    end
+
+    local _hdl = nil
+    do
+        if self.is_array then
+            _hdl = self.array_hdls[1]
+        else
+            _hdl = self.hdl
+        end
+        
+        assert(_hdl ~= nil)
+    end
+
+    self.width = tonumber(C.c_get_signal_width(_hdl))
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
 
@@ -51,10 +86,294 @@ function CallableHDL:_init(fullpath, name, hdl)
                                                                -- c_results[0] is the lenght of the beat data since a normal lua table use 1 as the first index of array while ffi cdata still use 0
 
     local _ = self.verbose and print("New CallableHDL => ", "name: " .. self.name, "fullpath: " .. self.fullpath, "width: " .. self.width, "beat_num: " .. self.beat_num, "is_multi_beat: " .. tostring(self.is_multi_beat))
+
+    if self.is_multi_beat == true and self.is_array == true then
+        self.get = function (this, force_multi_beat) 
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:get(force_multi_beat), instead using <CallableHDL>:get_index(index, force_multi_beat)", this.fullpath))
+        end
+
+        -- 
+        -- get array value by index, the index value is start with 0
+        -- 
+        self.get_index = function (this, index, force_multi_beat)
+            local chosen_hdl = this.array_hdls[index + 1]
+            if this.beat_num <= 2 and not force_multi_beat then
+                return tonumber(C.c_get_value64(chosen_hdl))
+            else
+                do
+                    C.c_get_value_multi_2(chosen_hdl, this.c_results, this.beat_num)
+                    return this.c_results
+                end
+            end
+        end
+
+        self.set = function (this, value, force_single_beat)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set(value), instead using <CallableHDL>:set_index(index)", this.fullpath))
+        end
+
+        self.set_no_check = function (this, value, force_single_beat)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_no_check(value), instead using <CallableHDL>:set_index_no_check(index)", this.fullpath))
+        end
+
+        self.set_index = function(this, index, value, force_single_beat)
+            force_single_beat = force_single_beat or false
+            local chosen_hdl = this.array_hdls[index + 1]
+            if force_single_beat and this.beat_num == 2 then
+                if type(value) == "table" then
+                    assert(false)
+                end
+                C.c_set_value64(chosen_hdl, value)
+            else
+                if force_single_beat then
+                    if type(value) == "table" then
+                        assert(false)
+                    end
+                    C.c_set_value_force_single(chosen_hdl, value, this.beat_num)
+                else
+                    -- value is a table where <lsb ... msb>
+                    if type(value) ~= "table" then
+                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
+                    end
+                    
+                    local beat_num = this.beat_num
+                    if #value ~= beat_num then
+                        assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
+                    end
+
+                    if beat_num == 3 then
+                        C.c_set_value_multi_1_beat_3(chosen_hdl, value[1], value[2]);
+                    elseif beat_num == 4 then
+                        C.c_set_value_multi_1_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
+                    elseif beat_num == 5 then
+                        C.c_set_value_multi_1_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
+                    elseif beat_num == 6 then
+                        C.c_set_value_multi_1_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                    elseif beat_num == 7 then
+                        C.c_set_value_multi_1_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                    elseif beat_num == 8 then
+                        C.c_set_value_multi_1_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                    else
+                        do
+                            for i = 1, this.beat_num do
+                                this.c_results[i - 1] = value[i]
+                            end
+                            C.c_set_value_multi_1(chosen_hdl, this.c_results, this.beat_num)
+                        end
+                    end
+                end
+            end
+        end
+
+        self.set_index_no_check = function (this, index, value, force_single_beat)
+            force_single_beat = force_single_beat or false
+            local chosen_hdl = this.array_hdls[index + 1]
+            if force_single_beat and this.beat_num == 2 then
+                C.c_set_value64(chosen_hdl, value)
+            else
+                if force_single_beat then
+                    C.c_set_value_force_single(chosen_hdl, value, this.beat_num)
+                else
+                    -- value is a table where <lsb ... msb>
+                    local beat_num = this.beat_num
+
+                    if beat_num == 3 then
+                        C.c_set_value_multi_1_beat_3(chosen_hdl, value[1], value[2]);
+                    elseif beat_num == 4 then
+                        C.c_set_value_multi_1_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
+                    elseif beat_num == 5 then
+                        C.c_set_value_multi_1_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
+                    elseif beat_num == 6 then
+                        C.c_set_value_multi_1_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                    elseif beat_num == 7 then
+                        C.c_set_value_multi_1_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                    elseif beat_num == 8 then
+                        C.c_set_value_multi_1_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                    else
+                        do
+                            for i = 1, this.beat_num do
+                                this.c_results[i - 1] = value[i]
+                            end
+                            C.c_set_value_multi_1(chosen_hdl, this.c_results, this.beat_num)
+                        end
+                    end
+                end
+            end
+        end
+    elseif self.is_multi_beat == true and self.is_array == false then
+        self.get = function (this, force_multi_beat)
+            if this.beat_num <= 2 and not force_multi_beat then
+                return tonumber(C.c_get_value64(this.hdl))
+            else
+                do
+                    C.c_get_value_multi_2(this.hdl, this.c_results, this.beat_num)
+                    return this.c_results
+                end
+            end
+        end
+
+        self.get_index = function (this, index, force_multi_beat)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_index()", this.fullpath))
+        end
+
+        self.set = function (this, value, force_single_beat)
+            force_single_beat = force_single_beat or false
+            if force_single_beat and this.beat_num == 2 then
+                if type(value) == "table" then
+                    assert(false)
+                end
+                C.c_set_value64(this.hdl, value)
+            else
+                if force_single_beat then
+                    if type(value) == "table" then
+                        assert(false)
+                    end
+                    C.c_set_value_force_single(this.hdl, value, this.beat_num)
+                else
+                    -- value is a table where <lsb ... msb>
+                    if type(value) ~= "table" then
+                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
+                    end
+                    
+                    local beat_num = this.beat_num
+                    if #value ~= beat_num then
+                        assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
+                    end
+
+                    if beat_num == 3 then
+                        C.c_set_value_multi_1_beat_3(this.hdl, value[1], value[2]);
+                    elseif beat_num == 4 then
+                        C.c_set_value_multi_1_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+                    elseif beat_num == 5 then
+                        C.c_set_value_multi_1_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+                    elseif beat_num == 6 then
+                        C.c_set_value_multi_1_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                    elseif beat_num == 7 then
+                        C.c_set_value_multi_1_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                    elseif beat_num == 8 then
+                        C.c_set_value_multi_1_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                    else
+                        do
+                            for i = 1, this.beat_num do
+                                this.c_results[i - 1] = value[i]
+                            end
+                            C.c_set_value_multi_1(this.hdl, this.c_results, this.beat_num)
+                        end
+                    end
+                end
+            end
+        end
+
+        -- 
+        -- Unsafe usage of CallableHDL:set()
+        -- Do not check value type and lenght of value table. 
+        -- Usually has higher performance than CallableHDL:set()
+        -- 
+        self.set_no_check = function (this, value, force_single_beat)
+            force_single_beat = force_single_beat or false
+            if force_single_beat and this.beat_num == 2 then
+                C.c_set_value64(this.hdl, value)
+            else
+                if force_single_beat then
+                    C.c_set_value_force_single(this.hdl, value, this.beat_num)
+                else
+                    -- value is a table where <lsb ... msb>
+                    local beat_num = this.beat_num
+
+                    if beat_num == 3 then
+                        C.c_set_value_multi_1_beat_3(this.hdl, value[1], value[2]);
+                    elseif beat_num == 4 then
+                        C.c_set_value_multi_1_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+                    elseif beat_num == 5 then
+                        C.c_set_value_multi_1_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+                    elseif beat_num == 6 then
+                        C.c_set_value_multi_1_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                    elseif beat_num == 7 then
+                        C.c_set_value_multi_1_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                    elseif beat_num == 8 then
+                        C.c_set_value_multi_1_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                    else
+                        do
+                            for i = 1, this.beat_num do
+                                this.c_results[i - 1] = value[i]
+                            end
+                            C.c_set_value_multi_1(this.hdl, this.c_results, this.beat_num)
+                        end
+                    end
+                end
+            end
+        end
+
+        self.set_index = function(this, index, value, force_single_beat)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index()", this.fullpath))
+        end
+
+        self.set_index_no_check = function (this, index, value, force_single_beat)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_no_check()", this.fullpath))
+        end
+    elseif self.is_multi_beat == false and self.is_array == true then
+        self.get = function(this)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:get(force_multi_beat), instead using <CallableHDL>:get_index(index, force_multi_beat)", this.fullpath))
+        end
+
+        self.get_index = function (this, index)
+            local chosen_hdl = this.array_hdls[index + 1]
+            return C.c_get_value(chosen_hdl)
+        end
+
+        self.set = function (this, value)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set(value), instead using <CallableHDL>:set_index(index)", this.fullpath))
+        end
+
+        self.set_no_check = function (this, value)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_no_check(value), instead using <CallableHDL>:set_index_no_check(index)", this.fullpath))
+        end
+
+        self.set_index = function(this, index, value)
+            local chosen_hdl = this.array_hdls[index + 1]
+            C.c_set_value(chosen_hdl, value)
+        end
+
+        self.set_index_no_check = function (this, index, value)
+            local chosen_hdl = this.array_hdls[index + 1]
+            C.c_set_value(chosen_hdl, value)
+        end
+    elseif self.is_multi_beat == false and self.is_array == false then
+        self.get = function(this)
+            return C.c_get_value(this.hdl)
+        end
+
+        self.get_index = function (this, index)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_index()", this.fullpath))
+        end
+
+        self.set = function (this, value)
+            C.c_set_value(this.hdl, value)
+        end
+
+        self.set_no_check = function (this, value)
+            C.c_set_value(this.hdl, value)
+        end
+
+        self.set_index = function(this, index, value)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index()", this.fullpath))
+        end
+
+        self.set_index_no_check = function (this, index, value)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_no_check()", this.fullpath))
+        end
+    else
+        assert(false)
+    end
 end
 
 function CallableHDL:__call(force_multi_beat)
+    -- 
+    -- This method is deprecated, invoke <CallableHDL>:get() to get the signal value
+    -- 
+    assert(self.is_array == false, "For multidimensional array use <CallableHDL>:get_index()")
+    
     force_multi_beat = force_multi_beat or false
+
     if self.is_multi_beat then
         if self.beat_num <= 2 and not force_multi_beat then
             return tonumber(C.c_get_value64(self.hdl))
@@ -82,162 +401,6 @@ function CallableHDL:__call(force_multi_beat)
         -- return ffi.C.get_value(self.hdl)
         -- return vpi.get_value(self.hdl)
         return C.c_get_value(self.hdl)
-    end
-end
-
-function CallableHDL:set(value, force_single_beat)
-    force_single_beat = force_single_beat or false
-    if self.is_multi_beat then
-        if force_single_beat and self.beat_num == 2 then
-            if type(value) == "table" then
-                assert(false)
-            end
-            C.c_set_value64(self.hdl, value)
-        else
-            if force_single_beat then
-                if type(value) == "table" then
-                    assert(false)
-                end
-                C.c_set_value_force_single(self.hdl, value, self.beat_num)
-            else
-                -- value is a table where <lsb ... msb>
-                if type(value) ~= "table" then
-                    assert(false, type(value) .. " =/= table \n" .. self.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
-                end
-                
-                local beat_num = self.beat_num
-                if #value ~= beat_num then
-                    assert(false, "len: " .. #value .. " =/= " .. self.beat_num)
-                end
-
-                if beat_num == 3 then
-                    C.c_set_value_multi_1_beat_3(
-                        self.hdl,
-                        value[1], value[2]);
-                elseif beat_num == 4 then
-                    C.c_set_value_multi_1_beat_4(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4])
-                elseif beat_num == 5 then
-                    C.c_set_value_multi_1_beat_5(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5])
-                elseif beat_num == 6 then
-                    C.c_set_value_multi_1_beat_6(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5], value[6])
-                elseif beat_num == 7 then
-                    C.c_set_value_multi_1_beat_7(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5], value[6], value[7])
-                elseif beat_num == 8 then
-                    C.c_set_value_multi_1_beat_8(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5], value[6], value[7], value[8]
-                    )
-                else
-                    do
-                        for i = 1, self.beat_num do
-                            self.c_results[i - 1] = value[i]
-                        end
-                        C.c_set_value_multi_1(self.hdl, self.c_results, self.beat_num)
-                    end
-                end
-
-                -- do
-                --     for i = 1, self.beat_num do
-                --         self.c_results[i - 1] = value[i]
-                --     end
-                --     C.c_set_value_multi_1(self.hdl, self.c_results, self.beat_num)
-                -- end
-
-                -- vpi.set_value_multi(self.hdl, value)
-
-            end
-        end
-    else
-        C.c_set_value(self.hdl, value)
-    end
-end
-
-
--- 
--- Unsafe usage of CallableHDL:set()
--- Do not check value type and lenght of value table. 
--- Usually has higher performance than CallableHDL:set()
--- 
-function CallableHDL:set_no_check(value, force_single_beat)
-    force_single_beat = force_single_beat or false
-    if self.is_multi_beat then
-        if force_single_beat and self.beat_num == 2 then
-            C.c_set_value64(self.hdl, value)
-        else
-            if force_single_beat then
-                C.c_set_value_force_single(self.hdl, value, self.beat_num)
-            else
-                -- value is a table where <lsb ... msb>
-
-                local beat_num = self.beat_num
-                if beat_num == 3 then
-                    C.c_set_value_multi_1_beat_3(
-                        self.hdl,
-                        value[1], value[2]);
-                elseif beat_num == 4 then
-                    C.c_set_value_multi_1_beat_4(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4])
-                elseif beat_num == 5 then
-                    C.c_set_value_multi_1_beat_5(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5])
-                elseif beat_num == 6 then
-                    C.c_set_value_multi_1_beat_6(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5], value[6])
-                elseif beat_num == 7 then
-                    C.c_set_value_multi_1_beat_7(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5], value[6], value[7])
-                elseif beat_num == 8 then
-                    C.c_set_value_multi_1_beat_8(
-                        self.hdl,
-                        value[1], value[2], value[3], value[4],
-                        value[5], value[6], value[7], value[8]
-                    )
-                else
-                    do
-                        for i = 1, self.beat_num do
-                            self.c_results[i - 1] = value[i]
-                        end
-                        C.c_set_value_multi_1(self.hdl, self.c_results, self.beat_num)
-                    end
-                end
-
-                -- do
-                --     for i = 1, self.beat_num do
-                --         self.c_results[i - 1] = value[i]
-
-                --     end
-                --     C.c_set_value_multi_1(self.hdl, self.c_results, self.beat_num)
-                -- end
-
-                -- do
-                --     local c_value = ffi.new("uint32_t[?]", self.beat_num, value)
-                --     C.c_set_value_multi_1(self.hdl, c_value, self.beat_num)
-                -- end
-
-                -- vpi.set_value_multi(self.hdl, value)
-            end
-        end
-    else
-        C.c_set_value(self.hdl, value)
     end
 end
 

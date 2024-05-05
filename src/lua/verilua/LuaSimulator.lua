@@ -28,6 +28,8 @@ ffi.cdef[[
     void verilator_simulation_disableTrace(void);
 
     int verilator_get_mode(void);
+
+    void iterate_vpi_type(const char *module_name, int type);
 ]]
 
 local cycles_chdl = nil
@@ -137,6 +139,10 @@ local print_hierarchy = function (max_level)
     _print_hierarchy(ffi.new("unsigned int*", nil), max_level)
 end
 
+local iterate_vpi_type = function (module_name, type)
+    ffi.C.iterate_vpi_type(module_name, type)
+end
+
 
 return {
     init              = init,
@@ -147,5 +153,6 @@ return {
     simulator_control = simulator_control,
     SimCtrl           = SimCtrl,
     get_mode          = get_mode,
-    print_hierarchy   = print_hierarchy
+    print_hierarchy   = print_hierarchy,
+    iterate_vpi_type  = iterate_vpi_type
 }

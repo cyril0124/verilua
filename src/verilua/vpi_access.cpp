@@ -1,9 +1,11 @@
-#include "signal_access.h"
+#include "vpi_access.h"
+#include "fmt/core.h"
 #include "lua_vpi.h"
 #include "vpi_user.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <sys/types.h>
 #include <vector>
 
@@ -80,6 +82,15 @@ TO_LUA long long c_get_signal_width(long long handle) {
 
     LEAVE_VPI_REGION();
     return vpi_get(vpiSize, actual_handle);
+}
+
+TO_LUA const char *c_get_hdl_type(long long handle) {
+    ENTER_VPI_REGION();
+
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+
+    LEAVE_VPI_REGION();
+    return vpi_get_str(vpiType, actual_handle);
 }
 
 // TODO: adapt for signals with bit-width greater than 32-bit
@@ -644,3 +655,56 @@ TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length
 
     LEAVE_VPI_REGION();
 }
+
+TO_LUA long long c_handle_by_index(const char *parent_name, long long hdl, int index) {
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdl);
+
+    vpiHandle handle = vpi_handle_by_index(actual_handle, (PLI_INT32)index);
+    VL_FATAL(handle, "No handle found: parent_name => {} index => {}", parent_name, index);
+
+    long long handle_as_ll = reinterpret_cast<long long>(handle);
+
+    return handle_as_ll;
+}
+
+TO_LUA void iterate_vpi_type(const char *module_name, int type) {
+    vpiHandle ref_module_hdl = vpi_handle_by_name((PLI_BYTE8 *)module_name, NULL);
+    VL_FATAL(ref_module_hdl, "No handle found: {}", module_name);
+
+    vpiHandle iter = vpi_iterate(type, ref_module_hdl);
+
+    std::string type_name = "";
+    switch (type) {
+        case vpiNet:
+            type_name = "vpiNet";
+            break;
+        case vpiReg: 
+            type_name = "vpiReg";
+            break;
+        case vpiMemory:
+            type_name = "vpiMemory";
+            break;
+        default: 
+            type_name = "Unknown"; 
+    }
+
+    VL_INFO("start iterate on module_name => {} type => {}/{}\n", module_name, type, type_name);
+
+    vpiHandle hdl;
+    int count = 0;
+    while ((hdl = vpi_scan(iter)) != NULL) {
+        const char *name = vpi_get_str(vpiName, hdl);
+        const char *vpi_type = vpi_get_str(vpiType, hdl);
+
+        fmt::println("[{}] name => {} type => {}", count, name, vpi_type);
+
+        // int size = vpi_get(vpiSize, hdl);
+        // printf("Size of array: %d\n", size);
+        count++;
+    }
+
+    if(count == 0) 
+        VL_WARN("iterate obj is 0!\n");
+}
+
+
