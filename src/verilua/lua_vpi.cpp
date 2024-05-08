@@ -155,8 +155,12 @@ static void sigabrt_handler(int signal) {
     if (!verilua_is_final) {
         verilua_final();
     }
-    VL_WARN("GET <<SIGABRT>>\n\n");
-    exit(1);
+    VL_WARN(R"(
+---------------------------------------------------------------------
+----   Verilua get <SIGABRT>, the program will terminate...      ----
+---------------------------------------------------------------------
+)");
+    exit(0); // we should successfully exit simulation no matter what lead to the simulation failed.
 }
 
 VERILUA_EXPORT void verilua_init(void) {
