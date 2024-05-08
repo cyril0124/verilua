@@ -500,6 +500,9 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
 }
 
 
+// 
+// https://en.wikipedia.org/wiki/X_macro
+// 
 #define ARG_1  uint32_t v0
 #define ARG_2  ARG_1, uint32_t v1
 #define ARG_3  ARG_2, uint32_t v2
