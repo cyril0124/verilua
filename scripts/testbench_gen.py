@@ -3,15 +3,22 @@ import pyslang
 import fnmatch
 import os
 
+CLOCK_PATTERNS = ["clock", "clock_i", "clk", "clk_i"]
+RESET_PATTERNS = ["reset", "reset_i", "rst", "rst_i"]
+
 class PortInfo:
-  def __init__(self, name, width, dir, is_disable=False):
+  def __init__(self, name, width, dir, array_size = 0, is_disable=False):
     assert name  != None
     assert width != None
     assert dir   != None
     self.name       = name
     self.width      = width
+    self.array_size = array_size
     self.dir        = dir
     self.is_disable = is_disable
+  
+  def is_array(self):
+    return self.array_size != 0
   
   def is_input(self):
     return self.dir == "In"
@@ -20,10 +27,10 @@ class PortInfo:
     return self.dir == "Out"
   
   def is_clock(self):
-    return self.name == "clock" and self.width == 1
+    return self.name in CLOCK_PATTERNS and self.width == 1
   
   def is_reset(self):
-    return self.name == "reset" and self.width == 1
+    return self.name in RESET_PATTERNS and self.width == 1
 
   def is_settable(self):
     return self.is_input()
@@ -102,14 +109,21 @@ for i, port in enumerate(root_body.portList):
   name       = port.name
   direction  = port.direction.name
   ptype      = port.type.__str__()
-  print(i, ptype, port.type)
+  print(f"[{i}]\tname: {name}\tport_type: {ptype}\tdirection: {direction}")
   
   if isinstance(port.type, pyslang.FixedSizeUnpackedArrayType):
     # FixedSizeArray, e.g. logic[31:0]$[0:59] => 60 elements, ecach element has bit width of 32
     # logic [arrayElementType_width]$[fixedRange_width]
     arrayElementType_width = port.type.arrayElementType.getBitVectorRange().width
     fixedRange_width = port.type.fixedRange.width
-    assert False, f"TODO: [{i}] " + f"name: {name} " + f"ptype: {ptype} " + f"arrayElement_width: {arrayElementType_width} " + f"fixedRange_width: {fixedRange_width}"
+    
+    width = arrayElementType_width
+    array_size = fixedRange_width
+    
+    ports.append(PortInfo(name, width, direction, array_size, is_disable))
+    verbose and print(f"find array port({type(port.type).__name__}) => name: {name:<30} type: {ptype:<15} width: {width:<5} array_size: {array_size:<5} direction: {direction:<4} is_disable: {is_disable}")
+    
+    # assert False, f"TODO: [{i}] " + f"name: {name} " + f"ptype: {ptype} " + f"arrayElement_width: {arrayElementType_width} " + f"fixedRange_width: {fixedRange_width}"
   elif isinstance(port.type, pyslang.ScalarType) or isinstance(port.type, pyslang.PackedArrayType):
     width      = port.type.getBitVectorRange().width
     is_disable = check_disable(name)
@@ -118,7 +132,7 @@ for i, port in enumerate(root_body.portList):
         port_max_len = len(name)
     
     verbose and print(f"find port({type(port.type).__name__}) => name: {name:<30} type: {ptype:<15} width: {width:<5} direction: {direction:<4} is_disable: {is_disable}")
-    ports.append(PortInfo(name, width, direction, is_disable))
+    ports.append(PortInfo(name, width, direction, 0, is_disable))
   else:
     assert False, f"Unknown type => {type(port.type)}"
 
@@ -160,7 +174,7 @@ for i, port in enumerate(root_body.portList):
     
 #     is_disable = check_disable(port_name)
 #     verbose and print(f"find port => name: {port_name:<30} type: {port_type:<15} width: {port_width:<5} direction: {port_dir:<4} is_disable: {is_disable}")
-#     ports.append(PortInfo(port_name, port_width, port_dir, is_disable))
+#     ports.append(PortInfo(port_name, port_width, port_dir, 0, is_disable))
 
 
 ###############################################
@@ -171,15 +185,15 @@ has_reset = False
 clock_port = None
 reset_port = None
 for port in ports:
-  if port.name == "clock" and port.width == 1 and not port.is_disable:
+  if port.name in CLOCK_PATTERNS and port.width == 1 and not port.is_disable:
     assert has_clock == False
     has_clock = True
     clock_port = port
-  if port.name == "reset" and port.width == 1 and not port.is_disable:
+  if port.name in RESET_PATTERNS and port.width == 1 and not port.is_disable:
     assert has_reset == False
     has_reset = True
     reset_port = port
-assert has_clock and has_reset
+assert has_clock and has_reset, f"has_clock: {has_clock}  has_reset: {has_reset}"
 
 nr_ports = len(ports)
 
@@ -244,29 +258,61 @@ for i, port in enumerate(ports):
   if port.is_clock() or port.is_reset():
     continue
   if port.is_input():
-    if port.width == 1:
-      p(f"{f"reg":<15} {port.name};")
+    if port.is_array():
+      if port.width == 1:
+        p(f"{f"reg":<15} {port.name}[0:{port.array_size - 1}];")
+      else:
+        p(f"{f"reg [{port.width-1}:0]":<15} {port.name}[0:{port.array_size - 1}];")
     else:
-      p(f"{f"reg [{port.width-1}:0]":<15} {port.name};")
+      if port.width == 1:
+        p(f"{f"reg":<15} {port.name};")
+      else:
+        p(f"{f"reg [{port.width-1}:0]":<15} {port.name};")
   else:
     assert port.is_output()
-    if port.width == 1:
-      p(f"{f"wire":<15} {port.name};")
+    if port.is_array():
+      if port.width == 1:
+        p(f"{f"wire":<15} {port.name}[0:{port.array_size - 1}];")
+      else:
+        p(f"{f"wire [{port.width-1}:0]":<15} {port.name}[0:{port.array_size - 1}];")
     else:
-      p(f"{f"wire [{port.width-1}:0]":<15} {port.name};")
+      if port.width == 1:
+        p(f"{f"wire":<15} {port.name};")
+      else:
+        p(f"{f"wire [{port.width-1}:0]":<15} {port.name};")
 p()
+
+
+total_array_count = 0
+array_count = 0
+for port in ports:
+  if port.is_input() and port.is_array():
+    total_array_count = total_array_count + 1
 
 p("""
 // -----------------------------------------
 //  reg initialize
 // ----------------------------------------- """)
 p("initial begin")
-p(f'\t$display("[INFO] @%0t [%s:%d] hello from {tb_top_name}", $time, `__FILE__, `__LINE__);')
-for port in ports:
+for i, port in enumerate(ports):
+  if i == 0:
+    for idx in range(total_array_count):
+      p(f"\tinteger i_{idx};")
+    p(f'\t$display("[INFO] @%0t [%s:%d] hello from {tb_top_name}", $time, `__FILE__, `__LINE__);')
+    
   if port.is_clock() or port.is_reset():
     continue
   if port.is_input():
-    p(f"\t{port.name:<{port_max_len}} = 0;")
+    if port.is_array():
+      index_var = f"i_{array_count}"
+      # p(f"\tinteger {index_var};")
+      p(f"\tfor({index_var} = 0; {index_var} < {port.array_size}; {index_var}++) begin")
+      for i in range(port.array_size):
+        p(f"\t\t{port.name}[{i}] = 0;")
+      p(f"\tend")
+      array_count = array_count + 1
+    else:
+      p(f"\t{port.name:<{port_max_len}} = 0;")
 p("end\n")
 
 p(f"""
@@ -292,7 +338,7 @@ reg [63:0] cycles;
 initial cycles = 0;
 
 always@(posedge {clock_port.name}) begin
-  if (reset)
+  if ({reset_port.name})
     cycles <= 0;
   else
     cycles <= cycles + 1;
@@ -335,11 +381,11 @@ initial begin
   verilua_init();
 end
 
-// always@(posedge clock) begin
+// always@(posedge {clock_port.name}) begin
 // 	#1 verilua_main_step();
 // end
 
-always@(negedge clock) begin
+always@(negedge {clock_port.name}) begin
 	verilua_main_step();
 end
 
@@ -534,7 +580,7 @@ p(f"""
       if ($test$plusargs("dump_vcd")) begin
         $display("[INFO] @%0t [%s:%d] enable dump_vcd ", $time, `__FILE__, `__LINE__);
 
-        repeat(dump_start_cycle) @(posedge clock);
+        repeat(dump_start_cycle) @(posedge {clock_port.name});
         $display("[INFO] @%0t [%s:%d] start dump_vcd at cycle => %d... ", $time, `__FILE__, `__LINE__, dump_start_cycle);
 
         $dumpfile({{dump_file, ".vcd"}});
@@ -542,7 +588,7 @@ p(f"""
       end else if ($test$plusargs("dump_fsdb")) begin
         $display("[INFO] @%0t [%s:%d] enable dump_fsdb ", $time, `__FILE__, `__LINE__);
         
-        repeat(dump_start_cycle) @(posedge clock);
+        repeat(dump_start_cycle) @(posedge {clock_port.name});
         `ifdef SIM_VCS
           $display("[INFO] @%0t [%s:%d] start dump_fsdb at cycle => %d... ", $time, `__FILE__, `__LINE__, dump_start_cycle);
           $fsdbDumpfile({{dump_file, ".fsdb"}});
@@ -585,8 +631,8 @@ f"""
 // other user code...
 // -----------------------------------------
 Others u_others(
-  .clock(clock),
-  .reset(reset)
+  .clock({clock_port.name}),
+  .reset({reset_port.name})
 );
 """)
 
