@@ -75,6 +75,29 @@ TO_LUA long long c_handle_by_name(const char* name) {
     return handle_as_ll;
 }
 
+TO_LUA long long c_handle_by_name_safe(const char* name) {
+#ifndef VCS
+    ENTER_VPI_REGION();
+#endif
+
+    // Name not in cache, look it up
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8*)name, NULL);
+    if(handle == nullptr) {
+        return -1;
+    }
+
+    // Cast the handle to long long and store it in the cache
+    long long handle_as_ll = reinterpret_cast<long long>(handle);
+
+
+#ifndef VCS
+    LEAVE_VPI_REGION();
+#endif
+
+    // Return the handle
+    return handle_as_ll;
+}
+
 TO_LUA long long c_get_signal_width(long long handle) {
     ENTER_VPI_REGION();
     
