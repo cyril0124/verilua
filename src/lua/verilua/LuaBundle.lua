@@ -55,44 +55,84 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
             tinsert(self.signals_table, prefix .. signal)
         end)
     end
-end
 
-
-function Bundle:fire()
-    assert(self.valid ~= nil, "[" .. self.name .. "] has not valid filed in this bundle!")
-    local valid = self.valid()
-    local ready = self.ready
-    if ready == nil then
-        ready = 1
-    else
-        ready = self.ready()
-    end
-
-    return (valid == 1 and ready == 1)
-end
-
-
-function Bundle:get_all()
-    if self.is_decoupled then
-        assert(false, "TODO: ")
-    else
-        local ret = {}
-
-        for i, sig in ipairs(self.signals_table) do
-            tinsert(ret, self[sig]:get())
+    if self.valid == nil then
+        self.fire = function (this)
+            assert(false, "[" .. self.name .. "] has not valid filed in this bundle!")
         end
-
-        return ret
-    end
-end
-
-
-function Bundle:set_all(values_tbl)
-    if self.is_decoupled then
-        assert(false, "TODO: ")
     else
-        for i, sig in ipairs(self.signals_table) do
-            self[sig]:set(values_tbl[i])
+        if self.ready == nil then
+            self.fire = function (this)
+                return this.valid:get() == 1
+            end
+        else
+            self.fire = function (this)
+                return (this.valid:get() == 1) and (this.ready:get() == 1)
+            end
         end
     end
+
+    if not self.is_decoupled then
+        self.get_all = function (this)
+            local ret = {}
+            for i, sig in ipairs(self.signals_table) do
+                tinsert(ret, self[sig]:get())
+            end
+            return ret
+        end
+
+        self.set_all = function (this, values_tbl)
+            for i, sig in ipairs(this.signals_table) do
+                self[sig]:set(values_tbl[i])
+            end
+        end
+    else
+        self.get_all = function (this)
+            assert(false, "TODO: is_decoupled")
+        end
+
+        self.set_all = function (this, values_tbl)
+            assert(false, "TODO: is_decoupled")
+        end
+    end
 end
+
+
+-- function Bundle:fire()
+--     assert(self.valid ~= nil, "[" .. self.name .. "] has not valid filed in this bundle!")
+--     local valid = self.valid:get()
+--     local ready = self.ready
+--     if ready == nil then
+--         ready = 1
+--     else
+--         ready = self.ready:get()
+--     end
+
+--     return (valid == 1 and ready == 1)
+-- end
+
+
+-- function Bundle:get_all()
+--     if self.is_decoupled then
+--         assert(false, "TODO: ")
+--     else
+--         local ret = {}
+
+--         for i, sig in ipairs(self.signals_table) do
+--             tinsert(ret, self[sig]:get())
+--         end
+
+--         return ret
+--     end
+-- end
+
+
+-- function Bundle:set_all(values_tbl)
+--     if self.is_decoupled then
+--         assert(false, "TODO: ")
+--     else
+--         for i, sig in ipairs(self.signals_table) do
+--             self[sig]:set(values_tbl[i])
+--         end
+--     end
+-- end

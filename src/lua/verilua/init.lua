@@ -37,6 +37,14 @@ end
 
 
 -- 
+-- used by c++
+-- 
+function lua_traceback()
+    print(debug.traceback(""))
+end
+
+
+-- 
 -- strict lua, any undeclared global variables will lead to failed
 -- 
 require "strict"

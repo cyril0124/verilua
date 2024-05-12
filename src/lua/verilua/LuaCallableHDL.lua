@@ -3,6 +3,7 @@ local ffi = require "ffi"
 local C = ffi.C
 
 ffi.cdef[[
+  long long c_handle_by_name_safe(const char* name);
   long long c_handle_by_index(const char *parent_name, long long hdl, int index);
 
   const char *c_get_hdl_type(long long handle);
@@ -40,12 +41,18 @@ local BeatWidth = 32
 local type, assert, tonumber, print, format = type, assert, tonumber, print, string.format
 local table, math, vpi = table, math, vpi
 
+
 function CallableHDL:_init(fullpath, name, hdl)
     self.verbose = false
     self.fullpath = fullpath
     self.name = name or "Unknown"
 
-    self.hdl = hdl or vpi.handle_by_name(fullpath)
+    local tmp_hdl = hdl or C.c_handle_by_name_safe(fullpath)
+    if tmp_hdl == -1 then
+        print(debug.traceback("", 8))
+        assert(false, format("No handle found => %s", fullpath))
+    end
+    self.hdl = tmp_hdl
     self.hdl_type = ffi.string((C.c_get_hdl_type(self.hdl)))
 
     self.is_array = false
@@ -111,8 +118,8 @@ function CallableHDL:_init(fullpath, name, hdl)
             assert(false, format("[%s] Array handle does not support <CallableHDL>:set(value), instead using <CallableHDL>:set_index(index)", this.fullpath))
         end
 
-        self.set_no_check = function (this, value, force_single_beat)
-            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_no_check(value), instead using <CallableHDL>:set_index_no_check(index)", this.fullpath))
+        self.set_unsafe = function (this, value, force_single_beat)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_unsafe(value), instead using <CallableHDL>:set_index_unsafe(index)", this.fullpath))
         end
 
         self.set_index = function(this, index, value, force_single_beat)
@@ -140,17 +147,17 @@ function CallableHDL:_init(fullpath, name, hdl)
                         assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
                     end
 
-                    if beat_num == 3 then
+                    if beat_num == 3 then     -- 32 * 3 = 96 bits
                         C.c_set_value_multi_1_beat_3(chosen_hdl, value[1], value[2]);
-                    elseif beat_num == 4 then
+                    elseif beat_num == 4 then -- 32 * 4 = 128 bits
                         C.c_set_value_multi_1_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
-                    elseif beat_num == 5 then
+                    elseif beat_num == 5 then -- 32 * 5 = 160 bits
                         C.c_set_value_multi_1_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
-                    elseif beat_num == 6 then
+                    elseif beat_num == 6 then -- 32 * 6 = 192 bits
                         C.c_set_value_multi_1_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
-                    elseif beat_num == 7 then
+                    elseif beat_num == 7 then -- 32 * 7 = 224 bits
                         C.c_set_value_multi_1_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
-                    elseif beat_num == 8 then
+                    elseif beat_num == 8 then -- 32 * 8 = 256 bits
                         C.c_set_value_multi_1_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                     else
                         do
@@ -164,7 +171,7 @@ function CallableHDL:_init(fullpath, name, hdl)
             end
         end
 
-        self.set_index_no_check = function (this, index, value, force_single_beat)
+        self.set_index_unsafe = function (this, index, value, force_single_beat)
             force_single_beat = force_single_beat or false
             local chosen_hdl = this.array_hdls[index + 1]
             if force_single_beat and this.beat_num == 2 then
@@ -268,7 +275,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- Do not check value type and lenght of value table. 
         -- Usually has higher performance than CallableHDL:set()
         -- 
-        self.set_no_check = function (this, value, force_single_beat)
+        self.set_unsafe = function (this, value, force_single_beat)
             force_single_beat = force_single_beat or false
             if force_single_beat and this.beat_num == 2 then
                 C.c_set_value64(this.hdl, value)
@@ -307,8 +314,8 @@ function CallableHDL:_init(fullpath, name, hdl)
             assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index()", this.fullpath))
         end
 
-        self.set_index_no_check = function (this, index, value, force_single_beat)
-            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_no_check()", this.fullpath))
+        self.set_index_unsafe = function (this, index, value, force_single_beat)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_unsafe()", this.fullpath))
         end
     elseif self.is_multi_beat == false and self.is_array == true then
         self.get = function(this)
@@ -324,8 +331,8 @@ function CallableHDL:_init(fullpath, name, hdl)
             assert(false, format("[%s] Array handle does not support <CallableHDL>:set(value), instead using <CallableHDL>:set_index(index)", this.fullpath))
         end
 
-        self.set_no_check = function (this, value)
-            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_no_check(value), instead using <CallableHDL>:set_index_no_check(index)", this.fullpath))
+        self.set_unsafe = function (this, value)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_unsafe(value), instead using <CallableHDL>:set_index_unsafe(index)", this.fullpath))
         end
 
         self.set_index = function(this, index, value)
@@ -333,7 +340,7 @@ function CallableHDL:_init(fullpath, name, hdl)
             C.c_set_value(chosen_hdl, value)
         end
 
-        self.set_index_no_check = function (this, index, value)
+        self.set_index_unsafe = function (this, index, value)
             local chosen_hdl = this.array_hdls[index + 1]
             C.c_set_value(chosen_hdl, value)
         end
@@ -350,7 +357,7 @@ function CallableHDL:_init(fullpath, name, hdl)
             C.c_set_value(this.hdl, value)
         end
 
-        self.set_no_check = function (this, value)
+        self.set_unsafe = function (this, value)
             C.c_set_value(this.hdl, value)
         end
 
@@ -358,11 +365,34 @@ function CallableHDL:_init(fullpath, name, hdl)
             assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index()", this.fullpath))
         end
 
-        self.set_index_no_check = function (this, index, value)
-            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_no_check()", this.fullpath))
+        self.set_index_unsafe = function (this, index, value)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_unsafe()", this.fullpath))
         end
     else
         assert(false)
+    end
+
+    self.get_index_all = function (this, force_multi_beat)
+        force_multi_beat = force_multi_beat or false
+        local ret = {}
+        for index = 0, this.array_size - 1 do
+            table.insert(ret, this.get_index(this, index, force_multi_beat))
+        end
+        return ret
+    end
+
+    self.set_index_all = function (this, values, force_single_beat)
+        force_single_beat = force_single_beat or false
+        for index = 0, this.array_size - 1 do
+            this.set_index(this, index, values[index + 1], force_single_beat)
+        end
+    end
+
+    self.set_index_unsafe_all = function (this, values, force_single_beat)
+        force_single_beat = force_single_beat or false
+        for index = 0, this.array_size - 1 do
+            this.set_index_unsafe(this, index, values[index + 1], force_single_beat)
+        end
     end
 end
 
