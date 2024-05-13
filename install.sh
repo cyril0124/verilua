@@ -39,6 +39,11 @@ else
     echo "TOOL PATH is set to $PWD/tools"
 fi
 
+# Install tinycc
+curr_dir=$(pwd)
+luajit_tcc_dir=$curr_dir/extern/luajit_tcc
+cd $luajit_tcc_dir; make init; make
+
 # Install xmake
 wget https://xmake.io/shget.text -O - | bash
 
