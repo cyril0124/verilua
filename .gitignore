@@ -9,3 +9,4 @@ scripts/rt_plot/*.out
 build/
 test/
 .xmake/
+.verilua/
