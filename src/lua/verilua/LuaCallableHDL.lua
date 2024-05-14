@@ -59,7 +59,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.array_size = 0
     if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" then
         self.is_array = false
-    elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiMemory" then
+    elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
         -- 
         -- for multidimensional reg array, VCS vpi treat it as "vpiRegArray" while
         -- Verilator treat it as "vpiMemory"
@@ -94,6 +94,10 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     local _ = self.verbose and print("New CallableHDL => ", "name: " .. self.name, "fullpath: " .. self.fullpath, "width: " .. self.width, "beat_num: " .. self.beat_num, "is_multi_beat: " .. tostring(self.is_multi_beat))
 
+    -- 
+    -- is_multi_beat == true 
+    -- is_array == true
+    -- 
     if self.is_multi_beat == true and self.is_array == true then
         self.get = function (this, force_multi_beat) 
             assert(false, format("[%s] Array handle does not support <CallableHDL>:get(force_multi_beat), instead using <CallableHDL>:get_index(index, force_multi_beat)", this.fullpath))
@@ -112,6 +116,26 @@ function CallableHDL:_init(fullpath, name, hdl)
                     return this.c_results
                 end
             end
+        end
+
+        self.get_index_all = function (this, force_multi_beat)
+            force_multi_beat = force_multi_beat or false
+            local ret = {}
+            for index = 0, this.array_size - 1 do
+                if this.beat_num <= 2 and not force_multi_beat then
+                    table.insert(ret, this.get_index(this, index, force_multi_beat))
+                else
+                    this.get_index(this, index, force_multi_beat)
+                    
+                    local tmp = {}
+                    for i = 1, this.beat_num do
+                        tmp[i] = this.c_results[i]
+                    end
+
+                    table.insert(ret, tmp)
+                end
+            end
+            return ret
         end
 
         self.set = function (this, value, force_single_beat)
@@ -206,6 +230,11 @@ function CallableHDL:_init(fullpath, name, hdl)
                 end
             end
         end
+
+    -- 
+    -- is_multi_beat == true 
+    -- is_array == false
+    -- 
     elseif self.is_multi_beat == true and self.is_array == false then
         self.get = function (this, force_multi_beat)
             if this.beat_num <= 2 and not force_multi_beat then
@@ -220,6 +249,10 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.get_index = function (this, index, force_multi_beat)
             assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_index()", this.fullpath))
+        end
+
+        self.get_index_all = function (this, index, force_multi_beat)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_index_all()", this.fullpath))
         end
 
         self.set = function (this, value, force_single_beat)
@@ -317,6 +350,11 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.set_index_unsafe = function (this, index, value, force_single_beat)
             assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_unsafe()", this.fullpath))
         end
+    
+    -- 
+    -- is_multi_beat == false
+    -- is_array == true
+    -- 
     elseif self.is_multi_beat == false and self.is_array == true then
         self.get = function(this)
             assert(false, format("[%s] Array handle does not support <CallableHDL>:get(force_multi_beat), instead using <CallableHDL>:get_index(index, force_multi_beat)", this.fullpath))
@@ -325,6 +363,15 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.get_index = function (this, index)
             local chosen_hdl = this.array_hdls[index + 1]
             return C.c_get_value(chosen_hdl)
+        end
+
+        self.get_index_all = function (this, force_multi_beat)
+            force_multi_beat = force_multi_beat or false
+            local ret = {}
+            for index = 0, this.array_size - 1 do
+                table.insert(ret, this.get_index(this, index, force_multi_beat))
+            end
+            return ret
         end
 
         self.set = function (this, value)
@@ -344,6 +391,11 @@ function CallableHDL:_init(fullpath, name, hdl)
             local chosen_hdl = this.array_hdls[index + 1]
             C.c_set_value(chosen_hdl, value)
         end
+
+    -- 
+    -- is_multi_beat == false
+    -- is_array == false
+    -- 
     elseif self.is_multi_beat == false and self.is_array == false then
         self.get = function(this)
             return C.c_get_value(this.hdl)
@@ -351,6 +403,10 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.get_index = function (this, index)
             assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_index()", this.fullpath))
+        end
+
+        self.get_index_all = function (this, index)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_index_all()", this.fullpath))
         end
 
         self.set = function (this, value)
@@ -370,15 +426,6 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     else
         assert(false)
-    end
-
-    self.get_index_all = function (this, force_multi_beat)
-        force_multi_beat = force_multi_beat or false
-        local ret = {}
-        for index = 0, this.array_size - 1 do
-            table.insert(ret, this.get_index(this, index, force_multi_beat))
-        end
-        return ret
     end
 
     self.set_index_all = function (this, values, force_single_beat)
