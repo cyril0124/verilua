@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import os
 import sys
@@ -22,16 +22,22 @@ pli_tab = f"/tmp/verilua_{subfix}/pli.tab"
 os.system(f"mkdir -p /tmp/verilua_{subfix} && touch {pli_tab}; echo \"acc+=rw,wn:*\" > {pli_tab} ")
 
 vcs = os.getenv("VCS_HOME") + "/bin/vcs"
+# cmd_list = [vcs] + sys.argv[1:] + [
+#                         # "+acc+1", 
+#                         "-debug_access+all", 
+#                         # "-CFLAGS", f"\"\"",
+#                         "-LDFLAGS", f'-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi_vcs',
+#                         "-load", libpath + "/liblua_vpi_vcs.so", 
+#                         "-lluajit-5.1", 
+#                         "-llua_vpi_vcs", 
+#                         # "-P", pli_tab
+# ]
+
 cmd_list = [vcs] + sys.argv[1:] + [
-                        # "+acc+1", 
                         "-debug_access+all", 
-                        # "-CFLAGS", f"\"\"",
-                        "-LDFLAGS", f"-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi_vcs",
+                        f'-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi_vcs',
                         "-load", libpath + "/liblua_vpi_vcs.so", 
-                        "-lluajit-5.1", 
-                        "-llua_vpi_vcs", 
-                        # "-P", pli_tab
-]
+] 
 cmd = " ".join(cmd_list)
 print(f"[vl-vcs] cmd is {cmd} ")
 
