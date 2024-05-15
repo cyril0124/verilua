@@ -104,10 +104,10 @@ simv: $(BIN)
 
 $(BIN): $(SIM_BUILD) $(SIM_FILE)
 	@echo -e "$(INFO) ${GREEN}-- BUILD SIMV ------------------------$(RESET)"
-	$(VCS) $(VCS_FLAGS) -f $(SIM_FILE) -o $@ | tee $(SIM_BUILD)/build.log
+	$(VCS) $(VCS_FLAGS) -f $(SIM_FILE) -o $@
 	@echo -e "$(INFO) ${GREEN}-- BUILD SUCCESS ---------------------$(RESET)"
 
- $(SIM_FILE): $(DUT_FILE)
+$(SIM_FILE): $(DUT_FILE)
 	-rm $@
 	@cat $(DUT_FILE) >> $@
 	@echo $(CSRCS) >> $@
@@ -115,3 +115,4 @@ $(BIN): $(SIM_BUILD) $(SIM_FILE)
 clean:
 	@rm -rf $(SIM_BUILD) ucli.key csrc
 
+.PHONY: default run simv build clean

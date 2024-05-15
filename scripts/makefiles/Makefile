@@ -55,3 +55,5 @@ $(DUT_FILE):
 WAVE ?= test.fsdb
 verdi:
 	verdi -sv -f $(DUT_FILE) +incdir+$(DUT_DIR) -top $(TOPLEVEL) -ssf $(WAVE) -nologo 
+
+.PHONY: verdi

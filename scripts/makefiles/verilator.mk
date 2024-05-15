@@ -89,7 +89,7 @@ EMU_FLAGS += +define+SIM_VERILATOR
 # --------------------------------------------
 default: run
 
-run: $(EMU_RUN_BIN)
+run:
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- RUN ---------------------$(COLOR_RESET)"
 	numactl -m 0 -C 0-7 ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- DONE --------------------$(COLOR_RESET)"
@@ -114,3 +114,5 @@ $(SIM_FILE): $(DUT_FILE)
 
 clean:
 	@rm -rf $(SIM_BUILD)
+
+.PHONY: default run build emu-run clean
