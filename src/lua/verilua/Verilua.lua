@@ -71,6 +71,7 @@ end
 
 function verilua.register_main_task(func)
     verilua._main_task = func
+    scheduler:create_task_table({{"main task", verilua._main_task, {}}})
 end
 
 function verilua.register_start_callback(func)
