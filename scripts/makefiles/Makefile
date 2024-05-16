@@ -21,12 +21,12 @@ DUT_FILE = $(SIM_BUILD)/dut_file.f
 # --------------------------------------------
 INFO=[INFO]
 
-BOLD=$(shell tput bold)
-NORMAL=$(shell tput sgr0)
-
-RED=$(shell tput setaf 1)
-GREEN=$(shell tput setaf 2)
-RESET=$(shell tput setaf 0)
+BOLD    = $(shell tput bold)
+NORMAL  = $(shell tput sgr0)
+RED     = $(shell tput setaf 1)
+GREEN   = $(shell tput setaf 2)
+RESET_1 = $(shell tput setaf 0)
+RESET   = \033[0m
 
 
 # --------------------------------------------
@@ -34,12 +34,12 @@ RESET=$(shell tput setaf 0)
 # --------------------------------------------
 ifeq ($(SIM), vcs)
 include vcs.mk
-$(info $(INFO) Using $(BOLD)$(GREEN)VCS$(RESET)$(NORMAL) as simulator)
+$(info $(INFO) Using $(BOLD)$(GREEN)VCS$(RESET_1)$(NORMAL) as simulator)
 endif
 
 ifeq ($(SIM), verilator)
 include verilator.mk
-$(info $(INFO) Using $(BOLD)$(GREEN)VERILATOR$(RESET)$(NORMAL) as simulator)
+$(info $(INFO) Using $(BOLD)$(GREEN)VERILATOR$(RESET_1)$(NORMAL) as simulator)
 endif
 
 

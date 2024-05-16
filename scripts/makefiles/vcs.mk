@@ -63,7 +63,7 @@ endif
 # --------------------------------------------
 WAVE_ENABLE ?= 1
 ifeq ($(WAVE_ENABLE), 1)
-$(info $(INFO) Enable $(BOLD)$(GREEN)fsdb$(RESET)$(NORMAL) wave)
+$(info $(INFO) Enable $(BOLD)$(GREEN)fsdb$(RESET_1)$(NORMAL) wave)
 VCS_FLAGS += +define+WAVE_ENABLE=1
 
 ifndef VERDI_HOME
@@ -82,7 +82,7 @@ endif
 # --------------------------------------------
 COV_ENABLE ?= 0
 ifeq ($(COV_ENABLE), 1)
-$(info $(INFO) Enable $(BOLD)$(GREEN)coverage$(RESET)$(NORMAL))
+$(info $(INFO) Enable $(BOLD)$(GREEN)coverage$(RESET_1)$(NORMAL))
 # VCS_FLAGS += +define+SYNTHESIS
 VCS_FLAGS += -cm line+tgl+cond+fsm+branch+assert
 VCS_FLAGS += -cm_line contassign -cm_cond allops
