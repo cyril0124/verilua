@@ -492,6 +492,8 @@ _G.verilua = function(cmd)
             local func = task_table[1]
             vl.register_start_callback(func)
         end
+    elseif cmd == "showTasks" then
+        scheduler:list_tasks()
     elseif cmd == "test" then
         return function (str)
             print(str)

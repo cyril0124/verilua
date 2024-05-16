@@ -87,9 +87,11 @@ function SchedulerClass:create_task_table(tasks)
         local task_func = tasks[i][2]
         local task_param = tasks[i][3]
         task_param = task_param or {}
-        local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
-        table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.create(task_func), task_param))
-        table.insert(self.callback_table, id, CallbackInfo:new())
+        if self:query_task_from_name(task_name) == nil then
+            local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
+            table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.create(task_func), task_param))
+            table.insert(self.callback_table, id, CallbackInfo:new())
+        end
     end
 end
 
@@ -130,6 +132,19 @@ end
 
 function SchedulerClass:query_task(id)
     return self.task_table[id]
+end
+
+function SchedulerClass:query_task_from_name(name)
+    assert(type(name) == "string")
+
+    for task_id, task in pairs(self.task_table) do
+        local task_name = task.name
+        if name == task_name then
+            return task
+        end
+    end
+
+    return nil
 end
 
 function SchedulerClass:schedule_all_tasks()
