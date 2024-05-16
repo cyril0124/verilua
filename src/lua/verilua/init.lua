@@ -65,7 +65,9 @@ end
 
 _G.debug_str = function(...)
     local file, line, func = get_debug_info(4)
-    return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. ...)
+    local args = {...}
+    local message = table.concat(args, "\t")
+    return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. message)
 end
 
 _G.debug_print = function (...)
@@ -112,6 +114,7 @@ _G.VeriluaMode = LuaSimConfig.VeriluaMode
 _G.ffi = require "ffi"
 ffi.cdef[[
     int setenv(const char *name, const char *value, int overwrite);
+    long long c_handle_by_name_safe(const char* name);
 ]]
 
 
@@ -253,9 +256,68 @@ _G.cfg     = cfg
 _G.inspect = require "inspect"
 _G.pp      = function (...) print(inspect(...)) end
 _G.dbg     = function (...) print(inspect(...)) end
+_G.TODO    = function(...) assert(false, debug_str("TODO:", ...)) end
+_G.fatal   = function(...) assert(false, debug_str("FATAL:", ...)) end
 _G.dut     = (require "LuaDut").create_proxy(cfg.top)
 local sim = require "LuaSimulator";
 _G.sim     = sim
+
+
+-- 
+-- string operate extension
+-- 
+do
+    local join = require("pl.stringx").join
+    assert(join ~= nil)
+
+    -- 
+    -- Example: 
+    --      (" "):join {1, 2, 3}    ==>  "1 2 3"
+    --      ("-"):join {1, 2, 3}    ==>  "1-2-3"
+    --      ("-"):join {1, 2, 3, "str"} ==> "1-2-3-str"
+    -- 
+    getmetatable('').__index.join = function(str, list)
+        return join(str, list)
+    end
+
+    -- 
+    -- Example: 
+    --      ("0b11"):number()    ==> 3
+    --      ("0x11"):number()    ==> 17
+    --      ("123"):number()     ==> 123
+    --      local hex_str = "0x11"
+    --      hex_str:number()     ==> 17
+    -- 
+    getmetatable('').__index.number = function(str)
+        if str:sub(1, 2) == "0b" then
+            -- binary transform
+            return tonumber(str:sub(3), 2)
+        elseif str:sub(1, 2) == "0x" then
+            -- hex transform
+            return tonumber(str:sub(3), 16)
+        else
+            return tonumber(str)
+        end
+    end
+
+    -- 
+    -- get vpi handle using native stirng metatable
+    -- Example: 
+    --      local hdl_path = "tb_top.cycles"
+    --      local hdl = hdl_path:hdl()
+    --  
+    --      local hdl = ("tb_top.clock"):hdl()
+    -- 
+    getmetatable('').__index.hdl = function(str)
+        local hdl = ffi.C.c_handle_by_name_safe(str)
+
+        if hdl == -1 then
+            assert(false, string.format("No handle found => %s", str))
+        end
+
+        return hdl
+    end
+end
 
 
 -- 
