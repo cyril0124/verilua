@@ -6,6 +6,9 @@ import os
 CLOCK_PATTERNS = ["clock", "clock_i", "clk", "clk_i"]
 RESET_PATTERNS = ["reset", "reset_i", "rst", "rst_i"]
 
+REG_STR = "reg"
+WIRE_STR = "wire"
+
 class PortInfo:
   def __init__(self, name, width, dir, array_size = 0, is_disable=False):
     assert name  != None
@@ -61,7 +64,7 @@ verbose           = args.verbose
 design_file       = args.file
 
 assert design_file != None, "you should use <--file> to point out the design file"
-assert os.path.isfile(design_file), "input verilog file is not exist"
+assert os.path.isfile(design_file), f"input verilog file is not exist ==> {design_file}"
 
 ###############################################
 # disable pattern
@@ -260,26 +263,30 @@ for i, port in enumerate(ports):
   if port.is_input():
     if port.is_array():
       if port.width == 1:
-        p(f"{f"reg":<15} {port.name}[0:{port.array_size - 1}];")
+        p(f"{REG_STR:<15} {port.name}[0:{port.array_size - 1}];")
       else:
-        p(f"{f"reg [{port.width-1}:0]":<15} {port.name}[0:{port.array_size - 1}];")
+        tmp_str = f"reg [{port.width-1}:0]"
+        p(f"{tmp_str:<15} {port.name}[0:{port.array_size - 1}];")
     else:
       if port.width == 1:
-        p(f"{f"reg":<15} {port.name};")
+        p(f"{REG_STR:<15} {port.name};")
       else:
-        p(f"{f"reg [{port.width-1}:0]":<15} {port.name};")
+        tmp_str = f"reg [{port.width-1}:0]"
+        p(f"{tmp_str:<15} {port.name};")
   else:
     assert port.is_output()
     if port.is_array():
       if port.width == 1:
-        p(f"{f"wire":<15} {port.name}[0:{port.array_size - 1}];")
+        p(f"{WIRE_STR:<15} {port.name}[0:{port.array_size - 1}];")
       else:
-        p(f"{f"wire [{port.width-1}:0]":<15} {port.name}[0:{port.array_size - 1}];")
+        tmp_str = f"wire [{port.width-1}:0]"
+        p(f"{tmp_str:<15} {port.name}[0:{port.array_size - 1}];")
     else:
       if port.width == 1:
-        p(f"{f"wire":<15} {port.name};")
+        p(f"{WIRE_STR:<15} {port.name};")
       else:
-        p(f"{f"wire [{port.width-1}:0]":<15} {port.name};")
+        tmp_str = f"wire [{port.width-1}:0]"
+        p(f"{tmp_str:<15} {port.name};")
 p()
 
 
@@ -321,8 +328,8 @@ p(f"""
 // -----------------------------------------""")
 p(
 f"""`ifndef SIM_VERILATOR
-  {f"reg":<15} {clock_port.name};
-  {f"reg":<15} {reset_port.name};
+  {REG_STR:<15} {clock_port.name};
+  {REG_STR:<15} {reset_port.name};
   
   initial begin
     {clock_port.name:<10} = 0;
