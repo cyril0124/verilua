@@ -266,9 +266,10 @@ _G.sim     = sim
 -- 
 -- string operate extension
 -- 
+local CallableHDL = require "LuaCallableHDL"
+local stringx = require("pl.stringx")
 do
-    local join = require("pl.stringx").join
-    assert(join ~= nil)
+
 
     -- 
     -- Example: 
@@ -277,7 +278,7 @@ do
     --      ("-"):join {1, 2, 3, "str"} ==> "1-2-3-str"
     -- 
     getmetatable('').__index.join = function(str, list)
-        return join(str, list)
+        return stringx.join(str, list)
     end
 
     -- 
@@ -316,6 +317,25 @@ do
         end
 
         return hdl
+    end
+
+    -- 
+    -- get CallableHDL using native stirng metatable
+    -- Example:
+    --      local cycles_chdl = ("tb_top.cycles"):chdl()
+    --      print("value of cycles is " .. cycles_chdl:get())
+    --      cycles_chdl:set(123)
+    -- 
+    getmetatable('').__index.chdl = function(str)
+        return CallableHDL(str, "")
+    end
+
+    -- 
+    -- get LuaBundle using native string metatable
+    -- 
+    getmetatable('').__index.bundle = function(str)
+        local signals_table = stringx.split(str, "|")
+        TODO()
     end
 end
 

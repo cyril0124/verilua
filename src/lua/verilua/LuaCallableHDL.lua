@@ -549,3 +549,5 @@ function set_signal_value_parallel(hdls, values)
     
     C.c_set_value_parallel(input_hdls, input_values, length)
 end
+
+return CallableHDL
