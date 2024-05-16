@@ -163,6 +163,23 @@ function utils.enum_search(t, v)
     assert(false, "Key no found: " .. v .. " in " .. t.name)
 end
 
+
+-- 
+-- Usage Example:
+--      local State = utils.enum_define({
+--              RUN = 1,
+--              STOP = 2,
+--            RUNNING = 3,
+--      })
+--      local state_value = State.RUN
+--      print("current state is " .. State(state_value)) -- print: current state is RUN
+-- 
+function utils.enum_define(enum_table)
+    assert(type(enum_table) == "table")
+    return setmetatable(enum_table, {__call = utils.enum_search})
+end
+
+
 -- 
 -- format: <Year><Month><Day>_<Hour><Minute>
 -- Example:
