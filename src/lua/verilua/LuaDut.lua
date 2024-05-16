@@ -5,11 +5,16 @@ local sfind, ssub = string.find, string.sub
 
 ffi.cdef[[
     long long c_handle_by_name(const char* name);
-    void c_set_value_by_name(const char *path, uint64_t value);
+    void c_set_value_by_name(const char *path, uint32_t value);
     uint64_t c_get_value_by_name(const char *path);
+    void c_force_value_by_name(const char *path, long long value);
+    void c_release_value_by_name(const char *path);
 ]]
 
 local top_with_dot = cfg.top .. "."
+local dot_set_len = #(".set")
+local dot_set_force_len = #(".set_force")
+local dot_set_release_len = #(".set_release")
 
 local function create_proxy(path)
     local local_path = path
@@ -30,28 +35,30 @@ local function create_proxy(path)
             if v_type == "number" or (v_type == "string" and v ~= "name") then -- assign value
                 if type(t.path) == "table" then
                     -- 
-                    -- local alias_signal = dut.path.to.signal
-                    -- alias_signal.set(123)        -- set value into 123, Notice: you cannot use alias_signal since Lua will treat this as a variable reassignment
-                    --       or
-                    -- alias_signal.set "123"
-                    -- local value = alias_signal() -- read value 
+                    -- Example:
+                    --      local alias_signal = dut.path.to.signal
+                    --      alias_signal.set(123)        -- set value into 123, Notice: you cannot use alias_signal since Lua will treat this as a variable reassignment
+                    --      alias_signal.set "123"
+                    --      alias_signal.set("0x123")
+                    --      alias_signal.set("0b1111")
+                    --      local value = alias_signal() -- read value 
                     -- 
                     if stringx.endswith(local_path, ".set") then
-                        local value
-                        do
-                            if v_type == "string" then
-                                if stringx.startswith(v, "0x") then
-                                    value = tonumber(v, 16)
-                                elseif stringx.startswith(v, "0b") then
-                                    value = tonumber(v, 2)
-                                else
-                                    value = tonumber(v) 
-                                end
-                            else
-                                value = v
-                            end
-                        end
-                        ffi.C.c_set_value_by_name(ssub(local_path, 1, #local_path - 4), tonumber(v))
+                        ffi.C.c_set_value_by_name(local_path:sub(1, #local_path - dot_set_len), tonumber(v))
+
+                    -- 
+                    -- Example:
+                    --      local cycles = dut.cycles
+                    --      cycles.set_force(0)
+                    --      ...
+                    --      cycles.set_release()
+                    --      
+                    --      dut.path.to.cycles.set_force(123)
+                    --      ...
+                    --      dut.path.to.cycles.set_release()
+                    -- 
+                    elseif stringx.endswith(local_path, ".set_force") then
+                        ffi.C.c_force_value_by_name(local_path:sub(1, #local_path - dot_set_force_len), tonumber(v))
                     else
                         assert(false, "Unhandled condition")
                     end
@@ -63,7 +70,11 @@ local function create_proxy(path)
             else -- read signal value
                 local data_type = v or "integer"
                 if data_type == "integer" then
-                    return ffi.C.c_get_value_by_name(local_path)
+                    if stringx.endswith(local_path, ".set_release") then
+                        ffi.C.c_release_value_by_name(local_path:sub(1, #local_path - dot_set_release_len))
+                    else
+                        return ffi.C.c_get_value_by_name(local_path)
+                    end
                 elseif data_type == "hex" then
                     local val = ffi.C.c_get_value_by_name(local_path)
                     return string.format("0x%x", val)

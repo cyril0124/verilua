@@ -115,6 +115,10 @@ _G.ffi = require "ffi"
 ffi.cdef[[
     int setenv(const char *name, const char *value, int overwrite);
     long long c_handle_by_name_safe(const char* name);
+    void c_set_value_by_name(const char *path, uint32_t value);
+    uint64_t c_get_value_by_name(const char *path);
+    void c_force_value_by_name(const char *path, long long value);
+    void c_release_value_by_name(const char *path);
 ]]
 
 
@@ -336,6 +340,42 @@ do
     getmetatable('').__index.bundle = function(str)
         local signals_table = stringx.split(str, "|")
         TODO()
+    end
+
+    -- 
+    -- Example:
+    --      local cycles_str = "tb_top.cycles"
+    --      cycles_str:set(0x123)
+    --      cycles_str:set("0x123")
+    --      cycles_str:set("0b111")
+    --      ("tb_top.cycles"):set(100)
+    -- 
+    getmetatable('').__index.set = function (str, value)
+        ffi.C.c_set_value_by_name(str, tonumber(value))
+    end
+
+    -- 
+    -- Example: 
+    --      local cycles_str = "tb_top.cycles"
+    --      cycles_str:set_force(1)   -- force handle
+    --      ...
+    --      cycles_str:set_release()  -- release handle
+    -- 
+    getmetatable('').__index.set_force = function (str, value)
+        ffi.C.c_force_value_by_name(str, tonumber(value))
+    end
+    getmetatable('').__index.set_release = function (str)
+        ffi.C.c_release_value_by_name(str)
+    end
+
+    -- 
+    -- Example:
+    --      local cycles_hdl = "tb_top.cycles"
+    --      local value_of_cycles = cycles_str:get()
+    --      local value_of_cycles = ("tb_top.cycles"):get()
+    -- 
+    getmetatable('').__index.get = function (str)
+        return tonumber(ffi.C.c_get_value_by_name(str))
     end
 end
 
