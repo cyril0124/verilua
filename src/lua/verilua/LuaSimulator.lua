@@ -91,6 +91,12 @@ local disable_trace = function ()
     end
 end
 
+local dump_wave = function (trace_file_path)
+    local _trace_file_path = trace_file_path or "test.vcd"
+    initialize_trace(_trace_file_path)
+    enable_trace()
+end
+
 local SimCtrl = {
     STOP = 66,
     FINISH = 67,
@@ -150,6 +156,7 @@ return {
     initialize_trace  = initialize_trace,
     enable_trace      = enable_trace,
     disable_trace     = disable_trace,
+    dump_wave         = dump_wave,
     simulator_control = simulator_control,
     SimCtrl           = SimCtrl,
     get_mode          = get_mode,
