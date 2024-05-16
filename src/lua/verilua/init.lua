@@ -379,6 +379,129 @@ do
     end
 end
 
+local scheduler = require("LuaScheduler")
+_G.verilua = function(cmd)
+    local vl = require "Verilua"
+
+    local print = function(...)
+        print(string.format("[verilua/%s]", cmd), ...)
+    end
+
+    -- 
+    -- Example:
+    --      verilua "mainTask" { function ()
+    --          -- body.
+    --      end }
+
+    --      local function lua_main()
+    --          -- body
+    --      end
+    --      verilua "mainTask" {
+    --          lua_main
+    --      }
+
+    --      verilua("mainTask")({function ()
+    --          -- body
+    --      end})
+
+    --      local function lua_main()
+    --          -- body
+    --      end
+    --      verilua("mainTask")({
+    --          lua_main
+    --      })
+    -- 
+    if cmd == "mainTask" then
+        return function (task_table)
+            assert(type(task_table) == "table")
+            assert(#task_table == 1)
+            print("register mainTask")
+            vl.register_main_task(task_table[1])
+        end
+        
+    -- 
+    -- Example
+    --      verilua "appendTasks" {
+    --          another_task = function ()
+    --                 -- body
+    --          end,
+    --          some_task = function ()
+    --                 -- body
+    --          end
+    --      }
+    --      local function another_task()
+    --           -- body
+    --      end
+    --      local function some_task()
+    --          -- body
+    --      end
+    --      verilua "appendTasks" {
+    --          another_task_name = another_task,
+    --          some_task_name = some_task
+    --      }
+    -- 
+    elseif cmd == "appendTasks" then
+        return function (task_table)
+            assert(type(task_table) == "table")
+            local final_task_table = {}
+            for name, func in pairs(task_table) do
+                print("get task name => ", name)
+                table.insert(final_task_table, {name, func, {}})
+            end
+            vl.register_tasks(final_task_table)
+        end
+    
+    -- 
+    -- Example:
+    --      verilua "finishTask" { function ()
+    --            -- body
+    --      end }
+    -- 
+    --      local function some_finish_task()
+    --          -- body
+    --      end
+    --      verilua "finishTask" {
+    --          some_finish_task
+    --      }
+    -- 
+    elseif cmd == "finishTask" then
+        return function (task_table)
+            assert(type(task_table) == "table")
+            assert(#task_table == 1)
+            local func = task_table[1]
+            vl.register_finish_callback(func)
+        end
+    
+    -- 
+    -- Example:
+    --      verilua "startTask" { function ()
+    --            -- body
+    --      end }
+    -- 
+    --      local function some_start_task()
+    --          -- body
+    --      end
+    --      verilua "startTask" {
+    --          some_finish_task
+    --      }
+    -- 
+    elseif cmd == "startTask" then
+        return function (task_table)
+            assert(type(task_table) == "table")
+            assert(#task_table == 1)
+            local func = task_table[1]
+            vl.register_start_callback(func)
+        end
+    elseif cmd == "test" then
+        return function (str)
+            print(str)
+            TODO("Only for test...")
+        end
+    else
+        assert(false, "Unknoen cmd => " .. cmd)
+    end
+end
+
 
 -- 
 -- setup mode
