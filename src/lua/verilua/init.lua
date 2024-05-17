@@ -262,6 +262,16 @@ _G.pp      = function (...) print(inspect(...)) end
 _G.dbg     = function (...) print(inspect(...)) end
 _G.TODO    = function(...) assert(false, debug_str("TODO:", ...)) end
 _G.fatal   = function(...) assert(false, debug_str("FATAL:", ...)) end
+_G.fassert = function(bool, ...)
+    if bool == false then
+        local args = {...}
+        if #args == 0 then
+            assert(false)
+        else
+            assert(false, string.format(...))
+        end
+    end
+end
 _G.dut     = (require "LuaDut").create_proxy(cfg.top)
 local sim = require "LuaSimulator";
 _G.sim     = sim
@@ -379,13 +389,14 @@ do
     end
 end
 
-local scheduler = require("LuaScheduler")
 _G.verilua = function(cmd)
     local vl = require "Verilua"
 
     local print = function(...)
         print(string.format("[verilua/%s]", cmd), ...)
     end
+    
+    print("execute => " .. cmd)
 
     -- 
     -- Example:
@@ -493,6 +504,9 @@ _G.verilua = function(cmd)
             vl.register_start_callback(func)
         end
     elseif cmd == "showTasks" then
+        local scheduler = require "LuaScheduler"
+        assert(scheduler ~= nil)
+
         scheduler:list_tasks()
     elseif cmd == "test" then
         return function (str)
