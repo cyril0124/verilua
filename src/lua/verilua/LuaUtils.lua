@@ -69,8 +69,12 @@ function utils.to_hex_str(t, reverse)
     end
 
     local t_copy = {}
-    for i = 1, t_len do
-        t_copy[i] = tohex(t[i])
+    if t_len == 1 and t_type == "cdata" then
+         t_copy[1] = tohex(tonumber(t))
+    else
+        for i = 1, t_len do
+            t_copy[i] = tohex(t[i])
+        end
     end
 
     if reverse then
