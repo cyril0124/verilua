@@ -1,6 +1,12 @@
+require "LuaSchedulerCommon"
 local class = require "pl.class"
 local ffi = require "ffi"
 local C = ffi.C
+
+local await_posedge_hdl = await_posedge_hdl
+local await_negedge_hdl = await_negedge_hdl
+local always_await_posedge_hdl = always_await_posedge_hdl
+local await_noop = await_noop
 
 ffi.cdef[[
   long long c_handle_by_name_safe(const char* name);
@@ -46,6 +52,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.verbose = false
     self.fullpath = fullpath
     self.name = name or "Unknown"
+    self.always_fired = false -- used by <chdl>:always_posedge()
 
     local tmp_hdl = hdl or C.c_handle_by_name_safe(fullpath)
     if tmp_hdl == -1 then
@@ -439,6 +446,81 @@ function CallableHDL:_init(fullpath, name, hdl)
         force_single_beat = force_single_beat or false
         for index = 0, this.array_size - 1 do
             this.set_index_unsafe(this, index, values[index + 1], force_single_beat)
+        end
+    end
+
+    if self.width == 1 then
+        -- 
+        -- Example:
+        --      local clock = ("tb_top.clock"):chdl()
+        --      clock:posedge()
+        --      
+        --      local clock = CallableHDL("tb_top.clock", "name of clock chdl")
+        --      clock:posedge()
+        --      
+        --      clock:posedge(10)
+        --      clock:posedge(123, function (c)
+        --          -- body
+        --          print("current is => " .. c)
+        --       end)
+        -- 
+        self.posedge = function (this, times, func)
+            local _times = times or 1
+            if _times == 1 then
+                await_posedge_hdl(this.hdl)
+            else
+                local has_func = func ~= nil
+                for i = 1, _times do
+                    if has_func then
+                        func(i)
+                    end
+                    await_posedge_hdl(this.hdl)
+                end
+            end
+        end
+
+        -- 
+        -- Example: the same as posedge
+        -- 
+        self.negedge= function (this, times, func)
+            local _times = times or 1
+            if _times == 1 then
+                await_negedge_hdl(this.hdl)
+            else
+                local has_func = func ~= nil
+                for i = 1, _times do
+                    if has_func then
+                        func(i)
+                    end
+                    await_negedge_hdl(this.hdl)
+                end
+            end
+        end
+
+        -- 
+        -- Example:
+        --      local clock = ("tb_top.clock"):chdl()
+        --      clodk:always_posedge()
+        -- 
+        self.always_posedge = function (this)
+            if this.always_fired == false then
+                this.always_fired = true
+                always_await_posedge_hdl(this.hdl)
+            else
+                await_noop()
+            end
+        end
+    else
+        self.posedge = function(this, times)
+            assert(false, format("hdl bit width == %d > 1, <chdl>:posedge() only support 1-bit hdl", this.width))
+        end
+
+        self.negedge= function(this, times)
+            assert(false, format("hdl bit width == %d > 1, <chdl>:negedge() only support 1-bit hdl", this.width))
+        end
+
+        self.always_posedge = function (this)
+            assert(false, format("hdl bit width == %d > 1, <chdl>:always_posedge() only support 1-bit hdl", this.width))
         end
     end
 end
