@@ -1,4 +1,5 @@
 local ffi = require "ffi"
+local C = ffi.C
 local stringx = require "pl.stringx"
 local assert, type, tonumber = assert, type, tonumber
 local sfind, ssub = string.find, string.sub
@@ -26,7 +27,7 @@ local function create_proxy(path)
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
-            ffi.C.c_set_value_by_name(fullpath, v)
+            C.c_set_value_by_name(fullpath, v)
         end,
 
         __call = function(t, v)
@@ -44,7 +45,7 @@ local function create_proxy(path)
                     --      local value = alias_signal() -- read value 
                     -- 
                     if stringx.endswith(local_path, ".set") then
-                        ffi.C.c_set_value_by_name(local_path:sub(1, #local_path - dot_set_len), tonumber(v))
+                        C.c_set_value_by_name(local_path:sub(1, #local_path - dot_set_len), tonumber(v))
 
                     -- 
                     -- Example:
@@ -58,30 +59,46 @@ local function create_proxy(path)
                     --      dut.path.to.cycles.set_release()
                     -- 
                     elseif stringx.endswith(local_path, ".set_force") then
-                        ffi.C.c_force_value_by_name(local_path:sub(1, #local_path - dot_set_force_len), tonumber(v))
+                        C.c_force_value_by_name(local_path:sub(1, #local_path - dot_set_force_len), tonumber(v))
                     else
-                        assert(false, "Unhandled condition")
+                        local data_type = v or "integer"
+                        if data_type == "integer" then
+                            if stringx.endswith(local_path, ".set_release") then
+                                C.c_release_value_by_name(local_path:sub(1, #local_path - dot_set_release_len))
+                            else
+                                return tonumber(C.c_get_value_by_name(local_path))
+                            end
+                        elseif data_type == "hex" then
+                            local val = C.c_get_value_by_name(local_path)
+                            return string.format("0x%x", val)
+                        elseif data_type == "name" then
+                            return local_path
+                        elseif data_type == "hdl" then
+                            return C.c_handle_by_name(local_path)
+                        else
+                            assert(false, "Unhandled condition => " .. local_path .. " v => " .. v)
+                        end
                     end
                 else
                     -- vpi.set_value_by_name(cfg.top .. "." .. t.path, tonumber(v))
-                    ffi.C.c_set_value64_by_name(top_with_dot .. t.path, tonumber(v))
+                    C.c_set_value64_by_name(top_with_dot .. t.path, tonumber(v))
                 end
                 return
             else -- read signal value
                 local data_type = v or "integer"
                 if data_type == "integer" then
                     if stringx.endswith(local_path, ".set_release") then
-                        ffi.C.c_release_value_by_name(local_path:sub(1, #local_path - dot_set_release_len))
+                        C.c_release_value_by_name(local_path:sub(1, #local_path - dot_set_release_len))
                     else
-                        return ffi.C.c_get_value_by_name(local_path)
+                        return tonumber(C.c_get_value_by_name(local_path))
                     end
                 elseif data_type == "hex" then
-                    local val = ffi.C.c_get_value_by_name(local_path)
+                    local val = C.c_get_value_by_name(local_path)
                     return string.format("0x%x", val)
                 elseif data_type == "name" then
                     return local_path
                 elseif data_type == "hdl" then
-                    return ffi.C.c_handle_by_name(local_path)
+                    return C.c_handle_by_name(local_path)
                 else
                     assert(false, "invalid data type: " .. data_type)
                 end
