@@ -50,7 +50,19 @@ function utils.to_hex_str(t, reverse)
 
     local t_len
     if t_type == "cdata" then
-        t_len = t[0]
+        local ok, len = pcall(function (t)
+            -- 
+            -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
+            -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
+            -- 
+            return t[0]
+        end, t)
+        
+        if ok then
+            t_len = len
+        else
+            t_len = 1
+        end
     else
         assert(t_type == "table")
         t_len = #t
