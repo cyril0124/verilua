@@ -30,7 +30,9 @@ parser.add_argument('--lua_main', '-l', dest="lua_main", type=str, required=True
 parser.add_argument('--lua_file', '-lf', action='append', dest="lua_file", default=[], help='input Lua file')
 parser.add_argument('--shutdown', '-s', dest="shutdown", type=str, default="10000", help='shutdown cycles')
 parser.add_argument('--rebuild', '-r', dest="rebuild", action="store_true", default=False, help='force rebuild')
-parser.add_argument('--workdir', '-w', dest="workdir", type=str, help='working directory')
+parser.add_argument('--no-generate-tb', '-ngt', dest="no_generate_tb", action="store_true", default=False, help='do not generate testbench')
+parser.add_argument('--prjdir', '-p', dest="prjdir", type=str, required=True, help='project directory')
+parser.add_argument('--workdir-name', '-wn', dest="workdir_name", type=str, default=".verilua", help='working directory name')
 
 args = parser.parse_args()
 
@@ -41,19 +43,21 @@ top_file    = os.path.abspath(args.top_file)
 lua_main      = os.path.abspath(args.lua_main)
 lua_files.append(lua_main)
 lua_main_name = os.path.basename(lua_main)
-workdir       = os.path.abspath(args.workdir)
-verilua_dir   = f"{workdir}/.verilua"
-prj_dir       = f"{verilua_dir}/{args.top}"
-dut_dir       = f"{prj_dir}/dut"
+prj_dir       = os.path.abspath(args.prjdir)
+workdir_name  = args.workdir_name
+work_dir      = f"{prj_dir}/{workdir_name}"
+test_dir      = f"{work_dir}/{args.top}"
+dut_dir       = f"{test_dir}/dut"
 rtl_dir       = f"{dut_dir}/rtl"
-cache_dir     = f"{prj_dir}/cache"
+cache_dir     = f"{test_dir}/cache"
 
 need_rebuild = False
 
-print("[verilua_run] workdir => ", workdir)
+print("[verilua_run] prjdir => ", prj_dir)
+print("[verilua_run] workdir => ", work_dir)
 
-execute_cmd(f'mkdir -p {verilua_dir}')
-execute_cmd(f'mkdir -p {prj_dir}')
+execute_cmd(f'mkdir -p {work_dir}')
+execute_cmd(f'mkdir -p {test_dir}')
 execute_cmd(f'mkdir -p {dut_dir}')
 execute_cmd(f'mkdir -p {rtl_dir}')
 execute_cmd(f'mkdir -p {cache_dir}')
@@ -72,11 +76,11 @@ for file in files + lua_files:
 
 for file in lua_files:
     file_name = os.path.basename(file)
-    if not os.path.exists(f"{prj_dir}/{file_name}"):
-        execute_cmd(f"cp {file} {prj_dir}/")
+    if not os.path.exists(f"{test_dir}/{file_name}"):
+        execute_cmd(f"cp {file} {test_dir}/")
 
 verilua_home = os.environ["VERILUA_HOME"]
-execute_cmd(f"cp {verilua_home}/scripts/makefiles/* {prj_dir}")
+execute_cmd(f"cp {verilua_home}/scripts/makefiles/* {test_dir}")
 
 # find mismatch rtl file
 has_mismatch_rtl = False
@@ -102,7 +106,7 @@ for file in lua_files:
 # update mismatch file
 if has_mismatch_lua:
     for file in lua_files:
-        execute_cmd(f"cp {file} {prj_dir}/")
+        execute_cmd(f"cp {file} {test_dir}/")
     
 
 if has_mismatch_rtl:
@@ -112,14 +116,14 @@ if need_rebuild:
     for file in files:
         execute_cmd(f"cp {file} {rtl_dir}")
 
-verilua_cfg_gen_file = f"{prj_dir}/verilua_cfg_unknown.lua"
+verilua_cfg_gen_file = f"{test_dir}/verilua_cfg_unknown.lua"
 verilua_cfg_lua = f"""
 basic = {{
-    prj_dir = os.getenv("$PWD"),
+    test_dir = os.getenv("$PWD"),
     top = "tb_top",
     simulator = "{args.sim}",
     mode = "normal",
-    script = "{prj_dir}/{os.path.basename(args.lua_main)}",
+    script = "{test_dir}/{os.path.basename(args.lua_main)}",
     period = 10,
     unit = "ns",
     seed = 0,
@@ -135,15 +139,15 @@ basic = {{
 os.environ['SIM']         = args.sim
 os.environ['VERILUA_CFG'] = verilua_cfg_gen_file
 
-verilua_cfg_lua_file = f'{prj_dir}/verilua_cfg.lua'
+verilua_cfg_lua_file = f'{test_dir}/verilua_cfg.lua'
 with open(verilua_cfg_lua_file, 'w', encoding='utf-8') as file:
     file.write(verilua_cfg_lua)
 
-ret = execute_cmd(f"cd {prj_dir}; verilua_gen_cfg")
+ret = execute_cmd(f"cd {test_dir}; verilua_gen_cfg")
 if ret.stderr:
     assert False, f"==> {ret.stderr}"
 
-if not os.path.exists(f"{prj_dir}/sim_build"):
+if not os.path.exists(f"{test_dir}/sim_build"):
     need_rebuild = True
 
 print("[verilua_run] args =>", args)
@@ -152,10 +156,10 @@ print("[verilua_run] has_mismatch_lua =>", has_mismatch_lua)
 print("[verilua_run] need_rebuild =>", need_rebuild)
 
 if args.sim == "vcs":
-    if not os.path.isfile(f"{prj_dir}/sim_build/simv"):
+    if not os.path.isfile(f"{test_dir}/sim_build/simv"):
         need_rebuild = True
 elif args.sim == "verilator":
-    if not os.path.isfile(f"{prj_dir}/sim_build/Vtb_top"):
+    if not os.path.isfile(f"{test_dir}/sim_build/Vtb_top"):
         need_rebuild = True
 
 # create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation without using verilua_run
@@ -180,27 +184,28 @@ make run | tee run.log
 
 scripts = [(clean_sh, "clean.sh"), (build_sh, "build.sh"), (run_sh, "run.sh")]
 for (script, name) in scripts:
-    with open(f"{prj_dir}/{name}", 'w', encoding='utf-8') as file:
+    with open(f"{test_dir}/{name}", 'w', encoding='utf-8') as file:
         file.write(script)
-    execute_cmd(f"chmod 777 {prj_dir}/{name}")
+    execute_cmd(f"chmod 777 {test_dir}/{name}")
 
 if need_rebuild or args.rebuild:
-    ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py -f {top_file} --top {args.top} --nodpi --dir {dut_dir}")
-    if ret.stderr:
-        assert False, f"==> {ret.stderr}"
+    if not args.no_generate_tb:
+        ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py -f {top_file} --top {args.top} --nodpi --dir {dut_dir}")
+        if ret.stderr:
+            assert False, f"==> {ret.stderr}"
     
     print("[verilua_run] start build...")
-    ret = execute_cmd_pipe(f"cd {prj_dir}; make clean; make build | tee build.log")
+    ret = execute_cmd_pipe(f"cd {test_dir}; make clean; make build | tee build.log")
     if isinstance(ret, int) and ret != 0:
         assert False, "build failed!"
     if not isinstance(ret, int) and ret.stderr != None:
         assert False, f"build failed! ==> {ret.stderr}"
-    if execute_cmd(f'grep "BUILD SUCCESS" {prj_dir}/build.log -q; echo $?').stdout.strip("\n") == "1":
+    if execute_cmd(f'grep "BUILD SUCCESS" {test_dir}/build.log -q; echo $?').stdout.strip("\n") == "1":
         assert False, "build failed!"    
 
     print("[verilua_run] start run...")
-    execute_cmd_pipe(f"cd {prj_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make run | tee run.log")
+    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make run | tee run.log")
 else:
     print("[verilua_run] start run...")
-    execute_cmd_pipe(f"cd {prj_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make run | tee run.log")
+    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make run | tee run.log")
 
