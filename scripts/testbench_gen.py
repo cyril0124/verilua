@@ -3,8 +3,8 @@ import pyslang
 import fnmatch
 import os
 
-CLOCK_PATTERNS = ["clock", "clock_i", "clk", "clk_i"]
-RESET_PATTERNS = ["reset", "reset_i", "rst", "rst_i"]
+CLOCK_PATTERNS = ["clock", "clock_i", "clk", "clk_i", "enq_clock"]
+RESET_PATTERNS = ["reset", "reset_i", "rst", "rst_i", "enq_reset"]
 
 REG_STR = "reg"
 WIRE_STR = "wire"
@@ -40,8 +40,8 @@ class PortInfo:
 
 
 parser = argparse.ArgumentParser(description='A script used for automately generate verilua testbench.')
-parser.add_argument('--top', '-t', dest="top", type=str, help='top module name')
-parser.add_argument('--file', '-f', dest="file", type=str, help='input verilog file')
+parser.add_argument('--top', '-t', dest="top", type=str, required=True, help='top module name')
+parser.add_argument('--file', '-f', dest="file", type=str, required=True, help='input verilog file')
 # parser.add_argument('--ast', '-a', dest="ast", type=str, help='ast json file')
 parser.add_argument('--dir', '-d', dest="dir", type=str, help='output dir')
 parser.add_argument('--period', '-p', dest="period", type=int, help='clock period')
@@ -49,10 +49,10 @@ parser.add_argument('--tbtop', dest="tbtop", type=str, help='testbench top level
 parser.add_argument('--dsignals', '-ds', dest="dsignals", type=str, help='signal patterns (a pattern file) indicated which signal should be ignore while generate port interface functions')
 parser.add_argument('--nodpi', '-nd', dest="nodpi", action='store_true', help='whether generate DPI-C port interface functions or not')
 parser.add_argument('--verbose', '-v', dest="verbose", action='store_true', help='verbose')
+parser.add_argument('--custom-code', '-cc', dest="custom_code", type=str, help='input custom code file, will be inserted in somewhere of the testbench')
 args = parser.parse_args()
 
 assert args.top != None, "top module name is not specified!"
-# assert args.ast != None, "ast json file is not specified!"
 
 clock_period      = args.period or 5
 tb_top_name       = args.tbtop or "tb_top"
@@ -631,6 +631,26 @@ end
 assign timer = cycles;
 
 """)
+
+
+p(f"""
+// -----------------------------------------
+// user custom code
+// -----------------------------------------
+""")
+if args.custom_code != None:
+  custom_code_file = os.path.abspath(args.custom_code)
+  assert os.path.exists(custom_code_file), f"custom_code file does not exist! ==> {custom_code_file}"
+  content = None
+  with open(custom_code_file, 'r') as ff:
+    content = ff.read()
+  assert content != None
+  content_str = str(content)
+  p(
+f"""
+{content_str}
+""")
+
 
 p(
 f"""
