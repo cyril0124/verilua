@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Install python dependency
 python3 -m pip install -r requirements.txt

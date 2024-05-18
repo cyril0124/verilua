@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ -d "$(pwd)/luajit2.1" ]
 then

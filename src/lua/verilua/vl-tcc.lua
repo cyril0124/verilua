@@ -26,8 +26,8 @@ function tcc.new(add_paths)
         print("\27[31m" .. "[TCC_ERROR]", "\n\t".. err_msg .. "\27[0m")
     end)
   
-    return state
-  end
+   return state
+end
 
 
 return tcc

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # https://luajit.org
 # https://github.com/openresty/luajit2
