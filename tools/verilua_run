@@ -33,6 +33,7 @@ parser.add_argument('--rebuild', '-r', dest="rebuild", action="store_true", defa
 parser.add_argument('--no-generate-tb', '-ngt', dest="no_generate_tb", action="store_true", default=False, help='do not generate testbench')
 parser.add_argument('--prjdir', '-p', dest="prjdir", type=str, required=True, help='project directory')
 parser.add_argument('--workdir-name', '-wn', dest="workdir_name", type=str, default=".verilua", help='working directory name')
+parser.add_argument('--tb-gen-args', '-tga', dest="tb_gen_args", type=str, default="", help='arguments pass into <testbench_gen.py>')
 
 args = parser.parse_args()
 
@@ -66,7 +67,7 @@ check_files = files + lua_files
 check_files.append(top_file)
 for file in check_files:
     if not os.path.isfile(file):
-        assert False, f"file: {lua_main} does not exist!"
+        assert False, f"file: {file} does not exist!"
 
 for file in files + lua_files:
     file_name = os.path.basename(file)
@@ -107,6 +108,26 @@ for file in lua_files:
 if has_mismatch_lua:
     for file in lua_files:
         execute_cmd(f"cp {file} {test_dir}/")
+
+if args.tb_gen_args != "":
+    local_parser = argparse.ArgumentParser(description="", add_help=False)
+    local_parser.add_argument('--custom-code', '-cc', dest="custom_code", type=str, help='input custom code file, will be inserted in somewhere of the testbench')
+    local_args, unknown = local_parser.parse_known_args(args.tb_gen_args.split())
+    if local_args.custom_code != None:
+        custom_code_file = os.path.abspath(local_args.custom_code)
+        name = os.path.basename(custom_code_file)
+        if not os.path.exists(f"{cache_dir}/{name}"):
+            need_rebuild = True
+            execute_cmd(f"cp {custom_code_file} {cache_dir}/{name}")
+            execute_cmd(f"rm {cache_dir}/*.custom_code_use")
+            execute_cmd(f"touch {cache_dir}/{name}.custom_code_use")
+        if not filecmp.cmp(custom_code_file, f"{cache_dir}/{name}", shallow=False):
+            need_rebuild = True
+            execute_cmd(f"cp {custom_code_file} {cache_dir}/{name}")
+        if not os.path.exists(f"{cache_dir}/{name}.custom_code_use"):
+            need_rebuild = True
+            execute_cmd(f"rm {cache_dir}/*.custom_code_use")
+            execute_cmd(f"touch {cache_dir}/{name}.custom_code_use")
     
 
 if has_mismatch_rtl:
@@ -164,19 +185,19 @@ elif args.sim == "verilator":
 
 # create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation without using verilua_run
 clean_sh=f"""
-#!/bin/bash
+#!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
 make clean
 """
 build_sh=f"""
-#!/bin/bash
+#!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
 make build | tee build.log
 """
 run_sh=f"""
-#!/bin/bash
+#!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
 make run | tee run.log
@@ -187,10 +208,13 @@ for (script, name) in scripts:
     with open(f"{test_dir}/{name}", 'w', encoding='utf-8') as file:
         file.write(script)
     execute_cmd(f"chmod 777 {test_dir}/{name}")
+    
+# create file list
+execute_cmd(f'find {dut_dir} -name "*.v" -or -name "*.sv" -or -name "*.svh" > {test_dir}/filelist.f')
 
 if need_rebuild or args.rebuild:
     if not args.no_generate_tb:
-        ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py -f {top_file} --top {args.top} --nodpi --dir {dut_dir}")
+        ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py -f {top_file} --top {args.top} --nodpi --dir {dut_dir} {args.tb_gen_args}")
         if ret.stderr:
             assert False, f"==> {ret.stderr}"
     
