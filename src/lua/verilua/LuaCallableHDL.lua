@@ -510,6 +510,60 @@ function CallableHDL:_init(fullpath, name, hdl)
                 await_noop()
             end
         end
+
+        -- 
+        -- Example:
+        --      local clock_chdl = ("tb_top.clock"):chdl()
+        --          |_  or  local clock_chdl = dut.clock:chdl()
+        --      local condition_meet = clock_chdl:posedge_until(100, function func()
+        --          return dut.cycles() >= 100
+        --      end)
+        -- 
+        self.posedge_until = function (this, max_limit, func)
+            assert(max_limit ~= nil)
+            assert(type(max_limit) == "number")
+            assert(max_limit >= 1)
+
+            assert(func ~= nil)
+            assert(type(func) == "function") 
+
+            local condition_meet = false
+            for i = 1, max_limit do
+                condition_meet = func(i)
+                assert(condition_meet ~= nil and type(condition_meet) == "boolean")
+
+                if not condition_meet then
+                    await_posedge_hdl(this.hdl)
+                else
+                    break
+                end
+            end
+
+            return condition_meet
+        end
+
+        self.negedge_until = function (this, max_limit, func)
+            assert(max_limit ~= nil)
+            assert(type(max_limit) == "number")
+            assert(max_limit >= 1)
+
+            assert(func ~= nil)
+            assert(type(func) == "function") 
+
+            local condition_meet = false
+            for i = 1, max_limit do
+                condition_meet = func(i)
+                assert(condition_meet ~= nil and type(condition_meet) == "boolean")
+                
+                if not condition_meet then
+                    await_negedge_hdl(this.hdl)
+                else
+                    break 
+                end
+            end
+
+            return condition_meet
+        end
     else
         self.posedge = function(this, times)
             assert(false, format("hdl bit width == %d > 1, <chdl>:posedge() only support 1-bit hdl", this.width))
@@ -521,6 +575,14 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.always_posedge = function (this)
             assert(false, format("hdl bit width == %d > 1, <chdl>:always_posedge() only support 1-bit hdl", this.width))
+        end
+
+        self.posedge_until = function (this, max_limit, func)
+            assert(false, format("hdl bit width == %d > 1, <chdl>:posedge_until() only support 1-bit hdl", this.width))
+        end
+
+        self.negedge_until = function (this, max_limit, func)
+            assert(false, format("hdl bit width == %d > 1, <chdl>:negedge_until() only support 1-bit hdl", this.width))
         end
     end
 end

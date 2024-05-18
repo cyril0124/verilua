@@ -80,28 +80,101 @@ local function create_proxy(path)
         --      dut.clock:posedge()
         --      dut.reset:negedge()
         --      dut.path.to.some.signal:posedge()
+        --      dut.clock:posedge(10)
+        --      dut.clock:posedge(10, function (c)
+        --         print("current count is " .. c)
+        --      end)
         -- 
-        posedge = function(t, v)
+        posedge = function(t, v, func)
             local _v = v or 1
             local _v_type = type(_v)
 
             assert(_v_type == "number")
             assert(_v >= 1)
 
+            local do_func = false
+            if func ~= nil then
+                assert(type(func) == "function") 
+                do_func = true 
+            end
+
             for i = 1, _v do
+                if do_func then
+                    func(i)
+                end
                 await_posedge(local_path)
             end
         end,
-        negedge = function(t, v)
+        negedge = function(t, v, func)
             local _v = v or 1
             local _v_type = type(_v)
 
             assert(_v_type == "number")
             assert(_v >= 1)
 
+            local do_func = false
+            if func ~= nil then
+                assert(type(func) == "function") 
+                do_func = true 
+            end
+
             for i = 1, _v do
+                if do_func then
+                    func(i)
+                end
                 await_negedge(local_path)
             end
+        end,
+
+        -- 
+        -- Example:
+        --      local condition_meet = dut.clock:posedge_until(100, function func()
+        --          return dut.cycles() >= 100
+        --      end)
+        -- 
+        posedge_until = function (t, max_limit, func)
+            assert(max_limit ~= nil)
+            assert(type(max_limit) == "number")
+            assert(max_limit >= 1)
+
+            assert(func ~= nil)
+            assert(type(func) == "function") 
+
+            local condition_meet = false
+            for i = 1, max_limit do
+                condition_meet = func(i)
+                assert(condition_meet ~= nil and type(condition_meet) == "boolean")
+
+                if not condition_meet then
+                    await_posedge(local_path)
+                else
+                    break
+                end
+            end
+
+            return condition_meet
+        end,
+        negedge_until = function (t, max_limit, func)
+            assert(max_limit ~= nil)
+            assert(type(max_limit) == "number")
+            assert(max_limit >= 1)
+
+            assert(func ~= nil)
+            assert(type(func) == "function") 
+
+            local condition_meet = false
+            for i = 1, max_limit do
+                condition_meet = func(i)
+                assert(condition_meet ~= nil and type(condition_meet) == "boolean")
+                
+                if not condition_meet then
+                    await_negedge(local_path)
+                else
+                    break 
+                end
+            end
+
+            return condition_meet
         end,
 
         -- 

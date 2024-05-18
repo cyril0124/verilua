@@ -411,9 +411,64 @@ do
     getmetatable('').__index.posedge = function (str)
         await_posedge(str)
     end
-    
     getmetatable('').__index.negedge = function (str)
         await_negedge(str)
+    end
+
+    -- 
+    -- Examplel:
+    --      local clock_str = "tb_top.clock"
+    --      local ok = clock_str:posedge_until(1000, function ()
+    --          return dut.cycles() >= 100
+    --      end)
+    --      
+    --      local ok = ("tb_top".clock):posedge_until(1000, function ()
+    --          return dut.cycles() >= 100
+    --      end)
+    -- 
+    getmetatable('').__index.posedge_until = function (this, max_limit, func)
+        assert(max_limit ~= nil)
+        assert(type(max_limit) == "number")
+        assert(max_limit >= 1)
+
+        assert(func ~= nil)
+        assert(type(func) == "function") 
+
+        local condition_meet = false
+        for i = 1, max_limit do
+            condition_meet = func(i)
+            assert(condition_meet ~= nil and type(condition_meet) == "boolean")
+
+            if not condition_meet then
+                await_posedge(this)
+            else
+                break
+            end
+        end
+
+        return condition_meet
+    end
+    getmetatable('').__index.negedge_until = function (this, max_limit, func)
+        assert(max_limit ~= nil)
+        assert(type(max_limit) == "number")
+        assert(max_limit >= 1)
+
+        assert(func ~= nil)
+        assert(type(func) == "function") 
+
+        local condition_meet = false
+        for i = 1, max_limit do
+            condition_meet = func(i)
+            assert(condition_meet ~= nil and type(condition_meet) == "boolean")
+            
+            if not condition_meet then
+                await_negedge(this)
+            else
+                break 
+            end
+        end
+
+        return condition_meet
     end
 
 end
