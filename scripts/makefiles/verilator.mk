@@ -103,7 +103,7 @@ emu-run:
 
 $(EMU_RUN_BIN): $(SIM_BUILD) $(SIM_FILE)
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- VERILATE & BUILD --------$(COLOR_RESET)"
-	$(VERILATOR) $(EMU_FLAGS) -f $(SIM_FILE) $(CONFIG_VLT) | tee $(SIM_BUILD)/build.log
+	$(VERILATOR) $(EMU_FLAGS) -f $(SIM_FILE) $(CONFIG_VLT) || { echo -e "$(INFO_STR) $(COLOR_RED)-- BUILD FAILED --------$(COLOR_RESET)"; exit 1; }
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- BUILD SUCCESS --------$(COLOR_RESET)"
 
 

@@ -104,7 +104,7 @@ simv: $(BIN)
 
 $(BIN): $(SIM_BUILD) $(SIM_FILE)
 	@echo -e "$(INFO) ${GREEN}-- BUILD SIMV ------------------------$(RESET)"
-	$(VCS) $(VCS_FLAGS) -f $(SIM_FILE) -o $@
+	$(VCS) $(VCS_FLAGS) -f $(SIM_FILE) -o $@ || { echo -e "$(INFO_STR) $(COLOR_RED)-- BUILD FAILED --------$(COLOR_RESET)"; exit 1; }
 	@echo -e "$(INFO) ${GREEN}-- BUILD SUCCESS ---------------------$(RESET)"
 
 $(SIM_FILE): $(DUT_FILE)

@@ -13,10 +13,13 @@ def execute_cmd_pipe(cmd):
     process = subprocess.Popen(cmd, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     while True:
         output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
+        output_err = process.stderr.readline()
+        if output == '' and output_err == '' and process.poll() is not None:
             break
         if output:
             print(output.strip())
+        if output_err:
+            print(output_err.strip())
     
     rc = process.poll()
     return rc
