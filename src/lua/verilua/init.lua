@@ -257,6 +257,10 @@ end
 -- global package
 -- 
 _G.cfg     = cfg
+_G.call    = nil -- syntax sugar for string literal calling
+                 -- Example:
+                 --     ("tb_top.cycles"):set(10)         --> this will cause syntax error or cannot reconize the <string literal>:set() metod  
+                 --     call = ("tb_top".cycles):set(10)  --> this will work fine, here <call> act as a tempory store buffer for this empty return calling
 _G.inspect = require "inspect"
 _G.pp      = function (...) print(inspect(...)) end
 _G.dbg     = function (...) print(inspect(...)) end
@@ -358,7 +362,7 @@ do
     --      cycles_str:set(0x123)
     --      cycles_str:set("0x123")
     --      cycles_str:set("0b111")
-    --      ("tb_top.cycles"):set(100)
+    --      call = ("tb_top.cycles"):set(100)
     -- 
     getmetatable('').__index.set = function (str, value)
         ffi.C.c_set_value_by_name(str, tonumber(value))
@@ -387,6 +391,31 @@ do
     getmetatable('').__index.get = function (str)
         return tonumber(ffi.C.c_get_value_by_name(str))
     end
+
+    -- 
+    -- Example:
+    --      local hex_str = ("tb_top.cycles"):get_hex()
+    --      assert(hex_str == "0x123")
+    -- 
+    getmetatable('').__index.get_hex = function (str)
+        return string.format("0x%x", tonumber(ffi.C.c_get_value_by_name(str)))
+    end
+    
+    -- 
+    -- Example:
+    --      call = ("tb_top.clock"):posedge()
+    --      local str = "tb_top.clock"
+    --      str:posedge()
+    -- 
+    -- 
+    getmetatable('').__index.posedge = function (str)
+        await_posedge(str)
+    end
+    
+    getmetatable('').__index.negedge = function (str)
+        await_negedge(str)
+    end
+
 end
 
 _G.verilua = function(cmd)
