@@ -7,7 +7,7 @@ local C = ffi.C
 local await_posedge = await_posedge
 local await_negedge = await_negedge
 local assert, type, tonumber, setmetatable = assert, type, tonumber, setmetatable
-local sfind, ssub, format = string.find, string.sub, string.format
+local format = string.format
 
 ffi.cdef[[
     long long c_handle_by_name(const char* name);
@@ -17,10 +17,6 @@ ffi.cdef[[
     void c_release_value_by_name(const char *path);
 ]]
 
-local top_with_dot = cfg.top .. "."
-local dot_set_len = #(".set")
-local dot_set_force_len = #(".set_force")
-local dot_set_release_len = #(".set_release")
 
 local function create_proxy(path)
     local local_path = path

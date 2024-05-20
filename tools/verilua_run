@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import subprocess
 import argparse
 import filecmp
@@ -10,19 +9,7 @@ def execute_cmd(cmd):
     return subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
 def execute_cmd_pipe(cmd):
-    process = subprocess.Popen(cmd, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    while True:
-        output = process.stdout.readline()
-        output_err = process.stderr.readline()
-        if output == '' and output_err == '' and process.poll() is not None:
-            break
-        if output:
-            print(output.strip())
-        if output_err:
-            print(output_err.strip())
-    
-    rc = process.poll()
-    return rc
+    return subprocess.run(cmd, shell=True, stderr=subprocess.PIPE, text=True)
 
 parser = argparse.ArgumentParser(description='A script used for running a simple dut.')
 parser.add_argument('--file', '-f', action='append', dest="file", required=True, help='input verilog file')
@@ -225,7 +212,7 @@ if need_rebuild or args.rebuild:
     ret = execute_cmd_pipe(f"cd {test_dir}; make clean; make build | tee build.log")
     if isinstance(ret, int) and ret != 0:
         assert False, "build failed!"
-    if not isinstance(ret, int) and ret.stderr != None:
+    if not isinstance(ret, int) and ret.stderr != None and not ("rm: cannot remove" in ret.stderr):
         assert False, f"build failed! ==> {ret.stderr}"
     if execute_cmd(f'grep "BUILD SUCCESS" {test_dir}/build.log -q; echo $?').stdout.strip("\n") == "1":
         assert False, "build failed!"    

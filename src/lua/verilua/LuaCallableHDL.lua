@@ -1,6 +1,7 @@
 require "LuaSchedulerCommon"
 local class = require "pl.class"
 local ffi = require "ffi"
+local debug = require "debug"
 local C = ffi.C
 
 local await_posedge_hdl = await_posedge_hdl
