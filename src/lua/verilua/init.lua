@@ -285,7 +285,8 @@ _G.sim     = sim
 -- string operate extension
 -- 
 local CallableHDL = require "LuaCallableHDL"
-local stringx = require("pl.stringx")
+local Bundle = require "LuaBundle"
+local stringx = require "pl.stringx"
 do
 
 
@@ -350,10 +351,87 @@ do
 
     -- 
     -- get LuaBundle using native string metatable
+    -- Example:
+    --      local bdl = ("field1|field2|field3"):bundle {hier = "tb_top"} -- hier is the only one mandatory params to be passed into this constructor
+    --      local bdl = ("valid | ready | opcode | data"):bundle {hier = "tb_top", is_decoupled = true}    
+    --      local bdl = ("| valid | ready | opcode | data"): bundle {hier = "tb_top"}
+    --      local bdl = ("| valid | ready | opcode | data |"): bundle {hier = "tb_top"}
+    --      local strange_bdl = ([[
+    --          field1 |
+    --          field2     |
+    --          field3 
+    --      ]]):bundle {hier = "tb_top", name = "strange hdl name"}
+    --      local beautiful_bdl = ([[
+    --          field1  |
+    --          field2  |
+    --          field3  |
+    --          field4  
+    --      ]]):bundle {hier = "tb_top", prefix = "p_"}
+    --      local beautiful_bdl_1 = ([[
+    --          | field1 |
+    --          | field2 |
+    --          | field3 |
+    --      ]]):bundle {hier = "tb_top", prefix = "p_"}
+    --  
+    --      local bdl_str = ("|"):join {"valid", "ready", "address", "opcode", "param", "source", "data"} -- bdl_str ==> "valid|ready|address|opcode|param|source|data"
+    --      local bdl = bdl_str:bundle {hier = cfg.top .. ".u_TestTop_fullSys_1Core.l2", is_decoupled = true, name = "Channel A", prefix = "auto_in_a_"}
     -- 
-    getmetatable('').__index.bundle = function(str)
+    getmetatable('').__index.bundle = function(str, params_table)
         local signals_table = stringx.split(str, "|")
-        TODO()
+        local will_remove_idx = {}
+
+        for i = 1, #signals_table do
+            -- remove trivial characters
+            signals_table[i] = stringx.replace(signals_table[i], " ", "")
+            signals_table[i] = stringx.replace(signals_table[i], "\n", "")
+            signals_table[i] = stringx.replace(signals_table[i], "\t", "")
+
+            if signals_table[i] == "" then
+                -- not a valid signal
+                table.insert(will_remove_idx, i)
+            end
+        end
+
+        -- remove invalid signal
+        for index, value in ipairs(will_remove_idx) do
+            signals_table[value] = nil
+        end
+
+        assert(type(params_table) == "table")
+
+        -- turn into simple lua table
+        local _signals_table = {}
+        for key, value in pairs(signals_table) do
+            table.insert(_signals_table, value)
+        end
+
+        local hier = params_table.hier
+        local hier_type = type(params_table.hier)
+        
+        assert(hier ~= nil, "<hierachy> is not set!")
+        assert(hier_type == "string", "invalid <hierarchy> type => " .. hier_type)
+
+        local prefix = ""
+        local is_decoupled = true
+        local name = "Unknown"
+        for key, value in pairs(params_table) do
+            if key == "prefix" then
+                assert(type(value) == "string")
+                prefix = value
+            elseif key == "is_decoupled" then
+                assert(type(value) == "boolean" )
+                is_decoupled =  value
+            elseif key == "name" then
+                assert(type(value) == "string")
+                name = value
+            elseif key == "hier" then
+                -- pass
+            else
+                assert(false, "Unkonwn params_table key => " .. tostring(key) .. " value => " .. tostring(value))
+            end
+        end
+
+        return Bundle(_signals_table, prefix, hier, name, is_decoupled)
     end
 
     -- 
