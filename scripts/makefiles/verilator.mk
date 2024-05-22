@@ -113,6 +113,6 @@ $(SIM_FILE): $(DUT_FILE)
 	@echo $(CSRCS) >> $@
 
 clean:
-	@rm -rf $(SIM_BUILD)
+	-rm -rf $(SIM_BUILD)
 
 .PHONY: default run build emu-run clean

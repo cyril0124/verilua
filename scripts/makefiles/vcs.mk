@@ -113,6 +113,6 @@ $(SIM_FILE): $(DUT_FILE)
 	@echo $(CSRCS) >> $@
 
 clean:
-	@rm -rf $(SIM_BUILD) ucli.key csrc
+	-rm -rf $(SIM_BUILD) ucli.key csrc
 
 .PHONY: default run simv build clean

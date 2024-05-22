@@ -38,14 +38,27 @@ class PortInfo:
   def is_settable(self):
     return self.is_input()
 
+def extract_filelist(file):
+  assert file.endswith(".f")
+  filelist = []
+  with open(os.path.abspath(file), "r") as f:
+    for line in f:
+      if line.strip():
+        ff = line.strip()
+        assert os.path.exists(ff)
+        ff = os.path.abspath(ff)
+        filelist.append(ff)
+  s = "\n".join(filelist)
+  print(f"get filelist => \n{s}")
+  return filelist
 
 parser = argparse.ArgumentParser(description='A script used for automately generate verilua testbench.')
 parser.add_argument('--top', '-t', dest="top", type=str, required=True, help='top module name')
-parser.add_argument('--file', '-f', dest="file", type=str, required=True, help='input verilog file')
-# parser.add_argument('--ast', '-a', dest="ast", type=str, help='ast json file')
+parser.add_argument('--file', '-f', dest="file", action='append', required=True, help='input verilog file')
 parser.add_argument('--dir', '-d', dest="dir", type=str, help='output dir')
 parser.add_argument('--period', '-p', dest="period", type=int, help='clock period')
 parser.add_argument('--tbtop', dest="tbtop", type=str, help='testbench top level name')
+parser.add_argument('--dut-name', dest="dut_name", type=str, help='testbench dut inst name')
 parser.add_argument('--dsignals', '-ds', dest="dsignals", type=str, help='signal patterns (a pattern file) indicated which signal should be ignore while generate port interface functions')
 parser.add_argument('--nodpi', '-nd', dest="nodpi", action='store_true', help='whether generate DPI-C port interface functions or not')
 parser.add_argument('--verbose', '-v', dest="verbose", action='store_true', help='verbose')
@@ -57,14 +70,14 @@ assert args.top != None, "top module name is not specified!"
 clock_period      = args.period or 5
 tb_top_name       = args.tbtop or "tb_top"
 expected_top_name = args.top
-# ast_json          = args.ast
 dsignals_file     = args.dsignals
 out_dir           = os.path.abspath(args.dir or "./")
 verbose           = args.verbose
-design_file       = args.file
+design_files      = [os.path.abspath(f) for f in args.file]
 
-assert design_file != None, "you should use <--file> to point out the design file"
-assert os.path.isfile(design_file), f"input verilog file is not exist ==> {design_file}"
+assert len(design_files) != 0, "you should use <--file/-f> to point out the design files"
+for f in design_files:
+  assert os.path.isfile(f), f"input verilog file is not exist ==> {f}"
 
 ###############################################
 # disable pattern
@@ -93,9 +106,28 @@ def check_disable(port_name):
 ###############################################
 # parse design file
 ###############################################
-tree = pyslang.SyntaxTree.fromFile(design_file)
-c    = pyslang.Compilation()
-c.addSyntaxTree(tree)
+c = pyslang.Compilation()
+for f in design_files:
+  if f.endswith(".f"):
+    file_list = extract_filelist(f)
+    for ff in file_list:
+      tree = pyslang.SyntaxTree.fromFile(ff)
+      c.addSyntaxTree(tree)
+  else:
+    tree = pyslang.SyntaxTree.fromFile(f)
+    c.addSyntaxTree(tree)
+
+
+###############################################
+# check diagnostics
+###############################################
+diags = c.getAllDiagnostics()
+if len(diags) != 0:
+  for diag in diags:
+    if diag.isError():
+      err = pyslang.DiagnosticEngine.reportAll(pyslang.SyntaxTree.getDefaultSourceManager(), diags)
+      print(err)
+      assert False, f"There are some errors in your rtl file!"
 
 parsed_top_name = c.getRoot().topInstances[0].name
 top_name        = parsed_top_name
@@ -418,11 +450,14 @@ function void getBits_cycles;
 endfunction\n""")
 
 # TOP module instantiate
+dut_name = f"u_{top_name}"
+if args.dut_name != None:
+  dut_name = args.dut_name
 p("""
 // -----------------------------------------
 //  TOP module instantiate
 // -----------------------------------------""")
-p(f"{top_name} u_{top_name} (")
+p(f"{top_name} {dut_name} (")
 for i, port in enumerate(ports):
   if i == nr_ports - 1:
     p(f"\t.{port.name:<{port_max_len+1}}({port.name})")

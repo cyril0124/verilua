@@ -190,6 +190,13 @@ end
 --      local state_value = State.RUN
 --      print("current state is " .. State(state_value)) -- print: current state is RUN
 -- 
+--      local State = utils.enum_define {
+--              RUN = 1,
+--              STOP = 2,
+--            RUNNING = 3,
+--      }
+-- 
+-- 
 function utils.enum_define(enum_table)
     assert(type(enum_table) == "table")
     return setmetatable(enum_table, {__call = utils.enum_search})
