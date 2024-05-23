@@ -4,6 +4,7 @@ local this = utils
 
 local bit, io, math, string, os = bit, io, math, string, os
 local tostring, tonumber, ipairs, type, pairs, assert, print = tostring, tonumber, ipairs, type, pairs, assert, print
+local format = string.format
 local tconcat = table.concat
 local tohex = bit.tohex
 
@@ -183,23 +184,40 @@ end
 -- 
 -- Usage Example:
 --      local State = utils.enum_define({
---              RUN = 1,
---              STOP = 2,
+--            name = "State",
+-- 
+--            RUN = 1,
+--            STOP = 2,
 --            RUNNING = 3,
 --      })
 --      local state_value = State.RUN
 --      print("current state is " .. State(state_value)) -- print: current state is RUN
 -- 
 --      local State = utils.enum_define {
---              RUN = 1,
---              STOP = 2,
+--            name = "State",
+--
+--            RUN = 1,
+--            STOP = 2,
 --            RUNNING = 3,
 --      }
 -- 
 -- 
 function utils.enum_define(enum_table)
     assert(type(enum_table) == "table")
-    return setmetatable(enum_table, {__call = utils.enum_search})
+    
+    if enum_table.name == nil then
+        enum_table.name = "Undefined"
+    end
+
+    return setmetatable(enum_table, 
+        {
+            __call = utils.enum_search,
+
+            __index = function(t, v)
+                assert(false, format("Unknown enum value => %s  enum name => %s", tostring(v), t.name))
+            end
+        }
+    )
 end
 
 
