@@ -11,6 +11,23 @@ def execute_cmd(cmd):
 def execute_cmd_pipe(cmd):
     return subprocess.run(cmd, shell=True, stderr=subprocess.PIPE, text=True)
 
+def extract_filelist(file):
+    if file.endswith(".f"):
+        assert file.endswith(".f")
+        filelist = []
+        with open(os.path.abspath(file), "r") as f:
+            for line in f:
+                if line.strip():
+                    ff = line.strip()
+                    assert os.path.exists(ff)
+                    ff = os.path.abspath(ff)
+                    filelist.append(ff)
+        s = "\n".join(filelist)
+        print(f"get filelist => \n{s}")
+        return filelist
+    else:
+        return os.path.abspath(file)
+
 parser = argparse.ArgumentParser(description='A script used for running a simple dut.')
 parser.add_argument('--file', '-f', action='append', dest="file", required=True, help='input verilog file')
 parser.add_argument('--top_file', '-tf', dest="top_file", type=str, required=True, help='input top-level verilog file')
@@ -27,8 +44,30 @@ parser.add_argument('--tb-gen-args', '-tga', dest="tb_gen_args", type=str, defau
 
 args = parser.parse_args()
 
-files       = [os.path.abspath(f) for f in args.file]
-lua_files   = [os.path.abspath(f) for f in args.lua_file]
+# parse filelist
+_files = []
+for f in args.file:
+    filelist_or_file = extract_filelist(f)
+    if isinstance(filelist_or_file, list):
+        for ff in filelist_or_file:
+            _files.append(ff)
+    else:
+        assert isinstance(filelist_or_file, str), f"{type(filelist_or_file)}"
+        _files.append(filelist_or_file)
+
+# parse filelist
+_lua_files = []
+for f in args.lua_file:
+    filelist_or_file = extract_filelist(f)
+    if isinstance(filelist_or_file, list):
+        for ff in filelist_or_file:
+            _lua_files.append(ff)
+    else:
+        assert isinstance(filelist_or_file, str), f"{type(filelist_or_file)}"
+        _lua_files.append(filelist_or_file)
+
+files       = [os.path.abspath(f) for f in _files]
+lua_files   = [os.path.abspath(f) for f in _lua_files]
 top_file    = os.path.abspath(args.top_file)
 
 lua_main      = os.path.abspath(args.lua_main)
