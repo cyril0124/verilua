@@ -126,8 +126,7 @@ if len(diags) != 0:
   for diag in diags:
     if diag.isError():
       err = pyslang.DiagnosticEngine.reportAll(pyslang.SyntaxTree.getDefaultSourceManager(), diags)
-      print(err)
-      assert False, f"There are some errors in your rtl file!"
+      assert False, f"There are some errors in your rtl file! => {err}"
 
 parsed_top_name = c.getRoot().topInstances[0].name
 top_name        = parsed_top_name

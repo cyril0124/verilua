@@ -44,9 +44,10 @@ VCS_FLAGS += -j 16 # $(shell nproc)
 # --------------------------------------------
 # verilua mode selection
 # --------------------------------------------
-VCS_FLAGS += +define+NORMAL_MODE
-# VCS_FLAGS += +define+STEP_MODE
-# VCS_FLAGS += +define+DOMINANT_MODE
+VL_MODE ?= NORMAL_MODE
+# VL_MODE ?= STEP_MODE
+# VL_MODE ?= DOMINANT_MODE
+VCS_FLAGS += +define+$(VL_MODE)
 
 
 # --------------------------------------------

@@ -41,6 +41,8 @@ parser.add_argument('--no-generate-tb', '-ngt', dest="no_generate_tb", action="s
 parser.add_argument('--prjdir', '-p', dest="prjdir", type=str, required=True, help='project directory')
 parser.add_argument('--workdir-name', '-wn', dest="workdir_name", type=str, default=".verilua", help='working directory name')
 parser.add_argument('--tb-gen-args', '-tga', dest="tb_gen_args", type=str, default="", help='arguments pass into <testbench_gen.py>')
+parser.add_argument('--makefile-args', '-ma', dest="makefile_args", type=str, default="", help='arguments pass into Makfile')
+
 
 args = parser.parse_args()
 
@@ -217,19 +219,19 @@ clean_sh=f"""
 #!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
-make clean
+make {args.makefile_args} clean
 """
 build_sh=f"""
 #!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
-make build | tee build.log
+make {args.makefile_args} build | tee build.log
 """
 run_sh=f"""
 #!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
-make run | tee run.log
+make {args.makefile_args} run | tee run.log
 """
 
 scripts = [(clean_sh, "clean.sh"), (build_sh, "build.sh"), (run_sh, "run.sh")]
@@ -248,7 +250,7 @@ if need_rebuild or args.rebuild:
             assert False, f"==> {ret.stderr}"
     
     print("[verilua_run] start build...")
-    ret = execute_cmd_pipe(f"cd {test_dir}; make clean; make build | tee build.log")
+    ret = execute_cmd_pipe(f"cd {test_dir}; make {args.makefile_args} clean; make {args.makefile_args} build | tee build.log")
     if isinstance(ret, int) and ret != 0:
         assert False, "build failed!"
     if not isinstance(ret, int) and ret.stderr != None and not ("rm: cannot remove" in ret.stderr):
@@ -257,8 +259,8 @@ if need_rebuild or args.rebuild:
         assert False, "build failed!"    
 
     print("[verilua_run] start run...")
-    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make run | tee run.log")
+    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make {args.makefile_args} run | tee run.log")
 else:
     print("[verilua_run] start run...")
-    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make run | tee run.log")
+    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make {args.makefile_args} run | tee run.log")
 
