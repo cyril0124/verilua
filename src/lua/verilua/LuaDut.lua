@@ -1,4 +1,3 @@
-require "LuaSchedulerCommon"
 local CallableHDL = require "LuaCallableHDL"
 local stringx = require "pl.stringx"
 local ffi = require "ffi"

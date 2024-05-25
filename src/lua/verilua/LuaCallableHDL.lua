@@ -1,4 +1,3 @@
-require "LuaSchedulerCommon"
 local class = require "pl.class"
 local ffi = require "ffi"
 local debug = require "debug"

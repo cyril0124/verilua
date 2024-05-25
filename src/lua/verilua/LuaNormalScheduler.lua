@@ -1,9 +1,13 @@
+local coroutine = require "coroutine"
+local debug = require "debug"
+local table = require "table"
+local ffi = require "ffi"
+local os = require "os"
 local class = require "pl.class"
-local inspect = require "inspect"
-local coro_resume, coro_status = coroutine.resume, coroutine.status
-local ffi = require("ffi")
 local C = ffi.C
-local assert = assert
+local assert, setmetatable, pairs, print = assert, setmetatable, pairs, print
+local coro_resume, coro_status = coroutine.resume, coroutine.status
+local YieldType = YieldType
 
 ffi.cdef[[
   void c_register_edge_callback(const char *path, int edge_type, int id);
@@ -15,8 +19,6 @@ ffi.cdef[[
 ]]
 
 require("LuaSchedulerCommon")
-require("LuaUtils")
-
 
 --------------------------------
 -- Scheduler

@@ -257,6 +257,13 @@ end
 -- global package
 -- 
 _G.cfg     = cfg
+
+local scommon = require "LuaSchedulerCommonV2"
+for key, value in pairs(scommon) do
+    _G[key] = value
+end
+
+
 _G.call    = nil -- syntax sugar for string literal calling
                  -- Example:
                  --     ("tb_top.cycles"):set(10)         --> this will cause syntax error or cannot reconize the <string literal>:set() metod  

@@ -93,6 +93,6 @@ function await_step()
     coro_yield(YieldType.NOOP)
 end
 
-function exist_task()
+function exit_task()
     coro_yield(nil)
 end

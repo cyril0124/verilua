@@ -17,6 +17,27 @@ double start_time = 0.0;
 double end_time = 0.0;
 #endif
 
+TO_LUA void verilua_time_callback(uint64_t time, int id) {
+    s_cb_data cb_data;
+    s_vpi_time vpi_time;
+    vpi_time.type = vpiSimTime;
+    vpi_time.high = (time >> 32) << 32;
+    vpi_time.low = (time << 32) >> 32;
+
+    cb_data.reason = cbAfterDelay;
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
+        execute_sim_event((int *)cb_data->user_data);
+        free(cb_data->user_data);
+        return 0;
+    };
+    cb_data.time = &vpi_time;
+    cb_data.value = NULL;
+    int *id_p = (int *)malloc(sizeof(int));
+    *id_p = id;
+    cb_data.user_data = (PLI_BYTE8*) id_p;
+    vpi_register_cb(&cb_data);
+}
+
 TO_LUA void c_register_time_callback(uint64_t time, int id) {
     s_cb_data cb_data;
     s_vpi_time vpi_time;
@@ -88,6 +109,40 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
 }
 
+TO_LUA void verilua_posedge_callback(const char *path, int id) {
+    vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    VL_FATAL(signal_handle, "No handle found: {}", path);
+    register_edge_callback_basic(signal_handle, 0, id);
+}
+
+TO_LUA void verilua_posedge_callback_hdl(long long handle, int id) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    register_edge_callback_basic(actual_handle, 0, id);
+}
+
+TO_LUA void verilua_negedge_callback(const char *path, int id) {
+    vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    VL_FATAL(signal_handle, "No handle found: {}", path);
+    register_edge_callback_basic(signal_handle, 1, id);
+}
+
+TO_LUA void verilua_negedge_callback_hdl(long long handle, int id) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    register_edge_callback_basic(actual_handle, 1, id);
+}
+
+TO_LUA void verilua_edge_callback(const char *path, int id) {
+    vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+    VL_FATAL(signal_handle, "No handle found: {}", path);
+    register_edge_callback_basic(signal_handle, 2, id);
+}
+
+TO_LUA void verilua_edge_callback_hdl(long long handle, int id) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    register_edge_callback_basic(actual_handle, 2, id);
+}
+
+
 TO_LUA void c_register_edge_callback(const char *path, int edge_type, int id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(signal_handle, "No handle found: {}", path);
@@ -133,6 +188,80 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     } else if(edge_type == 2) { // Both edge
         expected_value = 2;
     }
+
+    edge_cb_data_t *user_data = (edge_cb_data_t *)malloc(sizeof(edge_cb_data_t));
+    user_data->task_id = id;
+    user_data->expected_value = expected_value;
+    user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
+    cb_data.user_data = (PLI_BYTE8 *) user_data;
+    
+    edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
+}
+
+TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    s_cb_data cb_data;
+    s_vpi_time vpi_time;
+    s_vpi_value vpi_value;
+
+    vpi_time.type = vpiSuppressTime;
+    vpi_value.format = vpiIntVal;
+
+    cb_data.reason = cbValueChange;
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
+        vpi_get_value(cb_data->obj, cb_data->value);
+        int new_value = cb_data->value->value.integer;
+
+        edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data; 
+        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+            execute_sim_event(user_data->task_id);
+        }
+
+        return 0;
+    };
+    cb_data.time = &vpi_time;
+    cb_data.value = &vpi_value;
+
+    cb_data.obj = actual_handle;
+
+    int expected_value = 1; // Posedge
+
+    edge_cb_data_t *user_data = (edge_cb_data_t *)malloc(sizeof(edge_cb_data_t));
+    user_data->task_id = id;
+    user_data->expected_value = expected_value;
+    user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
+    cb_data.user_data = (PLI_BYTE8 *) user_data;
+    
+    edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
+}
+
+TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
+    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    s_cb_data cb_data;
+    s_vpi_time vpi_time;
+    s_vpi_value vpi_value;
+
+    vpi_time.type = vpiSuppressTime;
+    vpi_value.format = vpiIntVal;
+
+    cb_data.reason = cbValueChange;
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
+        vpi_get_value(cb_data->obj, cb_data->value);
+        int new_value = cb_data->value->value.integer;
+
+        edge_cb_data_t *user_data = (edge_cb_data_t *)cb_data->user_data; 
+        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+            execute_sim_event(user_data->task_id);
+        }
+
+        return 0;
+    };
+    cb_data.time = &vpi_time;
+    cb_data.value = &vpi_value;
+
+    cb_data.obj = actual_handle;
+
+    int expected_value = 0; // Negedge
 
     edge_cb_data_t *user_data = (edge_cb_data_t *)malloc(sizeof(edge_cb_data_t));
     user_data->task_id = id;
