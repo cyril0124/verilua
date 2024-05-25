@@ -24,7 +24,7 @@ local tostring = tostring
 local ipairs = ipairs
 local type = type
 local verilua_info = verilua_info
-local coro_resume, coro_status, coro_create = coroutine.resume, coroutine.status, coroutine.create
+local coro_resume, coro_status, coro_create, coro_yield = coroutine.resume, coroutine.status, coroutine.create, coroutine.yield
 
 
 local scommon = require("LuaSchedulerCommonV2")
@@ -43,6 +43,11 @@ function Scheduler:_init()
     self.id_name_tbl = {} -- {<key: task_id, value: str>, ...}
     self.id_cnt_tbl = {} -- {<key: task_id, value: cnt>, ...}
     self.will_remove_tasks = {} -- {<task_id>, ...}
+
+    self.event_tbl = {} -- {<key: event, {<task_id>, ...}>, ...}
+    self.event_name_tbl = {} -- {<key: event_id, value: str>, ...}
+    self.has_wakeup_event = false
+    self.will_wakeup_event = {} -- {<task_id>, ...}
 
     verilua_info("[Scheduler]", "Using NORMAL scheduler")
 
@@ -138,9 +143,10 @@ function Scheduler:_init()
     local NegedgeHDL = YieldType.NegedgeHDL
     local Negedge = YieldType.Negedge
     local Timer = YieldType.Timer
+    local Event = YieldType.Event
     local NOOP = YieldType.NOOP
     local EarlyExit = YieldType.EarlyExit
-    self.register_callback = function (task_id, types, str_value, integer_value)
+    self.register_callback = function (this, task_id, types, str_value, integer_value)
         if types == PosedgeHDL then
             C.verilua_posedge_callback_hdl(integer_value, task_id)
         elseif types == Posedge then
@@ -153,6 +159,11 @@ function Scheduler:_init()
             C.verilua_negedge_callback(str_value, task_id)
         elseif types == Timer then
             C.verilua_time_callback(integer_value, task_id)
+        elseif types == Event then
+            if this.event_name_tbl[integer_value] == nil then
+                assert(false, "Unknown event => " .. integer_value)
+            end
+            tinsert(this.event_tbl[integer_value], task_id)
         elseif types == NOOP then
             -- do nothing
         else
@@ -181,7 +192,33 @@ function Scheduler:_init()
         if types_or_err == nil or types_or_err == EarlyExit then
             this:remove_task(id)
         else
-            this.register_callback(id, types_or_err, str_value, integer_value)
+            this:register_callback(id, types_or_err, str_value, integer_value)
+        end
+
+        if this.has_wakeup_event then
+            for _, evnet_id in ipairs(this.will_wakeup_event) do
+                local wakeup_list = this.event_tbl[evnet_id]
+                for _, _id in ipairs(wakeup_list) do
+                    this.id_cnt_tbl[_id] = this.id_cnt_tbl[_id] + 1
+                    local _func = this.id_task_tbl[_id]
+                    local _ok, _types_or_err, _str_value, _integer_value = coro_resume(_func)
+                    if not _ok then
+                        local _err_msg = _types_or_err
+                        print(debug.traceback(_func, _err_msg))
+                        assert(false)
+                    end
+            
+                    -- if coro_status(func) == "dead" or types_or_err == EarlyExit then
+                    if _types_or_err == nil or _types_or_err == EarlyExit then
+                        this:remove_task(_id)
+                    else
+                        this:register_callback(_id, _types_or_err, _str_value, _integer_value)
+                    end
+                end
+                this.event_tbl[evnet_id] = {}
+            end
+            this.will_wakeup_event = {}
+            this.has_wakeup_event = false
         end
     end
 
@@ -208,9 +245,128 @@ function Scheduler:_init()
         -- end
         print()
     end
+
+    self.send_event = function (this, event_id_integer)
+        tinsert(this.will_wakeup_event, event_id_integer)
+        this.has_wakeup_event = true
+    end
+
+    -- 
+    -- Example:
+    --      local scheduler = require "LuaScheduler"
+    --      scheduler:register_event("test event 1", 123)
+    --      scheduler:register_event("test event 2", 455)
+    -- 
+    --      scheduler:register_evnet {
+    --          test_1 = 1,
+    --          test_2 = 2,
+    --          test_3 = 3,
+    --      }
+    --      
+    -- 
+    --      In your tasks:
+    --          --
+    --          -- <task_2> wakeup <task_1> && <task_3>
+    --          --
+    --          verilua "appendTasks" {
+    --              task_1 = function ()
+    --                  await_event(1)
+    --                  assert(dut.cycles() == 100)
+    --              end,
+    -- 
+    --              task_2 = function ()
+    --                  dut.clock:posedge(100)
+    --                  send_event(1)
+    --              end,
+    -- 
+    --              task_3 = function ()
+    --                  await_event(1)
+    --                  assert(dut.cycles() == 100)
+    --              end,
+    --          }    
+    -- 
+    -- 
+    self.register_event = function (this, name_or_tbl, event_id_integer)
+        local t = type(name_or_tbl)
+        if t == "string" then
+            local name = name_or_tbl
+            assert(type(name) == "string")
+            assert(event_id_integer ~= nil)
+            assert(type(event_id_integer) == "number")
+
+            this.event_tbl[event_id_integer] = {}
+            this.event_name_tbl[event_id_integer] = name
+
+            print(string.format("[NormalScheduler/register_event] name => %s  event_id => %d", name, event_id_integer))
+        elseif t == "table" then
+            local name_event_tbl = name_or_tbl
+            assert(event_id_integer == nil)
+            for name, event_id in pairs(name_event_tbl) do
+                assert(type(name) == "string")
+                assert(event_id ~= nil)
+                assert(type(event_id) == "number")
+
+                this.event_tbl[event_id] = {}
+                this.event_name_tbl[event_id] = name
+                print(string.format("[NormalScheduler/register_event] name => %s  event_id => %d", name, event_id))
+            end
+        end
+    end
+
+    -- 
+    -- Example:
+    --      local scheduler = require "LuaScheduler"
+    --      local test_ehdl = scheduler:get_event_hdl("test_1") -- event id will be randomly allocated
+    --      test_ehdl:wait()
+    --      test_ehdl:send()
+    --      
+    --      local test_ehdl = scheduler:get_event_hdl("test_1", 1) -- manually set event_id
+    --      
+    --      local test_ehdl = scheduler:get_event_hdl "test_1"
+    -- 
+    -- 
+    self.get_event_hdl = function (this, name, event_id_integer)
+        assert(type(name) == "string")
+
+        local event_id = event_id_integer
+        if event_id_integer == nil then
+            event_id = random(1, 1000)
+            repeat
+                event_id = random(1, 1000)
+            until this.event_name_tbl[event_id] == nil
+
+            this.event_tbl[event_id] = {}
+            this.event_name_tbl[event_id] = name
+        else
+            assert(event_id_integer ~= nil)
+            assert(type(event_id_integer) == "number")
+            
+            this.event_tbl[event_id_integer] = {}
+            this.event_name_tbl[event_id_integer] = name
+        end
+
+        return {
+            scheduler = this,
+
+            name = name,
+            event_id = event_id,
+
+            wait = function (t)
+                coro_yield(Event, "", t.event_id)
+            end,
+
+            send = function (t)
+                t.scheduler:send_event(t.event_id)
+            end
+        }
+    end
 end
 
 
 local scheduler = Scheduler()
+
+_G.send_event = function (event_id_integer)
+    scheduler:send_event(event_id_integer)
+end
 
 return scheduler

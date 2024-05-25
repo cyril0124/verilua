@@ -289,6 +289,19 @@ _G.sim     = sim
 
 
 -- 
+-- setup mode
+-- 
+do
+    if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
+        if cfg.attach == false or cfg.attach == nil then
+            cfg.mode = sim.get_mode()
+        end
+        verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
+    end
+end
+
+
+-- 
 -- string operate extension
 -- 
 local CallableHDL = require "LuaCallableHDL"
@@ -556,6 +569,20 @@ do
         return condition_meet
     end
 
+    -- 
+    -- Example:
+    --      local test_ehdl = ("test_1"):ehdl() -- event_id will be randomly allocated
+    --      test_ehdl:wait()
+    --      test_ehdl:send()
+    --      
+    --      local test_ehdl = ("test_1"):ehdl(1) -- manually set event_id
+    -- 
+    local scheduler = require "LuaScheduler"
+    assert(scheduler ~= nil)
+    getmetatable('').__index.ehdl = function (this, event_id_integer)
+        return scheduler:get_event_hdl(this, event_id_integer)
+    end
+
 end
 
 _G.verilua = function(cmd)
@@ -687,18 +714,6 @@ _G.verilua = function(cmd)
     end
 end
 
-
--- 
--- setup mode
--- 
-do
-    if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-        if cfg.attach == false or cfg.attach == nil then
-            cfg.mode = sim.get_mode()
-        end
-        verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
-    end
-end
 
 -- 
 -- initialize simulator

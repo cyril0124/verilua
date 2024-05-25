@@ -22,56 +22,76 @@ local YieldType = utils.enum_define {
     Edge             = 9,
     EdgeHDL          = 10,
     EarlyExit        = 11,
+    Event            = 12,
     NOOP             = 44
 }
+
+local Timer = YieldType.Timer
+local Posedge = YieldType.Posedge 
+local PosedgeHDL = YieldType.PosedgeHDL
+local Negedge = YieldType.Negedge
+local NegedgeHDL = YieldType.NegedgeHDL
+local PosedgeAlways = YieldType.PosedgeAlways
+local PosedgeAlwaysHDL = YieldType.PosedgeAlwaysHDL
+local NegedgeAlways = YieldType.NegedgeAlways
+local NegedgeAlwaysHDL = YieldType.NegedgeAlwaysHDL
+local Edge = YieldType.Edge
+local EdgeHDL = YieldType.EdgeHDL
+local EarlyExit = YieldType.EarlyExit
+local Event = YieldType.Event
+local NOOP = YieldType.NOOP
 
 local await_time = function (time)
     if verilua_mode == STEP then
         local t = ceil(time / period)
         for i = 1, t do
-            coro_yield(YieldType.NOOP, "", 0)
+            coro_yield(NOOP, "", 0)
         end
     else
-        coro_yield(YieldType.Timer, "", time)
+        coro_yield(Timer, "", time)
     end
 end
 
 local await_posedge = function(signal_str)
-    coro_yield(YieldType.Posedge, tostring(signal_str), 0)
+    coro_yield(Posedge, tostring(signal_str), 0)
 end
 
 local await_posedge_hdl = function(signal_hdl)
-    coro_yield(YieldType.PosedgeHDL, "", signal_hdl)
+    coro_yield(PosedgeHDL, "", signal_hdl)
 end
 
 local always_await_posedge_hdl = function(signal_hdl)
-    coro_yield(YieldType.PosedgeAlwaysHDL, "", signal_hdl)
+    coro_yield(PosedgeAlwaysHDL, "", signal_hdl)
 end
 
 local await_negedge = function (signal_str)
-    coro_yield(YieldType.Negedge, tostring(signal_str), 0)
+    coro_yield(Negedge, tostring(signal_str), 0)
 end
 
 local await_negedge_hdl = function (signal_hdl)
-    coro_yield(YieldType.NegedgeHDL, "", signal_hdl)
+    coro_yield(NegedgeHDL, "", signal_hdl)
 end
 
 local await_edge = function (signal_str)
-    coro_yield(YieldType.Edge, tostring(signal_str), 0)
+    coro_yield(Edge, tostring(signal_str), 0)
 end
 
 local await_edge_hdl = function (signal_hdl)
-    coro_yield(YieldType.EdgeHDL, "", signal_hdl)
+    coro_yield(EdgeHDL, "", signal_hdl)
+end
+
+local await_event = function (event_id_integer)
+    coro_yield(Event, "", event_id_integer)
 end
 
 local await_noop = function ()
-    coro_yield(YieldType.NOOP, "", 0)
+    coro_yield(NOOP, "", 0)
 end
 
 local await_step = await_noop
 
 local exit_task = function ()
-    coro_yield(YieldType.EarlyExit, "", 0)
+    coro_yield(EarlyExit, "", 0)
 end
 
 return {
@@ -84,6 +104,7 @@ return {
     await_edge        = await_edge,
     await_edge_hdl    = await_edge_hdl,
     await_noop        = await_noop,
+    await_event       = await_event,
     await_step        = await_step,
     exit_task         = exit_task,
     always_await_posedge_hdl = always_await_posedge_hdl,
