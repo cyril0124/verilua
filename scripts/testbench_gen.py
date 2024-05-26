@@ -42,11 +42,17 @@ def extract_filelist(file):
   assert file.endswith(".f")
   filelist = []
   with open(os.path.abspath(file), "r") as f:
+    dirname = os.path.dirname(os.path.abspath(file))
     for line in f:
       if line.strip():
         ff = line.strip()
-        assert os.path.exists(ff)
-        ff = os.path.abspath(ff)
+        if not os.path.exists(ff):
+          basename = os.path.basename(ff)
+          new_ff = f"{dirname}/{basename}"
+          assert os.path.exists(new_ff)
+          ff = new_ff
+        else:
+          ff = os.path.abspath(ff)
         filelist.append(ff)
   s = "\n".join(filelist)
   print(f"get filelist => \n{s}")
@@ -111,9 +117,11 @@ for f in design_files:
   if f.endswith(".f"):
     file_list = extract_filelist(f)
     for ff in file_list:
+      print(f"[testbench_gen] append syntaxTree => {ff}")
       tree = pyslang.SyntaxTree.fromFile(ff)
       c.addSyntaxTree(tree)
   else:
+    print(f"[testbench_gen] append syntaxTree => {f}")
     tree = pyslang.SyntaxTree.fromFile(f)
     c.addSyntaxTree(tree)
 

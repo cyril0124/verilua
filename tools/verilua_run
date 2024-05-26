@@ -13,14 +13,19 @@ def execute_cmd_pipe(cmd):
 
 def extract_filelist(file):
     if file.endswith(".f"):
-        assert file.endswith(".f")
+        dirname = os.path.dirname(file)
         filelist = []
         with open(os.path.abspath(file), "r") as f:
             for line in f:
                 if line.strip():
                     ff = line.strip()
-                    assert os.path.exists(ff)
-                    ff = os.path.abspath(ff)
+                    if not os.path.exists(ff):
+                        basename = os.path.basename(ff)
+                        new_ff = f"{dirname}/{basename}"
+                        assert os.path.exists(new_ff), new_ff
+                        ff = new_ff
+                    else:
+                        ff = os.path.abspath(ff)
                     filelist.append(ff)
         s = "\n".join(filelist)
         print(f"get filelist => \n{s}")
@@ -247,6 +252,7 @@ if need_rebuild or args.rebuild:
     if not args.no_generate_tb:
         ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py -f {top_file} --top {args.top} --nodpi --dir {dut_dir} {args.tb_gen_args}")
         if ret.stderr:
+            print(ret.stdout)
             assert False, f"==> {ret.stderr}"
     
     print("[verilua_run] start build...")
