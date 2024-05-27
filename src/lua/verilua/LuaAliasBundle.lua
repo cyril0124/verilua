@@ -24,6 +24,21 @@ local AliasBundle = class()
 --      signal_name => <hierachy>.<prefix>_<org_name>
 -- @name: bundle name
 -- 
+-- 
+-- Example:
+--      local abdl = AliasBundle(
+--          {
+--              {"origin_signal_name",   "alias_name"  },
+--              {"origin_signal_name_1"  "alias_name_1"},
+--          },
+--          "some_prefix",
+--          "path.to.hier",
+--          "name of alias bundle"
+--      )
+-- 
+--      local value = abdl.alias_name:get()
+--      abdl.alias_name_1:set(123)
+-- 
 function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
     assert(type(alias_signal_tbl) == "table")
     assert(type(alias_signal_tbl[1]) == "table")
@@ -61,7 +76,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
     for i = 1, #self.signals_tbl do
         local alias_name = self.alias_tbl[i]
         local real_name = self.signals_tbl[i]
-        rawset(self, alias_name, CallableHDL(hierachy .. "." .. prefix .. "_" .. real_name, real_name, nil))
+        rawset(self, alias_name, CallableHDL(hierachy .. "." .. prefix .. real_name, real_name, nil))
     end
 end
 

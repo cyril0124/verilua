@@ -306,6 +306,7 @@ end
 -- 
 local CallableHDL = require "LuaCallableHDL"
 local Bundle = require "LuaBundle"
+local AliasBundle = require "LuaAliasBundle"
 local stringx = require "pl.stringx"
 do
 
@@ -369,6 +370,14 @@ do
         return CallableHDL(str, "")
     end
 
+    local function to_normal_table(org_tbl)
+        local ret = {}
+        for key, value in pairs(org_tbl) do
+            table.insert(ret, value)
+        end
+        return ret
+    end
+
     -- 
     -- get LuaBundle using native string metatable
     -- Example:
@@ -420,10 +429,7 @@ do
         assert(type(params_table) == "table")
 
         -- turn into simple lua table
-        local _signals_table = {}
-        for key, value in pairs(signals_table) do
-            table.insert(_signals_table, value)
-        end
+        local _signals_table = to_normal_table(signals_table)
 
         local hier = params_table.hier
         local hier_type = type(params_table.hier)
@@ -581,6 +587,103 @@ do
     assert(scheduler ~= nil)
     getmetatable('').__index.ehdl = function (this, event_id_integer)
         return scheduler:get_event_hdl(this, event_id_integer)
+    end
+
+
+    -- 
+    --  Example:
+    --      local abdl = ([[
+    --          | origin_signal_name => alias_name
+    --          | origin_signal_name_1 => alias_name_1
+    --      ]]):abdl {hier = "path.to.hier", perfix = "some_prefix_", name = "name of alias bundle"}
+    --      local value = abdl.alias_name:get()    -- real signal is <path.to.hier.some_prefix_origin_signal_name>
+    --      abdl.alias_name_1:set(123) 
+    --
+    --      local abdl = ([[
+    --          | origin_signal_name
+    --          | origin_signal_name_1 => alias_name_1
+    --      ]]):abdl {hier = "top", prefix = "prefix"}
+    --      local value = abdl.origin_signal_name:get()
+    --      abdl.alias_name_1:set(123)
+    --      
+    --      local abdl = ([[
+    --          | {p}_value => val_{b}
+    --          | {b}_opcode => opcode
+    --      ]]):abdl {hier ="hier", prefix = "prefix_", p = "hello", b = 123}
+    --      local value = abdl.val_123:get()     -- real signal is <hier.prefix_hello_value>
+    -- 
+    getmetatable('').__index.abdl = function (str, params_table)
+        local signals_table = stringx.split(str, "|")
+        local will_remove_idx = {}
+
+        for i = 1, #signals_table do
+            -- remove trivial characters
+            signals_table[i] = stringx.replace(signals_table[i], " ", "")
+            signals_table[i] = stringx.replace(signals_table[i], "\n", "")
+            signals_table[i] = stringx.replace(signals_table[i], "\t", "")
+
+            if signals_table[i] == "" then
+                -- not a valid signal
+                table.insert(will_remove_idx, i)
+            end
+        end
+
+        -- remove invalid signal
+        for index, value in ipairs(will_remove_idx) do
+            signals_table[value] = nil
+        end
+
+        assert(type(params_table) == "table")
+
+        -- turn into simple lua table
+        local _signals_table = to_normal_table(signals_table)
+
+        -- replace some string literal with other <value>
+        local pattern = "{[^%{%}%(%)]*}"
+        for i = 1, #_signals_table do
+            local matchs = string.gmatch(_signals_table[i], pattern)
+            for match in matchs do
+                local repl_key = string.gsub(string.gsub(match, "{", ""), "}", "")
+                local repl_value = params_table[repl_key]
+                local repl_value_str = tostring(repl_value)
+                assert(repl_value ~= nil, string.format("repl_key: <%s> not found in <params_table>!", repl_key))
+
+                _signals_table[i] = string.gsub(_signals_table[i], match, repl_value_str)
+            end
+        end
+
+        local alias_tbl = {}
+        for i = 1, #_signals_table do
+            local tmp = stringx.split(_signals_table[i], "=>")
+            assert(tmp[1] ~= nil)
+            assert(type(tmp[1]) == "string")
+            if tmp[2] ~= nil then
+                assert(type(tmp[2]) == "string")
+                table.insert(alias_tbl, {tmp[1], tmp[2]})
+            else
+                table.insert(alias_tbl, {tmp[1]})
+            end
+        end
+
+        local hier = params_table.hier
+        local hier_type = type(params_table.hier)
+        
+        assert(hier ~= nil, "<hierachy> is not set!")
+        assert(hier_type == "string", "invalid <hierarchy> type => " .. hier_type)
+
+        local prefix = ""
+        local name = "Unknown"
+        for key, value in pairs(params_table) do
+            if key == "prefix" then
+                assert(type(value) == "string")
+                prefix = value
+            elseif key == "name" then
+                assert(type(value) == "string")
+                name = value
+            end
+        end
+
+        return AliasBundle(alias_tbl, prefix, hier, name)
     end
 
 end
