@@ -67,6 +67,7 @@ parser.add_argument('--tbtop', dest="tbtop", type=str, help='testbench top level
 parser.add_argument('--dut-name', dest="dut_name", type=str, help='testbench dut inst name')
 parser.add_argument('--dsignals', '-ds', dest="dsignals", type=str, help='signal patterns (a pattern file) indicated which signal should be ignore while generate port interface functions')
 parser.add_argument('--nodpi', '-nd', dest="nodpi", action='store_true', help='whether generate DPI-C port interface functions or not')
+parser.add_argument('--ignore-error', '-ne', dest="ignore_error", action='store_true', help='ignore the slang compilation error')
 parser.add_argument('--verbose', '-v', dest="verbose", action='store_true', help='verbose')
 parser.add_argument('--custom-code', '-cc', dest="custom_code", type=str, help='input custom code file, will be inserted in somewhere of the testbench')
 args = parser.parse_args()
@@ -130,7 +131,7 @@ for f in design_files:
 # check diagnostics
 ###############################################
 diags = c.getAllDiagnostics()
-if len(diags) != 0:
+if len(diags) != 0 and not args.ignore_error:
   for diag in diags:
     if diag.isError():
       err = pyslang.DiagnosticEngine.reportAll(pyslang.SyntaxTree.getDefaultSourceManager(), diags)
