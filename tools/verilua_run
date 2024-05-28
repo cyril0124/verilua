@@ -34,12 +34,12 @@ def extract_filelist(file):
         return os.path.abspath(file)
 
 parser = argparse.ArgumentParser(description='A script used for running a simple dut.')
-parser.add_argument('--file', '-f', action='append', dest="file", required=True, help='input verilog file')
-parser.add_argument('--top_file', '-tf', dest="top_file", type=str, required=True, help='input top-level verilog file')
+parser.add_argument('--file', '-f', action='append', dest="file", required=True, help='input verilog/other file')
+parser.add_argument('--top-file', '-tf', dest="top_file", type=str, required=True, help='input top-level verilog file')
 parser.add_argument('--top', '-t', dest="top", type=str, required=True, help='top module name')
 parser.add_argument('--sim', choices=['vcs', 'verilator'], dest="sim", required=True, help="simulator of the simulation")
-parser.add_argument('--lua_main', '-l', dest="lua_main", type=str, required=True, help='input lua main script file')
-parser.add_argument('--lua_file', '-lf', action='append', dest="lua_file", default=[], help='input Lua file')
+parser.add_argument('--lua-main', '-l', dest="lua_main", type=str, required=True, help='input lua main script file')
+parser.add_argument('--lua-file', '-lf', action='append', dest="lua_file", default=[], help='input Lua file')
 parser.add_argument('--shutdown', '-s', dest="shutdown", type=str, default="10000", help='shutdown cycles')
 parser.add_argument('--rebuild', '-r', dest="rebuild", action="store_true", default=False, help='force rebuild')
 parser.add_argument('--no-generate-tb', '-ngt', dest="no_generate_tb", action="store_true", default=False, help='do not generate testbench')
@@ -47,6 +47,7 @@ parser.add_argument('--prjdir', '-p', dest="prjdir", type=str, required=True, he
 parser.add_argument('--workdir-name', '-wn', dest="workdir_name", type=str, default=".verilua", help='working directory name')
 parser.add_argument('--tb-gen-args', '-tga', dest="tb_gen_args", type=str, default="", help='arguments pass into <testbench_gen.py>')
 parser.add_argument('--makefile-args', '-ma', dest="makefile_args", type=str, default="", help='arguments pass into Makfile')
+parser.add_argument('--makefile', '-mf', action='append', dest="makefiles", default=[], help='user input makefiles, this option will replace the original makefile templates into user specify <makefiles>')
 
 
 args = parser.parse_args()
@@ -73,7 +74,16 @@ for f in args.lua_file:
         assert isinstance(filelist_or_file, str), f"{type(filelist_or_file)}"
         _lua_files.append(filelist_or_file)
 
-files       = [os.path.abspath(f) for f in _files]
+_files      = [os.path.abspath(f) for f in _files]
+rtl_files   = []
+other_files = []
+for f in _files:
+    if f.endswith((".sv", ".v", ".svh")):
+        rtl_files.append(f)
+    else:
+        other_files.append(f)
+assert (len(rtl_files) + len(other_files)) == len(_files)
+
 lua_files   = [os.path.abspath(f) for f in _lua_files]
 top_file    = os.path.abspath(args.top_file)
 
@@ -99,13 +109,13 @@ execute_cmd(f'mkdir -p {dut_dir}')
 execute_cmd(f'mkdir -p {rtl_dir}')
 execute_cmd(f'mkdir -p {cache_dir}')
 
-check_files = files + lua_files
+check_files = rtl_files + lua_files + other_files
 check_files.append(top_file)
 for file in check_files:
     if not os.path.isfile(file):
         assert False, f"file: {file} does not exist!"
 
-for file in files + lua_files:
+for file in rtl_files + lua_files + other_files:
     file_name = os.path.basename(file)
     if not os.path.exists(f"{cache_dir}/{file_name}"):
         need_rebuild = True
@@ -117,19 +127,27 @@ for file in lua_files:
         execute_cmd(f"cp {file} {test_dir}/")
 
 verilua_home = os.environ["VERILUA_HOME"]
-execute_cmd(f"cp {verilua_home}/scripts/makefiles/* {test_dir}")
+
+# copy makefiles into project
+if len(args.makefiles) == 0:
+    execute_cmd(f"cp {verilua_home}/scripts/makefiles/* {test_dir}")
+else:
+    for f in args.makefiles:
+        abs_f = os.path.abspath(f)
+        assert os.path.exists(abs_f)
+        execute_cmd(f"cp {abs_f} {test_dir}")
 
 # find mismatch rtl file
-has_mismatch_rtl = False
-for file in files:
+has_mismatch_files = False
+for file in rtl_files + other_files:
     file_name = os.path.basename(file)
     if os.path.isfile(f"{cache_dir}/{file_name}"):
         if not filecmp.cmp(file, f"{cache_dir}/{file_name}", shallow=False):
-            has_mismatch_rtl = True
+            has_mismatch_files = True
 
 # update mismatch file
-if has_mismatch_rtl:
-    for file in files:
+if has_mismatch_files:
+    for file in rtl_files + other_files:
         file_name = os.path.basename(file)
         execute_cmd(f"cp {file} {cache_dir}/{file_name}")
 
@@ -166,12 +184,14 @@ if args.tb_gen_args != "":
             execute_cmd(f"touch {cache_dir}/{name}.custom_code_use")
     
 
-if has_mismatch_rtl:
+if has_mismatch_files:
     need_rebuild = True
 
 if need_rebuild:
-    for file in files:
+    for file in rtl_files:
         execute_cmd(f"cp {file} {rtl_dir}")
+    for file in other_files:
+        execute_cmd(f"cp {file} {test_dir}")
 
 verilua_cfg_gen_file = f"{test_dir}/verilua_cfg_unknown.lua"
 verilua_cfg_lua = f"""
@@ -208,7 +228,7 @@ if not os.path.exists(f"{test_dir}/sim_build"):
     need_rebuild = True
 
 print("[verilua_run] args =>", args)
-print("[verilua_run] has_mismatch_rtl =>", has_mismatch_rtl)
+print("[verilua_run] has_mismatch_files =>", has_mismatch_files)
 print("[verilua_run] has_mismatch_lua =>", has_mismatch_lua)
 print("[verilua_run] need_rebuild =>", need_rebuild)
 
@@ -230,13 +250,13 @@ build_sh=f"""
 #!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
-make {args.makefile_args} build | tee build.log
+make {args.makefile_args} build 2>&1 | tee build.log
 """
 run_sh=f"""
 #!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
-make {args.makefile_args} run | tee run.log
+make {args.makefile_args} run 2>&1 | tee run.log
 """
 
 scripts = [(clean_sh, "clean.sh"), (build_sh, "build.sh"), (run_sh, "run.sh")]
@@ -256,7 +276,7 @@ if need_rebuild or args.rebuild:
             assert False, f"==> {ret.stderr}"
     
     print("[verilua_run] start build...")
-    ret = execute_cmd_pipe(f"cd {test_dir}; make {args.makefile_args} clean; make {args.makefile_args} build | tee build.log")
+    ret = execute_cmd_pipe(f"cd {test_dir}; make {args.makefile_args} clean; make {args.makefile_args} build 2>&1 | tee build.log")
     if isinstance(ret, int) and ret != 0:
         assert False, "build failed!"
     if not isinstance(ret, int) and ret.stderr != None and not ("rm: cannot remove" in ret.stderr):
@@ -265,8 +285,8 @@ if need_rebuild or args.rebuild:
         assert False, "build failed!"    
 
     print("[verilua_run] start run...")
-    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make {args.makefile_args} run | tee run.log")
+    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make {args.makefile_args} run 2>&1 | tee run.log")
 else:
     print("[verilua_run] start run...")
-    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make {args.makefile_args} run | tee run.log")
+    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; make {args.makefile_args} run 2>&1 | tee run.log")
 
