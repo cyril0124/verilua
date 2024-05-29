@@ -8,7 +8,8 @@ VCS ?= vl-vcs
 # simv binary runtime configuration
 # --------------------------------------------
 BIN ?= $(SIM_BUILD)/simv
-RUN_FLAGS ?= +vcs+initreg+0
+RUN_FLAGS ?= +vcs+initreg+0 +notimingcheck 
+# RUN_FLAGS += -simprofile time
 
 
 # --------------------------------------------
@@ -35,7 +36,8 @@ VCS_FLAGS += -sverilog -full64 -top $(TOPLEVEL)
 VCS_FLAGS += +v2k -timescale=1ns/1ns
 # VCS_FLAGS += -debug # simulate the design in the interactive mode
 VCS_FLAGS += -Mdir=$(SIM_BUILD)
-VCS_FLAGS += +vcs+initreg+random
+VCS_FLAGS += +vcs+initreg+random 
+# VCS_FLAGS += -simprofile
 VCS_FLAGS += +define+SIM_VCS
 VCS_FLAGS += +define+VCS
 VCS_FLAGS += -j 16 # $(shell nproc)

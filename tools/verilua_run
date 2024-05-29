@@ -279,7 +279,7 @@ if need_rebuild or args.rebuild:
     ret = execute_cmd_pipe(f"cd {test_dir}; make {args.makefile_args} clean; make {args.makefile_args} build 2>&1 | tee build.log")
     if isinstance(ret, int) and ret != 0:
         assert False, "build failed!"
-    if not isinstance(ret, int) and ret.stderr != None and not ("rm: cannot remove" in ret.stderr):
+    if not isinstance(ret, int) and ret.stderr != None and len(ret.stderr) != 0 and not ("rm: cannot remove" in ret.stderr):
         assert False, f"build failed! ==> {ret.stderr}"
     if execute_cmd(f'grep "BUILD SUCCESS" {test_dir}/build.log -q; echo $?').stdout.strip("\n") == "1":
         assert False, "build failed!"    
