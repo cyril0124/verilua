@@ -38,6 +38,9 @@ ffi.cdef[[
   void c_set_value_multi_1_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
   void c_set_value_multi_1_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
   void c_set_value_multi_1_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
+
+  void c_set_value_str(long long handle, const char *str);
+  const char *c_get_value_str(long long handle, int format);
 ]]
 
 CallableHDL = class()
@@ -64,7 +67,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.is_array = false
     self.array_size = 0
-    if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" then
+    if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" then
         self.is_array = false
     elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
         -- 
@@ -238,6 +241,30 @@ function CallableHDL:_init(fullpath, name, hdl)
             end
         end
 
+        -- 
+        -- #define vpiBinStrVal          1
+        -- #define vpiOctStrVal          2
+        -- #define vpiDecStrVal          3
+        -- #define vpiHexStrVal          4
+        -- 
+        self.get_str = function (this, fmt)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:get_str(fmt), instead using <CallableHDL>:get_index_str(index, fmt)", this.fullpath))
+        end
+
+        self.get_index_str = function (this, index, fmt)
+            local chosen_hdl = this.array_hdls[index + 1]
+            return ffi.string(C.c_get_value_str(chosen_hdl, fmt))
+        end
+
+        self.set_str = function (this, str)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_str(str), instead using <CallableHDL>:set_index_str(index, str)", this.fullpath))
+        end
+
+        self.set_index_str = function (this, index, str)
+            local chosen_hdl = this.array_hdls[index + 1]
+            C.c_set_value_str(chosen_hdl, str)
+        end
+
     -- 
     -- is_multi_beat == true 
     -- is_array == false
@@ -358,6 +385,28 @@ function CallableHDL:_init(fullpath, name, hdl)
             assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_unsafe()", this.fullpath))
         end
     
+        -- 
+        -- #define vpiBinStrVal          1
+        -- #define vpiOctStrVal          2
+        -- #define vpiDecStrVal          3
+        -- #define vpiHexStrVal          4
+        -- 
+        self.get_str = function (this, fmt)
+            return ffi.string(C.c_get_value_str(this.hdl, fmt))
+        end
+
+        self.get_index_str = function (this, index, fmt)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_str(fmt), instead using <CallableHDL>:get_index_str(index, fmt)", this.fullpath))
+        end
+
+        self.set_str = function (this, str)
+            C.c_set_value_str(this.hdl, str)
+        end
+
+        self.set_index_str = function (this, index, str)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_str(index, str), instead using <CallableHDL>:set_str(str)", this.fullpath))
+        end
+
     -- 
     -- is_multi_beat == false
     -- is_array == true
@@ -399,6 +448,30 @@ function CallableHDL:_init(fullpath, name, hdl)
             C.c_set_value(chosen_hdl, value)
         end
 
+        -- 
+        -- #define vpiBinStrVal          1
+        -- #define vpiOctStrVal          2
+        -- #define vpiDecStrVal          3
+        -- #define vpiHexStrVal          4
+        -- 
+        self.get_str = function (this, fmt)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:get_str(fmt), instead using <CallableHDL>:get_index_str(index, fmt)", this.fullpath))
+        end
+
+        self.get_index_str = function (this, index, fmt)
+            local chosen_hdl = this.array_hdls[index + 1]
+            return ffi.string(C.c_get_value_str(chosen_hdl, fmt))
+        end
+
+        self.set_str = function (this, str)
+            assert(false, format("[%s] Array handle does not support <CallableHDL>:set_str(str), instead using <CallableHDL>:set_index_str(index, str)", this.fullpath))
+        end
+
+        self.set_index_str = function (this, index, str)
+            local chosen_hdl = this.array_hdls[index + 1]
+            C.c_set_value_str(chosen_hdl, str)
+        end
+
     -- 
     -- is_multi_beat == false
     -- is_array == false
@@ -430,6 +503,28 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.set_index_unsafe = function (this, index, value)
             assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_unsafe()", this.fullpath))
+        end
+
+        -- 
+        -- #define vpiBinStrVal          1
+        -- #define vpiOctStrVal          2
+        -- #define vpiDecStrVal          3
+        -- #define vpiHexStrVal          4
+        -- 
+        self.get_str = function (this, fmt)
+            return ffi.string(C.c_get_value_str(this.hdl, fmt))
+        end
+
+        self.get_index_str = function (this, index, fmt)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:get_str(fmt), instead using <CallableHDL>:get_index_str(index, fmt)", this.fullpath))
+        end
+
+        self.set_str = function (this, str)
+            C.c_set_value_str(this.hdl, str)
+        end
+
+        self.set_index_str = function (this, index, str)
+            assert(false, format("[%s] Normal handle does not support <CallableHDL>:set_index_str(index, str), instead using <CallableHDL>:set_str(str)", this.fullpath))
         end
     else
         assert(false)

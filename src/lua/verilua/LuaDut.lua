@@ -14,6 +14,8 @@ ffi.cdef[[
     uint64_t c_get_value_by_name(const char *path);
     void c_force_value_by_name(const char *path, long long value);
     void c_release_value_by_name(const char *path);
+    void c_set_value_str(long long handle, const char *str);
+    const char *c_get_value_str(long long handle, int format);
 ]]
 
 
@@ -68,6 +70,34 @@ local function create_proxy(path)
         -- 
         get_hex = function (t)
             return format("0x%x", tonumber(C.c_get_value_by_name(local_path)))
+        end,
+
+        -- 
+        -- Example:
+        --      local bin_str = dut.cycles:get_str(BinStr)
+        --      local dec_str = dut.cycles:get_str(DecStr)
+        --      local hex_str = dut.cycles:get_str(HexStr)
+        -- 
+        get_str = function (t, fmt)
+            local hdl = ffi.C.c_handle_by_name_safe(local_path)
+            if hdl == -1 then
+                assert(false, format("No handle found => %s", local_path))
+            end
+            return ffi.string(C.c_get_value_str(hdl, fmt))
+        end,
+
+
+        -- 
+        -- Example:
+        --      dut.cycles:set_str("0x123")
+        --      dut.cycles:set_str("0b101010")
+        -- 
+        set_str = function(t, str)
+            local hdl = ffi.C.c_handle_by_name_safe(local_path)
+            if hdl == -1 then
+                assert(false, format("No handle found => %s", local_path))
+            end
+            C.c_set_value_str(hdl, str)
         end,
 
         -- 
