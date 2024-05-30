@@ -9,7 +9,9 @@ Bundle = class()
 local Bundle = Bundle
 local CallableHDL = CallableHDL
 local assert, print, rawset, ipairs = assert, print, rawset, ipairs
+local format = string.format
 local tconcat = table.concat
+local HexStr = HexStr
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
     self.verbose = false
@@ -95,6 +97,59 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
             assert(false, "TODO: is_decoupled")
         end
     end
+
+    if self.is_decoupled then 
+        self.dump_str = function (this)
+            local s = ""
+
+            if this.name ~= "Unknown" then
+                s = s .. format("[%s] ", this.name)
+            end
+            
+            s = s .. "| valid: " .. this.valid:get()
+
+            if this.ready ~= nil then
+                s = s .. "| ready: " .. this.ready:get()
+            end
+
+            for i, signal in ipairs(this.signals_table) do
+                if signal ~= "valid" and signal ~= "ready" then
+                    s = s .. format(" | %s: 0x%s", signal, this.bits[signal]:get_str(HexStr))
+                end
+            end
+
+            return s
+        end
+    else
+        self.dump_str = function (this)
+            local s = ""
+
+            if this.name ~= "Unknown" then
+                s = s .. format("[%s] ", this.name)
+            end
+
+            if this.valid ~= nil then
+                s = s .. "| valid: " .. this.valid:get()
+            end
+
+            if this.ready ~= nil then
+                s = s .. "| ready: " .. this.ready:get()
+            end
+
+            for i, signal in ipairs(this.signals_table) do
+                if signal ~= "valid" and signal ~= "ready" then
+                    s = s .. format(" | %s: 0x%s", signal, this[signal]:get_str(HexStr))
+                end
+            end
+
+            return s
+        end
+    end
+
+    self.dump = function (this)
+        print(this:dump_str())
+    end
+    
 end
 
 
