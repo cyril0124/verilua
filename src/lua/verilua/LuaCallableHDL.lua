@@ -3,6 +3,7 @@ local ffi = require "ffi"
 local debug = require "debug"
 local C = ffi.C
 
+local HexStr = HexStr
 local await_posedge_hdl = await_posedge_hdl
 local await_negedge_hdl = await_negedge_hdl
 local always_await_posedge_hdl = always_await_posedge_hdl
@@ -679,6 +680,26 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.negedge_until = function (this, max_limit, func)
             assert(false, format("hdl bit width == %d > 1, <chdl>:negedge_until() only support 1-bit hdl", this.width))
         end
+    end
+
+    if self.is_array then
+        self.dump_str = function (this)
+            local s = ("[%s] => "):format(this.fullpath)
+            
+            for i = 1, this.array_size do
+                s = s .. ("(%d): 0x%x "):format(i - 1, this.get_index_str(i, HexStr))
+            end
+            
+            return s
+        end
+    else
+        self.dump_str = function (this)
+            return ("[%s] => 0x%x"):format(this.fullpath, this:get_str(HexStr))
+        end
+    end
+
+    self.dump = function (this)
+        print(this:dump_str())
     end
 end
 
