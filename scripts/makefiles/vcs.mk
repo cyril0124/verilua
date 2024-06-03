@@ -74,6 +74,7 @@ ifndef VERDI_HOME
 else
     NOVAS_HOME = $(VERDI_HOME)
     NOVAS = $(NOVAS_HOME)/share/PLI/VCS/LINUX64
+	VCS_FLAGS += -kdb
     VCS_FLAGS += -P $(NOVAS)/novas.tab $(NOVAS)/pli.a
 endif
 
