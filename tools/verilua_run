@@ -40,14 +40,25 @@ parser.add_argument('--top', '-t', dest="top", type=str, required=True, help='to
 parser.add_argument('--sim', choices=['vcs', 'verilator'], dest="sim", required=True, help="simulator of the simulation")
 parser.add_argument('--lua-main', '-l', dest="lua_main", type=str, required=True, help='input lua main script file')
 parser.add_argument('--lua-file', '-lf', action='append', dest="lua_file", default=[], help='input Lua file')
+parser.add_argument('--lua-deps', '-ld', dest="lua_deps", type=str, help='input Lua deps file')
 parser.add_argument('--shutdown', '-s', dest="shutdown", type=str, default="10000", help='shutdown cycles')
 parser.add_argument('--rebuild', '-r', dest="rebuild", action="store_true", default=False, help='force rebuild')
 parser.add_argument('--no-generate-tb', '-ngt', dest="no_generate_tb", action="store_true", default=False, help='do not generate testbench')
-parser.add_argument('--prjdir', '-p', dest="prjdir", type=str, required=True, help='project directory')
-parser.add_argument('--workdir-name', '-wn', dest="workdir_name", type=str, default=".verilua", help='working directory name')
 parser.add_argument('--tb-gen-args', '-tga', dest="tb_gen_args", type=str, default="", help='arguments pass into <testbench_gen.py>')
 parser.add_argument('--makefile-args', '-ma', dest="makefile_args", type=str, default="", help='arguments pass into Makfile')
 parser.add_argument('--makefile', '-mf', action='append', dest="makefiles", default=[], help='user input makefiles, this option will replace the original makefile templates into user specify <makefiles>')
+
+# 
+# <prjdir>          e.g.   .
+#   <workdir>       e.g.    \_ .verilua
+#       <testdir>   e.g.      \_ TestTop
+#       <testdir>   e.g.      \_ ModuleName
+#       <testdir>   e.g.      \_ AnotherName
+#       ...
+# 
+parser.add_argument('--prjdir', '-p', dest="prjdir", type=str, required=True, help='project directory')
+parser.add_argument('--workdir-name', '-wn', dest="workdir_name", type=str, default=".verilua", help='working directory name')
+parser.add_argument('--testdir-name', '-tn', dest="testdir_name", type=str, default="", help='test directory name, default: <top>')
 
 
 args = parser.parse_args()
@@ -92,8 +103,11 @@ lua_files.append(lua_main)
 lua_main_name = os.path.basename(lua_main)
 prj_dir       = os.path.abspath(args.prjdir)
 workdir_name  = args.workdir_name
+testdir_name  = args.testdir_name
+if testdir_name == "": 
+    testdir_name = args.top
 work_dir      = f"{prj_dir}/{workdir_name}"
-test_dir      = f"{work_dir}/{args.top}"
+test_dir      = f"{work_dir}/{testdir_name}"
 dut_dir       = f"{test_dir}/dut"
 rtl_dir       = f"{dut_dir}/rtl"
 cache_dir     = f"{test_dir}/cache"
@@ -115,10 +129,15 @@ for file in check_files:
     if not os.path.isfile(file):
         assert False, f"file: {file} does not exist!"
 
-for file in rtl_files + lua_files + other_files:
+for file in rtl_files + other_files:
     file_name = os.path.basename(file)
     if not os.path.exists(f"{cache_dir}/{file_name}"):
         need_rebuild = True
+        execute_cmd(f"cp {file} {cache_dir}/{file_name}")
+        
+for file in lua_files:
+    file_name = os.path.basename(file)
+    if not os.path.exists(f"{cache_dir}/{file_name}"):
         execute_cmd(f"cp {file} {cache_dir}/{file_name}")
 
 for file in lua_files:
@@ -193,6 +212,14 @@ if need_rebuild:
     for file in other_files:
         execute_cmd(f"cp {file} {test_dir}")
 
+lua_deps_str = ""
+if args.lua_deps:
+    lua_deps_file = os.path.abspath(args.lua_deps)
+    assert os.path.exists(lua_deps_file), f"lua_deps file {args.lua_deps} does not exist!"
+    with open(lua_deps_file, 'r') as ff:
+        content = ff.read()
+    lua_deps_str = str(content)
+
 verilua_cfg_gen_file = f"{test_dir}/verilua_cfg_unknown.lua"
 verilua_cfg_lua = f"""
 basic = {{
@@ -211,6 +238,8 @@ basic = {{
         "./?.lua",
     }},
 }}
+
+{lua_deps_str}
 """
 
 os.environ['SIM']         = args.sim
