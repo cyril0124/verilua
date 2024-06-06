@@ -18,7 +18,8 @@ local function build_common_info()
 
     set_kind("shared")
 
-    set_toolchains("clang")
+    -- set_toolchains("clang")
+    set_toolchains("gcc")
     set_languages("c99", "c++20")
     
     set_targetdir(build_dir .. "/bin")
