@@ -434,6 +434,8 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
         vector[i].aval = 0;
         vector[i].bval = 0;
     }
+
+    vector[0].aval = value;
     
     v.format = vpiVectorVal;
     v.value.vector = vector;
