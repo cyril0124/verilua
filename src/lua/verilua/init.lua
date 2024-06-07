@@ -377,8 +377,8 @@ do
     --      print("value of cycles is " .. cycles_chdl:get())
     --      cycles_chdl:set(123)
     -- 
-    getmetatable('').__index.chdl = function(str)
-        return CallableHDL(str, "")
+    getmetatable('').__index.chdl = function(str, hdl)
+        return CallableHDL(str, "", hdl)
     end
 
     local function to_normal_table(org_tbl)
