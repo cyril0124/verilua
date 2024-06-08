@@ -46,7 +46,7 @@ function utils.to_hex_str(t, reverse)
     local t_type = type(t)
 
     if t_type == "number" then
-        return tohex(t)
+        return format("%x", t)
     end
 
     local t_len
