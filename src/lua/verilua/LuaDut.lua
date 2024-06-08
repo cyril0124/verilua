@@ -6,6 +6,7 @@ local C = ffi.C
 local await_posedge = await_posedge
 local await_negedge = await_negedge
 local assert, type, tonumber, setmetatable = assert, type, tonumber, setmetatable
+local tinsert = table.insert
 local format = string.format
 
 ffi.cdef[[
@@ -18,6 +19,8 @@ ffi.cdef[[
     const char *c_get_value_str(long long handle, int format);
 ]]
 
+local set_force_enable = false
+local force_path_table = {}
 
 local function create_proxy(path)
     local local_path = path
@@ -33,7 +36,12 @@ local function create_proxy(path)
         -- 
         set = function (t, v)
             assert(v ~= nil)
-            C.c_set_value_by_name(local_path, tonumber(v))
+            if set_force_enable then
+                tinsert(force_path_table, local_path)
+                C.c_force_value_by_name(local_path, tonumber(v))
+            else
+                C.c_set_value_by_name(local_path, tonumber(v))
+            end
         end,
 
         -- 
@@ -49,10 +57,35 @@ local function create_proxy(path)
         -- 
         set_force = function (t, v)
             assert(v ~= nil)
+            if set_force_enable then
+                tinsert(force_path_table, local_path)
+            end
             C.c_force_value_by_name(local_path, tonumber(v))
         end,
         set_release = function (t)
             C.c_release_value_by_name(local_path)
+        end,
+
+        -- 
+        -- Example:
+        --      dut:force_all()
+        --          dut.cycles:set(1)
+        --          dut.path.to.signal:set(1)
+        --      
+        --      dut.clock:posedge()
+        --      dut:release_all()
+        -- 
+        force_all = function ()
+            assert(set_force_enable == false)
+            set_force_enable = true
+        end,
+        release_all = function()
+            assert(set_force_enable == true)
+            set_force_enable = false
+
+            for i, path in ipairs(force_path_table) do
+                C.c_release_value_by_name(path)
+            end
         end,
 
         -- 
