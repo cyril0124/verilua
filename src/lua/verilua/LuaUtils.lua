@@ -409,7 +409,12 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
         assert(num_bits > 0, "bitpat.e must be greater than or equal to bitpat.s")
 
         -- Calculate the maximum value that can be represented with `num_bits` bits
-        local max_val = bit.lshift(1ULL, num_bits) - 1
+        local max_val
+        if num_bits == 64 then
+            max_val = 0xFFFFFFFFFFFFFFFFULL
+        else
+            max_val = bit.lshift(1ULL, num_bits) - 1
+        end
         assert(bitpat.v <= max_val, string.format("bitpat.v (%d) exceeds the maximum value (%d) for the specified bit range [%d, %d]", bitpat.v, max_val, bitpat.s, bitpat.e))
 
         -- Determine which block and position within the block to apply the bit pattern
@@ -420,7 +425,12 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
 
         if start_block == end_block then
             -- The bit pattern fits within a single block
-            local mask = bit.lshift(1ULL, num_bits) - 1
+            local mask
+            if num_bits == 64 then
+                mask = 0xFFFFFFFFFFFFFFFFULL
+            else
+                mask = bit.lshift(1ULL, num_bits) - 1
+            end
             local shifted_value = bit.lshift(bit.band(bitpat.v, mask), start_pos)
             v[start_block] = bit.bor(v[start_block], shifted_value)
         else
@@ -490,5 +500,16 @@ end
 --     {s = 4, e = 7, v = 4},
 --     {s = 65, e = 127, v = 0x11231}
 -- }, 128) == "0x00000000000224620000000000000042")
+
+-- assert(utils.bitpat_to_hexstr({
+--     {s = 0, e = 63, v = 0xdead}
+-- }, 512) == "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead")
+
+-- assert(utils.bitpat_to_hexstr({
+--     {s = 0, e = 63, v = 0xdead},
+--     {s = 256, e = 255 + 63, v = 0xbeef},
+-- }, 512) == "0x000000000000000000000000000000000000000000000000000000000000beef000000000000000000000000000000000000000000000000000000000000dead")
+
+
 
 return utils
