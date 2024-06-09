@@ -2,7 +2,7 @@
 # vcs tool selection
 # --------------------------------------------
 VCS ?= vl-vcs
-
+VCS_CC ?= gcc
 
 # --------------------------------------------
 # simv binary runtime configuration
@@ -24,7 +24,7 @@ CSRCS +=
 # --------------------------------------------
 VCS_CFLAGS += -Ofast -march=native -loop-unroll 
 VCS_LDFLAGS += -Wl,--no-as-needed -flto 
-VCS_FLAGS += -cc clang
+VCS_FLAGS += -cc $(VCS_CC)
 VCS_FLAGS += -CFLAGS "$(VCS_CFLAGS)" 
 VCS_FLAGS += -LDFLAGS "$(VCS_LDFLAGS)"
 
