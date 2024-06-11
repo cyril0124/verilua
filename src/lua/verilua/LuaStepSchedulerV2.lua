@@ -40,6 +40,7 @@ function Scheduler:_init()
     self.task_count  = 0
     self.id_task_tbl = {} -- {<key: task_id, value: coro>, ...}
     self.id_name_tbl = {} -- {<key: task_id, value: str>, ...}
+    self.id_fired_tbl = {} -- {<key: task_id, vaue: boolean>, ...}
     self.id_cnt_tbl = {} -- {<key: task_id, value: cnt>, ...}
     self.will_remove_tasks = {} -- {<task_id>, ...}
 
@@ -79,6 +80,9 @@ function Scheduler:_init()
 
             assert(this.id_cnt_tbl[id] == nil)
             this.id_cnt_tbl[id] = 0
+
+            assert(this.id_fired_tbl[id] == nil)
+            this.id_fired_tbl[id] = false
 
             ::skip::
         end
@@ -123,9 +127,12 @@ function Scheduler:_init()
         tinsert(self.id_task_tbl, task_id, coro_create(func))
         tinsert(self.id_name_tbl, task_id, name)
         tinsert(self.id_cnt_tbl, task_id, 0)
+        tinsert(self.id_fired_tbl, task_id, false)
+        this.task_count = this.task_count + 1
 
         -- not support (STEP)
         -- if schedule_task or false then
+        --     this.id_fired_tbl[task_id] = true
         --     self:schedule_tasks(task_id)
         -- end
 
@@ -139,6 +146,7 @@ function Scheduler:_init()
             this.id_task_tbl[remove_id] = nil
             this.id_name_tbl[remove_id] = nil
             this.id_cnt_tbl[remove_id] = nil
+            this.id_fired_tbl[remove_id] = nil
         end
         this.will_remove_tasks = {}
 
@@ -161,7 +169,12 @@ function Scheduler:_init()
 
     self.schedule_all_tasks = function (this)
         for id, _ in pairs(this.id_name_tbl) do
-            this:schedule_tasks(id)
+            local fired = this.id_fired_tbl[id]
+            assert(fired ~= nil)
+            if fired == false then
+                fired = true
+                this:schedule_tasks(id)
+            end
         end
     end
 

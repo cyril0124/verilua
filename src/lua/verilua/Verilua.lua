@@ -24,22 +24,31 @@ verilua._main_task = function ()
 end
 
 verilua._start_callback = function ()
-    -- assert(false, "[start_callback] Not implemented!")
     verilua_warning("[start_callback] Not implemented!")
 end
 
 verilua._finish_callback = function ()
-    -- assert(false, "[finishe_callback] Not implemented!")
-    verilua_warning("[finishe_callback] Not implemented!")
+    verilua_warning("[finish_callback] Not implemented!")
 end
+
+verilua.start_callbacks = {}
+verilua.finish_callbacks = {}
 
 verilua.start_callback = function ()
     verilua_hello()
     verilua_info("----------[Lua] Verilua Init!----------")
     verilua.start_time = os.clock()
 
-    -- User code
-    verilua._start_callback()
+    -- 
+    -- user callbacks
+    -- 
+    if #verilua.start_callbacks == 0 then
+        verilua_warning("[start_callback] Not implemented!")
+    else
+        for i, callback_func in ipairs(verilua.start_callbacks) do
+            callback_func()
+        end
+    end
     
     verilua_info("----------[Lua] Verilua Init finish!----------")
 
@@ -52,8 +61,16 @@ verilua.finish_callback = function ()
         scheduler:list_tasks()
     end
 
-    -- User code
-    verilua._finish_callback()
+    -- 
+    -- user callbacks
+    -- 
+    if #verilua.finish_callbacks == 0 then
+        verilua_warning("[finish_callback] Not implemented!")
+    else
+        for i, callback_func in ipairs(verilua.finish_callbacks) do
+            callback_func()
+        end
+    end
 
     verilua.end_time = os.clock()
     verilua_info("----------[Lua] Simulation finish!----------")
@@ -77,24 +94,30 @@ end
 
 function verilua.main_task()
     -- 
-    -- User code
+    -- user code
     -- 
     verilua._main_task()
 end
 
 function verilua.register_main_task(func)
+    assert(type(func) == "function")
     verilua._main_task = func
-    scheduler:create_task_table({{"main task", verilua._main_task, {}}})
+    scheduler:append_task(nil, "main_task", verilua._main_task, {}, false)
 end
 
 function verilua.register_start_callback(func)
-    verilua._start_callback = func
+    assert(type(func) == "function")
+    tinsert(verilua.start_callbacks, func)
 end
 
 function verilua.register_finish_callback(func)
-    verilua._finish_callback = func
+    assert(type(func) == "function")
+    tinsert(verilua.finish_callbacks, func)
 end
 
+
+verilua.append_start_callback = verilua.register_start_callback
+verilua.append_finish_callback = verilua.register_finish_callback
 
 _G.verilua_init = function()
     verilua.start_callback()

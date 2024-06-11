@@ -699,6 +699,9 @@ do
 
 end
 
+local scheduler = require "LuaScheduler"
+assert(scheduler ~= nil)
+
 _G.verilua = function(cmd)
     local vl = require "Verilua"
 
@@ -767,9 +770,8 @@ _G.verilua = function(cmd)
             local final_task_table = {}
             for name, func in pairs(task_table) do
                 print("get task name => ", name)
-                table.insert(final_task_table, {name, func, {}})
+                scheduler:append_task(nil, name, func, {}, true)
             end
-            vl.register_tasks(final_task_table)
         end
     
     -- 
@@ -813,10 +815,26 @@ _G.verilua = function(cmd)
             local func = task_table[1]
             vl.register_start_callback(func)
         end
-    elseif cmd == "showTasks" then
-        local scheduler = require "LuaScheduler"
-        assert(scheduler ~= nil)
+    
+    elseif cmd == "appendFinishTasks" then
+        return function (task_table)
+            assert(type(task_table) == "table")
+            for k, func in pairs(task_table) do
+                assert(type(func) == "function")
+                vl.append_finish_callback(func)
+            end
+        end
 
+    elseif cmd == "appendStartTasks" then
+        return function (task_table)
+            assert(type(task_table) == "table")
+            for k, func in pairs(task_table) do
+                assert(type(func) == "function")
+                vl.append_start_callback(func)
+            end
+        end
+    
+    elseif cmd == "showTasks" then
         scheduler:list_tasks()
     elseif cmd == "test" then
         return function (str)
