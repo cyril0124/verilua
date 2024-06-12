@@ -701,6 +701,10 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.dump = function (this)
         print(this:dump_str())
     end
+
+    self.get_width = function (this)
+        return this.width
+    end
 end
 
 function CallableHDL:__call(force_multi_beat)

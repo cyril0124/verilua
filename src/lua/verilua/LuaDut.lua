@@ -17,6 +17,7 @@ ffi.cdef[[
     void c_release_value_by_name(const char *path);
     void c_set_value_str(long long handle, const char *str);
     const char *c_get_value_str(long long handle, int format);
+    unsigned int c_get_signal_width(long long handle);
 ]]
 
 local set_force_enable = false
@@ -264,6 +265,15 @@ local function create_proxy(path)
         -- 
         name = function (t)
            return local_path 
+        end,
+
+        -- 
+        -- Example:
+        --      local width = dut.cycles:get_width()
+        --      assert(width == 64)
+        -- 
+        get_width = function (t)
+            return tonumber(C.c_get_signal_width(C.c_handle_by_name(local_path)))
         end,
 
     }, {
