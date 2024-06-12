@@ -28,7 +28,7 @@ def extract_filelist(file):
                         ff = os.path.abspath(ff)
                     filelist.append(ff)
         s = "\n".join(filelist)
-        print(f"get filelist => \n{s}")
+        # print(f"get filelist => \n{s}")
         return filelist
     else:
         return os.path.abspath(file)
@@ -256,7 +256,7 @@ if ret.stderr:
 if not os.path.exists(f"{test_dir}/sim_build"):
     need_rebuild = True
 
-print("[verilua_run] args =>", args)
+# print("[verilua_run] args =>", args)
 print("[verilua_run] has_mismatch_files =>", has_mismatch_files)
 print("[verilua_run] has_mismatch_lua =>", has_mismatch_lua)
 print("[verilua_run] need_rebuild =>", need_rebuild)
@@ -287,8 +287,13 @@ export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
 make {args.makefile_args} run 2>&1 | tee run.log
 """
+verdi_sh=f"""
+#!/usr/bin/env bash
+verdi -f filelist.f -sv $@
+"""
 
-scripts = [(clean_sh, "clean.sh"), (build_sh, "build.sh"), (run_sh, "run.sh")]
+
+scripts = [(clean_sh, "clean.sh"), (build_sh, "build.sh"), (run_sh, "run.sh"), (verdi_sh, "verdi.sh")]
 for (script, name) in scripts:
     with open(f"{test_dir}/{name}", 'w', encoding='utf-8') as file:
         file.write(script)
