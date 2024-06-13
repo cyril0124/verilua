@@ -3,6 +3,7 @@
 # --------------------------------------------
 # VERILATOR = vl-verilator-p
 VERILATOR = vl-verilator
+VERILATOR_CC ?= clang
 
 
 # --------------------------------------------
@@ -21,17 +22,17 @@ CONFIG_VLT ?=
 # --------------------------------------------
 # verilua mode selection
 # --------------------------------------------
-VL_MODE ?= NORMAL_MODE
-# VL_MODE ?= STEP_MODE
-# VL_MODE ?= DOMINANT_MODE
-CFLAGS += -D$(VL_MODE)
+VL_MODE ?= NORMAL
+# VL_MODE ?= STEP
+# VL_MODE ?= DOMINANT
+CFLAGS += -D$(VL_MODE)_MODE
 
 
 # --------------------------------------------
 # emu binary runtime configuration
 # --------------------------------------------
 EMU_RUN_BIN = $(SIM_BUILD)/V$(TOPLEVEL)
-EMU_RUN_FLAGS += 
+EMU_RUN_FLAGS ?= 
 
 
 # --------------------------------------------
@@ -44,8 +45,8 @@ CSRCS += $(VERILUA_HOME)/src/verilator/verilator_main.cpp
 # --------------------------------------------
 # compiler flags
 # --------------------------------------------
-CFLAGS +=  -std=c++20
-CFLAGS += -O2 -funroll-loops -march=native
+CFLAGS  += -std=c++20
+CFLAGS  += -O2 -funroll-loops -march=native
 LDFLAGS += -flto
 
 
@@ -54,8 +55,8 @@ LDFLAGS += -flto
 # --------------------------------------------
 COV_ENABLE ?= 0
 ifeq ($(COV_ENABLE), 1)
-EMU_FLAGS += --coverage-line 
-EMU_FLAGS += --coverage-toggle
+    EMU_FLAGS += --coverage-line 
+    EMU_FLAGS += --coverage-toggle
 endif
 
 
@@ -64,7 +65,7 @@ endif
 # --------------------------------------------
 WAVE_ENABLE ?= 0
 ifeq ($(WAVE_ENABLE), 1)
-EMU_FLAGS += --trace --no-trace-top
+    EMU_FLAGS += --trace --no-trace-top
 endif
 
 
@@ -74,7 +75,7 @@ endif
 EMU_FLAGS += -cc --exe --build --MMD --no-timing
 EMU_FLAGS += -Mdir $(SIM_BUILD)
 EMU_FLAGS += -j $(shell nproc)
-EMU_FLAGS += --compiler clang
+EMU_FLAGS += --compiler $(VERILATOR_CC)
 EMU_FLAGS += --threads $(EMU_THREADS)
 EMU_FLAGS += --x-assign unique -O3
 EMU_FLAGS += --top $(TOPLEVEL)

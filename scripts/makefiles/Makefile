@@ -33,13 +33,13 @@ RESET   = \033[0m
 # makefile selection based on SIM
 # --------------------------------------------
 ifeq ($(SIM), vcs)
-include vcs.mk
-$(info $(INFO) Using $(BOLD)$(GREEN)VCS$(RESET_1)$(NORMAL) as simulator)
+    include vcs.mk
+    $(info $(INFO) Using $(BOLD)$(GREEN)VCS$(RESET_1)$(NORMAL) as simulator)
 endif
 
 ifeq ($(SIM), verilator)
-include verilator.mk
-$(info $(INFO) Using $(BOLD)$(GREEN)VERILATOR$(RESET_1)$(NORMAL) as simulator)
+    include verilator.mk
+    $(info $(INFO) Using $(BOLD)$(GREEN)VERILATOR$(RESET_1)$(NORMAL) as simulator)
 endif
 
 
@@ -52,8 +52,3 @@ $(SIM_BUILD):
 $(DUT_FILE):
 	$(shell find $(DUT_DIR) -name "*.v" -or -name "*.sv" > $@)
 
-WAVE ?= test.fsdb
-verdi:
-	verdi -sv -f $(DUT_FILE) +incdir+$(DUT_DIR) -top $(TOPLEVEL) -ssf $(WAVE) -nologo 
-
-.PHONY: verdi
