@@ -416,7 +416,7 @@ do
     --      local bdl_str = ("|"):join {"valid", "ready", "address", "opcode", "param", "source", "data"} -- bdl_str ==> "valid|ready|address|opcode|param|source|data"
     --      local bdl = bdl_str:bundle {hier = cfg.top .. ".u_TestTop_fullSys_1Core.l2", is_decoupled = true, name = "Channel A", prefix = "auto_in_a_"}
     -- 
-    getmetatable('').__index.bundle = function(str, params_table)
+    local process_bundle = function(str, params_table)
         local signals_table = stringx.split(str, "|")
         local will_remove_idx = {}
 
@@ -470,6 +470,8 @@ do
 
         return Bundle(_signals_table, prefix, hier, name, is_decoupled)
     end
+    getmetatable('').__index.bundle = process_bundle
+    getmetatable('').__index.bdl = process_bundle
 
     -- 
     -- Example:
