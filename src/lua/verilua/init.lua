@@ -703,147 +703,158 @@ end
 local scheduler = require "LuaScheduler"
 assert(scheduler ~= nil)
 
-_G.verilua = function(cmd)
-    local vl = require "Verilua"
-
-    local print = function(...)
-        print(string.format("[verilua/%s]", cmd), ...)
+local vl = require "Verilua"
+local unnamed_task_count = 0
+do
+    local function is_number_str(str)
+        return str:match("^%d+$") ~= nil
     end
-    
-    print("execute => " .. cmd)
 
-    -- 
-    -- Example:
-    --      verilua "mainTask" { function ()
-    --          -- body.
-    --      end }
+    _G.verilua = function(cmd)
 
-    --      local function lua_main()
-    --          -- body
-    --      end
-    --      verilua "mainTask" {
-    --          lua_main
-    --      }
-
-    --      verilua("mainTask")({function ()
-    --          -- body
-    --      end})
-
-    --      local function lua_main()
-    --          -- body
-    --      end
-    --      verilua("mainTask")({
-    --          lua_main
-    --      })
-    -- 
-    if cmd == "mainTask" then
-        return function (task_table)
-            assert(type(task_table) == "table")
-            assert(#task_table == 1)
-            print("register mainTask")
-            vl.register_main_task(task_table[1])
+        local print = function(...)
+            print(string.format("[verilua/%s]", cmd), ...)
         end
         
-    -- 
-    -- Example
-    --      verilua "appendTasks" {
-    --          another_task = function ()
-    --                 -- body
-    --          end,
-    --          some_task = function ()
-    --                 -- body
-    --          end
-    --      }
-    --      local function another_task()
-    --           -- body
-    --      end
-    --      local function some_task()
-    --          -- body
-    --      end
-    --      verilua "appendTasks" {
-    --          another_task_name = another_task,
-    --          some_task_name = some_task
-    --      }
-    -- 
-    elseif cmd == "appendTasks" then
-        return function (task_table)
-            assert(type(task_table) == "table")
-            local final_task_table = {}
-            for name, func in pairs(task_table) do
-                print("get task name => ", name)
-                scheduler:append_task(nil, name, func, {}, true)
-            end
-        end
-    
-    -- 
-    -- Example:
-    --      verilua "finishTask" { function ()
-    --            -- body
-    --      end }
-    -- 
-    --      local function some_finish_task()
-    --          -- body
-    --      end
-    --      verilua "finishTask" {
-    --          some_finish_task
-    --      }
-    -- 
-    elseif cmd == "finishTask" then
-        return function (task_table)
-            assert(type(task_table) == "table")
-            assert(#task_table == 1)
-            local func = task_table[1]
-            vl.register_finish_callback(func)
-        end
-    
-    -- 
-    -- Example:
-    --      verilua "startTask" { function ()
-    --            -- body
-    --      end }
-    -- 
-    --      local function some_start_task()
-    --          -- body
-    --      end
-    --      verilua "startTask" {
-    --          some_finish_task
-    --      }
-    -- 
-    elseif cmd == "startTask" then
-        return function (task_table)
-            assert(type(task_table) == "table")
-            assert(#task_table == 1)
-            local func = task_table[1]
-            vl.register_start_callback(func)
-        end
-    
-    elseif cmd == "appendFinishTasks" then
-        return function (task_table)
-            assert(type(task_table) == "table")
-            for k, func in pairs(task_table) do
-                assert(type(func) == "function")
-                vl.append_finish_callback(func)
-            end
-        end
+        print("execute => " .. cmd)
 
-    elseif cmd == "appendStartTasks" then
-        return function (task_table)
-            assert(type(task_table) == "table")
-            for k, func in pairs(task_table) do
-                assert(type(func) == "function")
-                vl.append_start_callback(func)
+        -- 
+        -- Example:
+        --      verilua "mainTask" { function ()
+        --          -- body.
+        --      end }
+
+        --      local function lua_main()
+        --          -- body
+        --      end
+        --      verilua "mainTask" {
+        --          lua_main
+        --      }
+
+        --      verilua("mainTask")({function ()
+        --          -- body
+        --      end})
+
+        --      local function lua_main()
+        --          -- body
+        --      end
+        --      verilua("mainTask")({
+        --          lua_main
+        --      })
+        -- 
+        if cmd == "mainTask" then
+            return function (task_table)
+                assert(type(task_table) == "table")
+                assert(#task_table == 1)
+                print("register mainTask")
+                vl.register_main_task(task_table[1])
             end
+            
+        -- 
+        -- Example
+        --      verilua "appendTasks" {
+        --          another_task = function ()
+        --                 -- body
+        --          end,
+        --          some_task = function ()
+        --                 -- body
+        --          end
+        --      }
+        --      local function another_task()
+        --           -- body
+        --      end
+        --      local function some_task()
+        --          -- body
+        --      end
+        --      verilua "appendTasks" {
+        --          another_task_name = another_task,
+        --          some_task_name = some_task
+        --      }
+        -- 
+        elseif cmd == "appendTasks" then
+            return function (task_table)
+                assert(type(task_table) == "table")
+                local final_task_table = {}
+                for name, func in pairs(task_table) do
+                    if type(name) == "number" then
+                        name = ("unnamed_task_%d"):format(unnamed_task_count)
+                        unnamed_task_count = unnamed_task_count + 1   
+                    end
+                    print("get task name => ", name)
+                    scheduler:append_task(nil, name, func, {}, true)
+                end
+            end
+        
+        -- 
+        -- Example:
+        --      verilua "finishTask" { function ()
+        --            -- body
+        --      end }
+        -- 
+        --      local function some_finish_task()
+        --          -- body
+        --      end
+        --      verilua "finishTask" {
+        --          some_finish_task
+        --      }
+        -- 
+        elseif cmd == "finishTask" then
+            return function (task_table)
+                assert(type(task_table) == "table")
+                assert(#task_table == 1)
+                local func = task_table[1]
+                vl.register_finish_callback(func)
+            end
+        
+        -- 
+        -- Example:
+        --      verilua "startTask" { function ()
+        --            -- body
+        --      end }
+        -- 
+        --      local function some_start_task()
+        --          -- body
+        --      end
+        --      verilua "startTask" {
+        --          some_finish_task
+        --      }
+        -- 
+        elseif cmd == "startTask" then
+            return function (task_table)
+                assert(type(task_table) == "table")
+                assert(#task_table == 1)
+                local func = task_table[1]
+                vl.register_start_callback(func)
+            end
+        
+        elseif cmd == "appendFinishTasks" then
+            return function (task_table)
+                assert(type(task_table) == "table")
+                for k, func in pairs(task_table) do
+                    assert(type(func) == "function")
+                    vl.append_finish_callback(func)
+                end
+            end
+
+        elseif cmd == "appendStartTasks" then
+            return function (task_table)
+                assert(type(task_table) == "table")
+                for k, func in pairs(task_table) do
+                    assert(type(func) == "function")
+                    vl.append_start_callback(func)
+                end
+            end
+        
+        elseif cmd == "showTasks" then
+            scheduler:list_tasks()
+        elseif cmd == "test" then
+            return function (str)
+                print(str)
+                TODO("Only for test...")
+            end
+        else
+            assert(false, "Unknoen cmd => " .. cmd)
         end
-    
-    elseif cmd == "showTasks" then
-        scheduler:list_tasks()
-    elseif cmd == "test" then
-        return function (str)
-            print(str)
-            TODO("Only for test...")
-        end
-    else
-        assert(false, "Unknoen cmd => " .. cmd)
     end
 end
 
