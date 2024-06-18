@@ -124,50 +124,49 @@ ffi.cdef[[
 ]]
 
 
--- 
--- setup LUA_SCRIPT inside init.lua, this can be overwrite by outer environment variable
--- 
+
 do
+    local function setenv_from_lua(name, value)
+        assert(type(name) == "string")
+        assert(value ~= nil)
+        local ret = ffi.C.setenv(name, tostring(value), 1)
+        if ret == 0 then
+            debug_print(string.format("Environment variable <%s> set successfully.", name))
+        else
+            debug_print(string.format("Failed to set environment variable <%s>.", name))
+        end
+    end
+
+    -- 
+    -- setup LUA_SCRIPT inside init.lua, this can be overwrite by outer environment variable
+    -- 
     local LUA_SCRIPT = cfg.script
     if LUA_SCRIPT ~= nil then
-        local ret = ffi.C.setenv("LUA_SCRIPT", tostring(LUA_SCRIPT), 1)
-        if ret == 0 then
-            debug_print("Environment variable <LUA_SCRIPT> set successfully.")
-        else
-            debug_print("Failed to set environment variable <LUA_SCRIPT>.")
-        end
+        setenv_from_lua("LUA_SCRIPT", LUA_SCRIPT)
     end
-end
 
-
--- 
--- setup VL_DEBUG inside init.lua, this can be overwrite by outer environment variable
--- 
-do
+    -- 
+    -- setup VL_DEBUG inside init.lua, this can be overwrite by outer environment variable
+    -- 
     local VL_DEBUG = cfg.luapanda_debug
     if VL_DEBUG ~= nil then
-        local ret = ffi.C.setenv("VL_DEBUG", tostring(VL_DEBUG), 1)
-        if ret == 0 then
-            debug_print("Environment variable <VL_DEBUG> set successfully.")
-        else
-            debug_print("Failed to set environment variable <VL_DEBUG>.")
-        end
+        setenv_from_lua("VL_DEBUG", VL_DEBUG)
     end
-end
 
-
--- 
--- setup VPI_LEARN inside init.lua, this can be overwrite by outer environment variable
--- 
-do
+    -- 
+    -- setup VPI_LEARN inside init.lua, this can be overwrite by outer environment variable
+    -- 
     local VPI_LEARN = cfg.vpi_learn
     if VPI_LEARN ~= nil then
-        local ret = ffi.C.setenv("VPI_LEARN", tostring(VPI_LEARN), 1)
-        if ret == 0 then
-            debug_print("Environment variable <VPI_LEARN> set successfully.")
-        else
-            debug_print("Failed to set environment variable <VPI_LEARN>.")
-        end
+        setenv_from_lua("VPI_LEARN", VPI_LEARN)
+    end
+
+    -- 
+    -- setup DUT_TOP inside init.lua, this can be overwrite by outer environment variable
+    -- 
+    local DUT_TOP = cfg.top
+    if DUT_TOP ~= nil then
+        setenv_from_lua("DUT_TOP", DUT_TOP)
     end
 end
 

@@ -228,13 +228,6 @@ VERILUA_EXPORT void verilua_init(void) {
     if (_enable_vpi_learn != nullptr && (std::strcmp(_enable_vpi_learn, "1") == 0 || std::strcmp(_enable_vpi_learn, "enable") == 0) ) {
         enable_vpi_learn = true;
     }
-
-    const char *DUT_TOP = getenv("DUT_TOP");
-    if(DUT_TOP == nullptr) {
-        auto dut_top = c_get_top_module();
-        VL_WARN("DUT_TOP is not set, automatically set DUT_TOP as {}\n", dut_top);
-    }
-
     
     const char *VERILUA_HOME = getenv("VERILUA_HOME");
     if (VERILUA_HOME == nullptr) {
@@ -251,6 +244,11 @@ VERILUA_EXPORT void verilua_init(void) {
         VL_FATAL(false, "Error calling INIT_FILE: {}, {}", INIT_FILE, err.what());
     }
 
+    const char *DUT_TOP = getenv("DUT_TOP");
+    if(DUT_TOP == nullptr) {
+        auto dut_top = c_get_top_module();
+        VL_WARN("DUT_TOP is not set, automatically set DUT_TOP as {}\n", dut_top);
+    }
 
     // Load lua main script
     const char *LUA_SCRIPT = getenv("LUA_SCRIPT");
