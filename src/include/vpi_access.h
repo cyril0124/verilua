@@ -1,6 +1,4 @@
-#ifndef __SIGNAL_ACCESS_H__
-#define __SIGNAL_ACCESS_H__
-
+#pragma once
 
 #include "lua_vpi.h"
 
@@ -38,6 +36,4 @@ TO_LUA void c_get_value_parallel(long long *hdls, uint32_t *values, int length);
 TO_LUA void c_get_value64_parallel(long long *hdls, uint64_t *values, int length);
 TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length);
 TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length);
-
-#endif
 

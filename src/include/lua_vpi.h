@@ -1,5 +1,4 @@
-#ifndef __LUA_VPI_H__
-#define __LUA_VPI_H__
+#pragma once
 
 #include "lua.hpp"
 #include <LuaBridge.h>
@@ -60,7 +59,7 @@
 typedef struct {
     int       task_id;
     int       expected_value;
-    int       cb_hdl_id;
+    long long cb_hdl_id;
 } edge_cb_data_t;
 
 
@@ -72,22 +71,22 @@ enum class VpiPrivilege_t {
 
 class IDPool {
 private:
-    std::unordered_set<int> allocated_ids;  
-    std::queue<int> available_ids;
+    std::unordered_set<uint64_t> allocated_ids;  
+    std::queue<uint64_t> available_ids;
 
 public:
-    IDPool(int size) {
-        for (int i = 0; i < size; ++i) {
+    IDPool(uint64_t size) {
+        for (uint64_t i = 0; i < size; ++i) {
             available_ids.push(i);
         }
     }
 
-    int alloc_id() {
+    uint64_t alloc_id() {
         if (available_ids.empty()) {
             throw std::runtime_error("No more IDs available");
         }
 
-        int id = available_ids.front();
+        uint64_t id = available_ids.front();
         available_ids.pop();
         allocated_ids.insert(id);
         // printf("alloc:%d\n", id);
@@ -95,7 +94,7 @@ public:
         return id;
     }
 
-    void release_id(int id) {
+    void release_id(uint64_t id) {
         if (allocated_ids.find(id) == allocated_ids.end()) {
             throw std::runtime_error("Invalid ID");
         }
@@ -131,5 +130,3 @@ namespace Verilua {
 VERILUA_PRIVATE void execute_final_callback();
 VERILUA_PRIVATE void execute_sim_event(int *id);
 VERILUA_PRIVATE void execute_sim_event(int id);
-
-#endif // __LUA_VPI_H__

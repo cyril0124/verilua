@@ -1,8 +1,6 @@
-#ifndef __VPI_CALLBACK_H__
-#define __VPI_CALLBACK_H__
+#pragma once
 
 #include "lua_vpi.h"
-
 
 TO_LUA void c_register_time_callback(uint64_t time, int id);
 
@@ -14,5 +12,3 @@ TO_LUA void c_register_read_write_synch_callback(int id);
 
 void register_start_calllback(void);
 void register_final_calllback(void);
-
-#endif
