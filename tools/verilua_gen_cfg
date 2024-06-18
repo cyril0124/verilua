@@ -44,8 +44,8 @@ parser.add_argument('--target', '-t', dest="target", type=str, default="main", h
 args = parser.parse_args()
 assert args.target != None
 
-if "VERILUA_CFG" not in os.environ:
-    assert False, "VERILUA_CFG is not set!"
+# if "VERILUA_CFG" not in os.environ:
+#     assert False, "VERILUA_CFG is not set!"
 
 cfg = VeriluaCfg()
 lua = LuaRuntime(unpack_returned_tuples=True)
@@ -113,7 +113,7 @@ for item in basic_cfg_keys:
         cfg.top = cfg_item
     elif item == "simulator":
         assert cfg_item != None, "<simulator> should be set properly!"
-        assert cfg_item in ["verilator", "vcs"], f"Simulator only support verilator or vcs, not {cfg_item}"
+        assert cfg_item in ["verilator", "vcs", "wave_vpi"], f"Simulator only support verilator or vcs, not {cfg_item}"
         assert type(cfg_item) == str
         cfg.simulator = cfg_item  
     elif item == "mode":

@@ -7,15 +7,15 @@ extern bool verilua_is_init;
 // functions from verilator side
 // ---------------------------------------
 // TODO: default implementation
-vl_func_t verilator_next_sim_step_impl = NULL;
-vl_func_t verilator_get_mode_impl = NULL;
-vl_func_t verilator_simulation_initializeTrace_impl = NULL;
-vl_func_t verilator_simulation_enableTrace_impl = NULL;
-vl_func_t verilator_simulation_disableTrace_impl = NULL;
+VerilatorFunc verilator_next_sim_step_impl = NULL;
+VerilatorFunc verilator_get_mode_impl = NULL;
+VerilatorFunc verilator_simulation_initializeTrace_impl = NULL;
+VerilatorFunc verilator_simulation_enableTrace_impl = NULL;
+VerilatorFunc verilator_simulation_disableTrace_impl = NULL;
 
 namespace Verilua {
     
-void alloc_verilator_func(vl_func_t func, std::string name) {
+void alloc_verilator_func(VerilatorFunc func, std::string name) {
     if (verilua_is_init == true) {
         VL_FATAL(false, "you should alloc a verilator function before call verilua_init()");
     }

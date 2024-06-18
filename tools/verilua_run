@@ -289,7 +289,7 @@ make {args.makefile_args} run 2>&1 | tee run.log
 """
 verdi_sh=f"""
 #!/usr/bin/env bash
-verdi -f filelist.f -sv $@
+verdi -f filelist.f -sv -nologo $@
 """
 
 

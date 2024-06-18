@@ -14,7 +14,7 @@ sol::protected_function main_step;
 IDPool edge_cb_idpool(50);
 std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
 std::unordered_map<std::string, vpiHandle> handle_cache;
-std::unordered_map<vpiHandle, VpiPrivilege_t> handle_cache_rev;
+std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 bool enable_vpi_learn = false;
 
 #ifdef ACCUMULATE_LUA_TIME
@@ -184,7 +184,7 @@ VERILUA_EXPORT void verilua_init(void) {
             .addFunction("get_value_by_name", c_get_value_by_name)
             .addFunction("set_value_by_name", c_set_value_by_name)
             .addFunction("simulator_control", c_simulator_control)
-            .addFunction("register_time_callback", c_register_time_callback)
+            .addFunction("register_time_callback", verilua_time_callback)
             .addFunction("register_edge_callback", c_register_edge_callback)
             .addFunction("register_edge_callback_hdl", c_register_edge_callback_hdl)
             .addFunction("register_edge_callback_hdl_always", c_register_edge_callback_hdl_always)

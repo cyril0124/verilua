@@ -20,7 +20,7 @@ extern lua_State *L;
 extern IDPool edge_cb_idpool;
 extern std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
 extern std::unordered_map<std::string, vpiHandle> handle_cache;
-extern std::unordered_map<vpiHandle, VpiPrivilege_t> handle_cache_rev;
+extern std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 extern bool enable_vpi_learn;
 
 #ifdef ACCUMULATE_LUA_TIME
@@ -31,44 +31,22 @@ double end_time = 0.0;
 #endif
 
 TO_LUA void verilua_time_callback(uint64_t time, int id) {
-    p_cb_data cb_data = new s_cb_data {
-        .reason = cbAfterDelay,
-        .cb_rtn = [](p_cb_data cb_data) {
+    s_cb_data cb_data;
+    cb_data.reason = cbAfterDelay,
+    cb_data.cb_rtn = [](p_cb_data cb_data) {
             execute_sim_event((int *)cb_data->user_data);
             delete cb_data->user_data;
             return 0;
         },
-        .time = new s_vpi_time
-    };
-    cb_data->time->type = vpiSimTime;
-    cb_data->time->low = time & 0xFFFFFFFF;
-    cb_data->time->high = (time >> 32) & 0xFFFFFFFF;
+    cb_data.time = new s_vpi_time;
+    cb_data.time->type = vpiSimTime;
+    cb_data.time->low = time & 0xFFFFFFFF;
+    cb_data.time->high = (time >> 32) & 0xFFFFFFFF;
 
-    auto id_p = new int(id);
-    cb_data->user_data = reinterpret_cast<PLI_BYTE8 *>(id_p);
-    vpi_register_cb(cb_data);
-}
-
-TO_LUA void c_register_time_callback(uint64_t time, int id) {
-    s_cb_data cb_data;
-    s_vpi_time vpi_time;
-    vpi_time.type = vpiSimTime;
-    vpi_time.low = time & 0xFFFFFFFF;
-    vpi_time.high = (time >> 32) & 0xFFFFFFFF;
-
-    cb_data.reason = cbAfterDelay;
-    cb_data.cb_rtn = [](p_cb_data cb_data) {
-        execute_sim_event((int *)cb_data->user_data);
-        free(cb_data->user_data);
-        return 0;
-    };
-    cb_data.time = &vpi_time;
-    cb_data.value = nullptr;
     auto id_p = new int(id);
     cb_data.user_data = reinterpret_cast<PLI_BYTE8 *>(id_p);
     vpi_register_cb(&cb_data);
 }
-
 
 static inline void register_edge_callback_basic(vpiHandle handle, int edge_type, int id) {
     s_cb_data cb_data;
@@ -86,7 +64,7 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
         vpi_get_value(cb_data->obj, cb_data->value);
         int new_value = cb_data->value->value.integer;
 
-        edge_cb_data_t *user_data = reinterpret_cast<edge_cb_data_t *>(cb_data->user_data);
+        EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data);
         if(new_value == user_data->expected_value || user_data->expected_value == 2) {
             execute_sim_event(user_data->task_id);
 
@@ -99,7 +77,6 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     };
     cb_data.time = vpi_time;
     cb_data.value = vpi_value;
-
     cb_data.obj = handle;
 
     int expected_value = 0;
@@ -111,7 +88,7 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
         expected_value = 2;
     }
 
-    edge_cb_data_t *user_data = new edge_cb_data_t;
+    EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
@@ -182,7 +159,7 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
         vpi_get_value(cb_data->obj, cb_data->value);
         int new_value = cb_data->value->value.integer;
 
-        edge_cb_data_t *user_data = reinterpret_cast<edge_cb_data_t *>(cb_data->user_data); 
+        EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
         if(new_value == user_data->expected_value || user_data->expected_value == 2) {
             execute_sim_event(user_data->task_id);
         }
@@ -191,7 +168,6 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     };
     cb_data.time = vpi_time;
     cb_data.value = vpi_value;
-
     cb_data.obj = actual_handle;
 
     int expected_value = 0;
@@ -203,7 +179,7 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
         expected_value = 2;
     }
 
-    edge_cb_data_t *user_data = new edge_cb_data_t;
+    EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
@@ -228,7 +204,7 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
         vpi_get_value(cb_data->obj, cb_data->value);
         int new_value = cb_data->value->value.integer;
 
-        edge_cb_data_t *user_data = reinterpret_cast<edge_cb_data_t *>(cb_data->user_data); 
+        EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
         if(new_value == user_data->expected_value || user_data->expected_value == 2) {
             execute_sim_event(user_data->task_id);
         }
@@ -237,12 +213,11 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
     };
     cb_data.time = vpi_time;
     cb_data.value = vpi_value;
-
     cb_data.obj = actual_handle;
 
     int expected_value = 1; // Posedge
 
-    edge_cb_data_t *user_data = new edge_cb_data_t;
+    EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();;
@@ -267,7 +242,7 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
         vpi_get_value(cb_data->obj, cb_data->value);
         int new_value = cb_data->value->value.integer;
 
-        edge_cb_data_t *user_data = reinterpret_cast<edge_cb_data_t *>(cb_data->user_data); 
+        EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
         if(new_value == user_data->expected_value || user_data->expected_value == 2) {
             execute_sim_event(user_data->task_id);
         }
@@ -276,12 +251,11 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
     };
     cb_data.time = vpi_time;
     cb_data.value = vpi_value;
-
     cb_data.obj = actual_handle;
 
     int expected_value = 0; // Negedge
 
-    edge_cb_data_t *user_data = new edge_cb_data_t;
+    EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();

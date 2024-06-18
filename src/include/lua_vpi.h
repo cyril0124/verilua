@@ -56,14 +56,14 @@
 #define VERILUA_EXPORT extern "C"
 #define VERILUA_PRIVATE
 
-typedef struct {
+struct EdgeCbData {
     int       task_id;
     int       expected_value;
     long long cb_hdl_id;
-} edge_cb_data_t;
+};
 
 
-enum class VpiPrivilege_t {
+enum class VpiPermission {
     READ,
     WRITE,
 };
@@ -114,7 +114,7 @@ VERILUA_EXPORT void vlog_startup_routines_bootstrap();
 
 TO_VERILATOR void verilua_schedule_loop();
 
-typedef void (*vl_func_t)(void *);
+typedef void (*VerilatorFunc)(void *);
 namespace Verilua {
     enum class VeriluaMode { 
         Normal = 1, 
@@ -122,7 +122,7 @@ namespace Verilua {
         Dominant = 3
     };
 
-    void alloc_verilator_func(vl_func_t func, std::string name);
+    void alloc_verilator_func(VerilatorFunc func, std::string name);
 }
 
 
