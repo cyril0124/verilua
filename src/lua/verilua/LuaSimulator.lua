@@ -38,22 +38,31 @@ local scheduler = nil
 local init = function ()
     verilua_info("LuaSimulator initialize...")
     
-    use_step_cycles = cfg.mode == VeriluaMode.STEP and cfg.attach == true
+    if cfg.simulator ~= "wave_vpi" then
+        use_step_cycles = cfg.mode == VeriluaMode.STEP and cfg.attach == true
 
-    if not use_step_cycles then
-        cycles_chdl = CallableHDL(cfg.top..".cycles", "cycles_chdl for LuaSimulator")
-        assert(cycles_chdl ~= nil)
-    else
-        scheduler = require "LuaScheduler"
-        assert(scheduler.cycles ~= nil)
+        if not use_step_cycles then
+            cycles_chdl = CallableHDL(cfg.top..".cycles", "cycles_chdl for LuaSimulator")
+            assert(cycles_chdl ~= nil)
+        else
+            scheduler = require "LuaScheduler"
+            assert(scheduler.cycles ~= nil)
+        end
     end
 end
 
-local get_cycles = function()
-    if not use_step_cycles then
-        return cycles_chdl()
-    else
-        return scheduler.cycles
+local get_cycles = nil
+if cfg.simulator ~= "wave_vpi" then
+    get_cycles = function()
+        if not use_step_cycles then
+            return cycles_chdl()
+        else
+            return scheduler.cycles
+        end
+    end
+else
+    get_cycles = function()
+        assert(false, "sim.get_cycles() not support for wave_vpi simulator")
     end
 end
 
@@ -64,6 +73,8 @@ local initialize_trace = function (trace_file_path)
         ffi.C.simulation_initializeTrace(ffi.cast("char *", trace_file_path))
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
+    elseif cfg.simulator == "wave_vpi" then
+        assert(false, "[initialize_trace] not support for wave_vpi now")
     else
         assert(false, "Unknown simulator => " .. cfg.simulator)
     end
@@ -75,6 +86,8 @@ local enable_trace = function ()
         ffi.C.simulation_enableTrace()
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_enableTrace()
+    elseif cfg.simulator == "wave_vpi" then
+        assert(false, "[enable_trace] not support for wave_vpi now")
     else
         assert(false, "Unknown simulator => " .. cfg.simulator)
     end
@@ -86,6 +99,8 @@ local disable_trace = function ()
         ffi.C.simulation_disableTrace()
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_disableTrace()
+    elseif cfg.simulator == "wave_vpi" then
+        assert(false, "[disable_trace] not support for wave_vpi now")
     else
         assert(false, "Unknown simulator => " .. cfg.simulator)
     end

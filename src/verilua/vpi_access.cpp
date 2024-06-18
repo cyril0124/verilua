@@ -237,7 +237,7 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
     v.value.integer = value;
     vpi_put_value(handle, &v, NULL, vpiForceFlag);
 
-    VL_INFO("force {}  ==> 0x{:x}\n", path, value);
+    // VL_INFO("force {}  ==> 0x{:x}\n", path, value);
 
     LEAVE_VPI_REGION();
 #else
