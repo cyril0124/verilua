@@ -1,20 +1,11 @@
 #include "vpi_callback.h"
 #include "fmt/core.h"
-#include "lua_vpi.h"
 #include "vpi_user.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
-#include <unordered_map>
-
-struct EdgeCbInfo {
-    vpiHandle handle;
-    int edge_type;
-    int id;
-    int count;
-};
 
 extern lua_State *L;
 extern IDPool edge_cb_idpool;
@@ -37,7 +28,7 @@ TO_LUA void verilua_time_callback(uint64_t time, int id) {
             execute_sim_event((int *)cb_data->user_data);
             delete cb_data->user_data;
             return 0;
-        },
+    };
     cb_data.time = new s_vpi_time;
     cb_data.time->type = vpiSimTime;
     cb_data.time->low = time & 0xFFFFFFFF;
@@ -92,9 +83,9 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
-    cb_data.user_data = (PLI_BYTE8 *) user_data;
+    cb_data.user_data = (PLI_BYTE8 *)user_data;
 
-    edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
+    edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
 TO_LUA void verilua_posedge_callback(const char *path, int id) {
@@ -183,9 +174,9 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
-    cb_data.user_data = (PLI_BYTE8 *) user_data;
+    cb_data.user_data = (PLI_BYTE8 *)user_data;
     
-    edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
+    edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
 TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
@@ -221,9 +212,9 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();;
-    cb_data.user_data = (PLI_BYTE8 *) user_data;
+    cb_data.user_data = (PLI_BYTE8 *)user_data;
 
-    edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
+    edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
 TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
@@ -259,9 +250,9 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
-    cb_data.user_data = (PLI_BYTE8 *) user_data;
+    cb_data.user_data = (PLI_BYTE8 *)user_data;
     
-    edge_cb_hdl_map[user_data->cb_hdl_id] =  vpi_register_cb(&cb_data);
+    edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
 TO_LUA void c_register_read_write_synch_callback(int id) {

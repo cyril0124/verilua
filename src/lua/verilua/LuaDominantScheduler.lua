@@ -7,7 +7,7 @@ local assert = assert
 ffi.cdef[[
   void c_register_edge_callback(const char *path, int edge_type, int id);
   void c_register_read_write_synch_callback(int id);
-  void c_register_time_callback(uint64_t time, int id);
+  void verilua_time_callback(uint64_t time, int id);
   void c_register_clock_posedge_callback(int id, uint64_t count);
   void c_register_edge_callback_hdl(long long handle, int edge_type, int id);
   void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id);

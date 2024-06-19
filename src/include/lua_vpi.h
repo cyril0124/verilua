@@ -2,9 +2,9 @@
 
 #include "lua.hpp"
 #include <LuaBridge.h>
+#include <cstdint>
 #include <fmt/core.h>
 #include <sol/sol.hpp>
-
 
 #include "vpi_user.h"
 
@@ -59,7 +59,7 @@
 struct EdgeCbData {
     int       task_id;
     int       expected_value;
-    long long cb_hdl_id;
+    uint64_t  cb_hdl_id;
 };
 
 

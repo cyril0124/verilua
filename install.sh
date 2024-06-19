@@ -12,6 +12,10 @@ source install_lua.sh
 source install_lua_modules.sh
 
 
+# Install vcpkg libs
+source install_libs.sh
+
+
 # Setup verilua home
 if [ "$1" = "zsh" ]; then
     shell_rc=$HOME/.zshrc
@@ -30,6 +34,7 @@ else
     echo "VERILUA_HOME is set to $PWD"
 fi
 
+
 # Setup verilua tools path
 if grep -q "^[^#]*export PATH=\$VERILUA_HOME/tools:\$PATH" "$shell_rc"; then
     echo "TOOL PATH is already set"
@@ -39,13 +44,16 @@ else
     echo "TOOL PATH is set to $PWD/tools"
 fi
 
+
 # Install tinycc
 curr_dir=$(pwd)
 luajit_tcc_dir=$curr_dir/extern/luajit_tcc
 cd $luajit_tcc_dir; make init; make
 
+
 # Install xmake
 wget https://xmake.io/shget.text -O - | bash
+
 
 # Make shared lib
 xmake
