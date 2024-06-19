@@ -1,9 +1,6 @@
 #include "lua_vpi.h"
-#include "fmt/core.h"
 #include "vpi_access.h"
 #include "vpi_callback.h"
-#include "vpi_user.h"
-#include <cstdint>
 
 lua_State *L;
 bool verilua_is_init = false;
@@ -12,9 +9,9 @@ sol::protected_function sim_event;
 sol::protected_function main_step; 
 
 IDPool edge_cb_idpool(50);
-std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
-std::unordered_map<std::string, vpiHandle> handle_cache;
-std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
+boost::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
+boost::unordered_map<std::string, vpiHandle> handle_cache;
+boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 bool enable_vpi_learn = false;
 
 #ifdef ACCUMULATE_LUA_TIME

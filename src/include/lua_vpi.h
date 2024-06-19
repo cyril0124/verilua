@@ -1,22 +1,25 @@
 #pragma once
 
 #include "lua.hpp"
-#include <LuaBridge.h>
-#include <cstdint>
-#include <fmt/core.h>
-#include <sol/sol.hpp>
-
 #include "vpi_user.h"
+#include "LuaBridge.h"
+#include "fmt/core.h"
+#include "sol/sol.hpp"
+#include "boost/unordered_map.hpp"
+#include "boost/unordered_set.hpp"
 
-#include "assert.h"
-#include "stdio.h"
-
+#include <cassert>
+#include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <csignal>
-#include <unordered_map>
-#include <unordered_set>
+#include <string>
+#include <vector>
 #include <queue>
 #include <mutex>
+#include <fstream>
+#include <iostream>
+#include <sys/types.h>
 
 
 #define ANSI_COLOR_RED     "\x1b[31m"
@@ -71,7 +74,7 @@ enum class VpiPermission {
 
 class IDPool {
 private:
-    std::unordered_set<uint64_t> allocated_ids;  
+    boost::unordered_set<uint64_t> allocated_ids;  
     std::queue<uint64_t> available_ids;
 
 public:
@@ -82,23 +85,17 @@ public:
     }
 
     uint64_t alloc_id() {
-        if (available_ids.empty()) {
-            throw std::runtime_error("No more IDs available");
-        }
+        VL_FATAL(!available_ids.empty(), "No more IDs available");
 
         uint64_t id = available_ids.front();
         available_ids.pop();
         allocated_ids.insert(id);
-        // printf("alloc:%d\n", id);
 
         return id;
     }
 
     void release_id(uint64_t id) {
-        if (allocated_ids.find(id) == allocated_ids.end()) {
-            throw std::runtime_error("Invalid ID");
-        }
-        // printf("release:%d\n",id);
+        VL_FATAL(allocated_ids.find(id) != allocated_ids.end(), "Invalid ID => {}", id);
 
         allocated_ids.erase(id);
         available_ids.push(id);

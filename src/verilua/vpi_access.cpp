@@ -1,17 +1,8 @@
 #include "vpi_access.h"
-#include "fmt/core.h"
-#include "lua_vpi.h"
-#include "vpi_user.h"
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <string>
-#include <sys/types.h>
-#include <vector>
 
 // Cache to store handles
-extern std::unordered_map<std::string, vpiHandle> handle_cache;
-extern std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
+extern boost::unordered_map<std::string, vpiHandle> handle_cache;
+extern boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 extern bool enable_vpi_learn;
 
 std::mutex vpi_lock_;
