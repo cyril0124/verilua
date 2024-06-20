@@ -276,6 +276,32 @@ local function create_proxy(path)
             return tonumber(C.c_get_signal_width(C.c_handle_by_name(local_path)))
         end,
 
+        dump_str = function (t)
+            local hdl = C.c_handle_by_name(local_path)
+            local s = ("[%s] => "):format(local_path)
+            s = s .. "0x" .. ffi.string(C.c_get_value_str(hdl, HexStr))
+            return s
+        end,
+
+        -- 
+        -- Example: 
+        --      dut.path.to.signal:dump()
+        --          => [tb_top.path.to.signal] => 0x1234
+        -- 
+        dump = function(t)
+            print(t:dump_str())
+        end,
+
+        -- 
+        -- Example:
+        --      dut.paht.to.signal:expect(1) -- signal value should be 1 otherwise there will be a assert false
+        -- 
+        expect = function(t, value)
+            assert(type(value) == "number")
+            if t:get() ~= value then
+                assert(false, format("[%s] expect => %d, but got => %d", local_path, value, t:get()))
+            end
+        end,
     }, {
         __index = function(t, k)
             return create_proxy(local_path .. '.' .. k)

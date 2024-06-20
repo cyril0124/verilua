@@ -36,7 +36,7 @@ verilua.finish_callbacks = {}
 
 verilua.start_callback = function ()
     verilua_hello()
-    verilua_info("----------[Lua] Verilua Init!----------")
+    verilua_info("-------------- [Lua] Verilua init --------------")
     verilua.start_time = os.clock()
 
     -- 
@@ -50,13 +50,14 @@ verilua.start_callback = function ()
         end
     end
     
-    verilua_info("----------[Lua] Verilua Init finish!----------")
+    verilua_info("---------- [Lua] Verilua init finish! ----------")
 
     scheduler:schedule_all_tasks()
 end
 
 verilua.finish_callback = function ()
-    print("\n")
+    print()
+    verilua_info(("--------------------- [Lua] Start doing finish_callback ---------------------"):format(verilua.end_time - verilua.start_time))
     if not (cfg.mode == VeriluaMode.STEP) then
         scheduler:list_tasks()
     end
@@ -73,8 +74,8 @@ verilua.finish_callback = function ()
     end
 
     verilua.end_time = os.clock()
-    verilua_info("----------[Lua] Simulation finish!----------")
-    verilua_info("----------[Lua] Time elapsed: " .. (verilua.end_time - verilua.start_time).. " seconds" .. "----------")
+    verilua_info(("---------- [Lua] Simulation finish! Time elapsed: %4.6f seconds ----------"):format(verilua.end_time - verilua.start_time))
+    print()
 end
 
 function verilua.register_tasks(task_table)

@@ -687,14 +687,14 @@ function CallableHDL:_init(fullpath, name, hdl)
             local s = ("[%s] => "):format(this.fullpath)
             
             for i = 1, this.array_size do
-                s = s .. ("(%d): 0x%x "):format(i - 1, this.get_index_str(i, HexStr))
+                s = s .. ("(%d): 0x%s "):format(i - 1, this.get_index_str(i, HexStr))
             end
             
             return s
         end
     else
         self.dump_str = function (this)
-            return ("[%s] => 0x%x"):format(this.fullpath, this:get_str(HexStr))
+            return ("[%s] => 0x%s"):format(this.fullpath, this:get_str(HexStr))
         end
     end
 
@@ -704,6 +704,13 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.get_width = function (this)
         return this.width
+    end
+
+    self.expect = function (this, value)
+        assert(type(value) == "number")
+        if this:get() ~= value then
+            assert(false, format("[%s] expect => %d, but got => %d", this.fullpath, value, this:get()))
+        end
     end
 end
 

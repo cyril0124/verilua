@@ -187,12 +187,13 @@ function Scheduler:_init()
         end
         this.will_remove_tasks = {}
 
-        this.id_cnt_tbl[id] = this.id_cnt_tbl[id] + 1
+        local task_cnt = this.id_cnt_tbl[id]
+        this.id_cnt_tbl[id] = task_cnt + 1
         local func = this.id_task_tbl[id]
         local ok, types_or_err, str_value, integer_value = coro_resume(func)
         if not ok then
             local err_msg = types_or_err
-            print(debug.traceback(func, err_msg))
+            print("task_id: " .. id, debug.traceback(func, err_msg))
             assert(false)
         end
 
@@ -203,7 +204,8 @@ function Scheduler:_init()
             this:register_callback(id, types_or_err, str_value, integer_value)
         end
 
-        if this.has_wakeup_event then
+        -- We should not wakeup even if task_cnt is 0, otherwise there will be assert false on resuming a running task
+        if this.has_wakeup_event and task_cnt ~= 0 then
             for _, evnet_id in ipairs(this.will_wakeup_event) do
                 local wakeup_list = this.event_tbl[evnet_id]
                 for _, _id in ipairs(wakeup_list) do
@@ -212,7 +214,7 @@ function Scheduler:_init()
                     local _ok, _types_or_err, _str_value, _integer_value = coro_resume(_func)
                     if not _ok then
                         local _err_msg = _types_or_err
-                        print(debug.traceback(_func, _err_msg))
+                        print("task_id: " .. _id, debug.traceback(_func, _err_msg))
                         assert(false)
                     end
             
@@ -242,7 +244,8 @@ function Scheduler:_init()
     end
 
     self.list_tasks = function (this)
-        print("--------------- Scheduler list task ---------------")
+        print("[scheduler list tasks]:")
+        print("-------------------------------------------------------------")
         -- if self.time_accumulate == true then
         -- TODO:
         --     local total_time = 0
@@ -252,11 +255,13 @@ function Scheduler:_init()
         --         print(("id: %5d\tcnt:%5d\tname: %.50s\ttime:%.2f\toverhead:%.2f"):format(task_id, task.cnt, task.name, task.time_taken, percent).."%")
         --     end
         -- else
-            for id, name  in pairs(this.id_name_tbl) do
-                print(("id: %5d\tcnt:%5d\tname: %.50s"):format(id, this.id_cnt_tbl[id], name))
+            local index = 0
+            for id, name in pairs(this.id_name_tbl) do
+                print(("|[%2d]\tid: %5d\tcnt:%5d\tname: %15s|"):format(index, id, this.id_cnt_tbl[id], name))
+                index = index + 1
             end
         -- end
-        print()
+        print("-------------------------------------------------------------")
     end
 
     self.send_event = function (this, event_id_integer)

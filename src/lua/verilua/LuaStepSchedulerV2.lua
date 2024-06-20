@@ -179,7 +179,8 @@ function Scheduler:_init()
     end
 
     self.list_tasks = function (this)
-        print("--------------- Scheduler list task ---------------")
+        print("[scheduler list tasks]:")
+        print("-------------------------------------------------------------")
         -- if self.time_accumulate == true then
         -- TODO:
         --     local total_time = 0
@@ -189,11 +190,13 @@ function Scheduler:_init()
         --         print(("id: %5d\tcnt:%5d\tname: %.50s\ttime:%.2f\toverhead:%.2f"):format(task_id, task.cnt, task.name, task.time_taken, percent).."%")
         --     end
         -- else
-            for id, name  in pairs(this.id_name_tbl) do
-                print(("id: %5d\tcnt:%5d\tname: %.50s"):format(id, this.id_cnt_tbl[id], name))
+            local index = 0
+            for id, name in pairs(this.id_name_tbl) do
+                print(("|[%2d]\tid: %5d\tcnt:%5d\tname: %15s|"):format(index, id, this.id_cnt_tbl[id], name))
+                index = index + 1
             end
         -- end
-        print()
+        print("-------------------------------------------------------------")
     end
 end
 
