@@ -26,6 +26,7 @@ local function build_common_info()
     add_shflags(
         -- "-L".. lua_dir .. "/lib" .. " -lluajit-5.1", -- dynamic link luajit2.1
         "-lrt", -- support shm_open
+        "-static-libstdc++ -static-libgcc",
         "-Wl,--no-as-needed",
         {force = true}
     )
