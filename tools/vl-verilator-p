@@ -25,8 +25,6 @@ CFLAGS += f"-I{luapath}/include "
 CFLAGS += f"-I{verilua_path}/src/include "
 CFLAGS += f"-I{verilua_path}/src/include/sol "
 CFLAGS += f"-I{verilua_path}/vcpkg/installed/x64-linux/include "
-CFLAGS += f"-I{verilua_path}/extern/LuaBridge/Source "
-CFLAGS += f"-I{verilua_path}/extern/LuaBridge/Source/LuaBridge "
 
 LDFLAGS += f"-L{libpath} -llua_vpi "
 LDFLAGS += f"-L{liblua_path} -lluajit-5.1 "

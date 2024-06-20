@@ -1,9 +1,7 @@
-require "LuaCallableHDL"
-
+local CallableHDL = require "LuaCallableHDL"
 local class = require "pl.class"
 local List = require "pl.List"
 local fun = require "fun"
-local CallableHDL = CallableHDL
 local assert, type, print, rawset = assert, type, print, rawset
 local tconcat = table.concat
 

@@ -49,7 +49,7 @@ CallableHDL = class()
 local CallableHDL = CallableHDL
 local BeatWidth = 32
 local type, assert, tonumber, print, format = type, assert, tonumber, print, string.format
-local table, math, vpi = table, math, vpi
+local table, math = table, math
 
 
 function CallableHDL:_init(fullpath, name, hdl)

@@ -1,4 +1,5 @@
 #include "vpi_callback.h"
+#include "lua_vpi.h"
 
 extern lua_State *L;
 extern IDPool edge_cb_idpool;
@@ -14,14 +15,18 @@ double start_time = 0.0;
 double end_time = 0.0;
 #endif
 
-TO_LUA void verilua_time_callback(uint64_t time, int id) {
+TO_LUA void verilua_time_callback(uint64_t time, int id) {   
     s_cb_data cb_data;
     cb_data.reason = cbAfterDelay,
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-            execute_sim_event((int *)cb_data->user_data);
-            delete cb_data->user_data;
-            return 0;
+        auto task_id = *reinterpret_cast<int *>(cb_data->user_data);
+        execute_sim_event(task_id);
+        
+        delete cb_data->user_data;
+        return 0;
     };
+    cb_data.obj = nullptr;
+    cb_data.value = nullptr;
     cb_data.time = new s_vpi_time;
     cb_data.time->type = vpiSimTime;
     cb_data.time->low = time & 0xFFFFFFFF;
@@ -255,17 +260,17 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
 
     cb_data.reason = cbReadWriteSynch;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        VL_INFO("hello from cbReadWriteSynch id {}\n", *(int *)cb_data->user_data);
-        execute_sim_event((int *)cb_data->user_data);
+        auto task_id = *reinterpret_cast<int *>(cb_data->user_data);
+        execute_sim_event(task_id);
 
-        free(cb_data->user_data);
+        delete cb_data->user_data;
         return 0;
     };
     cb_data.time = nullptr;
     cb_data.value = nullptr;
 
     int *id_p = new int(id);
-    cb_data.user_data = (PLI_BYTE8*) id_p;
+    cb_data.user_data = (PLI_BYTE8 *)id_p;
 
     VL_FATAL(vpi_register_cb(&cb_data) != nullptr);
 }

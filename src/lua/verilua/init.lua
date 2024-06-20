@@ -121,8 +121,15 @@ ffi.cdef[[
     uint64_t c_get_value_by_name(const char *path);
     void c_force_value_by_name(const char *path, long long value);
     void c_release_value_by_name(const char *path);
+    int verilator_get_mode(void);
 ]]
 
+if cfg.simulator == "vcs" then
+    ffi.cdef[[
+        void dpi_set_scope(char *str);
+        int vcs_get_mode(void);
+    ]]
+end
 
 
 do
@@ -268,6 +275,34 @@ _G.HexStr = 4
 -- 
 _G.cfg     = cfg
 
+-- 
+-- setup mode
+-- 
+do
+    if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
+        if cfg.attach == false or cfg.attach == nil then
+            -- cfg.mode = sim.get_mode()
+            if cfg.simulator == "vcs" then
+                ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+                local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
+                if not success then
+                    mode = VeriluaMode.NORMAL
+                    verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
+                end
+                cfg.mode = tonumber(mode)
+            else
+                assert(cfg.simulator == "verilator", "For now, only support Verilator")
+                local mode = ffi.C.verilator_get_mode()
+                cfg.mode = tonumber(mode)
+            end
+        end
+        verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
+    end
+end
+
+-- 
+-- import scheduler functions
+-- 
 local scommon = require "LuaSchedulerCommonV2"
 for key, value in pairs(scommon) do
     _G[key] = value
@@ -296,19 +331,6 @@ end
 _G.dut     = (require "LuaDut").create_proxy(cfg.top)
 local sim = require "LuaSimulator";
 _G.sim     = sim
-
-
--- 
--- setup mode
--- 
-do
-    if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-        if cfg.attach == false or cfg.attach == nil then
-            cfg.mode = sim.get_mode()
-        end
-        verilua_info("VeriluaMode is "..VeriluaMode(cfg.mode))
-    end
-end
 
 
 -- 

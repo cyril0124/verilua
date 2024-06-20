@@ -2,7 +2,6 @@
 
 #include "lua.hpp"
 #include "vpi_user.h"
-#include "LuaBridge.h"
 #include "fmt/core.h"
 #include "sol/sol.hpp"
 #include "boost/unordered_map.hpp"
@@ -119,11 +118,10 @@ namespace Verilua {
         Dominant = 3
     };
 
-    void alloc_verilator_func(VerilatorFunc func, std::string name);
+    void alloc_verilator_func(VerilatorFunc func, const std::string& name);
 }
 
 
 // used inside the verilua lib (cpp side)
 VERILUA_PRIVATE void execute_final_callback();
-VERILUA_PRIVATE void execute_sim_event(int *id);
 VERILUA_PRIVATE void execute_sim_event(int id);

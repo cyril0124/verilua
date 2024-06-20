@@ -1,8 +1,10 @@
 #include "lua_vpi.h"
+#include "sol/forward.hpp"
 #include "vpi_access.h"
 #include "vpi_callback.h"
 
 lua_State *L;
+std::unique_ptr<sol::state_view> lua;
 bool verilua_is_init = false;
 bool verilua_is_final = false;
 sol::protected_function sim_event; 
@@ -20,23 +22,6 @@ double lua_time = 0.0;
 double start_time_for_step = 0.0;
 double end_time_for_step = 0.0;
 #endif
-
-void execute_sim_event(int *id) {
-#ifdef ACCUMULATE_LUA_TIME
-    auto start = std::chrono::high_resolution_clock::now();
-#endif
-    auto ret = sim_event(*id);
-    if(!ret.valid()) [[unlikely]] {
-        verilua_final();
-        sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
-    }
-#ifdef ACCUMULATE_LUA_TIME
-    auto end = std::chrono::high_resolution_clock::now();
-    double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-    lua_time += time_taken;
-#endif
-}
 
 void execute_sim_event(int id) {
 #ifdef ACCUMULATE_LUA_TIME
@@ -57,13 +42,11 @@ void execute_sim_event(int id) {
 
 inline void execute_final_callback() {
     VL_INFO("execute_final_callback\n");
-    { // This is the working filed of LuaRef, when we leave this file, LuaRef will release the allocated memory thus not course segmentation fault when use lua_close(L).
-        try {
-            luabridge::LuaRef lua_finish_callback = luabridge::getGlobal(L, "finish_callback");
-            lua_finish_callback();
-        } catch (const luabridge::LuaException& e) {
-            VL_FATAL(false, "Error calling finish_callback, {}", e.what());
-        }
+    try {
+        sol::protected_function lua_finish_callback = (*lua)["finish_callback"];
+        lua_finish_callback();
+    } catch (const sol::error& e) {
+        VL_FATAL(false, "Error calling finish_callback", e.what());
     }
 }
 
@@ -74,7 +57,7 @@ inline void execute_main_step() {
     auto ret = main_step();
     if(!ret.valid()) [[unlikely]] {
         verilua_final();
-        sol::error  err = ret;
+        sol::error err = ret;
         VL_FATAL(false, "Error calling main_step, {}", err.what());
     }
 #ifdef ACCUMULATE_LUA_TIME
@@ -122,6 +105,7 @@ TO_LUA void c_simulator_control(long long cmd) {
     // #define vpiFinish                67   /* execute simulator's $finish */
     // #define vpiReset                 68   /* execute simulator's $reset */
     // #define vpiSetInteractiveScope   69   /* set simulator's interactive scope */
+    VL_INFO("simulator control cmd: {}\n", cmd);
     vpi_control(cmd);
 }
 
@@ -172,53 +156,23 @@ VERILUA_EXPORT void verilua_init(void) {
     luaL_openlibs(L);
 
     // Assign sol state
-    sol::state_view lua(L);
-
-    // Register functions for lua
-    luabridge::getGlobalNamespace(L)
-        .beginNamespace("vpi")
-            .addFunction("get_top_module", c_get_top_module)
-            .addFunction("get_value_by_name", c_get_value_by_name)
-            .addFunction("set_value_by_name", c_set_value_by_name)
-            .addFunction("simulator_control", c_simulator_control)
-            .addFunction("register_time_callback", verilua_time_callback)
-            .addFunction("register_edge_callback", c_register_edge_callback)
-            .addFunction("register_edge_callback_hdl", c_register_edge_callback_hdl)
-            .addFunction("register_edge_callback_hdl_always", c_register_edge_callback_hdl_always)
-            .addFunction("register_read_write_synch_callback", c_register_read_write_synch_callback)
-            .addFunction("handle_by_name", c_handle_by_name)
-            .addFunction("get_value", c_get_value)
-            .addFunction("set_value", c_set_value)
-            .addFunction("get_value_multi_by_name", c_get_value_multi_by_name)
-            .addFunction("set_value_multi_by_name", c_set_value_multi_by_name)
-            .addFunction("get_value_multi", c_get_value_multi)
-            .addFunction("set_value_multi", c_set_value_multi)
-            .addFunction("get_signal_width", c_get_signal_width)
-            .addFunction("bitfield64", bitfield64)
-        .endNamespace();
-
+    lua = std::make_unique<sol::state_view>(L);
 
     // Register breakpoint function for lua
     // DebugPort is 8818
     const char *debug_enable = getenv("VL_DEBUG");
     if (debug_enable != nullptr && (std::strcmp(debug_enable, "1") == 0 || std::strcmp(debug_enable, "enable") == 0) ) {
         VL_WARN("VL_DEBUG is enable\n");
-        luabridge::getGlobalNamespace(L)
-            .addFunction("bp", [](lua_State *L){
-                    // Execute the Lua code when bp() is called
-                    luaL_dostring(L,"require('LuaPanda').start('localhost', 8818); local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP();");
-                    return 0;
-                }
-        );
+        lua->set_function("bp", [](sol::this_state L){
+            luaL_dostring(L,"require('LuaPanda').start('localhost', 8818); local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP();");
+            return 0;
+        });
     } else {
         VL_WARN("VL_DEBUG is disable\n");
-        luabridge::getGlobalNamespace(L)
-            .addFunction("bp", [](lua_State *L){
-                    // Execute the Lua code when bp() is called
-                    luaL_dostring(L,"print(\"  \\27[31m [lua_vpi.cpp] ==> Invalid breakpoint! \\27[0m \")");
-                    return 0;
-                }
-        );
+        lua->set_function("bp", [](sol::this_state L){
+            luaL_dostring(L, "print(\"  \\27[31m [lua_vpi.cpp] ==> Invalid breakpoint! \\27[0m \")");
+            return 0;
+        });
     }
 
     // Check is vpi learn is enable
@@ -237,7 +191,7 @@ VERILUA_EXPORT void verilua_init(void) {
     VL_INFO("INIT_FILE is {}\n", INIT_FILE);
 
     try {
-        lua.safe_script_file(INIT_FILE);
+        lua->safe_script_file(INIT_FILE);
     } catch (const sol::error& err) {
         VL_FATAL(false, "Error calling INIT_FILE: {}, {}", INIT_FILE, err.what());
     }
@@ -256,13 +210,13 @@ VERILUA_EXPORT void verilua_init(void) {
     VL_INFO("LUA_SCRIPT is {}\n", LUA_SCRIPT);
 
     try {
-        lua.safe_script_file(LUA_SCRIPT);
+        lua->safe_script_file(LUA_SCRIPT);
     } catch (const sol::error& err) {
         VL_FATAL(false, "Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, err.what());
     }
 
-    sol::protected_function verilua_init = lua["verilua_init"];
-    verilua_init.set_error_handler(lua["debug"]["traceback"]);
+    sol::protected_function verilua_init = (*lua)["verilua_init"];
+    verilua_init.set_error_handler((*lua)["debug"]["traceback"]);
     
     auto ret = verilua_init();
     if(!ret.valid()) {
@@ -270,12 +224,12 @@ VERILUA_EXPORT void verilua_init(void) {
         VL_FATAL(false, "Error calling verilua_init, {}", err.what());
     }
 
-    sim_event = lua["sim_event"];
-    sim_event.set_error_handler(lua["debug"]["traceback"]); 
-    main_step = lua["lua_main_step"];
-    main_step.set_error_handler(lua["debug"]["traceback"]); 
+    sim_event = (*lua)["sim_event"];
+    sim_event.set_error_handler((*lua)["debug"]["traceback"]); 
+    main_step = (*lua)["lua_main_step"];
+    main_step.set_error_handler((*lua)["debug"]["traceback"]); 
 
-    sol::protected_function test_func = lua["test_func"];
+    sol::protected_function test_func = (*lua)["test_func"];
     auto start1 = std::chrono::high_resolution_clock::now();
     test_func();
     auto end1 = std::chrono::high_resolution_clock::now();

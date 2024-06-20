@@ -42,7 +42,7 @@ local function lua_main()
     await_posedge(dut.clock)
 
     local cycles = 0
-    local clock_hdl = vpi.handle_by_name(dut.clock("name"))
+    local clock_hdl = dut.clock:hdl()
     local loop = function()
         print("from main task cycles:" .. cycles)
 

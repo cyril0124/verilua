@@ -1,8 +1,8 @@
+local CallableHDL = require "LuaCallableHDL"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local List = require "pl.List"
 local tinsert = table.insert
-require "LuaCallableHDL"
 
 Bundle = class()
 

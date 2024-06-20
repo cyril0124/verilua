@@ -6,50 +6,51 @@ extern bool verilua_is_init;
 // ---------------------------------------
 // functions from verilator side
 // ---------------------------------------
-// TODO: default implementation
-VerilatorFunc verilator_next_sim_step_impl = NULL;
-VerilatorFunc verilator_get_mode_impl = NULL;
-VerilatorFunc verilator_simulation_initializeTrace_impl = NULL;
-VerilatorFunc verilator_simulation_enableTrace_impl = NULL;
-VerilatorFunc verilator_simulation_disableTrace_impl = NULL;
+VerilatorFunc verilator_next_sim_step_impl = nullptr;
+VerilatorFunc verilator_get_mode_impl = nullptr;
+VerilatorFunc verilator_simulation_initializeTrace_impl = nullptr;
+VerilatorFunc verilator_simulation_enableTrace_impl = nullptr;
+VerilatorFunc verilator_simulation_disableTrace_impl = nullptr;
+
+boost::unordered_map<std::string, VerilatorFunc *> verilator_func_map = {
+    {"next_sim_step", &verilator_next_sim_step_impl},
+    {"get_mode", &verilator_get_mode_impl},
+    {"simulation_initializeTrace", &verilator_simulation_initializeTrace_impl},
+    {"simulation_enableTrace", &verilator_simulation_enableTrace_impl},
+    {"simulation_disableTrace", &verilator_simulation_disableTrace_impl}
+};
 
 namespace Verilua {
     
-void alloc_verilator_func(VerilatorFunc func, std::string name) {
+void alloc_verilator_func(VerilatorFunc func, const std::string& name) {
     if (verilua_is_init == true) {
         VL_FATAL(false, "you should alloc a verilator function before call verilua_init()");
     }
 
     VL_INFO("alloc verilator function name:{}\n", name);
 
-    if (name == "next_sim_step") {
-        verilator_next_sim_step_impl = func;
-    } else if (name == "get_mode") {
-        verilator_get_mode_impl = func;
-    } else if (name == "simulation_initializeTrace") {
-        verilator_simulation_initializeTrace_impl = func;
-    } else if (name == "simulation_enableTrace") {
-        verilator_simulation_enableTrace_impl = func;
-    } else if (name == "simulation_disableTrace") {
-        verilator_simulation_disableTrace_impl = func;
+    auto it = verilator_func_map.find(name);
+    if(it != verilator_func_map.end()) {
+        *(it->second) = func;
+        VL_INFO("alloc verilator function name:{}\n", name);
     } else {
-        VL_FATAL(false, "name:{} did not match any functions", name);
+        VL_FATAL(false, "name:{} is not in verilator_func_map", name);
     }
 }
 
 }
 
 TO_LUA void verilator_next_sim_step(void) {
-    if (verilator_next_sim_step_impl == NULL) {
-        VL_FATAL(false, "verilator_next_sim_step_impl is NULL");
+    if (verilator_next_sim_step_impl == nullptr) {
+        VL_FATAL(false, "verilator_next_sim_step_impl is nullptr");
     }
 
-    verilator_next_sim_step_impl(NULL);
+    verilator_next_sim_step_impl(nullptr);
 }
 
 TO_LUA int verilator_get_mode(void) {
-    if (verilator_get_mode_impl == NULL) {
-        VL_FATAL(false, "verilator_get_mode_impl is NULL");
+    if (verilator_get_mode_impl == nullptr) {
+        VL_FATAL(false, "verilator_get_mode_impl is nullptr");
     }
 
     int mode = 0;
@@ -58,23 +59,23 @@ TO_LUA int verilator_get_mode(void) {
 }
 
 TO_LUA void verilator_simulation_initializeTrace(char *traceFilePath) {
-    if (verilator_simulation_initializeTrace_impl == NULL) {
-        VL_FATAL(false, "verilator_simulation_initializeTrace_impl is NULL");
+    if (verilator_simulation_initializeTrace_impl == nullptr) {
+        VL_FATAL(false, "verilator_simulation_initializeTrace_impl is nullptr");
     }
     verilator_simulation_initializeTrace_impl((void *)traceFilePath);
 }
 
 TO_LUA void verilator_simulation_enableTrace(void) {
-    if (verilator_simulation_enableTrace_impl == NULL) {
-        VL_FATAL(false, "verilator_simulation_enableTrace_impl is NULL");
+    if (verilator_simulation_enableTrace_impl == nullptr) {
+        VL_FATAL(false, "verilator_simulation_enableTrace_impl is nullptr");
     }
-    verilator_simulation_enableTrace_impl(NULL);
+    verilator_simulation_enableTrace_impl(nullptr);
 }
 
 TO_LUA void verilator_simulation_disableTrace(void) {
-    if (verilator_simulation_disableTrace_impl == NULL) {
-        VL_FATAL(false, "verilator_simulation_disableTrace_impl is NULL");
+    if (verilator_simulation_disableTrace_impl == nullptr) {
+        VL_FATAL(false, "verilator_simulation_disableTrace_impl is nullptr");
     }
-    verilator_simulation_disableTrace_impl(NULL);
+    verilator_simulation_disableTrace_impl(nullptr);
 }
 

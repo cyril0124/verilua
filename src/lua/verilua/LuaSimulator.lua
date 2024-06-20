@@ -1,10 +1,8 @@
-require "LuaCallableHDL"
+local CallableHDL = require "LuaCallableHDL"
 local cfg = cfg
 local ffi = require "ffi"
 local tcc = require "vl-tcc"
 local utils = require "LuaUtils"
-local vpi = vpi
-local CallableHDL = CallableHDL
 local VeriluaMode = VeriluaMode
 local assert, tonumber, pcall = assert, tonumber, pcall
 local verilua_info, verilua_warning = verilua_info, verilua_warning
@@ -28,6 +26,7 @@ ffi.cdef[[
     void verilator_simulation_disableTrace(void);
 
     int verilator_get_mode(void);
+    void c_simulator_control(long long cmd);
 
     void iterate_vpi_type(const char *module_name, int type);
 ]]
@@ -120,7 +119,7 @@ local SimCtrl = {
 }
 
 local simulator_control = function (sim_crtl)
-    vpi.simulator_control(sim_crtl)
+    ffi.C.c_simulator_control(sim_crtl)
 end
 
 local get_mode = function()
