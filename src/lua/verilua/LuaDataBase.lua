@@ -13,15 +13,15 @@ local LuaDataBase = class()
 --      local db = LuaDB {
 --          table_name = "a_table",
 --          elements = {
---              val_1 = "INTEGER",
---             val_2 = "INTEGER",
---                 val_3 = "INTEGER",
---                 others = "TEXT",
---             },
---            path = "./db",
---            file_name = "test.db",
---            save_cnt_max = 1000,
---            verbose = true
+--                "val_1 => INTEGER",
+--                "val_2 => INTEGER",
+--                "val_3 => INTEGER",
+--                "others => TEXT",
+--          },
+--          path = "./db",
+--          file_name = "test.db",
+--          save_cnt_max = 1000,
+--          verbose = true
 --      }
 -- 
 --      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the same order as the elements in the table
@@ -52,8 +52,9 @@ function LuaDataBase:_init(init_tbl)
     self.verbose = verbose or false
 
     local pattern_str = ""
-    for key, data_type in pairs(elements) do
-        assert(type(data_type) == "string")
+    for _, kv_str in pairs(elements) do
+        assert(type(kv_str) == "string")
+        local key, data_type = kv_str:match("([^%s=>]+)%s*=>%s*([^%s]+)")
         assert(data_type == "INTEGER"  or data_type == "TEXT", "Unsupported data type: " .. data_type)
         pattern_str = pattern_str .. key .. " " .. data_type .. ",\n"
     end
@@ -110,7 +111,7 @@ function LuaDataBase:_init(init_tbl)
 
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
     self.prepare_cmd = self.prepare_cmd .. ") " .. "VALUES ("
-    for _, _ in ipairs(self.entries) do
+    for _, _ in pairs(self.entries) do
         self.prepare_cmd = self.prepare_cmd .. "?" .. ","
     end
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
