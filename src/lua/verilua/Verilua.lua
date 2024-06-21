@@ -82,7 +82,7 @@ function verilua.register_tasks(task_table)
     assert(verilua.is_register_task_table == false, "already reigister task table!")
     verilua.is_register_task_table = true
 
-    tinsert(task_table, {"main task", verilua.main_task, {}})
+    tinsert(task_table, {"main_task", verilua.main_task, {}})
 
     if task_table ~= nil and #task_table ~= 0 then
         assert(task_table ~= nil)
