@@ -44,9 +44,7 @@ local function build_common_info()
     add_includedirs(
         src_dir .. "/include",
         lua_dir .. "/include",
-        vcpkg_dir .. "/installed/x64-linux/include",
-        extern_dir .. "/LuaBridge/Source",
-        extern_dir .. "/LuaBridge/Source/LuaBridge"
+        vcpkg_dir .. "/installed/x64-linux/include"
     )
 
     add_links("fmt")
