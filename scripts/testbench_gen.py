@@ -285,10 +285,12 @@ f"""
   `endif
 `else
   `ifndef SIM_VCS
-    initial begin
-      $error("Neither SIM_VERILATOR nor SIM_VCS is defined. One must be defined.");
-      $finish;
-    end
+    `ifndef SIM_IVERILOG
+        initial begin
+          $error("One of [SIM_VERILATOR / SIM_VCS / SIM_IVERILOG] is not defined! One must be defined.");
+          $finish;
+        end
+    `endif
   `endif
 `endif
 """)
@@ -397,7 +399,7 @@ p(f"""
 // -----------------------------------------""")
 p(
 f"""
-`ifndef SIM_VERILATOR
+`ifdef SIM_VCS
 // VeriluaMode
 parameter NormalMode = 1;
 parameter StepMode = 2;
@@ -538,79 +540,133 @@ p(f"""
 // -----------------------------------------""")
 p(
 f"""
-export "DPI-C" function simulation_initializeTrace;
-export "DPI-C" function simulation_enableTrace;
-export "DPI-C" function simulation_disableTrace;
+`ifndef SIM_IVERILOG
+  export "DPI-C" function simulation_initializeTrace;
+  export "DPI-C" function simulation_enableTrace;
+  export "DPI-C" function simulation_disableTrace;
 
-function void simulation_initializeTrace;
-  input string traceFilePath;
-`ifdef SIM_VERILATOR
-  $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-  $dumpfile({{traceFilePath, ".vcd"}});
-  $dumpvars(0, {tb_top_name});
-`endif
-
-`ifdef SIM_VCS
-  $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
-
-  `ifdef FSDB_AUTO_SWITCH
-    `ifndef FILE_SIZE
-      `define FILE_SIZE 25
-    `endif
-    
-    `ifndef NUM_OF_FILES
-      `define NUM_OF_FILES 1000
-    `endif
-
-    $fsdbAutoSwitchDumpfile(`FILE_SIZE, {{traceFilePath, ".fsdb"}}, `NUM_OF_FILES);
-  `else
-    $fsdbDumpfile({{traceFilePath, ".fsdb"}});
+  function void simulation_initializeTrace;
+    input string traceFilePath;
+  `ifdef SIM_VERILATOR
+    $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+    $dumpfile({{traceFilePath, ".vcd"}});
+    $dumpvars(0, {tb_top_name});
   `endif
 
-  //
-  // $fsdbDumpvars([depth, instance][, "option"]);
-  // options:
-  //   +all: Record all signals, including memories, MDA (Memory Data Array), packed arrays, structures, etc.
-  //   +mda: Record all memory and MDA signals. MDA (Memory Data Array) signals refer to those related to memory data arrays.
-  //   +IO_Only: Record only input and output port signals.
-  //   +Reg_Only: Record only signals of register type.
-  //   +parameter: Record parameters.
-  //   +fsdbfile+filename: Specify the fsdb file name.
-  // 
-  $fsdbDumpvars(0, {tb_top_name}, "+all");
-`endif
-endfunction
+  `ifdef SIM_VCS
+    $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
 
-function void simulation_enableTrace;
-`ifdef SIM_VERILATOR
-  $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-  $dumpon;
+    `ifdef FSDB_AUTO_SWITCH
+      `ifndef FILE_SIZE
+        `define FILE_SIZE 25
+      `endif
+      
+      `ifndef NUM_OF_FILES
+        `define NUM_OF_FILES 1000
+      `endif
+
+      $fsdbAutoSwitchDumpfile(`FILE_SIZE, {{traceFilePath, ".fsdb"}}, `NUM_OF_FILES);
+    `else
+      $fsdbDumpfile({{traceFilePath, ".fsdb"}});
+    `endif
+
+    //
+    // $fsdbDumpvars([depth, instance][, "option"]);
+    // options:
+    //   +all: Record all signals, including memories, MDA (Memory Data Array), packed arrays, structures, etc.
+    //   +mda: Record all memory and MDA signals. MDA (Memory Data Array) signals refer to those related to memory data arrays.
+    //   +IO_Only: Record only input and output port signals.
+    //   +Reg_Only: Record only signals of register type.
+    //   +parameter: Record parameters.
+    //   +fsdbfile+filename: Specify the fsdb file name.
+    // 
+    $fsdbDumpvars(0, {tb_top_name}, "+all");
+  `endif
+  endfunction
+
+  function void simulation_enableTrace;
+  `ifdef SIM_VERILATOR
+    $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+    $dumpon;
+  `endif
+
+  `ifdef SIM_VCS
+    $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
+    $fsdbDumpon;
+    // $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
+  `endif
+  endfunction
+
+  function void simulation_disableTrace;
+  `ifdef SIM_VERILATOR
+    $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+    $dumpoff;
+  `endif
+
+  `ifdef SIM_VCS
+    $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
+    $fsdbDumpoff;
+  `endif
+  endfunction
 `endif
 
-`ifdef SIM_VCS
-  $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
-  $fsdbDumpon;
-  // $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
-`endif
-endfunction
+`ifdef SIM_IVERILOG
+reg simulation_initializeTrace;
+reg simulation_initializeTrace_latch;
 
-function void simulation_disableTrace;
-`ifdef SIM_VERILATOR
-  $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-  $dumpoff;
-`endif
+reg simulation_enableTrace;
+reg simulation_enableTrace_latch;
 
-`ifdef SIM_VCS
-  $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
-  $fsdbDumpoff;
-`endif
-endfunction\n""")
+reg simulation_disableTrace;
+reg simulation_disableTrace_latch;
+
+initial begin
+  simulation_initializeTrace = 0;
+  simulation_initializeTrace_latch = 0;
+
+  simulation_enableTrace = 0;
+  simulation_enableTrace_latch = 0;
+
+  simulation_disableTrace = 0;
+  simulation_disableTrace_latch = 0;
+end
+
+always@(posedge clock or negedge clock) begin
+  if(simulation_initializeTrace && !simulation_initializeTrace_latch) begin
+    integer file;
+    string trace_name = "dump.vcd";
+    file = $fopen("iverilog_trace_name.txt", "r");
+    $fscanf(file, "%s", trace_name);
+    $fclose(file);
+
+    $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+    $dumpfile(trace_name);
+    $dumpvars(0, tb_top);
+
+    simulation_initializeTrace_latch <= 1;
+  end
+
+  if(simulation_enableTrace && !simulation_enableTrace_latch) begin
+    $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+    $dumpon;
+
+    simulation_enableTrace_latch <= 1;
+  end
+
+  if(simulation_disableTrace && !simulation_disableTrace_latch) begin
+    $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+    $dumpoff;
+
+    simulation_disableTrace_latch <= 1;
+  end
+end
+`endif\n""")
 
 p(f"""
 // -----------------------------------------
 // tracing command interface
 // -----------------------------------------
-`ifndef SIM_VERILATOR
+`ifdef SIM_VCS
   initial begin
     string dump_file = "dump";
     integer dump_start_cycle = 0;
@@ -639,14 +695,9 @@ p(f"""
         $display("[INFO] @%0t [%s:%d] enable dump_fsdb ", $time, `__FILE__, `__LINE__);
         
         repeat(dump_start_cycle) @(posedge {clock_port.name});
-        `ifdef SIM_VCS
-          $display("[INFO] @%0t [%s:%d] start dump_fsdb at cycle => %d... ", $time, `__FILE__, `__LINE__, dump_start_cycle);
-          $fsdbDumpfile({{dump_file, ".fsdb"}});
-          $fsdbDumpvars(0, {tb_top_name});
-        `else
-          $display("[ERROR] @%0t [%s:%d] SIM_VCS is not defined!... ", $time, `__FILE__, `__LINE__);
-          $fatal;
-        `endif
+        $display("[INFO] @%0t [%s:%d] start dump_fsdb at cycle => %d... ", $time, `__FILE__, `__LINE__, dump_start_cycle);
+        $fsdbDumpfile({{dump_file, ".fsdb"}});
+        $fsdbDumpvars(0, {tb_top_name});
       end else begin
         $display("[ERROR] @%0t [%s:%d] neither dump_vcd or dump_fsdb are not pass in", $time, `__FILE__, `__LINE__);
         $fatal;
@@ -655,25 +706,25 @@ p(f"""
   end
 `endif\n""")
 
-p(
-f"""
-// -----------------------------------------
-// misc code
-// -----------------------------------------
-reg clean;
-reg dump;
-reg logEnable;
-wire [63:0] timer;
+# p(
+# f"""
+# // -----------------------------------------
+# // misc code
+# // -----------------------------------------
+# reg clean;
+# reg dump;
+# reg logEnable;
+# wire [63:0] timer;
 
-initial begin
-  clean = 0;
-  dump = 0;
-  logEnable = 0;
-end
+# initial begin
+#   clean = 0;
+#   dump = 0;
+#   logEnable = 0;
+# end
 
-assign timer = cycles;
+# assign timer = cycles;
 
-""")
+# """)
 
 
 p(f"""

@@ -37,7 +37,7 @@ parser = argparse.ArgumentParser(description='A script used for running a simple
 parser.add_argument('--file', '-f', action='append', dest="file", required=True, help='input verilog/other file')
 parser.add_argument('--top-file', '-tf', dest="top_file", type=str, required=True, help='input top-level verilog file')
 parser.add_argument('--top', '-t', dest="top", type=str, required=True, help='top module name')
-parser.add_argument('--sim', choices=['vcs', 'verilator'], dest="sim", required=True, help="simulator of the simulation")
+parser.add_argument('--sim', choices=['vcs', 'verilator', 'iverilog', 'wave_vpi'], dest="sim", required=True, help="simulator of the simulation")
 parser.add_argument('--lua-main', '-l', dest="lua_main", type=str, required=True, help='input lua main script file')
 parser.add_argument('--lua-file', '-lf', action='append', dest="lua_file", default=[], help='input Lua file')
 parser.add_argument('--lua-deps', '-ld', dest="lua_deps", type=str, help='input Lua deps file')
@@ -176,6 +176,8 @@ for file in lua_files:
     name = os.path.basename(file)
     if not filecmp.cmp(file, f"{cache_dir}/{name}", shallow=False):
         has_mismatch_lua = True
+    if not filecmp.cmp(file, f"{test_dir}/{name}", shallow=False):
+        has_mismatch_lua = True
 
 # update mismatch file
 if has_mismatch_lua:
@@ -267,6 +269,9 @@ if args.sim == "vcs":
 elif args.sim == "verilator":
     if not os.path.isfile(f"{test_dir}/sim_build/Vtb_top"):
         need_rebuild = True
+elif args.sim == "iverilog":
+    if not os.path.isfile(f"{test_dir}/sim_build/simv.vvp"):
+        need_rebuild = True
 
 # create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation without using verilua_run
 clean_sh=f"""
@@ -287,13 +292,24 @@ export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
 make {args.makefile_args} run 2>&1 | tee run.log
 """
+debug_sh=f"""
+#!/usr/bin/env bash
+export VERILUA_CFG={verilua_cfg_gen_file}
+export SIM={args.sim}
+make {args.makefile_args} debug
+"""
 verdi_sh=f"""
 #!/usr/bin/env bash
 verdi -f filelist.f -sv -nologo $@
 """
+setvars_sh=f"""
+#!/usr/bin/env bash
+export VERILUA_CFG={verilua_cfg_gen_file}
+export SIM={args.sim}
+"""
 
 
-scripts = [(clean_sh, "clean.sh"), (build_sh, "build.sh"), (run_sh, "run.sh"), (verdi_sh, "verdi.sh")]
+scripts = [(clean_sh, "clean.sh"), (build_sh, "build.sh"), (run_sh, "run.sh"), (debug_sh, "debug.sh"), (verdi_sh, "verdi.sh"), (setvars_sh, "setvars.sh")]
 for (script, name) in scripts:
     with open(f"{test_dir}/{name}", 'w', encoding='utf-8') as file:
         file.write(script)

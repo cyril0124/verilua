@@ -1,20 +1,23 @@
 #include "lua_vpi.h"
-#include "sol/forward.hpp"
 #include "vpi_access.h"
 #include "vpi_callback.h"
 
-lua_State *L;
+std::unique_ptr<lua_State, LuaStateDeleter> L;
 std::unique_ptr<sol::state_view> lua;
 bool verilua_is_init = false;
 bool verilua_is_final = false;
-sol::protected_function sim_event; 
-sol::protected_function main_step; 
+std::unique_ptr<sol::protected_function> sim_event; 
+std::unique_ptr<sol::protected_function> main_step; 
 
-IDPool edge_cb_idpool(50);
+std::unique_ptr<IDPool> edge_cb_idpool = std::make_unique<IDPool>(50);
 boost::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
 boost::unordered_map<std::string, vpiHandle> handle_cache;
 boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 bool enable_vpi_learn = false;
+
+#ifdef IVERILOG
+bool resolve_x_as_zero = true; // TODO: configuration
+#endif
 
 #ifdef ACCUMULATE_LUA_TIME
 #include <chrono>
@@ -27,7 +30,7 @@ void execute_sim_event(int id) {
 #ifdef ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
 #endif
-    auto ret = sim_event(id);
+    auto ret = (*sim_event)(id);
     if(!ret.valid()) [[unlikely]] {
         verilua_final();
         sol::error  err = ret;
@@ -54,7 +57,7 @@ inline void execute_main_step() {
 #ifdef ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
 #endif
-    auto ret = main_step();
+    auto ret = (*main_step)();
     if(!ret.valid()) [[unlikely]] {
         verilua_final();
         sol::error err = ret;
@@ -149,14 +152,14 @@ VERILUA_EXPORT void verilua_init(void) {
     signal(SIGABRT, sigabrt_handler);
 
     // Create lua virtual machine
-    L = luaL_newstate();
+    L.reset(luaL_newstate());
 
     // Open all the necessary libraried required by lua script. (e.g. os / math / jit/ bit32 / string / coroutine)
     // Import all libraries if we pass no args in.
-    luaL_openlibs(L);
+    luaL_openlibs(L.get());
 
     // Assign sol state
-    lua = std::make_unique<sol::state_view>(L);
+    lua = std::make_unique<sol::state_view>(L.get());
 
     // Register breakpoint function for lua
     // DebugPort is 8818
@@ -174,6 +177,23 @@ VERILUA_EXPORT void verilua_init(void) {
             return 0;
         });
     }
+
+#ifdef IVERILOG
+    const char *_resolve_x_as_zero = getenv("RESOLVE_X_AS_ZERO");
+    if(_resolve_x_as_zero != nullptr) {
+        auto str = std::string(_resolve_x_as_zero);
+        if(str == "false" || str == "0") {
+            VL_INFO("[iverilog] RESOLVE_X_AS_ZERO is false!\n");
+            resolve_x_as_zero = false;
+        } else {
+            VL_INFO("[iverilog] RESOLVE_X_AS_ZERO is true!\n");
+            resolve_x_as_zero = true;
+        }
+    } else {
+        VL_INFO("[iverilog] RESOLVE_X_AS_ZERO is not set, use default setting => true!\n");
+        resolve_x_as_zero = true;
+    }
+#endif
 
     // Check is vpi learn is enable
     const char *_enable_vpi_learn = getenv("VPI_LEARN");
@@ -224,18 +244,20 @@ VERILUA_EXPORT void verilua_init(void) {
         VL_FATAL(false, "Error calling verilua_init, {}", err.what());
     }
 
-    sim_event = (*lua)["sim_event"];
-    sim_event.set_error_handler((*lua)["debug"]["traceback"]); 
-    main_step = (*lua)["lua_main_step"];
-    main_step.set_error_handler((*lua)["debug"]["traceback"]); 
-
-    sol::protected_function test_func = (*lua)["test_func"];
-    auto start1 = std::chrono::high_resolution_clock::now();
-    test_func();
-    auto end1 = std::chrono::high_resolution_clock::now();
-    double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
-    double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
-    VL_INFO("test_func time is {} us\n", (end_time - start_time) * 1000 * 1000);
+    sim_event = std::make_unique<sol::protected_function>((*lua)["sim_event"]);
+    sim_event->set_error_handler((*lua)["debug"]["traceback"]); 
+    main_step = std::make_unique<sol::protected_function>((*lua)["lua_main_step"]);
+    main_step->set_error_handler((*lua)["debug"]["traceback"]); 
+    
+    {
+        sol::protected_function test_func = (*lua)["test_func"];
+        auto start1 = std::chrono::high_resolution_clock::now();
+        test_func();
+        auto end1 = std::chrono::high_resolution_clock::now();
+        double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+        double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+        VL_INFO("test_func time is {} us\n", (end_time - start_time) * 1000 * 1000);
+    }
 
 #ifdef ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
@@ -247,7 +269,7 @@ VERILUA_EXPORT void verilua_init(void) {
 
 
 TO_VERILATOR void verilua_schedule_loop() {
-    sol::state_view lua(L);
+    sol::state_view lua(L.get());
     sol::protected_function verilua_schedule_loop = lua["verilua_schedule_loop"];
     
     auto ret = verilua_schedule_loop();
@@ -288,9 +310,13 @@ VERILUA_EXPORT void vlog_startup_routines_bootstrap() {
 #include "svdpi.h"
 
 TO_LUA void dpi_set_scope(char *str) {
+#ifdef IVERILOG
+    VL_FATAL(false, "Unsupported!");
+#else
     VL_INFO("set svScope name: {}\n", str);
     const svScope scope = svGetScopeFromName(str);
     VL_FATAL(scope, "scope is NULL");
     svSetScope(scope);
+#endif
 }
 

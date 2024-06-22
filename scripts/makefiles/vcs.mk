@@ -117,6 +117,9 @@ run:
 
 build: simv
 
+debug:
+	gdb --args $(BIN) $(SIMV_FLAGS)
+
 simv: $(BIN)
 
 $(BIN): $(SIM_BUILD) $(SIM_FILE)

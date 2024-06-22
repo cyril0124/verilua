@@ -98,6 +98,9 @@ run:
 
 build: $(EMU_RUN_BIN)
 
+debug:
+	gdb --args numactl -m 0 -C 0-7 ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
+
 emu-run:
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- RUN ---------------------$(COLOR_RESET)"
 	numactl -m 0 -C 0-7 ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}

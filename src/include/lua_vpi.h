@@ -31,13 +31,13 @@
 
 #define VL_INFO(...) \
     do { \
-        fmt::print("[{}:{}:{}] [{}INFO{}] ", __FILE__, __func__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET); \
+        fmt::print("[{}:{}:{}] [{}INFO{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET); \
         fmt::print(__VA_ARGS__); \
     } while(0)
 
 #define VL_WARN(...) \
     do { \
-        fmt::print("[{}:{}:{}] [{}WARN{}] ", __FILE__, __func__, __LINE__, ANSI_COLOR_YELLOW, ANSI_COLOR_RESET); \
+        fmt::print("[{}:{}:{}] [{}WARN{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_YELLOW, ANSI_COLOR_RESET); \
         fmt::print(__VA_ARGS__); \
     } while(0)
 
@@ -45,7 +45,7 @@
     do { \
         if (!(cond)) { \
             fmt::println("\n"); \
-            fmt::print("[{}:{}:{}] [{}FATAL{}] ", __FILE__, __func__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+            fmt::print("[{}:{}:{}] [{}FATAL{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
             fmt::println(__VA_ARGS__ __VA_OPT__(,) "A fatal error occurred without a message.\n"); \
             fflush(stdout); \
             fflush(stderr); \
@@ -53,10 +53,18 @@
         } \
     } while(0)
 
+#define ENV_IS_ENABLE(env_enable_str) env_enable_str != nullptr && (std::strcmp(env_enable_str, "1") == 0 || std::strcmp(env_enable_str, "enable") == 0)
+
 #define TO_LUA extern "C"
 #define TO_VERILATOR
 #define VERILUA_EXPORT extern "C"
 #define VERILUA_PRIVATE
+
+struct LuaStateDeleter {
+    void operator()(lua_State* L) const {
+        lua_close(L);
+    }
+};
 
 struct EdgeCbData {
     int       task_id;
@@ -64,12 +72,10 @@ struct EdgeCbData {
     uint64_t  cb_hdl_id;
 };
 
-
 enum class VpiPermission {
     READ,
     WRITE,
 };
-
 
 class IDPool {
 private:
@@ -81,6 +87,12 @@ public:
         for (uint64_t i = 0; i < size; ++i) {
             available_ids.push(i);
         }
+    }
+
+    ~IDPool() {
+        allocated_ids.clear();
+        std::queue<uint64_t> empty;
+        std::swap(available_ids, empty);
     }
 
     uint64_t alloc_id() {

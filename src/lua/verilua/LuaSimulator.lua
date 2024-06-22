@@ -72,6 +72,21 @@ local initialize_trace = function (trace_file_path)
         ffi.C.simulation_initializeTrace(ffi.cast("char *", trace_file_path))
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
+    elseif cfg.simulator == "iverilog" then
+        await_time(0) -- waitting for simulation start
+        
+        local traceFilePath = trace_file_path or "dump.vcd"
+        local file, err = io.open("iverilog_trace_name.txt", "w")
+    
+        if not file then
+            assert(false, "Failed to open file: " .. err)
+        end
+    
+        file:write(traceFilePath .. "\n")
+        file:close()
+    
+        dut.simulation_initializeTrace = 1
+        dut.simulation_initializeTrace_latch = 0
     elseif cfg.simulator == "wave_vpi" then
         assert(false, "[initialize_trace] not support for wave_vpi now")
     else
@@ -85,6 +100,9 @@ local enable_trace = function ()
         ffi.C.simulation_enableTrace()
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_enableTrace()
+    elseif cfg.simulator == "iverilog" then
+        dut.simulation_enableTrace = 1
+        dut.simulation_enableTrace_latch = 0
     elseif cfg.simulator == "wave_vpi" then
         assert(false, "[enable_trace] not support for wave_vpi now")
     else
@@ -98,6 +116,12 @@ local disable_trace = function ()
         ffi.C.simulation_disableTrace()
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_disableTrace()
+    elseif cfg.simulator == "iverilog" then
+        dut.simulation_disableTrace = 1
+        dut.simulation_disableTrace_latch = 0
+
+        dut.simulation_enableTrace = 0
+        dut.simulation_enableTrace_latch = 0
     elseif cfg.simulator == "wave_vpi" then
         assert(false, "[disable_trace] not support for wave_vpi now")
     else

@@ -161,42 +161,30 @@ function SchedulerClass:register_callback(types, value, task_id, signal)
     -- timer callback
     -------------------------
     if types == YieldType.TIMER then
-        -- vpi.register_time_callback(yield_event.value, 0, task_id) -- TODO: high time
         C.verilua_time_callback(value, task_id)
 
     -------------------------
     -- edge callback
     -------------------------
     elseif types == YieldType.SIGNAL_EDGE then
-        -- vpi.register_edge_callback(yield_event.signal, yield_event.value, task_id)
         C.c_register_edge_callback(signal, value, task_id)
 
     -------------------------
     -- edge callback hdl
     -------------------------
     elseif types == YieldType.SIGNAL_EDGE_HDL then
-        -- vpi.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
-        -- ffi.C.register_edge_callback_hdl(yield_event.signal, yield_event.value, task_id)
-        -- s = os.clock()
         C.c_register_edge_callback_hdl(signal, value, task_id)
-        -- e = os.clock()
-        -- ms = (e-s)*1000; us = ms * 1000
-        -- print("register edge callback time is "..ms.." ms".." / "..us.." us")
-
 
     -------------------------
     -- edge callback hdl always
     -------------------------
     elseif types == YieldType.SIGNAL_EDGE_ALWAYS then
-        -- vpi.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
-        -- ffi.C.register_edge_callback_hdl_always(yield_event.signal, yield_event.value, task_id)
         C.c_register_edge_callback_hdl_always(signal, value, task_id)
 
     -------------------------
     -- read write synch callback
     -------------------------
     elseif types == YieldType.READ_WRITE_SYNCH then
-        -- vpi.register_read_write_synch_callback(task_id)
         C.c_register_read_write_synch_callback(task_id)
 
     -------------------------

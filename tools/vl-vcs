@@ -5,6 +5,9 @@ import sys
 import subprocess
 import base64
 
+def execute_cmd(cmd):
+    return subprocess.run(cmd, shell=True, capture_output=True, text=True)
+
 def encode_string(s):
     return base64.b64encode(s.encode()).decode()
 
@@ -35,10 +38,16 @@ vcs = os.getenv("VCS_HOME") + "/bin/vcs"
 
 cmd_list = [vcs] + sys.argv[1:] + [
                         "-debug_access+all", 
-                        f'-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi_vcs',
+                        "-LDFLAGS", f'\"-L{libpath}\"', 
+                        "-LDFLAGS",  '\"-llua_vpi_vcs\"',
+                        "-LDFLAGS", f'\"-L{libpath_lua}\"', 
+                        "-LDFLAGS",  '\"-lluajit-5.1\"', 
+                        "-LDFLAGS", '\"-lstdc++\"',
                         "-load", libpath + "/liblua_vpi_vcs.so", 
-] 
+]
+
 cmd = " ".join(cmd_list)
 print(f"[vl-vcs] cmd is {cmd} ")
+execute_cmd(f"echo {cmd} > vl-vcs.cmd")
 
 exit(subprocess.call(cmd_list))

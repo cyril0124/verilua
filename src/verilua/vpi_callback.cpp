@@ -1,8 +1,10 @@
 #include "vpi_callback.h"
 #include "lua_vpi.h"
+#include "vpi_user.h"
+#include <cstddef>
 
-extern lua_State *L;
-extern IDPool edge_cb_idpool;
+extern std::unique_ptr<lua_State, LuaStateDeleter> L;
+extern std::unique_ptr<IDPool> edge_cb_idpool;
 extern boost::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
 extern boost::unordered_map<std::string, vpiHandle> handle_cache;
 extern boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
@@ -22,7 +24,7 @@ TO_LUA void verilua_time_callback(uint64_t time, int id) {
         auto task_id = *reinterpret_cast<int *>(cb_data->user_data);
         execute_sim_event(task_id);
         
-        delete cb_data->user_data;
+        delete reinterpret_cast<int*>(cb_data->user_data);
         return 0;
     };
     cb_data.obj = nullptr;
@@ -39,18 +41,14 @@ TO_LUA void verilua_time_callback(uint64_t time, int id) {
 
 static inline void register_edge_callback_basic(vpiHandle handle, int edge_type, int id) {
     s_cb_data cb_data;
-
-    p_vpi_time vpi_time = new s_vpi_time{
-        .type = vpiSuppressTime,
-    };
-
-    p_vpi_value vpi_value = new s_vpi_value{
-        .format = vpiIntVal
-    };
+    s_vpi_time vpi_time{.type = vpiSuppressTime};
+    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        vpi_get_value(cb_data->obj, cb_data->value);
+        s_vpi_value vpi_value {.format = vpiIntVal};
+
+        vpi_get_value(cb_data->obj, &vpi_value);
         int new_value = cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data);
@@ -58,14 +56,14 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
             execute_sim_event(user_data->task_id);
 
             vpi_remove_cb(edge_cb_hdl_map[user_data->cb_hdl_id]);
-            edge_cb_idpool.release_id(user_data->cb_hdl_id);
-            delete cb_data->user_data;
+            edge_cb_idpool->release_id(user_data->cb_hdl_id);
+            delete reinterpret_cast<EdgeCbData *>(cb_data->user_data);
         }
 
         return 0;
     };
-    cb_data.time = vpi_time;
-    cb_data.value = vpi_value;
+    cb_data.time = &vpi_time;
+    cb_data.value = &vpi_value;
     cb_data.obj = handle;
 
     int expected_value = 0;
@@ -80,8 +78,8 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
-    user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
-    cb_data.user_data = (PLI_BYTE8 *)user_data;
+    user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
+    cb_data.user_data = reinterpret_cast<PLI_BYTE8 *>(user_data);
 
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
@@ -133,15 +131,10 @@ TO_LUA void c_register_edge_callback_hdl(long long handle, int edge_type, int id
 
 TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+
     s_cb_data cb_data;
-
-    p_vpi_time vpi_time = new s_vpi_time {
-        .type = vpiSuppressTime
-    };
-
-    p_vpi_value vpi_value = new s_vpi_value {
-        .format = vpiIntVal
-    };
+    s_vpi_time vpi_time{.type = vpiSuppressTime};
+    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
@@ -155,8 +148,8 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
 
         return 0;
     };
-    cb_data.time = vpi_time;
-    cb_data.value = vpi_value;
+    cb_data.time = &vpi_time;
+    cb_data.value = &vpi_value;
     cb_data.obj = actual_handle;
 
     int expected_value = 0;
@@ -171,7 +164,7 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
-    user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
+    user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
     cb_data.user_data = (PLI_BYTE8 *)user_data;
     
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
@@ -180,13 +173,8 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
 TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_cb_data cb_data;
-    p_vpi_time vpi_time = new s_vpi_time {
-        .type = vpiSuppressTime
-    };
-
-    p_vpi_value vpi_value = new s_vpi_value {
-        .format = vpiIntVal
-    };
+    s_vpi_time vpi_time{.type = vpiSuppressTime};
+    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
@@ -200,8 +188,8 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
 
         return 0;
     };
-    cb_data.time = vpi_time;
-    cb_data.value = vpi_value;
+    cb_data.time = &vpi_time;
+    cb_data.value = &vpi_value;
     cb_data.obj = actual_handle;
 
     int expected_value = 1; // Posedge
@@ -209,7 +197,7 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
-    user_data->cb_hdl_id = edge_cb_idpool.alloc_id();;
+    user_data->cb_hdl_id = edge_cb_idpool->alloc_id();;
     cb_data.user_data = (PLI_BYTE8 *)user_data;
 
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
@@ -218,13 +206,8 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
 TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_cb_data cb_data;
-    p_vpi_time vpi_time = new s_vpi_time {
-        .type = vpiSuppressTime
-    };
-
-    p_vpi_value vpi_value = new s_vpi_value {
-        .format = vpiIntVal
-    };
+    s_vpi_time vpi_time{.type = vpiSuppressTime};
+    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
@@ -238,8 +221,8 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
 
         return 0;
     };
-    cb_data.time = vpi_time;
-    cb_data.value = vpi_value;
+    cb_data.time = &vpi_time;
+    cb_data.value = &vpi_value;
     cb_data.obj = actual_handle;
 
     int expected_value = 0; // Negedge
@@ -247,7 +230,7 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = expected_value;
-    user_data->cb_hdl_id = edge_cb_idpool.alloc_id();
+    user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
     cb_data.user_data = (PLI_BYTE8 *)user_data;
     
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
@@ -263,7 +246,7 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
         auto task_id = *reinterpret_cast<int *>(cb_data->user_data);
         execute_sim_event(task_id);
 
-        delete cb_data->user_data;
+        delete reinterpret_cast<int*>(cb_data->user_data);
         return 0;
     };
     cb_data.time = nullptr;
@@ -294,9 +277,10 @@ static PLI_INT32 start_callback(p_cb_data cb_data) {
 }
 
 static PLI_INT32 final_callback(p_cb_data cb_data) {
+    VL_INFO("enter final_callback()\n");
     verilua_final();
 
-    lua_close(L);
+    // lua_close(L);
 
     if (enable_vpi_learn) {
         std::ofstream outfile("vpi_learn.log");
@@ -319,7 +303,7 @@ static PLI_INT32 final_callback(p_cb_data cb_data) {
         outfile.close();
     }
 
-    VL_INFO("Final callback\n");
+    VL_INFO("finish final_callback()\n");
     return 0;
 }
 

@@ -42,6 +42,11 @@ ifeq ($(SIM), verilator)
     $(info $(INFO) Using $(BOLD)$(GREEN)VERILATOR$(RESET_1)$(NORMAL) as simulator)
 endif
 
+ifeq ($(SIM), iverilog)
+    include iverilog.mk
+    $(info $(INFO) Using $(BOLD)$(GREEN)IVERILOG$(RESET_1)$(NORMAL) as simulator)
+endif
+
 
 # --------------------------------------------
 # common rules

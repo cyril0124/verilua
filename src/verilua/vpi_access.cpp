@@ -5,6 +5,10 @@ extern boost::unordered_map<std::string, vpiHandle> handle_cache;
 extern boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 extern bool enable_vpi_learn;
 
+#ifdef IVERILOG
+extern bool resolve_x_as_zero;
+#endif
+
 std::mutex vpi_lock_;
 
 #define VPI_REGION_LOG(...)
@@ -129,7 +133,14 @@ TO_LUA long long c_get_value_by_name(const char *path) {
     LEAVE_VPI_REGION();
 #endif
 
+#ifndef IVERILOG
     return v.value.vector[0].aval;
+#else
+    if(resolve_x_as_zero && v.value.vector[0].bval != 0)
+        return 0;
+    else
+        return v.value.vector[0].aval;
+#endif
 }
 
 // return datas with more than 64bit, each table entry is a 32bit value(4 byte)
@@ -216,7 +227,7 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
 
 // TODO: Force/Release statement only work in VCS. (Verilator cannot use Force/Release for some reason. It would be fix in the future. )
 TO_LUA void c_force_value_by_name(const char *path, long long value) {
-#ifdef VCS
+#if defined(VCS) || defined(IVERILOG)
     // ! Make sure that the VCS compile cmd has included "-debug_access+all" instead of "-debug_access+class" although the later may contribute to better simulation performance.
     ENTER_VPI_REGION();
 
@@ -226,35 +237,39 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
     s_vpi_value v;
     v.format = vpiIntVal;
     v.value.integer = value;
-    vpi_put_value(handle, &v, NULL, vpiForceFlag);
+    vpi_put_value(handle, &v, nullptr, vpiForceFlag);
 
     // VL_INFO("force {}  ==> 0x{:x}\n", path, value);
 
     LEAVE_VPI_REGION();
 #else
-    VL_FATAL(false, "force value only supported by VCS");
+    VL_FATAL(false, "force value only supported by VCS / Iverilog");
 #endif
 }
 
 TO_LUA void c_release_value_by_name(const char *path) {
-#ifdef VCS
+#if defined(VCS) || defined(IVERILOG)
     ENTER_VPI_REGION();
 
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
     s_vpi_value v;
-    v.format = vpiSuppressVal;
-    vpi_put_value(handle, &v, NULL, vpiReleaseFlag);
+    v.format = vpiVectorVal; // TODO: other kinds of value
+
+    // Tips from cocotb:
+    //      Best to pass its current value to the sim when releasing
+    vpi_get_value(handle, &v);
+    vpi_put_value(handle, &v, nullptr, vpiReleaseFlag);
 
     LEAVE_VPI_REGION();
 #else
-    VL_FATAL(false, "release value only supported by VCS");
+    VL_FATAL(false, "release value only supported by VCS / Iverilog");
 #endif
 }
 
 TO_LUA void c_force_value(long long handle, long long value) {
-#ifdef VCS
+#if defined(VCS) || defined(IVERILOG)
     ENTER_VPI_REGION();
 
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -265,12 +280,12 @@ TO_LUA void c_force_value(long long handle, long long value) {
 
     LEAVE_VPI_REGION();
 #else
-    VL_FATAL(false, "force value only supported by VCS");
+    VL_FATAL(false, "force value only supported by VCS / Iverilog");
 #endif
 }
 
 TO_LUA void c_release_value(long long handle) {
-#ifdef VCS
+#if defined(VCS) || defined(IVERILOG)
     ENTER_VPI_REGION();
 
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -280,7 +295,7 @@ TO_LUA void c_release_value(long long handle) {
 
     LEAVE_VPI_REGION();
 #else
-    VL_FATAL(false, "release value only supported by VCS");
+    VL_FATAL(false, "release value only supported by VCS / Iverilog");
 #endif
 }
 
@@ -302,7 +317,15 @@ TO_LUA uint32_t c_get_value(long long handle) {
 #ifndef VCS
     LEAVE_VPI_REGION();
 #endif
+
+#ifndef IVERILOG
     return v.value.vector[0].aval;
+#else
+    if(resolve_x_as_zero && v.value.vector[0].bval != 0)
+        return 0;
+    else
+        return v.value.vector[0].aval;
+#endif
 }
 
 TO_LUA uint64_t c_get_value64(long long handle) {
@@ -316,9 +339,22 @@ TO_LUA uint64_t c_get_value64(long long handle) {
     v.format = vpiVectorVal;
     vpi_get_value(actual_handle, &v);
 
+#ifndef IVERILOG
     uint32_t lo = v.value.vector[0].aval;
     uint32_t hi = v.value.vector[1].aval;
     uint64_t value = ((uint64_t)hi << 32) | lo; 
+#else
+    uint32_t lo = 0;
+    uint32_t hi = 0;
+    uint64_t value = 0;
+    if(resolve_x_as_zero && (v.value.vector[0].bval != 0 || v.value.vector[1].bval != 0)) {
+        // remain zero
+    } else {
+        lo = v.value.vector[0].aval;
+        hi = v.value.vector[1].aval;
+        value = ((uint64_t)hi << 32) | lo;
+    }
+#endif
 
 #ifndef VCS
     LEAVE_VPI_REGION();
@@ -358,10 +394,20 @@ TO_LUA void c_get_value_multi_2(long long handle, uint32_t *ret, int n) {
     vpi_get_value(actual_handle, &v);
 
     for(int i = 1; i < (n + 1); i++) {
+#ifndef IVERILOG
         ret[i] = v.value.vector[i - 1].aval;
+        // VL_INFO("a aval:0x{:x} bval:0x{:x}\n", v.value.vector[i - 1].aval, v.value.vector[i - 1].bval);
+#else
+        if(resolve_x_as_zero && v.value.vector[i - 1].bval != 0)
+            ret[i] = 0;
+        else {
+            ret[i] = v.value.vector[i - 1].aval;
+            // VL_INFO("aval:0x{:x} bval:0x{:x}\n", v.value.vector[i - 1].aval, v.value.vector[i - 1].bval);
+        }
+#endif
     }
 
-    ret[0] = n;
+    ret[0] = n; // number of returned beat
 
 #ifndef VCS
     LEAVE_VPI_REGION();

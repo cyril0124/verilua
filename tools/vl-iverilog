@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import subprocess
+
+verilua_path = os.getenv("VERILUA_HOME")
+libpath = os.getenv("VERILUA_HOME") + "/shared"
+luapath = os.getenv("VERILUA_HOME") + "/luajit2.1"
+liblua_path = luapath + "/lib"
+assert libpath != None, "[vl-iverilog] cannot find VERILUA_HOME!"
+assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-iverilog] cannot find liblua_vpi.so in " + libpath
+
+cmd_list = ["iverilog"] + ["-g2012"] + sys.argv[1:]
+cmd = " ".join(cmd_list)
+print(f"[vl-iverilog] cmd is {cmd} ")
+
+exit(subprocess.call(cmd_list))

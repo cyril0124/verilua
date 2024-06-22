@@ -113,7 +113,7 @@ for item in basic_cfg_keys:
         cfg.top = cfg_item
     elif item == "simulator":
         assert cfg_item != None, "<simulator> should be set properly!"
-        assert cfg_item in ["verilator", "vcs", "wave_vpi"], f"Simulator only support verilator or vcs, not {cfg_item}"
+        assert cfg_item in ["verilator", "vcs", "iverilog", "wave_vpi"], f"Simulator only support verilator or vcs, not {cfg_item}"
         assert type(cfg_item) == str
         cfg.simulator = cfg_item  
     elif item == "mode":
