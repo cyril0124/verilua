@@ -4,6 +4,7 @@ local List = require "pl.List"
 local fun = require "fun"
 local assert, type, print, rawset = assert, type, print, rawset
 local tconcat = table.concat
+local format = string.format
 
 
 local AliasBundle = class()
@@ -75,6 +76,36 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
         local alias_name = self.alias_tbl[i]
         local real_name = self.signals_tbl[i]
         rawset(self, alias_name, CallableHDL(hierachy .. "." .. prefix .. real_name, real_name, nil))
+    end
+
+    self.dump_str = function (this)
+        local s = ""
+
+        if this.name ~= "Unknown" then
+            s = s .. format("[%s] ", this.name)
+        end
+    
+        if this.valid ~= nil then
+            s = s .. "| valid: " .. this.valid:get()
+        end
+
+        if this.ready ~= nil then
+            s = s .. "| ready: " .. this.ready:get()
+        end
+
+        for i = 1, #self.signals_tbl do
+            local alias_name = self.alias_tbl[i]
+            local real_name = self.signals_tbl[i]
+            if real_name ~= "valid" and real_name ~= "ready" then
+                s = s .. format(" | %s: 0x%s", real_name .. " -> " .. alias_name, this[alias_name]:get_str(HexStr))
+            end
+        end
+
+        return s
+    end
+
+    self.dump = function (this)
+        print(this:dump_str())
     end
 end
 
