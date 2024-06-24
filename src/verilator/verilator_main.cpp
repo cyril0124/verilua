@@ -2,7 +2,7 @@
 // www.cocotb.org
 // https://github.com/cocotb/cocotb/tree/master/cocotb/share/lib/verilator
 
-// TODO: Command line argparser
+#include "lua_vpi.h"
 #include "Vtb_top.h"
 #include "verilated.h"
 #include "verilated_vpi.h"
@@ -13,30 +13,27 @@
 #include <cassert>
 #include <argparse/argparse.hpp>
 
-#include "lua_vpi.h"
-
-
 #ifndef VM_TRACE_FST
 // emulate new verilator behavior for legacy versions
 #define VM_TRACE_FST 0
 #endif
 
 #if VM_TRACE
-    #if VM_TRACE_FST
-        #include <verilated_fst_c.h>
-    #else
-        #include <verilated_vcd_c.h>
-    #endif
+#if VM_TRACE_FST
+#include <verilated_fst_c.h>
+#else
+#include <verilated_vcd_c.h>
+#endif
 #endif
 
 std::unique_ptr<Vtb_top> top(new Vtb_top(""));
 
 #if VM_TRACE
-    #if VM_TRACE_FST
-        std::unique_ptr<VerilatedFstC> tfp;
-    #else
-        std::unique_ptr<VerilatedVcdC> tfp;
-    #endif
+#if VM_TRACE_FST
+std::unique_ptr<VerilatedFstC> tfp;
+#else
+std::unique_ptr<VerilatedVcdC> tfp;
+#endif
 #endif
 
 struct Config {
@@ -121,18 +118,56 @@ double sc_time_stamp() {  // Called by $time in Verilog
 // ref: https://stackoverflow.com/a/4217052
 static volatile int got_sigint = 0;
 void sigint_handler(int unused) {
+    top->eval_step();
+    DUMP_WAVE(main_time);
+
+    top->clock = 1;
+    main_time += 5;
+    top->eval_step();
+    
+    top->clock = 0;
+    main_time += 5;
+    top->eval_step();
+    
+    DUMP_WAVE(main_time);
+
     got_sigint = 1;
 
-    VL_WARN("GET <<SIGINT>>\n\n");
+    VL_WARN(R"(
+---------------------------------------------------------------------
+----   Verilator main get <SIGINT>, the program will terminate...      ----
+---------------------------------------------------------------------
+)");
     VerilatedVpi::callCbs(cbEndOfSimulation);
+
+    exit(0);
 }
 
 static volatile int got_sigabrt = 0;
 void sigabrt_handler(int unused) {
+    top->eval_step();
+    DUMP_WAVE(main_time);
+
+    top->clock = 1;
+    main_time += 5;
+    top->eval_step();
+    
+    top->clock = 0;
+    main_time += 5;
+    top->eval_step();
+    
+    DUMP_WAVE(main_time);
+
     got_sigabrt = 1;
 
-    VL_WARN("GET <<SIGABRT>>\n\n");
+    VL_WARN(R"(
+---------------------------------------------------------------------
+----   Verilator main get <SIGABRT>, the program will terminate...      ----
+---------------------------------------------------------------------
+)");
     VerilatedVpi::callCbs(cbEndOfSimulation);
+
+    exit(0);
 }
 
 
@@ -170,6 +205,7 @@ void verilator_next_sim_step(void *args) {
 
     top->eval_step();
     top->clock = top->clock ? 0 : 1;
+    top->eval_step();
     
     DUMP_WAVE(main_time);
 
@@ -381,8 +417,8 @@ inline int normal_mode_main(int argc, char** argv) {
         VerilatedVpi::callCbs(cbReadOnlySynch);
 
         if ((main_time % 10) == 0) {
-            top->clock = top->clock ? 0 : 1; // Toggle clock
             top->eval_step();
+            top->clock = top->clock ? 0 : 1; // Toggle clock
         }
 
         top->eval_end_step();
@@ -519,8 +555,7 @@ int main(int argc, char** argv) {
 
     try {
         program.parse_args(argc, argv);
-    }
-    catch (const std::runtime_error& err) {
+    } catch (const std::runtime_error& err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
         exit(1);
@@ -546,19 +581,22 @@ int main(int argc, char** argv) {
 #ifdef NORMAL_MODE
     VL_INFO("using verilua NORMAL_MODE\n");
     return normal_mode_main(argc, argv);
-#else
-    #ifdef DOMINANT_MODE
-        VL_INFO("using verilua DOMINANT_MODE\n");
-        return dominant_mode_main(argc, argv);
-    #else
-        #ifdef STEP_MODE
-            VL_INFO("using verilua STEP_MODE\n");
-            return step_mode_main(argc, argv);
-        #else
-            VL_INFO("using verilua TIMMING_MODE\n");
-            return timming_mode_main(argc, argv);
-        #endif
-    #endif
 #endif
 
+#ifdef DOMINANT_MODE
+    VL_INFO("using verilua DOMINANT_MODE\n");
+    return dominant_mode_main(argc, argv);
+#endif
+
+#ifdef STEP_MODE
+    VL_INFO("using verilua STEP_MODE\n");
+    return step_mode_main(argc, argv);
+#endif
+
+#ifdef TIMMING_MODE
+    VL_INFO("using verilua TIMMING_MODE\n");
+    return timming_mode_main(argc, argv);
+#endif
+
+    VL_FATAL(false, "unknown mode");
 }
