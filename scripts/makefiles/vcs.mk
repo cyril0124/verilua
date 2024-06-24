@@ -120,6 +120,9 @@ build: simv
 debug:
 	gdb --args $(BIN) $(SIMV_FLAGS)
 
+valgrind:
+	valgrind --tool=memcheck --leak-check=full $(BIN) $(SIMV_FLAGS)
+
 simv: $(BIN)
 
 $(BIN): $(SIM_BUILD) $(SIM_FILE)
@@ -135,4 +138,4 @@ $(SIM_FILE): $(DUT_FILE)
 clean:
 	-rm -rf $(SIM_BUILD) ucli.key csrc
 
-.PHONY: default run simv build clean
+.PHONY: default run debug valgrind simv build clean

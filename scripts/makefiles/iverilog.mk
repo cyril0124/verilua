@@ -53,7 +53,7 @@ debug:
 	gdb --args $(VVP_BIN) $(VVP_FLAGS) $(VVP_FILE)
 
 valgrind:
-	valgrind --tool=memcheck $(VVP_BIN) $(VVP_FLAGS) $(VVP_FILE)
+	valgrind --tool=memcheck --leak-check=full $(VVP_BIN) $(VVP_FLAGS) $(VVP_FILE)
 
 simv.vvp: $(VVP_FILE)
 
@@ -70,4 +70,4 @@ $(SIM_FILE): $(DUT_FILE)
 clean:
 	-rm -rf $(SIM_BUILD)
 
-.PHONY: default run simv.vvp build clean
+.PHONY: default run debug valgrind simv.vvp build clean

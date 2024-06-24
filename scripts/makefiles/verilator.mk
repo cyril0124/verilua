@@ -101,6 +101,9 @@ build: $(EMU_RUN_BIN)
 debug:
 	gdb --args numactl -m 0 -C 0-7 ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
 
+valgrind:
+	valgrind --tool=memcheck --leak-check=full ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
+
 emu-run:
 	@echo -e "$(INFO_STR) $(COLOR_GREEN)-- RUN ---------------------$(COLOR_RESET)"
 	numactl -m 0 -C 0-7 ${EMU_RUN_BIN} ${EMU_RUN_FLAGS}
@@ -120,4 +123,4 @@ $(SIM_FILE): $(DUT_FILE)
 clean:
 	-rm -rf $(SIM_BUILD)
 
-.PHONY: default run build emu-run clean
+.PHONY: default run debug valgrind build emu-run clean
