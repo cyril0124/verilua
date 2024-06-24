@@ -49,10 +49,10 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
         s_vpi_value vpi_value {.format = vpiIntVal};
 
         vpi_get_value(cb_data->obj, &vpi_value);
-        int new_value = cb_data->value->value.integer;
+        EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data);
-        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+        if(new_value == user_data->expected_value || user_data->expected_value == EdgeValue::DONTCARE) {
             execute_sim_event(user_data->task_id);
 
             vpi_remove_cb(edge_cb_hdl_map[user_data->cb_hdl_id]);
@@ -66,13 +66,19 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     cb_data.value = &vpi_value;
     cb_data.obj = handle;
 
-    int expected_value = 0;
-    if(edge_type == 0) { // Posedge
-        expected_value = 1;
-    } else if(edge_type == 1) { // Negedge
-        expected_value = 0;
-    } else if(edge_type == 2) { // Both edge
-        expected_value = 2;
+    EdgeValue expected_value;
+    switch ((EdgeType)edge_type) {
+        case EdgeType::POSEDGE:
+            expected_value = EdgeValue::HIGH;
+            break;
+        case EdgeType::NEGEDGE:
+            expected_value = EdgeValue::LOW;
+            break;
+        case EdgeType::EDGE:
+            expected_value = EdgeValue::DONTCARE;
+            break;
+        default:
+            VL_FATAL(false, "Invalid edge type: {}", edge_type);
     }
 
     EdgeCbData *user_data = new EdgeCbData;
@@ -139,10 +145,10 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
         vpi_get_value(cb_data->obj, cb_data->value);
-        int new_value = cb_data->value->value.integer;
+        EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
-        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+        if(new_value == user_data->expected_value || user_data->expected_value == EdgeValue::DONTCARE) {
             execute_sim_event(user_data->task_id);
         }
 
@@ -152,13 +158,19 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     cb_data.value = &vpi_value;
     cb_data.obj = actual_handle;
 
-    int expected_value = 0;
-    if(edge_type == 0) { // Posedge
-        expected_value = 1;
-    } else if(edge_type == 1) { // Negedge
-        expected_value = 0;
-    } else if(edge_type == 2) { // Both edge
-        expected_value = 2;
+    EdgeValue expected_value;
+    switch ((EdgeType)edge_type) {
+        case EdgeType::POSEDGE:
+            expected_value = EdgeValue::HIGH;
+            break;
+        case EdgeType::NEGEDGE:
+            expected_value = EdgeValue::LOW;
+            break;
+        case EdgeType::EDGE:
+            expected_value = EdgeValue::DONTCARE;
+            break;
+        default:
+            VL_FATAL(false, "Invalid edge type: {}", edge_type);
     }
 
     EdgeCbData *user_data = new EdgeCbData;
@@ -179,10 +191,10 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
         vpi_get_value(cb_data->obj, cb_data->value);
-        int new_value = cb_data->value->value.integer;
+        EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
-        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+        if(new_value == user_data->expected_value || user_data->expected_value == EdgeValue::DONTCARE) {
             execute_sim_event(user_data->task_id);
         }
 
@@ -192,11 +204,9 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
     cb_data.value = &vpi_value;
     cb_data.obj = actual_handle;
 
-    int expected_value = 1; // Posedge
-
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
-    user_data->expected_value = expected_value;
+    user_data->expected_value = EdgeValue::HIGH; // Posedge
     user_data->cb_hdl_id = edge_cb_idpool->alloc_id();;
     cb_data.user_data = (PLI_BYTE8 *)user_data;
 
@@ -212,10 +222,10 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
         vpi_get_value(cb_data->obj, cb_data->value);
-        int new_value = cb_data->value->value.integer;
+        EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
-        if(new_value == user_data->expected_value || user_data->expected_value == 2) {
+        if(new_value == user_data->expected_value || user_data->expected_value == EdgeValue::DONTCARE) {
             execute_sim_event(user_data->task_id);
         }
 
@@ -225,11 +235,9 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
     cb_data.value = &vpi_value;
     cb_data.obj = actual_handle;
 
-    int expected_value = 0; // Negedge
-
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
-    user_data->expected_value = expected_value;
+    user_data->expected_value = EdgeValue::LOW; // Negedge
     user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
     cb_data.user_data = (PLI_BYTE8 *)user_data;
     
@@ -252,7 +260,7 @@ TO_LUA void c_register_read_write_synch_callback(int id) {
     cb_data.time = nullptr;
     cb_data.value = nullptr;
 
-    int *id_p = new int(id);
+    auto id_p = new int(id);
     cb_data.user_data = (PLI_BYTE8 *)id_p;
 
     VL_FATAL(vpi_register_cb(&cb_data) != nullptr);

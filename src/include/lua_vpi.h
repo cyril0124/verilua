@@ -60,6 +60,23 @@
 #define VERILUA_EXPORT extern "C"
 #define VERILUA_PRIVATE
 
+enum class VpiPermission {
+    READ,
+    WRITE,
+};
+
+enum class EdgeType : int {
+    POSEDGE = 0,
+    NEGEDGE = 1,
+    EDGE = 2
+};
+
+enum class EdgeValue : int {
+    LOW = 0,
+    HIGH = 1,
+    DONTCARE = 2
+};
+
 struct LuaStateDeleter {
     void operator()(lua_State* L) const {
         lua_close(L);
@@ -68,14 +85,10 @@ struct LuaStateDeleter {
 
 struct EdgeCbData {
     int       task_id;
-    int       expected_value;
+    EdgeValue expected_value;
     uint64_t  cb_hdl_id;
 };
 
-enum class VpiPermission {
-    READ,
-    WRITE,
-};
 
 class IDPool {
 private:

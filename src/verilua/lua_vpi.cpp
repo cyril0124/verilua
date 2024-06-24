@@ -149,7 +149,9 @@ static void sigabrt_handler(int signal) {
 }
 
 VERILUA_EXPORT void verilua_init(void) {
+#ifndef VERILATOR // Verilator has its own sigabrt_handler() in verilator_main.cpp
     signal(SIGABRT, sigabrt_handler);
+#endif
 
     // Create lua virtual machine
     L.reset(luaL_newstate());
