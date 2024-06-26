@@ -26,7 +26,7 @@ double start_time_for_step = 0.0;
 double end_time_for_step = 0.0;
 #endif
 
-void execute_sim_event(int id) {
+void execute_sim_event(TaskID id) {
 #ifdef ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
 #endif

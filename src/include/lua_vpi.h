@@ -60,6 +60,8 @@
 #define VERILUA_EXPORT extern "C"
 #define VERILUA_PRIVATE
 
+using TaskID = uint32_t;
+
 enum class VpiPermission {
     READ,
     WRITE,
@@ -84,9 +86,11 @@ struct LuaStateDeleter {
 };
 
 struct EdgeCbData {
-    int       task_id;
-    EdgeValue expected_value;
-    uint64_t  cb_hdl_id;
+    TaskID      task_id;
+    EdgeValue   expected_value;
+    uint64_t    cb_hdl_id;
+    s_vpi_value vpi_value;
+    s_vpi_time  vpi_time;
 };
 
 
@@ -149,4 +153,4 @@ namespace Verilua {
 
 // used inside the verilua lib (cpp side)
 VERILUA_PRIVATE void execute_final_callback();
-VERILUA_PRIVATE void execute_sim_event(int id);
+VERILUA_PRIVATE void execute_sim_event(TaskID id);

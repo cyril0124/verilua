@@ -1,7 +1,5 @@
-#include "vpi_callback.h"
 #include "lua_vpi.h"
-#include "vpi_user.h"
-#include <cstddef>
+#include "vpi_callback.h"
 
 extern std::unique_ptr<lua_State, LuaStateDeleter> L;
 extern std::unique_ptr<IDPool> edge_cb_idpool;
@@ -17,14 +15,14 @@ double start_time = 0.0;
 double end_time = 0.0;
 #endif
 
-TO_LUA void verilua_time_callback(uint64_t time, int id) {   
+TO_LUA void verilua_time_callback(uint64_t time, TaskID id) {   
     s_cb_data cb_data;
     cb_data.reason = cbAfterDelay,
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        auto task_id = *reinterpret_cast<int *>(cb_data->user_data);
+        auto task_id = *reinterpret_cast<TaskID *>(cb_data->user_data);
         execute_sim_event(task_id);
         
-        delete reinterpret_cast<int*>(cb_data->user_data);
+        delete reinterpret_cast<TaskID *>(cb_data->user_data);
         return 0;
     };
     cb_data.obj = nullptr;
@@ -34,27 +32,22 @@ TO_LUA void verilua_time_callback(uint64_t time, int id) {
     cb_data.time->low = time & 0xFFFFFFFF;
     cb_data.time->high = (time >> 32) & 0xFFFFFFFF;
 
-    auto id_p = new int(id);
+    auto id_p = new TaskID(id);
     cb_data.user_data = reinterpret_cast<PLI_BYTE8 *>(id_p);
     vpi_register_cb(&cb_data);
 }
 
-static inline void register_edge_callback_basic(vpiHandle handle, int edge_type, int id) {
+static inline void register_edge_callback_basic(vpiHandle handle, int edge_type, TaskID id) {
     s_cb_data cb_data;
-    s_vpi_time vpi_time{.type = vpiSuppressTime};
-    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        s_vpi_value vpi_value {.format = vpiIntVal};
-
-        vpi_get_value(cb_data->obj, &vpi_value);
+        // vpi_get_value(cb_data->obj, cb_data->value);
         EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data);
         if(new_value == user_data->expected_value || user_data->expected_value == EdgeValue::DONTCARE) {
             execute_sim_event(user_data->task_id);
-
             vpi_remove_cb(edge_cb_hdl_map[user_data->cb_hdl_id]);
             edge_cb_idpool->release_id(user_data->cb_hdl_id);
             delete reinterpret_cast<EdgeCbData *>(cb_data->user_data);
@@ -62,9 +55,6 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
 
         return 0;
     };
-    cb_data.time = &vpi_time;
-    cb_data.value = &vpi_value;
-    cb_data.obj = handle;
 
     EdgeValue expected_value;
     switch ((EdgeType)edge_type) {
@@ -85,29 +75,35 @@ static inline void register_edge_callback_basic(vpiHandle handle, int edge_type,
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
+    user_data->vpi_value.format = vpiIntVal;
+    user_data->vpi_time.type = vpiSuppressTime;
+
+    cb_data.obj = handle;
+    cb_data.time = &user_data->vpi_time;
+    cb_data.value = &user_data->vpi_value;
     cb_data.user_data = reinterpret_cast<PLI_BYTE8 *>(user_data);
 
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
-TO_LUA void verilua_posedge_callback(const char *path, int id) {
+TO_LUA void verilua_posedge_callback(const char *path, TaskID id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, nullptr);
     VL_FATAL(signal_handle, "No handle found: {}", path);
     register_edge_callback_basic(signal_handle, 0, id);
 }
 
-TO_LUA void verilua_posedge_callback_hdl(long long handle, int id) {
+TO_LUA void verilua_posedge_callback_hdl(long long handle, TaskID id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     register_edge_callback_basic(actual_handle, 0, id);
 }
 
-TO_LUA void verilua_negedge_callback(const char *path, int id) {
+TO_LUA void verilua_negedge_callback(const char *path, TaskID id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, nullptr);
     VL_FATAL(signal_handle, "No handle found: {}", path);
     register_edge_callback_basic(signal_handle, 1, id);
 }
 
-TO_LUA void verilua_negedge_callback_hdl(long long handle, int id) {
+TO_LUA void verilua_negedge_callback_hdl(long long handle, TaskID id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     register_edge_callback_basic(actual_handle, 1, id);
 }
@@ -118,33 +114,30 @@ TO_LUA void verilua_edge_callback(const char *path, int id) {
     register_edge_callback_basic(signal_handle, 2, id);
 }
 
-TO_LUA void verilua_edge_callback_hdl(long long handle, int id) {
+TO_LUA void verilua_edge_callback_hdl(long long handle, TaskID id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     register_edge_callback_basic(actual_handle, 2, id);
 }
 
 
-TO_LUA void c_register_edge_callback(const char *path, int edge_type, int id) {
+TO_LUA void c_register_edge_callback(const char *path, int edge_type, TaskID id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, nullptr);
     VL_FATAL(signal_handle, "No handle found: {}", path);
     register_edge_callback_basic(signal_handle, edge_type, id);
 }
 
-TO_LUA void c_register_edge_callback_hdl(long long handle, int edge_type, int id) {
+TO_LUA void c_register_edge_callback_hdl(long long handle, int edge_type, TaskID id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     register_edge_callback_basic(actual_handle, edge_type, id);
 }
 
-TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id) {
+TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type, TaskID id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-
     s_cb_data cb_data;
-    s_vpi_time vpi_time{.type = vpiSuppressTime};
-    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        vpi_get_value(cb_data->obj, cb_data->value);
+        // vpi_get_value(cb_data->obj, cb_data->value);
         EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
@@ -154,9 +147,6 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
 
         return 0;
     };
-    cb_data.time = &vpi_time;
-    cb_data.value = &vpi_value;
-    cb_data.obj = actual_handle;
 
     EdgeValue expected_value;
     switch ((EdgeType)edge_type) {
@@ -177,20 +167,24 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
     user_data->task_id = id;
     user_data->expected_value = expected_value;
     user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
+    user_data->vpi_value.format = vpiIntVal;
+    user_data->vpi_time.type = vpiSuppressTime;
+
+    cb_data.obj = actual_handle;
+    cb_data.time = &user_data->vpi_time;
+    cb_data.value = &user_data->vpi_value;
     cb_data.user_data = (PLI_BYTE8 *)user_data;
     
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
-TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
+TO_LUA void verilua_posedge_callback_hdl_always(long long handle, TaskID id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_cb_data cb_data;
-    s_vpi_time vpi_time{.type = vpiSuppressTime};
-    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        vpi_get_value(cb_data->obj, cb_data->value);
+        // vpi_get_value(cb_data->obj, cb_data->value);
         EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
@@ -200,28 +194,29 @@ TO_LUA void verilua_posedge_callback_hdl_always(long long handle, int id) {
 
         return 0;
     };
-    cb_data.time = &vpi_time;
-    cb_data.value = &vpi_value;
-    cb_data.obj = actual_handle;
 
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = EdgeValue::HIGH; // Posedge
-    user_data->cb_hdl_id = edge_cb_idpool->alloc_id();;
+    user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
+    user_data->vpi_value.format = vpiIntVal;
+    user_data->vpi_time.type = vpiSuppressTime;
+
+    cb_data.obj = actual_handle;
+    cb_data.time = &user_data->vpi_time;
+    cb_data.value = &user_data->vpi_value;
     cb_data.user_data = (PLI_BYTE8 *)user_data;
 
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
-TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
+TO_LUA void verilua_negedge_callback_hdl_always(long long handle, TaskID id) {
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_cb_data cb_data;
-    s_vpi_time vpi_time{.type = vpiSuppressTime};
-    s_vpi_value vpi_value{.format = vpiIntVal};
 
     cb_data.reason = cbValueChange;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        vpi_get_value(cb_data->obj, cb_data->value);
+        // vpi_get_value(cb_data->obj, cb_data->value);
         EdgeValue new_value = (EdgeValue)cb_data->value->value.integer;
 
         EdgeCbData *user_data = reinterpret_cast<EdgeCbData *>(cb_data->user_data); 
@@ -231,36 +226,37 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, int id) {
 
         return 0;
     };
-    cb_data.time = &vpi_time;
-    cb_data.value = &vpi_value;
-    cb_data.obj = actual_handle;
 
     EdgeCbData *user_data = new EdgeCbData;
     user_data->task_id = id;
     user_data->expected_value = EdgeValue::LOW; // Negedge
     user_data->cb_hdl_id = edge_cb_idpool->alloc_id();
+
+    cb_data.obj = actual_handle;
+    cb_data.time = &user_data->vpi_time;
+    cb_data.value = &user_data->vpi_value;
     cb_data.user_data = (PLI_BYTE8 *)user_data;
     
     edge_cb_hdl_map[user_data->cb_hdl_id] = vpi_register_cb(&cb_data);
 }
 
-TO_LUA void c_register_read_write_synch_callback(int id) {
+TO_LUA void c_register_read_write_synch_callback(TaskID id) {
     s_cb_data cb_data;
 
     VL_INFO("Register cbReadWriteSynch {}\n", id);
 
     cb_data.reason = cbReadWriteSynch;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
-        auto task_id = *reinterpret_cast<int *>(cb_data->user_data);
+        auto task_id = *reinterpret_cast<TaskID *>(cb_data->user_data);
         execute_sim_event(task_id);
 
-        delete reinterpret_cast<int*>(cb_data->user_data);
+        delete reinterpret_cast<TaskID *>(cb_data->user_data);
         return 0;
     };
     cb_data.time = nullptr;
     cb_data.value = nullptr;
 
-    auto id_p = new int(id);
+    auto id_p = new TaskID(id);
     cb_data.user_data = (PLI_BYTE8 *)id_p;
 
     VL_FATAL(vpi_register_cb(&cb_data) != nullptr);
