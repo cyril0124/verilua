@@ -16,6 +16,10 @@ source install_lua_modules.sh
 source install_libs.sh
 
 
+# Install wave vpi
+source install_wave_vpi.sh
+
+
 # Setup verilua home
 if [ "$1" = "zsh" ]; then
     shell_rc=$HOME/.zshrc

@@ -34,10 +34,12 @@ def extract_filelist(file):
         return os.path.abspath(file)
 
 parser = argparse.ArgumentParser(description='A script used for running a simple dut.')
-parser.add_argument('--file', '-f', action='append', dest="file", required=True, help='input verilog/other file')
-parser.add_argument('--top-file', '-tf', dest="top_file", type=str, required=True, help='input top-level verilog file')
+parser.add_argument('--file', '-f', action='append', dest="file", help='input verilog/other file')
+parser.add_argument('--top-file', '-tf', dest="top_file", type=str, help='input top-level verilog file')
 parser.add_argument('--top', '-t', dest="top", type=str, required=True, help='top module name')
+parser.add_argument('--tb-top', '-tt', dest="tb_top", type=str, default="tb_top", help='top module name of testbench')
 parser.add_argument('--sim', choices=['vcs', 'verilator', 'iverilog', 'wave_vpi'], dest="sim", required=True, help="simulator of the simulation")
+parser.add_argument('--wave-file', '-wf', dest="wave_file", type=str, help='input wave file for wave_vpi')
 parser.add_argument('--lua-main', '-l', dest="lua_main", type=str, required=True, help='input lua main script file')
 parser.add_argument('--lua-file', '-lf', action='append', dest="lua_file", default=[], help='input Lua file')
 parser.add_argument('--lua-deps', '-ld', dest="lua_deps", type=str, help='input Lua deps file')
@@ -62,6 +64,15 @@ parser.add_argument('--testdir-name', '-tn', dest="testdir_name", type=str, defa
 
 
 args = parser.parse_args()
+
+if args.sim != "wave_vpi":
+    assert args.file != None, "<--file, -f> is required"
+    assert args.top_file != None, "<--top-file, -tf> is required"
+else:
+    args.file = []
+    args.top_file = ""
+    assert args.wave_file != None, "<--wave-file, -wf> is required for wave_vpi backend"
+    args.wave_file = os.path.abspath(args.wave_file)
 
 # parse filelist
 _files = []
@@ -96,7 +107,7 @@ for f in _files:
 assert (len(rtl_files) + len(other_files)) == len(_files)
 
 lua_files   = [os.path.abspath(f) for f in _lua_files]
-top_file    = os.path.abspath(args.top_file)
+top_file    = os.path.abspath(args.top_file) if args.top_file != "" else None
 
 lua_main      = os.path.abspath(args.lua_main)
 lua_files.append(lua_main)
@@ -114,6 +125,7 @@ cache_dir     = f"{test_dir}/cache"
 
 need_rebuild = False
 
+print("[verilua_run] sim => ", args.sim)
 print("[verilua_run] prjdir => ", prj_dir)
 print("[verilua_run] workdir => ", work_dir)
 
@@ -126,7 +138,7 @@ execute_cmd(f'mkdir -p {cache_dir}')
 check_files = rtl_files + lua_files + other_files
 check_files.append(top_file)
 for file in check_files:
-    if not os.path.isfile(file):
+    if file != None and not os.path.isfile(file):
         assert False, f"file: {file} does not exist!"
 
 for file in rtl_files + other_files:
@@ -226,7 +238,7 @@ verilua_cfg_gen_file = f"{test_dir}/verilua_cfg_unknown.lua"
 verilua_cfg_lua = f"""
 basic = {{
     test_dir = os.getenv("$PWD"),
-    top = "tb_top",
+    top = "{args.tb_top}",
     simulator = "{args.sim}",
     mode = "normal",
     script = "{test_dir}/{os.path.basename(args.lua_main)}",
@@ -286,7 +298,15 @@ export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
 make {args.makefile_args} build 2>&1 | tee build.log
 """
-run_sh=f"""
+if args.sim == "wave_vpi":
+    run_sh=f"""
+#!/usr/bin/env bash
+export VERILUA_CFG={verilua_cfg_gen_file}
+export SIM={args.sim}
+wave_vpi_main --wave-file {args.wave_file} 2>&1 | tee run.log
+"""
+else:
+    run_sh=f"""
 #!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
@@ -318,7 +338,10 @@ for (script, name) in scripts:
 # create file list
 execute_cmd(f'find {dut_dir} -name "*.v" -or -name "*.sv" -or -name "*.svh" > {test_dir}/filelist.f')
 
-if need_rebuild or args.rebuild:
+if args.sim == "wave_vpi":
+    print("[verilua_run] start run...")
+    execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; wave_vpi_main --wave-file {args.wave_file} 2>&1 | tee run.log")
+elif need_rebuild or args.rebuild:
     if not args.no_generate_tb:
         ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py -f {top_file} --top {args.top} --nodpi --dir {dut_dir} {args.tb_gen_args}")
         if ret.stderr:

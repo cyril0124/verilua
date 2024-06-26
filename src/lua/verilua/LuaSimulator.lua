@@ -146,6 +146,10 @@ local simulator_control = function (sim_crtl)
     ffi.C.c_simulator_control(sim_crtl)
 end
 
+local finish = function ()
+    simulator_control(SimCtrl.FINISH)
+end
+
 local get_mode = function()
     if cfg.simulator == "vcs" then
         ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
@@ -197,6 +201,7 @@ return {
     dump_wave         = dump_wave,
     simulator_control = simulator_control,
     SimCtrl           = SimCtrl,
+    finish            = finish,
     get_mode          = get_mode,
     print_hierarchy   = print_hierarchy,
     iterate_vpi_type  = iterate_vpi_type

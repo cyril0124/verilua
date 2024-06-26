@@ -22,3 +22,6 @@
 [submodule "extern/luajit_tcc"]
 	path = extern/luajit_tcc
 	url = https://github.com/cyril0124/luajit_tcc
+[submodule "wave_vpi"]
+	path = wave_vpi
+	url = https://github.com/cyril0124/wave_vpi

@@ -9,11 +9,15 @@ local extern_dir = prj_dir .. "/extern"
 local shared_dir = prj_dir .. "/shared"
 local vcpkg_dir  = prj_dir .. "/vcpkg"
 local tools_dir  = prj_dir .. "/tools"
+local wavevpi_dir = prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
+
+-- local toolchains = "clang-18"
+local toolchains = "gcc"
 
 local function build_common_info()
     set_kind("shared")
-    set_toolchains("gcc")
+    set_toolchains(toolchains)
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
     set_objectdir(build_dir .. "/obj")
@@ -110,6 +114,85 @@ target(lib_name.."_vcs")
 
     build_common_info()
 
+-- 
+-- Build target for wave_vpi
+-- 
+target(lib_name.."_wave_vpi")
+
+    add_defines("WAVE_VPI")
+
+    if is_mode("debug") then
+        add_defines("DEBUG")
+        set_symbols("debug")
+        set_optimize("none")
+        -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
+        -- add_ldflags("-fsanitize=address")
+    else
+        add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
+    end
+
+    build_common_info()
+
+target("wave_vpi_main")
+    set_kind("binary")
+    set_toolchains(toolchains)
+    set_languages("c99", "c++20")
+    set_targetdir(build_dir .. "/bin")
+    set_objectdir(build_dir .. "/obj")
+    add_deps(lib_name .. "_wave_vpi")
+
+    add_shflags(
+        "-static-libstdc++ -static-libgcc",
+        "-Wl,--no-as-needed"
+    )
+
+    add_files(
+        src_dir .. "/wave_vpi/wave_vpi_main.cpp",
+        wavevpi_dir .. "/src/wave_dpi.cc",
+        wavevpi_dir .. "/src/wave_vpi.cc"
+    )
+
+    add_includedirs(
+        lua_dir .. "/include",
+        wavevpi_dir .. "/src",
+        wavevpi_dir .. "/vcpkg/installed/x64-linux/include"
+    )
+
+    if is_mode("debug") then
+        add_defines("DEBUG")
+        set_symbols("debug")
+        set_optimize("none")
+        -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
+        -- add_ldflags("-fsanitize=address")
+    else
+        add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
+    end
+
+    add_links("luajit-5.1")
+    add_linkdirs(lua_dir .. "/lib")
+
+    add_links("fmt")
+    add_linkdirs(vcpkg_dir .. "/installed/x64-linux/lib")
+
+    add_links("lua_vpi_wave_vpi")
+    add_linkdirs(shared_dir)
+    
+    add_links("wave_vpi_wellen_impl")
+    add_linkdirs(wavevpi_dir .. "/target/release")
+
+    add_links("assert", "cpptrace", "dwarf", "zstd", "z")
+    add_links("backtrace", "boost_stacktrace_basic")
+    add_linkdirs(wavevpi_dir .. "/vcpkg/installed/x64-linux/lib")
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        print("* copy " .. target:targetfile() .. " into " .. tools_dir)
+            os.run("cp " .. target:targetfile() .. " " .. tools_dir)
+        
+        print("---------------------------------------------------------- ")
+    end)
+
 
 -- 
 -- Build target for Iverilog
@@ -162,7 +245,7 @@ if iverilog_home ~= nil then
 
     target("vvp_wrapper")
         set_kind("binary")
-        set_toolchains("gcc")
+        set_toolchains(toolchains)
         set_languages("c99", "c++20")
         set_targetdir(build_dir .. "/bin")
         set_objectdir(build_dir .. "/obj")

@@ -8,6 +8,7 @@ export LD_LIBRARY_PATH=$VERILUA_HOME/shared:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=$VERILUA_HOME/$lua/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=$VERILUA_HOME/$lua/lib/lua/5.1:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=$VERILUA_HOME/$lua/lib/lua/5.1/socket:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$VERILUA_HOME/wave_vpi/target/release:$LD_LIBRARY_PATH
 
 export LUA_PATH="\
 ./?.lua;$(pwd)/?.lua;$(pwd)/src/lua/?.lua;\

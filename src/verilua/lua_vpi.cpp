@@ -149,7 +149,7 @@ static void sigabrt_handler(int signal) {
 }
 
 VERILUA_EXPORT void verilua_init(void) {
-#ifndef VERILATOR // Verilator has its own sigabrt_handler() in verilator_main.cpp
+#if !defined(VERILATOR) && !defined(WAVE_VPI) // Verilator/wave_vpi has its own sigabrt_handler() in verilator_main.cpp
     signal(SIGABRT, sigabrt_handler);
 #endif
 
