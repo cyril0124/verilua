@@ -3,6 +3,7 @@ local stringx = require "pl.stringx"
 local ffi = require "ffi"
 
 local C = ffi.C
+local ffi_str = ffi.string
 local await_posedge = await_posedge
 local await_negedge = await_negedge
 local assert, type, tonumber, setmetatable = assert, type, tonumber, setmetatable
@@ -76,17 +77,34 @@ local function create_proxy(path)
         --      dut.clock:posedge()
         --      dut:release_all()
         -- 
-        force_all = function ()
+        force_all = function (t)
             assert(set_force_enable == false)
             set_force_enable = true
         end,
-        release_all = function()
+        release_all = function(t)
             assert(set_force_enable == true)
             set_force_enable = false
 
             for i, path in ipairs(force_path_table) do
                 C.c_release_value_by_name(path)
             end
+        end,
+
+        -- 
+        -- Normal value assign operations inside this region will all be treat as force operation.
+        -- This method can automatically release all the forced signals hence you are free from calling dut:release_all() manually.
+        --
+        -- Example:
+        --      dut:force_region(function()
+        --          dut.clock:negedge()
+        --          dut.cycles:set(1)
+        --      end)
+        -- 
+        force_region = function(t, code_func)
+            assert(type(code_func) == "function")
+            t:force_all()
+            code_func()
+            t:release_all()
         end,
 
         -- 
@@ -113,11 +131,11 @@ local function create_proxy(path)
         --      local hex_str = dut.cycles:get_str(HexStr)
         -- 
         get_str = function (t, fmt)
-            local hdl = ffi.C.c_handle_by_name_safe(local_path)
+            local hdl = C.c_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, format("No handle found => %s", local_path))
             end
-            return ffi.string(C.c_get_value_str(hdl, fmt))
+            return ffi_str(C.c_get_value_str(hdl, fmt))
         end,
 
 
@@ -127,7 +145,7 @@ local function create_proxy(path)
         --      dut.cycles:set_str("0b101010")
         -- 
         set_str = function(t, str)
-            local hdl = ffi.C.c_handle_by_name_safe(local_path)
+            local hdl = C.c_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, format("No handle found => %s", local_path))
             end
@@ -241,7 +259,7 @@ local function create_proxy(path)
         --      local hdl = dut.cycles:hdl()
         -- 
         hdl = function (t)
-            local hdl = ffi.C.c_handle_by_name_safe(local_path)
+            local hdl = C.c_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, format("No handle found => %s", local_path))
             end
@@ -279,7 +297,7 @@ local function create_proxy(path)
         dump_str = function (t)
             local hdl = C.c_handle_by_name(local_path)
             local s = ("[%s] => "):format(local_path)
-            s = s .. "0x" .. ffi.string(C.c_get_value_str(hdl, HexStr))
+            s = s .. "0x" .. ffi_str(C.c_get_value_str(hdl, HexStr))
             return s
         end,
 

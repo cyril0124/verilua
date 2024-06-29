@@ -909,5 +909,5 @@ end
 
 -- only used to test the ffi function invoke overhead
 function test_func()
-    
+    return 0;
 end

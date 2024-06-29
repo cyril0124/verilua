@@ -50,6 +50,8 @@ local CallableHDL = CallableHDL
 local BeatWidth = 32
 local type, assert, tonumber, print, format = type, assert, tonumber, print, string.format
 local table, math = table, math
+local ffi_str = ffi.string
+local ffi_new = ffi.new
 
 
 function CallableHDL:_init(fullpath, name, hdl)
@@ -64,7 +66,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         assert(false, format("No handle found => %s", fullpath))
     end
     self.hdl = tmp_hdl
-    self.hdl_type = ffi.string((C.c_get_hdl_type(self.hdl)))
+    self.hdl_type = ffi_str((C.c_get_hdl_type(self.hdl)))
 
     self.is_array = false
     self.array_size = 0
@@ -100,7 +102,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
 
-    self.c_results = ffi.new("uint32_t[?]", self.beat_num + 1) -- create a new array to store the result
+    self.c_results = ffi_new("uint32_t[?]", self.beat_num + 1) -- create a new array to store the result
                                                                -- c_results[0] is the lenght of the beat data since a normal lua table use 1 as the first index of array while ffi cdata still use 0
 
     local _ = self.verbose and print("New CallableHDL => ", "name: " .. self.name, "fullpath: " .. self.fullpath, "width: " .. self.width, "beat_num: " .. self.beat_num, "is_multi_beat: " .. tostring(self.is_multi_beat))
@@ -174,7 +176,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 else
                     -- value is a table where <lsb ... msb>
                     if type(value) ~= "table" then
-                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
+                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true")
                     end
                     
                     local beat_num = this.beat_num
@@ -254,7 +256,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.get_index_str = function (this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi.string(C.c_get_value_str(chosen_hdl, fmt))
+            return ffi_str(C.c_get_value_str(chosen_hdl, fmt))
         end
 
         self.set_str = function (this, str)
@@ -306,7 +308,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 else
                     -- value is a table where <lsb ... msb>
                     if type(value) ~= "table" then
-                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua")
+                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true")
                     end
                     
                     local beat_num = this.beat_num
@@ -393,7 +395,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- #define vpiHexStrVal          4
         -- 
         self.get_str = function (this, fmt)
-            return ffi.string(C.c_get_value_str(this.hdl, fmt))
+            return ffi_str(C.c_get_value_str(this.hdl, fmt))
         end
 
         self.get_index_str = function (this, index, fmt)
@@ -461,7 +463,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.get_index_str = function (this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi.string(C.c_get_value_str(chosen_hdl, fmt))
+            return ffi_str(C.c_get_value_str(chosen_hdl, fmt))
         end
 
         self.set_str = function (this, str)
@@ -513,7 +515,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- #define vpiHexStrVal          4
         -- 
         self.get_str = function (this, fmt)
-            return ffi.string(C.c_get_value_str(this.hdl, fmt))
+            return ffi_str(C.c_get_value_str(this.hdl, fmt))
         end
 
         self.get_index_str = function (this, index, fmt)
@@ -755,8 +757,8 @@ end
 -- You can get performance gain in this SIMD like signal value retrival functions. (about ~8% better performance)
 function get_signal_value64_parallel(hdls)
     local length = #hdls
-    local input_hdls = ffi.new("long long[?]", length)
-    local output_values = ffi.new("uint64_t[?]", length)
+    local input_hdls = ffi_new("long long[?]", length)
+    local output_values = ffi_new("uint64_t[?]", length)
     for i = 0, length-1 do
         input_hdls[i] = hdls[i+1]
     end
@@ -773,8 +775,8 @@ end
 
 function get_signal_value_parallel(hdls)
     local length = #hdls
-    local input_hdls = ffi.new("long long[?]", length)
-    local output_values = ffi.new("uint32_t[?]", length)
+    local input_hdls = ffi_new("long long[?]", length)
+    local output_values = ffi_new("uint32_t[?]", length)
     for i = 0, length-1 do
         input_hdls[i] = hdls[i+1]
     end
@@ -796,8 +798,8 @@ function set_signal_value64_parallel(hdls, values)
     local length = #hdls
     assert(length == #values)
     
-    local input_hdls = ffi.new("long long[?]", length)
-    local input_values = ffi.new("uint64_t[?]", length)
+    local input_hdls = ffi_new("long long[?]", length)
+    local input_values = ffi_new("uint64_t[?]", length)
     for i = 0, length-1 do
         input_hdls[i] = hdls[i+1]
         input_values[i] = values[i+1]
@@ -811,8 +813,8 @@ function set_signal_value_parallel(hdls, values)
     local length = #hdls
     assert(length == #values)
     
-    local input_hdls = ffi.new("long long[?]", length)
-    local input_values = ffi.new("uint32_t[?]", length)
+    local input_hdls = ffi_new("long long[?]", length)
+    local input_values = ffi_new("uint32_t[?]", length)
     for i = 0, length-1 do
         input_hdls[i] = hdls[i+1]
         input_values[i] = values[i+1]

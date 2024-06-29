@@ -7,7 +7,7 @@ local tostring, tonumber, ipairs, type, pairs, assert, print = tostring, tonumbe
 local format = string.format
 local tconcat = table.concat
 local tohex = bit.tohex
-
+local ffi_new = ffi.new
 
 --
 ---@param t table The table to be serialized
@@ -129,7 +129,7 @@ end
 ---@return number The processed value
 --
 function utils.bitfield64(begin, endd, val)
-    local val64 = ffi.new('uint64_t', val)
+    local val64 = ffi_new('uint64_t', val)
     return bit.rshift( bit.lshift(val64, 64 - endd), begin + 64- endd )
 end
 

@@ -251,15 +251,35 @@ VERILUA_EXPORT void verilua_init(void) {
     main_step = std::make_unique<sol::protected_function>((*lua)["lua_main_step"]);
     main_step->set_error_handler((*lua)["debug"]["traceback"]); 
     
-    {
-        sol::protected_function test_func = (*lua)["test_func"];
-        auto start1 = std::chrono::high_resolution_clock::now();
-        test_func();
-        auto end1 = std::chrono::high_resolution_clock::now();
-        double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
-        double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
-        VL_INFO("test_func time is {} us\n", (end_time - start_time) * 1000 * 1000);
-    }
+    // Test access time(only for test)
+    // {
+    //     using namespace std;
+    //     vector<double> times;
+    //     sol::protected_function test_func = (*lua)["test_func"];
+    //     for(int i = 0; i < 1000; i++) {
+    //         auto start1 = std::chrono::high_resolution_clock::now();
+    //         test_func();
+    //         auto end1 = std::chrono::high_resolution_clock::now();
+    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    //         times.push_back((end_time - start_time) * 1000 * 1000);
+    //         // VL_INFO("[{}] test_func time is {} us\n", i, (end_time - start_time) * 1000 * 1000);
+    //     }
+    //     sort(times.begin(), times.end());
+
+    //     if (times.size() > 4) {
+    //         times.erase(times.begin(), times.begin() + 2);
+    //         times.erase(times.end() - 2, times.end());
+    //     }
+
+    //     double sum = 0;
+    //     for (double time : times) {
+    //         sum += time;
+    //     }
+    //     double average_time = sum / times.size();
+
+    //     VL_INFO("[test_func] Average time: {:.4f} us\n", average_time);
+    // }
 
 #ifdef ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
@@ -321,4 +341,3 @@ TO_LUA void dpi_set_scope(char *str) {
     svSetScope(scope);
 #endif
 }
-

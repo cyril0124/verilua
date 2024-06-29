@@ -6,7 +6,7 @@ local utils = require "LuaUtils"
 local VeriluaMode = VeriluaMode
 local assert, tonumber, pcall = assert, tonumber, pcall
 local verilua_info, verilua_warning = verilua_info, verilua_warning
-
+local ffi_new = ffi.new
 
 
 if cfg.simulator == "vcs" then
@@ -184,7 +184,7 @@ local print_hierarchy = function (max_level)
         _print_hierarchy = ffi.cast("void (*)(unsigned int*, int)", print_hierarchy_sym)
         print_hierarchy_sym_is_init = true
     end
-    _print_hierarchy(ffi.new("unsigned int*", nil), max_level)
+    _print_hierarchy(ffi_new("unsigned int*", nil), max_level)
 end
 
 local iterate_vpi_type = function (module_name, type)
