@@ -1,11 +1,12 @@
 #include "lua_vpi.h"
 #include "vpi_callback.h"
+#include "mimalloc-new-delete.h"
 
 extern std::unique_ptr<lua_State, LuaStateDeleter> L;
 extern std::unique_ptr<IDPool> edge_cb_idpool;
-extern boost::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
-extern boost::unordered_map<std::string, vpiHandle> handle_cache;
-extern boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
+extern std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
+extern std::unordered_map<std::string, vpiHandle> handle_cache;
+extern std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 extern bool enable_vpi_learn;
 
 #ifdef ACCUMULATE_LUA_TIME

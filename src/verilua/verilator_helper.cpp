@@ -12,7 +12,7 @@ VerilatorFunc verilator_simulation_initializeTrace_impl = nullptr;
 VerilatorFunc verilator_simulation_enableTrace_impl = nullptr;
 VerilatorFunc verilator_simulation_disableTrace_impl = nullptr;
 
-boost::unordered_map<std::string, VerilatorFunc *> verilator_func_map = {
+std::unordered_map<std::string, VerilatorFunc *> verilator_func_map = {
     {"next_sim_step", &verilator_next_sim_step_impl},
     {"get_mode", &verilator_get_mode_impl},
     {"simulation_initializeTrace", &verilator_simulation_initializeTrace_impl},

@@ -47,7 +47,7 @@ local function build_common_info()
         vcpkg_dir .. "/installed/x64-linux/include"
     )
 
-    add_links("fmt")
+    add_links("fmt", "mimalloc")
     add_linkdirs(vcpkg_dir .. "/installed/x64-linux/lib")
 
     if is_mode("debug") then
@@ -171,7 +171,7 @@ target("wave_vpi_main")
     add_links("luajit-5.1")
     add_linkdirs(lua_dir .. "/lib")
 
-    add_links("fmt")
+    add_links("fmt", "mimalloc")
     add_linkdirs(vcpkg_dir .. "/installed/x64-linux/lib")
 
     add_links("lua_vpi_wave_vpi")
@@ -278,7 +278,7 @@ if iverilog_home ~= nil then
         add_links("luajit-5.1")
         add_linkdirs(lua_dir .. "/lib")
 
-        add_links("fmt")
+        add_links("fmt", "mimalloc")
         add_linkdirs(vcpkg_dir .. "/installed/x64-linux/lib")
 
         add_links("lua_vpi_iverilog")

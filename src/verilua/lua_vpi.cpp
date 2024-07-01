@@ -10,9 +10,9 @@ std::unique_ptr<sol::protected_function> sim_event;
 std::unique_ptr<sol::protected_function> main_step; 
 
 std::unique_ptr<IDPool> edge_cb_idpool = std::make_unique<IDPool>(50);
-boost::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
-boost::unordered_map<std::string, vpiHandle> handle_cache;
-boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
+std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
+std::unordered_map<std::string, vpiHandle> handle_cache;
+std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 bool enable_vpi_learn = false;
 
 #ifdef IVERILOG

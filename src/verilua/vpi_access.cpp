@@ -1,8 +1,8 @@
 #include "vpi_access.h"
 
 // Cache to store handles
-extern boost::unordered_map<std::string, vpiHandle> handle_cache;
-extern boost::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
+extern std::unordered_map<std::string, vpiHandle> handle_cache;
+extern std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
 extern bool enable_vpi_learn;
 
 #ifdef IVERILOG

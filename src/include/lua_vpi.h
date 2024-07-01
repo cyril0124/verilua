@@ -4,8 +4,6 @@
 #include "vpi_user.h"
 #include "fmt/core.h"
 #include "sol/sol.hpp"
-#include "boost/unordered_map.hpp"
-#include "boost/unordered_set.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -18,6 +16,8 @@
 #include <mutex>
 #include <fstream>
 #include <iostream>
+#include <unordered_set>
+#include <unordered_map>
 #include <sys/types.h>
 
 
@@ -96,7 +96,7 @@ struct EdgeCbData {
 
 class IDPool {
 private:
-    boost::unordered_set<uint64_t> allocated_ids;  
+    std::unordered_set<uint64_t> allocated_ids;  
     std::queue<uint64_t> available_ids;
 
 public:
