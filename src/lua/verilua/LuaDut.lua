@@ -320,6 +320,66 @@ local function create_proxy(path)
                 assert(false, format("[%s] expect => %d, but got => %d", local_path, value, t:get()))
             end
         end,
+
+        -- 
+        -- Example:
+        --      dut.path.to.signal:_if(some_condition == true):expect(1)
+        --
+        --                 or
+        --
+        --      dut.path.to.signal:_if(function() return some_condition == true end):expect(1)
+        --
+        --              equals to 
+        --
+        --      if some_condition == true then
+        --          dut.path.to.signal:expect(1) 
+        --      end
+        --  
+        _if = function (t, condition)
+            local _condition = false
+            if type(condition) == "boolean" then
+                _condition = condition
+            elseif type(condition) == "function" then
+                _condition = condition()
+
+                local _condition_type = type(_condition)
+                if _condition_type ~= "boolean" then
+                    assert(false, "invalid condition function return type: " .. _condition_type)
+                end
+            else
+                assert(false, "invalid condition type: " .. type(condition))
+            end
+
+            if _condition then
+                return setmetatable(t, {
+                    expect = function (t, value)
+                        t:expect(value)
+                    end
+                })
+            else
+                return {
+                    expect = function (t, value)
+                        -- ignore
+                    end
+                }
+            end
+        end,
+
+        -- 
+        -- Example:
+        --      assert(dut.path.to.signal:is(1))
+        --      assert(dut.another_signal:is_not(1))
+        --      
+        --      You can also combine this with "_if":
+        --          dut.path.to.signal:_if(dut.signal:is(1)):expect(123)
+        -- 
+        is = function (t, value)
+            return t:get() == value
+        end,
+        is_not = function (t, value)
+            return t:get() ~= value
+        end
+        
     }, {
         __index = function(t, k)
             return create_proxy(local_path .. '.' .. k)
