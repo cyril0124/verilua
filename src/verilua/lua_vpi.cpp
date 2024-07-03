@@ -9,7 +9,7 @@ bool verilua_is_final = false;
 std::unique_ptr<sol::protected_function> sim_event; 
 std::unique_ptr<sol::protected_function> main_step; 
 
-std::unique_ptr<IDPool> edge_cb_idpool = std::make_unique<IDPool>(50);
+std::unique_ptr<IDPool> edge_cb_idpool;
 std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
 std::unordered_map<std::string, vpiHandle> handle_cache;
 std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
@@ -246,6 +246,7 @@ VERILUA_EXPORT void verilua_init(void) {
         VL_FATAL(false, "Error calling verilua_init, {}", err.what());
     }
 
+    edge_cb_idpool = std::make_unique<IDPool>(50);
     sim_event = std::make_unique<sol::protected_function>((*lua)["sim_event"]);
     sim_event->set_error_handler((*lua)["debug"]["traceback"]); 
     main_step = std::make_unique<sol::protected_function>((*lua)["lua_main_step"]);
