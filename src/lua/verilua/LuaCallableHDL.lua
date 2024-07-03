@@ -49,6 +49,7 @@ CallableHDL = class()
 local CallableHDL = CallableHDL
 local BeatWidth = 32
 local type, assert, tonumber, print, format = type, assert, tonumber, print, string.format
+local setmetatable = setmetatable
 local table, math = table, math
 local ffi_str = ffi.string
 local ffi_new = ffi.new
@@ -710,9 +711,64 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.expect = function (this, value)
         assert(type(value) == "number")
+
+        if this.is_multi_beat and this.beat_num > 2 then
+            assert(false, "<CallableHDL>:expect(value) can only be used for hdl with 1 or 2 beat")    
+        end
+
         if this:get() ~= value then
             assert(false, format("[%s] expect => %d, but got => %d", this.fullpath, value, this:get()))
         end
+    end
+
+    self._if = function (this, condition)
+        local _condition = false
+        if type(condition) == "boolean" then
+            _condition = condition
+        elseif type(condition) == "function" then
+            _condition = condition()
+
+            local _condition_type = type(_condition)
+            if _condition_type ~= "boolean" then
+                assert(false, "invalid condition function return type: " .. _condition_type)
+            end
+        else
+            assert(false, "invalid condition type: " .. type(condition))
+        end
+
+        if _condition then
+            return setmetatable(this, {
+                expect = function (this, value)
+                    this:expect(value)
+                end
+            })
+        else
+            return {
+                expect = function (this, value)
+                    -- ignore
+                end
+            }
+        end
+    end
+
+    self.is = function (this, value)
+        assert(type(value) == "number")
+        
+        if this.is_multi_beat and this.beat_num > 2 then
+            assert(false, "<CallableHDL>:is(value) can only be used for hdl with 1 or 2 beat")    
+        end
+
+        return this:get() == value
+    end
+
+    self.is_not = function (this, value)
+        assert(type(value) == "number")
+        
+        if this.is_multi_beat and this.beat_num > 2 then
+            assert(false, "<CallableHDL>:is_not(value) can only be used for hdl with 1 or 2 beat")    
+        end
+
+        return this:get() ~= value
     end
 end
 
