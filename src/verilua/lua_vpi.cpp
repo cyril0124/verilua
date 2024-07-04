@@ -163,6 +163,9 @@ VERILUA_EXPORT void verilua_init(void) {
     // Assign sol state
     lua = std::make_unique<sol::state_view>(L.get());
 
+    // Initialize the IDPool
+    edge_cb_idpool = std::make_unique<IDPool>(50);
+
     // Register breakpoint function for lua
     // DebugPort is 8818
     const char *debug_enable = getenv("VL_DEBUG");
@@ -246,7 +249,6 @@ VERILUA_EXPORT void verilua_init(void) {
         VL_FATAL(false, "Error calling verilua_init, {}", err.what());
     }
 
-    edge_cb_idpool = std::make_unique<IDPool>(50);
     sim_event = std::make_unique<sol::protected_function>((*lua)["sim_event"]);
     sim_event->set_error_handler((*lua)["debug"]["traceback"]); 
     main_step = std::make_unique<sol::protected_function>((*lua)["lua_main_step"]);
