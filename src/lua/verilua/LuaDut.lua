@@ -315,7 +315,9 @@ local function create_proxy(path)
         --      dut.paht.to.signal:expect(1) -- signal value should be 1 otherwise there will be a assert false
         -- 
         expect = function(t, value)
-            assert(type(value) == "number")
+            local typ = type(value)
+            assert(typ == "number" or typ == "cdata")
+            
             if t:get() ~= value then
                 assert(false, format("[%s] expect => %d, but got => %d", local_path, value, t:get()))
             end
@@ -374,9 +376,15 @@ local function create_proxy(path)
         --          dut.path.to.signal:_if(dut.signal:is(1)):expect(123)
         -- 
         is = function (t, value)
+            local typ = type(value)
+            assert(typ == "number" or typ == "cdata")
+
             return t:get() == value
         end,
         is_not = function (t, value)
+            local typ = type(value)
+            assert(typ == "number" or typ == "cdata")
+
             return t:get() ~= value
         end
         

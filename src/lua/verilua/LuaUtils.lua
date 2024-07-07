@@ -6,7 +6,8 @@ local bit, io, math, string, os = bit, io, math, string, os
 local tostring, tonumber, ipairs, type, pairs, assert, print = tostring, tonumber, ipairs, type, pairs, assert, print
 local format = string.format
 local tconcat = table.concat
-local tohex = bit.tohex
+local bit_tohex = bit.tohex
+local bit_lshift = bit.lshift
 local ffi_new = ffi.new
 
 --
@@ -80,10 +81,10 @@ function utils.to_hex_str(t, reverse)
 
     local t_copy = {}
     if t_len == 1 and t_type == "cdata" then
-         t_copy[1] = tohex(tonumber(t))
+         t_copy[1] = bit_tohex(tonumber(t))
     else
         for i = 1, t_len do
-            t_copy[i] = tohex(t[i])
+            t_copy[i] = bit_tohex(t[i])
         end
     end
 
@@ -452,10 +453,18 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
     -- Convert the result to a hexadecimal string
     local hexstr = "0x"
     for i = num_blocks, 1, -1 do
-        hexstr = hexstr .. bit.tohex(v[i])
+        hexstr = hexstr .. bit_tohex(v[i])
     end
 
     return hexstr
+end
+
+-- 
+---@param uint_value number The unsigned integer value to be converted to one-hot encoding
+---@return number The one-hot encoded value
+--
+function utils.uint_to_onehot(uint_value)
+    return bit_lshift(1, uint_value) + 0ULL
 end
 
 -- 
