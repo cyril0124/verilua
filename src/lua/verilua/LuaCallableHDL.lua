@@ -177,7 +177,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 else
                     -- value is a table where <lsb ... msb>
                     if type(value) ~= "table" then
-                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true")
+                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
                     end
                     
                     local beat_num = this.beat_num
@@ -309,7 +309,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 else
                     -- value is a table where <lsb ... msb>
                     if type(value) ~= "table" then
-                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true")
+                        assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
                     end
                     
                     local beat_num = this.beat_num

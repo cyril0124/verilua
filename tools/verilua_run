@@ -312,7 +312,15 @@ export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
 make {args.makefile_args} run 2>&1 | tee run.log
 """
-debug_sh=f"""
+if args.sim == "wave_vpi":
+    debug_sh=f"""
+#!/usr/bin/env bash
+export VERILUA_CFG={verilua_cfg_gen_file}
+export SIM={args.sim}
+gdb --args wave_vpi_main --wave-file {args.wave_file} 2>&1 | tee run.log
+"""
+else:
+    debug_sh=f"""
 #!/usr/bin/env bash
 export VERILUA_CFG={verilua_cfg_gen_file}
 export SIM={args.sim}
