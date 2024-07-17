@@ -44,12 +44,18 @@ void execute_sim_event(TaskID id) {
 }
 
 inline void execute_final_callback() {
+    if(verilua_is_final) return;
+
     VL_INFO("execute_final_callback\n");
-    try {
-        sol::protected_function lua_finish_callback = (*lua)["finish_callback"];
-        lua_finish_callback();
-    } catch (const sol::error& e) {
-        VL_FATAL(false, "Error calling finish_callback", e.what());
+
+    sol::protected_function lua_finish_callback = (*lua)["finish_callback"];
+
+    auto ret = lua_finish_callback();
+    verilua_is_final = true;
+
+    if(!ret.valid()) [[unlikely]] {
+        sol::error err = ret;
+        VL_FATAL(false, "Error calling finish_callback: {}", err.what());
     }
 }
 
@@ -83,7 +89,6 @@ VERILUA_EXPORT void verilua_final() {
 
     VL_INFO("verilua_final\n");
     execute_final_callback();
-    verilua_is_final = true;
 
 #ifdef ACCUMULATE_LUA_TIME
     auto end = std::chrono::high_resolution_clock::now();
