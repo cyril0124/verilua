@@ -16,7 +16,8 @@ ffi.cdef[[
     uint64_t c_get_value_by_name(const char *path);
     void c_force_value_by_name(const char *path, long long value);
     void c_release_value_by_name(const char *path);
-    void c_set_value_str(long long handle, const char *str);
+    void c_set_value_str_by_name(const char *path, const char *str);
+    void c_force_value_str_by_name(const char *path, const char *str);
     const char *c_get_value_str(long long handle, int format);
     unsigned int c_get_signal_width(long long handle);
 ]]
@@ -145,12 +146,14 @@ local function create_proxy(path)
         --      dut.cycles:set_str("0b101010")
         -- 
         set_str = function(t, str)
-            local hdl = C.c_handle_by_name_safe(local_path)
-            if hdl == -1 then
-                assert(false, format("No handle found => %s", local_path))
+            if set_force_enable then
+                tinsert(force_path_table, local_path)
+                C.c_force_value_str_by_name(local_path, str)
+            else
+                C.c_set_value_str_by_name(local_path, str)
             end
-            C.c_set_value_str(hdl, str)
         end,
+
 
         -- 
         -- Example:

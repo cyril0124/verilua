@@ -764,6 +764,94 @@ TO_LUA void c_set_value_str(long long handle, const char *str) {
     LEAVE_VPI_REGION();
 }
 
+TO_LUA void c_set_value_str_by_name(const char *path, const char *str) {
+    ENTER_VPI_REGION();
+
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+
+    auto _str = std::string(str);
+    auto prefix = _str.substr(0, 2);
+
+    std::vector<char> writable;
+    s_vpi_value value_s;
+
+    // #define vpiBinStrVal          1
+    // #define vpiOctStrVal          2
+    // #define vpiDecStrVal          3
+    // #define vpiHexStrVal          4
+    if (prefix == "0b") {
+        // Binary
+        auto substr = _str.substr(2);
+        writable.assign(substr.begin(), substr.end());
+        writable.push_back('\0');
+        value_s.format = vpiBinStrVal;
+        value_s.value.str = writable.data();
+    } else if (prefix == "0x") {
+        // Hexdecimal
+        auto substr = _str.substr(2);
+        writable.assign(substr.begin(), substr.end());
+        writable.push_back('\0');
+        value_s.format = vpiHexStrVal;
+        value_s.value.str = writable.data();
+    } else {
+        // Decimal
+        writable.assign(_str.begin(), _str.end());
+        writable.push_back('\0');
+        value_s.format = vpiDecStrVal;
+        value_s.value.str = writable.data();
+    }
+    
+    vpi_put_value(handle, &value_s, nullptr, vpiNoDelay);
+    
+    LEAVE_VPI_REGION();
+}
+
+TO_LUA void c_force_value_str_by_name(const char *path, const char *str) {
+#if defined(VCS) || defined(IVERILOG)
+    ENTER_VPI_REGION();
+
+    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
+
+    auto _str = std::string(str);
+    auto prefix = _str.substr(0, 2);
+
+    std::vector<char> writable;
+    s_vpi_value value_s;
+
+    // #define vpiBinStrVal          1
+    // #define vpiOctStrVal          2
+    // #define vpiDecStrVal          3
+    // #define vpiHexStrVal          4
+    if (prefix == "0b") {
+        // Binary
+        auto substr = _str.substr(2);
+        writable.assign(substr.begin(), substr.end());
+        writable.push_back('\0');
+        value_s.format = vpiBinStrVal;
+        value_s.value.str = writable.data();
+    } else if (prefix == "0x") {
+        // Hexdecimal
+        auto substr = _str.substr(2);
+        writable.assign(substr.begin(), substr.end());
+        writable.push_back('\0');
+        value_s.format = vpiHexStrVal;
+        value_s.value.str = writable.data();
+    } else {
+        // Decimal
+        writable.assign(_str.begin(), _str.end());
+        writable.push_back('\0');
+        value_s.format = vpiDecStrVal;
+        value_s.value.str = writable.data();
+    }
+    
+    vpi_put_value(handle, &value_s, nullptr, vpiForceFlag);
+    
+    LEAVE_VPI_REGION();
+#else
+    VL_FATAL(false, "force value only supported by VCS / Iverilog");
+#endif
+}
+
 TO_LUA const char *c_get_value_str(long long handle, int format) {
     ENTER_VPI_REGION();
 

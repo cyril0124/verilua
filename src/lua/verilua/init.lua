@@ -884,7 +884,7 @@ end
 -- 
 -- initialize simulator
 -- 
-sim.print_hierarchy()
+-- sim.print_hierarchy()
 sim.init()
 
 
