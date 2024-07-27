@@ -19,21 +19,21 @@
 #endif
 
 #if VM_TRACE
-#if VM_TRACE_FST
-#include <verilated_fst_c.h>
-#else
-#include <verilated_vcd_c.h>
-#endif
+    #if VM_TRACE_FST
+        #include <verilated_fst_c.h>
+    #else
+        #include <verilated_vcd_c.h>
+    #endif
 #endif
 
 std::unique_ptr<Vtb_top> top(new Vtb_top(""));
 
 #if VM_TRACE
-#if VM_TRACE_FST
-std::unique_ptr<VerilatedFstC> tfp;
-#else
-std::unique_ptr<VerilatedVcdC> tfp;
-#endif
+    #if VM_TRACE_FST
+        std::unique_ptr<VerilatedFstC> tfp;
+    #else
+        std::unique_ptr<VerilatedVcdC> tfp;
+    #endif
 #endif
 
 struct Config {
