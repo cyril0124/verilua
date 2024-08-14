@@ -351,7 +351,10 @@ if args.sim == "wave_vpi":
     execute_cmd_pipe(f"cd {test_dir}; export VERILUA_CFG={verilua_cfg_gen_file}; export SIM={args.sim}; wave_vpi_main --wave-file {args.wave_file} 2>&1 | tee run.log")
 elif need_rebuild or args.rebuild:
     if not args.no_generate_tb:
-        ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py -f {top_file} --top {args.top} --nodpi --dir {dut_dir} {args.tb_gen_args}")
+        input_rtl_files = ""
+        for rtl_file in rtl_files:
+            input_rtl_files += f" -f {rtl_file}"
+        ret = execute_cmd(f"/usr/bin/env python3 $VERILUA_HOME/scripts/testbench_gen.py {input_rtl_files} --top {args.top} --nodpi --dir {dut_dir} {args.tb_gen_args}")
         if ret.stderr:
             print(ret.stdout)
             assert False, f"==> {ret.stderr}"
