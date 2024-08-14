@@ -1,11 +1,11 @@
 local class = require "pl.class"
 local assert = assert
-local random, randomseed = math.random, math.randomseed
+local random, randomseed, f = math.random, math.randomseed, string.format
 
 local CounterDelayer = class()
 
 function CounterDelayer:_init(min_delay, max_delay)
-    assert(max_delay >= min_delay)
+    assert(max_delay >= min_delay, f("max_delay:%d min_delay:%d", max_delay, min_delay))
 
     self.min_delay = min_delay
     self.max_delay = max_delay
