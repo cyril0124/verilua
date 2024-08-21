@@ -153,7 +153,9 @@ local function create_proxy(path)
                 C.c_set_value_str_by_name(local_path, str)
             end
         end,
-
+        set_force_str = function(t, str)
+            C.c_force_value_str_by_name(local_path, str)
+        end,
 
         -- 
         -- Example:
