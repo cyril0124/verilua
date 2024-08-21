@@ -316,9 +316,9 @@ _G.call    = nil -- syntax sugar for string literal calling
 _G.inspect = require "inspect"
 _G.pp      = function (...) print(inspect(...)) end
 _G.dbg     = function (...) print(inspect(...)) end
-_G.TODO    = function(...) assert(false, debug_str("TODO:", ...)) end
-_G.fatal   = function(...) assert(false, debug_str("FATAL:", ...)) end
-_G.fassert = function(bool, ...)
+_G.TODO    = function (...) error(debug_str("TODO:", ...)) end
+_G.fatal   = function (...) error(debug_str("FATAL:", ...)) end
+_G.fassert = function (bool, ...)
     if bool == false then
         local args = {...}
         if #args == 0 then
@@ -332,6 +332,8 @@ _G.dut     = (require "LuaDut").create_proxy(cfg.top)
 local sim = require "LuaSimulator";
 _G.sim     = sim
 
+local f = string.format
+_G.printf = function (s, ...) print(f(s, ...)) end
 
 -- 
 -- string operate extension
