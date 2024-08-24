@@ -1,6 +1,6 @@
 local class = require "pl.class"
 local assert = assert
-local random, randomseed, f = math.random, math.randomseed, string.format
+local random, f = math.random, string.format
 
 local CounterDelayer = class()
 

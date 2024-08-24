@@ -58,7 +58,7 @@ end
 verilua.finish_callback = function ()
     print()
     verilua_info(("--------------------- [Lua] Start doing finish_callback ---------------------"):format(verilua.end_time - verilua.start_time))
-    if not (cfg.mode == VeriluaMode.STEP) then
+    if cfg.mode ~= VeriluaMode.STEP then
         scheduler:list_tasks()
     end
 
