@@ -25,3 +25,6 @@
 [submodule "wave_vpi"]
 	path = wave_vpi
 	url = https://github.com/cyril0124/wave_vpi
+[submodule "extern/sol2"]
+	path = extern/sol2
+	url = https://github.com/ThePhD/sol2.git

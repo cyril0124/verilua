@@ -2,7 +2,6 @@
 #include "vpi_callback.h"
 #include "mimalloc-new-delete.h"
 
-extern std::unique_ptr<lua_State, LuaStateDeleter> L;
 extern std::unique_ptr<IDPool> edge_cb_idpool;
 extern std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
 extern std::unordered_map<std::string, vpiHandle> handle_cache;
@@ -284,8 +283,6 @@ static PLI_INT32 start_callback(p_cb_data cb_data) {
 static PLI_INT32 final_callback(p_cb_data cb_data) {
     VL_INFO("enter final_callback()\n");
     verilua_final();
-
-    // lua_close(L);
 
     if (enable_vpi_learn) {
         std::ofstream outfile("vpi_learn.log");

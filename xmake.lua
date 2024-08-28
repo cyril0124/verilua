@@ -7,13 +7,17 @@ local build_dir  = prj_dir .. "/build"
 local lua_dir    = prj_dir .. "/luajit2.1"
 local extern_dir = prj_dir .. "/extern"
 local shared_dir = prj_dir .. "/shared"
-local vcpkg_dir  = prj_dir .. "/vcpkg"
 local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
 -- local toolchains = "clang-18"
 local toolchains = "gcc"
+
+add_requires("conan::fmt/10.2.1", {alias = "fmt"})
+add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
+add_requires("conan::libassert/2.1.0", {alias = "libassert"})
+add_requires("conan::argparse/3.1", {alias = "argparse"})
 
 local function build_common_info()
     set_kind("shared")
@@ -44,11 +48,10 @@ local function build_common_info()
     add_includedirs(
         src_dir .. "/include",
         lua_dir .. "/include",
-        vcpkg_dir .. "/installed/x64-linux/include"
+        extern_dir .. "/sol2/include"
     )
 
-    add_links("fmt", "mimalloc")
-    add_linkdirs(vcpkg_dir .. "/installed/x64-linux/lib")
+    add_packages("fmt", "mimalloc")
 
     if is_mode("debug") then
         add_defines("DEBUG")
@@ -154,8 +157,7 @@ target("wave_vpi_main")
 
     add_includedirs(
         lua_dir .. "/include",
-        wavevpi_dir .. "/src",
-        wavevpi_dir .. "/vcpkg/installed/x64-linux/include"
+        wavevpi_dir .. "/src"
     )
 
     if is_mode("debug") then
@@ -171,18 +173,13 @@ target("wave_vpi_main")
     add_links("luajit-5.1")
     add_linkdirs(lua_dir .. "/lib")
 
-    add_links("fmt", "mimalloc")
-    add_linkdirs(vcpkg_dir .. "/installed/x64-linux/lib")
+    add_packages("fmt", "mimalloc", "libassert", "argparse")
 
     add_links("lua_vpi_wave_vpi")
     add_linkdirs(shared_dir)
     
     add_links("wave_vpi_wellen_impl")
     add_linkdirs(wavevpi_dir .. "/target/release")
-
-    add_links("assert", "cpptrace", "dwarf", "zstd", "z")
-    add_links("backtrace", "boost_stacktrace_basic")
-    add_linkdirs(wavevpi_dir .. "/vcpkg/installed/x64-linux/lib")
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
@@ -259,7 +256,7 @@ if iverilog_home ~= nil then
             iverilog_home .. "/include",
             src_dir .. "/include",
             lua_dir .. "/include",
-            vcpkg_dir .. "/installed/x64-linux/include"
+            extern_dir .. "/sol2/include"
         )
 
         if is_mode("debug") then
@@ -278,8 +275,7 @@ if iverilog_home ~= nil then
         add_links("luajit-5.1")
         add_linkdirs(lua_dir .. "/lib")
 
-        add_links("fmt", "mimalloc")
-        add_linkdirs(vcpkg_dir .. "/installed/x64-linux/lib")
+        add_packages("fmt", "mimalloc")
 
         add_links("lua_vpi_iverilog")
         add_linkdirs(shared_dir)

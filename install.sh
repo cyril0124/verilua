@@ -12,10 +12,6 @@ source install_lua.sh
 source install_lua_modules.sh
 
 
-# Install vcpkg libs
-source install_libs.sh
-
-
 # Install wave vpi
 source install_wave_vpi.sh
 
@@ -60,4 +56,4 @@ wget https://xmake.io/shget.text -O - | bash
 
 
 # Make shared lib
-xmake
+xmake -y
