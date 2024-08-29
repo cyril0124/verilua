@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 
+git submodule update --init --recursive
+
 # Install python dependency
 python3 -m pip install -r requirements.txt
 
 
 # Install LuaJIT-2.1
 source install_lua.sh
+
+
+# Install other libs
+source install_libs.sh
 
 
 # Install lua modules

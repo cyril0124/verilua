@@ -6,6 +6,7 @@ local src_dir    = prj_dir .. "/src"
 local build_dir  = prj_dir .. "/build"
 local lua_dir    = prj_dir .. "/luajit2.1"
 local extern_dir = prj_dir .. "/extern"
+local vcpkg_dir  = prj_dir .. "/vcpkg_installed"
 local shared_dir = prj_dir .. "/shared"
 local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
@@ -48,7 +49,7 @@ local function build_common_info()
     add_includedirs(
         src_dir .. "/include",
         lua_dir .. "/include",
-        extern_dir .. "/sol2/include"
+        vcpkg_dir .. "/x64-linux/include"
     )
 
     add_packages("fmt", "mimalloc")
@@ -256,7 +257,7 @@ if iverilog_home ~= nil then
             iverilog_home .. "/include",
             src_dir .. "/include",
             lua_dir .. "/include",
-            extern_dir .. "/sol2/include"
+            vcpkg_dir .. "/x64-linux/include"
         )
 
         if is_mode("debug") then
