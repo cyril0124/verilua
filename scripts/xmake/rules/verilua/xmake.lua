@@ -19,6 +19,7 @@ rule("verilua")
             raise("Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
         end
         target:add("sim", sim)
+        cprint("${✅} [verilua-xmake] simulator is ${green underline}%s${reset}", sim)
 
         -- Check if VERILUA_HOME is set.
         local verilua_home = assert(os.getenv("VERILUA_HOME"), "please set VERILUA_HOME")
@@ -42,8 +43,8 @@ rule("verilua")
         target:add("top", top)
         target:add("build_dir", build_dir)
         target:add("sim_build_dir", sim_build_dir)
+        cprint("${✅} [verilua-xmake] top module is ${green underline}%s${reset}", top)
 
-        cprint("${dim}top module is %s", top)
         if not os.isfile(sim_build_dir) then
             os.mkdir(sim_build_dir)
         end
@@ -57,7 +58,8 @@ rule("verilua")
             lua_main = assert(target:values("cfg.lua_main"), "You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")")
         end
         lua_main = path.absolute(lua_main)
-        cprint("${dim}lua main is %s", lua_main)
+        cprint("${✅} [verilua-xmake] lua main is ${green underline}%s${reset}", lua_main)
+
         os.cp(lua_main, build_dir)
 
         -- Copy other lua files into build_dir
@@ -75,6 +77,8 @@ rule("verilua")
             assert(mode == "normal" or mode == "step" or mode == "dominant", "mode should be normal, step or dominant")
             target:add("mode", mode)
         end
+        cprint("${✅} [verilua-xmake] verilua mode is ${green underline}%s${reset}", mode)
+
 
         -- Generate verilua cfg file
         local tb_top = target:values("cfg.tb_top")
@@ -94,19 +98,23 @@ rule("verilua")
             local _other_cfg = other_cfg
             other_cfg = "\"" .. path.basename(other_cfg) .. "\""
             other_cfg_path = "\"" .. path.absolute(path.directory(_other_cfg)) .. "\""
+            cprint("${✅} [verilua-xmake] other_cfg is ${green underline}%s${reset}", other_cfg)
         end
 
         if shutdown_cycles == nil then 
             shutdown_cycles = "10000 * 10" 
         end
+        cprint("${✅} [verilua-xmake] shutdown_cycles is ${green underline}%s${reset}", shutdown_cycles)
 
         if deps ~= nil then
             if type(deps) == "table" then
                 for _, dep in ipairs(deps) do
                     deps_str = deps_str .. "\"" .. path.absolute(dep) .. "\"" .. ",\n"
+                    cprint("${✅} [verilua-xmake] deps is ${green underline}%s${reset}", dep)
                 end
             else
                 deps_str = "\"" .. path.absolute(deps) .. "\""
+                cprint("${✅} [verilua-xmake] deps is ${green underline}%s${reset}", deps)
             end
         end
 
@@ -241,14 +249,14 @@ return cfg
 
     on_build(function (target)
         -- print("on_build")
-
+        local f = string.format
         local verilua_home = assert(os.getenv("VERILUA_HOME"), "please set VERILUA_HOME")
         local top = target:get("top")
         local build_dir = target:get("build_dir")
         local sim = target:get("sim")
         local argv = {}
-        local toolchain
-        local buildcmd
+        local toolchain = ""
+        local buildcmd = ""
         
         local flags = target:values(sim .. ".flags")
         if flags then
@@ -389,9 +397,8 @@ return cfg
         local filelist_sim = {} -- including c/c++ files
         if sim ~= "wave_vpi" then
             for _, sourcefile in ipairs(sourcefiles) do
+                cprint("${📄} read file ${green dim}%s${reset}", path.absolute(sourcefile))
                 if not sourcefile:endswith(".lua") then
-                    import("utils.progress")
-                    progress.show(100, "${color.build.object}read file %s", path.absolute(sourcefile))
                     if sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
                         table.insert(filelist_dut, path.absolute(sourcefile))                    
                     end
@@ -417,6 +424,47 @@ return cfg
             -- Run the verilator command to generate target binary
             os.vrunv(buildcmd, argv, {envs = toolchain:runenvs()})
         end
+
+        -- Create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation
+        local sim_build_dir = target:get("sim_build_dir")
+        local clean_sh = f([[#!/usr/bin/env bash
+export VERILUA_CFG=%s
+export SIM=%s
+rm -rf %s
+]], target:get("cfg_file"), sim, sim_build_dir)
+        io.writefile(build_dir .. "/clean.sh", clean_sh)
+            
+        local build_sh = f([[#!/usr/bin/env bash
+export VERILUA_CFG=%s
+export SIM=%s
+%s 2>&1 | tee build.log
+]], target:get("cfg_file"), sim, buildcmd:sub(1, -2) .. " " .. table.concat(argv, " "))
+        io.writefile(build_dir .. "/build.sh", build_sh)
+
+        local setvars_sh = f([[#!/usr/bin/env bash
+export VERILUA_CFG=%s
+export SIM=%s
+]], target:get("cfg_file"), sim)
+        io.writefile(build_dir .. "/setvars.sh", setvars_sh)
+
+        local run_sh = ""
+        if sim == "verilator" then
+            run_sh = f([[numactl -m 0 -C 0-7 %s/Vtb_top 2>&1 | tee run.log]], sim_build_dir)
+        elseif sim == "vcs" then
+            run_sh = f([[%s/simv +vcs+initreg+0 +notimingcheck 2>&1 | tee run.log]], sim_build_dir)
+        elseif sim == "iverilog" then
+            run_sh = f([[vvp_wrapper -M %s -m lua_vpi %s/simv.vvp | tee run.log]], verilua_home .. "/shared", sim_build_dir)
+        elseif sim == "wave_vpi" then
+            local waveform_file = assert(target:get("waveform_file"), "waveform_file not found!")
+            run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
+        end
+        io.writefile(build_dir .. "/run.sh", setvars_sh .. run_sh)
+        io.writefile(build_dir .. "/debug_run.sh", setvars_sh .. "gdb --args " .. run_sh)
+
+        local verdi_sh = [[#!/usr/bin/env bash
+verdi -f filelist.f -sv -nologo $@
+]]
+        io.writefile(build_dir .. "/verdi.sh", verdi_sh)
         
         -- Copy the generated binary to targetdir
         local sim_build_dir = target:get("sim_build_dir")
@@ -455,7 +503,18 @@ return cfg
         local build_dir = target:get("build_dir")
         local sim_build_dir = target:get("sim_build_dir")
 
+        -- Set runtime envs
+        local runenvs = target:get("runenvs")
+        for k, env in pairs(runenvs) do
+            local _env = {}
+            _env[k] = env
+            os.addenvs(_env)
+        end
+
+        -- Set VERILUA_CFG for verilua
         os.setenv("VERILUA_CFG", target:get("cfg_file"))
+
+        -- Move into build dircectory to execute our simulation
         os.cd(build_dir)
         if sim == "verilator" then
             os.exec("numactl -m 0 -C 0-7 " .. sim_build_dir .. "/Vtb_top ")
@@ -473,6 +532,6 @@ return cfg
             local waveform_file = assert(target:get("waveform_file"), "waveform_file not found!")
             os.exec(wave_vpi_main .. " --wave-file " .. waveform_file)
         else
-            raise("todo on_run")
+            raise("TODO: on_run unknown simulaotr => " .. sim)
         end
     end)
