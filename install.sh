@@ -60,6 +60,8 @@ cd $luajit_tcc_dir; make init; make
 # Install xmake
 wget https://xmake.io/shget.text -O - | bash
 
+# Applying verilua patch for xmake
+source apply_xmake_patch.sh
 
 # Make shared lib
 xmake -y
