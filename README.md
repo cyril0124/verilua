@@ -4,13 +4,11 @@
 - [conan](https://conan.io/downloads): xmake will use conan to manage dependencies, so you need to install conan.
 
 ## Install verilua
-The `install.sh` script will setup verilua enviroment (both Python and Lua) and the `VERILUA_HOME` enviroment variable.
-
-For `bash` user
+To install verilua, simply run the following command:
+```bash
+xmake install verilua
 ```
-bash install.sh bash
-```
-For `zsh` user
-```
-bash install.sh zsh
+And to build the shared libraries, run the following command:
+```bash
+xmake -y -P .
 ```

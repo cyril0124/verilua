@@ -290,3 +290,96 @@ if iverilog_home ~= nil then
             print("---------------------------------------------------------- ")
         end)
 end
+
+target("verilua")
+    set_kind("phony")
+    on_install(function (target)
+        local f = string.format
+        local execute = os.run
+        cprint("${💥} ${yellow}[1]${reset} Update git submodules...") do
+            execute("git submodule update --init --recursive")
+        end
+
+        cprint("${💥} ${yellow}[2]${reset} Install python dependency...") do
+            execute("python3 -m pip install -r requirements.txt")
+        end
+        
+        cprint("${💥} ${yellow}[3]${reset} Install LuaJIT-2.1...") do
+            local curr_dir = os.workingdir()
+            local luajit_dir = curr_dir .. "/luajit2.1"
+            execute("rm -rf " .. luajit_dir)
+            execute("git clone https://github.com/openresty/luajit2.git " .. luajit_dir)
+            execute("cp %s/scripts/luajit_makefile/Makefile %s/src/Makefile", curr_dir, luajit_dir)
+            execute(f("hererocks luajit2.1 -j %s -r latest --compat 5.2 --verbose", luajit_dir))
+            os.trycp(luajit_dir .. "/lib/libluajit-5.1.so.2", luajit_dir .. "/lib/libluajit-5.1.so")
+        end
+
+        cprint("${💥} ${yellow}[4]${reset} Install other libs...") do
+            execute("git clone https://github.com/microsoft/vcpkg")
+            execute("./vcpkg/bootstrap-vcpkg.sh")
+            execute("./vcpkg/vcpkg x-update-baseline --add-initial-baseline")
+            execute("./vcpkg/vcpkg install")
+        end
+
+        cprint("${💥} ${yellow}[5]${reset} Install lua modules...") do
+            local libs = {
+                "penlight", 
+                "luasocket", 
+                "lsqlite3", 
+                "argparse", 
+                "busted", 
+                "linenoise", 
+                "luafilesystem",
+                "luacheck"
+            }
+            for i, lib in ipairs(libs) do
+                cprint("\t${💥} ${yellow}[5.%d]${reset} install ${green}%s${reset}", i, lib)
+                execute(f("luarocks install %s", lib))
+            end
+            execute("luarocks list")
+        end
+
+        cprint("${💥} ${yellow}[6]${reset} Install tinycc...") do
+            os.cd("extern/luajit_tcc")
+            execute("make init")
+            execute("make")
+            os.cd(os.workingdir())
+        end
+
+        cprint("${💥} ${yellow}[7]${reset} Setup verilua home on ${green}%s${reset}...", os.shell()) do
+            local shell_rc = os.getenv("HOME") .. "/." .. os.shell() .. "rc"
+            local content = io.readfile(shell_rc)
+            local has_match = false
+            local lines = io.lines(shell_rc)
+            for line in lines do
+                if line:match("^[^#]*export VERILUA_HOME=") then
+                    has_match = true
+                end
+            end
+            if not has_match then
+                local file = io.open(shell_rc, "a")
+                if file then
+                    file:print("")
+                    file:print("# >>> verilua >>>")
+                    file:print("export VERILUA_HOME=$(curdir)")
+                    file:print("export PATH=$VERILUA_HOME/tools:$PATH")
+                    file:print("export LD_LIBRARY_PATH=$VERILUA_HOME/shared:$LD_LIBRARY_PATH")
+                    file:print("export LD_LIBRARY_PATH=$VERILUA_HOME/luajit2.1/lib:$LD_LIBRARY_PATH")
+                    file:print("source $VERILUA_HOME/activate_verilua.sh")
+                    file:print("# <<< verilua <<<")
+                    file:close()
+                end
+            end
+            execute("xmake -y -P .")
+        end
+        
+        cprint("${💥} ${yellow}[8]${reset} Install wave vpi...") do
+            os.cd("wave_vpi")
+            execute("bash init.sh")
+            os.cd(os.workingdir())
+        end
+
+        cprint("${💥} ${yellow}[9]${reset} Applying verilua patch for xmake...") do
+            execute("bash apply_xmake_patch.sh")
+        end
+    end)
