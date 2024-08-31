@@ -220,10 +220,15 @@ VERILUA_EXPORT void verilua_init(void) {
     std::string INIT_FILE = std::string(VERILUA_HOME) + "/src/lua/verilua/init.lua";
     VL_INFO("INIT_FILE is {}\n", INIT_FILE);
 
-    try {
-        lua->safe_script_file(INIT_FILE);
-    } catch (const sol::error& err) {
-        VL_FATAL(false, "Error calling INIT_FILE: {}, {}", INIT_FILE, err.what());
+    // try {
+    //     lua->safe_script_file(INIT_FILE);
+    // } catch (const sol::error& err) {
+    //     VL_FATAL(false, "Error calling INIT_FILE: {}, {}", INIT_FILE, err.what());
+    // }
+
+    // Use pure luaL_dofile() to make luajit-pro load the script successfully
+    if (luaL_dofile(L.get(), INIT_FILE.c_str()) != LUA_OK) {
+        VL_FATAL(false,"Error calling INIT_FILE: {}, {}", INIT_FILE, lua_tostring(L.get(), -1));
     }
 
     const char *DUT_TOP = getenv("DUT_TOP");
@@ -239,10 +244,15 @@ VERILUA_EXPORT void verilua_init(void) {
     }
     VL_INFO("LUA_SCRIPT is {}\n", LUA_SCRIPT);
 
-    try {
-        lua->safe_script_file(LUA_SCRIPT);
-    } catch (const sol::error& err) {
-        VL_FATAL(false, "Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, err.what());
+    // try {
+    //     lua->safe_script_file(LUA_SCRIPT);
+    // } catch (const sol::error& err) {
+    //     VL_FATAL(false, "Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, err.what());
+    // }
+    
+    // Use pure luaL_dofile() to make luajit-pro load the script successfully
+    if (luaL_dofile(L.get(), LUA_SCRIPT) != LUA_OK) {
+        VL_FATAL(false,"Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, lua_tostring(L.get(), -1));
     }
 
     sol::protected_function verilua_init = (*lua)["verilua_init"];
