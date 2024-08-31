@@ -6,7 +6,7 @@ import subprocess
 
 verilua_path = os.getenv("VERILUA_HOME")
 libpath = os.getenv("VERILUA_HOME") + "/shared"
-luapath = os.getenv("VERILUA_HOME") + "/luajit2.1"
+luapath = os.getenv("VERILUA_HOME") + "/luajit-pro/luajit2.1"
 liblua_path = luapath + "/lib"
 assert libpath != None, "[vl-verilator] cannot find VERILUA_HOME!"
 assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator] cannot find liblua_vpi.so in " + libpath

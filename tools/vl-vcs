@@ -15,7 +15,7 @@ def decode_string(s):
     return base64.b64decode(s.encode()).decode()
 
 libpath = os.getenv("VERILUA_HOME") + "/shared"
-luapath = os.getenv("VERILUA_HOME") + "/luajit2.1"
+luapath = os.getenv("VERILUA_HOME") + "/luajit-pro/luajit2.1"
 libpath_lua = luapath + "/lib"
 assert libpath != None, "[vl-vcs] cannot find VERILUA_HOME!"
 assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find liblua_vpi_vcs.so in " + libpath

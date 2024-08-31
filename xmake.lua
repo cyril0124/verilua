@@ -4,7 +4,7 @@ local lib_name   = "lua_vpi"
 local prj_dir    = os.getenv("PWD")
 local src_dir    = prj_dir .. "/src"
 local build_dir  = prj_dir .. "/build"
-local lua_dir    = prj_dir .. "/luajit2.1"
+local lua_dir    = prj_dir .. "/luajit-pro/luajit2.1"
 local extern_dir = prj_dir .. "/extern"
 local vcpkg_dir  = prj_dir .. "/vcpkg_installed"
 local shared_dir = prj_dir .. "/shared"
@@ -48,7 +48,7 @@ local function build_common_info()
 
     add_includedirs(
         src_dir .. "/include",
-        lua_dir .. "/include",
+        lua_dir .. "/include/luajit-2.1",
         vcpkg_dir .. "/x64-linux/include"
     )
 
@@ -67,7 +67,7 @@ local function build_common_info()
 
     before_build(function (target)
         print("--------------------- [Before Build] ---------------------- ")
-        os.run(string.format("mkdir %s -p", shared_dir))
+        os.run("mkdir %s -p", shared_dir)
         print("---------------------------------------------------------- ")
     end)
 
@@ -75,8 +75,7 @@ local function build_common_info()
         print("--------------------- [After Build] ---------------------- ")
 
         print("* copy " .. target:targetfile() .. " into " .. shared_dir)
-            os.run("cp " .. target:targetfile() .. " " .. shared_dir)
-        
+            os.cp(target:targetfile(), shared_dir)
         print("---------------------------------------------------------- ")
     end)
 end
@@ -157,7 +156,7 @@ target("wave_vpi_main")
     )
 
     add_includedirs(
-        lua_dir .. "/include",
+        lua_dir .. "/include/luajit-2.1",
         wavevpi_dir .. "/src"
     )
 
@@ -256,8 +255,7 @@ if iverilog_home ~= nil then
         add_includedirs(
             iverilog_home .. "/include",
             src_dir .. "/include",
-            lua_dir .. "/include",
-            vcpkg_dir .. "/x64-linux/include"
+            lua_dir .. "/include/luajit-2.1"
         )
 
         if is_mode("debug") then
@@ -294,8 +292,7 @@ end
 target("verilua")
     set_kind("phony")
     on_install(function (target)
-        local f = string.format
-        local execute = os.run
+        local execute = os.exec
         cprint("${💥} ${yellow}[1]${reset} Update git submodules...") do
             execute("git submodule update --init --recursive")
         end
@@ -306,12 +303,29 @@ target("verilua")
         
         cprint("${💥} ${yellow}[3]${reset} Install LuaJIT-2.1...") do
             local curr_dir = os.workingdir()
-            local luajit_dir = curr_dir .. "/luajit2.1"
+            local luajit_pro_dir = curr_dir .. "/luajit-pro"
+            local luajit_dir = luajit_pro_dir .. "/luajit2.1"
+            local luarocks_version = "3.11.1"
+
             execute("rm -rf " .. luajit_dir)
-            execute("git clone https://github.com/openresty/luajit2.git " .. luajit_dir)
-            execute("cp %s/scripts/luajit_makefile/Makefile %s/src/Makefile", curr_dir, luajit_dir)
-            execute(f("hererocks luajit2.1 -j %s -r latest --compat 5.2 --verbose", luajit_dir))
-            os.trycp(luajit_dir .. "/lib/libluajit-5.1.so.2", luajit_dir .. "/lib/libluajit-5.1.so")
+
+            execute("git clone https://github.com/cyril0124/luajit-pro.git " .. luajit_pro_dir)
+            os.cd(luajit_pro_dir)
+            execute("bash init.sh")
+            os.trycp(luajit_dir .. "/bin/luajit", luajit_dir .. "/bin/lua")
+            
+            os.addenvs({PATH = luajit_dir .. "/bin"})
+            
+            execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
+            execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
+            os.cd("luarocks-" .. luarocks_version)
+            
+            execute("make clean")
+            execute("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
+            execute("make")
+            execute("make install")
+
+            os.cd(curr_dir)
         end
 
         cprint("${💥} ${yellow}[4]${reset} Install other libs...") do
@@ -334,7 +348,7 @@ target("verilua")
             }
             for i, lib in ipairs(libs) do
                 cprint("\t${💥} ${yellow}[5.%d]${reset} install ${green}%s${reset}", i, lib)
-                execute(f("luarocks install %s", lib))
+                execute("luarocks install %s", lib)
             end
             execute("luarocks list")
         end
@@ -363,8 +377,9 @@ target("verilua")
                     file:print("# >>> verilua >>>")
                     file:print("export VERILUA_HOME=$(curdir)")
                     file:print("export PATH=$VERILUA_HOME/tools:$PATH")
+                    file:print("export PATH=$VERILUA_HOME/luajit-pro/luajit2.1/bin:$PATH")
                     file:print("export LD_LIBRARY_PATH=$VERILUA_HOME/shared:$LD_LIBRARY_PATH")
-                    file:print("export LD_LIBRARY_PATH=$VERILUA_HOME/luajit2.1/lib:$LD_LIBRARY_PATH")
+                    file:print("export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/luajit2.1/lib:$LD_LIBRARY_PATH")
                     file:print("source $VERILUA_HOME/activate_verilua.sh")
                     file:print("# <<< verilua <<<")
                     file:close()

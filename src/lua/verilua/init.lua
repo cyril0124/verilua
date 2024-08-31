@@ -26,10 +26,10 @@ do
     append_package_path(VERILUA_HOME .. "/extern/LuaPanda/Debugger/?.lua")
     append_package_path(VERILUA_HOME .. "/extern/luafun/?.lua")
     append_package_path(VERILUA_HOME .. "/extern/debugger.lua/?.lua")
-    append_package_path(VERILUA_HOME .. "/luajit2.1/share/lua/5.1/?.lua")
+    append_package_path(VERILUA_HOME .. "/luajit-pro/luajit2.1/share/lua/5.1/?.lua")
 
-    append_package_cpath(VERILUA_HOME .. "/luajit2.1/lib/lua/5.1/?.so")
-    append_package_cpath(VERILUA_HOME .. "/luajit2.1/lib/lua/5.1/?/?.so")
+    append_package_cpath(VERILUA_HOME .. "/luajit-pro/luajit2.1/lib/lua/5.1/?.so")
+    append_package_cpath(VERILUA_HOME .. "/luajit-pro/luajit2.1/lib/lua/5.1/?/?.so")
     append_package_cpath(VERILUA_HOME .. "/extern/LuaPanda/Debugger/debugger_lib/?.so")
 
     if PRJ_TOP ~= nil then
