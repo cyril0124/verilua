@@ -908,6 +908,19 @@ do
     math.randomseed(cfg.seed)
 end
 
+-- 
+-- Implement sorts of SystemVerilog APIs
+-- 
+_G.urandom = function ()
+    return math.random(0, 0xFFFFFFFF)
+end
+
+_G.urandom_range = function (min, max)
+    if(min > max) then
+        error("min should be less than or equal to max")
+    end
+    return math.random(min, max)
+end
 
 -- only used to test the ffi function invoke overhead
 function test_func()
