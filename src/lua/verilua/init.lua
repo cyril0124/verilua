@@ -333,7 +333,7 @@ local sim = require "LuaSimulator";
 _G.sim     = sim
 
 local f = string.format
-_G.printf = function (s, ...) print(f(s, ...)) end
+_G.printf = function (s, ...) io.write(f(s, ...)) end
 
 -- 
 -- string operate extension
