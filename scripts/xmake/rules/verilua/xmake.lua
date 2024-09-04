@@ -426,26 +426,25 @@ return cfg
         end
 
         -- Create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation
-        local sim_build_dir = target:get("sim_build_dir")
-        local clean_sh = f([[#!/usr/bin/env bash
-export VERILUA_CFG=%s
-export SIM=%s
-rm -rf %s
-]], target:get("cfg_file"), sim, sim_build_dir)
-        io.writefile(build_dir .. "/clean.sh", clean_sh)
-            
-        local build_sh = f([[#!/usr/bin/env bash
-export VERILUA_CFG=%s
-export SIM=%s
-%s 2>&1 | tee build.log
-]], target:get("cfg_file"), sim, buildcmd:sub(1, -2) .. " " .. table.concat(argv, " "))
-        io.writefile(build_dir .. "/build.sh", build_sh)
-
         local setvars_sh = f([[#!/usr/bin/env bash
 export VERILUA_CFG=%s
 export SIM=%s
 ]], target:get("cfg_file"), sim)
-        io.writefile(build_dir .. "/setvars.sh", setvars_sh)
+                io.writefile(build_dir .. "/setvars.sh", setvars_sh)
+
+        local sim_build_dir = target:get("sim_build_dir")
+        local clean_sh = f([[#!/usr/bin/env bash
+source setvars.sh
+rm -rf %s
+]], sim_build_dir)
+        io.writefile(build_dir .. "/clean.sh", clean_sh)
+
+        local buildcmd_str = sim == "wave_vpi" and "# wave_vpi did not support build.sh \n#" or buildcmd:sub(1, -2) .. " " .. table.concat(argv, " ")
+        local build_sh = f([[#!/usr/bin/env bash
+source setvars.sh
+%s 2>&1 | tee build.log
+]], buildcmd_str)
+        io.writefile(build_dir .. "/build.sh", build_sh)
 
         local run_sh = ""
         if sim == "verilator" then
@@ -458,8 +457,8 @@ export SIM=%s
             local waveform_file = assert(target:get("waveform_file"), "waveform_file not found!")
             run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
         end
-        io.writefile(build_dir .. "/run.sh", setvars_sh .. run_sh)
-        io.writefile(build_dir .. "/debug_run.sh", setvars_sh .. "gdb --args " .. run_sh)
+        io.writefile(build_dir .. "/run.sh",       "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh)
+        io.writefile(build_dir .. "/debug_run.sh", "#!/usr/bin/env bash\nsource setvars.sh\n" .. "gdb --args " .. run_sh)
 
         local verdi_sh = [[#!/usr/bin/env bash
 verdi -f filelist.f -sv -nologo $@
