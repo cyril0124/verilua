@@ -237,7 +237,13 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
     s_vpi_value v;
     v.format = vpiIntVal;
     v.value.integer = value;
-    vpi_put_value(handle, &v, nullptr, vpiForceFlag);
+
+    s_vpi_time t;
+    t.type = vpiSimTime;
+    t.high = 0;
+    t.low = 0;
+
+    vpi_put_value(handle, &v, &t, vpiForceFlag);
 
     // VL_INFO("force {}  ==> 0x{:x}\n", path, value);
 
@@ -276,7 +282,13 @@ TO_LUA void c_force_value(long long handle, long long value) {
     s_vpi_value v;
     v.format = vpiIntVal;
     v.value.integer = value;
-    vpi_put_value(actual_handle, &v, NULL, vpiForceFlag);
+    
+    s_vpi_time t;
+    t.type = vpiSimTime;
+    t.high = 0;
+    t.low = 0;
+
+    vpi_put_value(actual_handle, &v, &t, vpiForceFlag);
 
     LEAVE_VPI_REGION();
 #else
@@ -817,6 +829,11 @@ TO_LUA void c_force_value_str_by_name(const char *path, const char *str) {
 
     std::vector<char> writable;
     s_vpi_value value_s;
+    
+    s_vpi_time t;
+    t.type = vpiSimTime;
+    t.high = 0;
+    t.low = 0;
 
     // #define vpiBinStrVal          1
     // #define vpiOctStrVal          2
@@ -844,7 +861,7 @@ TO_LUA void c_force_value_str_by_name(const char *path, const char *str) {
         value_s.value.str = writable.data();
     }
     
-    vpi_put_value(handle, &value_s, nullptr, vpiForceFlag);
+    vpi_put_value(handle, &value_s, &t, vpiForceFlag);
     
     LEAVE_VPI_REGION();
 #else
