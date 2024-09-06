@@ -387,7 +387,7 @@ do
         local hdl = ffi.C.c_handle_by_name_safe(str)
 
         if hdl == -1 then
-            assert(false, string.format("No handle found => %s", str))
+            assert(false, f("No handle found => %s", str))
         end
 
         return hdl
@@ -538,7 +538,7 @@ do
     --      assert(hex_str == "0x123")
     -- 
     getmetatable('').__index.get_hex = function (str)
-        return string.format("0x%x", tonumber(ffi.C.c_get_value_by_name(str)))
+        return f("0x%x", tonumber(ffi.C.c_get_value_by_name(str)))
     end
     
     -- 
@@ -682,7 +682,7 @@ do
                 local repl_key = string.gsub(string.gsub(match, "{", ""), "}", "")
                 local repl_value = params_table[repl_key]
                 local repl_value_str = tostring(repl_value)
-                assert(repl_value ~= nil, string.format("repl_key: <%s> not found in <params_table>!", repl_key))
+                assert(repl_value ~= nil, f("repl_key: <%s> not found in <params_table>!", repl_key))
 
                 _signals_table[i] = string.gsub(_signals_table[i], match, repl_value_str)
             end
@@ -722,6 +722,33 @@ do
         return AliasBundle(alias_tbl, prefix, hier, name)
     end
 
+
+    -- 
+    -- Example:
+    --      local template = "Hello {{name}}!"
+    --      local rendered_template = template:render({name = "Bob"})
+    --      assert(rendered_template == "Hello Bob!")
+    -- 
+    getmetatable('').__index.render = function(template, vars)
+        assert(type(template) == "string", "template must be a string")
+        assert(type(vars) == "table", "vars must be a table")
+        return (template:gsub("{{(.-)}}", function(key)
+            if vars[key] == nil then
+                assert(false, f("[render] key not found: %s\n\ttemplate_str is: %s\n" , key, template))
+            end
+            return tostring(vars[key] or "")
+        end))
+    end
+
+    -- 
+    -- Example:
+    --      ("hello world!"):print()
+    --      ("hello {{name}}"):render({name = "Bob"}):print()
+    --      ("hello %d"):format(123):print()
+    -- 
+    getmetatable('').__index.print = function(str)
+        print(str)
+    end
 end
 
 local scheduler = require "LuaScheduler"
@@ -737,7 +764,7 @@ do
     _G.verilua = function(cmd)
 
         local print = function(...)
-            print(string.format("[verilua/%s]", cmd), ...)
+            print(f("[verilua/%s]", cmd), ...)
         end
         
         print("execute => " .. cmd)
