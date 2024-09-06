@@ -342,6 +342,8 @@ target("reinstall_luajit")
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
 
         os.cd(luajit_pro_dir)
+        -- execute("git reset --hard origin/master")
+        execute("git pull origin master")
         execute("bash init.sh")
         os.trycp(luajit_dir .. "/bin/luajit", luajit_dir .. "/bin/lua")
 
@@ -362,6 +364,9 @@ target("install_lua_modules")
     set_kind("phony")
     on_run(function (target)
         local execute = os.exec
+        local curr_dir = os.workingdir()
+        local luajit_pro_dir = curr_dir .. "/luajit-pro"
+        local luajit_dir = luajit_pro_dir .. "/luajit2.1"
         local libs = {
             "penlight", 
             "luasocket", 
@@ -372,6 +377,8 @@ target("install_lua_modules")
             "luafilesystem",
             "luacheck"
         }
+
+        os.addenvs({PATH = luajit_dir .. "/bin"})
         for i, lib in ipairs(libs) do
             cprint("\t${💥} ${yellow}[5.%d]${reset} install ${green}%s${reset}", i, lib)
             execute("luarocks install %s", lib)
