@@ -25,6 +25,7 @@ rule("verilua")
         local verilua_home = assert(os.getenv("VERILUA_HOME"), "please set VERILUA_HOME")
         target:add("verilua_home", verilua_home)
         target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include")
+        target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include/luajit-2.1")
         target:add("includedirs", verilua_home .. "/src/include")
         target:add("includedirs", verilua_home .. "/vcpkg_installed/x64-linux/include")
         target:add("links", "luajit-5.1", "fmt")
@@ -290,7 +291,8 @@ return cfg
             end
 
             assert(top_file ~= nil, "Cannot find top module file! top is " .. top .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
-            assert(os.isfile(top_file), "Cannot find top module file! top_file is " .. top_file .. " You should set \'top_file\' by set_values(\"top_file\", \"<your_top_module_file>\")")
+            assert(os.isfile(top_file), "Cannot find top module file! top_file is " .. top_file .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
+            assert(file_str ~= "", "Cannot find any .v/.sv files!")
             print("top_file is " .. top_file)
 
             -- Only the vfiles are needed to be checked
@@ -311,12 +313,14 @@ return cfg
                 for _, file in ipairs(vfiles) do
                     -- If any of the vfiles are changed, we should re-generate the testbench
                     if os.isfile(file) and os.mtime(file) > os.mtime(target:targetfile()) then
+                        cprint("tb_gen_cmd: ${dim}%s${reset}", gen_cmd)
                         os.exec(gen_cmd)
                         is_generated = true
                         break
                     end
                 end
                 if not os.isfile(build_dir .. "/tb_top.sv") and not is_generated then
+                    cprint("tb_gen_cmd: ${dim}%s${reset}", gen_cmd)
                     os.exec(gen_cmd)
                     is_generated = true
                 end
