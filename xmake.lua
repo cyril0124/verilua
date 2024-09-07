@@ -375,7 +375,6 @@ target("install_lua_modules")
             "busted", 
             "linenoise", 
             "luafilesystem",
-            "luacheck"
         }
 
         os.addenvs({PATH = luajit_dir .. "/bin"})

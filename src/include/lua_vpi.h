@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lua.hpp"
+#include "svdpi.h"
 #include "vpi_user.h"
 #include "fmt/core.h"
 #include "sol/sol.hpp"
@@ -10,6 +11,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <csignal>
+#include <memory>
 #include <string>
 #include <vector>
 #include <queue>
@@ -19,7 +21,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <sys/types.h>
-
+#include <chrono>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -55,9 +57,16 @@
 
 #define ENV_IS_ENABLE(env_enable_str) env_enable_str != nullptr && (std::strcmp(env_enable_str, "1") == 0 || std::strcmp(env_enable_str, "enable") == 0)
 
+// Mark the functions that will be used by Lua via ffi
 #define TO_LUA extern "C"
+
+// Mark the functions that will be used by verilator simulator
 #define TO_VERILATOR
+
+// Mark the functions that will be used by embeding verilua into other simulation enviroment
 #define VERILUA_EXPORT extern "C"
+
+// Mark the functions that will be privately used by the verilua library
 #define VERILUA_PRIVATE
 
 using TaskID = uint32_t;
@@ -79,12 +88,6 @@ enum class EdgeValue : int {
     DONTCARE = 2
 };
 
-struct LuaStateDeleter {
-    void operator()(lua_State* L) const {
-        lua_close(L);
-    }
-};
-
 struct EdgeCbData {
     TaskID      task_id;
     EdgeValue   expected_value;
@@ -92,7 +95,6 @@ struct EdgeCbData {
     s_vpi_value vpi_value;
     s_vpi_time  vpi_time;
 };
-
 
 class IDPool {
 private:
@@ -130,14 +132,102 @@ public:
     }
 };
 
+// Singletone object of the entire Verilua environment
+class VeriluaEnv {
+public:
+    VeriluaEnv(const VeriluaEnv&) = delete;
+    VeriluaEnv& operator=(const VeriluaEnv&) = delete;
 
+    static VeriluaEnv& get_instance() {
+        static VeriluaEnv instance;
+        return instance;
+    }
+
+    bool initialized = false;
+    bool finalized = false;
+
+    double lua_time = 0.0;
+    double start_time = 0.0;
+    double end_time = 0.0;
+
+    lua_State* L;
+    std::unique_ptr<sol::state_view> lua;
+    sol::protected_function sim_event;
+    sol::protected_function main_step;
+
+    IDPool edge_cb_idpool; // Edge callback id pool for cbValueChange
+    std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
+    std::unordered_map<std::string, vpiHandle> hdl_cache;
+    std::unordered_map<vpiHandle, VpiPermission> hdl_cache_rev;
+
+#ifdef IVERILOG
+    bool resolve_x_as_zero = true; // whether resolve x as zero
+#endif
+
+    void initialize();
+    void finalize();
+private:
+    VeriluaEnv() : edge_cb_idpool(100) {};
+};
+
+VERILUA_PRIVATE inline void execute_sim_event(TaskID id) {
+    auto &env = VeriluaEnv::get_instance();
+#ifdef ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
+
+    auto ret = env.sim_event(id);
+
+#ifdef ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    env.lua_time += time_taken;
+#endif
+
+    if(!ret.valid()) [[unlikely]] {
+        env.finalize();
+        sol::error  err = ret;
+        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+    }
+}
+
+VERILUA_PRIVATE inline void execute_main_step() {
+    auto &env = VeriluaEnv::get_instance();
+    VL_FATAL(env.initialized, "main_step called before initialize");
+
+#ifdef ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
+
+    auto ret = env.main_step();
+
+#ifdef ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    env.lua_time += time_taken;
+#endif
+
+    if(!ret.valid()) [[unlikely]] {
+        env.finalize();
+        sol::error err = ret;
+        VL_FATAL(false, "Error calling main_step, {}", err.what());
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------
+//  Export functions for embeding Verilua inside other simulation environments
+//  Make sure to use verilua_init() at the beginning of the simulation and use verilua_final() at the end of the simulation.
+//  The verilua_main_step() should be invoked at the beginning of each simulation step.
+// ----------------------------------------------------------------------------------------------------------
 VERILUA_EXPORT void verilua_init();
-VERILUA_EXPORT void verilua_main_step();
 VERILUA_EXPORT void verilua_final();
+VERILUA_EXPORT void verilua_main_step();
+
+// In some cases you may need to call this function manually since the simulation environment may not call it automatically(e.g. Verilator).
+// While in most cases you don't need to call this function manually.
 VERILUA_EXPORT void vlog_startup_routines_bootstrap();
 
 
-TO_VERILATOR void verilua_schedule_loop();
 
 typedef void (*VerilatorFunc)(void *);
 namespace Verilua {
@@ -150,7 +240,4 @@ namespace Verilua {
     void alloc_verilator_func(VerilatorFunc func, const std::string& name);
 }
 
-
-// used inside the verilua lib (cpp side)
-VERILUA_PRIVATE void execute_final_callback();
-VERILUA_PRIVATE void execute_sim_event(TaskID id);
+TO_VERILATOR void verilua_schedule_loop();

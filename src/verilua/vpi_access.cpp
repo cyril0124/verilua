@@ -1,16 +1,5 @@
 #include "vpi_access.h"
 
-// Cache to store handles
-extern std::unordered_map<std::string, vpiHandle> handle_cache;
-extern std::unordered_map<vpiHandle, VpiPermission> handle_cache_rev;
-extern bool enable_vpi_learn;
-
-#ifdef IVERILOG
-extern bool resolve_x_as_zero;
-#endif
-
-std::mutex vpi_lock_;
-
 #define VPI_REGION_LOG(...)
 // #define VPI_REGION_LOG(...) \
 //     do { \
@@ -18,9 +7,14 @@ std::mutex vpi_lock_;
 //         fmt::print(__VA_ARGS__); \
 //     } while(0)
 
+#ifdef VPI_LOCK_GUARD
+std::mutex vpi_lock_;
+
+#define VPI_LOCK_GUART() \
+        std::lock_guard guard(vpi_lock_);
+#else
 #define VPI_LOCK_GUART() 
-// #define VPI_LOCK_GUART() \
-//         std::lock_guard guard(vpi_lock_);
+#endif
 
 #define ENTER_VPI_REGION() \
         VPI_REGION_LOG("TRY_GET\n"); \
@@ -31,18 +25,22 @@ std::mutex vpi_lock_;
         VPI_REGION_LOG("RELEASE\n");
 
 
-inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
+VERILUA_PRIVATE inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
+    auto &env = VeriluaEnv::get_instance();
+
     // Check if the name is in the cache
-    auto search = handle_cache.find(name);
-    if (search != handle_cache.end()) [[unlikely]] {
+    auto search = env.hdl_cache.find(name);
+    if (search != env.hdl_cache.end()) [[unlikely]] {
         // Name found in cache, return the stored handle
         return search->second;
     }
 
     auto hdl = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
     if(hdl) [[likely]] {
-        handle_cache[name] = hdl;
-        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[hdl] = VpiPermission::READ;
+        env.hdl_cache[name] = hdl;
+#ifdef VPI_LEARN
+        env.hdl_cache_rev[hdl] = VpiPermission::READ;
+#endif
     }
 
     return hdl;
@@ -136,7 +134,7 @@ TO_LUA long long c_get_value_by_name(const char *path) {
 #ifndef IVERILOG
     return v.value.vector[0].aval;
 #else
-    if(resolve_x_as_zero && v.value.vector[0].bval != 0)
+    if(VeriluaEnv::get_instance().resolve_x_as_zero && v.value.vector[0].bval != 0)
         return 0;
     else
         return v.value.vector[0].aval;
@@ -179,7 +177,9 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
-    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[handle] = VpiPermission::WRITE;
+#ifdef VPI_LEARN
+    VeriluaEnv::get_instance().hdl_cache_rev[handle] = VpiPermission::WRITE;
+#endif
 
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -197,7 +197,9 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
-    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[handle] = VpiPermission::WRITE;
+#ifdef VPI_LEARN
+    VeriluaEnv::get_instance().hdl_cache_rev[handle] = VpiPermission::WRITE;
+#endif
 
     luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
 
@@ -333,7 +335,7 @@ TO_LUA uint32_t c_get_value(long long handle) {
 #ifndef IVERILOG
     return v.value.vector[0].aval;
 #else
-    if(resolve_x_as_zero && v.value.vector[0].bval != 0)
+    if(VeriluaEnv::get_instance().resolve_x_as_zero && v.value.vector[0].bval != 0)
         return 0;
     else
         return v.value.vector[0].aval;
@@ -359,7 +361,7 @@ TO_LUA uint64_t c_get_value64(long long handle) {
     uint32_t lo = 0;
     uint32_t hi = 0;
     uint64_t value = 0;
-    if(resolve_x_as_zero && (v.value.vector[0].bval != 0 || v.value.vector[1].bval != 0)) {
+    if(VeriluaEnv::get_instance().resolve_x_as_zero && (v.value.vector[0].bval != 0 || v.value.vector[1].bval != 0)) {
         // remain zero
     } else {
         lo = v.value.vector[0].aval;
@@ -410,7 +412,7 @@ TO_LUA void c_get_value_multi_2(long long handle, uint32_t *ret, int n) {
         ret[i] = v.value.vector[i - 1].aval;
         // VL_INFO("a aval:0x{:x} bval:0x{:x}\n", v.value.vector[i - 1].aval, v.value.vector[i - 1].bval);
 #else
-        if(resolve_x_as_zero && v.value.vector[i - 1].bval != 0)
+        if(VeriluaEnv::get_instance().resolve_x_as_zero && v.value.vector[i - 1].bval != 0)
             ret[i] = 0;
         else {
             ret[i] = v.value.vector[i - 1].aval;
@@ -456,7 +458,10 @@ TO_LUA void c_set_value(long long handle, uint32_t value) {
     ENTER_VPI_REGION();
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) [[unlikely]]  handle_cache_rev[actual_handle] = VpiPermission::WRITE;
+
+#ifdef VPI_LEARN
+    VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+#endif
 
     s_vpi_value v;
 
@@ -474,7 +479,10 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
     ENTER_VPI_REGION();
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE;
+
+#ifdef VPI_LEARN
+    VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+#endif
 
     s_vpi_value v;
 
@@ -499,7 +507,10 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
     ENTER_VPI_REGION();
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE;
+
+#ifdef VPI_LEARN
+    VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+#endif
 
     s_vpi_value v;
 
@@ -523,7 +534,10 @@ TO_LUA int c_set_value_multi(lua_State *L) {
 
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE;
+
+#ifdef VPI_LEARN
+    VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+#endif
 
     luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
 
@@ -555,7 +569,10 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
     ENTER_VPI_REGION();
     
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-    if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE;
+
+#ifdef VPI_LEARN
+    VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+#endif
 
     s_vpi_vecval *vector = (s_vpi_vecval *)malloc(n * sizeof(s_vpi_vecval));
     for(int i = 0; i < n; i++) {
@@ -598,11 +615,12 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
 #define ARG_SELECT(N) ARG_##N
 #define ASSIGN_SELECT(N) ASSIGN_##N
 
+#ifdef VPI_LEARN
 #define GENERATE_FUNCTION(NUM) \
     TO_LUA void c_set_value_multi_1_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
         ENTER_VPI_REGION(); \
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle); \
-        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE; \
+        VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE; \
         s_vpi_vecval vector[NUM] = {0}; \
         ASSIGN_SELECT(NUM); \
         s_vpi_value v; \
@@ -611,6 +629,20 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
         vpi_put_value(actual_handle, &v, NULL, vpiNoDelay); \
         LEAVE_VPI_REGION(); \
     }
+#else
+#define GENERATE_FUNCTION(NUM) \
+    TO_LUA void c_set_value_multi_1_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
+        ENTER_VPI_REGION(); \
+        vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle); \
+        s_vpi_vecval vector[NUM] = {0}; \
+        ASSIGN_SELECT(NUM); \
+        s_vpi_value v; \
+        v.format = vpiVectorVal; \
+        v.value.vector = vector; \
+        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay); \
+        LEAVE_VPI_REGION(); \
+    }
+#endif
 
 GENERATE_FUNCTION(3)
 GENERATE_FUNCTION(4)
@@ -631,8 +663,9 @@ GENERATE_FUNCTION(8)
 //     ENTER_VPI_REGION();
     
 //     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-//     if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE;
-
+// #ifdef VPI_LEARN     
+//     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+// #endif
 //     s_vpi_vecval vector[8] = {0};
 //     vector[0].aval = v0;
 //     vector[1].aval = v1;
@@ -698,7 +731,10 @@ TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) 
 
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
-        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE;
+
+#ifdef VPI_LEARN
+        VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+#endif
 
         s_vpi_value v;
         v.format = vpiIntVal;
@@ -714,7 +750,10 @@ TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length
 
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
-        if(enable_vpi_learn) [[unlikely]] handle_cache_rev[actual_handle] = VpiPermission::WRITE;
+
+#ifdef VPI_LEARN
+        VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
+#endif
         s_vpi_value v;
 
         s_vpi_vecval *vector = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));

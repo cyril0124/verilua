@@ -1,29 +1,26 @@
 #include "lua_vpi.h"
 
-
-extern bool verilua_is_init;
-
 // ---------------------------------------
 // functions from verilator side
 // ---------------------------------------
-VerilatorFunc verilator_next_sim_step_impl = nullptr;
-VerilatorFunc verilator_get_mode_impl = nullptr;
+VerilatorFunc verilator_next_sim_step_impl              = nullptr;
+VerilatorFunc verilator_get_mode_impl                   = nullptr;
 VerilatorFunc verilator_simulation_initializeTrace_impl = nullptr;
-VerilatorFunc verilator_simulation_enableTrace_impl = nullptr;
-VerilatorFunc verilator_simulation_disableTrace_impl = nullptr;
+VerilatorFunc verilator_simulation_enableTrace_impl     = nullptr;
+VerilatorFunc verilator_simulation_disableTrace_impl    = nullptr;
 
 std::unordered_map<std::string, VerilatorFunc *> verilator_func_map = {
-    {"next_sim_step", &verilator_next_sim_step_impl},
-    {"get_mode", &verilator_get_mode_impl},
+    {"next_sim_step"             , &verilator_next_sim_step_impl             },
+    {"get_mode"                  , &verilator_get_mode_impl                  },
     {"simulation_initializeTrace", &verilator_simulation_initializeTrace_impl},
-    {"simulation_enableTrace", &verilator_simulation_enableTrace_impl},
-    {"simulation_disableTrace", &verilator_simulation_disableTrace_impl}
+    {"simulation_enableTrace"    , &verilator_simulation_enableTrace_impl    },
+    {"simulation_disableTrace"   , &verilator_simulation_disableTrace_impl   }
 };
 
 namespace Verilua {
     
 void alloc_verilator_func(VerilatorFunc func, const std::string& name) {
-    if (verilua_is_init == true) {
+    if (VeriluaEnv::get_instance().initialized) {
         VL_FATAL(false, "you should alloc a verilator function before call verilua_init()");
     }
 
