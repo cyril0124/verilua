@@ -12,3 +12,5 @@ TO_LUA void c_register_read_write_synch_callback(TaskID id);
 
 void register_start_calllback(void);
 void register_final_calllback(void);
+void register_readwrite_synch_calllback(void);
+void register_next_sim_time_calllback(void);

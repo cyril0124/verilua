@@ -96,6 +96,11 @@ struct EdgeCbData {
     s_vpi_time  vpi_time;
 };
 
+struct CallbackInfo {
+    TaskID task_id;
+    EdgeType edge_type;
+};
+
 class IDPool {
 private:
     std::unordered_set<uint64_t> allocated_ids;  
@@ -132,6 +137,11 @@ public:
     }
 };
 
+typedef union {
+    uint64_t u64;
+    uint32_t u32[2];
+} SimpleVecValue;
+
 // Singletone object of the entire Verilua environment
 class VeriluaEnv {
 public:
@@ -160,12 +170,35 @@ public:
     std::unordered_map<std::string, vpiHandle> hdl_cache;
     std::unordered_map<vpiHandle, VpiPermission> hdl_cache_rev;
 
+#ifdef VL_DEF_OPT_MERGE_CALLBACK
+    #include "gen_new_sim_event.h"
+
+    std::unordered_map<vpiHandle, std::vector<TaskID>> pending_posedge_cb_map;
+    std::unordered_map<vpiHandle, std::vector<TaskID>> pending_negedge_cb_map;
+    std::unordered_map<vpiHandle, std::vector<TaskID>> pending_edge_cb_map;
+#else
+    std::unordered_map<vpiHandle, std::vector<CallbackInfo>> pending_edge_cb_map;
+#endif
+
+#ifdef VL_DEF_OPT_VEC_SIMPLE_ACCESS
+    std::unordered_map<vpiHandle, SimpleVecValue> vec_value_cache; // A cache that can be used to prevent repeated access of some signal during the same simulation step
+#endif
+
 #ifdef IVERILOG
     bool resolve_x_as_zero = true; // whether resolve x as zero
 #endif
 
     void initialize();
     void finalize();
+
+    std::string handle_to_name(vpiHandle handle) {
+        for(auto &pair : hdl_cache) {
+            if(pair.second == handle) {
+                return pair.first;
+            }
+        }
+        return std::string("Unknown");
+    }
 private:
     VeriluaEnv() : edge_cb_idpool(100) {};
 };

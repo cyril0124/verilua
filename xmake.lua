@@ -37,7 +37,11 @@ local function build_common_info()
     )
 
     add_defines("VL_DEF_ACCUMULATE_LUA_TIME")
-
+    add_defines("VL_DEF_OPT_MERGE_CALLBACK")
+    -- add_defines("VL_DEF_OPT_VEC_SIMPLE_ACCESS")
+    -- add_defines("VL_DEF_VPI_LEARN")
+    -- add_defines("VL_DEF_VPI_LOCK_GUARD")
+    
     add_files(
         lua_dir .. "/lib/libluajit-5.1.a",
         src_dir .. "/verilua/lua_vpi.cpp",
@@ -48,6 +52,7 @@ local function build_common_info()
 
     add_includedirs(
         src_dir .. "/include",
+        src_dir .. "/gen",
         lua_dir .. "/include/luajit-2.1",
         vcpkg_dir .. "/x64-linux/include"
     )

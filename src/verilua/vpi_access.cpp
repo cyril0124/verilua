@@ -24,6 +24,34 @@ std::mutex vpi_lock_;
 #define LEAVE_VPI_REGION() \
         VPI_REGION_LOG("RELEASE\n");
 
+VERILUA_PRIVATE inline void _vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
+    vpi_get_value(expr, value_p);
+}
+
+VERILUA_PRIVATE inline void _vpi_get_value_vec_simple(vpiHandle expr, p_vpi_value value_p) {
+#ifdef VL_DEF_OPT_VEC_SIMPLE_ACCESS
+    auto &env =  VeriluaEnv::get_instance();
+
+    // VL_FATAL(value_p->format == vpiVectorVal);
+
+    auto it = env.vec_value_cache.find(expr);
+    if(it != env.vec_value_cache.end()) {
+        s_vpi_vecval vecval[2] = {{it->second.u32[0], 0}, {it->second.u32[1], 0}};
+        // VL_INFO("[{}] get value from vec_value_cache => {:x}\n", env.handle_to_name(expr), it->second.u64);
+        value_p->value.vector = vecval;
+    } else {
+        vpi_get_value(expr, value_p);
+
+        env.vec_value_cache[expr] = SimpleVecValue{.u32 = {value_p->value.vector[0].aval, value_p->value.vector[1].aval}};
+    }
+#else
+    vpi_get_value(expr, value_p);
+#endif
+}
+
+VERILUA_PRIVATE inline vpiHandle _vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
+    return vpi_put_value(object, value_p, time_p, flags);
+}
 
 VERILUA_PRIVATE inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     auto &env = VeriluaEnv::get_instance();
@@ -121,11 +149,12 @@ TO_LUA long long c_get_value_by_name(const char *path) {
     s_vpi_value v;
 
     // v.format = vpiIntVal;
-    // vpi_get_value(handle, &v);
+    // _vpi_get_value(handle, &v);
     // return v.value.integer;
 
     v.format = vpiVectorVal;
-    vpi_get_value(handle, &v);
+    // _vpi_get_value(handle, &v);
+    _vpi_get_value_vec_simple(handle, &v);
 
 #ifndef VCS
     LEAVE_VPI_REGION();
@@ -155,7 +184,7 @@ TO_LUA int c_get_value_multi_by_name(lua_State *L) {
 
     s_vpi_value v;
     v.format = vpiVectorVal;
-    vpi_get_value(handle, &v);
+    _vpi_get_value(handle, &v);
 
     // return a Lua table
     lua_newtable(L);
@@ -185,7 +214,7 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
     v.format = vpiIntVal;
     v.value.integer = value;
 
-    vpi_put_value(handle, &v, NULL, vpiNoDelay);
+    _vpi_put_value(handle, &v, NULL, vpiNoDelay);
 
     LEAVE_VPI_REGION();
 }
@@ -221,7 +250,7 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     s_vpi_value v;
     v.format = vpiVectorVal;
     v.value.vector = vector.data();
-    vpi_put_value(handle, &v, NULL, vpiNoDelay);
+    _vpi_put_value(handle, &v, NULL, vpiNoDelay);
 
     LEAVE_VPI_REGION();
     return 0;  // Number of return values
@@ -245,7 +274,7 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
     t.high = 0;
     t.low = 0;
 
-    vpi_put_value(handle, &v, &t, vpiForceFlag);
+    _vpi_put_value(handle, &v, &t, vpiForceFlag);
 
     // VL_INFO("force {}  ==> 0x{:x}\n", path, value);
 
@@ -267,8 +296,8 @@ TO_LUA void c_release_value_by_name(const char *path) {
 
     // Tips from cocotb:
     //      Best to pass its current value to the sim when releasing
-    vpi_get_value(handle, &v);
-    vpi_put_value(handle, &v, nullptr, vpiReleaseFlag);
+    _vpi_get_value(handle, &v);
+    _vpi_put_value(handle, &v, nullptr, vpiReleaseFlag);
 
     LEAVE_VPI_REGION();
 #else
@@ -290,7 +319,7 @@ TO_LUA void c_force_value(long long handle, long long value) {
     t.high = 0;
     t.low = 0;
 
-    vpi_put_value(actual_handle, &v, &t, vpiForceFlag);
+    _vpi_put_value(actual_handle, &v, &t, vpiForceFlag);
 
     LEAVE_VPI_REGION();
 #else
@@ -305,7 +334,7 @@ TO_LUA void c_release_value(long long handle) {
     unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
     v.format = vpiSuppressVal;
-    vpi_put_value(actual_handle, &v, NULL, vpiReleaseFlag);
+    _vpi_put_value(actual_handle, &v, NULL, vpiReleaseFlag);
 
     LEAVE_VPI_REGION();
 #else
@@ -322,11 +351,12 @@ TO_LUA uint32_t c_get_value(long long handle) {
     s_vpi_value v;
 
     // v.format = vpiIntVal;
-    // vpi_get_value(actual_handle, &v);
+    // _vpi_get_value(actual_handle, &v);
     // return v.value.integer;
 
     v.format = vpiVectorVal;
-    vpi_get_value(actual_handle, &v);
+    // _vpi_get_value(actual_handle, &v);
+    _vpi_get_value_vec_simple(actual_handle, &v);
 
 #ifndef VCS
     LEAVE_VPI_REGION();
@@ -351,7 +381,7 @@ TO_LUA uint64_t c_get_value64(long long handle) {
     s_vpi_value v;
 
     v.format = vpiVectorVal;
-    vpi_get_value(actual_handle, &v);
+    _vpi_get_value_vec_simple(actual_handle, &v);
 
 #ifndef IVERILOG
     uint32_t lo = v.value.vector[0].aval;
@@ -386,7 +416,7 @@ TO_LUA void c_get_value_multi_1(long long handle, uint32_t *ret, int n) {
 
     s_vpi_value v;
     v.format = vpiVectorVal;
-    vpi_get_value(actual_handle, &v);
+    _vpi_get_value(actual_handle, &v);
     for(int i = 0; i < n; i++) {
         ret[i] = v.value.vector[i].aval;
     }
@@ -405,7 +435,7 @@ TO_LUA void c_get_value_multi_2(long long handle, uint32_t *ret, int n) {
 
     s_vpi_value v;
     v.format = vpiVectorVal;
-    vpi_get_value(actual_handle, &v);
+    _vpi_get_value(actual_handle, &v);
 
     for(int i = 1; i < (n + 1); i++) {
 #ifndef IVERILOG
@@ -439,7 +469,7 @@ TO_LUA int c_get_value_multi(lua_State *L) {
 
     s_vpi_value v;
     v.format = vpiVectorVal;
-    vpi_get_value(actual_handle, &v);
+    _vpi_get_value(actual_handle, &v);
 
     lua_newtable(L);  // Create a new table and push it onto the stack
     for (int i = 0; i < n; i++) {
@@ -470,7 +500,7 @@ TO_LUA void c_set_value(long long handle, uint32_t value) {
     vec_val.bval = 0;
     v.format = vpiVectorVal;
     v.value.vector = &vec_val;
-    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 
     LEAVE_VPI_REGION();
 }
@@ -496,7 +526,7 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
     
     v.format = vpiVectorVal;
     v.value.vector = vector;
-    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 
     free((void *)vector);
 
@@ -522,7 +552,7 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
     
     v.format = vpiVectorVal;
     v.value.vector = vector;
-    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 
     free((void *)vector);
 
@@ -559,7 +589,7 @@ TO_LUA int c_set_value_multi(lua_State *L) {
     s_vpi_value v;
     v.format = vpiVectorVal;
     v.value.vector = vector.data();
-    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 
     LEAVE_VPI_REGION();
     return 0;  // Number of return values
@@ -583,7 +613,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
     s_vpi_value v;
     v.format = vpiVectorVal;
     v.value.vector = vector;
-    vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+    _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
     
     free((void *)vector)
 
@@ -626,7 +656,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
         s_vpi_value v; \
         v.format = vpiVectorVal; \
         v.value.vector = vector; \
-        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay); \
+        _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay); \
         LEAVE_VPI_REGION(); \
     }
 #else
@@ -639,7 +669,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
         s_vpi_value v; \
         v.format = vpiVectorVal; \
         v.value.vector = vector; \
-        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay); \
+        _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay); \
         LEAVE_VPI_REGION(); \
     }
 #endif
@@ -679,7 +709,7 @@ GENERATE_FUNCTION(8)
 //     s_vpi_value v;
 //     v.format = vpiVectorVal;
 //     v.value.vector = vector;
-//     vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+//     _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 
 //     LEAVE_VPI_REGION();
 // }
@@ -695,7 +725,7 @@ TO_LUA void c_get_value_parallel(long long *hdls, uint32_t *values, int length) 
         s_vpi_value v;
 
         v.format = vpiVectorVal;
-        vpi_get_value(actual_handle, &v);
+        _vpi_get_value(actual_handle, &v);
         values[i] = v.value.vector[0].aval;
     }
 
@@ -712,7 +742,7 @@ TO_LUA void c_get_value64_parallel(long long *hdls, uint64_t *values, int length
         s_vpi_value v;
 
         v.format = vpiVectorVal;
-        vpi_get_value(actual_handle, &v);
+        _vpi_get_value_vec_simple(actual_handle, &v);
 
         uint32_t lo = v.value.vector[0].aval;
         uint32_t hi = v.value.vector[1].aval;
@@ -739,7 +769,7 @@ TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) 
         s_vpi_value v;
         v.format = vpiIntVal;
         v.value.integer = values[i];
-        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+        _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
     }
 
     LEAVE_VPI_REGION();
@@ -764,7 +794,7 @@ TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length
 
         v.format = vpiVectorVal;
         v.value.vector = vector;
-        vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
+        _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 
         free((void *)vector);
     }
@@ -810,7 +840,7 @@ TO_LUA void c_set_value_str(long long handle, const char *str) {
         value_s.value.str = writable.data();
     }
     
-    vpi_put_value(actual_handle, &value_s, nullptr, vpiNoDelay);
+    _vpi_put_value(actual_handle, &value_s, nullptr, vpiNoDelay);
     
     LEAVE_VPI_REGION();
 }
@@ -852,7 +882,7 @@ TO_LUA void c_set_value_str_by_name(const char *path, const char *str) {
         value_s.value.str = writable.data();
     }
     
-    vpi_put_value(handle, &value_s, nullptr, vpiNoDelay);
+    _vpi_put_value(handle, &value_s, nullptr, vpiNoDelay);
     
     LEAVE_VPI_REGION();
 }
@@ -900,7 +930,7 @@ TO_LUA void c_force_value_str_by_name(const char *path, const char *str) {
         value_s.value.str = writable.data();
     }
     
-    vpi_put_value(handle, &value_s, &t, vpiForceFlag);
+    _vpi_put_value(handle, &value_s, &t, vpiForceFlag);
     
     LEAVE_VPI_REGION();
 #else
@@ -937,7 +967,7 @@ TO_LUA const char *c_get_value_str(long long handle, int format) {
             break;
     }
     
-    vpi_get_value(actual_handle, &value_s);
+    _vpi_get_value(actual_handle, &value_s);
     
     LEAVE_VPI_REGION();
 

@@ -1,3 +1,5 @@
+--[[verilua]]
+
 local scheduler = require "LuaScheduler"
 local os = require "os"
 
@@ -136,6 +138,7 @@ _G.lua_main_step = function()
     scheduler:schedule_all_tasks()
 end
 
+$include("gen_sim_event")
 
 ----------------------------------
 -- dominant mode

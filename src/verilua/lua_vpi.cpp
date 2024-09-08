@@ -210,6 +210,10 @@ void VeriluaEnv::initialize() {
     this->main_step = (*this->lua)["lua_main_step"];
     this->main_step.set_error_handler((*this->lua)["debug"]["traceback"]);
 
+#ifdef VL_DEF_OPT_MERGE_CALLBACK
+#include "gen_alloc_sim_event.h"
+#endif
+
     auto start = std::chrono::high_resolution_clock::now();
     this->start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
 
@@ -327,6 +331,7 @@ void VeriluaEnv::initialize() {
 
 #ifndef WITHOUT_BOOT_STRAP
 void (*vlog_startup_routines[])() = {
+    register_next_sim_time_calllback,
     register_start_calllback,
     register_final_calllback, 
     nullptr

@@ -10,5 +10,6 @@ build/
 test/
 .xmake/
 .verilua/
+vcpkg/
 vcpkg_installed/
 tmp/
