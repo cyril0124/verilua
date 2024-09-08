@@ -36,7 +36,7 @@ local function build_common_info()
         {force = true}
     )
 
-    add_defines("ACCUMULATE_LUA_TIME")
+    add_defines("VL_DEF_ACCUMULATE_LUA_TIME")
 
     add_files(
         lua_dir .. "/lib/libluajit-5.1.a",

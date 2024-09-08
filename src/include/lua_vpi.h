@@ -172,13 +172,13 @@ private:
 
 VERILUA_PRIVATE inline void execute_sim_event(TaskID id) {
     auto &env = VeriluaEnv::get_instance();
-#ifdef ACCUMULATE_LUA_TIME
+#ifdef VL_DEF_ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
 #endif
 
     auto ret = env.sim_event(id);
 
-#ifdef ACCUMULATE_LUA_TIME
+#ifdef VL_DEF_ACCUMULATE_LUA_TIME
     auto end = std::chrono::high_resolution_clock::now();
     double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
     env.lua_time += time_taken;
@@ -195,13 +195,13 @@ VERILUA_PRIVATE inline void execute_main_step() {
     auto &env = VeriluaEnv::get_instance();
     VL_FATAL(env.initialized, "main_step called before initialize");
 
-#ifdef ACCUMULATE_LUA_TIME
+#ifdef VL_DEF_ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
 #endif
 
     auto ret = env.main_step();
 
-#ifdef ACCUMULATE_LUA_TIME
+#ifdef VL_DEF_ACCUMULATE_LUA_TIME
     auto end = std::chrono::high_resolution_clock::now();
     double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
     env.lua_time += time_taken;

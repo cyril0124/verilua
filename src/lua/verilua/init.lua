@@ -161,11 +161,11 @@ do
     end
 
     -- 
-    -- setup VPI_LEARN inside init.lua, this can be overwrite by outer environment variable
+    -- setup VL_DEF_VPI_LEARN inside init.lua, this can be overwrite by outer environment variable
     -- 
-    local VPI_LEARN = cfg.vpi_learn
-    if VPI_LEARN ~= nil then
-        setenv_from_lua("VPI_LEARN", VPI_LEARN)
+    local VL_DEF_VPI_LEARN = cfg.vpi_learn
+    if VL_DEF_VPI_LEARN ~= nil then
+        setenv_from_lua("VL_DEF_VPI_LEARN", VL_DEF_VPI_LEARN)
     end
 
     -- 
@@ -949,7 +949,32 @@ _G.urandom_range = function (min, max)
     return math.random(min, max)
 end
 
--- only used to test the ffi function invoke overhead
+----------------------------------------------------------------------------
+-- These functions are only used to test the ffi function invoke overhead
+----------------------------------------------------------- ----------------
 function test_func()
     return 0;
+end
+
+function test_func_with_1arg(arg)
+    return arg
+end
+
+function test_func_with_2arg(arg1, arg2)
+    assert(arg1 == arg2)
+    return arg1
+end
+
+function test_func_with_4arg(arg1, arg2, arg3, arg4)
+    assert(arg1 == arg4)
+    return arg1
+end
+
+function test_func_with_8arg(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+    assert(arg1 == arg8)
+    return arg1
+end
+
+function test_func_with_vec_arg(vec)
+    return vec[1]
 end

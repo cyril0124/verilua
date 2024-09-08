@@ -7,7 +7,7 @@
 //         fmt::print(__VA_ARGS__); \
 //     } while(0)
 
-#ifdef VPI_LOCK_GUARD
+#ifdef VL_DEF_VPI_LOCK_GUARD
 std::mutex vpi_lock_;
 
 #define VPI_LOCK_GUART() \
@@ -38,7 +38,7 @@ VERILUA_PRIVATE inline vpiHandle _vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle 
     auto hdl = vpi_handle_by_name((PLI_BYTE8*)name, NULL);
     if(hdl) [[likely]] {
         env.hdl_cache[name] = hdl;
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
         env.hdl_cache_rev[hdl] = VpiPermission::READ;
 #endif
     }
@@ -177,7 +177,7 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[handle] = VpiPermission::WRITE;
 #endif
 
@@ -197,7 +197,7 @@ TO_LUA int c_set_value_multi_by_name(lua_State *L) {
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
     VL_FATAL(handle, "No handle found: {}\n", path);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[handle] = VpiPermission::WRITE;
 #endif
 
@@ -459,7 +459,7 @@ TO_LUA void c_set_value(long long handle, uint32_t value) {
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
@@ -480,7 +480,7 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
@@ -508,7 +508,7 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
@@ -535,7 +535,7 @@ TO_LUA int c_set_value_multi(lua_State *L) {
     long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
@@ -570,7 +570,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
     
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
@@ -615,7 +615,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
 #define ARG_SELECT(N) ARG_##N
 #define ASSIGN_SELECT(N) ASSIGN_##N
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
 #define GENERATE_FUNCTION(NUM) \
     TO_LUA void c_set_value_multi_1_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
         ENTER_VPI_REGION(); \
@@ -663,7 +663,7 @@ GENERATE_FUNCTION(8)
 //     ENTER_VPI_REGION();
     
 //     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-// #ifdef VPI_LEARN     
+// #ifdef VL_DEF_VPI_LEARN     
 //     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 // #endif
 //     s_vpi_vecval vector[8] = {0};
@@ -732,7 +732,7 @@ TO_LUA void c_set_value_parallel(long long *hdls, uint32_t *values, int length) 
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
         VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
@@ -751,7 +751,7 @@ TO_LUA void c_set_value64_parallel(long long *hdls, uint64_t *values, int length
     for(int i = 0; i < length; i++) {
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdls[i]);
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
         VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
         s_vpi_value v;

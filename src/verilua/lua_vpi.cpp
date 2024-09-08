@@ -10,35 +10,6 @@
 VERILUA_EXPORT void verilua_init() {
     VL_INFO("enter verilua_init()\n");
     VeriluaEnv::get_instance().initialize();
-    // Test access time(only for test)
-    // {
-    //     using namespace std;
-    //     vector<double> times;
-    //     sol::protected_function test_func = (*lua)["test_func"];
-    //     for(int i = 0; i < 1000; i++) {
-    //         auto start1 = std::chrono::high_resolution_clock::now();
-    //         test_func();
-    //         auto end1 = std::chrono::high_resolution_clock::now();
-    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
-    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
-    //         times.push_back((end_time - start_time) * 1000 * 1000);
-    //         // VL_INFO("[{}] test_func time is {} us\n", i, (end_time - start_time) * 1000 * 1000);
-    //     }
-    //     sort(times.begin(), times.end());
-
-    //     if (times.size() > 4) {
-    //         times.erase(times.begin(), times.begin() + 2);
-    //         times.erase(times.end() - 2, times.end());
-    //     }
-
-    //     double sum = 0;
-    //     for (double time : times) {
-    //         sum += time;
-    //     }
-    //     double average_time = sum / times.size();
-
-    //     VL_INFO("[test_func] Average time: {:.4f} us\n", average_time);
-    // }
     VL_INFO("leave verilua_init()\n");
 }
 
@@ -107,14 +78,14 @@ void VeriluaEnv::finalize() {
 
     double time_taken = this->end_time - this->start_time;
 
-#ifdef ACCUMULATE_LUA_TIME
+#ifdef VL_DEF_ACCUMULATE_LUA_TIME
     double percent = lua_time * 100 / time_taken;
     VL_INFO("time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", time_taken, lua_time, percent);
 #else
     VL_INFO("time_taken: {:.2f} sec\n", time_taken);
 #endif
 
-#ifdef VPI_LEARN
+#ifdef VL_DEF_VPI_LEARN
     std::ofstream outfile("vpi_learn.log");
     if (!outfile.is_open()) {
         VL_FATAL("Failed to create or open the file.");
@@ -244,6 +215,114 @@ void VeriluaEnv::initialize() {
 
     initialized = true;
     VL_INFO("VeriluaEnv::initialize() finish!\n");
+
+    // -----------------------------------------------------------------------------------------
+    // Test access time(only for performance test)
+    // -----------------------------------------------------------------------------------------
+    // {
+    //     const uint64_t TIMES = 10000 * 10;
+    //     std::vector<double> times;
+
+    //     auto calculate_time = [](std::vector<double> &times) {
+    //         std::sort(times.begin(), times.end());
+
+    //         if (times.size() > 4) {
+    //             times.erase(times.begin(), times.begin() + 2);
+    //             times.erase(times.end() - 2, times.end());
+    //         }
+
+    //         double sum = 0;
+    //         for (double time : times) {
+    //             sum += time;
+    //         }
+
+    //         double average_time = sum / times.size();
+    //         times.clear();
+
+    //         return average_time;
+    //     };
+        
+    //     sol::protected_function test_func = (*VeriluaEnv::get_instance().lua)["test_func"];
+    //     for(int i = 0; i < TIMES; i++) {
+    //         auto start1 = std::chrono::high_resolution_clock::now();
+    //         test_func();
+    //         auto end1 = std::chrono::high_resolution_clock::now();
+    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    //         times.push_back((end_time - start_time) * 1000 * 1000);
+    //         // VL_INFO("[{}] test_func time is {} us\n", i, (end_time - start_time) * 1000 * 1000);
+    //     }
+    //     VL_INFO("[test_func] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+
+
+    //     sol::protected_function test_func_with_1arg = (*VeriluaEnv::get_instance().lua)["test_func_with_1arg"];
+    //     for(int i = 0; i < TIMES; i++) {
+    //         auto start1 = std::chrono::high_resolution_clock::now();
+    //         auto ret = test_func_with_1arg(i);
+    //         auto end1 = std::chrono::high_resolution_clock::now();
+    //         VL_FATAL(ret.valid(), "Error while calling test_func_with_1arg()");
+    //         VL_FATAL(ret.get<int>() == i);
+    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    //         times.push_back((end_time - start_time) * 1000 * 1000);
+    //     }
+    //     VL_INFO("[test_func_with_1arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+
+    //     sol::protected_function test_func_with_2arg = (*VeriluaEnv::get_instance().lua)["test_func_with_2arg"];
+    //     for(int i = 0; i < TIMES; i++) {
+    //         auto start1 = std::chrono::high_resolution_clock::now();
+    //         auto ret = test_func_with_2arg(i, i);
+    //         auto end1 = std::chrono::high_resolution_clock::now();
+    //         VL_FATAL(ret.valid(), "Error while calling test_func_with_2arg()");
+    //         VL_FATAL(ret.get<int>() == i);
+    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    //         times.push_back((end_time - start_time) * 1000 * 1000);
+    //     }
+    //     VL_INFO("[test_func_with_2arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+
+    //     sol::protected_function test_func_with_4arg = (*VeriluaEnv::get_instance().lua)["test_func_with_4arg"];
+    //     for(int i = 0; i < TIMES; i++) {
+    //         auto start1 = std::chrono::high_resolution_clock::now();
+    //         auto ret = test_func_with_4arg(i, i, i, i);
+    //         auto end1 = std::chrono::high_resolution_clock::now();
+    //         VL_FATAL(ret.valid(), "Error while calling test_func_with_4arg()");
+    //         VL_FATAL(ret.get<int>() == i);
+    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    //         times.push_back((end_time - start_time) * 1000 * 1000);
+    //     }
+    //     VL_INFO("[test_func_with_4arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+
+    //     sol::protected_function test_func_with_8arg = (*VeriluaEnv::get_instance().lua)["test_func_with_8arg"];
+    //     for(int i = 0; i < TIMES; i++) {
+    //         auto start1 = std::chrono::high_resolution_clock::now();
+    //         auto ret = test_func_with_8arg(i, i, i, i, i, i, i, i);
+    //         auto end1 = std::chrono::high_resolution_clock::now();
+    //         VL_FATAL(ret.valid(), "Error while calling test_func_with_8arg()");
+    //         VL_FATAL(ret.get<int>() == i);
+    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    //         times.push_back((end_time - start_time) * 1000 * 1000);
+    //     }
+    //     VL_INFO("[test_func_with_8arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+
+    //     sol::protected_function test_func_with_vec_arg = (*VeriluaEnv::get_instance().lua)["test_func_with_vec_arg"];
+    //     for(int i = 0; i < TIMES; i++) {
+    //         std::vector<int> vec = {i, i, i, i, i, i, i, i};
+    //         auto start1 = std::chrono::high_resolution_clock::now();
+    //         auto ret = test_func_with_vec_arg(vec);
+    //         auto end1 = std::chrono::high_resolution_clock::now();
+    //         VL_FATAL(ret.valid(), "Error while calling test_func_with_vec_arg()");
+    //         VL_FATAL(ret.get<int>() == i);
+    //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
+    //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
+    //         times.push_back((end_time - start_time) * 1000 * 1000);
+    //     }
+    //     VL_INFO("[test_func_with_vec_arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+    
+    //     VL_FATAL(false);
+    // }
 }
 
 #ifndef WITHOUT_BOOT_STRAP
