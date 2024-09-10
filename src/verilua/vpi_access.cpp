@@ -122,7 +122,7 @@ TO_LUA long long c_handle_by_name_safe(const char* name) {
 TO_LUA long long c_get_signal_width(long long handle) {
     ENTER_VPI_REGION();
     
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
     LEAVE_VPI_REGION();
     return vpi_get(vpiSize, actual_handle);
@@ -131,7 +131,7 @@ TO_LUA long long c_get_signal_width(long long handle) {
 TO_LUA const char *c_get_hdl_type(long long handle) {
     ENTER_VPI_REGION();
 
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
     LEAVE_VPI_REGION();
     return vpi_get_str(vpiType, actual_handle);
