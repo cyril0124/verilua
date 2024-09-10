@@ -399,3 +399,55 @@ TO_LUA void c_simulator_control(long long cmd) {
     VL_INFO("simulator control cmd: {}\n", cmd);
     vpi_control(cmd);
 }
+
+TO_LUA {
+    typedef struct {
+        int *pool;
+        int size;
+        int top;
+    } IDPoolForLua;
+
+    void* idpool_init(int size) {
+        IDPoolForLua *idpool = (IDPoolForLua *)malloc(sizeof(IDPoolForLua));
+        idpool->size = size;
+        idpool->pool = (int *)malloc(size * sizeof(int));
+        idpool->top = size - 1;
+        
+        for (int i = 0; i < size; i++) {
+            idpool->pool[i] = size - i;
+        }
+        
+        return (void*)idpool;
+    }
+
+    int idpool_alloc(void *idpool_void) {
+        IDPoolForLua *idpool = (IDPoolForLua *)idpool_void;
+        if (idpool->top >= 0) {
+            return idpool->pool[idpool->top--];
+        } else {
+            fprintf(stderr, "IDPool is empty! size => %d\n", idpool->size);
+            assert(0);
+            return -1; // Should never reach here
+        }
+    }
+
+    void idpool_release(void *idpool_void, int id) {
+        IDPoolForLua *idpool = (IDPoolForLua *)idpool_void;
+        if (id > idpool->size) {
+            assert(0);
+            return;
+        }
+        idpool->pool[++idpool->top] = id;
+    }
+
+    int idpool_pool_size(void *idpool_void) {
+        IDPoolForLua *idpool = (IDPoolForLua *)idpool_void;
+        return idpool->top + 1;
+    }
+
+    void idpool_free(void *idpool_void) {
+        IDPoolForLua *idpool = (IDPoolForLua *)idpool_void;
+        free(idpool->pool);
+        free(idpool);
+    }
+}
