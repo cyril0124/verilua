@@ -69,7 +69,8 @@ parser.add_argument('--dsignals', '-ds', dest="dsignals", type=str, help='signal
 parser.add_argument('--nodpi', '-nd', dest="nodpi", action='store_true', help='whether generate DPI-C port interface functions or not')
 parser.add_argument('--ignore-error', '-ne', dest="ignore_error", action='store_true', help='ignore the slang compilation error')
 parser.add_argument('--verbose', '-v', dest="verbose", action='store_true', help='verbose')
-parser.add_argument('--custom-code', '-cc', dest="custom_code", type=str, help='input custom code file, will be inserted in somewhere of the testbench')
+parser.add_argument('--custom-code', '-cc', dest="custom_code", type=str, help='input custom code <file>, will be inserted in somewhere of the testbench')
+parser.add_argument('--custom-code-str', '-ccs', dest="custom_code_str", type=str, help='input custom code <string>, will be inserted in somewhere of the testbench')
 args = parser.parse_args()
 
 assert args.top != None, "top module name is not specified!"
@@ -729,7 +730,11 @@ p(f"""
 
 p(f"""
 // -----------------------------------------
-// user custom code
+// user custom code 
+//    use `--custom-code/-cc <file>` to pass in the custom code file.
+//       |_ e.g. `python3 testbench_gen.py [...] --custom-code path/to/file`
+//    use `--custom-code-str/-ccs <string>` to pass in the custom code string.
+//       |_ e.g. `python3 testbench_gen.py [...] --custom-code-str "reg a; initial a = 1;"`
 // -----------------------------------------
 """)
 if args.custom_code != None:
@@ -740,6 +745,12 @@ if args.custom_code != None:
     content = ff.read()
   assert content != None
   content_str = str(content)
+  p(
+f"""
+{content_str}
+""")
+if args.custom_code_str != None:
+  content_str = str(args.custom_code_str)
   p(
 f"""
 {content_str}
