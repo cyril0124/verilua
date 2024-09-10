@@ -749,6 +749,55 @@ do
     getmetatable('').__index.print = function(str)
         print(str)
     end
+
+    -- 
+    --  Example:
+    --     local lib = ([[
+    --         #include "stdio.h"
+    --
+    --         int count = 0;
+    --
+    --         // $sym<hello> $ptr<void (*)(void)>
+    --         void hello() {
+    --             printf("hello %d\n", count);
+    --             count++;
+    --         }
+    --
+    --         // $sym<get_count> $ptr<int (*)(void)>
+    --         int get_count() {
+    --             return count;
+    --         }
+    --     ]]):tcc_compile()
+    --
+    --     lib.hello()
+    --     assert(lib.get_count() == 1)
+    -- 
+        
+    local tcc = require "vl-tcc"
+    getmetatable('').__index.tcc_compile = function(str)
+        local state = tcc.new()
+        assert(state:set_output_type(tcc.OUTPUT.MEMORY))
+        assert(state:compile_string(str))
+        assert(state:relocate(tcc.RELOCATE.AUTO))
+
+        local count = 0
+        local lib = {}
+        for line in string.gmatch(str, "[^\r\n]+") do
+            local symbol_name = line:match("%$sym<%s*([^>]+)%s*>")
+            local symbol_ptr_pattern = line:match("%$ptr%s*<%s*([^>]+)%s*>")
+            if symbol_name or symbol_ptr_pattern then
+                count = count + 1
+                print("[tcc_compile] [" .. count .. "] find symbol_name => \"" .. (symbol_name or "nil") .. "\"")
+                print("[tcc_compile] [" .. count .. "] find symbol_ptr_pattern = \"" .. (symbol_ptr_pattern or "nil") .. "\"")
+                local sym = assert(state:get_symbol(symbol_name))
+                lib[symbol_name] = ffi.cast(symbol_ptr_pattern, sym)
+            end
+        end
+
+        assert(count > 0, f("\n[tcc_compile] Did not find any symbols! Please specify symbol_name or symbol_ptr_pattern in tcc code by a custom C comment: \"// $sym<SymbolName> $ptr<SymbolPtrPattern>\"!\nThe tcc code is:\n%s", str))
+        
+        return lib
+    end
 end
 
 local scheduler = require "LuaScheduler"
