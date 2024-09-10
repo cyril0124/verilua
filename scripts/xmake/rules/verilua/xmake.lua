@@ -531,10 +531,17 @@ verdi -f filelist.f -sv -nologo $@
                 table.join2(run_flags, _run_flags)
             end
 
-            os.exec("numactl -m 0 -C 0-7 " .. sim_build_dir .. "/Vtb_top " .. table.concat(run_flags, " "))
+            local run_prefix = {""}
+            local _run_prefix = target:values("verilator.run_prefix")
+            if _run_prefix then
+                table.join2(run_prefix, _run_prefix)
+            end
+            
+            os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/Vtb_top " .. table.concat(run_flags, " "))
         elseif sim == "iverilog" then
             local verilua_home = os.getenv("VERILUA_HOME")
             local vvpcmd = verilua_home .. "/tools/vvp_wrapper"
+
             local run_flags = {"-M", verilua_home .. "/shared", "-m", "lua_vpi"}
             local _run_options = target:values("iverilog.run_options")
             local _run_plusargs = target:values("iverilog.run_plusargs")
@@ -545,27 +552,46 @@ verdi -f filelist.f -sv -nologo $@
                 table.join2(run_flags, _run_plusargs)
             end
 
+            local run_prefix = {""}
+            local _run_prefix = target:values("iverilog.run_prefix")
+            if _run_prefix then
+                table.join2(run_prefix, _run_prefix)
+            end
+
             assert(os.isfile(vvpcmd), "[on_run] verilua vvp_wrapper not found!")
-            os.exec(vvpcmd .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
+            os.exec(table.concat(run_prefix, " ") .. " " .. vvpcmd .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
         elseif sim == "vcs" then
             local run_flags = {"+vcs+initreg+0", "+notimingcheck"}
             local _run_flags = target:values("vcs.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
             end
+
+            local run_prefix = {""}
+            local _run_prefix = target:values("vcs.run_prefix")
+            if _run_prefix then
+                table.join2(run_prefix, _run_prefix)
+            end
             
-            os.exec(sim_build_dir .. "/simv " .. table.concat(run_flags, " "))
+            os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/simv " .. table.concat(run_flags, " "))
         elseif sim == "wave_vpi" then
             local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
             local wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
             local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found!")
+
             local run_flags = {"--wave-file", waveform_file}
             local _run_flags = target:values("wave_vpi.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
             end
 
-            os.exec(wave_vpi_main .. " " .. table.concat(run_flags, " "))
+            local run_prefix = {""}
+            local _run_prefix = target:values("wave_vpi.run_prefix")
+            if _run_prefix then
+                table.join2(run_prefix, _run_prefix)
+            end
+
+            os.exec(table.concat(run_prefix, " ") .. " " .. wave_vpi_main .. " " .. table.concat(run_flags, " "))
         else
             raise("TODO: on_run unknown simulaotr => " .. sim)
         end
