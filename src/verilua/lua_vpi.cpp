@@ -407,7 +407,7 @@ TO_LUA {
         int top;
     } IDPoolForLua;
 
-    void* idpool_init(int size) {
+    void* idpool_init(int size, int shuffle) {
         IDPoolForLua *idpool = (IDPoolForLua *)malloc(sizeof(IDPoolForLua));
         idpool->size = size;
         idpool->pool = (int *)malloc(size * sizeof(int));
@@ -415,6 +415,13 @@ TO_LUA {
         
         for (int i = 0; i < size; i++) {
             idpool->pool[i] = size - i;
+        }
+
+        if(shuffle >= 1) {
+            for (int i = idpool->top; i > 0; --i) {
+                int j = std::rand() % (i + 1);
+                std::swap(idpool->pool[i], idpool->pool[j]);
+            }
         }
         
         return (void*)idpool;
@@ -425,17 +432,14 @@ TO_LUA {
         if (idpool->top >= 0) {
             return idpool->pool[idpool->top--];
         } else {
-            fprintf(stderr, "IDPool is empty! size => %d\n", idpool->size);
-            assert(0);
-            return -1; // Should never reach here
+            VL_FATAL(false, "IDPool is empty! size => {}", idpool->size);
         }
     }
 
     void idpool_release(void *idpool_void, int id) {
         IDPoolForLua *idpool = (IDPoolForLua *)idpool_void;
         if (id > idpool->size) {
-            assert(0);
-            return;
+            VL_FATAL(false, "The released id is out of range! id => {}, size => {}", id, idpool->size);
         }
         idpool->pool[++idpool->top] = id;
     }

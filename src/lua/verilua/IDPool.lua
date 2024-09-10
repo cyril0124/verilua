@@ -7,7 +7,7 @@ local assert = assert
 local f = string.format
 
 ffi.cdef[[
-    void* idpool_init(int size);
+    void* idpool_init(int size, int shuffle);
     int idpool_alloc(void *idpool_void);
     void idpool_release(void *idpool_void, int id);
     int idpool_pool_size(void *idpool_void);
@@ -17,7 +17,8 @@ ffi.cdef[[
 
 local IDPool = class()
 
-function IDPool:_init(size)
+function IDPool:_init(size, shuffle)
+    local _shuffle = shuffle or false
     self.size = size
     
     -- Lua implementation
@@ -26,7 +27,7 @@ function IDPool:_init(size)
     --     self.pool:append(i)
     -- end
 
-    self.c_pool = C.idpool_init(size)
+    self.c_pool = C.idpool_init(size, _shuffle)
 end
 
 function IDPool:alloc()
