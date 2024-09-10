@@ -23,7 +23,7 @@ toolchain("vcs")
             cprint("${dim}checking for vcs ... ${color.success}%s", path.filename(vcs))
         else
             cprint("${dim}checking for vcs ... ${color.nothing}${text.nothing}")
-            raise("vcs not found!")
+            raise("[toolchain] vcs not found!")
         end
         toolchain:configs_save()
         return true

@@ -16,13 +16,13 @@ rule("verilua")
         elseif target:toolchain("wave_vpi") ~= nil then
             sim = "wave_vpi"
         else
-            raise("Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
+            raise("[on_load] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
         end
         target:add("sim", sim)
         cprint("${✅} [verilua-xmake] simulator is ${green underline}%s${reset}", sim)
 
         -- Check if VERILUA_HOME is set.
-        local verilua_home = assert(os.getenv("VERILUA_HOME"), "please set VERILUA_HOME")
+        local verilua_home = assert(os.getenv("VERILUA_HOME"), "[on_load] please set VERILUA_HOME")
         target:add("verilua_home", verilua_home)
         target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include")
         target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include/luajit-2.1")
@@ -38,7 +38,7 @@ rule("verilua")
         end
 
         -- Generate build directory 
-        local top = assert(target:values("cfg.top"), "You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
+        local top = assert(target:values("cfg.top"), "[on_load] You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
         local build_dir = path.absolute("build/" .. target:get("sim") .. "/" .. top)
         local sim_build_dir = build_dir .. "/sim_build"
         target:add("top", top)
@@ -56,7 +56,7 @@ rule("verilua")
         if _lua_main ~= nil then
             lua_main = _lua_main
         else
-            lua_main = assert(target:values("cfg.lua_main"), "You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")")
+            lua_main = assert(target:values("cfg.lua_main"), "[on_load] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")")
         end
         lua_main = path.absolute(lua_main)
         cprint("${✅} [verilua-xmake] lua main is ${green underline}%s${reset}", lua_main)
@@ -74,8 +74,8 @@ rule("verilua")
         -- Check verilua mode
         local mode = "normal"
         if sim ~= "wave_vpi" then
-            mode = assert(target:values("cfg.mode"), "You should set \'mode\' by set_values(\"mode\", \"<your_verilua_mode: normal, step, dominant>\")")
-            assert(mode == "normal" or mode == "step" or mode == "dominant", "mode should be normal, step or dominant")
+            mode = assert(target:values("cfg.mode"), "[on_load] You should set \'mode\' by set_values(\"mode\", \"<your_verilua_mode: normal, step, dominant>\")")
+            assert(mode == "normal" or mode == "step" or mode == "dominant", "[on_load] mode should be normal, step or dominant")
             target:add("mode", mode)
         end
         cprint("${✅} [verilua-xmake] verilua mode is ${green underline}%s${reset}", mode)
@@ -232,12 +232,12 @@ return cfg
             local waveform_file = ""
             for _, sourcefile in ipairs(sourcefiles) do
                 if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") then
-                    assert(get_waveform == false, "Multiple waveform files are not supported")
+                    assert(get_waveform == false, "[on_load] Multiple waveform files are not supported")
                     get_waveform = true
                     waveform_file = path.absolute(sourcefile)
                 end
             end
-            assert(get_waveform, "No waveform file found! Please use add_files to add waveform files (.vcd, .fst)")
+            assert(get_waveform, "[on_load] No waveform file found! Please use add_files to add waveform files (.vcd, .fst)")
             target:add("waveform_file", waveform_file)
         end
 
@@ -251,7 +251,7 @@ return cfg
     on_build(function (target)
         -- print("on_build")
         local f = string.format
-        local verilua_home = assert(os.getenv("VERILUA_HOME"), "please set VERILUA_HOME")
+        local verilua_home = assert(os.getenv("VERILUA_HOME"), "[on_build] please set VERILUA_HOME")
         local top = target:get("top")
         local build_dir = target:get("build_dir")
         local sim = target:get("sim")
@@ -277,7 +277,7 @@ return cfg
             if top_file == nil then
                 for _, sourcefile in ipairs(target:sourcefiles()) do
                     if sourcefile:endswith(top .. ".v") or sourcefile:endswith(top .. ".sv") then
-                        assert(top_file == nil, "duplicate top_file! " .. sourcefile)
+                        assert(top_file == nil, "[on_build] duplicate top_file! " .. sourcefile)
                         top_file = path.absolute(sourcefile)
                     end
                     if sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
@@ -290,9 +290,9 @@ return cfg
                 end
             end
 
-            assert(top_file ~= nil, "Cannot find top module file! top is " .. top .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
-            assert(os.isfile(top_file), "Cannot find top module file! top_file is " .. top_file .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
-            assert(file_str ~= "", "Cannot find any .v/.sv files!")
+            assert(top_file ~= nil, "[on_build] Cannot find top module file! top is " .. top .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
+            assert(os.isfile(top_file), "[on_build] Cannot find top module file! top_file is " .. top_file .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
+            assert(file_str ~= "", "[on_build] Cannot find any .v/.sv files!")
             print("top_file is " .. top_file)
 
             -- Only the vfiles are needed to be checked
@@ -332,8 +332,8 @@ return cfg
 
 
         if sim == "verilator" then
-            toolchain = assert(target:toolchain("verilator"), 'we need to set_toolchains("@verilator") in target("%s")', target:name())
-            buildcmd = assert(toolchain:config("verilator"), "verilator not found!")
+            toolchain = assert(target:toolchain("verilator"), '[on_build] we need to set_toolchains("@verilator") in target("%s")', target:name())
+            buildcmd = assert(toolchain:config("verilator"), "[on_build] verilator not found!")
 
             local mode = target:get("mode")
             if mode == "normal" then
@@ -365,13 +365,13 @@ return cfg
                 table.insert(argv, "-l" .. link)
             end
         elseif sim == "iverilog" then
-            toolchain = assert(target:toolchain("iverilog"), 'we need to set_toolchains("@iverilog") in target("%s")', target:name())
-            buildcmd = assert(toolchain:config("iverilog"), "iverilog not found!")
+            toolchain = assert(target:toolchain("iverilog"), '[on_build] we need to set_toolchains("@iverilog") in target("%s")', target:name())
+            buildcmd = assert(toolchain:config("iverilog"), "[on_build] iverilog not found!")
             
             -- raise("TODO: iverilog")
         elseif sim == "vcs" then
-            toolchain = assert(target:toolchain("vcs"), 'we need to set_toolchains("@vcs") in target("%s")', target:name())
-            buildcmd = assert(toolchain:config("vcs"), "vcs not found!")
+            toolchain = assert(target:toolchain("vcs"), '[on_build] we need to set_toolchains("@vcs") in target("%s")', target:name())
+            buildcmd = assert(toolchain:config("vcs"), "[on_build] vcs not found!")
 
             local includedirs = target:get("includedirs")
             for _, dir in ipairs(includedirs) do
@@ -458,7 +458,7 @@ source setvars.sh
         elseif sim == "iverilog" then
             run_sh = f([[vvp_wrapper -M %s -m lua_vpi %s/simv.vvp | tee run.log]], verilua_home .. "/shared", sim_build_dir)
         elseif sim == "wave_vpi" then
-            local waveform_file = assert(target:get("waveform_file"), "waveform_file not found!")
+            local waveform_file = assert(target:get("waveform_file"), "[on_build] waveform_file not found!")
             run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
         end
         io.writefile(build_dir .. "/run.sh",       "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh)
@@ -520,20 +520,47 @@ verdi -f filelist.f -sv -nologo $@
         -- Move into build dircectory to execute our simulation
         os.cd(build_dir)
         if sim == "verilator" then
-            os.exec("numactl -m 0 -C 0-7 " .. sim_build_dir .. "/Vtb_top ")
+            local run_flags = {""}
+            local _run_flags = target:values("verilator.run_flags")
+            if _run_flags then
+                table.join2(run_flags, _run_flags)
+            end
+
+            os.exec("numactl -m 0 -C 0-7 " .. sim_build_dir .. "/Vtb_top " .. table.concat(run_flags, " "))
         elseif sim == "iverilog" then
             local verilua_home = os.getenv("VERILUA_HOME")
             local vvpcmd = verilua_home .. "/tools/vvp_wrapper"
-            local runcmd = vvpcmd .. " -M " .. verilua_home .. "/shared -m lua_vpi" .. " ".. sim_build_dir .. "/simv.vvp"
-            assert(os.isfile(vvpcmd), "verilua vvp_wrapper not found!")
-            os.exec(runcmd)
+            local run_flags = {"-M", verilua_home .. "/shared", "-m", "lua_vpi"}
+            local _run_options = target:values("iverilog.run_options")
+            local _run_plusargs = target:values("iverilog.run_plusargs")
+            if _run_options then
+                table.join2(run_flags, _run_options)
+            end
+            if _run_plusargs then
+                table.join2(run_flags, _run_plusargs)
+            end
+
+            assert(os.isfile(vvpcmd), "[on_run] verilua vvp_wrapper not found!")
+            os.exec(vvpcmd .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
         elseif sim == "vcs" then
-            os.exec(sim_build_dir .. "/simv +vcs+initreg+0 +notimingcheck")
+            local run_flags = {"+vcs+initreg+0", "+notimingcheck"}
+            local _run_flags = target:values("vcs.run_flags")
+            if _run_flags then
+                table.join2(run_flags, _run_flags)
+            end
+            
+            os.exec(sim_build_dir .. "/simv " .. table.concat(run_flags, " "))
         elseif sim == "wave_vpi" then
-            local toolchain = assert(target:toolchain("wave_vpi"), 'we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
-            local wave_vpi_main = assert(toolchain:config("wave_vpi"), "wave_vpi_main not found!")
-            local waveform_file = assert(target:get("waveform_file"), "waveform_file not found!")
-            os.exec(wave_vpi_main .. " --wave-file " .. waveform_file)
+            local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
+            local wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
+            local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found!")
+            local run_flags = {"--wave-file", waveform_file}
+            local _run_flags = target:values("wave_vpi.run_flags")
+            if _run_flags then
+                table.join2(run_flags, _run_flags)
+            end
+
+            os.exec(wave_vpi_main .. " " .. table.concat(run_flags, " "))
         else
             raise("TODO: on_run unknown simulaotr => " .. sim)
         end

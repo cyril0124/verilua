@@ -23,7 +23,7 @@ toolchain("wave_vpi")
             cprint("${dim}checking for wave_vpi_main ... ${color.success}%s", path.filename(wave_vpi_main))
         else
             cprint("${dim}checking for wave_vpi_main ... ${color.nothing}${text.nothing}")
-            raise("wave_vpi_main not found!")
+            raise("[toolchain] wave_vpi_main not found!")
         end
         toolchain:configs_save()
         return true
