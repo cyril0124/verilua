@@ -296,7 +296,12 @@ return cfg
             print("top_file is " .. top_file)
 
             -- Only the vfiles are needed to be checked
-            local gen_cmd = string.format("python3 " .. verilua_home .. "/scripts/testbench_gen.py --top %s --tbtop tb_top --nodpi --verbose --dir %s %s", top, build_dir, file_str)
+            local tb_gen_flags = {"--top", top, "--tbtop", "tb_top", "--nodpi", "--verbose", "--dir", build_dir}
+            local _tb_gen_flags = target:values("cfg.tb_gen_flags")
+            if _tb_gen_flags then
+                tb_gen_flags = table.join2(tb_gen_flags, _tb_gen_flags)
+            end
+            local gen_cmd = f("python3 " .. verilua_home .. "/scripts/testbench_gen.py" .. " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str)
             local is_generated = false
             local should_regenerate = true
             local input_tb_top_file = target:values("cfg.tb_top_file")
