@@ -1,4 +1,4 @@
---[[verilua]]
+--[[luajit-pro]]
 
 local scheduler = require "LuaScheduler"
 local os = require "os"
