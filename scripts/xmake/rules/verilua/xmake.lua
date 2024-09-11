@@ -74,8 +74,11 @@ rule("verilua")
         -- Check verilua mode
         local mode = "normal"
         if sim ~= "wave_vpi" then
-            mode = assert(target:values("cfg.mode"), "[on_load] You should set \'mode\' by set_values(\"mode\", \"<your_verilua_mode: normal, step, dominant>\")")
-            assert(mode == "normal" or mode == "step" or mode == "dominant", "[on_load] mode should be normal, step or dominant")
+            local _mode = target:values("cfg.mode")
+            if _mode ~= nil then
+                assert(_mode == "normal" or _mode == "step" or _mode == "dominant", "[on_load] mode should be `normal`, `step` or `dominant`")
+                mode = _mode
+            end
             target:add("mode", mode)
         end
         cprint("${✅} [verilua-xmake] verilua mode is ${green underline}%s${reset}", mode)
