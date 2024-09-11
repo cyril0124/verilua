@@ -19,6 +19,7 @@ add_requires("conan::fmt/10.2.1", {alias = "fmt"})
 add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
 add_requires("conan::libassert/2.1.0", {alias = "libassert"})
 add_requires("conan::argparse/3.1", {alias = "argparse"})
+add_requires("conan::elfio/3.12", {alias = "elfio"})
 
 local function build_common_info()
     set_kind("shared")
@@ -57,7 +58,7 @@ local function build_common_info()
         vcpkg_dir .. "/x64-linux/include"
     )
 
-    add_packages("fmt", "mimalloc")
+    add_packages("fmt", "mimalloc", "elfio")
 
     if is_mode("debug") then
         add_defines("DEBUG")

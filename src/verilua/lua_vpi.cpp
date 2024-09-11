@@ -401,6 +401,95 @@ TO_LUA void c_simulator_control(long long cmd) {
     vpi_control(cmd);
 }
 
+#include <elfio/elfio.hpp>
+#include <unistd.h>
+#include <limits.h>
+#include "dlfcn.h"
+#include <link.h>
+
+VERILUA_PRIVATE void print_link_map(void *handle) {
+    struct link_map *map;
+    if (dlinfo(handle, RTLD_DI_LINKMAP, &map) != 0) {
+        perror("dlinfo");
+        return;
+    }
+
+    while (map != NULL) {
+        printf("Library: %s\n", map->l_name);
+        printf("Address: %p\n", (void *)map->l_addr);
+        map = map->l_next;
+    }
+}
+
+TO_LUA char *get_executable_name() {
+    char path[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
+
+    if (len != -1) {
+        path[len] = '\0'; // Null-terminate the string
+        // VL_INFO("Current executable path: {}\n", path);
+
+        char *executable_name = (char *)malloc(len + 1);
+        if (executable_name) {
+            snprintf(executable_name, len + 1, "%s", path); // Copy the path to allocated memory
+            return executable_name; // Return the dynamically allocated string
+        } else {
+            VL_FATAL(false, "malloc failed!");
+        }
+    } else {
+        VL_FATAL(false, "Failed to get executable name");
+    }
+
+    return NULL;
+}
+
+TO_LUA uint64_t get_symbol_address(const char *filename, const char *symbol) {
+    static uint64_t offset = 0;
+    static bool get_offset = false;
+    if (!get_offset) {
+        get_offset = true;
+
+        void *handle = dlopen(NULL, RTLD_LAZY);
+        VL_FATAL(handle != NULL, "handle is NULL!");
+
+        struct link_map *map;
+        VL_FATAL(dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0, "dlinfo failed!");
+        offset = (uint64_t)map->l_addr;
+    }
+
+    ELFIO::elfio reader;
+
+    if (!reader.load(filename)) {
+        VL_FATAL(false, "Failed to load ELF file: {}", filename);
+    }
+
+    ELFIO::section* symtab = reader.sections[".symtab"];
+    if (!symtab) {
+        VL_FATAL(false, "Symbol table not found in ELF file: {}", filename);
+    }
+
+    ELFIO::symbol_section_accessor symbols(reader, symtab);
+    for (unsigned int i = 0; i < symbols.get_symbols_num(); ++i) {
+        std::string name;
+        ELFIO::Elf64_Addr value;
+        ELFIO::Elf_Xword size;
+        unsigned char bind;
+        unsigned char type;
+        ELFIO::Elf_Half section_index;
+        unsigned char other;
+
+        symbols.get_symbol(i, name, value, size, bind, type, section_index, other);
+
+        if (name == symbol) {
+            VL_INFO("Symbol '{}' found at address: 0x{:x} offset: 0x{:x} final_address: 0x{:x}\n", symbol, static_cast<uint64_t>(value), offset, static_cast<uint64_t>(value + offset));
+            return static_cast<uint64_t>(value + offset);
+        }
+    }
+
+    VL_FATAL(false, "Symbol '{}' not found in ELF file: {}", symbol, filename);
+    return 0; 
+}
+
 TO_LUA {
     typedef struct {
         int *pool;
