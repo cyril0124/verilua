@@ -60,10 +60,11 @@ static void sigabrt_handler(int signal) {
 
 void VeriluaEnv::finalize() {
     if (finalized) return;
+    finalized = true;
+    
     VL_INFO("VeriluaEnv::finalize() called\n");
 
     if (!initialized) {
-        finalized = true;
         VL_FATAL(false, "FATAL! and verilua is NOT init yet.");
     }
 
@@ -107,7 +108,6 @@ void VeriluaEnv::finalize() {
     outfile.close();
 #endif
 
-    finalized = true;
     VL_INFO("VeriluaEnv::finalize() finish!\n");
 
     // Simulation end here...
