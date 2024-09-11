@@ -59,12 +59,13 @@ static void sigabrt_handler(int signal) {
 }
 
 void VeriluaEnv::finalize() {
-    if (!initialized) {
-        VL_FATAL(false, "FATAL! and verilua is NOT init yet.");
-    }
-
     if (finalized) return;
     VL_INFO("VeriluaEnv::finalize() called\n");
+
+    if (!initialized) {
+        finalized = true;
+        VL_FATAL(false, "FATAL! and verilua is NOT init yet.");
+    }
 
     sol::protected_function lua_finish_callback = (*this->lua)["finish_callback"];
     auto ret = lua_finish_callback();
