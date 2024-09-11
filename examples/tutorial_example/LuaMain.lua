@@ -48,3 +48,17 @@ verilua "appendTasks" {
         sim.finish() -- finish the simulation
     end
 }
+
+-- start task will be called when the simulation starts
+verilua "startTask" {
+    function ()
+        print("Simulation started!")
+    end
+}
+
+-- finish task will be called when the simulation finishes
+verilua "finishTask" {
+    function ()
+        print("Simulation finished!")
+    end
+}
