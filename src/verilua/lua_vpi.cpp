@@ -8,15 +8,15 @@
 //  The verilua_main_step() should be invoked at the beginning of each simulation step.
 // ----------------------------------------------------------------------------------------------------------
 VERILUA_EXPORT void verilua_init() {
-    VL_INFO("enter verilua_init()\n");
+    VL_DEBUG("enter verilua_init()\n");
     VeriluaEnv::get_instance().initialize();
-    VL_INFO("leave verilua_init()\n");
+    VL_DEBUG("leave verilua_init()\n");
 }
 
 VERILUA_EXPORT void verilua_final() {
-    VL_INFO("enter verilua_init()\n");
+    VL_DEBUG("enter verilua_init()\n");
     VeriluaEnv::get_instance().finalize();
-    VL_INFO("leave verilua_init()\n");
+    VL_DEBUG("leave verilua_init()\n");
 }
 
 VERILUA_EXPORT void verilua_main_step() {
@@ -39,7 +39,7 @@ VERILUA_PRIVATE std::string get_top_module() {
     }
     
     if(const char* env_val = std::getenv("DUT_TOP")) {
-        VL_INFO("DUT_TOP is {}\n", env_val);
+        VL_DEBUG("DUT_TOP is {}\n", env_val);
         return std::string(env_val);
     }
     else {
@@ -62,7 +62,7 @@ void VeriluaEnv::finalize() {
     if (finalized) return;
     finalized = true;
     
-    VL_INFO("VeriluaEnv::finalize() called\n");
+    VL_DEBUG("VeriluaEnv::finalize() called\n");
 
     if (!initialized) {
         VL_FATAL(false, "FATAL! and verilua is NOT init yet.");
@@ -108,7 +108,7 @@ void VeriluaEnv::finalize() {
     outfile.close();
 #endif
 
-    VL_INFO("VeriluaEnv::finalize() finish!\n");
+    VL_DEBUG("VeriluaEnv::finalize() finish!\n");
 
     // Simulation end here...
     vpi_control(vpiFinish);
@@ -116,14 +116,14 @@ void VeriluaEnv::finalize() {
 
 void VeriluaEnv::initialize() {
     if (initialized) return;
-    VL_INFO("VeriluaEnv::initialize() called\n");
+    VL_DEBUG("VeriluaEnv::initialize() called\n");
 
     // Make sure that VERILUA_HOME is defined
     const char *VERILUA_HOME = std::getenv("VERILUA_HOME");
     if (VERILUA_HOME == nullptr) {
         VL_FATAL(false, "Error: VERILUA_HOME environment variable is not set.");
     }
-    VL_INFO("VERILUA_HOME is {}\n", VERILUA_HOME);
+    VL_DEBUG("VERILUA_HOME is {}\n", VERILUA_HOME);
 
 #if !defined(VERILATOR) && !defined(WAVE_VPI) // Verilator/wave_vpi has its own sigabrt_handler() in verilator_main.cpp
     signal(SIGABRT, sigabrt_handler);
@@ -138,15 +138,15 @@ void VeriluaEnv::initialize() {
 
     // Register breakpoint function for lua
     // DebugPort is 8818
-    const char *debug_enable = std::getenv("VL_DEBUG");
+    const char *debug_enable = std::getenv("VL_DEBUGGER");
     if (debug_enable != nullptr && (std::strcmp(debug_enable, "1") == 0 || std::strcmp(debug_enable, "enable") == 0) ) {
-        VL_WARN("VL_DEBUG is enable\n");
+        VL_WARN("VL_DEBUGGER is enable\n");
         this->lua->set_function("bp", [](sol::this_state L){
             luaL_dostring(L,"require('LuaPanda').start('localhost', 8818); local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP();");
             return 0;
         });
     } else {
-        VL_WARN("VL_DEBUG is disable\n");
+        VL_DEBUG("VL_DEBUGGER is disable\n");
         this->lua->set_function("bp", [](sol::this_state L){
             luaL_dostring(L, "print(\"  \\27[31m [lua_vpi.cpp] ==> Invalid breakpoint! \\27[0m \")");
             return 0;
@@ -158,21 +158,21 @@ void VeriluaEnv::initialize() {
     if(_resolve_x_as_zero != nullptr) {
         auto str = std::string(_resolve_x_as_zero);
         if(str == "false" || str == "0") {
-            VL_INFO("[iverilog] RESOLVE_X_AS_ZERO is false!\n");
+            VL_DEBUG("[iverilog] RESOLVE_X_AS_ZERO is false!\n");
             this->resolve_x_as_zero = false;
         } else {
-            VL_INFO("[iverilog] RESOLVE_X_AS_ZERO is true!\n");
+            VL_DEBUG("[iverilog] RESOLVE_X_AS_ZERO is true!\n");
             this->resolve_x_as_zero = true;
         }
     } else {
-        VL_INFO("[iverilog] RESOLVE_X_AS_ZERO is not set, use default setting => true!\n");
+        VL_DEBUG("[iverilog] RESOLVE_X_AS_ZERO is not set, use default setting => true!\n");
         this->resolve_x_as_zero = true;
     }
 #endif
 
     // Call init.lua at the beginning of the simulation
     std::string INIT_FILE = std::string(VERILUA_HOME) + "/src/lua/verilua/init.lua";
-    VL_INFO("INIT_FILE is {}\n", INIT_FILE);
+    VL_DEBUG("INIT_FILE is {}\n", INIT_FILE);
 
     // Use pure luaL_dofile() to make luajit-pro load the script successfully
     if (luaL_dofile(this->L, INIT_FILE.c_str()) != LUA_OK) {
@@ -190,7 +190,7 @@ void VeriluaEnv::initialize() {
     if (LUA_SCRIPT == nullptr) {
         VL_FATAL(false, "Error: LUA_SCRIPT environment variable is not set.");
     }
-    VL_INFO("LUA_SCRIPT is {}\n", LUA_SCRIPT);
+    VL_DEBUG("LUA_SCRIPT is {}\n", LUA_SCRIPT);
 
     // Use pure luaL_dofile() to make luajit-pro load the script successfully
     if (luaL_dofile(this->L, LUA_SCRIPT) != LUA_OK) {
@@ -219,7 +219,7 @@ void VeriluaEnv::initialize() {
     this->start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
 
     initialized = true;
-    VL_INFO("VeriluaEnv::initialize() finish!\n");
+    VL_DEBUG("VeriluaEnv::initialize() finish!\n");
 
     // -----------------------------------------------------------------------------------------
     // Test access time(only for performance test)
@@ -370,7 +370,7 @@ TO_LUA void dpi_set_scope(char *str) {
 #ifdef IVERILOG
     VL_FATAL(false, "Unsupported!");
 #else
-    VL_INFO("set svScope name: {}\n", str);
+    VL_DEBUG("set svScope name: {}\n", str);
     const svScope scope = svGetScopeFromName(str);
     VL_FATAL(scope, "scope is NULL");
     svSetScope(scope);
@@ -397,7 +397,7 @@ TO_LUA void c_simulator_control(long long cmd) {
     // #define vpiFinish                67   /* execute simulator's $finish */
     // #define vpiReset                 68   /* execute simulator's $reset */
     // #define vpiSetInteractiveScope   69   /* set simulator's interactive scope */
-    VL_INFO("simulator control cmd: {}\n", cmd);
+    VL_DEBUG("simulator control cmd: {}\n", cmd);
     vpi_control(cmd);
 }
 

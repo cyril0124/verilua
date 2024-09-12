@@ -37,6 +37,7 @@ local function build_common_info()
         {force = true}
     )
 
+    -- add_defines("DEBUG")
     add_defines("VL_DEF_ACCUMULATE_LUA_TIME")
     add_defines("VL_DEF_OPT_MERGE_CALLBACK")
     -- add_defines("VL_DEF_OPT_VEC_SIMPLE_ACCESS")

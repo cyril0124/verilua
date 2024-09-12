@@ -31,6 +31,16 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
+#ifdef DEBUG
+#define VL_DEBUG(...) \
+    do { \
+        fmt::print("[{}:{}:{}] [{}DEBUG{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+        fmt::print(__VA_ARGS__); \
+    } while(0)
+#else
+#define VL_DEBUG(...)
+#endif
+
 #define VL_INFO(...) \
     do { \
         fmt::print("[{}:{}:{}] [{}INFO{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET); \
