@@ -1,13 +1,16 @@
-local CallableHDL = require "LuaCallableHDL"
-local cfg = cfg
 local ffi = require "ffi"
 local tcc = require "vl-tcc"
 local utils = require "LuaUtils"
-local VeriluaMode = VeriluaMode
-local assert, tonumber, pcall = assert, tonumber, pcall
-local verilua_info, verilua_warning = verilua_info, verilua_warning
-local ffi_new = ffi.new
 
+local cfg = cfg
+local VeriluaMode = VeriluaMode
+local verilua_debug = verilua_debug
+local verilua_warning = verilua_warning
+
+local pcall = pcall
+local assert = assert
+local tonumber = tonumber
+local ffi_new = ffi.new
 
 if cfg.simulator == "vcs" then
     ffi.cdef[[
@@ -35,13 +38,13 @@ local cycles_chdl = nil
 local use_step_cycles = false
 local scheduler = nil
 local init = function ()
-    verilua_info("LuaSimulator initialize...")
+    verilua_debug("LuaSimulator initialize...")
     
     if cfg.simulator ~= "wave_vpi" then
         use_step_cycles = cfg.mode == VeriluaMode.STEP and cfg.attach == true
 
         if not use_step_cycles then
-            cycles_chdl = CallableHDL(cfg.top..".cycles", "cycles_chdl for LuaSimulator")
+            cycles_chdl = dut.cycles:chdl()
             assert(cycles_chdl ~= nil)
         else
             scheduler = require "LuaScheduler"

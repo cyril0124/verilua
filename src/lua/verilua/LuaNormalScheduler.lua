@@ -54,7 +54,7 @@ function SchedulerClass:_init()
 
     self.time_accumulate = false
 
-    verilua_info("[Scheduler]", "Using NORMAL scheduler")
+    verilua_debug("[Scheduler]", "Using NORMAL scheduler")
 end
 
 function SchedulerClass:_log(...)

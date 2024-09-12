@@ -46,7 +46,7 @@ function SchedulerClass:_init()
     self.will_remove_tasks = {}
     self.cycles = 0
 
-    verilua_info("[Scheduler]", "Using STEP scheduler")
+    verilua_debug("[Scheduler]", "Using STEP scheduler")
 end
 
 function SchedulerClass:_log(...)

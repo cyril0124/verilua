@@ -15,16 +15,18 @@ ffi.cdef[[
     void verilua_negedge_callback_hdl_always(long long handle, int id);
 ]]
 
-local assert = assert
+local verilua_debug = verilua_debug
+
+local type = type
 local pairs = pairs
 local print = print
+local assert = assert
+local ipairs = ipairs
 local random = math.random
 local tinsert = table.insert
-local tostring = tostring
-local ipairs = ipairs
-local type = type
-local verilua_info = verilua_info
-local coro_resume, coro_status, coro_create, coro_yield = coroutine.resume, coroutine.status, coroutine.create, coroutine.yield
+local coro_resume = coroutine.resume
+local coro_status = coroutine.status
+local coro_create = coroutine.create
 
 
 local scommon = require("LuaSchedulerCommonV2")
@@ -50,7 +52,7 @@ function Scheduler:_init()
     self.has_wakeup_event = false
     self.will_wakeup_event = {} -- {<task_id>, ...}
 
-    verilua_info("[Scheduler]", "Using NORMAL scheduler")
+    verilua_debug("[Scheduler]", "Using NORMAL scheduler")
 
     self.create_task_table = function (this, tasks)
         -- 

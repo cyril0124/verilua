@@ -2,9 +2,15 @@ local sqlite3 = require "lsqlite3"
 local class = require "pl.class"
 local lfs = require "lfs"
 
-local assert, debug_print, ipairs, print = assert, debug_print, ipairs, print
-local string, format = string, string.format
-local tinsert, tunpack = table.insert, table.unpack
+local assert = assert
+local ipairs = ipairs
+local print = print
+local printf = printf
+local string = string
+local format = string.format
+local table_insert = table.insert
+local table_unpack = table.unpack
+
 local LuaDataBase = class()
 
 -- 
@@ -77,9 +83,9 @@ function LuaDataBase:_init(init_tbl)
     -- 
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
-        debug_print(format("Remove %s success!", self.fullpath_name))
+        printf("[LuaDataBase] Remove %s success!", self.fullpath_name)
     else
-        debug_print(format("Remove %s failed! => %s", self.fullpath_name, err_msg))
+        printf("[LuaDataBase] Remove %s failed! => %s", self.fullpath_name, err_msg)
     end
 
     -- 
@@ -94,7 +100,7 @@ function LuaDataBase:_init(init_tbl)
         local err_msg = self.db:errmsg()
         assert(false, "SQLite3 error: "..err_msg)
     else
-        debug_print("cmd execute success! cmd => "..cmd)
+        print("[LuaDataBase] cmd execute success! cmd => "..cmd)
     end
 
     self.db = sqlite3.open(self.fullpath_name)
@@ -116,7 +122,7 @@ function LuaDataBase:_init(init_tbl)
     end
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
     self.prepare_cmd = self.prepare_cmd .. ")"
-    debug_print(file_name.." prepare_cmd: "..self.prepare_cmd)
+    print(file_name .. " prepare_cmd: " .. self.prepare_cmd)
 
     verilua "appendFinishTasks" {
         function ()
@@ -130,7 +136,7 @@ function LuaDataBase:_log(...)
 end
 
 function LuaDataBase:_save(...)
-    tinsert(self.cache, {...})
+    table_insert(self.cache, {...})
 end
 
 function LuaDataBase:save(...)
@@ -154,7 +160,7 @@ function LuaDataBase:commit()
     assert(self.stmt ~= nil)
 
     for i, data in ipairs(self.cache) do
-        self.stmt:bind_values(tunpack(data))
+        self.stmt:bind_values(table_unpack(data))
         self.stmt:step()
         self.stmt:reset()
     end

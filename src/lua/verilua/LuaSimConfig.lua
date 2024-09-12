@@ -20,10 +20,12 @@ local function get_debug_info(level)
     return file, line, func
 end
 
-
+local enable_debug_print = os.getenv("VL_DEBUG") == "1"
 local function debug_print(...)
-    local file, line, func = get_debug_info(3)
-    print(("[%s:%s:%d]"):format(file, func, line), ...)
+    if enable_debug_print then
+        local file, line, func = get_debug_info(3)
+        print(("[%s:%s:%d]"):format(file, func, line), ...)
+    end
 end
 
 local LuaSimConfig = {}

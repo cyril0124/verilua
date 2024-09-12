@@ -68,7 +68,7 @@ function SchedulerClass:_init()
     self.callback_table = {}
     self.will_remove_tasks = {}
 
-    verilua_info("[Scheduler]", "Using NORMAL scheduler")
+    verilua_debug("[Scheduler]", "Using NORMAL scheduler")
 end
 
 function SchedulerClass:_log(...)
