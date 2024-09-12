@@ -58,7 +58,7 @@ def extract_filelist(file):
   print(f"get filelist => \n{s}")
   return filelist
 
-parser = argparse.ArgumentParser(description='A script used for automately generate verilua testbench.')
+parser = argparse.ArgumentParser(description='A script used for automatically generating Verilua testbenchs.')
 parser.add_argument('--top', '-t', dest="top", type=str, required=True, help='top module name')
 parser.add_argument('--file', '-f', dest="file", action='append', required=True, help='input verilog file')
 parser.add_argument('--dir', '-d', dest="dir", type=str, help='output dir')
@@ -72,7 +72,7 @@ parser.add_argument('--verbose', '-v', dest="verbose", action='store_true', help
 parser.add_argument('--custom-code', '-cc', dest="custom_code", type=str, help='input custom code <file>, will be inserted in the bottom of the testbench module')
 parser.add_argument('--custom-code-str', '-ccs', dest="custom_code_str", type=str, help='input custom code <string>, will be inserted in the bottom of the testbench module')
 parser.add_argument('--custom-code-outer', '-cco', dest="custom_code_outer", type=str, help='input custom code <file>, will be inserted in outer of the testbench module')
-parser.add_argument('--custom-code-str-outer', '-ccs o', dest="custom_code_str_outer", type=str, help='input custom code <string>, will be inserted in outer of the testbench module')
+parser.add_argument('--custom-code-str-outer', '-ccso', dest="custom_code_str_outer", type=str, help='input custom code <string>, will be inserted in outer of the testbench module')
 args = parser.parse_args()
 
 assert args.top != None, "top module name is not specified!"
