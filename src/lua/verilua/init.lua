@@ -14,6 +14,7 @@ do
         package.cpath = package.cpath .. ";" .. path
     end
 
+    append_package_path(PWD .. "?.lua")
     append_package_path(PWD .. "/?.lua")
     append_package_path(PWD .. "/src/lua/?.lua")
     append_package_path(PWD .. "/src/lua/main/?.lua")
@@ -747,7 +748,21 @@ do
     --      ("hello %d"):format(123):print()
     -- 
     getmetatable('').__index.print = function(str)
-        print(str)
+        io.write(str .. "\n")
+    end
+
+    -- 
+    -- Example:
+    --      assert(("hello.lua"):strip(".lua") == "hello")
+    --      assert(("hello"):strip(".lua") == "hello")
+    -- 
+    getmetatable('').__index.strip = function(str, suffix)
+        assert(type(suffix) == "string", "suffix must be a string")
+        if str:sub(-#suffix) == suffix then
+            return str:sub(1, -#suffix - 1)
+        else
+            return str
+        end
     end
 
     -- 
