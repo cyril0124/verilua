@@ -96,6 +96,8 @@ rule("verilua")
             tb_top = "tb_top"
         end
 
+        target:add("tb_top", tb_top)
+
         if other_cfg == nil then
             other_cfg = "nil" 
         else
@@ -258,6 +260,7 @@ return cfg
         local top = target:get("top")
         local build_dir = target:get("build_dir")
         local sim = target:get("sim")
+        local tb_top = target:get("tb_top")
         local argv = {}
         local toolchain = ""
         local buildcmd = ""
@@ -267,7 +270,7 @@ return cfg
             table.join2(argv, flags)
         end
 
-        -- Generate tb_top.sv
+        -- Generate <tb_top>.sv
         local _not_gen_tb = target:values("cfg.not_gen_tb") -- Do not automatically generate testbench top
         local not_gen_tb = false
         if _not_gen_tb == "1" then
@@ -284,8 +287,8 @@ return cfg
                         top_file = path.absolute(sourcefile)
                     end
                     if sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
-                        if sourcefile:endswith("tb_top.sv") then
-                            raise("<tb_top.sv> is already exist! " .. path.absolute(sourcefile))
+                        if sourcefile:endswith(tb_top .. ".sv") then
+                            raise("<%s.sv> is already exist! %s", tb_top, path.absolute(sourcefile))
                         end
                         table.insert(vfiles, sourcefile)
                         file_str = file_str .. "-f " .. path.absolute(sourcefile) .. " "
@@ -299,7 +302,7 @@ return cfg
             print("top_file is " .. top_file)
 
             -- Only the vfiles are needed to be checked
-            local tb_gen_flags = {"--top", top, "--tbtop", "tb_top", "--nodpi", "--verbose", "--dir", build_dir}
+            local tb_gen_flags = {"--top", top, "--tbtop", tb_top, "--nodpi", "--verbose", "--dir", build_dir}
             local _tb_gen_flags = target:values("cfg.tb_gen_flags")
             if _tb_gen_flags then
                 tb_gen_flags = table.join2(tb_gen_flags, _tb_gen_flags)
@@ -327,12 +330,12 @@ return cfg
                         break
                     end
                 end
-                if not os.isfile(build_dir .. "/tb_top.sv") and not is_generated then
+                if not os.isfile(build_dir .. "/" .. tb_top ..".sv") and not is_generated then
                     cprint("tb_gen_cmd: ${dim}%s${reset}", gen_cmd)
                     os.exec(gen_cmd)
                     is_generated = true
                 end
-                target:add("files", build_dir .. "/tb_top.sv", build_dir .. "/others.sv")
+                target:add("files", build_dir .. "/" .. tb_top ..".sv", build_dir .. "/others.sv")
             else
                 target:add("files", input_tb_top_file)
             end
@@ -460,7 +463,7 @@ source setvars.sh
 
         local run_sh = ""
         if sim == "verilator" then
-            run_sh = f([[numactl -m 0 -C 0-7 %s/Vtb_top 2>&1 | tee run.log]], sim_build_dir)
+            run_sh = f([[numactl -m 0 -C 0-7 %s/V%s 2>&1 | tee run.log]], sim_build_dir, tb_top)
         elseif sim == "vcs" then
             run_sh = f([[%s/simv +vcs+initreg+0 +notimingcheck 2>&1 | tee run.log]], sim_build_dir)
         elseif sim == "iverilog" then
@@ -481,8 +484,8 @@ verdi -f filelist.f -sv -nologo $@
         local sim_build_dir = target:get("sim_build_dir")
         os.mkdir(target:targetdir())
         if sim == "verilator" then
-            os.cp(sim_build_dir .. "/Vtb_top", target:targetdir())
-            os.cp(sim_build_dir .. "/Vtb_top", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
+            os.cp(sim_build_dir .. "/V" .. tb_top, target:targetdir())
+            os.cp(sim_build_dir .. "/V" .. tb_top, target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "iverilog" then
             os.cp(sim_build_dir .. "/simv.vvp", target:targetdir())
             os.cp(sim_build_dir .. "/simv.vvp", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
@@ -511,6 +514,7 @@ verdi -f filelist.f -sv -nologo $@
 
     on_run(function (target)
         local sim = target:get("sim")
+        local tb_top = target:get("tb_top")
         local build_dir = target:get("build_dir")
         local sim_build_dir = target:get("sim_build_dir")
 
@@ -540,7 +544,7 @@ verdi -f filelist.f -sv -nologo $@
                 table.join2(run_prefix, _run_prefix)
             end
             
-            os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/Vtb_top " .. table.concat(run_flags, " "))
+            os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/V" .. tb_top .. " " .. table.concat(run_flags, " "))
         elseif sim == "iverilog" then
             local verilua_home = os.getenv("VERILUA_HOME")
             local vvpcmd = verilua_home .. "/tools/vvp_wrapper"
