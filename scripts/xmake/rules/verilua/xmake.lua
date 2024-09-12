@@ -441,10 +441,22 @@ return cfg
         end
 
         -- Create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation
+        local _runenvs = target:get("runenvs")
+        local extra_runenvs = ""
+        if _runenvs ~= nil then
+          for key, value in pairs(_runenvs) do
+            if key == "LD_LIBRARY_PATH" or key == "PATH" then
+              extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. ":$" .. key .. "\n"
+            else
+              extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. "\n"
+            end
+          end
+        end
         local setvars_sh = f([[#!/usr/bin/env bash
 export VERILUA_CFG=%s
 export SIM=%s
-]], target:get("cfg_file"), sim)
+%s
+]], target:get("cfg_file"), sim, extra_runenvs)
                 io.writefile(build_dir .. "/setvars.sh", setvars_sh)
 
         local sim_build_dir = target:get("sim_build_dir")
