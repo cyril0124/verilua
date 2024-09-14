@@ -98,7 +98,7 @@ rule("verilua")
 
         target:add("tb_top", tb_top)
 
-        if other_cfg == nil then
+        if other_cfg == nil or other_cfg == "" then
             other_cfg = "nil" 
         else
             local _other_cfg = other_cfg
@@ -361,13 +361,13 @@ return cfg
             local includedirs = target:get("includedirs")
             for _, dir in ipairs(includedirs) do
                 table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-I" .. dir)
+                table.insert(argv, "-I" .. path.absolute(dir))
             end
 
             local linkdirs = target:get("linkdirs")
             for _, dir in ipairs(linkdirs) do
                 table.insert(argv, "-LDFLAGS")
-                table.insert(argv, "-L" .. dir)
+                table.insert(argv, "-L" .. path.absolute(dir))
             end
 
             local links = target:get("links")
@@ -387,13 +387,13 @@ return cfg
             local includedirs = target:get("includedirs")
             for _, dir in ipairs(includedirs) do
                 table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-I" .. dir)
+                table.insert(argv, "-I" .. path.absolute(dir))
             end
 
             local linkdirs = target:get("linkdirs")
             for _, dir in ipairs(linkdirs) do
                 table.insert(argv, "-LDFLAGS")
-                table.insert(argv, "-L" .. dir)
+                table.insert(argv, "-L" .. path.absolute(dir))
             end
 
             local links = target:get("links")
@@ -534,7 +534,11 @@ verdi -f filelist.f -sv -nologo $@
         local runenvs = target:get("runenvs")
         for k, env in pairs(runenvs) do
             local _env = {}
-            _env[k] = env
+            if k == "LD_LIBRARY_PATH" or k == "PATH" then
+                _env[k] = path.absolute(env)
+            else
+                _env[k] = env
+            end
             os.addenvs(_env)
         end
 
