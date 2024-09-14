@@ -795,36 +795,54 @@ do
 
     -- 
     --  Example:
-    --     local lib = ([[
-    --         #include "stdio.h"
+    --    local lib = ([[
+    --        #include "stdio.h"
     --
-    --         int count = 0;
+    --        int count = 0;
     --
-    --         // $sym<hello> $ptr<void (*)(void)>
-    --         void hello() {
-    --             printf("hello %d\n", count);
-    --             count++;
-    --         }
+    --        // $sym<hello> $ptr<void (*)(void)>
+    --        void hello() {
+    --            printf("hello %d\n", count);
+    --            count++;
+    --        }
     --
-    --         // $sym<get_count> $ptr<int (*)(void)>
-    --         int get_count() {
-    --             return count;
-    --         }
-    --     ]]):tcc_compile()
+    --        // $sym<get_count> $ptr<int (*)(void)>
+    --        int get_count() {
+    --            return count;
+    --        }
+    --    ]]):tcc_compile()
+    --    
+    ------- OR -------
+    --
+    --    local lib = ([[
+    --        #include "stdio.h"
+    --
+    --        int count = 0;
+    --
+    --        void hello() {
+    --            printf("hello %d\n", count);
+    --            count++;
+    --        }
+    --
+    --        int get_count() {
+    --            return count;
+    --        }
+    --    ]]):tcc_compile({ {sym = "hello", ptr = "void (*)(void)"}, {sym = "get_count", ptr = "int (*)(void)"} })
     --
     --     lib.hello()
     --     assert(lib.get_count() == 1)
     -- 
-        
+    
     local tcc = require "vl-tcc"
-    getmetatable('').__index.tcc_compile = function(str)
+    getmetatable('').__index.tcc_compile = function(str, sym_ptr_tbls)
         local state = tcc.new()
         assert(state:set_output_type(tcc.OUTPUT.MEMORY))
         assert(state:compile_string(str))
         assert(state:relocate(tcc.RELOCATE.AUTO))
 
         local count = 0
-        local lib = {}
+        local lib = {_state = state} -- keep `state` alive to prevent GC
+
         for line in string.gmatch(str, "[^\r\n]+") do
             local symbol_name = line:match("%$sym<%s*([^>]+)%s*>")
             local symbol_ptr_pattern = line:match("%$ptr%s*<%s*([^>]+)%s*>")
@@ -837,7 +855,21 @@ do
             end
         end
 
-        assert(count > 0, f("\n[tcc_compile] Did not find any symbols! Please specify symbol_name or symbol_ptr_pattern in tcc code by a custom C comment: \"// $sym<SymbolName> $ptr<SymbolPtrPattern>\"!\nThe tcc code is:\n%s", str))
+        if sym_ptr_tbls ~= nil then
+            assert(type(sym_ptr_tbls) == "table")
+            assert(type(sym_ptr_tbls[1]) == "table")
+            for _, sym_ptr_tbl in ipairs(sym_ptr_tbls) do
+                local symbol_name = assert(sym_ptr_tbl.sym)
+                local symbol_ptr_pattern = assert(sym_ptr_tbl.ptr)
+                count = count + 1
+                print("[tcc_compile] [" .. count .. "] [sym_ptr_tbls] find symbol_name => \"" .. (symbol_name or "nil") .. "\"")
+                print("[tcc_compile] [" .. count .. "] [sym_ptr_tbls] find symbol_ptr_pattern = \"" .. (symbol_ptr_pattern or "nil") .. "\"")
+                local sym = assert(state:get_symbol(symbol_name))
+                lib[symbol_name] = ffi.cast(symbol_ptr_pattern, sym)
+            end
+        end
+
+        assert(count > 0, f("\n[tcc_compile] Did not find any symbols! Please specify symbol_name or symbol_ptr_pattern in tcc code by a custom C comment: \"// $sym<SymbolName> $ptr<SymbolPtrPattern>\"! Or you could specify this info by the input table \"<string>:tcc_compile({{sym = <symbol_name>, ptr = <symbol_ptr_pattern>}, <other...>})\"\nThe tcc code is:\n%s", str))
         
         return lib
     end
