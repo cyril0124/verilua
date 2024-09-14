@@ -16,3 +16,6 @@
 [submodule "wave_vpi"]
 	path = wave_vpi
 	url = https://github.com/cyril0124/wave_vpi
+[submodule "extern/boost_unordered"]
+	path = extern/boost_unordered
+	url = https://github.com/MikePopoloski/boost_unordered.git

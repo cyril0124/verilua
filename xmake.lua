@@ -40,6 +40,7 @@ local function build_common_info()
     -- add_defines("DEBUG")
     add_defines("VL_DEF_ACCUMULATE_LUA_TIME")
     add_defines("VL_DEF_OPT_MERGE_CALLBACK")
+    add_defines("VL_DEF_OPT_USE_BOOST_UNORDERED")
     -- add_defines("VL_DEF_OPT_VEC_SIMPLE_ACCESS")
     -- add_defines("VL_DEF_VPI_LEARN")
     -- add_defines("VL_DEF_VPI_LOCK_GUARD")
@@ -56,6 +57,7 @@ local function build_common_info()
         src_dir .. "/include",
         src_dir .. "/gen",
         lua_dir .. "/include/luajit-2.1",
+        extern_dir .. "/boost_unordered",
         vcpkg_dir .. "/x64-linux/include"
     )
 

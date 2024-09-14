@@ -24,12 +24,12 @@ void alloc_verilator_func(VerilatorFunc func, const std::string& name) {
         VL_FATAL(false, "you should alloc a verilator function before call verilua_init()");
     }
 
-    VL_INFO("alloc verilator function name:{}\n", name);
+    VL_DEBUG("alloc verilator function name:{}\n", name);
 
     auto it = verilator_func_map.find(name);
     if(it != verilator_func_map.end()) {
         *(it->second) = func;
-        VL_INFO("alloc verilator function name:{}\n", name);
+        VL_DEBUG("alloc verilator function name:{}\n", name);
     } else {
         VL_FATAL(false, "name:{} is not in verilator_func_map", name);
     }

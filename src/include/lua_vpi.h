@@ -19,9 +19,18 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
-#include <unordered_map>
 #include <sys/types.h>
 #include <chrono>
+
+#ifdef VL_DEF_OPT_USE_BOOST_UNORDERED
+#include "boost_unordered.hpp"
+#define UNORDERED_SET boost::unordered_flat_set
+#define UNORDERED_MAP boost::unordered_flat_map
+#else
+#include <unordered_map>
+#define UNORDERED_SET std::unordered_set
+#define UNORDERED_MAP std::unordered_map
+#endif
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -113,7 +122,7 @@ struct CallbackInfo {
 
 class IDPool {
 private:
-    std::unordered_set<uint64_t> allocated_ids;  
+    UNORDERED_SET<uint64_t> allocated_ids;  
     std::queue<uint64_t> available_ids;
 
 public:
@@ -176,22 +185,22 @@ public:
     sol::protected_function main_step;
 
     IDPool edge_cb_idpool; // Edge callback id pool for cbValueChange
-    std::unordered_map<uint64_t, vpiHandle> edge_cb_hdl_map;
-    std::unordered_map<std::string, vpiHandle> hdl_cache;
-    std::unordered_map<vpiHandle, VpiPermission> hdl_cache_rev;
+    UNORDERED_MAP<uint64_t, vpiHandle> edge_cb_hdl_map;
+    UNORDERED_MAP<std::string, vpiHandle> hdl_cache;
+    UNORDERED_MAP<vpiHandle, VpiPermission> hdl_cache_rev;
 
 #ifdef VL_DEF_OPT_MERGE_CALLBACK
     #include "gen_new_sim_event.h"
 
-    std::unordered_map<vpiHandle, std::vector<TaskID>> pending_posedge_cb_map;
-    std::unordered_map<vpiHandle, std::vector<TaskID>> pending_negedge_cb_map;
-    std::unordered_map<vpiHandle, std::vector<TaskID>> pending_edge_cb_map;
+    UNORDERED_MAP<vpiHandle, std::vector<TaskID>> pending_posedge_cb_map;
+    UNORDERED_MAP<vpiHandle, std::vector<TaskID>> pending_negedge_cb_map;
+    UNORDERED_MAP<vpiHandle, std::vector<TaskID>> pending_edge_cb_map;
 #else
-    std::unordered_map<vpiHandle, std::vector<CallbackInfo>> pending_edge_cb_map;
+    UNORDERED_MAP<vpiHandle, std::vector<CallbackInfo>> pending_edge_cb_map;
 #endif
 
 #ifdef VL_DEF_OPT_VEC_SIMPLE_ACCESS
-    std::unordered_map<vpiHandle, SimpleVecValue> vec_value_cache; // A cache that can be used to prevent repeated access of some signal during the same simulation step
+    UNORDERED_MAP<vpiHandle, SimpleVecValue> vec_value_cache; // A cache that can be used to prevent repeated access of some signal during the same simulation step
 #endif
 
 #ifdef IVERILOG
