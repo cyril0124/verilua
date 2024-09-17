@@ -191,8 +191,8 @@ return cfg
                 "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
                 "--timescale-override", "1ns/1ns",
                 "+define+SIM_VERILATOR",
-                "-CFLAGS", "-std=c++20 -O2 -funroll-loops -march=native",
-                "-LDFLAGS", "-flto",
+                "-CFLAGS \"-std=c++20 -O2 -funroll-loops -march=native\"",
+                "-LDFLAGS \"-flto\"",
                 "--top", tb_top
             )
 
@@ -226,8 +226,8 @@ return cfg
                 "+define+VCS",
                 "+define+" .. mode:upper() .. "_MODE",
                 "-q",
-                "-CFLAGS", "-Ofast -march=native -loop-unroll",
-                "-LDFLAGS", "-Wl,--no-as-needed -flto",
+                "-CFLAGS \"-Ofast -march=native -loop-unroll\"",
+                "-LDFLAGS \"-Wl,--no-as-needed -flto\"",
                 "-load", libpath .. "/liblua_vpi_vcs.so",
                 "-cc", "gcc",
                 "-o", sim_build_dir .. "/simv"
@@ -437,7 +437,7 @@ return cfg
             -- table.insert(argv,  build_dir .. "/sim_file.f")
 
             -- Run the verilator command to generate target binary
-            os.vrunv(buildcmd, argv, {envs = toolchain:runenvs()})
+            os.vrun(buildcmd .. " " .. table.concat(argv, " "))
         end
 
         -- Create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation
@@ -457,7 +457,7 @@ export VERILUA_CFG=%s
 export SIM=%s
 %s
 ]], target:get("cfg_file"), sim, extra_runenvs)
-                io.writefile(build_dir .. "/setvars.sh", setvars_sh)
+        io.writefile(build_dir .. "/setvars.sh", setvars_sh)
 
         local sim_build_dir = target:get("sim_build_dir")
         local clean_sh = f([[#!/usr/bin/env bash
