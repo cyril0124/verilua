@@ -24,6 +24,7 @@ local assert = assert
 local ipairs = ipairs
 local random = math.random
 local tinsert = table.insert
+local coro_yield = coroutine.yield
 local coro_resume = coroutine.resume
 local coro_status = coroutine.status
 local coro_create = coroutine.create
