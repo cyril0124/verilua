@@ -54,7 +54,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
             end
 
             rawset(self, signal, CallableHDL(fullpath, signal))
-            tinsert(self.signals_table, prefix .. signal)
+            tinsert(self.signals_table, signal)
         end)
     end
 
