@@ -220,6 +220,8 @@ return cfg
                 "-top", tb_top,
                 "-Mdir=" .. sim_build_dir,
                 "+v2k",
+                "-lca",
+                "-kdb",
                 "-timescale=1ns/1ns",
                 "+vcs+initreg+random",
                 "+define+SIM_VCS",
