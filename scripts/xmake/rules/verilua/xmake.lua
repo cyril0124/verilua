@@ -19,7 +19,7 @@ rule("verilua")
             raise("[on_load] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
         end
         target:add("sim", sim)
-        cprint("${✅} [verilua-xmake] simulator is ${green underline}%s${reset}", sim)
+        cprint("${✅} [verilua-xmake] [%s] simulator is ${green underline}%s${reset}", target:name(), sim)
 
         -- Check if VERILUA_HOME is set.
         local verilua_home = assert(os.getenv("VERILUA_HOME"), "[on_load] please set VERILUA_HOME")
@@ -44,7 +44,7 @@ rule("verilua")
         target:add("top", top)
         target:add("build_dir", build_dir)
         target:add("sim_build_dir", sim_build_dir)
-        cprint("${✅} [verilua-xmake] top module is ${green underline}%s${reset}", top)
+        cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
 
         if not os.isfile(sim_build_dir) then
             os.mkdir(sim_build_dir)
@@ -59,7 +59,7 @@ rule("verilua")
             lua_main = assert(target:values("cfg.lua_main"), "[on_load] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")")
         end
         lua_main = path.absolute(lua_main)
-        cprint("${✅} [verilua-xmake] lua main is ${green underline}%s${reset}", lua_main)
+        cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
 
         os.cp(lua_main, build_dir)
 
@@ -81,7 +81,7 @@ rule("verilua")
             end
             target:add("mode", mode)
         end
-        cprint("${✅} [verilua-xmake] verilua mode is ${green underline}%s${reset}", mode)
+        cprint("${✅} [verilua-xmake] [%s] verilua mode is ${green underline}%s${reset}", target:name(), mode)
 
 
         -- Generate verilua cfg file
@@ -104,23 +104,23 @@ rule("verilua")
             local _other_cfg = other_cfg
             other_cfg = "\"" .. path.basename(other_cfg) .. "\""
             other_cfg_path = "\"" .. path.absolute(path.directory(_other_cfg)) .. "\""
-            cprint("${✅} [verilua-xmake] other_cfg is ${green underline}%s${reset}", other_cfg)
+            cprint("${✅} [verilua-xmake] [%s] other_cfg is ${green underline}%s${reset}", target:name(), other_cfg)
         end
 
         if shutdown_cycles == nil then 
             shutdown_cycles = "10000 * 10" 
         end
-        cprint("${✅} [verilua-xmake] shutdown_cycles is ${green underline}%s${reset}", shutdown_cycles)
+        cprint("${✅} [verilua-xmake] [%s] shutdown_cycles is ${green underline}%s${reset}", target:name(), shutdown_cycles)
 
         if deps ~= nil then
             if type(deps) == "table" then
                 for _, dep in ipairs(deps) do
                     deps_str = deps_str .. "\"" .. path.absolute(dep) .. "\"" .. ",\n"
-                    cprint("${✅} [verilua-xmake] deps is ${green underline}%s${reset}", dep)
+                    cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), dep)
                 end
             else
                 deps_str = "\"" .. path.absolute(deps) .. "\""
-                cprint("${✅} [verilua-xmake] deps is ${green underline}%s${reset}", deps)
+                cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), deps)
             end
         end
 
