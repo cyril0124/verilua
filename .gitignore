@@ -13,3 +13,4 @@ test/
 vcpkg/
 vcpkg_installed/
 tmp/
+result

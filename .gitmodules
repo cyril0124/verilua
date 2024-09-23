@@ -1,21 +1,3 @@
-[submodule "extern/LuaPanda"]
-	path = extern/LuaPanda
-	url = https://github.com/Tencent/LuaPanda.git
-[submodule "extern/luafun"]
-	path = extern/luafun
-	url = https://github.com/luafun/luafun.git
-[submodule "extern/debugger.lua"]
-	path = extern/debugger.lua
-	url = https://github.com/slembcke/debugger.lua.git
-[submodule "extern/lua_inline_c"]
-	path = extern/lua_inline_c
-	url = https://github.com/cyril0124/lua_inline_c.git
-[submodule "extern/luajit_tcc"]
-	path = extern/luajit_tcc
-	url = https://github.com/cyril0124/luajit_tcc
 [submodule "wave_vpi"]
 	path = wave_vpi
 	url = https://github.com/cyril0124/wave_vpi
-[submodule "extern/boost_unordered"]
-	path = extern/boost_unordered
-	url = https://github.com/MikePopoloski/boost_unordered.git
