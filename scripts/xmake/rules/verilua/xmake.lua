@@ -24,12 +24,13 @@ rule("verilua")
         -- Check if VERILUA_HOME is set.
         local verilua_home = assert(os.getenv("VERILUA_HOME"), "[on_load] please set VERILUA_HOME")
         target:add("verilua_home", verilua_home)
-        target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include")
-        target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include/luajit-2.1")
+        local luajitpro_home = assert(os.getenv("LUAJITPRO_HOME"), "[on_load] please set LUAJITPRO_HOME")
+        -- TODO: clean
+        target:add("includedirs", luajitpro_home .. "/include")
+        target:add("includedirs", luajitpro_home .. "/include/luajit-2.1")
+        target:add("cxflags", os.getenv("NIX_CFLAGS_COMPILE"))
         target:add("includedirs", verilua_home .. "/src/include")
-        target:add("includedirs", verilua_home .. "/vcpkg_installed/x64-linux/include")
         target:add("links", "luajit-5.1", "fmt")
-        target:add("linkdirs", verilua_home .. "/luajit-pro/luajit2.1/lib", verilua_home .. "/shared", verilua_home .. "/vcpkg_installed/x64-linux/lib")
         if sim == "verilator" then
             target:add("links", "lua_vpi")
             target:add("files", verilua_home .. "/src/verilator/*.cpp")
