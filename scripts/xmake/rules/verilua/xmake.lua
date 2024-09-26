@@ -24,11 +24,6 @@ rule("verilua")
         -- Check if VERILUA_HOME is set.
         local verilua_home = assert(os.getenv("VERILUA_HOME"), "[on_load] please set VERILUA_HOME")
         target:add("verilua_home", verilua_home)
-        local luajitpro_home = assert(os.getenv("LUAJITPRO_HOME"), "[on_load] please set LUAJITPRO_HOME")
-        -- TODO: clean
-        target:add("includedirs", luajitpro_home .. "/include")
-        target:add("includedirs", luajitpro_home .. "/include/luajit-2.1")
-        target:add("cxflags", os.getenv("NIX_CFLAGS_COMPILE"))
         target:add("includedirs", verilua_home .. "/src/include")
         target:add("links", "luajit-5.1", "fmt")
         if sim == "verilator" then
@@ -347,7 +342,25 @@ return cfg
 
         if sim == "verilator" then
             toolchain = assert(target:toolchain("verilator"), '[on_build] we need to set_toolchains("@verilator") in target("%s")', target:name())
-            buildcmd = assert(toolchain:config("verilator"), "[on_build] verilator not found!")
+            buildcmd = try {
+                function ()
+                    return os.iorun("which verilator") 
+                end
+            }
+            if not buildcmd then
+                local has_which_cmd = try {
+                    function ()
+                        return os.iorun("command -v which")
+                    end
+                }
+
+                if not has_which_cmd then
+                    cprint("${❌} [verilua-xmake] [%s] ${color.error underline}which${reset color.error} command not found!${reset clear}", target:name())
+                end
+
+                cprint("${❌} [verilua-xmake] [%s] ${color.error underline}verilator${reset color.error} not found using `which`. Try getting ${underline}verilator${reset color.error} from toolchain... ${reset clear}", target:name())
+                buildcmd = assert(toolchain:config("verilator"), "[on_build] verilator not found!")
+            end
 
             local mode = target:get("mode")
             if mode == "normal" then
@@ -409,6 +422,8 @@ return cfg
         else
             raise("Unknown simulator! => " .. tostring(sim))
         end
+
+        cprint("${✅} [verilua-xmake] [%s] buildcmd is ${green underline}%s${reset}", target:name(), buildcmd)
 
         local sourcefiles = target:sourcefiles()
         local filelist_dut = {} -- only v/sv files

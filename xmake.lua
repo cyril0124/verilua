@@ -9,7 +9,7 @@ local extern_dir = prj_dir .. "/extern"
 local vcpkg_dir  = prj_dir .. "/vcpkg_installed"
 local shared_dir = prj_dir .. "/shared"
 local tools_dir  = prj_dir .. "/tools"
-local wavevpi_dir = prj_dir .. "/wave_vpi"
+local wavevpi_dir = os.getenv("WAVEVPI_DIR") or prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
 -- local toolchains = "clang-18"
@@ -173,7 +173,8 @@ target("wave_vpi_main")
     add_links("luajit-5.1")
     add_linkdirs(lua_dir .. "/lib")
 
-    add_packages("fmt", "mimalloc", "libassert", "argparse")
+    add_links("fmt", "mimalloc")
+    add_links("assert", "cpptrace", "dwarf") -- libassert
 
     add_links("lua_vpi_wave_vpi")
     add_linkdirs(shared_dir)
@@ -274,7 +275,7 @@ if iverilog_home ~= nil then
         add_links("luajit-5.1")
         add_linkdirs(lua_dir .. "/lib")
 
-        add_packages("fmt", "mimalloc")
+        add_links("fmt", "mimalloc")
 
         add_links("lua_vpi_iverilog")
         add_linkdirs(shared_dir)
