@@ -8,6 +8,7 @@ local format = string.format
 local tconcat = table.concat
 local bit_tohex = bit.tohex
 local bit_lshift = bit.lshift
+local math_random = math.random
 local ffi_new = ffi.new
 
 --
@@ -465,6 +466,20 @@ end
 --
 function utils.uint_to_onehot(uint_value)
     return bit_lshift(1, uint_value) + 0ULL
+end
+
+-- 
+---@param t table The table to be shuffled
+---@return table The shuffled table
+--
+function utils.shuffle(t)
+    local n = #t
+    while n >= 2 do
+      local k = math_random(n)
+      t[n], t[k] = t[k], t[n]
+      n = n - 1
+    end
+    return t
 end
 
 -- 
