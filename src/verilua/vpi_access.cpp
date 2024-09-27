@@ -200,7 +200,7 @@ TO_LUA int c_get_value_multi_by_name(lua_State *L) {
     return 1;
 }
 
-TO_LUA void c_set_value_by_name(const char *path, long long value) {
+TO_LUA void c_set_value_by_name(const char *path, uint64_t value) {
     ENTER_VPI_REGION();
     
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
@@ -211,10 +211,17 @@ TO_LUA void c_set_value_by_name(const char *path, long long value) {
 #endif
 
     s_vpi_value v;
-    v.format = vpiIntVal;
-    v.value.integer = value;
+    s_vpi_vecval *vector = new s_vpi_vecval[2];
+    vector[1].aval = value >> 32;
+    vector[1].bval = 0;
+    vector[0].aval = (value << 32) >> 32;
+    vector[0].bval = 0;
+    
+    v.format = vpiVectorVal; // Notice: vpiIntVal cannot be used by Verilator if the signal has more than 32 bits, use vpiVectorVal instead
+    v.value.vector = vector;
 
     _vpi_put_value(handle, &v, NULL, vpiNoDelay);
+    delete vector;
 
     LEAVE_VPI_REGION();
 }

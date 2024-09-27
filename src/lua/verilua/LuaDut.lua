@@ -12,7 +12,7 @@ local format = string.format
 
 ffi.cdef[[
     long long c_handle_by_name(const char* name);
-    void c_set_value_by_name(const char *path, uint32_t value);
+    void c_set_value_by_name(const char *path, uint64_t value);
     uint64_t c_get_value_by_name(const char *path);
     void c_force_value_by_name(const char *path, long long value);
     void c_release_value_by_name(const char *path);

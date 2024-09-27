@@ -8,7 +8,7 @@ TO_LUA long long c_get_signal_width(long long handle);
 
 TO_LUA long long c_get_value_by_name(const char *path);
 TO_LUA int c_get_value_multi_by_name(lua_State *L);
-TO_LUA void c_set_value_by_name(const char *path, long long value);
+TO_LUA void c_set_value_by_name(const char *path, uint64_t value);
 TO_LUA int c_set_value_multi_by_name(lua_State *L);
 
 
