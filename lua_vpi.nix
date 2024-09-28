@@ -4,11 +4,9 @@
 , fetchFromGitHub
 , xmake
 , unzip
-, fmt
 , sol2
 , elfio
 , mimalloc
-, boost
 , argparse
 , zstd
 , wave_vpi ? (callPackage ./wave_vpi.nix {})
@@ -24,6 +22,10 @@
 }: 
 let
   boost_unordered = callPackage ./boost_unordered.nix {};
+
+  slang = pkgs.callPackage ./slang.nix {};
+
+  pkgsu = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/4a793e2f3288b8f89430aab927d08d347e20b83e.tar.gz") {};
   
   nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/6e3fe03d595ef27048e196c71cf815425ee7171a.tar.gz") {
     inherit pkgs;
@@ -34,17 +36,19 @@ in stdenv.mkDerivation {
   buildInputs = [
     xmake
     unzip
-    fmt
     sol2
     elfio
     mimalloc
-    boost
     argparse
+    pkgsu.fmt_11
+    pkgsu.boost186
+    pkgsu.inja
 
     iverilog
     luajit-pro
     wave_vpi
     boost_unordered
+    slang
 
     # libassert
     zstd
@@ -66,6 +70,8 @@ in stdenv.mkDerivation {
     export WAVEVPI_DIR=${wave_vpi.src}
     xmake b lua_vpi_wave_vpi
     xmake b wave_vpi_main
+
+    xmake b testbench_gen
   '';
 
   installPhase = ''
@@ -80,6 +86,7 @@ in stdenv.mkDerivation {
     mkdir -p $out/bin
     cp tools/vvp_wrapper $out/bin/
     cp tools/wave_vpi_main $out/bin/
+    cp tools/testbench_gen $out/bin/
   '';
 }
 

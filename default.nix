@@ -9,7 +9,6 @@
 , sol2
 , argparse
 , mimalloc
-, boost
 }:
 let
   luajit-pro = callPackage (fetchFromGitHub {
@@ -50,6 +49,8 @@ let
       export LUA_PATH+=";$VERILUA_HOME/src/lua/thirdparty_lib/?.lua"
     '';
   };
+
+  pkgsu = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/4a793e2f3288b8f89430aab927d08d347e20b83e.tar.gz") {};
 in xmake.overrideAttrs (old: {
   propagatedBuildInputs = [
     pyslang
@@ -59,7 +60,7 @@ in xmake.overrideAttrs (old: {
     sol2
     argparse
     mimalloc
-    boost
+    pkgsu.boost186
 
     # lua dependencies
     luajit-pro.pkgs.penlight

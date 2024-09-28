@@ -22,8 +22,10 @@ in pkgs.mkShell {
 
     pkgsu.fmt_11
     pkgsu.boost186
+    pkgsu.inja
     pkgs.argparse
     pkgs.mimalloc
+    pkgsu.nlohmann_json
 
     # libassert
     pkgs.zstd

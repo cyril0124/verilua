@@ -294,8 +294,6 @@ end
 target("testbench_gen")
     set_kind("binary")
 
-    set_toolset("cc", "clang")
-    set_toolset("cxx", "clang++")
     set_languages("c++20")
 
     set_plat("linux")
@@ -303,7 +301,7 @@ target("testbench_gen")
     
     add_files(
         src_dir .. "/testbench_gen/*.cpp",
-        extern_dir .. "/slang-common/*.cpp"
+        extern_dir .. "/slang-common/*.cc"
     )
 
     add_includedirs(
