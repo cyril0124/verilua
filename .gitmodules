@@ -19,3 +19,9 @@
 [submodule "extern/boost_unordered"]
 	path = extern/boost_unordered
 	url = https://github.com/MikePopoloski/boost_unordered.git
+[submodule "extern/slang-common"]
+	path = extern/slang-common
+	url = https://github.com/cyril0124/slang-common.git
+[submodule "extern/slang-prebuild"]
+	path = extern/slang-prebuild
+	url = https://github.com/cyril0124/slang-prebuild.git

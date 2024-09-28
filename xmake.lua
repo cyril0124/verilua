@@ -20,6 +20,7 @@ add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
 add_requires("conan::libassert/2.1.0", {alias = "libassert"})
 add_requires("conan::argparse/3.1", {alias = "argparse"})
 add_requires("conan::elfio/3.12", {alias = "elfio"})
+add_requires("conan::inja/3.4.0", {alias = "inja"})
 
 local function build_common_info()
     set_kind("shared")
@@ -297,6 +298,40 @@ if iverilog_home ~= nil then
             print("---------------------------------------------------------- ")
         end)
 end
+
+target("testbench_gen")
+    set_kind("binary")
+
+    set_languages("c++20")
+
+    set_plat("linux")
+    set_arch("x86_64")
+    
+    add_files(
+        src_dir .. "/testbench_gen/*.cpp",
+        extern_dir .. "/slang-common/*.cc"
+    )
+
+    local slang_dir = extern_dir .. "/slang-prebuild/install_static"
+    add_includedirs(
+        src_dir .. "/include",
+        extern_dir .. "/slang-common",
+        slang_dir .. "/include",
+        extern_dir .. "/boost_unordered/include"
+    )
+
+    add_links("svlang")
+    add_linkdirs(slang_dir .. "/lib")
+
+    add_packages("fmt", "mimalloc", "libassert", "argparse", "inja")
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        print("* copy " .. target:targetfile() .. " into " .. tools_dir)
+            os.run("cp " .. target:targetfile() .. " " .. tools_dir)
+        print("---------------------------------------------------------- ")
+    end)
 
 target("update_submodules")
     set_kind("phony")
