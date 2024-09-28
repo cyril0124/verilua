@@ -10,9 +10,9 @@
   #   rev = "991de5637a965c64720bc7c32c90e8d06ea90621";
   #   sha256 = "";
   # };
-  src = /nfs/home/zhengchuyu/workspace/project/wave_vpi;
+  src = ./wave_vpi;
 
-  cargoHash = "sha256-pDElRb7e6ZO3CdyCLO9B2y6JRzjIQOqQ4vx7/MqkV2E=";
+  cargoHash = "sha256-KKAFQcP2g7LC0Pp8sLSXSMO0HS5BLNNpSbDejd4jmOk=";
 
   installPhase = ''
     mkdir -p $out/lib

@@ -289,3 +289,35 @@ if iverilog_home ~= nil then
             print("---------------------------------------------------------- ")
         end)
 end
+
+
+target("testbench_gen")
+    set_kind("binary")
+
+    set_toolset("cc", "clang")
+    set_toolset("cxx", "clang++")
+    set_languages("c++20")
+
+    set_plat("linux")
+    set_arch("x86_64")
+    
+    add_files(
+        src_dir .. "/testbench_gen/*.cpp",
+        extern_dir .. "/slang-common/*.cpp"
+    )
+
+    add_includedirs(
+        src_dir .. "/include",
+        extern_dir .. "/slang-common"
+    )
+
+    add_links("svlang", "fmt", "mimalloc")
+    add_links("assert", "cpptrace", "zstd", "dwarf")
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        print("* copy " .. target:targetfile() .. " into " .. tools_dir)
+            os.run("cp " .. target:targetfile() .. " " .. tools_dir)
+        print("---------------------------------------------------------- ")
+    end)

@@ -1,3 +1,9 @@
 [submodule "wave_vpi"]
 	path = wave_vpi
 	url = https://github.com/cyril0124/wave_vpi
+[submodule "extern/slang-prebuild"]
+	path = extern/slang-prebuild
+	url = https://github.com/cyril0124/slang-prebuild.git
+[submodule "extern/slang-common"]
+	path = extern/slang-common
+	url = https://github.com/cyril0124/slang-common.git
