@@ -1,9 +1,13 @@
+local utils = require "LuaUtils"
 local class = require "pl.class"
 local ffi = require "ffi"
 local debug = require "debug"
 local C = ffi.C
 
 local HexStr = HexStr
+local BinStr = BinStr
+local DecStr = DecStr
+local compare_value_str = utils.compare_value_str
 local await_posedge_hdl = await_posedge_hdl
 local await_negedge_hdl = await_negedge_hdl
 local always_await_posedge_hdl = always_await_posedge_hdl
@@ -714,11 +718,32 @@ function CallableHDL:_init(fullpath, name, hdl)
         assert(typ == "number" or typ == "cdata")
 
         if this.is_multi_beat and this.beat_num > 2 then
-            assert(false, "<CallableHDL>:expect(value) can only be used for hdl with 1 or 2 beat")    
+            assert(false, "`<CallableHDL>:expect(value)` can only be used for hdl with 1 or 2 beat, use `<CallableHDL>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. this.beat_num)    
         end
 
         if this:get() ~= value then
             assert(false, format("[%s] expect => %d, but got => %d", this.fullpath, value, this:get()))
+        end
+    end
+
+    self.expect_hex_str = function(this, hex_value_str)
+        assert(type(hex_value_str) == "string")
+        if not compare_value_str("0x" .. this:get_str(HexStr), hex_value_str) then
+            assert(false, format("[%s] expect => %s, but got => %s", this.fullpath, hex_value_str, this:get_str(HexStr)))
+        end
+    end
+
+    self.expect_bin_str = function(this, bin_value_str)
+        assert(type(bin_value_str) == "string")
+        if not compare_value_str("0b" .. this:get_str(BinStr), bin_value_str) then
+            assert(false, format("[%s] expect => %s, but got => %s", this.fullpath, bin_value_str, this:get_str(BinStr)))
+        end
+    end
+
+    self.expect_dec_str = function(this, dec_value_str)
+        assert(type(dec_value_str) == "string")
+        if not compare_value_str(this:get_str(DecStr), dec_value_str) then
+            assert(false, format("[%s] expect => %s, but got => %s", this.fullpath, dec_value_str, this:get_str(DecStr)))
         end
     end
 

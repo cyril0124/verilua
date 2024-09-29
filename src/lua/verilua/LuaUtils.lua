@@ -285,13 +285,12 @@ function utils.get_datetime_str()
     return datetime
 end
 
-
-local path = require "pl.path"
 --
 ---@param ... string The file name or directory name to get the absolute path
 ---@return string The absolute path
 --
 function utils.abspath(...)
+    local path = require "pl.path"
     return path.abspath(...)
 end
 
@@ -481,6 +480,42 @@ function utils.shuffle(t)
     end
     return t
 end
+
+do
+    local function normalize_hex(hex)
+        -- remove prefix and leading zeros and convert to lower case
+        return string.lower(hex):gsub("^0x0*", "0x")
+    end
+    
+    local function normalize_bin(bin)
+        -- remove prefix and leading zeros
+        return bin:gsub("^0b0*", "0b")
+    end
+    
+    local function normalize_dec(decimal)
+        -- remove leading zeros
+        return decimal:gsub("^0*", "")
+    end
+
+    --
+    ---@param str1 string The first string to be compared
+    ---@param str2 string The second string to be compared
+    ---@return boolean Whether the two strings are equal
+    --
+    function utils.compare_value_str(str1, str2)
+        if str1:sub(1, 2) == "0x" and str2:sub(1, 2) == "0x" then
+            -- process hex strings
+            return normalize_hex(str1) == normalize_hex(str2)
+        elseif str1:sub(1, 2) == "0b" and str2:sub(1, 2) == "0b" then
+            -- process binary strings
+            return normalize_bin(str1) == normalize_bin(str2)
+        else
+            -- process decimal strings
+            return normalize_dec(str1) == normalize_dec(str2)
+        end
+    end
+end
+
 
 -- 
 -- simple test

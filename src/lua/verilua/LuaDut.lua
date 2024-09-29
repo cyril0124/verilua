@@ -1,9 +1,16 @@
 local CallableHDL = require "LuaCallableHDL"
+local utils = require "LuaUtils"
 local stringx = require "pl.stringx"
 local ffi = require "ffi"
 
 local C = ffi.C
 local ffi_str = ffi.string
+
+local BeatWidth = 32
+local HexStr = HexStr
+local BinStr = BinStr
+local DecStr = DecStr
+local compare_value_str = utils.compare_value_str
 local await_posedge = await_posedge
 local await_negedge = await_negedge
 local assert, type, tonumber, setmetatable = assert, type, tonumber, setmetatable
@@ -322,9 +329,41 @@ local function create_proxy(path)
         expect = function(t, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
+
+            local beat_num = t:get_width() / BeatWidth
+            if beat_num > 2 then
+                assert(false, "`dut.<path>:expect(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. beat_num)    
+            end
             
             if t:get() ~= value then
                 assert(false, format("[%s] expect => %d, but got => %d", local_path, value, t:get()))
+            end
+        end,
+
+        -- 
+        -- Example:
+        --      dut.path.to.signal:expect_hex_str("0x1234") -- signal value should be 0x1234 otherwise there will be a assert false
+        --      dut.path.to.signal.expect_bin_str("0b1111")
+        --      dut.path.to.signal.expect_dec_str("1234")
+        -- 
+        expect_hex_str = function(this, hex_value_str)
+            assert(type(hex_value_str) == "string")
+            if not compare_value_str( "0x" .. this:get_str(HexStr), hex_value_str) then
+                assert(false, format("[%s] expect => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
+            end
+        end,
+    
+        expect_bin_str = function(this, bin_value_str)
+            assert(type(bin_value_str) == "string")
+            if not compare_value_str( "0b" .. this:get_str(BinStr), bin_value_str) then
+                assert(false, format("[%s] expect => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
+            end
+        end,
+    
+        expect_dec_str = function(this, dec_value_str)
+            assert(type(dec_value_str) == "string")
+            if not compare_value_str(this:get_str(DecStr), dec_value_str) then
+                assert(false, format("[%s] expect => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
             end
         end,
 
