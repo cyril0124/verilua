@@ -2,7 +2,8 @@ local PWD = os.getenv("PWD")
 
 target("generate_wave")
     add_rules("verilua")
-    add_toolchains("@iverilog")
+    -- add_toolchains("@iverilog") -- use iverilog
+    add_toolchains("@verilator") -- use verilator
 
     add_files("./Counter.v")
     
@@ -11,7 +12,8 @@ target("generate_wave")
 
     after_run(function (target)
         -- copy the generated wave file into the current directory after target has been run
-        os.cp(PWD .. "/build/iverilog/Counter/wave/test.vcd", PWD)
+        -- os.cp(PWD .. "/build/iverilog/Counter/wave/test.vcd", PWD) -- use iverilog
+        os.cp(PWD .. "/build/verilator/Counter/wave/test.vcd", PWD) -- use verilator
     end)
 
 target("simulate_wave")

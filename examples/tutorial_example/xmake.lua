@@ -3,8 +3,8 @@ target("TestDesign")
     add_rules("verilua")
 
     -- 2. set toolchains, you can choose one of the following
-    set_toolchains("@iverilog")
-    -- set_toolchains("@verilator")
+    -- set_toolchains("@iverilog")
+    set_toolchains("@verilator")
     -- set_toolchains("@vcs")
 
     -- 3. add files, including verilog and lua files(or C/C++ files)
@@ -26,6 +26,7 @@ target("TestDesign")
 
     -- for verilator
     -- set_values("verilator.flags", "") -- build phase flags
+    set_values("verilator.flags", "--trace", "--no-trace-top") -- ! verilator need these flags to generate wave file
     -- set_values("verilator.run_flags", "")
     -- set_values("verilator.run_prefix", "")
 
