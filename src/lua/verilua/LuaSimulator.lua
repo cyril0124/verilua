@@ -1,5 +1,6 @@
 local ffi = require "ffi"
 local tcc = require "vl-tcc"
+local path = require "pl.path"
 local utils = require "LuaUtils"
 
 local cfg = cfg
@@ -134,6 +135,12 @@ end
 
 local dump_wave = function (trace_file_path)
     local _trace_file_path = trace_file_path or "test.vcd"
+    local trace_path = path.abspath(path.dirname(_trace_file_path))
+    
+    if not path.exists(trace_path) then
+        path.mkdir(trace_path)
+    end
+
     initialize_trace(_trace_file_path)
     enable_trace()
 end
