@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 
-lua=luajit2.1
+export PATH=$VERILUA_HOME/tools:$PATH
+export PATH=$VERILUA_HOME/luajit-pro/luajit2.1/bin:$PATH
 
 export LD_LIBRARY_PATH=$VERILUA_HOME/shared:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/$lua/lib:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/$lua/lib/lua/5.1:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/$lua/lib/lua/5.1/socket:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$VERILUA_HOME/shared:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/luajit2.1/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/socket:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=$VERILUA_HOME/wave_vpi/target/release:$LD_LIBRARY_PATH
 
 export LUA_PATH="\
 ./?.lua;$(pwd)/?.lua;$(pwd)/src/lua/?.lua;\
-$VERILUA_HOME/luajit-pro/$lua/share/lua/5.1/?.lua;\
-$VERILUA_HOME/luajit-pro/$lua/share/lua/5.1/?/init.lua;\
+$VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?.lua;\
+$VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?/init.lua;\
 $VERILUA_HOME/src/gen/?.lua;\
 $VERILUA_HOME/src/lua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/?.lua;\
