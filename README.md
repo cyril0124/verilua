@@ -5,10 +5,34 @@
 ## Requirements
 - [xmake](https://xmake.io/#/getting_started): we use xmake to build verilua, so you need to install xmake first.
 - [conan](https://conan.io/downloads): xmake will use conan to manage dependencies, so you need to install conan.
-It is fine if you dont't manually install conan. It will will be automatically installed once you install verilua.
+It is fine if you dont't manually install `conan`. It will will be automatically installed once you install verilua.
 
-## Install verilua
-To install verilua, simply run the following command:
+## Install verilua(with nix)(Recommended)
+If you have `nix` installed, you can simply run the following command to install verilua:
+
+```bash
+xmake install verilua-nix
+```
+
+After the installation is complete, you can run the following command to verify the installation:
+
+```bash
+setup_verilua -v
+```
+
+If you see the version information, it means that the installation is successful.
+
+`setup_verilua` is used to set up the runtime environment variables for verilua. Make sure to `source` it before using verilua.
+
+```bash
+source setup_verilua
+```
+
+To make this easier, you can add `source setup_verilua` to your `.bashrc` or `.zshrc` file.
+
+
+## Install verilua(without nix)
+If you don't have `nix` installed, you can run the following command to install verilua:
 ```bash
 xmake install verilua
 ```

@@ -1,4 +1,11 @@
-local verilua_home = os.getenv("VERILUA_HOME") or ""
+local verilua_home = os.getenv("VERILUA_HOME") or "" -- verilua source code home
+local verilua_tools_home = os.getenv("VERILUA_TOOLS_HOME") or (verilua_home .. "/tools")
+local verilua_libs_home = os.getenv("VERILUA_LIBS_HOME") or (verilua_home .. "/shared")
+local verilua_extra_cflags = os.getenv("VERILUA_EXTRA_CFLAGS") or ""
+local verilua_extra_ldflags = os.getenv("VERILUA_EXTRA_LDFLAGS") or ""
+local luajitpro_home = os.getenv("LUAJITPRO_HOME") or (verilua_home .. "/luajit-pro/luajit2.1")
+
+verilua_extra_ldflags = "-Wl," .. verilua_extra_ldflags
 
 local function get_sim(target)
     local sim
@@ -173,8 +180,8 @@ return cfg
                 "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
                 "--timescale-override", "1ns/1ns",
                 "+define+SIM_VERILATOR",
-                "-CFLAGS \"-std=c++20 -O2 -funroll-loops -march=native\"",
-                "-LDFLAGS \"-flto\"",
+                "-CFLAGS \"-std=c++20 -O2 -funroll-loops -march=native " .. verilua_extra_cflags .. "\"",
+                "-LDFLAGS \"-flto " .. verilua_extra_ldflags .. "\"",
                 "--top", tb_top
             )
 
@@ -192,7 +199,7 @@ return cfg
                 "-o", sim_build_dir .. "/simv.vvp"
             )
         elseif sim == "vcs" then
-            local libpath = verilua_home .. "/shared"
+            local libpath = verilua_libs_home
             target:add(
                 "values",
                 "vcs.flags",
@@ -210,8 +217,8 @@ return cfg
                 "+define+VCS",
                 "+define+" .. mode:upper() .. "_MODE",
                 "-q",
-                "-CFLAGS \"-Ofast -march=native -loop-unroll\"",
-                "-LDFLAGS \"-Wl,--no-as-needed -flto\"",
+                "-CFLAGS \"-Ofast -march=native -loop-unroll " .. verilua_extra_cflags .. "\"",
+                "-LDFLAGS \"-Wl,--no-as-needed -flto " .. verilua_extra_ldflags .. "\"",
                 "-load", libpath .. "/liblua_vpi_vcs.so",
                 "-cc", "gcc",
                 "-o", sim_build_dir .. "/simv"
@@ -226,8 +233,9 @@ return cfg
                     waveform_file = path.absolute(sourcefile)
                 end
             end
-            assert(get_waveform, "[on_load] No waveform file found! Please use add_files to add waveform files (.vcd, .fst)")
-            target:add("waveform_file", waveform_file)
+            if waveform_file ~= "" then
+                target:add("waveform_file", waveform_file)
+            end
         end
 
         target:set("kind", "binary")
@@ -258,12 +266,12 @@ return cfg
         -- Add extra includedirs and link flags
         target:add("includedirs", 
             verilua_home .. "/vcpkg_installed/x64-linux/include",
-            verilua_home .. "/luajit-pro/luajit2.1/include",
-            verilua_home .. "/luajit-pro/luajit2.1/include/luajit-2.1",
+            luajitpro_home .. "/include",
+            luajitpro_home .. "/include/luajit-2.1",
             verilua_home .. "/src/include"
         )
         target:add("links", "luajit-5.1", "fmt")
-        target:add("linkdirs", verilua_home .. "/luajit-pro/luajit2.1/lib", verilua_home .. "/shared", verilua_home .. "/vcpkg_installed/x64-linux/lib")
+        target:add("linkdirs", luajitpro_home .. "/lib", verilua_libs_home, verilua_home .. "/vcpkg_installed/x64-linux/lib")
         if sim == "verilator" then
             target:add("links", "lua_vpi")
             target:add("files", verilua_home .. "/src/verilator/*.cpp")
@@ -308,7 +316,7 @@ return cfg
             if _tb_gen_flags then
                 tb_gen_flags = table.join2(tb_gen_flags, _tb_gen_flags)
             end
-            local gen_cmd = f(verilua_home .. "/tools/testbench_gen" .. " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str)
+            local gen_cmd = f(verilua_tools_home .. "/testbench_gen" .. " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str)
             local is_generated = false
             local should_regenerate = true
             local input_tb_top_file = target:values("cfg.tb_top_file")
@@ -480,9 +488,9 @@ source setvars.sh
         elseif sim == "vcs" then
             run_sh = f([[%s/simv +vcs+initreg+0 +notimingcheck 2>&1 | tee run.log]], sim_build_dir)
         elseif sim == "iverilog" then
-            run_sh = f([[vvp_wrapper -M %s -m lua_vpi %s/simv.vvp | tee run.log]], verilua_home .. "/shared", sim_build_dir)
+            run_sh = f([[vvp_wrapper -M %s -m lua_vpi %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
         elseif sim == "wave_vpi" then
-            local waveform_file = assert(target:get("waveform_file"), "[on_build] waveform_file not found!")
+            local waveform_file = assert(target:get("waveform_file"), "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
             run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
         end
         io.writefile(build_dir .. "/run.sh",       "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh)
@@ -565,9 +573,9 @@ verdi -f filelist.f -sv -nologo $@
             
             os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/V" .. tb_top .. " " .. table.concat(run_flags, " "))
         elseif sim == "iverilog" then
-            local vvpcmd = verilua_home .. "/tools/vvp_wrapper"
+            local vvpcmd = verilua_tools_home .. "/vvp_wrapper"
 
-            local run_flags = {"-M", verilua_home .. "/shared", "-m", "lua_vpi"}
+            local run_flags = {"-M", verilua_libs_home, "-m", "lua_vpi"}
             local _run_options = target:values("iverilog.run_options")
             local _run_plusargs = target:values("iverilog.run_plusargs")
             if _run_options then
@@ -602,7 +610,7 @@ verdi -f filelist.f -sv -nologo $@
         elseif sim == "wave_vpi" then
             local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
             local wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
-            local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found!")
+            local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
 
             local run_flags = {"--wave-file", waveform_file}
             local _run_flags = target:values("wave_vpi.run_flags")
