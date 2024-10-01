@@ -116,8 +116,7 @@ double sc_time_stamp() {  // Called by $time in Verilog
 // Signal handler
 // 
 // ref: https://stackoverflow.com/a/4217052
-static volatile int got_sigint = 0;
-void sigint_handler(int unused) {
+void sig_handler_common() {
     top->eval_step();
     DUMP_WAVE(main_time);
 
@@ -130,6 +129,11 @@ void sigint_handler(int unused) {
     top->eval_step();
     
     DUMP_WAVE(main_time);
+}
+
+static volatile int got_sigint = 0;
+void sigint_handler(int unused) {
+    sig_handler_common();
 
     got_sigint = 1;
 
@@ -145,18 +149,7 @@ void sigint_handler(int unused) {
 
 static volatile int got_sigabrt = 0;
 void sigabrt_handler(int unused) {
-    top->eval_step();
-    DUMP_WAVE(main_time);
-
-    top->clock = 1;
-    main_time += 5;
-    top->eval_step();
-    
-    top->clock = 0;
-    main_time += 5;
-    top->eval_step();
-    
-    DUMP_WAVE(main_time);
+    sig_handler_common();
 
     got_sigabrt = 1;
 

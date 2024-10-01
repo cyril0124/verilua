@@ -13,10 +13,10 @@ function tcc.new(add_paths)
     assert(tcc.install_dir ~= nil, "tcc.install_dir is nil!!")
   
     if add_paths ~= false and tcc.install_dir then
-      state:set_home_path(tcc.install_dir)
-      state:add_sysinclude_path(tcc.install_dir .. "/lib/tcc" .. "/include")
-      state:add_library_path(tcc.install_dir .. "/lib")
-      state:add_library_path(tcc.install_dir .. "/lib/tcc")
+        state:set_home_path(tcc.install_dir .. "/lib/tcc")
+        state:add_sysinclude_path(tcc.install_dir .. "/lib/tcc" .. "/include")
+        state:add_library_path(tcc.install_dir .. "/lib")
+        state:add_library_path(tcc.install_dir .. "/lib/tcc")
     end
 
     local VERILUA_HOME = os.getenv("VERILUA_HOME")
