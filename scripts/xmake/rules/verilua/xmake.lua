@@ -1,3 +1,21 @@
+local verilua_home = os.getenv("VERILUA_HOME") or ""
+
+local function get_sim(target)
+    local sim
+    if target:toolchain("verilator") ~= nil then
+        sim = "verilator"
+    elseif target:toolchain("iverilog") ~= nil then
+        sim = "iverilog"
+    elseif target:toolchain("vcs") ~= nil then
+        sim = "vcs"
+    elseif target:toolchain("wave_vpi") ~= nil then
+        sim = "wave_vpi"
+    else
+        raise("[on_load] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
+    end
+
+    return sim
+end
 
 rule("verilua")
     set_extensions(".v", ".sv", ".lua", ".vlt", ".vcd", ".fst")
@@ -6,36 +24,12 @@ rule("verilua")
         local f = string.format
 
         -- Check if any of the valid toolchains is set. If not, raise an error.
-        local sim
-        if target:toolchain("verilator") ~= nil then
-            sim = "verilator"
-        elseif target:toolchain("iverilog") ~= nil then
-            sim = "iverilog"
-        elseif target:toolchain("vcs") ~= nil then
-            sim = "vcs"
-        elseif target:toolchain("wave_vpi") ~= nil then
-            sim = "wave_vpi"
-        else
-            raise("[on_load] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
-        end
+        local sim = get_sim(target)
         target:add("sim", sim)
         cprint("${✅} [verilua-xmake] [%s] simulator is ${green underline}%s${reset}", target:name(), sim)
 
         -- Check if VERILUA_HOME is set.
-        local verilua_home = assert(os.getenv("VERILUA_HOME"), "[on_load] please set VERILUA_HOME")
-        target:add("verilua_home", verilua_home)
-        target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include")
-        target:add("includedirs", verilua_home .. "/luajit-pro/luajit2.1/include/luajit-2.1")
-        target:add("includedirs", verilua_home .. "/src/include")
-        target:add("includedirs", verilua_home .. "/vcpkg_installed/x64-linux/include")
-        target:add("links", "luajit-5.1", "fmt")
-        target:add("linkdirs", verilua_home .. "/luajit-pro/luajit2.1/lib", verilua_home .. "/shared", verilua_home .. "/vcpkg_installed/x64-linux/lib")
-        if sim == "verilator" then
-            target:add("links", "lua_vpi")
-            target:add("files", verilua_home .. "/src/verilator/*.cpp")
-        elseif sim == "vcs" then
-            target:add("links", "lua_vpi_vcs", "stdc++")
-        end
+        assert(verilua_home ~= "", "[on_load] [%s] please set VERILUA_HOME", target:name())
 
         -- Generate build directory 
         local top = assert(target:values("cfg.top"), "[on_load] You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
@@ -51,16 +45,8 @@ rule("verilua")
         end
 
         -- Copy lua main file into build_dir
-        local lua_main
-        local _lua_main = os.getenv("LUA_SCRIPT")
-        if _lua_main ~= nil then
-            lua_main = _lua_main
-        else
-            lua_main = assert(target:values("cfg.lua_main"), "[on_load] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")")
-        end
-        lua_main = path.absolute(lua_main)
+        local lua_main = path.absolute(os.getenv("LUA_SCRIPT") or assert(target:values("cfg.lua_main"), "[on_load] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"))
         cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
-
         os.cp(lua_main, build_dir)
 
         -- Copy other lua files into build_dir
@@ -85,16 +71,12 @@ rule("verilua")
 
 
         -- Generate verilua cfg file
-        local tb_top = target:values("cfg.tb_top")
+        local tb_top = target:values("cfg.tb_top") or "tb_top"
         local other_cfg = target:values("cfg.other_cfg")
         local other_cfg_path = "nil"
         local shutdown_cycles = target:values("cfg.shutdown_cycles")
         local deps = target:values("cfg.deps")
         local deps_str = ""
-
-        if tb_top == nil then
-            tb_top = "tb_top"
-        end
 
         target:add("tb_top", tb_top)
 
@@ -166,7 +148,7 @@ return cfg
         target:add("cfg_file", cfg_file)
 
         if sim == "verilator" then
-            -- Verilator flagsx
+            -- Verilator flags
             local public_flat_rw = true
             
             -- Check if there is a verilator config file(*.vlt)
@@ -257,8 +239,9 @@ return cfg
 
     on_build(function (target)
         -- print("on_build")
+        assert(verilua_home ~= "", "[on_build] [%s] please set VERILUA_HOME", target:name())
+
         local f = string.format
-        local verilua_home = assert(os.getenv("VERILUA_HOME"), "[on_build] please set VERILUA_HOME")
         local top = target:get("top")
         local build_dir = target:get("build_dir")
         local sim = target:get("sim")
@@ -270,6 +253,22 @@ return cfg
         local flags = target:values(sim .. ".flags")
         if flags then
             table.join2(argv, flags)
+        end
+
+        -- Add extra includedirs and link flags
+        target:add("includedirs", 
+            verilua_home .. "/vcpkg_installed/x64-linux/include",
+            verilua_home .. "/luajit-pro/luajit2.1/include",
+            verilua_home .. "/luajit-pro/luajit2.1/include/luajit-2.1",
+            verilua_home .. "/src/include"
+        )
+        target:add("links", "luajit-5.1", "fmt")
+        target:add("linkdirs", verilua_home .. "/luajit-pro/luajit2.1/lib", verilua_home .. "/shared", verilua_home .. "/vcpkg_installed/x64-linux/lib")
+        if sim == "verilator" then
+            target:add("links", "lua_vpi")
+            target:add("files", verilua_home .. "/src/verilator/*.cpp")
+        elseif sim == "vcs" then
+            target:add("links", "lua_vpi_vcs", "stdc++")
         end
 
         -- Generate <tb_top>.sv
@@ -527,6 +526,8 @@ verdi -f filelist.f -sv -nologo $@
     end)
 
     on_run(function (target)
+        assert(verilua_home ~= "", "[on_run] [%s] please set VERILUA_HOME", target:name())
+
         local sim = target:get("sim")
         local tb_top = target:get("tb_top")
         local build_dir = target:get("build_dir")
@@ -564,7 +565,6 @@ verdi -f filelist.f -sv -nologo $@
             
             os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/V" .. tb_top .. " " .. table.concat(run_flags, " "))
         elseif sim == "iverilog" then
-            local verilua_home = os.getenv("VERILUA_HOME")
             local vvpcmd = verilua_home .. "/tools/vvp_wrapper"
 
             local run_flags = {"-M", verilua_home .. "/shared", "-m", "lua_vpi"}
