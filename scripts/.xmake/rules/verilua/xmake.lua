@@ -353,7 +353,25 @@ return cfg
 
         if sim == "verilator" then
             toolchain = assert(target:toolchain("verilator"), '[on_build] we need to set_toolchains("@verilator") in target("%s")', target:name())
+            buildcmd = try {
+                function ()
+                    return os.iorun("which verilator") 
+                end
+            }
+            if not buildcmd then
+                local has_which_cmd = try {
+                    function ()
+                        return os.iorun("command -v which")
+                    end
+                }
+
+                if not has_which_cmd then
+                    cprint("${❌} [verilua-xmake] [%s] ${color.error underline}which${reset color.error} command not found!${reset clear}", target:name())
+                end
+
+                cprint("${❌} [verilua-xmake] [%s] ${color.error underline}verilator${reset color.error} not found using `which`. Try getting ${underline}verilator${reset color.error} from toolchain... ${reset clear}", target:name())
             buildcmd = assert(toolchain:config("verilator"), "[on_build] verilator not found!")
+            end
 
             local mode = target:get("mode")
             if mode == "normal" then
@@ -415,6 +433,8 @@ return cfg
         else
             raise("Unknown simulator! => " .. tostring(sim))
         end
+
+        cprint("${✅} [verilua-xmake] [%s] buildcmd is ${green underline}%s${reset}", target:name(), buildcmd)
 
         local sourcefiles = target:sourcefiles()
         local filelist_dut = {} -- only v/sv files

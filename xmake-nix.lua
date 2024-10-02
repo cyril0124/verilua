@@ -12,11 +12,8 @@ local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = os.getenv("WAVEVPI_DIR") or prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
-local toolchains = "gcc"
-
 local function build_common_info()
     set_kind("shared")
-    set_toolchains(toolchains)
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
     set_objectdir(build_dir .. "/obj")
@@ -137,7 +134,6 @@ target(lib_name.."_wave_vpi")
 
 target("wave_vpi_main")
     set_kind("binary")
-    set_toolchains(toolchains)
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
     set_objectdir(build_dir .. "/obj")
@@ -242,7 +238,6 @@ if iverilog_home ~= nil then
 
     target("vvp_wrapper")
         set_kind("binary")
-        set_toolchains(toolchains)
         set_languages("c99", "c++20")
         set_targetdir(build_dir .. "/bin")
         set_objectdir(build_dir .. "/obj")
