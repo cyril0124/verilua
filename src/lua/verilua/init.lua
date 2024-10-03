@@ -124,6 +124,7 @@ do
     end
 end
 local cfg = require(cfg_name)
+assert(type(cfg) == "table", string.format("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
 
 _G.CONNECT_CONFIG = LuaSimConfig.CONNECT_CONFIG
 _G.VeriluaMode = LuaSimConfig.VeriluaMode
