@@ -29,6 +29,8 @@ let
 
   wave_vpi = callPackage ./nix/wave_vpi.nix {};
 
+  lsqlite3 = callPackage ./nix/lsqlite3.nix {};
+
   luajit_pkgs = luajit-pro.pkgs;
 in stdenv.mkDerivation rec {
   name = "verilua";
@@ -201,6 +203,7 @@ ____   ____                .__ .__
     export LUA_CPATH="$LUA_CPATH;${luajit_pkgs.luafilesystem.out}/lib/lua/5.1/?.so"
     export LUA_CPATH="$LUA_CPATH;${luajit_pkgs.luasocket.out}/lib/lua/5.1/?.so"
     export LUA_CPATH="$LUA_CPATH;${luajit_pkgs.linenoise.out}/lib/lua/5.1/?.so"
+    export LUA_CPATH="$LUA_CPATH;${lsqlite3.out}/lib/lua/5.1/?.so"
 
     export LUA_PATH="$LUA_PATH;${luajit_pkgs.penlight.out}/share/lua/5.1/?.lua"
     export LUA_PATH="$LUA_PATH;${luajit_pkgs.luasocket.out}/share/lua/5.1/?.lua"
