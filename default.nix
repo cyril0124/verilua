@@ -118,22 +118,27 @@ in stdenv.mkDerivation rec {
         echo "   -l verilua_home_path   Specify the VERILUA_HOME path"
         echo "   -x xmake_globaldir     Specify the XMAKE_GLOBALDIR"
         echo "   -v                     Show version"
+        echo "   -q                     Quiet mode(no outputs)"
         echo "   -h                     Show help"
     }
 
+    QUIET=0
+
+    CUSTOM_VERILUA_HOME=0
+    CUSTOM_XMAKE_GLOBALDIR=0
     _VERILUA_HOME=${src}
     _XMAKE_GLOBALDIR=@verilua_out@
 
-    while getopts "l:x:vh" opt; do
+    while getopts "l:x:vhq" opt; do
         case $opt in
             l )
                 _VERILUA_HOME=$(realpath $OPTARG)
-                echo -e "[setup_verilua] use custom VERILUA_HOME: $_VERILUA_HOME"
+                CUSTOM_VERILUA_HOME=1
                 ;;
             x )
                 _XMAKE_GLOBALDIR=$(realpath $OPTARG)
+                CUSTOM_XMAKE_GLOBALDIR=1
                 export XMAKE_GLOBALDIR=$_XMAKE_GLOBALDIR
-                echo -e "[setup_verilua] use custom XMAKE_GLOBALDIR: $_XMAKE_GLOBALDIR"
                 ;;
             v )
                 build_time=$(date -d @${builtins.toString builtins.currentTime})
@@ -147,6 +152,9 @@ ____   ____                .__ .__
 "
                 echo -e "Version: ${version}\nBuild time: $build_time\n${stdenv.cc.name}"
                 exit 0
+                ;;
+            q )
+                QUIET=1
                 ;;
             h )
                 show_help
@@ -175,10 +183,20 @@ ____   ____                .__ .__
     export VERILUA_LIBS_HOME=@verilua_out@/lib
     export VERILUA_TOOLS_HOME=@verilua_out@/bin
 
-    echo -e "[setup_verilua] VERILUA_HOME = $VERILUA_HOME"
-    echo -e "[setup_verilua] VERILUA_LIBS_HOME = $VERILUA_LIBS_HOME"
-    echo -e "[setup_verilua] VERILUA_TOOLS_HOME = $VERILUA_TOOLS_HOME"
-    echo -e "[setup_verilua] XMAKE_GLOBALDIR = $XMAKE_GLOBALDIR/.xmake"
+    if [ "$QUIET" -eq 0 ]; then
+        if [ "$CUSTOM_VERILUA_HOME" -eq 1 ]; then
+          echo -e "[setup_verilua] use custom VERILUA_HOME: $_VERILUA_HOME"
+        fi
+
+        if [ "$CUSTOM_XMAKE_GLOBALDIR" -eq 1 ]; then
+          echo -e "[setup_verilua] use custom XMAKE_GLOBALDIR: $_XMAKE_GLOBALDIR"
+        fi
+
+        echo -e "[setup_verilua] VERILUA_HOME = $VERILUA_HOME"
+        echo -e "[setup_verilua] VERILUA_LIBS_HOME = $VERILUA_LIBS_HOME"
+        echo -e "[setup_verilua] VERILUA_TOOLS_HOME = $VERILUA_TOOLS_HOME"
+        echo -e "[setup_verilua] XMAKE_GLOBALDIR = $XMAKE_GLOBALDIR/.xmake"
+    fi
     
     export LUA_CPATH="$LUA_CPATH;${luajit_pkgs.luafilesystem.out}/lib/lua/5.1/?.so"
     export LUA_CPATH="$LUA_CPATH;${luajit_pkgs.luasocket.out}/lib/lua/5.1/?.so"

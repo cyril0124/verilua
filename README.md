@@ -30,6 +30,13 @@ source setup_verilua
 
 To make this easier, you can add `source setup_verilua` to your `.bashrc` or `.zshrc` file.
 
+`-q` option is used to suppress the output of the `setup_verilua` command.
+
+`.bashrc`/`.zshrc`:
+```bash
+source $(which setup_verilua) -q
+```
+
 **Notice**: If you want to use `verilator` in your simulation and `verilua` is installed by `nix`, you need to install `verilator` by `nix` too. We recommend you to install the `verilator` package using `nix/verilator-clang.nix`:
 ```bash
 nix-env -f ./nix/verilator-clang.nix -i
