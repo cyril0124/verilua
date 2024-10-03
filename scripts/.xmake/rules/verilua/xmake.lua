@@ -1,11 +1,12 @@
+local verilua_use_nix = os.getenv("VERILUA_USE_NIX") == "1" or false
 local verilua_home = os.getenv("VERILUA_HOME") or "" -- verilua source code home
 local verilua_tools_home = os.getenv("VERILUA_TOOLS_HOME") or (verilua_home .. "/tools")
 local verilua_libs_home = os.getenv("VERILUA_LIBS_HOME") or (verilua_home .. "/shared")
 local verilua_extra_cflags = os.getenv("VERILUA_EXTRA_CFLAGS") or ""
 local verilua_extra_ldflags = os.getenv("VERILUA_EXTRA_LDFLAGS") or ""
+local verilua_extra_vcs_ldflags = os.getenv("VERILUA_EXTRA_VCS_LDFLAGS") or ""
 local luajitpro_home = os.getenv("LUAJITPRO_HOME") or (verilua_home .. "/luajit-pro/luajit2.1")
 
-verilua_extra_ldflags = "-Wl," .. verilua_extra_ldflags
 
 local function get_sim(target)
     local sim
@@ -22,6 +23,11 @@ local function get_sim(target)
     end
 
     return sim
+end
+
+local function get_command_path(os, command)
+    local command_path = os.iorun("which %s", command):gsub("[\r\n]", "")
+    return command_path
 end
 
 rule("verilua")
@@ -199,7 +205,22 @@ return cfg
                 "-o", sim_build_dir .. "/simv.vvp"
             )
         elseif sim == "vcs" then
-            local libpath = verilua_libs_home
+            local has_which_cmd = try { function () return os.iorun("which which") end }
+            local vcs_cc = has_which_cmd and get_command_path(os, "gcc") or ""
+            local vcs_cpp = has_which_cmd and get_command_path(os, "g++") or ""
+            local vcs_ld = has_which_cmd and get_command_path(os, "g++") or ""
+
+            local custom_toolchain_str = ""
+            if vcs_cc ~= "" then
+                custom_toolchain_str = custom_toolchain_str .. " -cc " .. vcs_cc
+            end
+            if vcs_cpp ~= "" then
+                custom_toolchain_str = custom_toolchain_str .. " -cpp " .. vcs_cpp
+            end
+            if vcs_ld ~= "" then
+                custom_toolchain_str = custom_toolchain_str .. " -ld " .. vcs_ld
+            end
+
             target:add(
                 "values",
                 "vcs.flags",
@@ -217,10 +238,23 @@ return cfg
                 "+define+VCS",
                 "+define+" .. mode:upper() .. "_MODE",
                 "-q",
+
+                custom_toolchain_str,
+
                 "-CFLAGS \"-Ofast -march=native -loop-unroll " .. verilua_extra_cflags .. "\"",
-                "-LDFLAGS \"-Wl,--no-as-needed -flto " .. verilua_extra_ldflags .. "\"",
-                "-load", libpath .. "/liblua_vpi_vcs.so",
-                "-cc", "gcc",
+                "-LDFLAGS \"-flto -Wl,--no-as-needed\"",
+                "-LDFLAGS \"" .. verilua_extra_vcs_ldflags .. "\"",
+                (verilua_extra_ldflags == "") and "" or "-LDFLAGS \"" .. verilua_extra_ldflags .. "\"",
+                f("-LDFLAGS \"-Wl,-rpath,%s\"", verilua_libs_home), -- for liblua_vpi_vcs.so
+                f("-LDFLAGS \"-Wl,-rpath,%s/luajit-pro/luajit2.1/lib\"", verilua_home), -- for libluajit-5.1.so
+                f("-LDFLAGS \"-L%s/luajit-pro/luajit2.1/lib -lluajit-5.1 -llua_vpi_vcs\"", verilua_home),
+                "-LDFLAGS \"-lz\"", -- libz is used by VERDI
+               
+                -- These flags are provided by `default.nix`
+                -- "-LDFLAGS \"-Wl,-rpath,/nix/store/pkl664rrz6vb95piixzfm7qy1yc2xzgc-zlib-1.3.1/lib\"",
+                -- "-LDFLAGS\"-Wl,-rpath,/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib -Wl,-rpath,/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64 -Wl,-rpath,/nix/store/swcl0ynnia5c57i6qfdcrqa72j7877mg-gcc-13.2.0-lib/lib\"",
+
+                "-load " .. verilua_libs_home .. "/liblua_vpi_vcs.so",
                 "-o", sim_build_dir .. "/simv"
             )
         elseif sim == "wave_vpi" then
@@ -265,17 +299,26 @@ return cfg
 
         -- Add extra includedirs and link flags
         target:add("includedirs", 
-            verilua_home .. "/vcpkg_installed/x64-linux/include",
             luajitpro_home .. "/include",
             luajitpro_home .. "/include/luajit-2.1",
             verilua_home .. "/src/include"
         )
         target:add("links", "luajit-5.1", "fmt")
-        target:add("linkdirs", luajitpro_home .. "/lib", verilua_libs_home, verilua_home .. "/vcpkg_installed/x64-linux/lib")
+        target:add("linkdirs", luajitpro_home .. "/lib", verilua_libs_home)
+        
+        if not verilua_use_nix then
+            target:add("linkdirs", verilua_home .. "/vcpkg_installed/x64-linux/lib")
+            target:add("includedirs", verilua_home .. "/vcpkg_installed/x64-linux/include")
+        end
+
         if sim == "verilator" then
             target:add("links", "lua_vpi")
             target:add("files", verilua_home .. "/src/verilator/*.cpp")
         elseif sim == "vcs" then
+            -- If you are entering a C++ file or an object file compiled from a C++ file on 
+            -- the vcs command line, you must tell VCS to use the standard C++ library for 
+            -- linking. To do this, enter the -lstdc++ linker flag with the -LDFLAGS elaboration 
+            -- option.
             target:add("links", "lua_vpi_vcs", "stdc++")
         end
 
@@ -350,28 +393,14 @@ return cfg
             end
         end
 
+        local has_which_cmd = try { function () return os.iorun("which which") end }
+        if not has_which_cmd then
+            cprint("${❌} [verilua-xmake] [%s] ${color.error underline}which${reset color.error} command not found!${reset clear}", target:name())
+        end
 
         if sim == "verilator" then
             toolchain = assert(target:toolchain("verilator"), '[on_build] we need to set_toolchains("@verilator") in target("%s")', target:name())
-            buildcmd = try {
-                function ()
-                    return os.iorun("which verilator") 
-                end
-            }
-            if not buildcmd then
-                local has_which_cmd = try {
-                    function ()
-                        return os.iorun("command -v which")
-                    end
-                }
-
-                if not has_which_cmd then
-                    cprint("${❌} [verilua-xmake] [%s] ${color.error underline}which${reset color.error} command not found!${reset clear}", target:name())
-                end
-
-                cprint("${❌} [verilua-xmake] [%s] ${color.error underline}verilator${reset color.error} not found using `which`. Try getting ${underline}verilator${reset color.error} from toolchain... ${reset clear}", target:name())
-            buildcmd = assert(toolchain:config("verilator"), "[on_build] verilator not found!")
-            end
+            buildcmd = try { function () return os.iorun("which verilator") end } or assert(toolchain:config("verilator"), "[on_build] verilator not found!")
 
             local mode = target:get("mode")
             if mode == "normal" then
@@ -404,12 +433,11 @@ return cfg
             end
         elseif sim == "iverilog" then
             toolchain = assert(target:toolchain("iverilog"), '[on_build] we need to set_toolchains("@iverilog") in target("%s")', target:name())
-            buildcmd = assert(toolchain:config("iverilog"), "[on_build] iverilog not found!")
-            
-            -- raise("TODO: iverilog")
+            buildcmd = try { function () return os.iorun("which iverilog")  end } or assert(toolchain:config("iverilog"), "[on_build] iverilog not found!")
+
         elseif sim == "vcs" then
             toolchain = assert(target:toolchain("vcs"), '[on_build] we need to set_toolchains("@vcs") in target("%s")', target:name())
-            buildcmd = assert(toolchain:config("vcs"), "[on_build] vcs not found!")
+            buildcmd = try { function () return os.iorun("which vcs")  end } or assert(toolchain:config("vcs"), "[on_build] vcs not found!")
 
             local includedirs = target:get("includedirs")
             for _, dir in ipairs(includedirs) do
@@ -462,11 +490,9 @@ return cfg
             -- Write filelist of this build
             io.writefile(build_dir .."/dut_file.f", table.concat(filelist_dut, '\n'))
             io.writefile(build_dir .."/sim_file.f", table.concat(filelist_sim, '\n'))
-            -- table.insert(argv, "-f")
-            -- table.insert(argv,  build_dir .. "/sim_file.f")
 
-            -- Run the verilator command to generate target binary
-            os.vrun(buildcmd .. " " .. table.concat(argv, " "))
+            -- Run the build command to generate target binary
+            os.vrun(buildcmd .. " " .. table.concat(argv, " "), {envs = {LD_LIBRARY_PATH = "/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib:/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64"}})
         end
 
         -- Create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation
@@ -531,6 +557,13 @@ verdi -f filelist.f -sv -nologo $@
             os.cp(sim_build_dir .. "/simv.vvp", target:targetdir())
             os.cp(sim_build_dir .. "/simv.vvp", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "vcs" then
+            if verilua_use_nix then
+                -- Bug: undefined symbol: __tunable_is_initialized, version GLIBC_PRIVATE ==> patchelf --set-interpreter /nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64/ld-linux-x86-64.so.2 simv
+                local vl_patchelf_full_path = os.iorun("which vl-patchelf"):gsub("[\r\n]", "")
+                local ld_linux_so = os.iorun("vl-patchelf --print-interpreter %s", vl_patchelf_full_path):gsub("[\r\n]", "")
+                os.exec("vl-patchelf --set-interpreter %s %s", ld_linux_so, sim_build_dir .. "/simv") 
+            end
+
             os.cp(sim_build_dir .. "/simv", target:targetdir())
             os.cp(sim_build_dir .. "/simv", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "wave_vpi" then

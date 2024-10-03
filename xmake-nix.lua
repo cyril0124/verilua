@@ -22,7 +22,6 @@ local function build_common_info()
     add_shflags(
         -- "-L".. lua_dir .. "/lib" .. " -lluajit-5.1", -- dynamic link luajit2.1
         "-lrt", -- support shm_open
-        "-static-libstdc++ -static-libgcc",
         "-Wl,--no-as-needed",
         {force = true}
     )
@@ -36,7 +35,6 @@ local function build_common_info()
     -- add_defines("VL_DEF_VPI_LOCK_GUARD")
     
     add_files(
-        lua_dir .. "/lib/libluajit-5.1.a",
         src_dir .. "/verilua/lua_vpi.cpp",
         src_dir .. "/verilua/verilator_helper.cpp",
         src_dir .. "/verilua/vpi_access.cpp",
@@ -48,7 +46,7 @@ local function build_common_info()
         src_dir .. "/gen"
     )
 
-    add_links("fmt", "mimalloc")
+    add_links("fmt", "mimalloc", "luajit-5.1")
 
     if is_mode("debug") then
         add_defines("DEBUG")

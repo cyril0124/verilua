@@ -12,9 +12,6 @@ local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
--- local toolchains = "clang-18"
-local toolchains = "gcc"
-
 add_requires("conan::fmt/10.2.1", {alias = "fmt"})
 add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
 add_requires("conan::libassert/2.1.0", {alias = "libassert"})
@@ -24,17 +21,16 @@ add_requires("conan::inja/3.4.0", {alias = "inja"})
 
 local function build_common_info()
     set_kind("shared")
-    set_toolchains(toolchains)
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
     set_objectdir(build_dir .. "/obj")
 
     -- shared lib link flags (! instead of add_ldflags)
     add_shflags(
-        -- "-L".. lua_dir .. "/lib" .. " -lluajit-5.1", -- dynamic link luajit2.1
         "-lrt", -- support shm_open
         "-static-libstdc++ -static-libgcc",
         "-Wl,--no-as-needed",
+        -- "-Wl,-Bstatic", "-lluajit-5.1", "-Wl,-Bdynamic",
         {force = true}
     )
 
@@ -63,6 +59,10 @@ local function build_common_info()
     )
 
     add_packages("fmt", "mimalloc", "elfio")
+    
+    -- add_links("luajit-5.1")
+    -- add_linkdirs(lua_dir .. "/lib")
+    -- add_rpathdirs(lua_dir .. "/lib")
 
     if is_mode("debug") then
         add_defines("DEBUG")
@@ -148,7 +148,6 @@ target(lib_name.."_wave_vpi")
 
 target("wave_vpi_main")
     set_kind("binary")
-    set_toolchains(toolchains)
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
     set_objectdir(build_dir .. "/obj")
@@ -252,7 +251,6 @@ if iverilog_home ~= nil then
 
     target("vvp_wrapper")
         set_kind("binary")
-        set_toolchains(toolchains)
         set_languages("c99", "c++20")
         set_targetdir(build_dir .. "/bin")
         set_objectdir(build_dir .. "/obj")
@@ -398,10 +396,16 @@ target("install_other_libs")
     set_kind("phony")
     on_run(function (target)
         local execute = os.exec
-        execute("git clone https://github.com/microsoft/vcpkg")
-        execute("./vcpkg/bootstrap-vcpkg.sh")
-        execute("./vcpkg/vcpkg x-update-baseline --add-initial-baseline")
-        execute("./vcpkg/vcpkg install")
+        local has_vcpkg = try { function () return os.iorun("vcpkg --version") end }
+        if has_vcpkg then
+            execute("vcpkg x-update-baseline --add-initial-baseline")
+            execute("vcpkg install --x-install-root ./vcpkg_installed")
+        else
+            execute("git clone https://github.com/microsoft/vcpkg")
+            execute("./vcpkg/bootstrap-vcpkg.sh")
+            execute("./vcpkg/vcpkg x-update-baseline --add-initial-baseline")
+            execute("./vcpkg/vcpkg install")
+        end
     end)
 
 target("install_lua_modules")
@@ -529,6 +533,17 @@ target("verilua")
         end
     end)
 
+target("install_vcs_patch_lib")
+    set_kind("phony")
+    on_run(function (target)
+        if not os.isfile(lua_dir .. "/lib/libluajit-5.1.so") then
+            os.exec("xmake run install_luajit")
+        end
+        os.exec("xmake run -v install_other_libs")
+        os.exec("git submodule update --init extern/boost_unordered")
+        os.exec("xmake build -v -y lua_vpi_vcs")
+    end)
+
 target("verilua-nix")
     set_kind("phony")
     on_install(function (target)
@@ -537,5 +552,6 @@ target("verilua-nix")
         os.exec("git submodule update --init extern/debugger.lua")
         os.exec("git submodule update --init extern/LuaPanda")
         os.exec("git submodule update --init extern/luafun")
+        os.exec("nix-shell --run \"xmake run -v install_vcs_patch_lib\"")
         os.exec("nix-env -f . -i")
     end)

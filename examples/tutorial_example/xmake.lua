@@ -1,11 +1,19 @@
+local sim = os.getenv("SIM") or "verilator"
+
 target("TestDesign")
     -- 1. add `veriluua` rule
     add_rules("verilua")
 
     -- 2. set toolchains, you can choose one of the following
-    -- set_toolchains("@iverilog")
-    set_toolchains("@verilator")
-    -- set_toolchains("@vcs")
+    if sim == "iverilog" then
+        add_toolchains("@iverilog")
+    elseif sim == "vcs" then
+        add_toolchains("@vcs")
+    elseif sim == "verilator" then
+        add_toolchains("@verilator")
+    else
+        raise("unknown simulator: %s", sim)
+    end
 
     -- 3. add files, including verilog and lua files(or C/C++ files)
     add_files(

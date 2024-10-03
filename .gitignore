@@ -4,12 +4,14 @@ luajit2.1/
 */.nfs*
 .nfs*
 tmp/
-shared/*
+shared/*.so
 scripts/rt_plot/*.out
 build/
 test/
-.xmake/
+/.xmake
 .verilua/
 vcpkg/
 vcpkg_installed/
 tmp/
+*.log
+result

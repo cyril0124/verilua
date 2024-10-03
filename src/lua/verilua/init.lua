@@ -14,6 +14,11 @@ do
         package.cpath = package.cpath .. ";" .. path
     end
 
+    local LUA_PATH = os.getenv("LUA_PATH") or ""
+    local LUA_CPATH = os.getenv("LUA_CPATH") or ""
+    package.path = package.path .. ";" .. LUA_PATH
+    package.cpath = package.cpath .. ";" .. LUA_CPATH
+
     append_package_path(PWD .. "?.lua")
     append_package_path(PWD .. "/?.lua")
     append_package_path(PWD .. "/src/lua/?.lua")

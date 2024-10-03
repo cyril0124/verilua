@@ -1,5 +1,6 @@
-{ pkgs ? import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {} }:
+{ pkgs ? import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {}, useClang ? true }:
 let
+  stdenv = if useClang then pkgs.clangStdenv else pkgs.stdenv;
   callPackage = pkgs.callPackage;
   fetchFromGitHub = pkgs.fetchFromGitHub;
 
@@ -24,15 +25,38 @@ let
   
   boost_unordered = callPackage ./nix/boost_unordered.nix {};
 
-  slang = callPackage ./nix/slang.nix {};
+  slang = callPackage ./nix/slang.nix { enableShared = false;};
 
   wave_vpi = callPackage ./nix/wave_vpi.nix {};
 
   luajit_pkgs = luajit-pro.pkgs;
-in pkgs.stdenv.mkDerivation rec {
+in stdenv.mkDerivation rec {
   name = "verilua";
-  version = "1.0";
-  src = ./.;
+  version = "1.1";
+
+  src = pkgs.nix-gitignore.gitignoreSourcePure ''
+    *
+    !src/
+    !tools/
+    !shared/
+    !scripts/
+    !wave_vpi/
+
+    !extern/
+    extern/*
+    !extern/luafun/
+    !extern/LuaPanda/
+    !extern/debugger.lua/
+    !extern/slang-common/
+    
+    !luajit-pro/
+    luajit-pro/*
+    !luajit-pro/luajit2.1/
+    luajit-pro/luajit2.1/*
+    !luajit-pro/luajit2.1/lib/
+    
+    !xmake-nix.lua
+  '' ./.;
 
   nativeBuildInputs = with pkgs; [
     xmake
@@ -49,7 +73,6 @@ in pkgs.stdenv.mkDerivation rec {
     slang
     wave_vpi
   ] ++ (with pkgs; [
-    # tinycc
     mimalloc
     argparse
     elfio
@@ -57,7 +80,7 @@ in pkgs.stdenv.mkDerivation rec {
     zstd # for libassert
   ]) ++ (with pkgsu; [
     boost186
-    fmt_11
+    (fmt_11.override { enableShared = false; })
     inja
   ]) ++ (with nur.repos; [
     # for libassert
@@ -68,19 +91,21 @@ in pkgs.stdenv.mkDerivation rec {
   ]);
 
   buildPhase = ''
-    xmake build -F xmake-nix.lua lua_vpi
-    xmake build -F xmake-nix.lua lua_vpi_vcs
+    rm .xmake -rf
+    # xmake f -F xmake-nix.lua --ld=clang --cc=clang --cxx=clang++
+    xmake build -v -F xmake-nix.lua lua_vpi
+    # xmake build -v -F xmake-nix.lua lua_vpi_vcs # This is built by `xmake run install_vcs_patch_lib`
 
     export IVERILOG_HOME=${iverilog}
-    xmake build -F xmake-nix.lua lua_vpi_iverilog
-    xmake build -F xmake-nix.lua iverilog_vpi_module
+    xmake build -v -F xmake-nix.lua lua_vpi_iverilog
+    xmake build -v -F xmake-nix.lua iverilog_vpi_module
     xmake build -F xmake-nix.lua vvp_wrapper
 
     export WAVEVPI_DIR=${wave_vpi.src}
-    xmake build -F xmake-nix.lua lua_vpi_wave_vpi
-    xmake build -F xmake-nix.lua wave_vpi_main
+    xmake build -v -F xmake-nix.lua lua_vpi_wave_vpi
+    xmake build -v -F xmake-nix.lua wave_vpi_main
 
-    xmake build -F xmake-nix.lua testbench_gen
+    xmake build -v -F xmake-nix.lua testbench_gen
   '';
 
   setup_verilua = pkgs.writeScriptBin "setup_verilua"
@@ -111,7 +136,16 @@ in pkgs.stdenv.mkDerivation rec {
                 echo -e "[setup_verilua] use custom XMAKE_GLOBALDIR: $_XMAKE_GLOBALDIR"
                 ;;
             v )
-                echo "Version: ${version}"
+                build_time=$(date -d @${builtins.toString builtins.currentTime})
+                echo "
+____   ____                .__ .__                  
+\   \ /   /  ____  _______ |__||  |   __ __ _____   
+ \   Y   / _/ __ \ \_  __ \|  ||  |  |  |  \\__  \  
+  \     /  \  ___/  |  | \/|  ||  |__|  |  / / __ \_
+   \___/    \___  > |__|   |__||____/|____/ (____  /
+                \/                               \/ 
+"
+                echo -e "Version: ${version}\nBuild time: $build_time\n${stdenv.cc.name}"
                 exit 0
                 ;;
             h )
@@ -164,8 +198,10 @@ in pkgs.stdenv.mkDerivation rec {
     export LUA_PATH="$LUA_PATH;$VERILUA_HOME/extern/luafun/?.lua"
     export LUA_PATH="$LUA_PATH;$VERILUA_HOME/extern/LuaPanda/Debugger/?.lua"
 
+    export VERILUA_USE_NIX=1
     export VERILUA_EXTRA_CFLAGS="@verilua_extra_cflags@"
     export VERILUA_EXTRA_LDFLAGS="@verilua_extra_ldflags@"
+    export VERILUA_EXTRA_VCS_LDFLAGS="@verilua_extra_vcs_ldflags@"
     export CONFIG_TCCDIR=${pkgs.tinycc}
     export LUAJITPRO_HOME=${luajit-pro}
   '';
@@ -174,6 +210,7 @@ in pkgs.stdenv.mkDerivation rec {
     mkdir -p $out/bin
     cp ${setup_verilua}/bin/* $out/bin
     cp ${luajit-pro}/bin/* $out/bin
+    cp ${pkgs.patchelf}/bin/patchelf $out/bin/vl-patchelf # alias name for patchelf
     cp ${iverilog}/bin/* $out/bin
     cp tools/vvp_wrapper $out/bin/
     cp tools/wave_vpi_main $out/bin/
@@ -184,14 +221,19 @@ in pkgs.stdenv.mkDerivation rec {
 
     mkdir -p $out/lib
     cp shared/liblua_vpi.so $out/lib/
-    cp shared/liblua_vpi_vcs.so $out/lib/
+    # cp shared/liblua_vpi_vcs.so $out/lib/ # This is built by `xmake run install_vcs_patch_lib`
     cp shared/liblua_vpi_iverilog.so $out/lib/
     cp shared/lua_vpi.vpi $out/lib/
     cp shared/liblua_vpi_wave_vpi.so $out/lib/
 
+    if [ -e ${src}/shared/liblua_vpi_vcs.so ]; then
+      ln -s ${src}/shared/liblua_vpi_vcs.so $out/lib/liblua_vpi_vcs.so
+    fi
+
     substituteInPlace $out/bin/setup_verilua \
       --subst-var-by verilua_out $out \
       --subst-var-by verilua_extra_cflags "$NIX_CFLAGS_COMPILE" \
-      --subst-var-by verilua_extra_ldflags "$NIX_LDFLAGS"
+      --subst-var-by verilua_extra_ldflags "-L${pkgsu.fmt_11}/lib" \
+      --subst-var-by verilua_extra_vcs_ldflags "-Wl,-rpath,$out/lib -Wl,-rpath,${pkgs.libz}/lib -Wl,-rpath,${pkgs.glibc}/lib -Wl,-rpath,${pkgs.glibc}/lib64 -Wl,-rpath=${pkgs.libgcc.lib}/lib -Wl,-rpath,${pkgsu.fmt_11}/lib"
   '';
 }
