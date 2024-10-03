@@ -11,6 +11,7 @@ It is fine if you dont't manually install `conan`. It will will be automatically
 If you have `nix` installed, you can simply run the following command to install `verilua`:
 
 ```bash
+nix-shell --pure # Optional, use nix-shell to create a clean build environment
 xmake install verilua-nix
 ```
 
