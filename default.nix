@@ -110,7 +110,17 @@ in stdenv.mkDerivation rec {
     xmake build -v -F xmake-nix.lua testbench_gen
   '';
 
-  setup_verilua = pkgs.writeScriptBin "setup_verilua"
+  lua_bin = pkgs.writeScriptBin "lua"
+  ''
+    ${pkgs.rlwrap}/bin/rlwrap --prompt-colour=cyan ${luajit-pro}/bin/lua $@
+  '';
+
+  luajit_bin = pkgs.writeScriptBin "luajit"
+  ''
+    ${pkgs.rlwrap}/bin/rlwrap --prompt-colour=cyan ${luajit-pro}/bin/luajit $@
+  '';
+
+  setup_verilua_bin = pkgs.writeScriptBin "setup_verilua"
   ''
     #! ${pkgs.runtimeShell}
 
@@ -229,8 +239,9 @@ ____   ____                .__ .__
 
   installPhase = ''
     mkdir -p $out/bin
-    cp ${setup_verilua}/bin/* $out/bin
-    cp ${luajit-pro}/bin/* $out/bin
+    cp ${setup_verilua_bin}/bin/* $out/bin
+    cp ${lua_bin}/bin/* $out/bin
+    cp ${luajit_bin}/bin/* $out/bin
     cp ${pkgs.patchelf}/bin/patchelf $out/bin/vl-patchelf # alias name for patchelf
     cp ${iverilog}/bin/* $out/bin
     cp tools/vvp_wrapper $out/bin/
