@@ -1,12 +1,12 @@
 { pkgs ? import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {}, useClang ? true }:
 let
-  stdenv = if useClang then pkgs.clangStdenv else pkgs.stdenv;
-  callPackage = pkgs.callPackage;
-  fetchFromGitHub = pkgs.fetchFromGitHub;
-
   pkgsu = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/4a793e2f3288b8f89430aab927d08d347e20b83e.tar.gz") {};
   nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/6e3fe03d595ef27048e196c71cf815425ee7171a.tar.gz") { inherit pkgs; };
   
+  stdenv = if useClang then pkgsu.clangStdenv else pkgs.stdenv; # pkgsu has clang-18
+  callPackage = pkgs.callPackage;
+  fetchFromGitHub = pkgs.fetchFromGitHub;
+
   iverilog = callPackage ./nix/iverilog.nix {};
   
   luajit-pro = callPackage (fetchFromGitHub {
