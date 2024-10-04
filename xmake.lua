@@ -555,3 +555,33 @@ target("verilua-nix")
         os.exec("nix-shell --run \"xmake run -v install_vcs_patch_lib\"")
         os.exec("nix-env -f . -i")
     end)
+
+target("test")
+    set_kind("phony")
+    on_run(function (target)
+        os.cd(prj_dir .. "/examples/tutorial_example")
+
+        local simulators = {"iverilog", "verilator"}
+        for _, sim in ipairs(simulators) do
+            os.setenv("SIM", sim)
+            os.exec("rm build -rf")
+            os.exec("xmake build -v -P .")
+            os.exec("xmake run -v -P .")
+        end
+
+        os.cd(prj_dir .. "/examples/wave_vpi")
+        os.setenv("SIM", "iverilog")
+        os.exec("rm build -rf")
+        os.exec("xmake build -v -P . gen_wave")
+        os.exec("xmake run -v -P . gen_wave")
+        os.exec("xmake build -v -P . sim_wave")
+        os.exec("xmake run -v -P . sim_wave")
+        cprint([[${green}
+  _____         _____ _____ 
+ |  __ \ /\    / ____/ ____|
+ | |__) /  \  | (___| (___  
+ |  ___/ /\ \  \___ \\___ \ 
+ | |  / ____ \ ____) |___) |
+ |_| /_/    \_\_____/_____/ 
+${reset}]])
+    end)

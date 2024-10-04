@@ -7,24 +7,6 @@ local verilua_extra_ldflags = os.getenv("VERILUA_EXTRA_LDFLAGS") or ""
 local verilua_extra_vcs_ldflags = os.getenv("VERILUA_EXTRA_VCS_LDFLAGS") or ""
 local luajitpro_home = os.getenv("LUAJITPRO_HOME") or (verilua_home .. "/luajit-pro/luajit2.1")
 
-
-local function get_sim(target)
-    local sim
-    if target:toolchain("verilator") ~= nil then
-        sim = "verilator"
-    elseif target:toolchain("iverilog") ~= nil then
-        sim = "iverilog"
-    elseif target:toolchain("vcs") ~= nil then
-        sim = "vcs"
-    elseif target:toolchain("wave_vpi") ~= nil then
-        sim = "wave_vpi"
-    else
-        raise("[on_load] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
-    end
-
-    return sim
-end
-
 local function get_command_path(os, command)
     local command_path = os.iorun("which %s", command):gsub("[\r\n]", "")
     return command_path
@@ -37,7 +19,19 @@ rule("verilua")
         local f = string.format
 
         -- Check if any of the valid toolchains is set. If not, raise an error.
-        local sim = get_sim(target)
+        local sim
+        if target:toolchain("verilator") ~= nil then
+            sim = "verilator"
+        elseif target:toolchain("iverilog") ~= nil then
+            sim = "iverilog"
+        elseif target:toolchain("vcs") ~= nil then
+            sim = "vcs"
+        elseif target:toolchain("wave_vpi") ~= nil then
+            sim = "wave_vpi"
+        else
+            raise("[on_load] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
+        end
+
         target:add("sim", sim)
         cprint("${✅} [verilua-xmake] [%s] simulator is ${green underline}%s${reset}", target:name(), sim)
 
@@ -183,6 +177,7 @@ return cfg
                 "-Mdir", sim_build_dir,
                 "--x-assign", "unique",
                 "-O3",
+                "-j " .. tostring((os.cpuinfo().ncpu or 128)),
                 "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
                 "--timescale-override", "1ns/1ns",
                 "+define+SIM_VERILATOR",
@@ -232,6 +227,7 @@ return cfg
                 "+v2k",
                 "-lca",
                 "-kdb",
+                "-j" .. tostring((os.cpuinfo().ncpu or 128)),
                 "-timescale=1ns/1ns",
                 "+vcs+initreg+random",
                 "+define+SIM_VCS",

@@ -55,3 +55,8 @@ xmake -y -P .
 
 ## Usage
 We provide some examples to show how to use `verilua`. The example is located in the `examples` directory.
+
+There is a `test` target in `xmake.lua` file, you can run the following command to run the test:
+```bash
+xmake run test
+```
