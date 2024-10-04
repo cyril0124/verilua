@@ -30,9 +30,9 @@ std::unique_ptr<Vtb_top> top(new Vtb_top(""));
 
 #if VM_TRACE
     #if VM_TRACE_FST
-        std::unique_ptr<VerilatedFstC> tfp;
+        static VerilatedFstC *tfp
     #else
-        std::unique_ptr<VerilatedVcdC> tfp;
+        static VerilatedVcdC *tfp;
     #endif
 #endif
 
@@ -53,8 +53,8 @@ Config cfg;
             do { \
                 if (cfg.enable_wave && !cfg.wave_is_enable) { \
                     Verilated::traceEverOn(true); \
-                    tfp.reset(new VerilatedFstC()); \
-                    top->trace(tfp.get(), 99); \
+                    tfp = new VerilatedFstC; \
+                    top->trace(tfp, 99); \
                     tfp->open(cfg.trace_file); \
                     cfg.wave_is_enable = true; \
                 } \
@@ -64,8 +64,8 @@ Config cfg;
             do { \
                 if (cfg.enable_wave && !cfg.wave_is_enable) { \
                     Verilated::traceEverOn(true); \
-                    tfp.reset(new VerilatedVcdC()); \
-                    top->trace(tfp.get(), 99); \
+                    tfp = new VerilatedVcdC; \
+                    top->trace(tfp, 99); \
                     tfp->open(cfg.trace_file); \
                     cfg.wave_is_enable = true; \
                 } \
@@ -160,7 +160,7 @@ void sigabrt_handler(int unused) {
 
     VerilatedVpi::callCbs(cbEndOfSimulation);
 
-    exit(0);
+    exit(1);
 }
 
 

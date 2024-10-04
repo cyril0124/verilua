@@ -55,7 +55,7 @@ static void sigabrt_handler(int signal) {
 ----   Verilua get <SIGABRT>, the program will terminate...      ----
 ---------------------------------------------------------------------
 )");
-    exit(0); // we should successfully exit simulation no matter what lead to the simulation failed.
+    exit(1);
 }
 
 void VeriluaEnv::finalize() {
