@@ -94,7 +94,7 @@ in stdenv.mkDerivation rec {
 
   buildPhase = ''
     rm .xmake -rf
-    # xmake f -F xmake-nix.lua --ld=clang --cc=clang --cxx=clang++
+    xmake config -F xmake-nix.lua --ld=clang++ --sh=clang++ --cc=clang --cxx=clang++
     xmake build -v -F xmake-nix.lua lua_vpi
     # xmake build -v -F xmake-nix.lua lua_vpi_vcs # This is built by `xmake run install_vcs_patch_lib`
 
@@ -138,7 +138,10 @@ in stdenv.mkDerivation rec {
 
     CUSTOM_VERILUA_HOME=0
     CUSTOM_XMAKE_GLOBALDIR=0
+
     _VERILUA_HOME=${src}
+    _VERILUA_VERSION=${version}
+    _VERILUA_BUILD_TIME=$(date -d @${builtins.toString builtins.currentTime})
     _XMAKE_GLOBALDIR=@verilua_out@
 
     while getopts "l:x:vhq" opt; do
@@ -153,7 +156,6 @@ in stdenv.mkDerivation rec {
                 export XMAKE_GLOBALDIR=$_XMAKE_GLOBALDIR
                 ;;
             v )
-                build_time=$(date -d @${builtins.toString builtins.currentTime})
                 echo "
 ____   ____                .__ .__                  
 \   \ /   /  ____  _______ |__||  |   __ __ _____   
@@ -162,7 +164,7 @@ ____   ____                .__ .__
    \___/    \___  > |__|   |__||____/|____/ (____  /
                 \/                               \/ 
 "
-                echo -e "Version: ${version}\nBuild time: $build_time\n${stdenv.cc.name}"
+                echo -e "Version: $_VERILUA_VERSION\nBuild time: $_VERILUA_BUILD_TIME\n${stdenv.cc.name}"
                 exit 0
                 ;;
             q )
@@ -215,6 +217,7 @@ ____   ____                .__ .__
     export LUA_CPATH="$LUA_CPATH;${luajit_pkgs.linenoise.out}/lib/lua/5.1/?.so"
     export LUA_CPATH="$LUA_CPATH;${lsqlite3.out}/lib/lua/5.1/?.so"
 
+    export LUA_PATH="$LUA_PATH;${luajit-pro}/share/lua/5.1/?.lua"
     export LUA_PATH="$LUA_PATH;${luajit_pkgs.penlight.out}/share/lua/5.1/?.lua"
     export LUA_PATH="$LUA_PATH;${luajit_pkgs.luasocket.out}/share/lua/5.1/?.lua"
     export LUA_PATH="$LUA_PATH;${luajit_pkgs.busted.out}/share/lua/5.1/?.lua"
@@ -233,6 +236,8 @@ ____   ____                .__ .__
     export VERILUA_EXTRA_CFLAGS="@verilua_extra_cflags@"
     export VERILUA_EXTRA_LDFLAGS="@verilua_extra_ldflags@"
     export VERILUA_EXTRA_VCS_LDFLAGS="@verilua_extra_vcs_ldflags@"
+    export VERILUA_BUILD_TIME=$_VERILUA_BUILD_TIME
+    export VERILUA_VERSION=$_VERILUA_VERSION
     export CONFIG_TCCDIR=${pkgs.tinycc}
     export LUAJITPRO_HOME=${luajit-pro}
   '';

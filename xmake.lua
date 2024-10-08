@@ -547,13 +547,20 @@ target("install_vcs_patch_lib")
 target("verilua-nix")
     set_kind("phony")
     on_install(function (target)
-        os.exec("git submodule update --init wave_vpi")
-        os.exec("git submodule update --init extern/slang-common")
-        os.exec("git submodule update --init extern/debugger.lua")
-        os.exec("git submodule update --init extern/LuaPanda")
-        os.exec("git submodule update --init extern/luafun")
-        os.exec("nix-shell --run \"xmake run -v install_vcs_patch_lib\"")
-        os.exec("nix-env -f . -i")
+        local execute = os.vrun
+        execute("git submodule update --init wave_vpi")
+        execute("git submodule update --init extern/slang-common")
+        execute("git submodule update --init extern/debugger.lua")
+        execute("git submodule update --init extern/LuaPanda")
+        execute("git submodule update --init extern/luafun")
+        execute("rm .xmake -rf")
+        execute("rm build -rf")
+        -- ! The vcs lib should be built with the local gcc toolchain.
+        execute("nix-shell --run \"\
+            unset XMAKE_GLOBALDIR \
+            xmake run -F xmake.lua -v -y install_vcs_patch_lib \
+        \"")
+        execute("nix-env -f . -i")
     end)
 
 target("test")
