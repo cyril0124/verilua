@@ -10,6 +10,9 @@ in pkgs.mkShellNoCC rec {
     nix
     xmake
     conan
+    curl
+    zip
+    unzip
     pkgsu.vcpkg
     pkg-config
     clang_18

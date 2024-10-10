@@ -397,14 +397,31 @@ target("install_other_libs")
     on_run(function (target)
         local execute = os.exec
         local has_vcpkg = try { function () return os.iorun("vcpkg --version") end }
+        local install_using_git = function ()
+            if not os.exists("vcpkg") then
+                execute("git clone https://github.com/microsoft/vcpkg")
+            end
+            local success = try {
+                function ()
+                    execute("./vcpkg/bootstrap-vcpkg.sh")
+                    execute("./vcpkg/vcpkg x-update-baseline --add-initial-baseline")
+                    execute("./vcpkg/vcpkg install")
+                end
+            }
+        end
+
         if has_vcpkg then
-            execute("vcpkg x-update-baseline --add-initial-baseline")
-            execute("vcpkg install --x-install-root ./vcpkg_installed")
+            local success = try {
+                function ()
+                    execute("vcpkg x-update-baseline --add-initial-baseline")
+                    execute("vcpkg install --x-install-root ./vcpkg_installed")
+                end
+            }
+            if not success then
+                install_using_git()
+            end
         else
-            execute("git clone https://github.com/microsoft/vcpkg")
-            execute("./vcpkg/bootstrap-vcpkg.sh")
-            execute("./vcpkg/vcpkg x-update-baseline --add-initial-baseline")
-            execute("./vcpkg/vcpkg install")
+            install_using_git()
         end
     end)
 
