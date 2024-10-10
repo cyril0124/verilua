@@ -657,8 +657,12 @@ verdi -f filelist.f -sv -nologo $@
             
             os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/simv " .. table.concat(run_flags, " "))
         elseif sim == "wave_vpi" then
-            local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
-            local wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
+            local wave_vpi_main = try{ function() return os.iorun("which wave_vpi_main") end }
+            if not wave_vpi_main then
+                local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
+                wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
+            end
+            
             local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
 
             local run_flags = {"--wave-file", waveform_file}
