@@ -430,8 +430,29 @@ local function create_proxy(path)
             assert(typ == "number" or typ == "cdata")
 
             return t:get() ~= value
-        end
-        
+        end,
+
+        -- 
+        -- Example:
+        --      assert(dut.path.to.signal:is_hex_str("0x1"))
+        --      assert(dut.another_signal:is_bin_str("0b101"))
+        --      assert(dut.another_signal:is_dec_str("1"))
+        --      
+        --      You can also combine this with "_if":
+        --          dut.path.to.signal:_if(dut.signal:is_hex_str("0x1")):expect(123)
+        --
+        is_hex_str = function(t, hex_value_str)
+            return compare_value_str( "0x" .. t:get_str(HexStr), hex_value_str)
+        end,
+
+        is_bin_str = function(t, bin_value_str)
+            return compare_value_str( "0b" .. t:get_str(BinStr), bin_value_str)
+        end,
+
+        is_dec_str = function(t, dec_value_str)
+            return compare_value_str(t:get_str(DecStr), dec_value_str)
+        end,
+
     }, {
         __index = function(t, k)
             return create_proxy(local_path .. '.' .. k)

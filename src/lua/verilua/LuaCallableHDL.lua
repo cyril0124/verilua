@@ -798,6 +798,21 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         return this:get() ~= value
     end
+
+    self.is_hex_str = function (this, hex_value_str)
+        assert(type(hex_value_str) == "string")
+        return compare_value_str("0x" .. this:get_str(HexStr), hex_value_str)
+    end
+
+    self.is_bin_str = function (this, bin_value_str)
+        assert(type(bin_value_str) == "string")
+        return compare_value_str("0b" .. this:get_str(BinStr), bin_value_str)
+    end
+
+    self.is_dec_str = function (this, dec_value_str)
+        assert(type(dec_value_str) == "string")
+        return compare_value_str(this:get_str(DecStr), dec_value_str)
+    end
 end
 
 function CallableHDL:__call(force_multi_beat)
