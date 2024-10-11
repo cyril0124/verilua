@@ -509,6 +509,7 @@ do
         local prefix = ""
         local is_decoupled = true
         local name = "Unknown"
+        local optional_signals = nil
         for key, value in pairs(params_table) do
             if key == "prefix" then
                 assert(type(value) == "string")
@@ -519,6 +520,12 @@ do
             elseif key == "name" then
                 assert(type(value) == "string")
                 name = value
+            elseif key == "optional_signals" then
+                assert(type(value) == "table")
+                if #value > 0 then
+                    assert(type(value[1]) == "string")
+                end
+                optional_signals = value
             elseif key == "hier" then
                 -- pass
             else
@@ -526,7 +533,7 @@ do
             end
         end
 
-        return Bundle(_signals_table, prefix, hier, name, is_decoupled)
+        return Bundle(_signals_table, prefix, hier, name, is_decoupled, optional_signals)
     end
     getmetatable('').__index.bundle = process_bundle
     getmetatable('').__index.bdl = process_bundle

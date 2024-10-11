@@ -1,8 +1,10 @@
+local ffi = require "ffi"
 local CallableHDL = require "LuaCallableHDL"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local List = require "pl.List"
 local tinsert = table.insert
+local C = ffi.C
 
 Bundle = class()
 
@@ -13,7 +15,20 @@ local format = string.format
 local tconcat = table.concat
 local HexStr = HexStr
 
-function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
+ffi.cdef[[
+  long long c_handle_by_name_safe(const char* name);
+]]
+
+local function contains(tbl, value)
+    for _, v in ipairs(tbl) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
+
+function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optional_signals)
     self.verbose = false
     self.signals_table = signals_table
     self.prefix = prefix
@@ -21,6 +36,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
     self.name = name or "Unknown"
     self.is_decoupled = is_decoupled or false
 
+    local optional_signals = optional_signals or {} -- optional signals are allowed to be empty
     local signals_list = List(signals_table)
     local valid_index = signals_list:index("valid")
     if is_decoupled == true then
@@ -31,20 +47,37 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
     local _ = self.verbose and print("New Bundle => ", "name: " .. self.name, "signals: {" .. tconcat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
     if is_decoupled == true then
         self.bits = {}
-        tablex.foreach( signals_table, function(signal)
+
+        for _, signal in ipairs(signals_table) do
             local fullpath = ""
             if signal == "valid" or signal == "ready" then
                 fullpath = hierachy .. "." .. prefix .. signal
-                rawset(self, signal, CallableHDL(fullpath, signal))
+                if not contains(optional_signals, signal) then
+                    rawset(self, signal, CallableHDL(fullpath, signal))
+                else
+                    local hdl = C.c_handle_by_name_safe(fullpath)
+                    if hdl ~= -1 then
+                        -- optional are allowed to be empty
+                        rawset(self, signal, CallableHDL(fullpath, signal, hdl))
+                    end
+                end
             else
                 fullpath = hierachy .. "." .. prefix .. "bits_" ..  signal
-                rawset(self.bits, signal, CallableHDL(fullpath, signal))
+                if not contains(optional_signals, signal) then
+                    rawset(self.bits, signal, CallableHDL(fullpath, signal))
+                else
+                    local hdl = C.c_handle_by_name_safe(fullpath)
+                    if hdl ~= -1 then
+                        -- optional are allowed to be empty
+                        rawset(self.bits, signal, CallableHDL(fullpath, signal, hdl))
+                    end
+                end
             end
-        end)
+        end
     else
         self.signals_table = {}
 
-        tablex.foreach( signals_table, function(signal)
+        for _, signal in ipairs(signals_table) do
             local fullpath = ""
 
             if prefix ~= nil then
@@ -55,7 +88,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
 
             rawset(self, signal, CallableHDL(fullpath, signal))
             tinsert(self.signals_table, signal)
-        end)
+        end
     end
 
     if self.valid == nil then
@@ -151,45 +184,5 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled)
     end
     
 end
-
-
--- function Bundle:fire()
---     assert(self.valid ~= nil, "[" .. self.name .. "] has not valid filed in this bundle!")
---     local valid = self.valid:get()
---     local ready = self.ready
---     if ready == nil then
---         ready = 1
---     else
---         ready = self.ready:get()
---     end
-
---     return (valid == 1 and ready == 1)
--- end
-
-
--- function Bundle:get_all()
---     if self.is_decoupled then
---         assert(false, "TODO: ")
---     else
---         local ret = {}
-
---         for i, sig in ipairs(self.signals_table) do
---             tinsert(ret, self[sig]:get())
---         end
-
---         return ret
---     end
--- end
-
-
--- function Bundle:set_all(values_tbl)
---     if self.is_decoupled then
---         assert(false, "TODO: ")
---     else
---         for i, sig in ipairs(self.signals_table) do
---             self[sig]:set(values_tbl[i])
---         end
---     end
--- end
 
 return Bundle
