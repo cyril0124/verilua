@@ -1041,7 +1041,16 @@ do
                 TODO("Only for test...")
             end
         else
-            assert(false, "Unknoen cmd => " .. cmd)
+            local available_cmds = {
+                "mainTask",
+                "appendTasks",
+                "startTask",
+                "finishTask",
+                "appendStartTasks",
+                "appendFinishTasks",
+                "showTasks",
+            }
+            assert(false, "Unknown cmd => " .. cmd .. ", available cmds: " .. inspect(available_cmds))
         end
     end
 end
