@@ -340,6 +340,20 @@ local function create_proxy(path)
             end
         end,
 
+        expect_not = function(t, value)
+            local typ = type(value)
+            assert(typ == "number" or typ == "cdata")
+
+            local beat_num = t:get_width() / BeatWidth
+            if beat_num > 2 then
+                assert(false, "`dut.<path>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. beat_num)    
+            end
+            
+            if t:get() == value then
+                assert(false, format("[%s] expect not => %d, but got => %d", local_path, value, t:get()))
+            end
+        end,
+
         -- 
         -- Example:
         --      dut.path.to.signal:expect_hex_str("0x1234") -- signal value should be 0x1234 otherwise there will be a assert false
@@ -364,6 +378,27 @@ local function create_proxy(path)
             assert(type(dec_value_str) == "string")
             if not compare_value_str(this:get_str(DecStr), dec_value_str) then
                 assert(false, format("[%s] expect => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
+            end
+        end,
+
+        expect_not_hex_str = function(this, hex_value_str)
+            assert(type(hex_value_str) == "string")
+            if compare_value_str( "0x" .. this:get_str(HexStr), hex_value_str) then
+                assert(false, format("[%s] expect not => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
+            end
+        end,
+    
+        expect_not_bin_str = function(this, bin_value_str)
+            assert(type(bin_value_str) == "string")
+            if compare_value_str( "0b" .. this:get_str(BinStr), bin_value_str) then
+                assert(false, format("[%s] expect not => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
+            end
+        end,
+    
+        expect_not_dec_str = function(this, dec_value_str)
+            assert(type(dec_value_str) == "string")
+            if compare_value_str(this:get_str(DecStr), dec_value_str) then
+                assert(false, format("[%s] expect not => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
             end
         end,
 
@@ -397,17 +432,15 @@ local function create_proxy(path)
             end
 
             if _condition then
-                return setmetatable(t, {
-                    expect = function (t, value)
-                        t:expect(value)
+                return t
+            else
+                return setmetatable({}, {
+                    __index = function(t, k)
+                        return function ()
+                            -- an empty function
+                        end
                     end
                 })
-            else
-                return {
-                    expect = function (t, value)
-                        -- ignore
-                    end
-                }
             end
         end,
 

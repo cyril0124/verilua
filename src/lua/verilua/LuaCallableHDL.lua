@@ -726,6 +726,19 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
+    self.expect_not = function (this, value)
+        local typ = type(value)
+        assert(typ == "number" or typ == "cdata")
+
+        if this.is_multi_beat and this.beat_num > 2 then
+            assert(false, "`<CallableHDL>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `<CallableHDL>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. this.beat_num)    
+        end
+
+        if this:get() == value then
+            assert(false, format("[%s] expect not => %d, but got => %d", this.fullpath, value, this:get()))
+        end
+    end
+
     self.expect_hex_str = function(this, hex_value_str)
         assert(type(hex_value_str) == "string")
         if not compare_value_str("0x" .. this:get_str(HexStr), hex_value_str) then
@@ -747,6 +760,27 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
+    self.expect_not_hex_str = function(this, hex_value_str)
+        assert(type(hex_value_str) == "string")
+        if compare_value_str("0x" .. this:get_str(HexStr), hex_value_str) then
+            assert(false, format("[%s] expect not => %s, but got => %s", this.fullpath, hex_value_str, this:get_str(HexStr)))
+        end
+    end
+
+    self.expect_not_bin_str = function(this, bin_value_str)
+        assert(type(bin_value_str) == "string")
+        if compare_value_str("0b" .. this:get_str(BinStr), bin_value_str) then
+            assert(false, format("[%s] expect not => %s, but got => %s", this.fullpath, bin_value_str, this:get_str(BinStr)))
+        end
+    end
+
+    self.expect_not_dec_str = function(this, dec_value_str)
+        assert(type(dec_value_str) == "string")
+        if compare_value_str(this:get_str(DecStr), dec_value_str) then
+            assert(false, format("[%s] expect not => %s, but got => %s", this.fullpath, dec_value_str, this:get_str(DecStr)))
+        end
+    end
+
     self._if = function (this, condition)
         local _condition = false
         if type(condition) == "boolean" then
@@ -763,17 +797,15 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
 
         if _condition then
-            return setmetatable(this, {
-                expect = function (this, value)
-                    this:expect(value)
+            return this
+        else
+            return setmetatable({}, {
+                __index = function(t, k)
+                    return function ()
+                        -- an empty function
+                    end
                 end
             })
-        else
-            return {
-                expect = function (this, value)
-                    -- ignore
-                end
-            }
         end
     end
 
