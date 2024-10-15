@@ -371,6 +371,73 @@ local f = string.format
 _G.printf = function (s, ...) io.write(f(s, ...)) end
 
 -- 
+-- Table extension
+-- 
+table.join = function (...)
+    local result = {}
+    for _, t in ipairs({...}) do
+        if type(t) == "table" then
+            for k, v in pairs(t) do
+                if type(k) == "number" then table.insert(result, v)
+                else result[k] = v end
+            end
+        else
+            table.insert(result, t)
+        end
+    end
+    return result
+end
+
+-- 
+-- try-catch-finally(https://xmake.io/#/manual/builtin_modules?id=try-catch-finally)
+-- Has the same functionality as the try-catch-finally in xmake
+-- 
+do
+    local table_join = table.join
+    local table_pack = table.pack
+    local table_unpack = table.unpack
+    local debug_traceback = debug.traceback
+    local xpcall = xpcall
+
+    _G.catch = function (block)
+        return {catch = block[1]}
+    end
+
+    _G.finally = function (block)
+        return {finally = block[1]}
+    end
+
+    _G.try = function (block)
+
+        -- get the try function
+        local try = block[1]
+        assert(try)
+
+        -- get catch and finally functions
+        local funcs = table_join(block[2] or {}, block[3] or {})
+
+        -- try to call it
+        local results = table_pack(xpcall(try, function (errors) return debug_traceback(errors) end))
+        local ok = results[1]
+        if not ok then
+            -- run the catch function
+            if funcs and funcs.catch then
+                funcs.catch(results[2])
+            end
+        end
+
+        -- run the finally function
+        if funcs and funcs.finally then
+            funcs.finally(ok, table_unpack(results, 2, results.n))
+        end
+    
+        if ok then
+            return table_unpack(results, 2, results.n)
+        end
+    end
+end
+
+-- 
 -- string operate extension
 -- 
 local CallableHDL = require "LuaCallableHDL"
