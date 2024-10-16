@@ -133,34 +133,34 @@ void sig_handler_common() {
 
 static volatile int got_sigint = 0;
 void sigint_handler(int unused) {
-    VL_WARN(R"(
+    if(got_sigint == 0) {
+        got_sigint = 1;
+
+        VL_WARN(R"(
 ---------------------------------------------------------------------
 ----   Verilator main get <SIGINT>, the program will terminate...      ----
 ---------------------------------------------------------------------
 )");
-    sig_handler_common();
-
-    got_sigint = 1;
-    
-    VerilatedVpi::callCbs(cbEndOfSimulation);
-
-    exit(0);
+        sig_handler_common();
+        VerilatedVpi::callCbs(cbEndOfSimulation);
+        exit(0);
+    }
 }
 
 static volatile int got_sigabrt = 0;
 void sigabrt_handler(int unused) {
-    VL_WARN(R"(
+    if(got_sigabrt == 0) {
+        got_sigabrt = 1;
+
+        VL_WARN(R"(
 ---------------------------------------------------------------------
 ----   Verilator main get <SIGABRT>, the program will terminate...      ----
 ---------------------------------------------------------------------
 )");
-    sig_handler_common();
-
-    got_sigabrt = 1;
-
-    VerilatedVpi::callCbs(cbEndOfSimulation);
-
-    exit(1);
+        sig_handler_common();
+        VerilatedVpi::callCbs(cbEndOfSimulation);
+        exit(1);
+    }
 }
 
 
