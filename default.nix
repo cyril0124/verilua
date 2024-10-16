@@ -1,4 +1,4 @@
-{ pkgs ? import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {}, useClang ? true }:
+{ pkgs ? import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/c0b1da36f7c34a7146501f684e9ebdf15d2bebf8.tar.gz") {}, useClang ? true }:
 let
   pkgsu = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/4a793e2f3288b8f89430aab927d08d347e20b83e.tar.gz") {};
   nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/6e3fe03d595ef27048e196c71cf815425ee7171a.tar.gz") { inherit pkgs; };
@@ -12,8 +12,8 @@ let
   luajit-pro = callPackage (fetchFromGitHub {
     owner = "cyril0124";
     repo = "luajit-pro";
-    rev = "77abddc0ee648640371639763435bf480eb58294";
-    hash = "sha256-mjayFbigYdMNbEgRthW4y+R9LvDZ4Smbv4kqJINB/FY=";
+    rev = "fb3c68079c5d79299113767759082bfde5104e28"; 
+    hash = "sha256-6NhDZCUAq4RNFJ8/sO6vXaEUpsYPrFrF4ZwQHPR1XBY=";
   }) {};
 
   luajit_tcc = callPackage (fetchFromGitHub {
