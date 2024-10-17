@@ -1029,7 +1029,6 @@ do
         elseif cmd == "appendTasks" then
             return function (task_table)
                 assert(type(task_table) == "table")
-                local final_task_table = {}
                 for name, func in pairs(task_table) do
                     if type(name) == "number" then
                         name = ("unnamed_task_%d"):format(unnamed_task_count)
@@ -1120,6 +1119,19 @@ do
             assert(false, "Unknown cmd => " .. cmd .. ", available cmds: " .. inspect(available_cmds))
         end
     end
+
+    _G.fork = function (task_table)
+        assert(type(task_table) == "table")
+        for name, func in pairs(task_table) do
+            if type(name) == "number" then
+                name = ("unnamed_fork_task_%d"):format(unnamed_task_count)
+                unnamed_task_count = unnamed_task_count + 1   
+            end
+            print("[fork] get task name => ", name)
+            scheduler:append_task(nil, name, func, {}, true)
+        end
+    end
+    -- TODO: join?
 end
 
 
