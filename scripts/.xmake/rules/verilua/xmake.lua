@@ -17,6 +17,7 @@ rule("verilua")
     
     on_load(function (target)
         local f = string.format
+        local no_copy_lua = os.getenv("NO_COPY_LUA") ~= nil -- do not copy the lua files into the build directory, this is helpful for thread safety.
 
         -- Check if any of the valid toolchains is set. If not, raise an error.
         local sim
@@ -58,9 +59,11 @@ rule("verilua")
 
         -- Copy other lua files into build_dir
         local sourcefiles = target:sourcefiles()
-        for _, sourcefile in ipairs(sourcefiles) do
-            if sourcefile:endswith(".lua") then
-                os.cp(sourcefile, build_dir)
+        if not no_copy_lua then
+            for _, sourcefile in ipairs(sourcefiles) do
+                if sourcefile:endswith(".lua") then
+                    os.cp(sourcefile, build_dir)
+                end
             end
         end
 
@@ -151,7 +154,10 @@ end
 
 return cfg
 ]], tb_top, os.getenv("PWD"), sim, mode:upper(), path.absolute(build_dir .. "/" .. path.basename(lua_main) .. ".lua"), deps_str, other_cfg, other_cfg_path, shutdown_cycles)
-        io.writefile(cfg_file, cfg_file_str)
+        if not no_copy_lua then
+            io.writefile(cfg_file, cfg_file_str)
+        end
+
         target:add("cfg_file", cfg_file)
 
         if sim == "verilator" then
