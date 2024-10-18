@@ -171,6 +171,8 @@ return cfg
                 end
             end
 
+            -- local opt_cflags = "-O0 -g -funroll-loops -march=native" -- for debug, but slower
+            local opt_cflags = "-O2 -funroll-loops -march=native"
             target:add(
                 "values",
                 "verilator.flags",
@@ -187,7 +189,7 @@ return cfg
                 "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
                 "--timescale-override", "1ns/1ns",
                 "+define+SIM_VERILATOR",
-                "-CFLAGS \"-std=c++20 -O2 -funroll-loops -march=native " .. verilua_extra_cflags .. "\"",
+                f("-CFLAGS \"-std=c++20 %s %s\"", opt_cflags, verilua_extra_cflags),
                 "-LDFLAGS \"-flto " .. verilua_extra_ldflags .. "\"",
                 "--top", tb_top
             )
