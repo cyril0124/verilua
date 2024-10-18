@@ -1,4 +1,4 @@
-{ pkgs ? import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/c0b1da36f7c34a7146501f684e9ebdf15d2bebf8.tar.gz") {}, useClang ? true }:
+{ pkgs ? import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/c0b1da36f7c34a7146501f684e9ebdf15d2bebf8.tar.gz") {}, useClang ? true, isDebug ? false }:
 let
   pkgsu = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/4a793e2f3288b8f89430aab927d08d347e20b83e.tar.gz") {};
   nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/6e3fe03d595ef27048e196c71cf815425ee7171a.tar.gz") { inherit pkgs; };
@@ -94,7 +94,7 @@ in stdenv.mkDerivation rec {
 
   buildPhase = ''
     rm .xmake -rf
-    xmake config -F xmake-nix.lua --ld=clang++ --sh=clang++ --cc=clang --cxx=clang++
+    xmake config -F xmake-nix.lua --ld=clang++ --sh=clang++ --cc=clang --cxx=clang++ ${if isDebug then "--mode=debug" else "--mode=release"}
     xmake build -v -F xmake-nix.lua lua_vpi
     # xmake build -v -F xmake-nix.lua lua_vpi_vcs # This is built by `xmake run install_vcs_patch_lib`
 
