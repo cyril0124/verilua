@@ -279,9 +279,8 @@ VERILUA_EXPORT void verilua_main_step();
 // While in most cases you don't need to call this function manually.
 VERILUA_EXPORT void vlog_startup_routines_bootstrap();
 
+typedef std::function<void(void*)> VerilatorFunc;
 
-
-typedef void (*VerilatorFunc)(void *);
 namespace Verilua {
     enum class VeriluaMode { 
         Normal = 1, 

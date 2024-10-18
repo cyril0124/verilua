@@ -303,7 +303,8 @@ int main(int argc, const char *argv[]) {
 module {{tbtopName}}(
 `ifdef SIM_VERILATOR
     input wire clock,
-    input wire reset
+    input wire reset,
+    output wire [63:0] cycles_o
 `endif // SIM_VERILATOR
 );
 
@@ -358,6 +359,9 @@ always@(posedge {{clockSignalName}}) begin
     cycles <= cycles + 1;
 end 
 
+`ifdef SIM_VERILATOR
+assign cycles_o = cycles;
+`endif
 
 // -----------------------------------------
 // reg/wire declaration
