@@ -160,6 +160,42 @@ return cfg
 
         target:add("cfg_file", cfg_file)
 
+        if sim == "wave_vpi" then
+            local get_waveform = false
+            local waveform_file = ""
+            for _, sourcefile in ipairs(sourcefiles) do
+                if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") then
+                    assert(get_waveform == false, "[on_load] Multiple waveform files are not supported")
+                    get_waveform = true
+                    waveform_file = path.absolute(sourcefile)
+                end
+            end
+            if waveform_file ~= "" then
+                target:add("waveform_file", waveform_file)
+            end
+        end
+
+        target:set("kind", "binary")
+    end)
+
+    on_config(function (target)
+    end)
+
+    on_build(function (target)
+        assert(verilua_home ~= "", "[on_build] [%s] please set VERILUA_HOME", target:name())
+
+        local f = string.format
+        local top = target:get("top")
+        local build_dir = target:get("build_dir")
+        local sim_build_dir = build_dir .. "/sim_build"
+        local sim = target:get("sim")
+        local mode = target:get("mode")
+        local tb_top = target:get("tb_top")
+        local sourcefiles = target:sourcefiles()
+        local argv = {}
+        local toolchain = ""
+        local buildcmd = ""
+
         if sim == "verilator" then
             -- Verilator flags
             local public_flat_rw = true
@@ -171,25 +207,34 @@ return cfg
                 end
             end
 
-            -- local opt_cflags = "-O0 -g -funroll-loops -march=native" -- for debug, but slower
-            local opt_cflags = "-O2 -funroll-loops -march=native"
+            local verilator_opt = "-O3" -- Enables slow optimizations for the code Verilator itself generates. -O3 may improve simulation performance at the cost of compile time.
+            for _, flag in ipairs(target:values("verilator.flags")) do
+                if flag == "-O0" then
+                    verilator_opt = "-O0"
+                    break
+                end
+            end
+
+            local debug_cflags = "" -- "-O0 -g" -- for debug, but slower
+            verilua_extra_cflags = debug_cflags .. " " ..  verilua_extra_cflags
+
             target:add(
                 "values",
                 "verilator.flags",
                 "--vpi",
                 "--cc",
                 "--exe",
-                "--build",
+                -- "--build", -- Verilator will call make itself. This is we don’t need to manually call make as a separate step.
                 "--MMD",
                 "--no-timing",
                 "-Mdir", sim_build_dir,
-                "--x-assign", "unique",
-                "-O3",
-                "-j " .. tostring((os.cpuinfo().ncpu or 128)),
+                "--x-assign unique",
+                verilator_opt,
+                "-j 0", -- Verilate using use as many CPU threads as the machine has.
                 "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
                 "--timescale-override", "1ns/1ns",
                 "+define+SIM_VERILATOR",
-                f("-CFLAGS \"-std=c++20 %s %s\"", opt_cflags, verilua_extra_cflags),
+                f("-CFLAGS \"-std=c++20 %s\"", verilua_extra_cflags),
                 "-LDFLAGS \"-flto " .. verilua_extra_ldflags .. "\"",
                 "--top", tb_top
             )
@@ -275,26 +320,6 @@ return cfg
                 target:add("waveform_file", waveform_file)
             end
         end
-
-        target:set("kind", "binary")
-    end)
-
-    on_config(function (target)
-        -- print("on_config")
-    end)
-
-    on_build(function (target)
-        -- print("on_build")
-        assert(verilua_home ~= "", "[on_build] [%s] please set VERILUA_HOME", target:name())
-
-        local f = string.format
-        local top = target:get("top")
-        local build_dir = target:get("build_dir")
-        local sim = target:get("sim")
-        local tb_top = target:get("tb_top")
-        local argv = {}
-        local toolchain = ""
-        local buildcmd = ""
         
         local flags = target:values(sim .. ".flags")
         if flags then
@@ -406,7 +431,6 @@ return cfg
             toolchain = assert(target:toolchain("verilator"), '[on_build] we need to set_toolchains("@verilator") in target("%s")', target:name())
             buildcmd = try { function () return os.iorun("which verilator") end } or assert(toolchain:config("verilator"), "[on_build] verilator not found!")
 
-            local mode = target:get("mode")
             if mode == "normal" then
                 table.insert(argv, "-CFLAGS")
                 table.insert(argv, "-DNORMAL_MODE")
@@ -496,7 +520,26 @@ return cfg
             io.writefile(build_dir .."/sim_file.f", table.concat(filelist_sim, '\n'))
 
             -- Run the build command to generate target binary
-            os.vrun(buildcmd .. " " .. table.concat(argv, " "), {envs = {LD_LIBRARY_PATH = "/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib:/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64"}})
+            os.vrun(buildcmd .. " " .. table.concat(argv, " ")) -- , {envs = {LD_LIBRARY_PATH = "/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib:/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64"}})
+            if sim == "verilator" then
+                local user_opt_slow = target:values("verilator.opt_slow")
+                local user_opt_fast = target:values("verilator.opt_fast")
+                assert(type(user_opt_slow) == "nil" or type(user_opt_slow) == "string", "verilator.opt_slow must be a string")
+                assert(type(user_opt_fast) == "nil" or type(user_opt_fast) == "string", "verilator.opt_fast must be a string")
+
+                local nproc = os.cpuinfo().ncpu or 128
+                local sim_build_dir = build_dir .. "/sim_build"
+                local tb_top_mk = sim_build_dir .. "/V" .. tb_top .. ".mk"
+
+                local opt_slow = user_opt_slow or "-O0" -- OPT_SLOW applies to slow-path code, which rarely executes, often only once at the beginning or end of the simulation.
+                local opt_fast = user_opt_fast or "-O3 -march=native" -- OPT_FAST specifies optimization options for those parts of the model on the fast path.
+                                                                      -- This is mostly code that is executed every cycle.
+                
+                -- TODO: consider PGO optimization
+                os.cd(sim_build_dir)
+                os.vrun("make -j%d VM_PARALLEL_BUILDS=1 OPT_SLOW=\"%s\" OPT_FAST=\"%s\" -C %s -f %s", nproc, opt_slow, opt_fast, sim_build_dir, tb_top_mk)
+                os.cd(os.curdir())
+            end
         end
 
         -- Create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation
@@ -687,6 +730,6 @@ verdi -f filelist.f -sv -nologo $@
 
             os.exec(table.concat(run_prefix, " ") .. " " .. wave_vpi_main .. " " .. table.concat(run_flags, " "))
         else
-            raise("TODO: on_run unknown simulaotr => " .. sim)
+            raise("TODO: [on_run] unknown simulaotr => " .. sim)
         end
     end)
