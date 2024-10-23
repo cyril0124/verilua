@@ -239,14 +239,34 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    auto &rootSymbol = compilation.getRoot();
-    auto rootTopName = rootSymbol.topInstances[0]->getDefinition().name;
-    fmt::println("[testbench_gen] rootTopName: {} topName: {}", rootTopName, topName);
+    auto &rootSymbol        = compilation.getRoot();
+    std::string rootTopName = "";
+    ASSERT(rootSymbol.topInstances.size() >= 1, "Root symbol should have at least 1 top instance");
 
-    if (topName == "") {
-        topName = rootTopName;
+    if (rootSymbol.topInstances.size() == 1) {
+        rootSymbol.topInstances[0]->getDefinition().name;
     } else {
-        ASSERT(topName == rootTopName, "Top name is not match", topName, rootTopName);
+        if (topName == "") {
+            for (int i = 0; i < rootSymbol.topInstances.size(); i++) {
+                auto rootTopSymbol = rootSymbol.topInstances[i];
+                fmt::println("[testbench_gen] rootTopName[{}]: {}", i, rootTopSymbol->getDefinition().name);
+            }
+            PANIC("There are too many top instances, please specify the top module name!");
+        } else {
+            bool found = false;
+            fmt::println("[testbench_gen] there are multiple top instances in your design, searching for the correct one...");
+            for (int i = 0; i < rootSymbol.topInstances.size(); i++) {
+                auto rootTopSymbol = rootSymbol.topInstances[i];
+                auto name          = rootTopSymbol->getDefinition().name;
+                fmt::println("[testbench_gen] get rootTopName[{}]: {}", i, name);
+                if (name == topName) {
+                    fmt::println("[testbench_gen] got user input topName: {}", name);
+                    ASSERT(found == false, "Multiple top modules with the same name found!");
+                    found = true;
+                }
+            }
+            ASSERT(found, "Top module name not found!", topName);
+        }
     }
 
     if (dutName == "") {
