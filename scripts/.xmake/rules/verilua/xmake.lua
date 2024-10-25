@@ -713,6 +713,8 @@ verdi -f filelist.f -sv -nologo $@
                 local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
                 wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
             end
+
+            print("[%s] wave_vpi_main: %s", target:name(), wave_vpi_main)
             
             local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
 

@@ -583,6 +583,7 @@ target("verilua-nix")
 target("test")
     set_kind("phony")
     on_run(function (target)
+        local old_env = os.getenvs()
         os.cd(prj_dir .. "/examples/tutorial_example")
 
         local simulators = {"iverilog", "verilator"}
@@ -593,6 +594,7 @@ target("test")
             os.exec("xmake run -v -P .")
         end
 
+        os.setenvs(old_env)
         os.cd(prj_dir .. "/examples/wave_vpi")
         os.setenv("SIM", "iverilog")
         os.exec("rm build -rf")
@@ -600,6 +602,15 @@ target("test")
         os.exec("xmake run -v -P . gen_wave")
         os.exec("xmake build -v -P . sim_wave")
         os.exec("xmake run -v -P . sim_wave")
+        
+        os.setenvs(old_env)
+        os.cd(prj_dir .. "/tests/wave_vpi_padding_issue")
+        os.exec("rm build -rf")
+        os.exec("xmake build -v -P . test")
+        os.exec("xmake run -v -P . test")
+        os.exec("xmake build -v -P . test_wave")
+        os.exec("xmake run -v -P . test_wave")
+
         cprint([[${green}
   _____         _____ _____ 
  |  __ \ /\    / ____/ ____|
