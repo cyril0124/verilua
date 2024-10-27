@@ -46,13 +46,6 @@ static inline bool settle_value_callbacks() {
     return cbs_called;
 }
 
-static vluint64_t main_time = 0;  // Current simulation time
-
-double sc_time_stamp() {  // Called by $time in Verilog
-    return main_time;     // converts to double, to match
-                          // what SystemC does
-}
-
 static struct timeval boot_time = {};
 uint32_t uptime(void) {
   struct timeval t;
@@ -213,7 +206,7 @@ Emulator::Emulator(int argc, char *argv[]) {
         dut_ptr->eval_step();
         dut_ptr->clock = dut_ptr->clock ? 0 : 1;
         dut_ptr->eval_step();
-        main_time += 5;
+        Verilated::timeInc(5);
     };
     Verilua::alloc_verilator_func(next_sim_step, "next_sim_step");
 
@@ -357,7 +350,8 @@ int Emulator::normal_mode_main() {
         }
         VerilatedVpi::callCbs(cbReadOnlySynch);
 
-        if ((main_time % 10) == 0) {
+        auto time = Verilated::time();
+        if ((time % 10) == 0) {
             dut_ptr->eval_step();
             dut_ptr->clock = dut_ptr->clock ? 0 : 1; // Toggle clock
         }
@@ -372,13 +366,13 @@ int Emulator::normal_mode_main() {
 
 #if VM_TRACE
         if (args.enable_wave) {
-            tfp->dump(main_time);
+            tfp->dump(time);
         }
 #endif
         if (args.enable_fork && (lightsss_try_fork() == -1)) {
             return -1;
         }
-        main_time += 5;
+        Verilated::timeInc(5);
     }
 
     this->end_simulation();
@@ -408,14 +402,14 @@ int Emulator::step_mode_main() {
 
 #if VM_TRACE
         if (args.enable_wave) {
-            tfp->dump(main_time);
+            tfp->dump(Verilated::time());
         }
 #endif
 
         if (args.enable_fork && (lightsss_try_fork() == -1)) {
             return -1;
         }
-        main_time += 5;
+        Verilated::timeInc(5);
     }
 
     this->end_simulation();
@@ -470,7 +464,7 @@ int Emulator::timming_mode_main() {
 
 #if VM_TRACE
         if (args.enable_wave) {
-            tfp->dump(main_time);
+            tfp->dump(Verilated::time());
         }
 #endif
 
@@ -487,7 +481,7 @@ int Emulator::timming_mode_main() {
         if (next_time == NO_TOP_EVENTS_PENDING) {
             break;
         } else {
-            main_time = next_time;
+            Verilated::time(next_time);
         }
 
         // Call registered NextSimTime
@@ -541,29 +535,27 @@ int Emulator::dominant_mode_main() {
 }
 
 void Emulator::finalize() {
-    dut_ptr->eval_step();
+    VL_INFO("finalize\n");
+    fflush(stdout);
+
+    dut_ptr->final();
 
 #if VM_TRACE
     if (args.enable_wave) {
-        tfp->dump(main_time);
-    }
-#endif
-
-    dut_ptr->clock = 1;
-    main_time += 5;
-    dut_ptr->eval_step();
-    
-    dut_ptr->clock = 0;
-    main_time += 5;
-    dut_ptr->eval_step();
-    
-#if VM_TRACE
-    if (args.enable_wave) {
-        tfp->dump(main_time);
+        Verilated::timeInc(5);
+        tfp->dump(Verilated::time());
+        tfp->flush();
     }
 #endif
 
     if (args.enable_fork && !is_fork_child()) {
+        VL_WARN("\nlightsss wakeup_child at {} cycles\n", dut_ptr->cycles_o);
+        fflush(stdout);
+
+        /// Prepare for cloning the model at the process level (e.g. fork in Linux)
+        /// Release necessary resources. Called before cloning.
+        dut_ptr->prepareClone();
+
         lightsss->wakeup_child(dut_ptr->cycles_o);
         delete lightsss;
     }
@@ -608,16 +600,23 @@ int Emulator::run_main() {
 std::unique_ptr<Emulator> global_emu = nullptr;
 
 void signal_handler(int signal) {
+    Verilated::threadContextp()->gotError(true);
+    Verilated::threadContextp()->gotFinish(true);
+    Verilated::runFlushCallbacks();
+    Verilated::runExitCallbacks();
+
     switch (signal) {
         case SIGABRT: 
             if(got_sigabrt == 0) {
                 got_sigabrt = 1;
 
                 VL_WARN(R"(
----------------------------------------------------------------------
+----------------------------------------------------------------------------
 ----   Verilator main get <SIGABRT>, the program will terminate...      ----
----------------------------------------------------------------------
+----------------------------------------------------------------------------
 )");
+                fflush(stdout);
+
                 global_emu->finalize();
                 VerilatedVpi::callCbs(cbEndOfSimulation);
                 exit(1);
@@ -628,10 +627,12 @@ void signal_handler(int signal) {
                 got_sigint = 1;
 
                 VL_WARN(R"(
----------------------------------------------------------------------
+---------------------------------------------------------------------------
 ----   Verilator main get <SIGINT>, the program will terminate...      ----
----------------------------------------------------------------------
+---------------------------------------------------------------------------
 )");
+                fflush(stdout);
+
                 global_emu->finalize();
                 VerilatedVpi::callCbs(cbEndOfSimulation);
                 exit(0);
