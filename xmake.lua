@@ -1,7 +1,7 @@
 ---@diagnostic disable: undefined-global
 
 local lib_name   = "lua_vpi"
-local prj_dir    = os.getenv("PWD")
+local prj_dir    = os.curdir()
 local src_dir    = prj_dir .. "/src"
 local build_dir  = prj_dir .. "/build"
 local lua_dir    = prj_dir .. "/luajit-pro/luajit2.1"
@@ -601,11 +601,15 @@ target("verilua-nix")
             unset XMAKE_GLOBALDIR \
             xmake run -F xmake.lua -v -y install_vcs_patch_lib \
         \"")
-        if os.getenv("VERDI_HOME") then
-            execute("nix-shell --run \"\
-                unset XMAKE_GLOBALDIR \
-                xmake build -F xmake.lua -v -y wave_vpi_main_fsdb \
-            \"")
+        local verdi_home = os.getenv("VERDI_HOME")
+        if verdi_home then
+            local fsdb_reader_dir = prj_dir .. "/FsdbReader"
+            os.mkdir(fsdb_reader_dir)
+            os.trycp(verdi_home .. "/share/FsdbReader/ffrAPI.h", fsdb_reader_dir)
+            os.trycp(verdi_home .. "/share/FsdbReader/ffrKit.h", fsdb_reader_dir)
+            os.trycp(verdi_home .. "/share/FsdbReader/fsdbShr.h", fsdb_reader_dir)
+            os.trycp(verdi_home .. "/share/FsdbReader/LINUX64/libnffr.so", fsdb_reader_dir)
+            os.trycp(verdi_home .. "/share/FsdbReader/LINUX64/libnsys.so", fsdb_reader_dir)
         end
         execute("nix-env -f . -i")
     end)

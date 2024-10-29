@@ -45,6 +45,7 @@ in stdenv.mkDerivation rec {
     !shared/
     !scripts/
     !wave_vpi/
+    !FsdbReader/
 
     !extern/
     extern/*
@@ -83,6 +84,7 @@ in stdenv.mkDerivation rec {
     elfio
     sol2
     zstd # for libassert
+    zlib # for FsdbReader
   ]) ++ (with pkgsu; [
     boost186
     (fmt_11.override { enableShared = false; })
@@ -92,7 +94,6 @@ in stdenv.mkDerivation rec {
     foolnotion.libdwarf
     foolnotion.cpptrace
     foolnotion.libassert
-
   ]);
 
   buildPhase = ''
@@ -109,6 +110,11 @@ in stdenv.mkDerivation rec {
     export WAVEVPI_DIR=${wave_vpi.src}
     xmake build -v -F xmake-nix.lua lua_vpi_wave_vpi
     xmake build -v -F xmake-nix.lua wave_vpi_main
+
+    ${if hasVerdiHome then ''
+      export VERDI_HOME="${builtins.getEnv "VERDI_HOME"}"
+      xmake build -v -F xmake-nix.lua wave_vpi_main_fsdb
+    '' else ''''}
 
     xmake build -v -F xmake-nix.lua testbench_gen
   '';
@@ -257,7 +263,7 @@ ____   ____                .__ .__
     cp tools/testbench_gen $out/bin/
 
     ${if hasVerdiHome then ''
-      cp tools/wave_vpi_main_fsdb $out/bin/wave_vpi_main_fsdb
+      cp tools/wave_vpi_main_fsdb $out/bin/
     '' else ''''}
 
     mkdir -p $out/.xmake
@@ -284,9 +290,6 @@ ____   ____                .__ .__
   postPhases = [ "patchBinaryPhase" ];
 
   patchBinaryPhase = ''
-    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" $out/bin/wave_vpi_main_fsdb
     patchelf --add-rpath "${builtins.getEnv "VERDI_HOME"}/share/FsdbReader/LINUX64" $out/bin/wave_vpi_main_fsdb
-    patchelf --add-rpath "${stdenv.cc.libc.out}/lib" $out/bin/wave_vpi_main_fsdb
-    patchelf --add-rpath "${pkgs.stdenv.cc.cc.lib}/lib" $out/bin/wave_vpi_main_fsdb      
   '';
 }

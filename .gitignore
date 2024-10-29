@@ -15,3 +15,5 @@ vcpkg_installed/
 tmp/
 *.log
 result
+FsdbReader
+luajit-pro

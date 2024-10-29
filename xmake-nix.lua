@@ -193,9 +193,8 @@ target("wave_vpi_main_fsdb")
         wave_vpi_main_common()
 
         local verdi_home = os.getenv("VERDI_HOME")
-        add_includedirs(verdi_home .. "/share/FsdbReader")
-        add_linkdirs(verdi_home .. "/share/FsdbReader/LINUX64")
-        add_rpathdirs(verdi_home .. "/share/FsdbReader/LINUX64")
+        add_includedirs(prj_dir .. "/FsdbReader")
+        add_linkdirs(prj_dir .. "/FsdbReader")
         add_links("nffr", "nsys", "z")
 
         add_defines("USE_FSDB")
