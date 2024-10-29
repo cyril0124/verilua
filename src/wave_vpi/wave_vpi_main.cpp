@@ -21,12 +21,20 @@ int main(int argc, const char *argv[]) {
         exit(1);
     });
 
-    argparse::ArgumentParser program("wave_vpi_main");
-
+#ifdef USE_FSDB
+    argparse::ArgumentParser program("wave_vpi_main_fsdb");
     program.add_argument("-w", "--wave-file")
         .default_value(std::string(""))
         .required()
-        .help("input wave file for wave vpi");
+        .help("input wave file for wave vpi(FSDB)");
+#else
+    argparse::ArgumentParser program("wave_vpi_main");
+    program.add_argument("-w", "--wave-file")
+        .default_value(std::string(""))
+        .required()
+        .help("input wave file for wave vpi(VCD, FST)");
+#endif
+
 
     try {
         program.parse_args(argc, argv);

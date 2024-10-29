@@ -32,6 +32,8 @@ let
   lsqlite3 = callPackage ./nix/lsqlite3.nix {};
 
   luajit_pkgs = luajit-pro.pkgs;
+
+  hasVerdiHome = builtins.getEnv "VERDI_HOME" != "";
 in stdenv.mkDerivation rec {
   name = "verilua";
   version = "1.1";
@@ -65,6 +67,7 @@ in stdenv.mkDerivation rec {
     unzip
     git
     cargo
+    makeBinaryWrapper
   ];
 
   buildInputs = [
@@ -253,6 +256,10 @@ ____   ____                .__ .__
     cp tools/wave_vpi_main $out/bin/
     cp tools/testbench_gen $out/bin/
 
+    ${if hasVerdiHome then ''
+      cp tools/wave_vpi_main_fsdb $out/bin/wave_vpi_main_fsdb
+    '' else ''''}
+
     mkdir -p $out/.xmake
     cp -r ${src}/scripts/.xmake/* $out/.xmake
 
@@ -272,5 +279,14 @@ ____   ____                .__ .__
       --subst-var-by verilua_extra_cflags "$NIX_CFLAGS_COMPILE" \
       --subst-var-by verilua_extra_ldflags "-L${pkgsu.fmt_11}/lib" \
       --subst-var-by verilua_extra_vcs_ldflags "-Wl,-rpath,$out/lib -Wl,-rpath,${pkgs.libz}/lib -Wl,-rpath,${pkgs.glibc}/lib -Wl,-rpath,${pkgs.glibc}/lib64 -Wl,-rpath=${pkgs.libgcc.lib}/lib -Wl,-rpath,${pkgsu.fmt_11}/lib"
+  '';
+
+  postPhases = [ "patchBinaryPhase" ];
+
+  patchBinaryPhase = ''
+    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" $out/bin/wave_vpi_main_fsdb
+    patchelf --add-rpath "${builtins.getEnv "VERDI_HOME"}/share/FsdbReader/LINUX64" $out/bin/wave_vpi_main_fsdb
+    patchelf --add-rpath "${stdenv.cc.libc.out}/lib" $out/bin/wave_vpi_main_fsdb
+    patchelf --add-rpath "${pkgs.stdenv.cc.cc.lib}/lib" $out/bin/wave_vpi_main_fsdb      
   '';
 }

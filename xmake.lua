@@ -146,7 +146,7 @@ target(lib_name.."_wave_vpi")
 
     build_common_info()
 
-target("wave_vpi_main")
+local function wave_vpi_main_common()
     set_kind("binary")
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
@@ -181,11 +181,13 @@ target("wave_vpi_main")
 
     add_links("luajit-5.1")
     add_linkdirs(lua_dir .. "/lib")
+    add_rpathdirs(lua_dir .. "/lib")
 
     add_packages("fmt", "mimalloc", "libassert", "argparse")
 
     add_links("lua_vpi_wave_vpi")
     add_linkdirs(shared_dir)
+    add_rpathdirs(shared_dir)
     
     add_links("wave_vpi_wellen_impl")
     add_linkdirs(wavevpi_dir .. "/target/release")
@@ -198,7 +200,29 @@ target("wave_vpi_main")
         
         print("---------------------------------------------------------- ")
     end)
+end
 
+target("wave_vpi_main")
+    wave_vpi_main_common()
+
+target("wave_vpi_main_fsdb")
+    if os.getenv("VERDI_HOME") then
+        wave_vpi_main_common()
+
+        local verdi_home = os.getenv("VERDI_HOME")
+        -- print("[wave_vpi_main_fsdb] verdi_home is " .. verdi_home)
+        add_includedirs(verdi_home .. "/share/FsdbReader")
+        add_linkdirs(verdi_home .. "/share/FsdbReader/LINUX64")
+        add_rpathdirs(verdi_home .. "/share/FsdbReader/LINUX64")
+        add_links("nffr", "nsys", "z")
+
+        add_defines("USE_FSDB")
+    else
+        set_kind("phony")
+        on_build(function(target)
+            raise("[wave_vpi_main_fsdb] VERDI_HOME is not defined!")
+        end)
+    end
 
 -- 
 -- Build target for Iverilog
@@ -577,6 +601,12 @@ target("verilua-nix")
             unset XMAKE_GLOBALDIR \
             xmake run -F xmake.lua -v -y install_vcs_patch_lib \
         \"")
+        if os.getenv("VERDI_HOME") then
+            execute("nix-shell --run \"\
+                unset XMAKE_GLOBALDIR \
+                xmake build -F xmake.lua -v -y wave_vpi_main_fsdb \
+            \"")
+        end
         execute("nix-env -f . -i")
     end)
 

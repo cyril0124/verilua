@@ -13,7 +13,7 @@ local function get_command_path(os, command)
 end
 
 rule("verilua")
-    set_extensions(".v", ".sv", ".lua", ".vlt", ".vcd", ".fst")
+    set_extensions(".v", ".sv", ".lua", ".vlt", ".vcd", ".fst", ".fsdb")
     
     on_load(function (target)
         local f = string.format
@@ -164,7 +164,7 @@ return cfg
             local get_waveform = false
             local waveform_file = ""
             for _, sourcefile in ipairs(sourcefiles) do
-                if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") then
+                if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") or sourcefile:endswith(".fsdb") then
                     assert(get_waveform == false, "[on_load] Multiple waveform files are not supported")
                     get_waveform = true
                     waveform_file = path.absolute(sourcefile)
@@ -708,15 +708,23 @@ verdi -f filelist.f -sv -nologo $@
             
             os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/simv " .. table.concat(run_flags, " "))
         elseif sim == "wave_vpi" then
-            local wave_vpi_main = try{ function() return os.iorun("which wave_vpi_main") end }
-            if not wave_vpi_main then
-                local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
-                wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
+            local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
+
+            local wave_vpi_main 
+            do 
+                if waveform_file:endswith(".fsdb") then
+                    wave_vpi_main = try{ function() return os.iorun("which wave_vpi_main_fsdb") end }
+                    assert(wave_vpi_main, "[on_run] wave_vpi_main_vcs is not defined!")
+                else
+                    wave_vpi_main = try{ function() return os.iorun("which wave_vpi_main") end }
+                    if not wave_vpi_main then
+                        local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
+                        wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
+                    end
+                end
             end
 
             print("[%s] wave_vpi_main: %s", target:name(), wave_vpi_main)
-            
-            local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
 
             local run_flags = {"--wave-file", waveform_file}
             local _run_flags = target:values("wave_vpi.run_flags")

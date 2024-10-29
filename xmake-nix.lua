@@ -130,7 +130,7 @@ target(lib_name.."_wave_vpi")
 
     build_common_info()
 
-target("wave_vpi_main")
+local function wave_vpi_main_common()
     set_kind("binary")
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
@@ -183,7 +183,28 @@ target("wave_vpi_main")
         
         print("---------------------------------------------------------- ")
     end)
+end
 
+target("wave_vpi_main")
+    wave_vpi_main_common()
+
+target("wave_vpi_main_fsdb")
+    if os.getenv("VERDI_HOME") then
+        wave_vpi_main_common()
+
+        local verdi_home = os.getenv("VERDI_HOME")
+        add_includedirs(verdi_home .. "/share/FsdbReader")
+        add_linkdirs(verdi_home .. "/share/FsdbReader/LINUX64")
+        add_rpathdirs(verdi_home .. "/share/FsdbReader/LINUX64")
+        add_links("nffr", "nsys", "z")
+
+        add_defines("USE_FSDB")
+    else
+        set_kind("phony")
+        on_build(function(target)
+            raise("[wave_vpi_main_fsdb] VERDI_HOME is not defined!")
+        end)
+    end
 
 -- 
 -- Build target for Iverilog
