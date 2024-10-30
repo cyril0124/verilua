@@ -158,6 +158,8 @@ local function wave_vpi_main_common()
         "-Wl,--no-as-needed"
     )
 
+    add_defines("VL_DEF_OPT_USE_BOOST_UNORDERED")
+
     add_files(
         src_dir .. "/wave_vpi/wave_vpi_main.cpp",
         wavevpi_dir .. "/src/wave_dpi.cc",
@@ -166,7 +168,8 @@ local function wave_vpi_main_common()
 
     add_includedirs(
         lua_dir .. "/include/luajit-2.1",
-        wavevpi_dir .. "/src"
+        wavevpi_dir .. "/src",
+        extern_dir .. "/boost_unordered"
     )
 
     if is_mode("debug") then
