@@ -417,7 +417,7 @@ do
         local funcs = table_join(block[2] or {}, block[3] or {})
 
         -- try to call it
-        local results = table_pack(xpcall(try, function (errors) return debug_traceback(errors) end))
+        local results = table_pack(xpcall(try, function (errors) return "[try-catch-finally] " .. debug_traceback(errors) end))
         local ok = results[1]
         if not ok then
             -- run the catch function
@@ -489,7 +489,7 @@ do
         local hdl = ffi.C.c_handle_by_name_safe(str)
 
         if hdl == -1 then
-            assert(false, f("No handle found => %s", str))
+            assert(false, f("[hdl] no handle found => %s", str))
         end
 
         return hdl
@@ -570,8 +570,8 @@ do
         local hier = params_table.hier
         local hier_type = type(params_table.hier)
         
-        assert(hier ~= nil, "<hierachy> is not set!")
-        assert(hier_type == "string", "invalid <hierarchy> type => " .. hier_type)
+        assert(hier ~= nil, "[bundle] hierachy is not set! please set by `hier` field ")
+        assert(hier_type == "string", "[bundle] invalid hierarchy type => " .. hier_type)
 
         local prefix = ""
         local is_decoupled = true
@@ -596,7 +596,7 @@ do
             elseif key == "hier" then
                 -- pass
             else
-                assert(false, "Unkonwn params_table key => " .. tostring(key) .. " value => " .. tostring(value))
+                assert(false, "[bundle] unkonwn key => " .. tostring(key) .. " value => " .. tostring(value) .. ", available keys: `prefix`, `is_decoupled`, `name`, `optional_signals`, `hier`")
             end
         end
 
@@ -791,7 +791,7 @@ do
                 local repl_key = string.gsub(string.gsub(match, "{", ""), "}", "")
                 local repl_value = params_table[repl_key]
                 local repl_value_str = tostring(repl_value)
-                assert(repl_value ~= nil, f("repl_key: <%s> not found in <params_table>!", repl_key))
+                assert(repl_value ~= nil, f("[abdl] replace key: <%s> not found in <params_table>!", repl_key))
 
                 _signals_table[i] = string.gsub(_signals_table[i], match, repl_value_str)
             end
@@ -813,17 +813,17 @@ do
         local hier = params_table.hier
         local hier_type = type(params_table.hier)
         
-        assert(hier ~= nil, "<hierachy> is not set!")
-        assert(hier_type == "string", "invalid <hierarchy> type => " .. hier_type)
+        assert(hier ~= nil, "[abdl] hierachy is not set! please set by `hier` field ")
+        assert(hier_type == "string", "[abdl] invalid hierarchy type => " .. hier_type)
 
         local prefix = ""
         local name = "Unknown"
         for key, value in pairs(params_table) do
             if key == "prefix" then
-                assert(type(value) == "string")
+                assert(type(value) == "string", "[abdl] invalid type for the `prefix` field, valid type: `string`")
                 prefix = value
             elseif key == "name" then
-                assert(type(value) == "string")
+                assert(type(value) == "string", "[abdl] invalid type for the `name` field, valid type: `string`")
                 name = value
             end
         end
@@ -839,8 +839,8 @@ do
     --      assert(rendered_template == "Hello Bob!")
     -- 
     getmetatable('').__index.render = function(template, vars)
-        assert(type(template) == "string", "template must be a string")
-        assert(type(vars) == "table", "vars must be a table")
+        assert(type(template) == "string", "[render] template must be a `string`")
+        assert(type(vars) == "table", "[render] vars must be a `table`")
         return (template:gsub("{{(.-)}}", function(key)
             if vars[key] == nil then
                 assert(false, f("[render] key not found: %s\n\ttemplate_str is: %s\n" , key, template))
