@@ -347,10 +347,6 @@ for key, value in pairs(scommon) do
 end
 
 
-_G.call    = nil -- syntax sugar for string literal calling
-                 -- Example:
-                 --     ("tb_top.cycles"):set(10)         --> this will cause syntax error or cannot reconize the <string literal>:set() metod  
-                 --     call = ("tb_top".cycles):set(10)  --> this will work fine, here <call> act as a tempory store buffer for this empty return calling
 _G.dbg     = function (...) print(inspect(...)) end
 _G.TODO    = function (...) error(debug_str("TODO:", ...)) end
 _G.fatal   = function (...) error(debug_str("FATAL:", ...)) end
@@ -626,7 +622,6 @@ do
     --      cycles_str:set(0x123)
     --      cycles_str:set("0x123")
     --      cycles_str:set("0b111")
-    --      call = ("tb_top.cycles"):set(100)
     -- 
     getmetatable('').__index.set = function (str, value)
         ffi.C.c_set_value_by_name(str, tonumber(value))
@@ -667,7 +662,6 @@ do
     
     -- 
     -- Example:
-    --      call = ("tb_top.clock"):posedge()
     --      local str = "tb_top.clock"
     --      str:posedge()
     -- 
