@@ -441,8 +441,54 @@ local CallableHDL = require "LuaCallableHDL"
 local Bundle = require "LuaBundle"
 local AliasBundle = require "LuaAliasBundle"
 local stringx = require "pl.stringx"
+local CoverGroup = require "coverage.CoverGroup"
+local CoverPoint = require "coverage.CoverPoint"
+local AccurateCoverPoint = require "coverage.AccurateCoverPoint"
 do
 
+----------------------------------------------------------------------
+-- Basic string extension, for enhancing string operation
+----------------------------------------------------------------------
+    -- 
+    -- Example:
+    --      local template = "Hello {{name}}!"
+    --      local rendered_template = template:render({name = "Bob"})
+    --      assert(rendered_template == "Hello Bob!")
+    -- 
+    getmetatable('').__index.render = function(template, vars)
+        assert(type(template) == "string", "[render] template must be a `string`")
+        assert(type(vars) == "table", "[render] vars must be a `table`")
+        return (template:gsub("{{(.-)}}", function(key)
+            if vars[key] == nil then
+                assert(false, f("[render] key not found: %s\n\ttemplate_str is: %s\n" , key, template))
+            end
+            return tostring(vars[key] or "")
+        end))
+    end
+
+    -- 
+    -- Example:
+    --      ("hello world!"):print()
+    --      ("hello {{name}}"):render({name = "Bob"}):print()
+    --      ("hello %d"):format(123):print()
+    -- 
+    getmetatable('').__index.print = function(str)
+        io.write(str .. "\n")
+    end
+
+    -- 
+    -- Example:
+    --      assert(("hello.lua"):strip(".lua") == "hello")
+    --      assert(("hello"):strip(".lua") == "hello")
+    -- 
+    getmetatable('').__index.strip = function(str, suffix)
+        assert(type(suffix) == "string", "suffix must be a string")
+        if str:sub(-#suffix) == suffix then
+            return str:sub(1, -#suffix - 1)
+        else
+            return str
+        end
+    end
 
     -- 
     -- Example: 
@@ -488,6 +534,11 @@ do
         end
     end
 
+
+----------------------------------------------------------------------
+-- Hardware related string extension, including handles used for 
+-- accessing internal hardware signals
+----------------------------------------------------------------------
     -- 
     -- get vpi handle using native stirng metatable
     -- Example: 
@@ -841,47 +892,97 @@ do
     end
 
 
-    -- 
-    -- Example:
-    --      local template = "Hello {{name}}!"
-    --      local rendered_template = template:render({name = "Bob"})
-    --      assert(rendered_template == "Hello Bob!")
-    -- 
-    getmetatable('').__index.render = function(template, vars)
-        assert(type(template) == "string", "[render] template must be a `string`")
-        assert(type(vars) == "table", "[render] vars must be a `table`")
-        return (template:gsub("{{(.-)}}", function(key)
-            if vars[key] == nil then
-                assert(false, f("[render] key not found: %s\n\ttemplate_str is: %s\n" , key, template))
-            end
-            return tostring(vars[key] or "")
-        end))
-    end
+----------------------------------------------------------------------
+-- Functional coverage related string extension
+----------------------------------------------------------------------
+    -- The verilua holds a default coverage group. 
+    -- User can create a coverage point without manually creating a new coverage group for convenience.
+    local default_cg = CoverGroup("default")
+    _G.default_cg = default_cg
 
     -- 
     -- Example:
-    --      ("hello world!"):print()
-    --      ("hello {{name}}"):render({name = "Bob"}):print()
-    --      ("hello %d"):format(123):print()
+    --      Basic usage:
+    --          (1) Create coverage handle
+    --              local c1 = ("name of cover point"):cvhdl()     -- This cover point belongs to the `default_cg` if no extra parameters are provided.
+    --          (2) Accumulate cover point value by <cvhdl>:inc()
+    --              c1:inc()
+    --          (3) Report current coverage status by <coverage group>:report()
+    --              default_cg:report()
+    --          (4) Reset cover point by <cvhdl>:reset()
+    --              c1:reset()
+    --          (5) Save coverage report into a `json` file
+    --              default_cg:save()  -- The `default_cg` will be automatically saved if there are coverage points registered by the user.
+    --                                 -- User does not required to manually call this function to save the `default_cg` into `json` file.
+    --                                 -- For the user defined coverage groups, user should save it in some place and those coverage groups
+    --                                 -- are not controlled by the verilua kernel.
     -- 
-    getmetatable('').__index.print = function(str)
-        io.write(str .. "\n")
-    end
+    --      Use user defined coverage group:
+    --          local CoverGroup = require "coverage.CoverGroup"
+    --          local user_defined_cg = CoverGroup("user_defined")
+    --          local c2 = ("some cover point"):cvhdl { group = user_defined_cg }
+    --          c2:inc()
+    --          user_defined_cg:report()
+    --          user_defined_cg:save()
+    -- 
+    --      Accurate cover point(The accurate cover point will save the cycle time when cover point accumulate the internel counter):
+    --          local accurate_cp = ("some accurate cover point"):cvhdl { type = "accurate" }
+    --          accurate_cp:inc_with_cyclce(<cycle value>)    -- Use inc_with_cycle() instead of inc() for the accurate cover point
+    -- 
+    getmetatable('').__index.cvhdl = function(name, params_table)
+        local cover_group = default_cg
+        local cover_point_type = "simple"
 
-    -- 
-    -- Example:
-    --      assert(("hello.lua"):strip(".lua") == "hello")
-    --      assert(("hello"):strip(".lua") == "hello")
-    -- 
-    getmetatable('').__index.strip = function(str, suffix)
-        assert(type(suffix) == "string", "suffix must be a string")
-        if str:sub(-#suffix) == suffix then
-            return str:sub(1, -#suffix - 1)
-        else
-            return str
+        if params_table then
+            local params_table_type = type(params_table)
+            assert(params_table_type == "table")
+
+            for key, value in pairs(params_table) do
+                -- User defined CoverGroup
+                if key == "group" then
+                    local value_type = type(value)
+                    if value_type ~= "table" then
+                        assert(false, "[cvhdl] invalid `group` type! you should provide a valid CoverGroup. invalid_type => " .. value_type)
+                    else
+                        assert(value.type == "CoverGroup", "[cvhdl] the provided `group` did not contains `type` field! you should pass a valid CoverGroup")
+                    end
+                    cover_group = value
+                
+                -- Type of the CoverPoint
+                elseif key == "type" then
+                    if value ~= "simple" and value ~= "accurate" then
+                        assert(false, "[cvhdl] invalid cover point type: " .. value .. ", available type: `simple`, `accurate`")
+                    end
+                    cover_point_type = value
+                else
+                    assert(false, "[cvhdl] invalid key: " .. key .. ", available keys: `group`") 
+                end
+            end 
         end
+        
+        local cover_point
+        if cover_point_type == "simple" then
+            cover_point = CoverPoint(name, cover_group)
+            cover_group:add_cover_point(cover_point)
+        elseif cover_point_type == "accurate" then
+            cover_point = AccurateCoverPoint(name, cover_group)
+            cover_group:add_cover_point(cover_point)
+        else
+            assert(false, "[cvhdl] invalid cover point type: " .. cover_point_type)
+        end
+
+        return cover_point
     end
 
+    -- Alias of <string>:cvhdl()
+    getmetatable('').__index.cover_point = function (name, params_table)
+        name:cvhdl(params_table)
+    end
+
+
+----------------------------------------------------------------------
+-- Other miscellaneous string extension
+----------------------------------------------------------------------
     -- 
     --  Example:
     --    local lib = ([[

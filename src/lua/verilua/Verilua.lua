@@ -64,15 +64,19 @@ verilua.finish_callback = function ()
         scheduler:list_tasks()
     end
 
-    -- 
-    -- user callbacks
-    -- 
+    -- User defined finish callbacks
     if #verilua.finish_callbacks == 0 then
         verilua_warning("[finish_callback] Not implemented!")
     else
         for i, callback_func in ipairs(verilua.finish_callbacks) do
             callback_func()
         end
+    end
+
+    -- Automatically save default coverage group into json file
+    if #default_cg.cover_points > 0 then
+        default_cg:report()
+        default_cg:save()
     end
 
     verilua.end_time = os.clock()
