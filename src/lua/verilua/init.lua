@@ -1,6 +1,9 @@
 -- jit.opt.start(3)
 -- jit.opt.start("loopunroll=100", "minstitch=0", "hotloop=1", "tryside=100")
 
+_G.inspect = require "inspect"
+_G.pp      = function (...) print(inspect(...)) end
+
 do
     local PWD = os.getenv("PWD")
     local PRJ_TOP = os.getenv("PRJ_TOP")
@@ -348,8 +351,6 @@ _G.call    = nil -- syntax sugar for string literal calling
                  -- Example:
                  --     ("tb_top.cycles"):set(10)         --> this will cause syntax error or cannot reconize the <string literal>:set() metod  
                  --     call = ("tb_top".cycles):set(10)  --> this will work fine, here <call> act as a tempory store buffer for this empty return calling
-_G.inspect = require "inspect"
-_G.pp      = function (...) print(inspect(...)) end
 _G.dbg     = function (...) print(inspect(...)) end
 _G.TODO    = function (...) error(debug_str("TODO:", ...)) end
 _G.fatal   = function (...) error(debug_str("FATAL:", ...)) end
@@ -474,6 +475,20 @@ do
             return tonumber(str:sub(3), 16)
         else
             return tonumber(str)
+        end
+    end
+    
+    -- 
+    -- Example:
+    --      ("hello world"):contains("hello") ==> true
+    --      ("hello world"):contains("hell")  ==> false
+    -- 
+    getmetatable('').__index.contains = function(str, target)
+        local startIdx, _ = str:find(target)
+        if startIdx then
+            return true
+        else
+            return false
         end
     end
 
