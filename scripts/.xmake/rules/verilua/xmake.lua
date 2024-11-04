@@ -402,6 +402,11 @@ return cfg
             end
 
             if should_regenerate then
+                local has_testbench_gen = try { function () return os.iorun("which testbench_gen") end }
+                if not has_testbench_gen then
+                    raise("[on_build] Cannot find `testbench_gen`! You should build `testbench_gen` in `verilua` root directory via `xmake build testbench_gen`")
+                end
+
                 for _, file in ipairs(vfiles) do
                     -- If any of the vfiles are changed, we should re-generate the testbench
                     if os.isfile(file) and os.mtime(file) > os.mtime(target:targetfile()) then
