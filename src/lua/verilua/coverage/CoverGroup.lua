@@ -19,6 +19,7 @@ function CoverGroup:_init(name)
     self.__type = "CoverGroup"
     self.cover_points = {}
     self.cover_point_type = "Unknown"
+    self.saved = false
 
     printf("[CoverGroup] Create CoverGroup: %s\n", name)
 end
@@ -90,6 +91,14 @@ function CoverGroup:save(_filename)
 
     file:write("}")
     file:close()
+
+    self.saved = true
+end
+
+function CoverGroup:try_save_once(_filename)
+    if self.saved == false then
+        self:save(_filename)
+    end
 end
 
 return CoverGroup

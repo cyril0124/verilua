@@ -76,7 +76,7 @@ verilua.finish_callback = function ()
     -- Automatically save default coverage group into json file
     if #default_cg.cover_points > 0 then
         default_cg:report()
-        default_cg:save()
+        default_cg:try_save_once()
     end
 
     verilua.end_time = os.clock()
