@@ -33,7 +33,7 @@ local function _ffi_cast(type_str, value)
 end
 
 -- Example:
---      local symbol_helper = require "SymbolHelper"
+--      local symbol_helper = require "verilua.utils.SymbolHelper"
 --      local path = symbol_helper.get_executable_name()
 --      local addr = symbol_helper.get_global_symbol_addr("some_function")
 --      printf("addr => 0x%x\n", addr)

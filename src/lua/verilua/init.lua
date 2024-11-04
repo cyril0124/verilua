@@ -341,7 +341,7 @@ end
 -- 
 -- import scheduler functions
 -- 
-local scommon = require "LuaSchedulerCommonV2"
+local scommon = require "verilua.scheduler.LuaSchedulerCommonV2"
 for key, value in pairs(scommon) do
     _G[key] = value
 end
@@ -437,13 +437,14 @@ end
 -- 
 -- string operate extension
 -- 
-local CallableHDL = require "LuaCallableHDL"
-local Bundle = require "LuaBundle"
-local AliasBundle = require "LuaAliasBundle"
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
+local Bundle = require "verilua.handles.LuaBundle"
+local AliasBundle = require "verilua.handles.LuaAliasBundle"
+local CoverGroup = require "verilua.coverage.CoverGroup"
+local CoverPoint = require "verilua.coverage.CoverPoint"
+local AccurateCoverPoint = require "verilua.coverage.AccurateCoverPoint"
+
 local stringx = require "pl.stringx"
-local CoverGroup = require "coverage.CoverGroup"
-local CoverPoint = require "coverage.CoverPoint"
-local AccurateCoverPoint = require "coverage.AccurateCoverPoint"
 do
 
 ----------------------------------------------------------------------
@@ -788,7 +789,7 @@ do
     --      
     --      local test_ehdl = ("test_1"):ehdl(1) -- manually set event_id
     -- 
-    local scheduler = require "LuaScheduler"
+    local scheduler = require "verilua.scheduler.LuaScheduler"
     assert(scheduler ~= nil)
     getmetatable('').__index.ehdl = function (this, event_id_integer)
         return scheduler:get_event_hdl(this, event_id_integer)
@@ -944,7 +945,7 @@ do
                     if value_type ~= "table" then
                         assert(false, "[cvhdl] invalid `group` type! you should provide a valid CoverGroup. invalid_type => " .. value_type)
                     else
-                        assert(value.type == "CoverGroup", "[cvhdl] the provided `group` did not contains `type` field! you should pass a valid CoverGroup")
+                        assert(value.__type == "CoverGroup", "[cvhdl] the provided `group` did not contains `type` field! you should pass a valid CoverGroup")
                     end
                     cover_group = value
                 
@@ -1065,7 +1066,7 @@ do
     end
 end
 
-local scheduler = require "LuaScheduler"
+local scheduler = require "verilua.scheduler.LuaScheduler"
 assert(scheduler ~= nil)
 
 local vl = require "Verilua"

@@ -15,7 +15,7 @@ local LuaDataBase = class()
 
 -- 
 -- Example:
---      local LuaDB = require "LuaDataBase"
+--      local LuaDB = require "verilua.utils.LuaDataBase"
 --      local db = LuaDB {
 --          table_name = "a_table",
 --          elements = {

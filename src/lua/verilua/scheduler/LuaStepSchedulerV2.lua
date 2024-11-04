@@ -28,7 +28,7 @@ local coro_resume = coroutine.resume
 local coro_status = coroutine.status
 local coro_create = coroutine.create
 
-local scommon = require("LuaSchedulerCommonV2")
+local scommon = require("verilua.scheduler.LuaSchedulerCommonV2")
 local YieldType = scommon.YieldType
 
 local Scheduler = class()

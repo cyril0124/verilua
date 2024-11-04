@@ -16,7 +16,7 @@ function CoverGroup:_init(name)
     assert(type(name) == "string")
 
     self.name = name
-    self.type = "CoverGroup"
+    self.__type = "CoverGroup"
     self.cover_points = {}
     self.cover_point_type = "Unknown"
 
@@ -25,9 +25,9 @@ end
 
 function CoverGroup:add_cover_point(cover_point)
     if self.cover_point_type == "Unknown" then
-        self.cover_point_type = cover_point.type
+        self.cover_point_type = cover_point.__type
     else
-        assert(cover_point.type == self.cover_point_type, f("[CoverGroup] all the appended cover point should have the same type, current cover point type: %s, appended cover point type: %s", self.cover_point_type, cover_point.type))
+        assert(cover_point.__type == self.cover_point_type, f("[CoverGroup] all the appended cover point should have the same type, current cover point type: %s, appended cover point type: %s", self.cover_point_type, cover_point.__type))
     end
     table_insert(self.cover_points, cover_point)
 end

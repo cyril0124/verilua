@@ -1,6 +1,6 @@
 --[[luajit-pro]]
 
-local scheduler = require "LuaScheduler"
+local scheduler = require "verilua.scheduler.LuaScheduler"
 local os = require "os"
 
 local verilua_hello = verilua_hello

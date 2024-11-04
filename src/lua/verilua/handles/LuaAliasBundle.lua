@@ -1,4 +1,4 @@
-local CallableHDL = require "LuaCallableHDL"
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
 local class = require "pl.class"
 local List = require "pl.List"
 local fun = require "fun"
@@ -49,6 +49,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
     assert(type(hierachy) == "string")
 
     self.verbose = true
+    self.__type = "AliasBundle"
     self.prefix = prefix
     self.hierachy = hierachy
     self.name = name or "Unknown"

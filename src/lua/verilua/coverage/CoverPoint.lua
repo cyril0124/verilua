@@ -14,7 +14,7 @@ function CoverPoint:_init(name, coverage_group)
     end
 
     self.name = name
-    self.type = "CoverPoint"
+    self.__type = "CoverPoint"
     self.fullname = coverage_group.name .. "__" .. name
     self.coverage_group = coverage_group
 

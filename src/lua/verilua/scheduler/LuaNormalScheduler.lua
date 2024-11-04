@@ -1,8 +1,13 @@
-require("LuaSchedulerCommon")
-require("LuaUtils")
+local coroutine = require "coroutine"
+local debug = require "debug"
+local table = require "table"
+local ffi = require "ffi"
+local os = require "os"
 local class = require "pl.class"
+local C = ffi.C
+local assert, setmetatable, pairs, print = assert, setmetatable, pairs, print
 local coro_resume, coro_status = coroutine.resume, coroutine.status
-local assert = assert
+local YieldType = YieldType
 
 ffi.cdef[[
   void c_register_edge_callback(const char *path, int edge_type, int id);
@@ -13,6 +18,7 @@ ffi.cdef[[
   void c_register_edge_callback_hdl_always(long long handle, int edge_type, int id);
 ]]
 
+require("verilua.scheduler.LuaSchedulerCommon")
 
 --------------------------------
 -- Scheduler
@@ -30,6 +36,7 @@ function SchedulerTask:new(id, name, func, param)
     obj.param = param
     obj.fired = false
     obj.cnt = 0
+    obj.time_taken = 0
 
     return obj
 end
@@ -44,9 +51,10 @@ function SchedulerClass:_init()
     self.verbose = false
     self.task_table = {}
     self.will_remove_tasks = {}
-    self.cycles = 0
 
-    verilua_debug("[Scheduler]", "Using STEP scheduler")
+    self.time_accumulate = false
+
+    verilua_debug("[Scheduler]", "Using NORMAL scheduler")
 end
 
 function SchedulerClass:_log(...)
@@ -67,6 +75,7 @@ function SchedulerClass:create_task_table(tasks)
         task_param = task_param or {}
         if self:query_task_from_name(task_name) == nil then
             local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
+            -- table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.wrap(task_func), task_param))
             table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.create(task_func), task_param))
         end
     end
@@ -98,12 +107,11 @@ function SchedulerClass:append_task(id, name, task_func, param, schedule_task)
     end
 
     local _ = self.verbose and self:_log(string.format("append task id:%d name:%s", task_id, name))
+    -- table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.wrap(task_func), param))
     table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.create(task_func), param))
-    
-    -- not support (STEP)
-    -- if schedule_task or false then
-    --     self:schedule_tasks(task_id) -- start the task right away
-    -- end
+    if schedule_task or false then
+        self:schedule_tasks(task_id) -- start the task right away
+    end
 
     return task_id
 end
@@ -129,22 +137,79 @@ function SchedulerClass:schedule_all_tasks()
     for task_id, task in pairs(self.task_table) do
         self:schedule_tasks(task_id)
     end
-    self.cycles = self.cycles + 1
 end
 
 function SchedulerClass:list_tasks()
     print("--------------- Scheduler list task ---------------")
-    for task_id, task in pairs(self.task_table) do
-        print(("id: %5d\tcnt:%5d\tname: %.50s"):format(task_id, task.cnt, task.name))
+    if self.time_accumulate == true then
+        local total_time = 0
+        for task_id, task in pairs(self.task_table) do total_time = total_time + task.time_taken end
+        for task_id, task in pairs(self.task_table) do
+            local percent = task.time_taken * 100 / total_time
+            print(("id: %5d\tcnt:%5d\tname: %.50s\ttime:%.2f\toverhead:%.2f"):format(task_id, task.cnt, task.name, task.time_taken, percent).."%")
+        end
+    else
+        for task_id, task in pairs(self.task_table) do
+            print(("id: %5d\tcnt:%5d\tname: %.50s"):format(task_id, task.cnt, task.name))
+        end
     end
-    print("-----------------------------------------")
+    print()
 end
 
 function SchedulerClass:register_callback(types, value, task_id, signal)
-    assert(false, "Not used in STEP scheduler")
+    -------------------------
+    -- timer callback
+    -------------------------
+    if types == YieldType.TIMER then
+        C.verilua_time_callback(value, task_id)
+
+    -------------------------
+    -- edge callback
+    -------------------------
+    elseif types == YieldType.SIGNAL_EDGE then
+        C.c_register_edge_callback(signal, value, task_id)
+
+    -------------------------
+    -- edge callback hdl
+    -------------------------
+    elseif types == YieldType.SIGNAL_EDGE_HDL then
+        C.c_register_edge_callback_hdl(signal, value, task_id)
+
+    -------------------------
+    -- edge callback hdl always
+    -------------------------
+    elseif types == YieldType.SIGNAL_EDGE_ALWAYS then
+        C.c_register_edge_callback_hdl_always(signal, value, task_id)
+
+    -------------------------
+    -- read write synch callback
+    -------------------------
+    elseif types == YieldType.READ_WRITE_SYNCH then
+        C.c_register_read_write_synch_callback(task_id)
+
+    -------------------------
+    -- noop
+    -------------------------
+    elseif types == YieldType.NOOP then
+        -- do nothing
+
+    
+    -------------------------
+    -- used by exist_task()
+    -------------------------
+    elseif types == nil and value == nil then
+        self:remove_task(task_id)
+
+    -------------------------
+    -- others
+    -------------------------
+    else
+        assert(false, "Unknown yield_event! type:" .. types .. " value:" .. value)
+    end
 end
 
 function SchedulerClass:schedule_tasks(id)
+    -- for i = 1, #self.will_remove_tasks do
     for i = 1, self.task_max do -- Better performance for LuaJIT
         local task_id = self.will_remove_tasks[i]
         if task_id ~= nil then
@@ -165,6 +230,7 @@ function SchedulerClass:schedule_tasks(id)
             task.cnt = task.cnt + 1
             local _ = self.verbose and self:_log("ENTER task_id:", task_id, "task_name:", task_name)
 
+            local s = self.time_accumulate and os.clock()
             -- local types, value, signal = task_func(table.unpack(task_param))
             local ok, types, value, signal = coro_resume(task_func, table.unpack(task_param))
             if not ok then
@@ -172,19 +238,21 @@ function SchedulerClass:schedule_tasks(id)
                 print(debug.traceback(task_func, err_msg))
                 assert(false)
             end
+ 
+            local e = self.time_accumulate and os.clock()
+            if self.time_accumulate == true then task.time_taken = task.time_taken + (e - s) end
 
             local _ = self.verbose and self:_log("LEAVE task_id:", task_id, "task_name:", task_name)
+            -- if types == nil then -- ! task is dead if the first return value is `nil` 
             if coro_status(task_func) == 'dead' then
                 self:remove_task(id)
             else
-                -- self:register_callback(types, value, task_id, signal)
+                self:register_callback(types, value, task_id, signal)
             end
-            
-            -- if types == nil then
-            --     self:remove_task(id)
-            -- end
         end
     end
+    -- TODO: Register Callback after all tasks is executed, this will reduce C function called cost.
+    -- TODO: Merge tasks
 end
 
 local scheduler = SchedulerClass()

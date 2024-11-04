@@ -30,7 +30,7 @@ local coro_status = coroutine.status
 local coro_create = coroutine.create
 
 
-local scommon = require("LuaSchedulerCommonV2")
+local scommon = require("verilua.scheduler.LuaSchedulerCommonV2")
 local YieldType = scommon.YieldType
 
 local Scheduler = class()
@@ -274,7 +274,7 @@ function Scheduler:_init()
 
     -- 
     -- Example:
-    --      local scheduler = require "LuaScheduler"
+    --      local scheduler = require "verilua.scheduler.LuaScheduler"
     --      scheduler:register_event("test event 1", 123)
     --      scheduler:register_event("test event 2", 455)
     -- 
@@ -336,7 +336,7 @@ function Scheduler:_init()
 
     -- 
     -- Example:
-    --      local scheduler = require "LuaScheduler"
+    --      local scheduler = require "verilua.scheduler.LuaScheduler"
     --      local test_ehdl = scheduler:get_event_hdl("test_1") -- event id will be randomly allocated
     --      test_ehdl:wait()
     --      test_ehdl:send()

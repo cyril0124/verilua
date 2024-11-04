@@ -1,4 +1,4 @@
-local CallableHDL = require "LuaCallableHDL"
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
 local utils = require "LuaUtils"
 local stringx = require "pl.stringx"
 local ffi = require "ffi"

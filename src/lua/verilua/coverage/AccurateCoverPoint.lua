@@ -15,7 +15,7 @@ function AccurateCoverPoint:_init(name, coverage_group)
     end
 
     self.name = name
-    self.type = "AccurateCoverPoint"
+    self.__type = "AccurateCoverPoint"
     self.fullname = coverage_group.name .. "__" .. name
     self.coverage_group = coverage_group
 

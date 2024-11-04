@@ -236,6 +236,11 @@ ____   ____                .__ .__
 
     export LUA_PATH="$VERILUA_HOME/src/gen/?.lua;$LUA_PATH;"
     export LUA_PATH="$VERILUA_HOME/src/lua/verilua/?.lua;$LUA_PATH;"
+    export LUA_PATH="$VERILUA_HOME/src/lua/verilua/coverage/?.lua;$LUA_PATH;"
+    export LUA_PATH="$VERILUA_HOME/src/lua/verilua/handles/?.lua;$LUA_PATH;"
+    export LUA_PATH="$VERILUA_HOME/src/lua/verilua/scheduler/?.lua;$LUA_PATH;"
+    export LUA_PATH="$VERILUA_HOME/src/lua/verilua/random/?.lua;$LUA_PATH;"
+    export LUA_PATH="$VERILUA_HOME/src/lua/verilua/utils/?.lua;$LUA_PATH;"
     export LUA_PATH="$VERILUA_HOME/src/lua/thirdparty_lib/?.lua;$LUA_PATH;"
     export LUA_PATH="$VERILUA_HOME/extern/debugger.lua/?.lua;$LUA_PATH;"
     export LUA_PATH="$VERILUA_HOME/extern/luafun/?.lua;$LUA_PATH;"

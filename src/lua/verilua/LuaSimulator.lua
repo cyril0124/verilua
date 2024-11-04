@@ -48,7 +48,7 @@ local init = function ()
             cycles_chdl = dut.cycles:chdl()
             assert(cycles_chdl ~= nil)
         else
-            scheduler = require "LuaScheduler"
+            scheduler = require "verilua.scheduler.LuaScheduler"
             assert(scheduler.cycles ~= nil)
         end
     end

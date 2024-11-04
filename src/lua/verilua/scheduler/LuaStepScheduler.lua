@@ -1,4 +1,4 @@
-require("LuaSchedulerCommon")
+require("verilua.scheduler.LuaSchedulerCommon")
 require("LuaUtils")
 local class = require "pl.class"
 local coro_resume, coro_status = coroutine.resume, coroutine.status
@@ -14,8 +14,6 @@ ffi.cdef[[
 ]]
 
 
-
-
 --------------------------------
 -- Scheduler
 --------------------------------
@@ -23,6 +21,8 @@ local SchedulerTask = {}
 
 function SchedulerTask:new(id, name, func, param)
     local obj = {}
+    setmetatable(obj, self)
+    self.__index = self
 
     obj.id = id
     obj.name = name
@@ -30,32 +30,10 @@ function SchedulerTask:new(id, name, func, param)
     obj.param = param
     obj.fired = false
     obj.cnt = 0
-    obj.time_taken = 0
 
     return obj
 end
 
-local CallbackInfo = {}
-
-function CallbackInfo:new()
-    local obj = {}
-
-    obj.valid = false
-    obj.types = 0
-    obj.value = 0
-    obj.signal = 0
-    obj.signal_str = ""
-    obj.signal_is_str = false
-    obj.start_time = 0LL
-    obj.is_posedge = false
-    obj.is_negedge = false
-    obj.is_clock_posedge = false
-    obj.is_clock_negedge = false
-    obj.is_timer = false
-    obj.signal_value = 0LL
-
-    return obj
-end
 
 local SchedulerClass = class()
 
@@ -65,10 +43,10 @@ function SchedulerClass:_init()
     self.task_max = 50 -- Feel free to modified this value if the default value is not enough
     self.verbose = false
     self.task_table = {}
-    self.callback_table = {}
     self.will_remove_tasks = {}
+    self.cycles = 0
 
-    verilua_debug("[Scheduler]", "Using NORMAL scheduler")
+    verilua_debug("[Scheduler]", "Using STEP scheduler")
 end
 
 function SchedulerClass:_log(...)
@@ -90,12 +68,13 @@ function SchedulerClass:create_task_table(tasks)
         if self:query_task_from_name(task_name) == nil then
             local _ = self.verbose and self:_log(string.format("create task_id:%d task_name:%s", id, task_name))
             table.insert(self.task_table, id, SchedulerTask:new(id, task_name, coroutine.create(task_func), task_param))
-            table.insert(self.callback_table, id, CallbackInfo:new())
         end
     end
 end
 
 function SchedulerClass:remove_task(id) 
+    -- self:list_tasks()
+    -- assert(id ~= 1, "cannot remove main task! id:"..id)
     table.insert(self.will_remove_tasks, id)
 end
 
@@ -120,10 +99,9 @@ function SchedulerClass:append_task(id, name, task_func, param, schedule_task)
 
     local _ = self.verbose and self:_log(string.format("append task id:%d name:%s", task_id, name))
     table.insert(self.task_table, task_id, SchedulerTask:new(task_id, name, coroutine.create(task_func), param))
-    table.insert(self.callback_table, task_id, CallbackInfo:new())
-    -- TODO:
+    
+    -- not support (STEP)
     -- if schedule_task or false then
-    --     assert(false)
     --     self:schedule_tasks(task_id) -- start the task right away
     -- end
 
@@ -148,31 +126,22 @@ function SchedulerClass:query_task_from_name(name)
 end
 
 function SchedulerClass:schedule_all_tasks()
-    -- for task_id, task in pairs(self.task_table) do
-    --     self:schedule_tasks(task_id)
-    -- end
-    verilua_warning("[Scheduler] schedule_all_tasks will do nothing... (DOMINANT Mode)")
+    for task_id, task in pairs(self.task_table) do
+        self:schedule_tasks(task_id)
+    end
+    self.cycles = self.cycles + 1
 end
 
 function SchedulerClass:list_tasks()
     print("--------------- Scheduler list task ---------------")
-    if self.time_accumulate == true then
-        local total_time = 0
-        for task_id, task in pairs(self.task_table) do total_time = total_time + task.time_taken end
-        for task_id, task in pairs(self.task_table) do
-            local percent = task.time_taken * 100 / total_time
-            print(("id: %5d\tcnt:%5d\tname: %.50s\ttime:%.2f\toverhead:%.2f"):format(task_id, task.cnt, task.name, task.time_taken, percent).."%")
-        end
-    else
-        for task_id, task in pairs(self.task_table) do
-            print(("id: %5d\tcnt:%5d\tname: %.50s"):format(task_id, task.cnt, task.name))
-        end
+    for task_id, task in pairs(self.task_table) do
+        print(("id: %5d\tcnt:%5d\tname: %.50s"):format(task_id, task.cnt, task.name))
     end
-    print()
+    print("-----------------------------------------")
 end
 
 function SchedulerClass:register_callback(types, value, task_id, signal)
-    assert(false, "Not used in DOMINANT scheduler")
+    assert(false, "Not used in STEP scheduler")
 end
 
 function SchedulerClass:schedule_tasks(id)
@@ -196,7 +165,6 @@ function SchedulerClass:schedule_tasks(id)
             task.cnt = task.cnt + 1
             local _ = self.verbose and self:_log("ENTER task_id:", task_id, "task_name:", task_name)
 
-            local s = self.time_accumulate and os.clock()
             -- local types, value, signal = task_func(table.unpack(task_param))
             local ok, types, value, signal = coro_resume(task_func, table.unpack(task_param))
             if not ok then
@@ -204,25 +172,19 @@ function SchedulerClass:schedule_tasks(id)
                 print(debug.traceback(task_func, err_msg))
                 assert(false)
             end
-            
-            local e = self.time_accumulate and os.clock()
-            if self.time_accumulate == true then task.time_taken = task.time_taken + (e - s) end
 
             local _ = self.verbose and self:_log("LEAVE task_id:", task_id, "task_name:", task_name)
-            -- if types == nil then
             if coro_status(task_func) == 'dead' then
                 self:remove_task(id)
             else
                 -- self:register_callback(types, value, task_id, signal)
             end
+            
+            -- if types == nil then
+            --     self:remove_task(id)
+            -- end
         end
     end
-    -- TODO: Register Callback after all tasks is executed, this will reduce C function called cost.
-    -- TODO: Merge tasks
-end
-
-function SchedulerClass:schedule_loop(id)
-
 end
 
 local scheduler = SchedulerClass()

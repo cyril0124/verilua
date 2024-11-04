@@ -61,6 +61,7 @@ local ffi_new = ffi.new
 
 function CallableHDL:_init(fullpath, name, hdl)
     self.verbose = false
+    self.__type = "CallableHDL"
     self.fullpath = fullpath
     self.name = name or "Unknown"
     self.always_fired = false -- used by <chdl>:always_posedge()

@@ -1,5 +1,5 @@
 local ffi = require "ffi"
-local CallableHDL = require "LuaCallableHDL"
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local List = require "pl.List"
@@ -30,6 +30,7 @@ end
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optional_signals)
     self.verbose = false
+    self.__type = "Bundle"
     self.signals_table = signals_table
     self.prefix = prefix
     self.hierachy = hierachy
