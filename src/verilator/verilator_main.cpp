@@ -552,10 +552,6 @@ void Emulator::finalize() {
         VL_WARN("\nlightsss wakeup_child at {} cycles\n", dut_ptr->cycles_o);
         fflush(stdout);
 
-        /// Prepare for cloning the model at the process level (e.g. fork in Linux)
-        /// Release necessary resources. Called before cloning.
-        dut_ptr->prepareClone();
-
         lightsss->wakeup_child(dut_ptr->cycles_o);
         delete lightsss;
     }
