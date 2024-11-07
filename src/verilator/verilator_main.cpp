@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <argparse/argparse.hpp>
+#include <string>
 #include "lightsss.h"
 
 #ifndef VM_TRACE_FST
@@ -62,14 +63,15 @@ uint32_t uptime(void) {
 }
 
 struct EmuArgs {
-    bool verbose           = false;
-    bool enable_wave       = false;
-    bool wave_is_enable    = false;
-    bool wave_is_close     = false;
-    char *trace_file       = "dump.vcd";
-    bool enable_coverage   = false;
-    bool enable_fork       = false;
-    int fork_interval      = 1000;
+    bool verbose               = false;
+    bool enable_wave           = false;
+    bool wave_is_enable        = false;
+    bool wave_is_close         = false;
+    bool enable_coverage       = false;
+    bool enable_fork           = false;
+    int fork_interval          = 1000;
+    std::string trace_file     = "dump.vcd";
+    std::string fork_trace_file = "";
 };
 
 class Emulator final {
@@ -153,6 +155,7 @@ Emulator::Emulator(int argc, char *argv[]) {
     program.add_argument("-c", "--cov").help("coverage enable").default_value(false).implicit_value(true);
     program.add_argument("-ef", "--enable-fork").help("enable folking child processes to debug").default_value(false).implicit_value(true);
     program.add_argument("-fi", "--fork-interval").help("LightSSS snapshot interval (in seconds)").default_value(1000).action([](const std::string &value) { return std::stoi(value); });
+    program.add_argument("-ftf", "--fork-trace-file").help("Wavefile name when LightSSS is enabled").default_value("").action([](const std::string &value) { return value; });
 
     try {
         program.parse_args(argc, argv);
@@ -166,6 +169,7 @@ Emulator::Emulator(int argc, char *argv[]) {
     args.enable_coverage = program.get<bool>("--cov");
     args.enable_fork = program.get<bool>("--enable-fork");
     args.fork_interval = 1000 * program.get<int>("--fork-interval");
+    args.fork_trace_file = program.get<std::string>("--fork-trace-file");
 
     if (args.enable_fork) {
         lightsss = new LightSSS;
@@ -212,8 +216,7 @@ Emulator::Emulator(int argc, char *argv[]) {
 
     std::function<void(void*)> simulation_initializeTrace = [this](void *traceFilePath) {
 #if VM_TRACE
-        args.trace_file = new char[strlen((char *)traceFilePath) + 1];
-        strcpy(args.trace_file, (char *)traceFilePath);
+        args.trace_file = std::string((char *)traceFilePath);
         VL_INFO("initializeTrace trace_file:{}\n", args.trace_file);
         this->dump_wave();
 #else
@@ -269,8 +272,12 @@ void Emulator::fork_child_init() {
 #else
     std::string trace_file = std::string(fmt::format("lightsss_checkpoint_{}.vcd", dut_ptr->cycles_o));
 #endif
-    VL_WARN("the oldest checkpoint start to dump wave: {}\n", trace_file);
-    args.trace_file = (char*)trace_file.c_str();
+    if(args.fork_trace_file == "") {
+        args.trace_file = trace_file;
+    } else {
+        args.trace_file = args.fork_trace_file;
+    }
+    VL_WARN("the oldest checkpoint start to dump wave: {}\n", args.trace_file);
     args.enable_wave = true;
     args.wave_is_enable = false;
     args.wave_is_close = false;
@@ -309,7 +316,7 @@ void Emulator::dump_wave() {
         tfp = new VerilatedVcdC;
 #endif
         dut_ptr->trace(tfp, 99);
-        tfp->open(args.trace_file);
+        tfp->open(args.trace_file.c_str());
         args.wave_is_enable = true;
     }
 #endif
