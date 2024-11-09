@@ -41,12 +41,15 @@ rule("verilua")
 
         -- Generate build directory 
         local top = assert(target:values("cfg.top"), "[on_load] You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
-        local build_dir = path.absolute("build/" .. target:get("sim") .. "/" .. top)
+        local build_dir_name = target:values("cfg.build_dir_name") or top
+        local build_dir_path = target:values("cfg.build_dir_path") or ("build/" .. target:get("sim"))
+        local build_dir = target:values("cfg.build_dir") or path.absolute(build_dir_path .. "/" .. build_dir_name)
         local sim_build_dir = build_dir .. "/sim_build"
         target:add("top", top)
         target:add("build_dir", build_dir)
         target:add("sim_build_dir", sim_build_dir)
         cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
+        cprint("${✅} [verilua-xmake] [%s] build directory is ${green underline}%s${reset}", target:name(), build_dir)
 
         if not os.isfile(sim_build_dir) then
             os.mkdir(sim_build_dir)
