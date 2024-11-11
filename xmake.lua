@@ -625,12 +625,30 @@ target("test")
         local old_env = os.getenvs()
         os.cd(prj_dir .. "/examples/tutorial_example")
 
-        local simulators = {"iverilog", "verilator"}
+        local simulators = {}
+
+        if try { function () return os.iorun("which vvp_wrapper") end } then
+            table.insert(simulators, "iverilog")
+        end
+        if try { function () return os.iorun("which verilator") end } then
+            table.insert(simulators, "verilator")
+        end
+        if try { function () return os.iorun("which vcs") end } then
+            table.insert(simulators, "vcs")
+        end
+
+        assert(#simulators > 0, "No simulators found!")
+
         for _, sim in ipairs(simulators) do
             os.setenv("SIM", sim)
             os.exec("rm build -rf")
             os.exec("xmake build -v -P .")
-            os.exec("xmake run -v -P .")
+            if sim == "vcs" then
+                -- ignore error
+                try { function () os.exec("xmake run -v -P .") end }
+            else
+                os.exec("xmake run -v -P .")
+            end
         end
 
         os.setenvs(old_env)
