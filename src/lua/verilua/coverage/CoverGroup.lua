@@ -21,6 +21,9 @@ function CoverGroup:_init(name)
     self.cover_point_type = "Unknown"
     self.saved = false
 
+    -- User can use this table to query the cover points by the cover point name
+    self.points = {}
+
     printf("[CoverGroup] Create CoverGroup: %s\n", name)
 end
 
@@ -30,6 +33,10 @@ function CoverGroup:add_cover_point(cover_point)
     else
         assert(cover_point.__type == self.cover_point_type, f("[CoverGroup] all the appended cover point should have the same type, current cover point type: %s, appended cover point type: %s", self.cover_point_type, cover_point.__type))
     end
+
+    assert(self.points[cover_point.name] == nil, f("[CoverGroup] %s duplicate cover point name: %s", self.name, cover_point.name))
+    self.points[cover_point.name] = cover_point
+    
     table_insert(self.cover_points, cover_point)
 end
 
