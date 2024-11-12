@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <csignal>
 #include <cstdlib>
@@ -94,7 +95,7 @@ public:
     ~Emulator();
 
     void start_simulation();
-    void end_simulation();
+    void end_simulation(bool success = true);
     void dump_wave();
     void stop_dump_wave();
 
@@ -143,7 +144,7 @@ public:
 
     int run_main();
 
-    void finalize();
+    void finalize(bool success);
 };
 
 Emulator::Emulator(int argc, char *argv[]) {
@@ -290,20 +291,9 @@ void Emulator::start_simulation() {
     VerilatedVpi::callCbs(cbStartOfSimulation);
 }
 
-void Emulator::end_simulation() {
+void Emulator::end_simulation(bool success) {
     VerilatedVpi::callCbs(cbEndOfSimulation);
-
-    dut_ptr->final();
-
-    this->stop_dump_wave();
-
-// VM_COVERAGE is a define which is set if Verilator is
-// instructed to collect coverage (when compiling the simulation)
-#if VM_COVERAGE
-    if(args.enable_coverage) {
-        VerilatedCov::write("coverage.dat");
-    }
-#endif
+    this->finalize(success);
 }
 
 void Emulator::dump_wave() {
@@ -541,7 +531,7 @@ int Emulator::dominant_mode_main() {
     return 0;
 }
 
-void Emulator::finalize() {
+void Emulator::finalize(bool success = true) {
     VL_INFO("finalize\n");
     fflush(stdout);
 
@@ -555,12 +545,22 @@ void Emulator::finalize() {
     }
 #endif
 
-    if (args.enable_fork && !is_fork_child()) {
-        VL_WARN("\nlightsss wakeup_child at {} cycles\n", dut_ptr->cycles_o);
-        fflush(stdout);
+    if (success) {
+        // VM_COVERAGE is a define which is set if Verilator is
+        // instructed to collect coverage (when compiling the simulation)
+#if VM_COVERAGE
+        if(args.enable_coverage) {
+            VerilatedCov::write("coverage.dat");
+        }
+#endif
+    } else {
+        if (args.enable_fork && !is_fork_child()) {
+            VL_WARN("\nlightsss wakeup_child at {} cycles\n", dut_ptr->cycles_o);
+            fflush(stdout);
 
-        lightsss->wakeup_child(dut_ptr->cycles_o);
-        delete lightsss;
+            lightsss->wakeup_child(dut_ptr->cycles_o);
+            delete lightsss;
+        }
     }
 
     delete dut_ptr;
@@ -620,8 +620,7 @@ void signal_handler(int signal) {
 )");
                 fflush(stdout);
 
-                global_emu->finalize();
-                VerilatedVpi::callCbs(cbEndOfSimulation);
+                global_emu->end_simulation(false);
                 exit(1);
             }
             break;
@@ -636,8 +635,7 @@ void signal_handler(int signal) {
 )");
                 fflush(stdout);
 
-                global_emu->finalize();
-                VerilatedVpi::callCbs(cbEndOfSimulation);
+                global_emu->end_simulation(false);
                 exit(0);
             }
             break;
