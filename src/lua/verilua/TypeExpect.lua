@@ -6,6 +6,7 @@ local type = type
 
 local debug_str = _G.debug_str -- provided by init.lua
 local f = function(...) return debug_str(string.format(...)) end
+local error = function (...) print("\n[TypeExpect] " .. debug.traceback()) error(...) end
 
 local texpect = {}
 
