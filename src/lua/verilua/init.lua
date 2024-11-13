@@ -74,8 +74,10 @@ _G.get_debug_info = function (level)
     return file, line, func
 end
 
+_G.default_debug_level = 4
+_G.debug_level = _G.default_debug_level
 _G.debug_str = function(...)
-    local file, line, func = get_debug_info(4)
+    local file, line, func = get_debug_info(_G.debug_level)
     local args = {...}
     local message = table.concat(args, "\t")
     return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. message)
