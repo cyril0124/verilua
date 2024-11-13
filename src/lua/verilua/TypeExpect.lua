@@ -211,6 +211,14 @@ function texpect.expect_abdl(value, name, params)
                             if not(width >= sig_info.width_min and width <= sig_info.width_max) then
                                 error(f("[expect_abdl] signal `%s`'s width is %d, but expected in range [%d, %d]", sig_info.name, width, sig_info.width_min, sig_info.width_max), 0)
                             end
+                        elseif sig_info.width_min then
+                            if sig.width < sig_info.width_min then
+                                error(f("[expect_abdl] signal `%s`'s width is %d, but expected >= %d", sig_info.name, sig:get_width(), sig_info.width_min), 0)
+                            end
+                        elseif sig_info.width_max then
+                            if sig.width > sig_info.width_max then
+                                error(f("[expect_abdl] signal `%s`'s width is %d, but expected <= %d", sig_info.name, sig:get_width(), sig_info.width_max), 0)
+                            end
                         end
                     elseif type(sig_info) == "string" then
                         _G.debug_level = 5 -- Temporary set debug level
