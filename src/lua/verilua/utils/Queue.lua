@@ -28,6 +28,18 @@ function Queue:query_first()
     return self.data[self.first]
 end
 
+function Queue:front()
+    return self.data[self.first]
+end
+
+function Queue:last()
+    if self.last == 0 then
+        return nil
+    else
+        return self.data[self.last]
+    end
+end
+
 function Queue:is_empty()
     return isempty(self.data)
 end
