@@ -4,15 +4,29 @@ import os
 import sys
 import subprocess
 
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
+
+if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
+    luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
+else:
+    luapath = verilua_path + "/luajit-pro/luajit2.1"
+
 verilua_path = os.getenv("VERILUA_HOME")
 libpath = os.getenv("VERILUA_HOME") + "/shared"
-luapath = os.getenv("VERILUA_HOME") + "/luajit-pro/luajit2.1"
 liblua_path = luapath + "/lib"
 assert libpath != None, "[vl-iverilog] cannot find VERILUA_HOME!"
 assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-iverilog] cannot find liblua_vpi.so in " + libpath
 
 cmd_list = ["iverilog"] + ["-g2012"] + sys.argv[1:]
 cmd = " ".join(cmd_list)
-print(f"[vl-iverilog] cmd is {cmd} ")
+
+print(f'''
+[{YELLOW}vl-iverilog{RESET}] cmd:
+{GREEN}{cmd}{RESET}
+''', flush = True)
 
 exit(subprocess.call(cmd_list))

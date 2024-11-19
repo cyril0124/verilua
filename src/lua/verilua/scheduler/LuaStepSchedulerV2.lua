@@ -144,13 +144,21 @@ function Scheduler:_init()
     local EarlyExit = YieldType.EarlyExit
 
     self.schedule_tasks = function (this, id)
+        local is_removed = false
         for _, remove_id in ipairs(this.will_remove_tasks) do
             this.id_task_tbl[remove_id] = nil
             this.id_name_tbl[remove_id] = nil
             this.id_cnt_tbl[remove_id] = nil
             this.id_fired_tbl[remove_id] = nil
+            if remove_id == id then
+                is_removed = true
+            end
         end
         this.will_remove_tasks = {}
+
+        if is_removed then
+            return
+        end
 
         this.id_cnt_tbl[id] = this.id_cnt_tbl[id] + 1
         local func = this.id_task_tbl[id]
@@ -171,12 +179,7 @@ function Scheduler:_init()
 
     self.schedule_all_tasks = function (this)
         for id, _ in pairs(this.id_name_tbl) do
-            local fired = this.id_fired_tbl[id]
-            assert(fired ~= nil)
-            if fired == false then
-                fired = true
-                this:schedule_tasks(id)
-            end
+            this:schedule_tasks(id)
         end
     end
 

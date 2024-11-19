@@ -4,16 +4,30 @@ import os
 import sys
 import subprocess
 
-has_vlt_file = any(arg.endswith('.vlt') for arg in sys.argv[1:])
-if not has_vlt_file:
-    raise ValueError("\033[31m" + "\n\
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
+
+vlt_files = [arg for arg in sys.argv[1:] if arg.endswith('.vlt')]
+if not vlt_files:
+    raise ValueError(f'''{RED}
         [vl-verilator-p Error] No *.vlt file exist! The *.vlt file is used to specify the access permission for the rtl which is indispensible for vpi usage.\n\
-        See https://veripool.org/guide/latest/exe_verilator.html#configuration-files for more detailed info." + "\033[0m"
+        See https://veripool.org/guide/latest/exe_verilator.html#configuration-files for more detailed info.
+        {RESET}'''
     )
+
+assert len(vlt_files) == 1, f"{RED}[vl-verilator-p Error] Only one *.vlt file is allowed!{RESET}"
 
 verilua_path = os.getenv("VERILUA_HOME")
 libpath = verilua_path + "/shared"
-luapath = verilua_path + "/luajit-pro/luajit2.1"
+
+if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
+    luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
+else:
+    luapath = verilua_path + "/luajit-pro/luajit2.1"
+
 liblua_path =luapath + "/lib"
 assert libpath != None, "[vl-verilator-p] cannot find VERILUA_HOME!"
 assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator-p] cannot find liblua_vpi.so in " + libpath
@@ -21,7 +35,7 @@ assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator-p] cannot find
 CFLAGS = ""
 LDFLAGS = ""
 
-CFLAGS += f"-I{luapath}/include "
+CFLAGS += f"-I{luapath}/include -I{luapath}/include/luajit-2.1 "
 CFLAGS += f"-I{verilua_path}/src/include "
 CFLAGS += f"-I{verilua_path}/vcpkg_installed/x64-linux/include "
 
@@ -29,12 +43,18 @@ LDFLAGS += f"-L{libpath} -llua_vpi "
 LDFLAGS += f"-L{liblua_path} -lluajit-5.1 "
 LDFLAGS += f" -L{verilua_path}/vcpkg_installed/x64-linux/lib -lfmt "
 
-cmd_list = ["verilator"] + [
+cmd_list = ["/nfs/share/opt/verilator/bin/verilator"] + [
                         "--vpi", 
                         "-LDFLAGS",LDFLAGS, 
                         "-CFLAGS", CFLAGS ] + \
             sys.argv[1:]
 cmd = " ".join(cmd_list)
-print(f"[vl-verilator-p] cmd is {cmd} ")
+
+print(f'''
+[{YELLOW}vl-verilator-p{RESET}] cmd:
+{GREEN}{cmd}{RESET}
+
+[{YELLOW}vl-verilator-p{RESET}] verilator config file: {GREEN}{vlt_files[0]}{RESET}
+''', flush = True)
 
 exit(subprocess.call(cmd_list))

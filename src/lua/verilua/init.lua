@@ -1,8 +1,29 @@
 -- jit.opt.start(3)
 -- jit.opt.start("loopunroll=100", "minstitch=0", "hotloop=1", "tryside=100")
 
+local os = require "os"
+local math = require "math"
+local debug = require "debug"
+local string = require "string"
+
+local io = io
+local type = type
+local print = print
+local table = table
+local pairs = pairs
+local pcall = pcall
+local ipairs = ipairs
+local assert = assert
+local f = string.format
+local tonumber = tonumber
+local tostring = tostring
+local math_random = math.random
+local getmetatable = getmetatable
+
 _G.inspect = require "inspect"
-_G.pp      = function (...) print(inspect(...)) end
+_G.dbg     = function (...) print(inspect(...)) end
+_G.pp      = _G.dbg -- Alias for dbg
+_G.dump    = _G.pp -- Alias for dbg
 
 do
     local PWD = os.getenv("PWD")
@@ -10,17 +31,17 @@ do
     local VERILUA_HOME = os.getenv("VERILUA_HOME")
 
     local function append_package_path(path)
-        package.path = package.path .. ";" .. path
+        _G.package.path = _G.package.path .. ";" .. path
     end
 
     local function append_package_cpath(path)
-        package.cpath = package.cpath .. ";" .. path
+        _G.package.cpath = _G.package.cpath .. ";" .. path
     end
 
     local LUA_PATH = os.getenv("LUA_PATH") or ""
     local LUA_CPATH = os.getenv("LUA_CPATH") or ""
-    package.path = package.path .. ";" .. LUA_PATH
-    package.cpath = package.cpath .. ";" .. LUA_CPATH
+    _G.package.path = _G.package.path .. ";" .. LUA_PATH
+    _G.package.cpath = _G.package.cpath .. ";" .. LUA_CPATH
 
     append_package_path(PWD .. "?.lua")
     append_package_path(PWD .. "/?.lua")
@@ -50,7 +71,7 @@ end
 -- 
 -- used by c++
 -- 
-function lua_traceback()
+_G.lua_traceback = function ()
     print(debug.traceback(""))
 end
 
@@ -77,7 +98,7 @@ end
 _G.default_debug_level = 4
 _G.debug_level = _G.default_debug_level
 _G.debug_str = function(...)
-    local file, line, func = get_debug_info(_G.debug_level)
+    local file, line, func = _G.get_debug_info(_G.debug_level)
     local args = {...}
     local message = table.concat(args, "\t")
     return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. message)
@@ -86,11 +107,11 @@ end
 local enable_debug_print = os.getenv("VL_DEBUG") == "1"
 if enable_debug_print then
     _G.debug_print = function (...)
-        print(debug_str(...))
+        print(_G.debug_str(...))
     end
 
     _G.debug_printf = function (...)
-        print(debug_str(string.format(...)))
+        print(_G.debug_str(f(...)))
     end
 else
     _G.debug_print = function (...)
@@ -104,13 +125,13 @@ end
 -- 
 -- load configuration
 -- 
-local LuaSimConfig = require "LuaSimConfig"
+local cfg = require "LuaSimConfig"
 local cfg_name, cfg_path
 do
     local path = require "pl.path"
     local stringx = require "pl.stringx"
 
-    cfg_name, cfg_path = LuaSimConfig.get_cfg()
+    cfg_name, cfg_path = cfg:get_user_cfg()
     
     if cfg_path == nil then
         cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
@@ -119,7 +140,7 @@ do
     assert(type(cfg_path) == "string")
 
     if string.len(cfg_path) ~= 0 then
-        package.path = package.path .. ";" .. cfg_path .. "/?.lua" 
+        _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua" 
     end
 
     cfg_name = path.basename(cfg_name) -- strip basename
@@ -127,12 +148,16 @@ do
     if stringx.endswith(cfg_name, ".lua") then
         cfg_name = stringx.rstrip(cfg_name, ".lua") -- strip ".lua" suffix
     end
-end
-local cfg = require(cfg_name)
-assert(type(cfg) == "table", string.format("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
 
-_G.CONNECT_CONFIG = LuaSimConfig.CONNECT_CONFIG
-_G.VeriluaMode = LuaSimConfig.VeriluaMode
+    local _cfg = require(cfg_name)
+    assert(type(_cfg) == "table", f("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
+
+    cfg:merge_config(_cfg)
+    cfg:post_config()
+end
+
+_G.cfg = cfg
+_G.VeriluaMode = cfg.VeriluaMode
 
 
 -- 
@@ -160,23 +185,14 @@ end
 -- 
 -- global debug log functions
 -- 
-_G.colors = {
-    reset   = "\27[0m",
-    black   = "\27[30m",
-    red     = "\27[31m",
-    green   = "\27[32m",
-    yellow  = "\27[33m",
-    blue    = "\27[34m",
-    magenta = "\27[35m",
-    cyan    = "\27[36m",
-    white   = "\27[37m"
-}
+_G.colors = cfg.colors
 
 local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
 if enable_verilua_debug == true then
     _G.verilua_debug = function (...)
-        print(debug_str(colors.red .. os.date() .. " [VERILUA DEBUG]", ...))
-        io.write(colors.reset)
+        io.write("\27[31m") -- RED
+        print(_G.debug_str("[VERILUA DEBUG]", ...))
+        io.write("\27[0m") -- RESET
     end
 else
     _G.verilua_debug = function (...)
@@ -184,19 +200,23 @@ else
 end
 
 _G.verilua_info = function (...)
-    print(colors.cyan .. os.date() .. " [VERILUA INFO]", ...)
-    io.write(colors.reset)
+    io.write("\27[36m") -- CYAN
+    print("[VERILUA INFO]", ...)
+    io.write("\27[0m") -- RESET
 end
 
 _G.verilua_warning = function (...)
-    print(colors.yellow .. os.date() ..  "[VERILUA WARNING]", ...)
-    io.write(colors.reset)
+    io.write("\27[33m") -- YELLOW
+    print("[VERILUA WARNING]", ...)
+    io.write("\27[0m") -- RESET
+    io.flush()
 end
 
 _G.verilua_error = function (...)
     local error_print = function(...)
-        print(colors.red .. os.date() ..  "[VERILUA ERROR]", ...)
-        io.write(colors.reset)
+        io.write("\27[31m") -- RED
+        print("[VERILUA ERROR]", ...)
+        io.write("\27[0m") -- RESET
         io.flush()
     end
     assert(false, error_print(...))
@@ -204,7 +224,7 @@ end
 
 _G.verilua_assert = function (cond, ...)
     if cond == nil or cond == false then
-        verilua_error(...)
+        _G.verilua_error(...)
     end
 end
 
@@ -218,7 +238,10 @@ ____   ____                .__ .__
    \___/    \___  > |__|   |__||____/|____/ (____  /
                 \/                               \/ 
 ]]
-    print(colors.cyan .. hello .. colors.reset)
+    io.write("\27[36m") -- CYAN
+    print(hello)
+    io.write("\27[0m") -- RESET
+    io.flush()
 end
 
 
@@ -231,9 +254,9 @@ do
         assert(value ~= nil)
         local ret = ffi.C.setenv(name, tostring(value), 1)
         if ret == 0 then
-            verilua_debug("Environment variable <%s> set successfully.", name)
+            _G.verilua_debug("Environment variable <%s> set successfully.", name)
         else
-            verilua_debug("Failed to set environment variable <%s>.", name)
+            _G.verilua_debug("Failed to set environment variable <%s>.", name)
         end
     end
 
@@ -272,30 +295,17 @@ end
 
 
 -- 
--- add source file package path
+-- add source_file/dependencies package path
 -- 
 do
-    local srcs = cfg.srcs
-    assert(srcs ~= nil and type(srcs) == "table")
-    for i, src in ipairs(srcs) do
-        package.path = package.path .. ";" .. src
+    for _, src in ipairs(cfg.srcs) do
+        _G.package.path = _G.package.path .. ";" .. src
+    end
+
+    for _, dep in pairs(cfg.deps) do
+        _G.package.path = package.path .. ";" .. dep
     end
 end
-
-
--- 
--- add dependencies package path
--- 
-do
-    local deps = cfg.deps
-    if deps ~= nil then
-        assert(type(deps) == "table")
-        for k, dep in pairs(deps) do
-            package.path = package.path .. ";" .. dep
-        end
-    end
-end
-
 
 -- 
 -- #define vpiBinStrVal          1
@@ -308,26 +318,18 @@ _G.OctStr = 2
 _G.DecStr = 3
 _G.HexStr = 4
 
-
-
--- 
--- global package
--- 
-_G.cfg     = cfg
-
 -- 
 -- setup mode
 -- 
 do
     if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-        if cfg.attach == false or cfg.attach == nil then
-            -- cfg.mode = sim.get_mode()
+        if not cfg.attach then
             if cfg.simulator == "vcs" then
                 ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
                 local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
                 if not success then
-                    mode = VeriluaMode.NORMAL
-                    verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
+                    mode = cfg.VeriluaMode.NORMAL
+                    _G.verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
                 end
                 cfg.mode = tonumber(mode)
             else
@@ -336,7 +338,7 @@ do
                 cfg.mode = tonumber(mode)
             end
         end
-        verilua_debug("VeriluaMode is " .. VeriluaMode(cfg.mode))
+        _G.verilua_debug("VeriluaMode is " .. cfg.VeriluaMode(cfg.mode))
     end
 end
 
@@ -349,24 +351,13 @@ for key, value in pairs(scommon) do
 end
 
 
-_G.dbg     = function (...) print(inspect(...)) end
-_G.TODO    = function (...) error(debug_str("TODO:", ...)) end
-_G.fatal   = function (...) error(debug_str("FATAL:", ...)) end
-_G.fassert = function (bool, ...)
-    if bool == false then
-        local args = {...}
-        if #args == 0 then
-            assert(false)
-        else
-            assert(false, string.format(...))
-        end
-    end
-end
+
 _G.dut     = (require "LuaDut").create_proxy(cfg.top)
+
 local sim = require "LuaSimulator";
 _G.sim     = sim
 
-local f = string.format
+
 _G.printf = function (s, ...) io.write(f(s, ...)) end
 
 -- 
@@ -721,10 +712,10 @@ do
     -- 
     -- 
     getmetatable('').__index.posedge = function (str)
-        await_posedge(str)
+        _G.await_posedge(str)
     end
     getmetatable('').__index.negedge = function (str)
-        await_negedge(str)
+        _G.await_negedge(str)
     end
 
     -- 
@@ -752,7 +743,7 @@ do
             assert(condition_meet ~= nil and type(condition_meet) == "boolean")
 
             if not condition_meet then
-                await_posedge(this)
+                _G.await_posedge(this)
             else
                 break
             end
@@ -774,7 +765,7 @@ do
             assert(condition_meet ~= nil and type(condition_meet) == "boolean")
             
             if not condition_meet then
-                await_negedge(this)
+                _G.await_negedge(this)
             else
                 break 
             end
@@ -1148,7 +1139,7 @@ do
                         unnamed_task_count = unnamed_task_count + 1   
                     end
                     print("get task name => ", name)
-                    scheduler:append_task(nil, name, func, {}, true)
+                    scheduler:append_task(nil, name, func, {}, true) -- (<task_id>, <task_name>, <task_func>, <task_param>, <schedule_task>)
                 end
             end
         
@@ -1217,7 +1208,7 @@ do
         elseif cmd == "test" then
             return function (str)
                 print(str)
-                TODO("Only for test...")
+                assert(false, "Only for test...")
             end
         else
             local available_cmds = {
@@ -1229,7 +1220,7 @@ do
                 "appendFinishTasks",
                 "showTasks",
             }
-            assert(false, "Unknown cmd => " .. cmd .. ", available cmds: " .. inspect(available_cmds))
+            assert(false, "Unknown cmd => " .. cmd .. ", available cmds: " .. _G.inspect(available_cmds))
         end
     end
 
@@ -1241,7 +1232,7 @@ do
                 unnamed_task_count = unnamed_task_count + 1   
             end
             print("[fork] get task name => ", name)
-            scheduler:append_task(nil, name, func, {}, true)
+            scheduler:append_task(nil, name, func, {}, true) -- (<task_id>, <task_name>, <task_func>, <task_param>, <schedule_task>)
         end
     end
     -- TODO: join?
@@ -1260,16 +1251,21 @@ sim.init()
 -- 
 do
     local ENV_SEED = os.getenv("SEED")
-    verilua_debug("ENV_SEED is " .. tostring(ENV_SEED))
-    verilua_debug("cfg.seed is " .. tostring(cfg.seed))
+    _G.verilua_debug("ENV_SEED is " .. tostring(ENV_SEED))
+    _G.verilua_debug("cfg.seed is " .. tostring(cfg.seed))
 
     local final_seed = ENV_SEED ~= nil and tonumber(ENV_SEED) or cfg.seed
-    verilua_debug("final_seed is "..final_seed)
+    if not final_seed then
+        _G.verilua_debug("final_seed is nil, set to 1234(default)")
+        final_seed = 1234
+    end
 
-    verilua_debug(("overwrite cfg.seed from %d to %d"):format(cfg.seed, final_seed))
+    _G.verilua_debug("final_seed is " .. final_seed)
+
+    _G.verilua_debug(("overwrite cfg.seed from %s to %d"):format(tostring(cfg.seed), final_seed))
     cfg.seed = final_seed
 
-    verilua_debug(("random seed is %d"):format(cfg.seed))
+    _G.verilua_debug(("random seed is %d"):format(cfg.seed))
     math.randomseed(cfg.seed)
 end
 
@@ -1277,14 +1273,14 @@ end
 -- Implement sorts of SystemVerilog APIs
 -- 
 _G.urandom = function ()
-    return math.random(0, 0xFFFFFFFF)
+    return math_random(0, 0xFFFFFFFF)
 end
 
 _G.urandom_range = function (min, max)
-    if(min > max) then
-        error("min should be less than or equal to max")
+    if min > max then
+        assert(false, "min should be less than or equal to max")
     end
-    return math.random(min, max)
+    return math_random(min, max)
 end
 
 ----------------------------------------------------------------------------

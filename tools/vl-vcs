@@ -5,6 +5,12 @@ import sys
 import subprocess
 import base64
 
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
+
 def execute_cmd(cmd):
     return subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
@@ -14,8 +20,12 @@ def encode_string(s):
 def decode_string(s):
     return base64.b64decode(s.encode()).decode()
 
+if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
+    luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
+else:
+    luapath = verilua_path + "/luajit-pro/luajit2.1"
+
 libpath = os.getenv("VERILUA_HOME") + "/shared"
-luapath = os.getenv("VERILUA_HOME") + "/luajit-pro/luajit2.1"
 libpath_lua = luapath + "/lib"
 assert libpath != None, "[vl-vcs] cannot find VERILUA_HOME!"
 assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find liblua_vpi_vcs.so in " + libpath
@@ -47,7 +57,10 @@ cmd_list = [vcs] + sys.argv[1:] + [
 ]
 
 cmd = " ".join(cmd_list)
-print(f"[vl-vcs] cmd is {cmd} ")
-execute_cmd(f"echo {cmd} > vl-vcs.cmd")
+
+print(f'''
+[{YELLOW}vl-vcs{RESET}] cmd:
+{GREEN}{cmd}{RESET}
+''', flush = True)
 
 exit(subprocess.call(cmd_list))

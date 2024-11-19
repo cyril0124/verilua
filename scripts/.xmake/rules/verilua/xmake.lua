@@ -121,17 +121,15 @@ rule("verilua")
 
         local cfg_file = path.absolute(target:get("build_dir") .. "/verilua_cfg.lua")
         local cfg_file_str = f([[
-local LuaSimConfig = require "LuaSimConfig"
-local cfg = require "LuaBasicConfig"
+local lua_cfg = require "LuaSimConfig"
 
-local VeriluaMode = LuaSimConfig.VeriluaMode
+local VeriluaMode = lua_cfg.VeriluaMode
+local cfg = {}
 
 cfg.top = os.getenv("DUT_TOP") or "%s"
 cfg.prj_dir = os.getenv("PRJ_DIR") or "%s"
 cfg.simulator = os.getenv("SIM") or "%s"
 cfg.mode = VeriluaMode.%s
-cfg.clock = cfg.top .. ".clock"
-cfg.reset = cfg.top .. ".reset"
 cfg.seed = os.getenv("SEED") or 101
 cfg.attach = false
 cfg.script = os.getenv("LUA_SCRIPT") or "%s"
@@ -150,9 +148,11 @@ cfg.vpi_learn = false
 
 -- Mix with other config
 if cfg.other_cfg ~= nil then
-    package.path = package.path .. ";" .. cfg.other_cfg_path .. "/?.lua"
+    _G.package.path = _G.package.path .. ";" .. cfg.other_cfg_path .. "/?.lua"
     local _cfg = require(cfg.other_cfg)
-    LuaSimConfig.CONNECT_CONFIG(_cfg, cfg)
+    assert(type(_cfg) == "table")
+
+    lua_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
 end
 
 return cfg

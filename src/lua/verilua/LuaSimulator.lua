@@ -35,38 +35,8 @@ ffi.cdef[[
     void iterate_vpi_type(const char *module_name, int type);
 ]]
 
-local cycles_chdl = nil
-local use_step_cycles = false
-local scheduler = nil
 local init = function ()
     verilua_debug("LuaSimulator initialize...")
-    
-    if cfg.simulator ~= "wave_vpi" then
-        use_step_cycles = cfg.mode == VeriluaMode.STEP and cfg.attach == true
-
-        if not use_step_cycles then
-            cycles_chdl = dut.cycles:chdl()
-            assert(cycles_chdl ~= nil)
-        else
-            scheduler = require "verilua.scheduler.LuaScheduler"
-            assert(scheduler.cycles ~= nil)
-        end
-    end
-end
-
-local get_cycles = nil
-if cfg.simulator ~= "wave_vpi" then
-    get_cycles = function()
-        if not use_step_cycles then
-            return cycles_chdl()
-        else
-            return scheduler.cycles
-        end
-    end
-else
-    get_cycles = function()
-        assert(false, "sim.get_cycles() not support for wave_vpi simulator")
-    end
 end
 
 local initialize_trace = function (trace_file_path)
@@ -204,7 +174,6 @@ end
 
 return {
     init              = init,
-    get_cycles        = get_cycles,
     initialize_trace  = initialize_trace,
     enable_trace      = enable_trace,
     disable_trace     = disable_trace,
