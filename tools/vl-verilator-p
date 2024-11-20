@@ -43,7 +43,7 @@ LDFLAGS += f"-L{libpath} -llua_vpi "
 LDFLAGS += f"-L{liblua_path} -lluajit-5.1 "
 LDFLAGS += f" -L{verilua_path}/vcpkg_installed/x64-linux/lib -lfmt "
 
-cmd_list = ["/nfs/share/opt/verilator/bin/verilator"] + [
+cmd_list = ["verilator"] + [
                         "--vpi", 
                         "-LDFLAGS",LDFLAGS, 
                         "-CFLAGS", CFLAGS ] + \
