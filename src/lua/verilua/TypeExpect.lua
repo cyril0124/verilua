@@ -1,3 +1,4 @@
+local inspect = require "inspect"
 local tostring = tostring
 local ipairs = ipairs
 local assert = assert
@@ -229,6 +230,32 @@ function texpect.expect_abdl(value, name, params)
                         error(f("[expect_abdl] every item in `params` must be a `table` or a `string`, but got a %s", type(sig_info)), 0)
                     end
                 end
+            end
+        end
+    end
+end
+
+function texpect.expect_database(value, name, elements_table)
+    if type(value) ~= "table" then
+        error(
+			f("[expect_database] Expected argument `%s` to be a `%s` value, but received a `%s` value instead", name, "LuaDataBase", type(value)),
+			0
+		)
+    else
+        if value.__type == nil or value.__type ~= "LuaDataBase" then
+            error(
+                f("[expect_database] Expected argument `%s` to be a `%s` value, but received a `%s` value instead, and it is not a `LuaDataBase`, __type => %s", name, "LuaDataBase", type(value), tostring(value.__type)),
+                0
+            )
+        end
+
+        if value.__type == "LuaDataBase" then
+            assert(type(elements_table) == "table", "[expect_database] elements_table must be a table")
+
+            local expect = inspect(elements_table)
+            local got = inspect(value.elements)
+            if got ~= expect then
+                error(f("[expect_database] elements_table is not equal to %s.elements\nexpect => %s\ngot => %s", name, expect, got), 0)
             end
         end
     end

@@ -1,13 +1,16 @@
 local sqlite3 = require "lsqlite3"
 local class = require "pl.class"
 local lfs = require "lfs"
+local texpect = require "TypeExpect"
 
 local assert = assert
 local ipairs = ipairs
 local print = print
 local printf = printf
 local string = string
-local format = string.format
+local type = type
+local pairs = pairs
+local f = string.format
 local table_insert = table.insert
 local table_unpack = table.unpack
 
@@ -33,19 +36,19 @@ local LuaDataBase = class()
 --      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the same order as the elements in the table
 -- 
 function LuaDataBase:_init(init_tbl)
-    assert(type(init_tbl) ~= nil)
-    
-    local save_cnt_max = init_tbl.save_cnt_max or 10000
-    local verbose = init_tbl.verbose or false
-    local table_name = init_tbl.table_name
-    local elements = init_tbl.elements
-    local file_name = init_tbl.file_name
-    local path = init_tbl.path
+    texpect.expect_table(init_tbl, "init_tbl")    
 
-    assert(type(table_name) == "string")
-    assert(type(elements) == "table")
-    assert(type(file_name) == "string")
-    assert(type(path) == "string")
+    local save_cnt_max = init_tbl.save_cnt_max or 10000
+    local verbose      = init_tbl.verbose or false
+    local table_name   = init_tbl.table_name
+    local elements     = init_tbl.elements
+    local file_name    = init_tbl.file_name
+    local path         = init_tbl.path
+
+    texpect.expect_string(table_name, "table_name")
+    texpect.expect_table(elements, "elements")
+    texpect.expect_string(file_name, "file_name")
+    texpect.expect_string(path, "path")
 
     self.path = path
     self.file_name = file_name
@@ -57,11 +60,17 @@ function LuaDataBase:_init(init_tbl)
     self.stmt = nil
     self.verbose = verbose or false
 
+    -- Used for type check(TypeExpect)
+    self.__type = "LuaDataBase"
+    self.elements = elements
+
     local pattern_str = ""
     for _, kv_str in pairs(elements) do
-        assert(type(kv_str) == "string")
+        texpect.expect_string(kv_str, "kv_str")
+
         local key, data_type = kv_str:match("([^%s=>]+)%s*=>%s*([^%s]+)")
-        assert(data_type == "INTEGER"  or data_type == "TEXT", "Unsupported data type: " .. data_type)
+        assert(data_type == "INTEGER"  or data_type == "TEXT", "[LuaDataBase] Unsupported data type: " .. data_type)
+
         pattern_str = pattern_str .. key .. " " .. data_type .. ",\n"
     end
 
@@ -74,7 +83,7 @@ function LuaDataBase:_init(init_tbl)
     if attributes == nil then
         local success, message = lfs.mkdir(path .. "/")
         if not success then
-            assert(false, "cannot create folder: " .. path .. " err: " .. message)
+            assert(false, "[LuaDataBase] Cannot create folder: " .. path .. " err: " .. message)
         end
     end
 
@@ -92,13 +101,15 @@ function LuaDataBase:_init(init_tbl)
     -- Open database
     -- 
     self.db, err_msg = sqlite3.open(self.fullpath_name)
-    assert(self.db ~= nil, err_msg)
+    if not self.db then
+        assert(false,  "[LuaDataBase] ".. err_msg)
+    end
 
-    local cmd = format("CREATE TABLE %s ( %s );", table_name, pattern_str)
+    local cmd = f("CREATE TABLE %s ( %s );", table_name, pattern_str)
     local result_code = self.db:exec(cmd)
     if result_code ~= sqlite3.OK then
         local err_msg = self.db:errmsg()
-        assert(false, "SQLite3 error: "..err_msg)
+        assert(false, "[LuaDataBase] SQLite3 error: "..err_msg)
     else
         print("[LuaDataBase] cmd execute success! cmd => "..cmd)
     end
@@ -122,7 +133,7 @@ function LuaDataBase:_init(init_tbl)
     end
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
     self.prepare_cmd = self.prepare_cmd .. ")"
-    print(file_name .. " prepare_cmd: " .. self.prepare_cmd)
+    print("[LuaDataBase] file_name: " .. file_name .. " prepare_cmd: " .. self.prepare_cmd)
 
     verilua "appendFinishTasks" {
         function ()
@@ -132,11 +143,7 @@ function LuaDataBase:_init(init_tbl)
 end
 
 function LuaDataBase:_log(...)
-    print(format("[%s]", self.file_name), ...)
-end
-
-function LuaDataBase:_save(...)
-    table_insert(self.cache, {...})
+    print(f("[LuaDataBase] [%s]", self.file_name), ...)
 end
 
 function LuaDataBase:save(...)
@@ -147,7 +154,7 @@ function LuaDataBase:save(...)
         assert(self.stmt ~= nil)
     end
 
-    self:_save(...)
+    table_insert(self.cache, {...})
 
     self.save_cnt = self.save_cnt + 1
     if self.save_cnt >= self.save_cnt_max then
@@ -185,7 +192,7 @@ function LuaDataBase:clean_up()
         self:commit()
     end
 
-    print(("[%s] clean up..."):format(self.fullpath_name))
+    printf("[LuaDataBase] [%s] clean up...\n", self.fullpath_name)
 end
 
 return LuaDataBase
