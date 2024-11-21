@@ -1,17 +1,17 @@
 local class = require "pl.class"
+local texpect = require "TypeExpect"
 
+local type = type
 local assert = assert
 local printf = printf
-local type = type
+local f = string.format
+local verilua_debug = _G.verilua_debug
 
 local CoverPoint = class()
 
 function CoverPoint:_init(name, coverage_group)
-    assert(type(name) == "string")
-
-    if type(coverage_group) ~= "table" then
-        assert(false, name .. " coverage group is not a valid type! => " .. type(coverage_group))
-    end
+    texpect.expect_string(name, "name")
+    texpect.expect_covergroup(coverage_group, "coverage_group")
 
     self.name = name
     self.__type = "CoverPoint"
@@ -20,7 +20,7 @@ function CoverPoint:_init(name, coverage_group)
 
     self.cnt = 0
     
-    printf("[CoverPoint] Create CoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name, coverage_group.name, self.fullname)
+    verilua_debug(f("[CoverPoint] Create CoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name, coverage_group.name, self.fullname))
 end
 
 function CoverPoint:cover()

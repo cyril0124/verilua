@@ -1,18 +1,18 @@
 local class = require "pl.class"
+local texpect = require "TypeExpect"
 
+local type = type
 local assert = assert
 local printf = printf
-local type = type
+local f = string.format
 local table_insert = table.insert
+local verilua_debug = _G.verilua_debug
 
 local AccurateCoverPoint = class()
 
 function AccurateCoverPoint:_init(name, coverage_group)
-    assert(type(name) == "string")
-
-    if type(coverage_group) ~= "table" then
-        assert(false, name .. " coverage group is not a valid type! => " .. type(coverage_group))
-    end
+    texpect.expect_string(name, "name")
+    texpect.expect_covergroup(coverage_group, "coverage_group")
 
     self.name = name
     self.__type = "AccurateCoverPoint"
@@ -22,7 +22,7 @@ function AccurateCoverPoint:_init(name, coverage_group)
     self.covered_cycles_table = {}
     self.cnt = 0
     
-    printf("[AccurateCoverPoint] Create AccurateCoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name, coverage_group.name, self.fullname)
+    verilua_debug(f("[AccurateCoverPoint] Create AccurateCoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name, coverage_group.name, self.fullname))
 end
 
 function AccurateCoverPoint:inc_with_cycle(cycle)

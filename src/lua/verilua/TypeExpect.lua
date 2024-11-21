@@ -261,4 +261,20 @@ function texpect.expect_database(value, name, elements_table)
     end
 end
 
+function texpect.expect_covergroup(value, name)
+    if type(value) ~= "table" then
+        error(
+            f("[expect_covergroup] Expected argument `%s` to be a `%s` value, but received a `%s` value instead", name, "CoverGroup", type(value)),
+            0
+        )
+    else
+        if value.__type == nil or value.__type ~= "CoverGroup" then
+            error(
+                f("[expect_covergroup] Expected argument `%s` to be a `%s` value, but received a `%s` value instead, and it is not a `CoverGroup`, __type => %s", name, "CoverGroup", type(value), tostring(value.__type)),
+                0
+            )
+        end
+    end
+end
+
 return texpect

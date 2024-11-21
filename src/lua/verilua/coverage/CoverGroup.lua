@@ -1,4 +1,5 @@
 local class = require "pl.class"
+local texpect = require "TypeExpect"
 
 local ipairs = ipairs
 local assert = assert
@@ -9,11 +10,12 @@ local io = io
 local f = string.format
 local cfg = cfg
 local table_insert = table.insert
+local verilua_debug = _G.verilua_debug
 
 local CoverGroup = class()
 
 function CoverGroup:_init(name)
-    assert(type(name) == "string")
+    texpect.expect_string(name)
 
     self.name = name
     self.__type = "CoverGroup"
@@ -24,7 +26,7 @@ function CoverGroup:_init(name)
     -- User can use this table to query the cover points by the cover point name
     self.points = {}
 
-    printf("[CoverGroup] Create CoverGroup: %s\n", name)
+    verilua_debug(f("[CoverGroup] Create CoverGroup: %s\n", name))
 end
 
 function CoverGroup:add_cover_point(cover_point)
