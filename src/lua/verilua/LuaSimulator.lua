@@ -35,10 +35,6 @@ ffi.cdef[[
     void iterate_vpi_type(const char *module_name, int type);
 ]]
 
-local init = function ()
-    verilua_debug("LuaSimulator initialize...")
-end
-
 local initialize_trace = function (trace_file_path)
     assert(trace_file_path ~= nil)
     if cfg.simulator == "vcs" then
@@ -173,7 +169,6 @@ end
 
 
 return {
-    init              = init,
     initialize_trace  = initialize_trace,
     enable_trace      = enable_trace,
     disable_trace     = disable_trace,
