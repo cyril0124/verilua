@@ -243,6 +243,9 @@ VERILUA_PRIVATE inline void execute_sim_event(TaskID id) {
     }
 }
 
+// Execute the main_step function in a way that is safe to be called.
+// If the main_step function throws an error, the error will be caught 
+// and the Verilua environment will be finalized.
 VERILUA_PRIVATE inline void execute_main_step() {
     auto &env = VeriluaEnv::get_instance();
     VL_FATAL(env.initialized, "main_step called before initialize");
@@ -266,6 +269,38 @@ VERILUA_PRIVATE inline void execute_main_step() {
     }
 }
 
+// Same as execute_main_step() while error will not cause the program to crash
+VERILUA_PRIVATE inline void execute_main_step_safe() {
+    static bool has_error = false;
+
+    if (has_error) {
+        VL_WARN("[execute_main_step_safe] `has_error` is `true`! Program should be terminated! Nothing will be done in `Verilua`...\n");
+        return;
+    }
+
+    auto &env = VeriluaEnv::get_instance();
+    VL_FATAL(env.initialized, "main_step called before initialize");
+
+#ifdef VL_DEF_ACCUMULATE_LUA_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
+
+    auto ret = env.main_step();
+
+#ifdef VL_DEF_ACCUMULATE_LUA_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    double time_taken = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    env.lua_time += time_taken;
+#endif
+
+    if(!ret.valid()) [[unlikely]] {
+        env.finalize();
+        has_error = true;
+        sol::error err = ret;
+        VL_WARN("Error calling main_step, {}", err.what());
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------
 //  Export functions for embeding Verilua inside other simulation environments
 //  Make sure to use verilua_init() at the beginning of the simulation and use verilua_final() at the end of the simulation.
@@ -274,6 +309,7 @@ VERILUA_PRIVATE inline void execute_main_step() {
 VERILUA_EXPORT void verilua_init();
 VERILUA_EXPORT void verilua_final();
 VERILUA_EXPORT void verilua_main_step();
+VERILUA_EXPORT void verilua_main_step_safe();
 
 // In some cases you may need to call this function manually since the simulation environment may not call it automatically(e.g. Verilator).
 // While in most cases you don't need to call this function manually.

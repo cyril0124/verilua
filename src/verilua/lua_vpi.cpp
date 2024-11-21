@@ -23,6 +23,10 @@ VERILUA_EXPORT void verilua_main_step() {
     execute_main_step();
 }
 
+VERILUA_EXPORT void verilua_main_step_safe() {
+    execute_main_step_safe();
+}
+
 VERILUA_PRIVATE std::string get_top_module() {
     vpiHandle iter, top_module;
 
