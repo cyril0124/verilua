@@ -33,4 +33,6 @@ $VERILUA_HOME/extern/lua_inline_c/?/?.lua;\
 . "$VERILUA_HOME/extern/lua_inline_c/setvars.sh"
 . "$VERILUA_HOME/extern/luajit_tcc/setvars.sh"
 
+unset VERILUA_USE_NIX
+
 export CONFIG_TCCDIR=$VERILUA_HOME/extern/luajit_tcc/tinycc/install

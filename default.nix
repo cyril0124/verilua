@@ -266,6 +266,10 @@ ____   ____                .__ .__
     cp tools/vvp_wrapper $out/bin/
     cp tools/wave_vpi_main $out/bin/
     cp tools/testbench_gen $out/bin/
+    cp tools/vl-verilator $out/bin/
+    cp tools/vl-verilator-p $out/bin/
+    cp tools/vl-vcs $out/bin/
+    cp tools/vl-iverilog $out/bin/
 
     ${if hasVerdiHome then ''
       cp tools/wave_vpi_main_fsdb $out/bin/
