@@ -1,3 +1,5 @@
+local io = require "io"
+local os = require "os"
 local ffi = require "ffi"
 local tcc = require "TccWrapper"
 local path = require "pl.path"
@@ -43,7 +45,7 @@ local initialize_trace = function (trace_file_path)
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
     elseif cfg.simulator == "iverilog" then
-        await_time(0) -- waitting for simulation start
+        _G.await_time(0) -- waitting for simulation start
         
         local traceFilePath = trace_file_path or "dump.vcd"
         local file, err = io.open("iverilog_trace_name.txt", "w")
@@ -142,31 +144,22 @@ local get_mode = function()
     end
 end
 
-
-local state = tcc.new()
-local VERILUA_HOME = os.getenv("VERILUA_HOME");
-assert(state:set_output_type(tcc.OUTPUT.MEMORY))
-assert(state:compile_string(utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c")))
-assert(state:relocate(tcc.RELOCATE.AUTO))
-
-local print_hierarchy_sym = assert(state:get_symbol("print_hierarchy"))
-local _print_hierarchy = ffi.cast("void (*)(unsigned int*, int)", print_hierarchy_sym)
-local print_hierarchy_sym_is_init = false
+local VERILUA_HOME = assert(os.getenv("VERILUA_HOME"), "[LuaSimulator] VERILUA_HOME is not set")
+local print_hierarchy_lib = (utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c")):tcc_compile {
+    {
+        sym = "print_hierarchy",
+        ptr = "void (*)(unsigned int*, int)"
+    }
+}
 
 local print_hierarchy = function (max_level)
     local max_level = max_level or 0
-    if print_hierarchy_sym_is_init == false then
-        print_hierarchy_sym = assert(state:get_symbol("print_hierarchy"))
-        _print_hierarchy = ffi.cast("void (*)(unsigned int*, int)", print_hierarchy_sym)
-        print_hierarchy_sym_is_init = true
-    end
-    _print_hierarchy(ffi_new("unsigned int*", nil), max_level)
+    print_hierarchy_lib.print_hierarchy(ffi_new("unsigned int*", nil), max_level)
 end
 
 local iterate_vpi_type = function (module_name, type)
     ffi.C.iterate_vpi_type(module_name, type)
 end
-
 
 return {
     initialize_trace  = initialize_trace,
