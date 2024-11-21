@@ -1,10 +1,15 @@
 local class = require "pl.class"
+local texpect = require "TypeExpect"
+
+local assert = assert
+local ipairs = ipairs
 local random = math.random
-local assert, ipairs = assert, ipairs
 
 local WeightedRandom = class()
 
 function WeightedRandom:_init(weighted_random_table)
+    texpect.expect_table(weighted_random_table, "weighted_random_table")
+
     local total_weight = 0
     for index, value in ipairs(weighted_random_table) do
         local _weight = value[1]
@@ -15,7 +20,6 @@ function WeightedRandom:_init(weighted_random_table)
         assert(_end > _start)
     end
     assert(total_weight == 100)
-    assert(weighted_random_table)
 
     self.weighted_random_table = weighted_random_table
 end

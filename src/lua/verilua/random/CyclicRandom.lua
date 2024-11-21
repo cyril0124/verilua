@@ -1,10 +1,16 @@
 local class = require "pl.class"
+local texpect = require "TypeExpect"
+
 local assert = assert
-local random, randomseed = math.random, math.randomseed
+local random = math.random
+local randomseed = math.randomseed
 
 local CyclicdRandom = class()
 
 function CyclicdRandom:_init(start_value, end_value)
+    texpect.expect_number(start_value, "start_value")
+    texpect.expect_number(end_value, "end_value")
+    
     assert(end_value > start_value)
 
     self.gen_idx = 1

@@ -2,6 +2,7 @@ local ffi = require "ffi"
 local debug = require "debug"
 local utils = require "LuaUtils"
 local class = require "pl.class"
+local texpect = require "TypeExpect"
 
 local C = ffi.C
 local compare_value_str = utils.compare_value_str
@@ -60,6 +61,8 @@ local ffi_new = ffi.new
 local CallableHDL = class()
 
 function CallableHDL:_init(fullpath, name, hdl)
+    texpect.expect_string(fullpath, "fullpath")
+
     self.__type = "CallableHDL"
     self.fullpath = fullpath
     self.name = name or "Unknown"

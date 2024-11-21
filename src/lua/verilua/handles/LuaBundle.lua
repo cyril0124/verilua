@@ -2,6 +2,7 @@ local ffi = require "ffi"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local List = require "pl.List"
+local texpect = require "TypeExpect"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local C = ffi.C
@@ -29,6 +30,10 @@ local function contains(tbl, value)
 end
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optional_signals)
+    texpect.expect_table(signals_table, "signals_table")
+    texpect.expect_string(prefix, "prefix")
+    texpect.expect_string(hierachy, "hierachy")
+    
     self.__type = "Bundle"
     self.signals_table = signals_table
     self.prefix = prefix

@@ -1,12 +1,16 @@
 local class = require "pl.class"
+local texpect = require "TypeExpect"
+
 local assert = assert
-local random, f = math.random, string.format
+local f = string.format
+local random = math.random
 
 local CounterDelayer = class()
 
 function CounterDelayer:_init(min_delay, max_delay)
-    assert(min_delay ~= nil)
-    assert(max_delay ~= nil)
+    texpect.expect_number(min_delay, "min_delay")
+    texpect.expect_number(max_delay, "max_delay")
+
     assert(max_delay >= min_delay, f("max_delay:%d min_delay:%d", max_delay, min_delay))
 
     self.min_delay = min_delay

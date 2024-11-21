@@ -1,6 +1,7 @@
 local fun = require "fun"
 local List = require "pl.List"
 local class = require "pl.class"
+local texpect = require "TypeExpect"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local assert, type, print, rawset = assert, type, print, rawset
@@ -39,14 +40,10 @@ local AliasBundle = class()
 --      abdl.alias_name_1:set(123)
 -- 
 function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
-    assert(type(alias_signal_tbl) == "table")
-    assert(type(alias_signal_tbl[1]) == "table")
-
-    assert(prefix ~= nil)
-    assert(type(prefix) == "string")
-
-    assert(hierachy ~= nil)
-    assert(type(hierachy) == "string")
+    texpect.expect_table(alias_signal_tbl, "alias_signal_tbl")
+    texpect.expect_table(alias_signal_tbl[1], "alias_signal_tbl[1]")
+    texpect.expect_string(prefix, "prefix")
+    texpect.expect_string(hierachy, "hierachy")
 
     self.__type = "AliasBundle"
     self.prefix = prefix
