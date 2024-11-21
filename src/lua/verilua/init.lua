@@ -188,6 +188,8 @@ end
 _G.colors = cfg.colors
 
 local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
+_G.enable_verilua_debug = enable_verilua_debug
+
 if enable_verilua_debug == true then
     _G.verilua_debug = function (...)
         io.write("\27[31m") -- RED
@@ -1065,18 +1067,14 @@ assert(scheduler ~= nil)
 local vl = require "Verilua"
 local unnamed_task_count = 0
 do
-    local function is_number_str(str)
-        return str:match("^%d+$") ~= nil
-    end
+    local enable_verilua_debug = _G.enable_verilua_debug
+    local verilua_debug = _G.verilua_debug
 
     _G.verilua = function(cmd)
-
-        local print = function(...)
-            print(f("[verilua/%s]", cmd), ...)
+        if enable_verilua_debug then
+            verilua_debug(f("[verilua/%s]", cmd), "execute => " .. cmd)
         end
         
-        print("execute => " .. cmd)
-
         -- 
         -- Example:
         --      verilua "mainTask" { function ()
@@ -1105,7 +1103,11 @@ do
             return function (task_table)
                 assert(type(task_table) == "table")
                 assert(#task_table == 1)
-                print("register mainTask")
+
+                if enable_verilua_debug then
+                    verilua_debug(f("[verilua/%s]", cmd), "register mainTask")
+                end
+
                 vl.register_main_task(task_table[1])
             end
             
@@ -1138,7 +1140,11 @@ do
                         name = ("unnamed_task_%d"):format(unnamed_task_count)
                         unnamed_task_count = unnamed_task_count + 1   
                     end
-                    print("get task name => ", name)
+                    
+                    if enable_verilua_debug then
+                        verilua_debug(f("[verilua/%s]", cmd), "get task name => ", name)
+                    end
+
                     scheduler:append_task(nil, name, func, {}, true) -- (<task_id>, <task_name>, <task_func>, <task_param>, <schedule_task>)
                 end
             end
@@ -1231,7 +1237,11 @@ do
                 name = ("unnamed_fork_task_%d"):format(unnamed_task_count)
                 unnamed_task_count = unnamed_task_count + 1   
             end
-            print("[fork] get task name => ", name)
+
+            if enable_verilua_debug then
+                verilua_debug("[fork] get task name => ", name)
+            end
+
             scheduler:append_task(nil, name, func, {}, true) -- (<task_id>, <task_name>, <task_func>, <task_param>, <schedule_task>)
         end
     end
