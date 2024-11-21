@@ -20,10 +20,27 @@ local tostring = tostring
 local math_random = math.random
 local getmetatable = getmetatable
 
+-- 
+-- strict lua, any undeclared global variables will lead to failed
+-- 
+require "strict"
+
 _G.inspect = require "inspect"
 _G.dbg     = function (...) print(inspect(...)) end
 _G.pp      = _G.dbg -- Alias for dbg
 _G.dump    = _G.pp -- Alias for dbg
+_G.printf  = function (s, ...) io.write(f(s, ...)) end
+
+-- 
+-- #define vpiBinStrVal          1
+-- #define vpiOctStrVal          2
+-- #define vpiDecStrVal          3
+-- #define vpiHexStrVal          4
+-- 
+_G.BinStr = 1
+_G.OctStr = 2
+_G.DecStr = 3
+_G.HexStr = 4
 
 do
     local PWD = os.getenv("PWD")
@@ -67,20 +84,12 @@ do
     end
 end
 
-
 -- 
 -- used by c++
 -- 
 _G.lua_traceback = function ()
     print(debug.traceback(""))
 end
-
-
--- 
--- strict lua, any undeclared global variables will lead to failed
--- 
-require "strict"
-
 
 -- 
 -- debug info
@@ -104,92 +113,11 @@ _G.debug_str = function(...)
     return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. message)
 end
 
-local enable_debug_print = os.getenv("VL_DEBUG") == "1"
-if enable_debug_print then
-    _G.debug_print = function (...)
-        print(_G.debug_str(...))
-    end
-
-    _G.debug_printf = function (...)
-        print(_G.debug_str(f(...)))
-    end
-else
-    _G.debug_print = function (...)
-    end
-
-    _G.debug_printf = function (...)
-    end
-end
-
-local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
-_G.enable_verilua_debug = enable_verilua_debug
-
--- 
--- load configuration
--- 
-local cfg = require "LuaSimConfig"
-local cfg_name, cfg_path
-do
-    local path = require "pl.path"
-    local stringx = require "pl.stringx"
-
-    cfg_name, cfg_path = cfg:get_user_cfg()
-    
-    if cfg_path == nil then
-        cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
-    end
-    
-    assert(type(cfg_path) == "string")
-
-    if string.len(cfg_path) ~= 0 then
-        _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua" 
-    end
-
-    cfg_name = path.basename(cfg_name) -- strip basename
-
-    if stringx.endswith(cfg_name, ".lua") then
-        cfg_name = stringx.rstrip(cfg_name, ".lua") -- strip ".lua" suffix
-    end
-
-    local _cfg = require(cfg_name)
-    assert(type(_cfg) == "table", f("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
-
-    cfg:merge_config(_cfg)
-    cfg:post_config()
-end
-
-_G.cfg = cfg
-_G.VeriluaMode = cfg.VeriluaMode
-_G.verilua_get_error = false -- Set by each scheduler when there is an error in the ongoing task
-
-
--- 
--- we should load ffi setenv before setting up other environment variables
--- 
-_G.ffi = require "ffi"
-ffi.cdef[[
-    int setenv(const char *name, const char *value, int overwrite);
-    long long c_handle_by_name_safe(const char* name);
-    void c_set_value_by_name(const char *path, uint32_t value);
-    uint64_t c_get_value_by_name(const char *path);
-    void c_force_value_by_name(const char *path, long long value);
-    void c_release_value_by_name(const char *path);
-    int verilator_get_mode(void);
-]]
-
-if cfg.simulator == "vcs" then
-    ffi.cdef[[
-        void dpi_set_scope(char *str);
-        int vcs_get_mode(void);
-    ]]
-end
-
-
 -- 
 -- global debug log functions
 -- 
-_G.colors = cfg.colors
-
+local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
+_G.enable_verilua_debug = enable_verilua_debug
 
 if enable_verilua_debug == true then
     _G.verilua_debug = function (...)
@@ -247,6 +175,65 @@ ____   ____                .__ .__
     io.flush()
 end
 
+-- 
+-- load configuration
+-- 
+local cfg = require "LuaSimConfig"
+local cfg_name, cfg_path
+do
+    local path = require "pl.path"
+    local stringx = require "pl.stringx"
+
+    cfg_name, cfg_path = cfg:get_user_cfg()
+    
+    if cfg_path == nil then
+        cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
+    end
+    
+    assert(type(cfg_path) == "string")
+
+    if string.len(cfg_path) ~= 0 then
+        _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua" 
+    end
+
+    cfg_name = path.basename(cfg_name) -- strip basename
+
+    if stringx.endswith(cfg_name, ".lua") then
+        cfg_name = stringx.rstrip(cfg_name, ".lua") -- strip ".lua" suffix
+    end
+
+    local _cfg = require(cfg_name)
+    assert(type(_cfg) == "table", f("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
+
+    cfg:merge_config(_cfg)
+    cfg:post_config()
+end
+
+_G.cfg = cfg
+_G.colors = cfg.colors
+_G.VeriluaMode = cfg.VeriluaMode
+_G.verilua_get_error = false -- Set by each scheduler when there is an error in the ongoing task
+
+-- 
+-- we should load ffi setenv before setting up other environment variables
+-- 
+_G.ffi = require "ffi"
+ffi.cdef[[
+    int setenv(const char *name, const char *value, int overwrite);
+    long long c_handle_by_name_safe(const char* name);
+    void c_set_value_by_name(const char *path, uint32_t value);
+    uint64_t c_get_value_by_name(const char *path);
+    void c_force_value_by_name(const char *path, long long value);
+    void c_release_value_by_name(const char *path);
+    int verilator_get_mode(void);
+]]
+
+if cfg.simulator == "vcs" then
+    ffi.cdef[[
+        void dpi_set_scope(char *str);
+        int vcs_get_mode(void);
+    ]]
+end
 
 --
 -- Setup some environment variables
@@ -311,17 +298,6 @@ do
 end
 
 -- 
--- #define vpiBinStrVal          1
--- #define vpiOctStrVal          2
--- #define vpiDecStrVal          3
--- #define vpiHexStrVal          4
--- 
-_G.BinStr = 1
-_G.OctStr = 2
-_G.DecStr = 3
-_G.HexStr = 4
-
--- 
 -- setup mode
 -- 
 do
@@ -352,16 +328,6 @@ local scommon = require "verilua.scheduler.LuaSchedulerCommonV2"
 for key, value in pairs(scommon) do
     _G[key] = value
 end
-
-
-
-_G.dut     = (require "LuaDut").create_proxy(cfg.top)
-
-local sim = require "LuaSimulator";
-_G.sim     = sim
-
-
-_G.printf = function (s, ...) io.write(f(s, ...)) end
 
 -- 
 -- Table extension
@@ -1249,14 +1215,6 @@ do
     -- TODO: join?
 end
 
-
--- 
--- initialize simulator
--- 
--- sim.print_hierarchy()
-sim.init()
-
-
 -- 
 -- setup random seed
 -- 
@@ -1293,6 +1251,9 @@ _G.urandom_range = function (min, max)
     end
     return math_random(min, max)
 end
+
+_G.sim = require "LuaSimulator"
+_G.dut = (require "LuaDut").create_proxy(cfg.top)
 
 ----------------------------------------------------------------------------
 -- These functions are only used to test the ffi function invoke overhead
