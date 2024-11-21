@@ -1,17 +1,19 @@
-local utils = require "LuaUtils"
-local class = require "pl.class"
 local ffi = require "ffi"
 local debug = require "debug"
-local C = ffi.C
+local utils = require "LuaUtils"
+local class = require "pl.class"
 
-local HexStr = HexStr
-local BinStr = BinStr
-local DecStr = DecStr
+local C = ffi.C
 local compare_value_str = utils.compare_value_str
-local await_posedge_hdl = await_posedge_hdl
-local await_negedge_hdl = await_negedge_hdl
-local always_await_posedge_hdl = always_await_posedge_hdl
-local await_noop = await_noop
+
+local HexStr = _G.HexStr
+local BinStr = _G.BinStr
+local DecStr = _G.DecStr
+local verilua_debug = _G.verilua_debug
+local await_posedge_hdl = _G.await_posedge_hdl
+local await_negedge_hdl = _G.await_negedge_hdl
+local always_await_posedge_hdl = _G.always_await_posedge_hdl
+local await_noop = _G.await_noop
 
 ffi.cdef[[
   long long c_handle_by_name_safe(const char* name);
@@ -48,9 +50,6 @@ ffi.cdef[[
   const char *c_get_value_str(long long handle, int format);
 ]]
 
-CallableHDL = class()
-
-local CallableHDL = CallableHDL
 local BeatWidth = 32
 local type, assert, tonumber, print, format = type, assert, tonumber, print, string.format
 local setmetatable = setmetatable
@@ -58,9 +57,9 @@ local table, math = table, math
 local ffi_str = ffi.string
 local ffi_new = ffi.new
 
+local CallableHDL = class()
 
 function CallableHDL:_init(fullpath, name, hdl)
-    self.verbose = false
     self.__type = "CallableHDL"
     self.fullpath = fullpath
     self.name = name or "Unknown"
@@ -111,7 +110,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.c_results = ffi_new("uint32_t[?]", self.beat_num + 1) -- create a new array to store the result
                                                                -- c_results[0] is the lenght of the beat data since a normal lua table use 1 as the first index of array while ffi cdata still use 0
 
-    local _ = self.verbose and print("New CallableHDL => ", "name: " .. self.name, "fullpath: " .. self.fullpath, "width: " .. self.width, "beat_num: " .. self.beat_num, "is_multi_beat: " .. tostring(self.is_multi_beat))
+    verilua_debug("New CallableHDL => ", "name: " .. self.name, "fullpath: " .. self.fullpath, "width: " .. self.width, "beat_num: " .. self.beat_num, "is_multi_beat: " .. tostring(self.is_multi_beat))
 
     -- 
     -- is_multi_beat == true 

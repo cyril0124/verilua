@@ -1,19 +1,19 @@
 local ffi = require "ffi"
-local CallableHDL = require "verilua.handles.LuaCallableHDL"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local List = require "pl.List"
-local tinsert = table.insert
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
+
 local C = ffi.C
-
-Bundle = class()
-
-local Bundle = Bundle
-local CallableHDL = CallableHDL
 local assert, print, rawset, ipairs = assert, print, rawset, ipairs
+local tinsert = table.insert
 local format = string.format
 local tconcat = table.concat
-local HexStr = HexStr
+
+local verilua_debug = _G.verilua_debug
+local HexStr = _G.HexStr
+
+local Bundle = class()
 
 ffi.cdef[[
   long long c_handle_by_name_safe(const char* name);
@@ -29,7 +29,6 @@ local function contains(tbl, value)
 end
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optional_signals)
-    self.verbose = false
     self.__type = "Bundle"
     self.signals_table = signals_table
     self.prefix = prefix
@@ -45,7 +44,8 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         assert(prefix ~= nil, "prefix is required for decoupled bundle!")
     end
 
-    local _ = self.verbose and print("New Bundle => ", "name: " .. self.name, "signals: {" .. tconcat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
+    verilua_debug("New Bundle => ", "name: " .. self.name, "signals: {" .. tconcat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
+    
     if is_decoupled == true then
         self.bits = {}
 

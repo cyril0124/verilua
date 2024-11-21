@@ -121,6 +121,8 @@ else
     end
 end
 
+local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
+_G.enable_verilua_debug = enable_verilua_debug
 
 -- 
 -- load configuration
@@ -188,8 +190,6 @@ end
 -- 
 _G.colors = cfg.colors
 
-local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
-_G.enable_verilua_debug = enable_verilua_debug
 
 if enable_verilua_debug == true then
     _G.verilua_debug = function (...)

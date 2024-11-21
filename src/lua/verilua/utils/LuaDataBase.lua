@@ -14,6 +14,7 @@ local pairs = pairs
 local f = string.format
 local table_insert = table.insert
 local table_unpack = table.unpack
+local verilua_debug = _G.verilua_debug
 
 ffi.cdef[[
     typedef int pid_t;
@@ -99,9 +100,9 @@ function LuaDataBase:_init(init_tbl)
     -- Remove data base before create it
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
-        printf("[LuaDataBase] Remove %s success!\n", self.fullpath_name)
+        verilua_debug(f("[LuaDataBase] Remove %s success!\n", self.fullpath_name))
     else
-        printf("[LuaDataBase] Remove %s failed! => %s\n", self.fullpath_name, err_msg)
+        verilua_debug(f("[LuaDataBase] Remove %s failed! => %s\n", self.fullpath_name, err_msg))
     end
 
     -- Open database
@@ -116,7 +117,7 @@ function LuaDataBase:_init(init_tbl)
         local err_msg = self.db:errmsg()
         assert(false, "[LuaDataBase] SQLite3 error: " .. err_msg)
     else
-        print("[LuaDataBase] cmd execute success! cmd => " .. cmd)
+        verilua_debug("[LuaDataBase] cmd execute success! cmd => " .. cmd)
     end
 
     self.db = sqlite3.open(self.fullpath_name)
@@ -136,7 +137,7 @@ function LuaDataBase:_init(init_tbl)
     end
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
     self.prepare_cmd = self.prepare_cmd .. ")"
-    print("[LuaDataBase] file_name: " .. file_name .. " prepare_cmd: " .. self.prepare_cmd)
+    verilua_debug(f("[LuaDataBase] file_name: " .. file_name .. " prepare_cmd: " .. self.prepare_cmd))
     io.flush()
 
     verilua "appendFinishTasks" {

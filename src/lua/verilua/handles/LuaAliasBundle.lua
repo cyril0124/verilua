@@ -1,14 +1,14 @@
-local CallableHDL = require "verilua.handles.LuaCallableHDL"
-local class = require "pl.class"
-local List = require "pl.List"
 local fun = require "fun"
+local List = require "pl.List"
+local class = require "pl.class"
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
+
 local assert, type, print, rawset = assert, type, print, rawset
 local tconcat = table.concat
 local format = string.format
-
+local verilua_debug = _G.verilua_debug
 
 local AliasBundle = class()
-
 
 -- 
 -- Access signal using alias name
@@ -48,7 +48,6 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
     assert(hierachy ~= nil)
     assert(type(hierachy) == "string")
 
-    self.verbose = true
     self.__type = "AliasBundle"
     self.prefix = prefix
     self.hierachy = hierachy
@@ -70,7 +69,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
         end
     end, alias_signal_tbl))
 
-    local _ = self.verbose and print("New AliasBundle => ", "name: " .. self.name, "signals: {" .. tconcat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
+    verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. tconcat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
 
     -- Construct CallableHDL bundle
     for i = 1, #self.signals_tbl do

@@ -37,7 +37,6 @@ local TASK_MAX = 100
 
 function Scheduler:_init()
     self.id_max = 10000
-    self.verbose = false
 
     self.task_count  = 0
     self.id_task_tbl = {} -- {<key: task_id, value: coro>, ...}

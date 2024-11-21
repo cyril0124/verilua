@@ -54,19 +54,23 @@ local function get_debug_info(level)
 end
 
 local function config_info(...)
-    local file, line, _ = get_debug_info(4)
-    io.write(colors.cyan)
-    print(f("[%s:%d] [CONFIG INFO]", file, line), ...)
-    io.write(colors.reset)
-    io.flush()
+    if _G.enable_verilua_debug then
+        local file, line, _ = get_debug_info(4)
+        io.write(colors.cyan)
+        print(f("[%s:%d] [CONFIG INFO]", file, line), ...)
+        io.write(colors.reset)
+        io.flush()
+    end
 end
 
 local function config_warn(...)
-    local file, line, _ = get_debug_info(4)
-    io.write(colors.yellow)
-    print(f("[%s:%d] [CONFIG WARNING]", file, line), ...)
-    io.write(colors.reset)
-    io.flush()
+    if _G.enable_verilua_debug then
+        local file, line, _ = get_debug_info(4)
+        io.write(colors.yellow)
+        print(f("[%s:%d] [CONFIG WARNING]", file, line), ...)
+        io.write(colors.reset)
+        io.flush()
+    end
 end
 
 local function config_error(cond, ...)
@@ -81,19 +85,23 @@ local function config_error(cond, ...)
 end
 
 function cfg:config_info(...)
-    local file, line, _ = get_debug_info(4)
-    io.write(colors.cyan)
-    print(f("[%s:%d] [CONFIG INFO]", file, line), ...)
-    io.write(colors.reset)
-    io.flush()
+    if _G.enable_verilua_debug then
+        local file, line, _ = get_debug_info(4)
+        io.write(colors.cyan)
+        print(f("[%s:%d] [CONFIG INFO]", file, line), ...)
+        io.write(colors.reset)
+        io.flush()
+    end
 end
 
 function cfg:config_warn(...)
-    local file, line, _ = get_debug_info(4)
-    io.write(colors.yellow)
-    print(f("[%s:%d] [CONFIG WARNING]", file, line), ...)
-    io.write(colors.reset)
-    io.flush()
+    if _G.enable_verilua_debug then
+        local file, line, _ = get_debug_info(4)
+        io.write(colors.yellow)
+        print(f("[%s:%d] [CONFIG WARNING]", file, line), ...)
+        io.write(colors.reset)
+        io.flush()
+    end
 end
 
 function cfg:config_error(cond, ...)
