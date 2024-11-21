@@ -126,6 +126,26 @@ function cfg:get_or_else_log(cfg_str, default, log_str)
     return cfg
 end
 
+--- Dumps the content of the configuration table as a string.
+function cfg:dump_str()
+    local inspect = require "inspect"
+    return inspect(self, {
+        process = function(item, path)
+            local t = type(item)
+            if t ~= "function" and t ~= "thread" and path[#path] ~= inspect.METATABLE and item ~= self.colors and item ~= self.VeriluaMode then
+                return item
+            end
+        end
+    })
+end
+
+--- Prints the content of the configuration table.
+function cfg:dump()
+    print("----------------------- cfg:dump --------------------------------")
+    print(self:dump_str())
+    print("----------------------------------------------------------------")
+end
+
 function cfg:get_cfg()
     local VERILUA_CFG_PATH = os.getenv("VERILUA_CFG_PATH")
     local VERILUA_CFG = os.getenv("VERILUA_CFG")
