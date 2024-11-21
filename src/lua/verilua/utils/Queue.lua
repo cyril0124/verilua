@@ -1,5 +1,7 @@
-local class = require("pl.class")
+local class = require "pl.class"
 local isempty = require "table.isempty"
+
+local error = error
 
 local Queue = class()
 
@@ -42,6 +44,10 @@ end
 
 function Queue:is_empty()
     return isempty(self.data)
+end
+
+function Queue:size()
+    return self.last - self.first + 1
 end
 
 return Queue
