@@ -76,9 +76,7 @@ function LuaDataBase:_init(init_tbl)
 
     pattern_str = pattern_str:sub(1, #pattern_str - 2) -- remove trailing ",\n"
 
-    -- 
     -- create path folder if not exist
-    -- 
     local attributes, err = lfs.attributes(path .. "/")
     if attributes == nil then
         local success, message = lfs.mkdir(path .. "/")
@@ -87,40 +85,34 @@ function LuaDataBase:_init(init_tbl)
         end
     end
 
-    -- 
     -- Remove data base before create it
-    -- 
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
-        printf("[LuaDataBase] Remove %s success!", self.fullpath_name)
+        printf("[LuaDataBase] Remove %s success!\n", self.fullpath_name)
     else
-        printf("[LuaDataBase] Remove %s failed! => %s", self.fullpath_name, err_msg)
+        printf("[LuaDataBase] Remove %s failed! => %s\n", self.fullpath_name, err_msg)
     end
 
-    -- 
     -- Open database
-    -- 
     self.db, err_msg = sqlite3.open(self.fullpath_name)
     if not self.db then
-        assert(false,  "[LuaDataBase] ".. err_msg)
+        assert(false,  "[LuaDataBase] " .. err_msg)
     end
 
-    local cmd = f("CREATE TABLE %s ( %s );", table_name, pattern_str)
+    local cmd = f("CREATE TABLE %s \n( %s );", table_name, pattern_str)
     local result_code = self.db:exec(cmd)
     if result_code ~= sqlite3.OK then
         local err_msg = self.db:errmsg()
-        assert(false, "[LuaDataBase] SQLite3 error: "..err_msg)
+        assert(false, "[LuaDataBase] SQLite3 error: " .. err_msg)
     else
-        print("[LuaDataBase] cmd execute success! cmd => "..cmd)
+        print("[LuaDataBase] cmd execute success! cmd => " .. cmd)
     end
 
     self.db = sqlite3.open(self.fullpath_name)
     assert(self.db ~= nil)
 
-    -- 
     -- Create prepare cmd for stmt
-    -- 
-    self.prepare_cmd = "INSERT INTO "..table_name.." ("
+    self.prepare_cmd = "INSERT INTO " .. table_name .. " ("
     for key, value in string.gmatch(pattern_str, '([%w_]+)%s+(%w+)') do
         self.entries[key] = value
         self.prepare_cmd = self.prepare_cmd .. key .. ","
@@ -134,6 +126,7 @@ function LuaDataBase:_init(init_tbl)
     self.prepare_cmd = string.sub(self.prepare_cmd, 1, -2) -- recude ","
     self.prepare_cmd = self.prepare_cmd .. ")"
     print("[LuaDataBase] file_name: " .. file_name .. " prepare_cmd: " .. self.prepare_cmd)
+    io.flush()
 
     verilua "appendFinishTasks" {
         function ()
