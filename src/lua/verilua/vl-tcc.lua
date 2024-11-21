@@ -1,5 +1,10 @@
+local os = require "os"
 local ffi = require 'ffi'
 local tcc = require("tcc").load()
+
+local print = print
+local assert = assert
+local verilua_debug = _G.verilua_debug
 
 -- 
 -- overwrite the origin tcc.new() 
@@ -7,6 +12,8 @@ local tcc = require("tcc").load()
 function tcc.new(add_paths)
     local add_paths = add_paths or true
     local state = tcc.clib.tcc_new()
+
+    verilua_debug("`so` file is " .. tcc.libfile)
   
     ffi.gc(state, tcc.State.__gc)
   

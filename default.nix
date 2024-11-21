@@ -19,8 +19,8 @@ let
   luajit_tcc = callPackage (fetchFromGitHub {
     owner = "cyril0124";
     repo = "luajit_tcc";
-    rev = "91034cb4a68d1af25f58c72f2598d8cfedfa054a"; # nix
-    hash = "sha256-cQ3XmqhQHvh+7Q6dbhqGcYltn4UhusV5yXbvMrlgHHk=";
+    rev = "ecc7f2cde875e845c9d3bd243d7853df6efc3998"; # nix
+    hash = "sha256-k4/6HD634/IAmtF4p6HNDgnkcEgQ/rKw0TYj8UacXSM=";
   }) { inherit luajit-pro; };
   
   boost_unordered = callPackage ./nix/boost_unordered.nix {};
