@@ -1,5 +1,5 @@
 local ffi = require "ffi"
-local tcc = require "vl-tcc"
+local tcc = require "TccWrapper"
 local path = require "pl.path"
 local utils = require "LuaUtils"
 

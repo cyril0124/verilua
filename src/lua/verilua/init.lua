@@ -1020,7 +1020,7 @@ do
     --     assert(lib.get_count() == 1)
     -- 
     
-    local tcc = require "vl-tcc"
+    local tcc = require "TccWrapper"
     getmetatable('').__index.tcc_compile = function(str, sym_ptr_tbls)
         local state = tcc.new()
         assert(state:set_output_type(tcc.OUTPUT.MEMORY))
