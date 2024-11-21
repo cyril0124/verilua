@@ -158,6 +158,7 @@ end
 
 _G.cfg = cfg
 _G.VeriluaMode = cfg.VeriluaMode
+_G.verilua_get_error = false -- Set by each scheduler when there is an error in the ongoing task
 
 
 -- 

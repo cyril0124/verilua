@@ -165,7 +165,9 @@ function Scheduler:_init()
         local ok, types_or_err, str_value, integer_value = coro_resume(func)
         if not ok then
             local err_msg = types_or_err
-            print(debug.traceback(func, err_msg))
+            print("task_id: " .. id, debug.traceback(func, err_msg))
+
+            _G.verilua_get_error = true
             assert(false)
         end
 

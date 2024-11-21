@@ -201,7 +201,9 @@ function SchedulerClass:schedule_tasks(id)
             local ok, types, value, signal = coro_resume(task_func, table.unpack(task_param))
             if not ok then
                 local err_msg = types
-                print(debug.traceback(task_func, err_msg))
+                print("task_id: " .. id, debug.traceback(func, err_msg))
+
+                _G.verilua_get_error = true
                 assert(false)
             end
             

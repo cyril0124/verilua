@@ -1,15 +1,17 @@
 local scheduler = require "verilua.scheduler.LuaScheduler"
 local os = require "os"
 
-local verilua_hello = verilua_hello
-local verilua_info = verilua_info
-local verilua_warning = verilua_warning
-local VeriluaMode = VeriluaMode
-local cfg = cfg
+local verilua_hello = _G.verilua_hello
+local verilua_info = _G.verilua_info
+local verilua_warning = _G.verilua_warning
+local VeriluaMode = _G.VeriluaMode
+local cfg = _G.cfg
+
+local type = type
 local print = print
 local assert = assert
-local tinsert = table.insert
-local type = type
+local ipairs = ipairs
+local table_insert = table.insert
 
 assert(scheduler ~= nil)
 
@@ -62,19 +64,20 @@ verilua.finish_callback = function ()
         scheduler:list_tasks()
     end
 
+    -- Automatically save default coverage group into json file
+    if #_G.default_cg.cover_points > 0 then
+        _G.default_cg:report()
+        _G.default_cg:try_save_once()
+    end
+
     -- User defined finish callbacks
     if #verilua.finish_callbacks == 0 then
         verilua_warning("[finish_callback] Not implemented!")
     else
+        local verilua_get_error = _G.verilua_get_error -- Set by each scheduler when there is an error in the ongoing task
         for i, callback_func in ipairs(verilua.finish_callbacks) do
-            callback_func()
+            callback_func(verilua_get_error)
         end
-    end
-
-    -- Automatically save default coverage group into json file
-    if #default_cg.cover_points > 0 then
-        default_cg:report()
-        default_cg:try_save_once()
     end
 
     verilua.end_time = os.clock()
@@ -86,7 +89,7 @@ function verilua.register_tasks(task_table)
     assert(verilua.is_register_task_table == false, "already reigister task table!")
     verilua.is_register_task_table = true
 
-    tinsert(task_table, {"main_task", verilua.main_task, {}})
+    table_insert(task_table, {"main_task", verilua.main_task, {}})
 
     if task_table ~= nil and #task_table ~= 0 then
         assert(task_table ~= nil)
@@ -112,12 +115,12 @@ end
 
 function verilua.register_start_callback(func)
     assert(type(func) == "function")
-    tinsert(verilua.start_callbacks, func)
+    table_insert(verilua.start_callbacks, func)
 end
 
 function verilua.register_finish_callback(func)
     assert(type(func) == "function")
-    tinsert(verilua.finish_callbacks, func)
+    table_insert(verilua.finish_callbacks, func)
 end
 
 

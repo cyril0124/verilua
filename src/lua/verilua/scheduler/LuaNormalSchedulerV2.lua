@@ -218,6 +218,8 @@ function Scheduler:_init()
                     if not _ok then
                         local _err_msg = _types_or_err
                         print("task_id: " .. _id, debug.traceback(_func, _err_msg))
+
+                        _G.verilua_get_error = true
                         assert(false)
                     end
             
