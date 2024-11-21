@@ -1,5 +1,6 @@
 local sqlite3 = require "lsqlite3"
 local class = require "pl.class"
+local ffi = require "ffi"
 local lfs = require "lfs"
 local texpect = require "TypeExpect"
 
@@ -13,6 +14,12 @@ local pairs = pairs
 local f = string.format
 local table_insert = table.insert
 local table_unpack = table.unpack
+
+ffi.cdef[[
+    typedef int pid_t;
+    pid_t getpid(void);
+]]
+
 
 local LuaDataBase = class()
 
@@ -63,6 +70,10 @@ function LuaDataBase:_init(init_tbl)
     -- Used for type check(TypeExpect)
     self.__type = "LuaDataBase"
     self.elements = elements
+
+    -- This is used when lightsss is enabled.
+    -- If the pid of each LuaDataBase instance is different, then the database will not be committed
+    self.pid = ffi.C.getpid()
 
     local pattern_str = ""
     for _, kv_str in pairs(elements) do
@@ -157,6 +168,16 @@ function LuaDataBase:save(...)
 end
 
 function LuaDataBase:commit()
+
+    -- This is used when `LightSSS` is enabled.
+    -- If the pid of each LuaDataBase instance is different, then the database will not be committed
+    if ffi.C.getpid() ~= self.pid then
+        self.stmt = nil
+        self.save_cnt = 0
+        self.cache = {} -- enable garbage collection
+        return
+    end
+
     assert(self.stmt ~= nil)
 
     for i, data in ipairs(self.cache) do
