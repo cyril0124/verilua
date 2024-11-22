@@ -993,6 +993,8 @@ do
         assert(state:compile_string(str))
         assert(state:relocate(tcc.RELOCATE.AUTO))
 
+        local verilua_debug = _G.verilua_debug
+
         local count = 0
         local lib = {_state = state} -- keep `state` alive to prevent GC
 
@@ -1001,8 +1003,8 @@ do
             local symbol_ptr_pattern = line:match("%$ptr%s*<%s*([^>]+)%s*>")
             if symbol_name or symbol_ptr_pattern then
                 count = count + 1
-                print("[tcc_compile] [" .. count .. "] find symbol_name => \"" .. (symbol_name or "nil") .. "\"")
-                print("[tcc_compile] [" .. count .. "] find symbol_ptr_pattern = \"" .. (symbol_ptr_pattern or "nil") .. "\"")
+                verilua_debug("[tcc_compile] [" .. count .. "] find symbol_name => \"" .. (symbol_name or "nil") .. "\"")
+                verilua_debug("[tcc_compile] [" .. count .. "] find symbol_ptr_pattern = \"" .. (symbol_ptr_pattern or "nil") .. "\"")
                 local sym = assert(state:get_symbol(symbol_name))
                 lib[symbol_name] = ffi.cast(symbol_ptr_pattern, sym)
             end
@@ -1015,8 +1017,8 @@ do
                 local symbol_name = assert(sym_ptr_tbl.sym)
                 local symbol_ptr_pattern = assert(sym_ptr_tbl.ptr)
                 count = count + 1
-                print("[tcc_compile] [" .. count .. "] [sym_ptr_tbls] find symbol_name => \"" .. (symbol_name or "nil") .. "\"")
-                print("[tcc_compile] [" .. count .. "] [sym_ptr_tbls] find symbol_ptr_pattern = \"" .. (symbol_ptr_pattern or "nil") .. "\"")
+                verilua_debug("[tcc_compile] [" .. count .. "] [sym_ptr_tbls] find symbol_name => \"" .. (symbol_name or "nil") .. "\"")
+                verilua_debug("[tcc_compile] [" .. count .. "] [sym_ptr_tbls] find symbol_ptr_pattern = \"" .. (symbol_ptr_pattern or "nil") .. "\"")
                 local sym = assert(state:get_symbol(symbol_name))
                 lib[symbol_name] = ffi.cast(symbol_ptr_pattern, sym)
             end
