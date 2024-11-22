@@ -4,6 +4,7 @@ local tcc = require("tcc").load()
 
 local print = print
 local assert = assert
+local colors = _G.colors
 local verilua_debug = _G.verilua_debug
 
 -- 
@@ -30,7 +31,7 @@ function tcc.new(add_paths)
     state:add_sysinclude_path(VERILUA_HOME .. "/src/include")
 
     state:set_error_func(function (err_msg)
-        print("\27[31m" .. "[TCC_ERROR]", "\n\t".. err_msg .. "\27[0m")
+        print(colors.red .. "[TCC_ERROR]", "\n\t".. err_msg .. colors.reset)
     end)
   
    return state
