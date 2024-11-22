@@ -12,6 +12,7 @@ local print = print
 local printf = printf
 local string = string
 local type = type
+local load = load
 local pairs = pairs
 local f = string.format
 local table_insert = table.insert
@@ -25,8 +26,6 @@ ffi.cdef[[
 
 
 local LuaDataBase = class()
-
-local db_cnt = 0
 
 -- 
 -- Example:
@@ -216,18 +215,9 @@ function LuaDataBase:_init(init_tbl)
     return func
     ]], self.pid, '\"' .. self.prepare_cmd .. '\"', commit_data_unpack_str, self.verbose and "this:_log('commit!')" or "")
 
-    local save_func_file = "LuaDataBase_save_func_" .. self.pid .. "_" .. db_cnt
-    local commit_func_file = "LuaDataBase_commit_func_" .. self.pid .. "_" .. db_cnt
-    io.writefile(save_func_file .. ".lua", save_func_str)
-    io.writefile(commit_func_file .. ".lua", commit_func_str)
-
     -- try to remove `table.unpack` which cannot be jit compiled by LuaJIT
-    self.save = require(save_func_file)
-    self.commit = require(commit_func_file)
-
-    os.remove(save_func_file .. ".lua")
-    os.remove(commit_func_file .. ".lua")
-    db_cnt = db_cnt + 1
+    self.save = load(save_func_str)()
+    self.commit = load(commit_func_str)()
     
     verilua "appendFinishTasks" {
         function ()
