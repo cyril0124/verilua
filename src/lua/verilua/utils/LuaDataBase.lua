@@ -1,3 +1,5 @@
+local io = require "io"
+local os = require "os"
 local sqlite3 = require "lsqlite3"
 local class = require "pl.class"
 local ffi = require "ffi"
@@ -23,6 +25,8 @@ ffi.cdef[[
 
 
 local LuaDataBase = class()
+
+local db_cnt = 0
 
 -- 
 -- Example:
@@ -61,9 +65,6 @@ function LuaDataBase:_init(init_tbl)
     self.path = path
     self.file_name = file_name
     self.fullpath_name = path .. "/" .. file_name
-    self.save_cnt_max = save_cnt_max
-    self.save_cnt = 0
-    self.cache = {}
     self.entries = {}
     self.stmt = nil
     self.verbose = verbose or false
@@ -76,6 +77,7 @@ function LuaDataBase:_init(init_tbl)
     -- If the pid of each LuaDataBase instance is different, then the database will not be committed
     self.pid = ffi.C.getpid()
 
+    local pre_alloc_entry = {}
     local pattern_str = ""
     for _, kv_str in pairs(elements) do
         texpect.expect_string(kv_str, "kv_str")
@@ -83,10 +85,23 @@ function LuaDataBase:_init(init_tbl)
         local key, data_type = kv_str:match("([^%s=>]+)%s*=>%s*([^%s]+)")
         assert(data_type == "INTEGER"  or data_type == "TEXT", "[LuaDataBase] Unsupported data type: " .. data_type)
 
+        if data_type == "INTEGER" then
+            table_insert(pre_alloc_entry, 0)
+        else
+            table_insert(pre_alloc_entry, "")
+        end
+
         pattern_str = pattern_str .. key .. " " .. data_type .. ",\n"
     end
-
     pattern_str = pattern_str:sub(1, #pattern_str - 2) -- remove trailing ",\n"
+
+    -- Pre-allocate memory
+    self.save_cnt_max = save_cnt_max
+    self.save_cnt = 1
+    self.cache = {} -- TODO: using FFI data structure
+    for i = 1, save_cnt_max do
+        table_insert(self.cache, pre_alloc_entry)
+    end
 
     -- create path folder if not exist
     local attributes, err = lfs.attributes(path .. "/")
@@ -140,6 +155,80 @@ function LuaDataBase:_init(init_tbl)
     verilua_debug(f("[LuaDataBase] file_name: " .. file_name .. " prepare_cmd: " .. self.prepare_cmd))
     io.flush()
 
+    --
+    -- This is a tricky way to remove `table.unpack` which cannot be JIT-compiled by LuaJIT 
+    --
+    local narg = #self.elements
+    local narg_str = ""
+    local save_func_str = "local table_insert = table.insert\nlocal assert = assert\nlocal func = function(this, "
+    local commit_func_str = "local assert = assert\nlocal func = function(this)\n"
+    local commit_data_unpack_str = ""
+    for i = 1, narg do
+        local t = "v" .. i .. ","
+        narg_str = narg_str .. t
+        save_func_str = save_func_str .. t
+        commit_data_unpack_str = commit_data_unpack_str .. "this.cache[i][" .. i .. "],"
+    end
+    
+    commit_data_unpack_str = commit_data_unpack_str:sub(1, -2)
+    save_func_str = save_func_str:sub(1, -2) .. ")"
+    save_func_str = save_func_str .. f([[
+        this.cache[this.save_cnt] = {%s}
+        if this.save_cnt >= %d then
+            this:commit()
+        else
+            this.save_cnt = this.save_cnt + 1
+        end
+    end
+    
+    return func 
+    ]], narg_str, self.save_cnt_max)
+
+    commit_func_str = commit_func_str .. f([[
+        if this.save_cnt == 1 then
+            return
+        end
+
+        -- This is used when `LightSSS` is enabled.
+        -- If the pid of each LuaDataBase instance is different, then the database will not be committed
+        if ffi.C.getpid() ~= %s then
+            this.save_cnt = 1
+            return
+        end
+
+        -- Notice: parametes passed into this function should hold the same order as the elements in the table
+        this.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
+        local stmt = assert(this.db:prepare(%s), "[commit] stmt is nil")
+
+        for i = 1, this.save_cnt do
+            stmt:bind_values(%s)
+            stmt:step()
+            stmt:reset()
+        end
+
+        stmt:finalize()
+        this.db:exec("COMMIT")
+
+        this.save_cnt = 1
+
+        %s
+    end
+    return func
+    ]], self.pid, '\"' .. self.prepare_cmd .. '\"', commit_data_unpack_str, self.verbose and "this:_log('commit!')" or "")
+
+    local save_func_file = "LuaDataBase_save_func_" .. self.pid .. "_" .. db_cnt
+    local commit_func_file = "LuaDataBase_commit_func_" .. self.pid .. "_" .. db_cnt
+    io.writefile(save_func_file .. ".lua", save_func_str)
+    io.writefile(commit_func_file .. ".lua", commit_func_str)
+
+    -- try to remove `table.unpack` which cannot be jit compiled by LuaJIT
+    self.save = require(save_func_file)
+    self.commit = require(commit_func_file)
+
+    os.remove(save_func_file .. ".lua")
+    os.remove(commit_func_file .. ".lua")
+    db_cnt = db_cnt + 1
+    
     verilua "appendFinishTasks" {
         function ()
             self:clean_up()
@@ -149,64 +238,51 @@ end
 
 function LuaDataBase:_log(...)
     print(f("[LuaDataBase] [%s]", self.file_name), ...)
+    io.flush()
 end
 
-function LuaDataBase:save(...)
-    -- Notice: parametes passed into this function should hold the same order as the elements in the table
-    if self.save_cnt == 0 then
-        self.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
-        self.stmt = self.db:prepare(self.prepare_cmd)
-        assert(self.stmt ~= nil)
-    end
+-- function LuaDataBase:save(...)
+--     table_insert(self.cache, {...})
 
-    table_insert(self.cache, {...})
+--     if self.save_cnt >= self.save_cnt_max then
+--         self:commit()
+--     else
+--         self.save_cnt = self.save_cnt + 1
+--     end
+-- end
 
-    self.save_cnt = self.save_cnt + 1
-    if self.save_cnt >= self.save_cnt_max then
-        if self.verbose then self:_log("commit!") end
-        self:commit()
-    end
-end
+-- function LuaDataBase:commit()
+--     if self.save_cnt == 1 then
+--         return
+--     end
 
-function LuaDataBase:commit()
+--     -- This is used when `LightSSS` is enabled.
+--     -- If the pid of each LuaDataBase instance is different, then the database will not be committed
+--     if ffi.C.getpid() ~= self.pid then
+--         self.save_cnt = 1
+--         self.cache = {} -- enable garbage collection
+--         return
+--     end
 
-    -- This is used when `LightSSS` is enabled.
-    -- If the pid of each LuaDataBase instance is different, then the database will not be committed
-    if ffi.C.getpid() ~= self.pid then
-        self.stmt = nil
-        self.save_cnt = 0
-        self.cache = {} -- enable garbage collection
-        return
-    end
+--     self.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
+--     local stmt = assert(self.db:prepare(self.prepare_cmd), "[commit] stmt is nil")
 
-    assert(self.stmt ~= nil)
+--     for i = 1, self.save_cnt do
+--         stmt:bind_values(table_unpack(self.cache[i]))
+--         stmt:step()
+--         stmt:reset()
+--     end
 
-    for i, data in ipairs(self.cache) do
-        self.stmt:bind_values(table_unpack(data))
-        self.stmt:step()
-        self.stmt:reset()
-    end
+--     stmt:finalize()
+--     self.db:exec("COMMIT")
 
-    self.stmt:finalize()
+--     self.save_cnt = 1
 
-    self.db:exec("COMMIT")
-
-    self.stmt = nil
-    self.save_cnt = 0
-    self.cache = {} -- enable garbage collection
-end
+--     if self.verbose then self:_log("commit!") end
+-- end
 
 function LuaDataBase:clean_up()
-    local count = 0
-    for i, data in ipairs(self.cache) do
-        count = count + 1
-    end
-
-    if self.stmt ~= nil and count > 0 then
-        if self.verbose then self:_log("stmt exist...") end
-        self:commit()
-    end
-
+    self:commit()
     printf("[LuaDataBase] [%s] clean up...\n", self.fullpath_name)
 end
 
