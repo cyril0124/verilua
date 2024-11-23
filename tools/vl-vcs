@@ -11,55 +11,46 @@ YELLOW = "\033[33m"
 BLUE = "\033[34m"
 RESET = "\033[0m"
 
-def execute_cmd(cmd):
-    return subprocess.run(cmd, shell=True, capture_output=True, text=True)
-
-def encode_string(s):
-    return base64.b64encode(s.encode()).decode()
-
-def decode_string(s):
-    return base64.b64decode(s.encode()).decode()
+verilua_path = os.getenv("VERILUA_HOME")
+assert verilua_path != None, "[vl-vcs] cannot find VERILUA_HOME!"
 
 if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
     luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
 else:
     luapath = verilua_path + "/luajit-pro/luajit2.1"
 
-libpath = os.getenv("VERILUA_HOME") + "/shared"
-libpath_lua = luapath + "/lib"
-assert libpath != None, "[vl-vcs] cannot find VERILUA_HOME!"
+libpath = verilua_path + "/shared"
+liblua_path = luapath + "/lib"
 assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find liblua_vpi_vcs.so in " + libpath
 
-subfix = encode_string(os.path.abspath(os.curdir))
-pli_tab = f"/tmp/verilua_{subfix}/pli.tab"
-os.system(f"mkdir -p /tmp/verilua_{subfix} && touch {pli_tab}; echo \"acc+=rw,wn:*\" > {pli_tab} ")
-
 vcs = os.getenv("VCS_HOME") + "/bin/vcs"
-# cmd_list = [vcs] + sys.argv[1:] + [
-#                         # "+acc+1", 
-#                         "-debug_access+all", 
-#                         # "-CFLAGS", f"\"\"",
-#                         "-LDFLAGS", f'-L{libpath_lua} -lluajit-5.1 -L{libpath} -llua_vpi_vcs',
-#                         "-load", libpath + "/liblua_vpi_vcs.so", 
-#                         "-lluajit-5.1", 
-#                         "-llua_vpi_vcs", 
-#                         # "-P", pli_tab
-# ]
 
-cmd_list = [vcs] + sys.argv[1:] + [
-                        "-debug_access+all", 
-                        "-LDFLAGS", f'\"-L{libpath}\"', 
-                        "-LDFLAGS",  '\"-llua_vpi_vcs\"',
-                        "-LDFLAGS", f'\"-L{libpath_lua}\"', 
-                        "-LDFLAGS",  '\"-lluajit-5.1\"', 
-                        "-LDFLAGS", '\"-lstdc++\"',
-                        "-load", libpath + "/liblua_vpi_vcs.so", 
-]
+cmd_list = [vcs] + [
+    "-debug_access+all",
+    "+define+VERILUA",
+    
+    "-CFLAGS", f'\"-I{verilua_path}/src/include\"',
+    "-LDFLAGS", f'\"-Wl,-rpath,{liblua_path}\"',
+    
+    "-LDFLAGS", f'\"-L{liblua_path}\"',
+    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from liblua_vpi
+    "-LDFLAGS", f'\"-lluajit-5.1\"',
+    
+    "-LDFLAGS", f'\"-L{libpath}\"',
+    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from liblua_vpi_vcs
+    "-LDFLAGS", '\"-llua_vpi_vcs\"',
+    "-LDFLAGS", '-lstdc++',
+    "-load", libpath + "/liblua_vpi_vcs.so",
+] + sys.argv[1:]
 
 cmd = " ".join(cmd_list)
 
+PREFIX = f"[{YELLOW}vl-vcs{RESET}]"
 print(f'''
-[{YELLOW}vl-vcs{RESET}] cmd:
+{PREFIX} libpath: {GREEN}{libpath}{RESET}
+{PREFIX} liblua_path: {GREEN}{liblua_path}{RESET}
+{PREFIX} verilua_path: {GREEN}{verilua_path}{RESET}
+{PREFIX} cmd:
 {GREEN}{cmd}{RESET}
 ''', flush = True)
 
