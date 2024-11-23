@@ -316,6 +316,9 @@ do
                 local mode = ffi.C.verilator_get_mode()
                 cfg.mode = tonumber(mode)
             end
+        else
+            cfg.mode = cfg.mode or cfg.VeriluaMode.STEP
+            assert(cfg.mode == cfg.VeriluaMode.STEP, "For now, `cfg.mode` only support VeriluaMode.STEP/\"step\" when `cfg.attach` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
         end
         _G.verilua_debug("VeriluaMode is " .. cfg.VeriluaMode(cfg.mode))
     end

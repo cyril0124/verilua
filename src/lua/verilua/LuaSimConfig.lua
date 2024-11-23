@@ -229,6 +229,8 @@ function cfg:post_config()
             assert(type(cfg.mode) == "number")
             assert(cfg.mode == cfg.VeriluaMode.NORMAL or cfg.mode == cfg.VeriluaMode.STEP or cfg.mode == cfg.VeriluaMode.DOMINANT, "Invalid VeriluaMode: " .. cfg.mode)
         end
+    else
+        cfg.mode = "nil"
     end
     
     -- Setup configs with default values
