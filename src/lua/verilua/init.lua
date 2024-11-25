@@ -1237,22 +1237,7 @@ end
 -- setup random seed
 -- 
 do
-    local ENV_SEED = os.getenv("SEED")
-    _G.verilua_debug("ENV_SEED is " .. tostring(ENV_SEED))
-    _G.verilua_debug("cfg.seed is " .. tostring(cfg.seed))
-
-    local final_seed = ENV_SEED ~= nil and tonumber(ENV_SEED) or cfg.seed
-    if not final_seed then
-        _G.verilua_debug("final_seed is nil, set to 1234(default)")
-        final_seed = 1234
-    end
-
-    _G.verilua_debug("final_seed is " .. final_seed)
-
-    _G.verilua_debug(("overwrite cfg.seed from %s to %d"):format(tostring(cfg.seed), final_seed))
-    cfg.seed = final_seed
-
-    _G.verilua_debug(("random seed is %d"):format(cfg.seed))
+    _G.verilua_debug(f("random seed is %d", cfg.seed))
     math.randomseed(cfg.seed)
 end
 

@@ -4,9 +4,11 @@ local type = type
 local debug = debug
 local print = print
 local pairs = pairs
+local error = error
 local assert = assert
 local rawget = rawget
 local f = string.format
+local tonumber = tonumber
 local tostring = tostring
 local setmetatable = setmetatable
 
@@ -81,6 +83,12 @@ local function config_error(cond, ...)
         io.write(colors.reset)
         io.flush()
         assert(false, "config_error")
+    end
+end
+
+local function type_check(value, name, expect_type)
+    if type(value) ~= expect_type then
+        error(f("Expected argument `%s` to be a `%s` value, but received a `%s` value instead, value => %s", name, expect_type, type(value), tostring(value)), 0)
     end
 end
 
@@ -243,8 +251,19 @@ function cfg:post_config()
     cfg.unit            = cfg:get_or_else("unit", "ns")
     cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
     cfg.vpi_learn       = cfg:get_or_else("vpi_learn", false)
-    cfg.seed            = cfg:get_or_else("seed", 1234)
     cfg.prj_dir         = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
+
+    -- Setup seed, <SEED> set by environment variable has higher priority
+    cfg.seed = cfg:get_or_else("seed", 1234)
+    local env_seed = os.getenv("SEED")
+    if env_seed then
+        assert(env_seed:match("^%d+$") ~= nil, "[LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!")
+        _G.verilua_debug(f("Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d", tostring(cfg.seed), env_seed))
+        cfg.seed = tonumber(env_seed)
+    end
+
+    type_check(cfg.attach, "cfg.attach", "boolean")
+    type_check(cfg.seed, "cfg.seed", "number")
 
     setmetatable(cfg, {
         __index = function (t, k)
