@@ -32,8 +32,9 @@ ffi.cdef[[
 local set_force_enable = false
 local force_path_table = {}
 
-local function create_proxy(path)
+local function create_proxy(path, use_prefix)
     local local_path = path
+    local use_prefix = use_prefix or false
     return setmetatable({
         -- 
         -- Example:
@@ -486,17 +487,45 @@ local function create_proxy(path)
             return compare_value_str(t:get_str(DecStr), dec_value_str)
         end,
 
-    }, {
-        __index = function(t, k)
-            return create_proxy(local_path .. '.' .. k)
+        -- 
+        -- Example:
+        --      Assume top module is `top`
+        --      assert(dut.path.to.signal:tostring() == "top.path.to.signal")
+        -- 
+        tostring = function(t)
+            return local_path
         end,
 
+        -- 
+        -- Example:
+        --      local io_in = dut.path.to.mod:with_prefix("io_in_")
+        --      assert(io_in.value:tostring() == "top.path.to.mod.io_in_value")
+        --      assert(io_in.data:tostring() == "top.path.to.mod.io_in_data")
+        -- 
+        with_prefix = function(t, prefix_str)
+            return create_proxy(local_path .. '.' .. prefix_str, true)
+        end,
+    }, {
+        __index = function(t, k)
+            if not use_prefix then
+                return create_proxy(local_path .. '.' .. k, false)
+            else
+                return create_proxy(local_path .. k, false)
+            end
+        end,
+
+        -- 
+        -- [Deprecated] please use <LuaDut>:set(...) or <LuaDut>:set_str(...)
+        -- 
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
             C.c_set_value_by_name(fullpath, v)
         end,
 
+        -- 
+        -- [Deprecated] please use <LuaDut>:get(...) or <LuaDut>:get_str(...)
+        -- 
         __call = function(t, v)
             local data_type = v or "integer"
             if data_type == "integer" then
