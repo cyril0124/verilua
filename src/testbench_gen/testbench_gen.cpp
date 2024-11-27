@@ -12,7 +12,6 @@
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/parsing/TokenKind.h"
 #include "slang/syntax/AllSyntax.h"
-#include <argparse/argparse.hpp>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -179,7 +178,7 @@ int main(int argc, const char *argv[]) {
     std::vector<std::string> files;
     for (const auto &file : _files) {
         if (file.ends_with(".f")) {
-            // parse filelist
+            // Parse filelist
             std::vector<std::string> fileList = parseFileList(file);
             for (const auto &listedFile : fileList) {
                 files.push_back(fs::absolute(listedFile).string());
@@ -199,7 +198,7 @@ int main(int argc, const char *argv[]) {
         filesSV.emplace_back(str);
     }
 
-    // parse syntax tree
+    // Parse syntax tree
     std::shared_ptr<SyntaxTree> tree;
     auto treeOrError = SyntaxTree::fromFiles(filesSV);
     if (treeOrError) {
@@ -210,19 +209,18 @@ int main(int argc, const char *argv[]) {
         ASSERT(false);
     }
 
-    // make sure that we have built the SyntaxTree successfully, any error will stop the program
+    // Make sure that we have built the SyntaxTree successfully, any error will stop the program
     auto treeDiags = tree->diagnostics();
     if (treeDiags.empty() == false) {
         if (slang_common::checkDiagsError(treeDiags)) {
             auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), treeDiags);
             fmt::println("{}", ret);
 
-            // Syntax error
-            ASSERT(false, "Syntax error");
+            PANIC("Syntax error");
         }
     }
 
-    // do compilation and check any compilation error
+    // Do compilation and check any compilation error
     Compilation compilation;
     compilation.addSyntaxTree(tree);
 
@@ -233,8 +231,7 @@ int main(int argc, const char *argv[]) {
                 auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), compDiags);
                 fmt::println("{}", ret);
 
-                // Compilation error
-                ASSERT(false, "Compilation error");
+                PANIC("Compilation error");
             }
         }
     }

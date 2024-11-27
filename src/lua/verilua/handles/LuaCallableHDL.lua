@@ -55,7 +55,7 @@ local BeatWidth = 32
 local type, assert, tonumber, print, format = type, assert, tonumber, print, string.format
 local setmetatable = setmetatable
 local table, math = table, math
-local ffi_str = ffi.string
+local ffi_string = ffi.string
 local ffi_new = ffi.new
 
 local CallableHDL = class()
@@ -70,11 +70,12 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     local tmp_hdl = hdl or C.c_handle_by_name_safe(fullpath)
     if tmp_hdl == -1 then
-        print(debug.traceback("", 8))
-        assert(false, format("No handle found => %s", fullpath))
+        local err = format("[CallableHDL:_init] No handle found! fullpath:%s name:%s traceback:%s", fullpath, name, debug.traceback("", 8))
+        verilua_debug(err)
+        assert(false, err)
     end
     self.hdl = tmp_hdl
-    self.hdl_type = ffi_str((C.c_get_hdl_type(self.hdl)))
+    self.hdl_type = ffi_string((C.c_get_hdl_type(self.hdl)))
 
     self.is_array = false
     self.array_size = 0
@@ -264,7 +265,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.get_index_str = function (this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi_str(C.c_get_value_str(chosen_hdl, fmt))
+            return ffi_string(C.c_get_value_str(chosen_hdl, fmt))
         end
 
         self.set_str = function (this, str)
@@ -403,7 +404,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- #define vpiHexStrVal          4
         -- 
         self.get_str = function (this, fmt)
-            return ffi_str(C.c_get_value_str(this.hdl, fmt))
+            return ffi_string(C.c_get_value_str(this.hdl, fmt))
         end
 
         self.get_index_str = function (this, index, fmt)
@@ -471,7 +472,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.get_index_str = function (this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi_str(C.c_get_value_str(chosen_hdl, fmt))
+            return ffi_string(C.c_get_value_str(chosen_hdl, fmt))
         end
 
         self.set_str = function (this, str)
@@ -523,7 +524,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- #define vpiHexStrVal          4
         -- 
         self.get_str = function (this, fmt)
-            return ffi_str(C.c_get_value_str(this.hdl, fmt))
+            return ffi_string(C.c_get_value_str(this.hdl, fmt))
         end
 
         self.get_index_str = function (this, index, fmt)

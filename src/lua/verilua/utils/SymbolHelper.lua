@@ -35,7 +35,7 @@ local ffi_cast = function (type_str, value)
 end
 
 --
--- `SymbolHelper` provided by Verilua to get the global symbol address of the C function.
+-- `SymbolHelper` is provided by Verilua to get the global symbol address of the C function.
 -- The C function is defined for DPI-C usage or as a normal C function in the testbench code. 
 -- And this is a tricky way to call the C function from Lua instead of from the testbench(SystemVerilog). 
 -- Although this way is not recommended, it is still a way to call the C function from Lua 
