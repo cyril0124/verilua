@@ -70,7 +70,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     local tmp_hdl = hdl or C.c_handle_by_name_safe(fullpath)
     if tmp_hdl == -1 then
-        local err = format("[CallableHDL:_init] No handle found! fullpath:%s name:%s traceback:%s", fullpath, name, debug.traceback("", 8))
+        local err = format("[CallableHDL:_init] No handle found! fullpath: %s name: %s\t\n%s\n", fullpath, self.name == "" and "Unknown" or self.name, debug.traceback())
         verilua_debug(err)
         assert(false, err)
     end

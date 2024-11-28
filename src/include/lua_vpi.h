@@ -188,6 +188,9 @@ public:
     bool initialized = false;
     bool finalized = false;
 
+    bool has_start_cb = false;
+    bool has_final_cb = false;
+
     double lua_time = 0.0;
     double start_time = 0.0;
     double end_time = 0.0;
@@ -261,7 +264,7 @@ VERILUA_PRIVATE inline void execute_sim_event(TaskID id) {
 // and the Verilua environment will be finalized.
 VERILUA_PRIVATE inline void execute_main_step() {
     auto &env = VeriluaEnv::get_instance();
-    VL_FATAL(env.initialized, "main_step called before initialize");
+    VL_FATAL(env.initialized, "`execute_main_step` called before initialize!");
 
 #ifdef VL_DEF_ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();
@@ -292,7 +295,10 @@ VERILUA_PRIVATE inline void execute_main_step_safe() {
     }
 
     auto &env = VeriluaEnv::get_instance();
-    VL_FATAL(env.initialized, "main_step called before initialize");
+    if(!env.initialized) {
+        VL_WARN("`execute_main_step_safe` called before initialize!\n");
+        return;
+    }
 
 #ifdef VL_DEF_ACCUMULATE_LUA_TIME
     auto start = std::chrono::high_resolution_clock::now();

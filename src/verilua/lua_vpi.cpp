@@ -122,6 +122,10 @@ void VeriluaEnv::initialize() {
     if (initialized) return;
     VL_STATIC_DEBUG("VeriluaEnv::initialize() called\n");
 
+    if(!this->has_final_cb) {
+        register_final_calllback();
+    }
+
     // Make sure that VERILUA_HOME is defined
     const char *VERILUA_HOME = std::getenv("VERILUA_HOME");
     if (VERILUA_HOME == nullptr) {
@@ -401,7 +405,7 @@ TO_LUA void c_simulator_control(long long cmd) {
     // #define vpiFinish                67   /* execute simulator's $finish */
     // #define vpiReset                 68   /* execute simulator's $reset */
     // #define vpiSetInteractiveScope   69   /* set simulator's interactive scope */
-    VL_STATIC_DEBUG("simulator control cmd: {}\n", cmd);
+    VL_DEBUG("simulator control cmd: {}\n", cmd);
     vpi_control(cmd);
 }
 

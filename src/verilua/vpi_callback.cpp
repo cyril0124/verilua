@@ -364,8 +364,9 @@ VERILUA_PRIVATE static PLI_INT32 final_callback(p_cb_data cb_data) {
 }
 
 VERILUA_PRIVATE void register_start_calllback(void) {
-    static bool registered = false;
-    if(registered) return;
+    auto &env = VeriluaEnv::get_instance();
+    if(env.has_start_cb) return;
+
 
     vpiHandle callback_handle;
     s_cb_data cb_data_s;
@@ -381,12 +382,12 @@ VERILUA_PRIVATE void register_start_calllback(void) {
     vpi_free_object(callback_handle);
 
     VL_STATIC_DEBUG("register_start_calllback()\n");
-    registered = true;
+    env.has_start_cb = true;
 }
 
 VERILUA_PRIVATE void register_final_calllback(void) {
-    static bool registered = false;
-    if (registered) return;
+    auto &env = VeriluaEnv::get_instance();
+    if(env.has_final_cb) return;
 
     vpiHandle callback_handle;
     s_cb_data cb_data_s;
@@ -402,7 +403,7 @@ VERILUA_PRIVATE void register_final_calllback(void) {
     vpi_free_object(callback_handle); // Free the callback handle
 
     VL_STATIC_DEBUG("register_final_calllback()\n");
-    registered = true;
+    env.has_final_cb = true;
 }
 
 VERILUA_PRIVATE void register_readwrite_synch_calllback(void) {
