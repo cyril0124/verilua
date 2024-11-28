@@ -12,7 +12,7 @@ local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
-add_requires("conan::fmt/10.2.1", {alias = "fmt"})
+add_requires("conan::fmt/11.0.2", {alias = "fmt"})
 add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
 add_requires("conan::libassert/2.1.0", {alias = "libassert"})
 add_requires("conan::argparse/3.1", {alias = "argparse"})

@@ -2,12 +2,14 @@
   "name": "verilua",
   "version": "1.0.0",
   "dependencies": [
-    "fmt", "sol2", "argparse"
+    "fmt",
+    "sol2",
+    "argparse"
   ],
   "overrides": [
     {
       "name": "fmt",
-      "version": "10.2.1"
+      "version": "11.0.2"
     },
     {
       "name": "sol2",
@@ -18,5 +20,5 @@
       "version": "3.1"
     }
   ],
-  "builtin-baseline": "f0c8848cde589649bca3ab3649668540403786ce"
+  "builtin-baseline": "c45ac46dcc16dd588daa029f7ce5bcacc5d7645b"
 }
