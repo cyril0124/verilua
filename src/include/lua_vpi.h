@@ -40,14 +40,27 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-#ifdef DEBUG
 #define VL_DEBUG(...) \
     do { \
-        fmt::print("[{}:{}:{}] [{}DEBUG{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+        static bool __enable_debug = [] { \
+            const char* env_var = std::getenv("VL_DEBUG_C"); \
+            return env_var != nullptr && std::string(env_var) == "1"; \
+        }(); \
+        if (__enable_debug) { \
+            fmt::print("[{}:{}:{}] [{}DEBUG{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+            fmt::print(__VA_ARGS__); \
+            fflush(stdout); \
+        } \
+    } while(0)
+
+#ifdef DEBUG
+#define VL_STATIC_DEBUG(...) \
+    do { \
+        fmt::print("[{}:{}:{}] [{}STATIC_DEBUG{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
         fmt::print(__VA_ARGS__); \
     } while(0)
 #else
-#define VL_DEBUG(...)
+#define VL_STATIC_DEBUG(...)
 #endif
 
 #define VL_INFO(...) \

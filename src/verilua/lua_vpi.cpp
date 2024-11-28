@@ -8,15 +8,15 @@
 //  The verilua_main_step() should be invoked at the beginning of each simulation step.
 // ----------------------------------------------------------------------------------------------------------
 VERILUA_EXPORT void verilua_init() {
-    VL_DEBUG("enter verilua_init()\n");
+    VL_STATIC_DEBUG("enter verilua_init()\n");
     VeriluaEnv::get_instance().initialize();
-    VL_DEBUG("leave verilua_init()\n");
+    VL_STATIC_DEBUG("leave verilua_init()\n");
 }
 
 VERILUA_EXPORT void verilua_final() {
-    VL_DEBUG("enter verilua_init()\n");
+    VL_STATIC_DEBUG("enter verilua_init()\n");
     VeriluaEnv::get_instance().finalize();
-    VL_DEBUG("leave verilua_init()\n");
+    VL_STATIC_DEBUG("leave verilua_init()\n");
 }
 
 VERILUA_EXPORT void verilua_main_step() {
@@ -66,7 +66,7 @@ void VeriluaEnv::finalize() {
     if (finalized) return;
     finalized = true;
     
-    VL_DEBUG("VeriluaEnv::finalize() called\n");
+    VL_STATIC_DEBUG("VeriluaEnv::finalize() called\n");
 
     if (!initialized) {
         VL_FATAL(false, "FATAL! and verilua is NOT init yet.");
@@ -112,7 +112,7 @@ void VeriluaEnv::finalize() {
     outfile.close();
 #endif
 
-    VL_DEBUG("VeriluaEnv::finalize() finish!\n");
+    VL_STATIC_DEBUG("VeriluaEnv::finalize() finish!\n");
 
     // Simulation end here...
     vpi_control(vpiFinish);
@@ -120,7 +120,7 @@ void VeriluaEnv::finalize() {
 
 void VeriluaEnv::initialize() {
     if (initialized) return;
-    VL_DEBUG("VeriluaEnv::initialize() called\n");
+    VL_STATIC_DEBUG("VeriluaEnv::initialize() called\n");
 
     // Make sure that VERILUA_HOME is defined
     const char *VERILUA_HOME = std::getenv("VERILUA_HOME");
@@ -176,7 +176,7 @@ void VeriluaEnv::initialize() {
 
     // Call init.lua at the beginning of the simulation
     std::string INIT_FILE = std::string(VERILUA_HOME) + "/src/lua/verilua/init.lua";
-    VL_DEBUG("INIT_FILE is {}\n", INIT_FILE);
+    VL_STATIC_DEBUG("INIT_FILE is {}\n", INIT_FILE);
 
     // Use pure luaL_dofile() to make luajit-pro load the script successfully
     if (luaL_dofile(this->L, INIT_FILE.c_str()) != LUA_OK) {
@@ -223,7 +223,7 @@ void VeriluaEnv::initialize() {
     this->start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
 
     initialized = true;
-    VL_DEBUG("VeriluaEnv::initialize() finish!\n");
+    VL_STATIC_DEBUG("VeriluaEnv::initialize() finish!\n");
 
     // -----------------------------------------------------------------------------------------
     // Test access time(only for performance test)
@@ -374,7 +374,7 @@ TO_LUA void dpi_set_scope(char *str) {
 #ifdef IVERILOG
     VL_FATAL(false, "Unsupported!");
 #else
-    VL_DEBUG("set svScope name: {}\n", str);
+    VL_STATIC_DEBUG("set svScope name: {}\n", str);
     const svScope scope = svGetScopeFromName(str);
     VL_FATAL(scope, "scope is NULL");
     svSetScope(scope);
@@ -401,7 +401,7 @@ TO_LUA void c_simulator_control(long long cmd) {
     // #define vpiFinish                67   /* execute simulator's $finish */
     // #define vpiReset                 68   /* execute simulator's $reset */
     // #define vpiSetInteractiveScope   69   /* set simulator's interactive scope */
-    VL_DEBUG("simulator control cmd: {}\n", cmd);
+    VL_STATIC_DEBUG("simulator control cmd: {}\n", cmd);
     vpi_control(cmd);
 }
 

@@ -247,7 +247,7 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, TaskID id) {
 TO_LUA void c_register_read_write_synch_callback(TaskID id) {
     s_cb_data cb_data;
 
-    VL_DEBUG("Register cbReadWriteSynch {}\n", id);
+    VL_STATIC_DEBUG("Register cbReadWriteSynch {}\n", id);
 
     cb_data.reason = cbReadWriteSynch;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
@@ -328,38 +328,38 @@ VERILUA_PRIVATE static PLI_INT32 next_sim_time_callback(p_cb_data cb_data) {
     vpi_free_object(callback_handle);
 
 #ifdef VL_DEF_OPT_VEC_SIMPLE_ACCESS
-    // VL_DEBUG("before clean => {}\n", env.vec_value_cache.size());
+    // VL_STATIC_DEBUG("before clean => {}\n", env.vec_value_cache.size());
     env.vec_value_cache.clear();
 #endif
 
-    // VL_DEBUG("[cbNextSimTime] leave next_sim_time_callback()\n");
+    // VL_STATIC_DEBUG("[cbNextSimTime] leave next_sim_time_callback()\n");
     return 0;
 }
 
 VERILUA_PRIVATE static PLI_INT32 readwrite_synch_callback(p_cb_data cb_data) {
-    VL_DEBUG("[cbReadWriteSynch] enter readwrite_synch_callback()\n");
+    VL_STATIC_DEBUG("[cbReadWriteSynch] enter readwrite_synch_callback()\n");
 
     VL_FATAL(false, "TODO:");
 
-    VL_DEBUG("[cbReadWriteSynch] leave readwrite_synch_callback()\n");
+    VL_STATIC_DEBUG("[cbReadWriteSynch] leave readwrite_synch_callback()\n");
     return 0;
 }
 
 VERILUA_PRIVATE static PLI_INT32 start_callback(p_cb_data cb_data) {
-    VL_DEBUG("[cbStartOfSimulation] enter start_callback()\n");
+    VL_STATIC_DEBUG("[cbStartOfSimulation] enter start_callback()\n");
 
     VeriluaEnv::get_instance().initialize();
     
-    VL_DEBUG("[cbStartOfSimulation] leave start_callback()\n");
+    VL_STATIC_DEBUG("[cbStartOfSimulation] leave start_callback()\n");
     return 0;
 }
 
 VERILUA_PRIVATE static PLI_INT32 final_callback(p_cb_data cb_data) {
-    VL_DEBUG("[cbEndOfSimulation] enter final_callback()\n");
+    VL_STATIC_DEBUG("[cbEndOfSimulation] enter final_callback()\n");
 
     VeriluaEnv::get_instance().finalize();
 
-    VL_DEBUG("[cbEndOfSimulation] leave final_callback()\n");
+    VL_STATIC_DEBUG("[cbEndOfSimulation] leave final_callback()\n");
     return 0;
 }
 
@@ -380,7 +380,7 @@ VERILUA_PRIVATE void register_start_calllback(void) {
     callback_handle = vpi_register_cb(&cb_data_s);
     vpi_free_object(callback_handle);
 
-    VL_DEBUG("register_start_calllback()\n");
+    VL_STATIC_DEBUG("register_start_calllback()\n");
     registered = true;
 }
 
@@ -401,7 +401,7 @@ VERILUA_PRIVATE void register_final_calllback(void) {
     callback_handle = vpi_register_cb(&cb_data_s);
     vpi_free_object(callback_handle); // Free the callback handle
 
-    VL_DEBUG("register_final_calllback()\n");
+    VL_STATIC_DEBUG("register_final_calllback()\n");
     registered = true;
 }
 
@@ -428,7 +428,7 @@ VERILUA_PRIVATE void register_readwrite_synch_calllback(void) {
     callback_handle = vpi_register_cb(&cb_data_s);
     vpi_free_object(callback_handle); // Free the callback handle
 
-    VL_DEBUG("register_readwrite_synch_calllback()\n");
+    VL_STATIC_DEBUG("register_readwrite_synch_calllback()\n");
     registered = true;
 }
 
@@ -455,6 +455,6 @@ VERILUA_PRIVATE void register_next_sim_time_calllback(void) {
     callback_handle = vpi_register_cb(&cb_data_s);
     vpi_free_object(callback_handle); // Free the callback handle
 
-    VL_DEBUG("register_next_sim_time_calllback()\n");
+    VL_STATIC_DEBUG("register_next_sim_time_calllback()\n");
     registered = true;
 }
