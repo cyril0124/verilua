@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import subprocess
+
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
+
+verilua_path = os.getenv("VERILUA_HOME")
+libpath = os.getenv("VERILUA_HOME") + "/shared"
+
+if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
+    luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
+else:
+    luapath = verilua_path + "/luajit-pro/luajit2.1"
+
+liblua_path = luapath + "/lib"
+assert libpath != None, "[vl-verilator] cannot find VERILUA_HOME!"
+assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator] cannot find liblua_vpi.so in " + libpath
+
+CFLAGS = ""
+LDFLAGS = ""
+
+CFLAGS += f"-I{luapath}/include -I{luapath}/include/luajit-2.1 "
+CFLAGS += f"-I{verilua_path}/src/include "
+CFLAGS += f"-I{verilua_path}/vcpkg/installed/x64-linux/include "
+
+LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -llua_vpi "
+LDFLAGS += f"-Wl,-rpath,{liblua_path} -L{liblua_path} -Wl,--no-as-needed -lluajit-5.1 "
+LDFLAGS_1 = f"-L{verilua_path}/vcpkg/installed/x64-linux/lib -Wl,--no-as-needed -lfmt "
+
+cmd_list = ["verilator"] + [
+    "+define+VERILUA",
+    "-LDFLAGS", LDFLAGS,
+    "-LDFLAGS", '"' + LDFLAGS_1 + '"',
+    "-CFLAGS", CFLAGS
+] + sys.argv[1:] + [f"{verilua_path}/src/dpi_exporter/dummy_vpi.cpp"]
+
+cmd = " ".join(cmd_list)
+
+PREFIX = f"[{YELLOW}vl-verilator-dpi{RESET}]"
+print(f'''
+{PREFIX} libpath: {GREEN}{libpath}{RESET}
+{PREFIX} liblua_path: {GREEN}{liblua_path}{RESET}
+{PREFIX} verilua_path: {GREEN}{verilua_path}{RESET}
+{PREFIX} cmd:
+{GREEN}{cmd}{RESET}
+''', flush = True)
+
+exit(subprocess.call(cmd_list))

@@ -360,6 +360,41 @@ target("testbench_gen")
         print("---------------------------------------------------------- ")
     end)
 
+target("dpi_exporter")
+    set_kind("binary")
+
+    set_languages("c++20")
+
+    set_plat("linux")
+    set_arch("x86_64")
+    
+    add_files(
+        src_dir .. "/dpi_exporter/dpi_exporter.cpp",
+        extern_dir .. "/slang-common/*.cc"
+    )
+
+    local slang_dir = extern_dir .. "/slang-prebuild/install_static"
+    add_includedirs(
+        src_dir .. "/include",
+        src_dir .. "/dpi_exporter",
+        slang_dir .. "/include",
+        extern_dir .. "/slang-common",
+        extern_dir .. "/boost_unordered/include"
+    )
+
+    add_links("svlang")
+    add_linkdirs(slang_dir .. "/lib")
+
+    add_packages("fmt", "mimalloc", "libassert", "argparse")
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        print("* copy " .. target:targetfile() .. " into " .. tools_dir)
+            os.run("cp " .. target:targetfile() .. " " .. tools_dir)
+        print("---------------------------------------------------------- ")
+    end)
+
 target("update_submodules")
     set_kind("phony")
     on_run(function (target)

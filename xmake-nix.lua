@@ -333,3 +333,33 @@ target("testbench_gen")
             os.run("cp " .. target:targetfile() .. " " .. tools_dir)
         print("---------------------------------------------------------- ")
     end)
+
+target("dpi_exporter")
+    set_kind("binary")
+
+    set_languages("c++20")
+
+    set_plat("linux")
+    set_arch("x86_64")
+    
+    add_files(
+        src_dir .. "/dpi_exporter/dpi_exporter.cpp",
+        extern_dir .. "/slang-common/*.cc"
+    )
+
+    add_includedirs(
+        src_dir .. "/include",
+        src_dir .. "/dpi_exporter",
+        extern_dir .. "/slang-common"
+    )
+
+    add_links("svlang", "fmt", "mimalloc")
+    add_links("assert", "cpptrace", "zstd", "dwarf")
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        print("* copy " .. target:targetfile() .. " into " .. tools_dir)
+            os.run("cp " .. target:targetfile() .. " " .. tools_dir)
+        print("---------------------------------------------------------- ")
+    end)

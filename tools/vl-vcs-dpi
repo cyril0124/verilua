@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import subprocess
+import base64
+
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
+
+verilua_path = os.getenv("VERILUA_HOME")
+assert verilua_path != None, "[vl-vcs] cannot find VERILUA_HOME!"
+
+if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
+    luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
+else:
+    luapath = verilua_path + "/luajit-pro/luajit2.1"
+
+libpath = verilua_path + "/shared"
+liblua_path = luapath + "/lib"
+assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find liblua_vpi_vcs.so in " + libpath
+
+vcs = os.getenv("VCS_HOME") + "/bin/vcs"
+
+cmd_list = [vcs] + [
+    "+define+VERILUA",
+    
+    "-CFLAGS", f'\"-I{verilua_path}/src/include\"',
+    "-LDFLAGS", f'\"-Wl,-rpath,{liblua_path}\"',
+    
+    "-LDFLAGS", f'\"-L{liblua_path}\"',
+    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from liblua_vpi
+    "-LDFLAGS", f'\"-lluajit-5.1\"',
+    
+    "-LDFLAGS", f'\"-L{libpath}\"',
+    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from liblua_vpi_vcs
+    "-LDFLAGS", '\"-llua_vpi_vcs\"',
+    "-LDFLAGS", '-lstdc++',
+    "-load", libpath + "/liblua_vpi_vcs.so",
+    f"{verilua_path}/src/dpi_exporter/dummy_vpi.cpp"
+] + sys.argv[1:]
+
+cmd = " ".join(cmd_list)
+
+PREFIX = f"[{YELLOW}vl-vcs-dpi{RESET}]"
+print(f'''
+{PREFIX} libpath: {GREEN}{libpath}{RESET}
+{PREFIX} liblua_path: {GREEN}{liblua_path}{RESET}
+{PREFIX} verilua_path: {GREEN}{verilua_path}{RESET}
+{PREFIX} cmd:
+{GREEN}{cmd}{RESET}
+''', flush = True)
+
+exit(subprocess.call(cmd_list))

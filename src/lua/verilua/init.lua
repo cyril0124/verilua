@@ -281,6 +281,16 @@ do
     if DUT_TOP ~= nil then
         setenv_from_lua("DUT_TOP", DUT_TOP)
     end
+
+    -- 
+    -- setup dummy_vpi environments
+    -- 
+    if cfg.dpi_top ~= "" then
+        setenv_from_lua("DPI_TOP", cfg.dpi_top)
+    end
+    if cfg.top_name ~= "" then
+        setenv_from_lua("TOP_NAME", cfg.top_name)
+    end
 end
 
 
