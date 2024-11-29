@@ -188,6 +188,8 @@ using DPIExporterInfo = struct {
     std::string moduleName;
     std::string clock;
     std::vector<std::string> signalPatternVec;
+    std::vector<std::string> disableSignalPatternVec;
+    bool isTopModule;
 };
 
 class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewriter> {
@@ -214,11 +216,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
         clock      = info.clock;
     }
 
-    bool checkValidSignal(std::string signal) {
-        if (info.signalPatternVec.size() == 0) {
-            return true;
-        }
-
+    bool _checkValidSignal(std::string signal) {
         for (const auto &pattern : info.signalPatternVec) {
             std::regex regexPattern(pattern);
 
@@ -228,6 +226,30 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
         }
 
         return false;
+    }
+
+    bool _checkInvalidSignal(std::string signal) {
+        for (const auto &pattern : info.disableSignalPatternVec) {
+            std::regex regexPattern(pattern);
+
+            if (std::regex_match(signal, regexPattern)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool checkValidSignal(std::string signal) {
+        if (info.signalPatternVec.size() == 0) {
+            return !_checkInvalidSignal(signal);
+        }
+
+        if (_checkInvalidSignal(signal)) {
+            return false;
+        }
+
+        return _checkValidSignal(signal);
     }
 
     void handle(ModuleDeclarationSyntax &syntax) {
@@ -240,15 +262,6 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                     lastMember = m;
                 }
                 ASSERT(lastMember != nullptr, "TODO:");
-
-                ASSERT(hierPathNameVec.size() == 0);
-                for (int i = 0; i < hierPathVec.size(); i++) {
-                    std::string hierPathName = hierPathVec[i];
-                    std::replace(hierPathName.begin(), hierPathName.end(), '.', '_');
-                    hierPathNameVec.emplace_back(hierPathName);
-                }
-
-                std::string sv_genStatement = "\ngenerate // DPI Exporter\n";
 
                 std::string sv_readSignalFuncParam       = "";
                 std::string sv_readSignalFuncInvokeParam = "";
@@ -283,13 +296,43 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                 dpiFuncParam.pop_back();
                 dpiFuncParam.pop_back();
 
-                for (int instId = 0; instId < instSize; instId++) {
-                    std::string hierPathName      = hierPathNameVec[instId];
-                    std::string dpiFuncNamePrefix = fmt::format("VERILUA_DPI_EXPORTER_{}", hierPathName);
-                    std::string dpiFuncName       = fmt::format("{}_TICK", dpiFuncNamePrefix);
+                std::string sv_genStatement = "\ngenerate // DPI Exporter\n";
 
-                    std::string sv_dpiBlock = fmt::format(R"(
-if(instId == {}) begin
+                ASSERT(hierPathNameVec.size() == 0);
+                for (int i = 0; i < hierPathVec.size(); i++) {
+                    std::string hierPathName = hierPathVec[i];
+                    std::replace(hierPathName.begin(), hierPathName.end(), '.', '_');
+                    hierPathNameVec.emplace_back(hierPathName);
+                }
+
+                bool isTopModule = instSize == 0;
+                auto _instSize   = instSize;
+                if (instSize == 0) {
+                    _instSize = 1;
+                }
+
+                for (int instId = 0; instId < _instSize; instId++) {
+                    std::string hierPath          = "";
+                    std::string hierPathName      = "";
+                    std::string dpiFuncNamePrefix = "";
+                    std::string dpiFuncName       = "";
+
+                    if (!isTopModule) {
+                        hierPath     = hierPathVec[instId];
+                        hierPathName = hierPathNameVec[instId];
+                    } else {
+                        hierPath     = moduleName;
+                        hierPathName = moduleName;
+                    }
+
+                    dpiFuncNamePrefix = fmt::format("VERILUA_DPI_EXPORTER_{}", hierPathName);
+                    dpiFuncName       = fmt::format("{}_TICK", dpiFuncNamePrefix);
+
+                    std::string sv_dpiBlock = "";
+                    if (!isTopModule) {
+                        sv_dpiBlock += fmt::format("if(instId == {}) begin\n", instId);
+                    }
+                    sv_dpiBlock += fmt::format(R"(
     // hierPath: {}
     import "DPI-C" function void {}(
 {}
@@ -298,15 +341,17 @@ if(instId == {}) begin
     always @(posedge {}) begin
         {}({});
     end
-end
-                    )",
-                                                          instId, hierPathVec[instId], dpiFuncName, sv_readSignalFuncParam, clock, dpiFuncName, sv_readSignalFuncInvokeParam);
+)",
+                                               hierPath, dpiFuncName, sv_readSignalFuncParam, clock, dpiFuncName, sv_readSignalFuncInvokeParam);
+                    if (!isTopModule) {
+                        sv_dpiBlock += "end\n";
+                    }
 
                     sv_genStatement += sv_dpiBlock;
 
                     // Generate DPI file
                     dpiFuncBody += fmt::format("extern \"C\" void {}({}) {{\n", dpiFuncName, dpiFuncParam);
-                    dpiFuncFileContent += fmt::format("// hierPath: {}\n", hierPathName, instId);
+                    dpiFuncFileContent += fmt::format("// hierPath: {}\n", hierPathName);
                     for (auto &p : portVec) {
                         auto beatSize = coverWith32(p.bitWidth);
                         ASSERT(beatSize >= 1);
@@ -452,41 +497,99 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
             } else {
                 auto instSym    = model.syntaxToInstanceSymbol(syntax);
                 auto foundClock = false;
-                for (auto p : instSym->body.getPortList()) {
-                    // fmt::println("p type => {}", toString(p->kind));
 
-                    auto &pp      = p->as<PortSymbol>();
-                    auto portName = std::string(pp.name);
+                // If no signal pattern is set, check all ports
+                if (info.signalPatternVec.size() == 0) {
+                    for (auto p : instSym->body.getPortList()) {
+                        auto &pp      = p->as<PortSymbol>();
+                        auto portName = std::string(pp.name);
 
-                    auto bitWidth  = pp.getType().getBitWidth();
-                    auto direction = toString(pp.direction);
+                        auto bitWidth  = pp.getType().getBitWidth();
+                        auto direction = toString(pp.direction);
 
-                    if (portName == clock && bitWidth == 1 && direction == "In") {
-                        foundClock = true;
+                        if (portName == clock && bitWidth == 1 && direction == "In") {
+                            foundClock = true;
+                        }
+
+                        // TODO: Check port type
+                        if (checkValidSignal(portName)) {
+                            portVec.emplace_back(PortInfo{.name = portName, .direction = std::string(direction), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet"}); // TODO: typeStr
+                            fmt::println("[DPIExporter] [{}VALID{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth, globalHandleIdx);
+                            fflush(stdout);
+                            globalHandleIdx++;
+                        } else {
+                            fmt::println("[DPIExporter] [{}IGNORED{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth);
+                            fflush(stdout);
+                        }
+                    }
+                } else {
+                    auto netIter = instSym->body.membersOfType<NetSymbol>();
+                    for (const auto &net : netIter) {
+                        auto netName  = std::string(net.name);
+                        auto bitWidth = net.getType().getBitWidth();
+
+                        // TODO: Check net type
+                        if (checkValidSignal(netName)) {
+                            portVec.emplace_back(PortInfo{.name = netName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet"});
+                            fmt::println("[DPIExporter] [{}VALID{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, netName, bitWidth, globalHandleIdx);
+                            fflush(stdout);
+                            globalHandleIdx++;
+                        } else {
+                            fmt::println("[DPIExporter] [{}IGNORED{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, netName, bitWidth);
+                            fflush(stdout);
+                        }
                     }
 
-                    // TODO: Check port type
-                    if (checkValidSignal(portName)) {
-                        portVec.emplace_back(PortInfo{.name = portName, .direction = std::string(direction), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet"}); // TODO: typeStr
-                        fmt::println("[DPIExporter] [{}VALID{}] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth, globalHandleIdx);
-                        fflush(stdout);
-                        globalHandleIdx++;
-                    } else {
-                        fmt::println("[DPIExporter] [{}IGNORED{}] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth);
-                        fflush(stdout);
+                    auto varIter = instSym->body.membersOfType<VariableSymbol>();
+                    for (const auto &var : varIter) {
+                        auto varName  = std::string(var.name);
+                        auto bitWidth = var.getType().getBitWidth();
+
+                        // TODO: Check var type
+                        if (checkValidSignal(varName)) {
+                            portVec.emplace_back(PortInfo{.name = varName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiReg"});
+                            fmt::println("[DPIExporter] [{}VALID{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, varName, bitWidth, globalHandleIdx);
+                            fflush(stdout);
+                            globalHandleIdx++;
+                        } else {
+                            fmt::println("[DPIExporter] [{}IGNORED{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, varName, bitWidth);
+                            fflush(stdout);
+                        }
                     }
                 }
+
+                // Try find clock from instance body
+                if (!foundClock) {
+                    auto clkSym = instSym->body.find(clock);
+                    if (clkSym != nullptr) {
+                        auto bitWidth = 0;
+                        if (clkSym->kind == SymbolKind::Variable) {
+                            auto varSym = &clkSym->as<VariableSymbol>();
+                            bitWidth    = varSym->getType().getBitWidth();
+                        } else if (clkSym->kind == SymbolKind::Net) {
+                            auto netSym = &clkSym->as<NetSymbol>();
+                            bitWidth    = netSym->getType().getBitWidth();
+                        } else {
+                            PANIC("Unsupported clock type", toString(clkSym->kind));
+                        }
+                        ASSERT(bitWidth == 1, "Unsupported clock bitwidth", bitWidth);
+                        foundClock = true;
+                    }
+                }
+
                 ASSERT(foundClock, "Clock signal not found!", moduleName, clock);
 
-                if (syntax.header->parameters == nullptr) {
-                    // If the module has no parameters, add one
-                    SmallVector<TokenOrSyntax> declsVec;
-                    declsVec.push_back(TokenOrSyntax(&parse("parameter instId = 5555")));
+                if (!info.isTopModule) {
+                    if (syntax.header->parameters == nullptr) {
+                        // If the module has no parameters, add one
+                        SmallVector<TokenOrSyntax> declsVec;
+                        declsVec.push_back(TokenOrSyntax(&parse("parameter instId = 5555")));
 
-                    std::span<TokenOrSyntax> decls = declsVec.copy(this->alloc);
-                    syntax.header->parameters      = &this->factory.parameterPortList(makeId("#"), makeId("("), decls, makeId(")"));
-                } else {
-                    PANIC("TODO: has Parameters");
+                        std::span<TokenOrSyntax> decls = declsVec.copy(this->alloc);
+                        syntax.header->parameters      = &this->factory.parameterPortList(makeId("#"), makeId("("), decls, makeId(")"));
+                    } else {
+                        PANIC("TODO: has Parameters");
+                    }
                 }
             }
         }
@@ -612,7 +715,10 @@ int main(int argc, char **argv) {
 assert(dpi_exporter_config ~= nil, "[dpi_exporter] dpi_exporter_config is nil in the config file => {}");
 for i, tbl in ipairs(dpi_exporter_config) do
     for k, v in pairs(tbl) do
-        if type(v) == "number" then
+        local typ = type(v)
+        if typ == "number" then
+            tbl[k] = tostring(v)
+        elseif typ == "boolean" then
             tbl[k] = tostring(v)
         end
     end
@@ -624,6 +730,14 @@ for i, tbl in ipairs(dpi_exporter_config) do
             assert(type(v) == "string", "item of the `signal` table must be string")
         end
     end
+
+    if tbl.disable_signal == nil then
+        tbl.disable_signal = {{}}
+    else
+        for i, v in ipairs(tbl.disable_signal) do
+            assert(type(v) == "string", "item of the `disable_signal` table must be string")
+        end
+    end
 end
 )",
                            configFile));
@@ -633,6 +747,7 @@ end
         sol::table item        = entry.second;
         std::string moduleName = getLuaTableItemOrFailed(item, "module").as<std::string>();
         std::string clock      = item["clock"].get_or(std::string("clock"));
+        bool isTopModule       = item["is_top_module"].get_or(std::string("false")) == "true";
 
         std::vector<std::string> signalPatternVec;
         for (const auto &strEntry : (sol::table)item["signal"]) {
@@ -644,11 +759,24 @@ end
             }
         }
 
-        dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec});
+        std::vector<std::string> disableSignalPatternVec;
+        for (const auto &strEntry : (sol::table)item["disable_signal"]) {
+            const auto &str = strEntry.second;
+            if (str.is<std::string>()) {
+                disableSignalPatternVec.push_back(str.as<std::string>());
+            } else {
+                PANIC("Unexpected type");
+            }
+        }
+
+        dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec, disableSignalPatternVec, isTopModule});
     }
     ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
 
     std::unordered_set<uint64_t> handleSet;
+    bool hasTopModule         = false;
+    std::string topModuleName = "";
+
     std::string dpiFuncFileContent = "";
 
     std::string dpiHandleByNameFunc = "extern \"C\" int64_t dpi_exporter_handle_by_name(std::string_view name) {\n";
@@ -672,7 +800,11 @@ end
         auto moduleName = info.moduleName;
         auto rewriter   = new DPIExporterRewriter(tree, info, false);
         auto newTree    = rewriter->transform(tree);
-        ASSERT(rewriter->instSize > 0, "TODO: No instance found in the design, maybe it is a top-level module?", moduleName);
+        if (rewriter->instSize == 0) {
+            ASSERT(!hasTopModule, "Multiple top-level modules found in the design!", topModuleName, moduleName);
+            hasTopModule  = true;
+            topModuleName = moduleName;
+        }
 
         auto rewriter_1         = new DPIExporterRewriter(newTree, info, true, rewriter->instSize);
         rewriter_1->hierPathVec = rewriter->hierPathVec;
@@ -680,10 +812,20 @@ end
         auto newTree_1          = rewriter_1->transform(newTree);
         tree                    = slang_common::rebuildSyntaxTree(*newTree_1);
 
+        if (hasTopModule) {
+            ASSERT(rewriter_1->instSize == 0);
+            rewriter_1->instSize = 1;
+        }
+
         for (int i = 0; i < rewriter_1->instSize; i++) {
-            for (auto &p : rewriter_1->portVec) { // TODO: other module
-                auto uniqueHandleId = p.handleId + (i << 24);
-                auto &hierPathName  = rewriter_1->hierPathNameVec[i];
+            for (auto &p : rewriter_1->portVec) {
+                auto uniqueHandleId      = p.handleId + (i << 24);
+                std::string hierPathName = "";
+                if (hasTopModule) {
+                    hierPathName = moduleName;
+                } else {
+                    hierPathName = rewriter_1->hierPathNameVec[i];
+                }
 
                 if (!handleSet.insert(uniqueHandleId).second) {
                     PANIC("Duplicated handle id: {}", uniqueHandleId);
