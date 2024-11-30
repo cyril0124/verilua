@@ -4,12 +4,14 @@
 #include "fmt/base.h"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
+#include "slang/ast/Compilation.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/driver/Driver.h"
 #include "slang/numeric/SVInt.h"
 #include "slang/parsing/Parser.h"
 #include "slang/parsing/Preprocessor.h"
@@ -17,10 +19,14 @@
 #include "slang/syntax/AllSyntax.h"
 #include "slang/syntax/SyntaxKind.h"
 #include "slang/syntax/SyntaxNode.h"
+#include "slang/syntax/SyntaxPrinter.h"
+#include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
+#include <memory>
 #include <regex>
 #include <span>
 #include <string>
@@ -41,6 +47,7 @@ uint64_t globalHandleIdx = 0; // Each signal has its own handle value(integer)
 #define DEFAULT_WORK_DIR ".dpi_exporter"
 
 #define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_YELLOW "\x1b[33m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
@@ -254,7 +261,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
 
     void handle(ModuleDeclarationSyntax &syntax) {
         if (syntax.header->name.rawText() == moduleName) {
-            fmt::println("[DPIExporterRewriter] found module: {}, writeGenStatment: {}", moduleName, writeGenStatment);
+            fmt::println("[DPIExporterRewriter] found module: {}, writeGenStatment: {}, instSize: {}", moduleName, writeGenStatment, instSize);
 
             if (writeGenStatment) {
                 MemberSyntax *lastMember;
@@ -514,11 +521,11 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                         // TODO: Check port type
                         if (checkValidSignal(portName)) {
                             portVec.emplace_back(PortInfo{.name = portName, .direction = std::string(direction), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet"}); // TODO: typeStr
-                            fmt::println("[DPIExporter] [{}VALID{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth, globalHandleIdx);
+                            fmt::println("[DPIExporterRewriter] [{}VALID{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth, globalHandleIdx);
                             fflush(stdout);
                             globalHandleIdx++;
                         } else {
-                            fmt::println("[DPIExporter] [{}IGNORED{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth);
+                            fmt::println("[DPIExporterRewriter] [{}IGNORED{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth);
                             fflush(stdout);
                         }
                     }
@@ -531,11 +538,11 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                         // TODO: Check net type
                         if (checkValidSignal(netName)) {
                             portVec.emplace_back(PortInfo{.name = netName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet"});
-                            fmt::println("[DPIExporter] [{}VALID{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, netName, bitWidth, globalHandleIdx);
+                            fmt::println("[DPIExporterRewriter] [{}VALID{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, netName, bitWidth, globalHandleIdx);
                             fflush(stdout);
                             globalHandleIdx++;
                         } else {
-                            fmt::println("[DPIExporter] [{}IGNORED{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, netName, bitWidth);
+                            fmt::println("[DPIExporterRewriter] [{}IGNORED{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, netName, bitWidth);
                             fflush(stdout);
                         }
                     }
@@ -548,11 +555,11 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                         // TODO: Check var type
                         if (checkValidSignal(varName)) {
                             portVec.emplace_back(PortInfo{.name = varName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiReg"});
-                            fmt::println("[DPIExporter] [{}VALID{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, varName, bitWidth, globalHandleIdx);
+                            fmt::println("[DPIExporterRewriter] [{}VALID{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, varName, bitWidth, globalHandleIdx);
                             fflush(stdout);
                             globalHandleIdx++;
                         } else {
-                            fmt::println("[DPIExporter] [{}IGNORED{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, varName, bitWidth);
+                            fmt::println("[DPIExporterRewriter] [{}IGNORED{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, varName, bitWidth);
                             fflush(stdout);
                         }
                     }
@@ -615,7 +622,7 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
 
             std::string hierPath = visitor.hierPaths[0];
             hierPathVec.emplace_back(hierPath);
-            fmt::println("[DPIExporterRewriter] moudleName:<{}>, instName:<{}>, hierPath:<{}>", inst.type.rawText(), _instName, hierPath);
+            fmt::println("[DPIExporterRewriter] [{}INSTANCE{}] moudleName:<{}>, instName:<{}>, hierPath:<{}>", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, inst.type.rawText(), _instName, hierPath);
 
             // Each module has only one unique instance ID
             SmallVector<TokenOrSyntax> paramAssignVec;
@@ -633,6 +640,10 @@ int main(int argc, char **argv) {
     program.add_argument("-c", "--config").help("`Lua` file that contains the module info and the corresponding signal info").required().action([](const std::string &value) { return value; });
     program.add_argument("-od", "--out-dir").help("output directory").default_value(DEFAULT_OUTPUT_DIR).action([](const std::string &value) { return value; });
     program.add_argument("-wd", "--work-dir").help("working directory").default_value(DEFAULT_WORK_DIR).action([](const std::string &value) { return value; });
+    program.add_argument("-df", "--dpi-file").help("name of the generated DPI file").default_value("dpi_func.cpp").action([](const std::string &value) { return value; });
+    program.add_argument("-j", "--threads").help("threads to use").default_value(1).action([](const std::string &value) { return std::stoi(value); });
+    program.add_argument("-s", "--show-driver-cmd").help("print out the driver command").implicit_value(true).default_value(false);
+    program.add_argument("-sof", "--slang-option-file").help("slang option file").default_value("").action([](const std::string &value) { return value; });
 
     try {
         program.parse_args(argc, argv);
@@ -640,9 +651,11 @@ int main(int argc, char **argv) {
         ASSERT(false, err.what());
     }
 
-    std::string configFile = fs::absolute(program.get<std::string>("--config")).string();
-    std::string outdir     = fs::absolute(program.get<std::string>("--out-dir")).string();
-    std::string workdir    = fs::absolute(program.get<std::string>("--work-dir")).string();
+    std::string configFile  = fs::absolute(program.get<std::string>("--config")).string();
+    std::string outdir      = fs::absolute(program.get<std::string>("--out-dir")).string();
+    std::string workdir     = fs::absolute(program.get<std::string>("--work-dir")).string();
+    std::string dpiFileName = program.get<std::string>("--dpi-file");
+    fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n", configFile, dpiFileName, outdir, workdir);
 
     std::vector<std::string> _files = program.get<std::vector<std::string>>("--file");
     std::vector<std::string> files;
@@ -669,26 +682,35 @@ int main(int argc, char **argv) {
         filesSV.emplace_back(str);
     }
 
-    // Parse syntax tree
-    std::shared_ptr<SyntaxTree> tree;
-    auto treeOrError = SyntaxTree::fromFiles(filesSV);
-    if (treeOrError) {
-        tree = *treeOrError;
-    } else {
-        auto err = treeOrError.error();
-        fmt::println("Error: {}\ncode: {}\nmessage: {}\ncatagory: {}", err.second, err.first.value(), err.first.message(), err.first.category().name());
-        PANIC("SyntaxTree::fromFiles failed");
+    slang::driver::Driver driver;
+    driver.addStandardArgs();
+
+    std::string slangOptionFile = program.get<std::string>("--slang-option-file");
+    std::string cmdArgs         = "dpi_exporter --single-unit";
+    for (const auto &file : files) {
+        cmdArgs += " " + file;
     }
 
-    // Make sure that we have built the SyntaxTree successfully, any error will stop the program
-    auto treeDiags = tree->diagnostics();
-    if (treeDiags.empty() == false) {
-        if (slang_common::checkDiagsError(treeDiags)) {
-            auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), treeDiags);
-            fmt::println("{}", ret);
-            PANIC("Syntax error");
-        }
+    if (slangOptionFile != "") {
+        cmdArgs += " -f " + fs::absolute(slangOptionFile).string();
     }
+
+    if (program.get<int>("--threads") != 1) {
+        cmdArgs += " -j " + std::to_string(program.get<int>("--threads"));
+    }
+
+    if (program.get<bool>("--show-driver-cmd")) {
+        fmt::println("[dpi_exporter] driver commands: {}{}{}", ANSI_COLOR_GREEN, cmdArgs, ANSI_COLOR_RESET);
+    }
+
+    ASSERT(driver.parseCommandLine(cmdArgs));
+    ASSERT(driver.processOptions());
+    ASSERT(driver.parseAllSources());
+    ASSERT(driver.reportParseDiags());
+    ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
+
+    // Get syntax tree
+    std::shared_ptr<SyntaxTree> tree = driver.syntaxTrees[0];
 
     // Do compilation and check any compilation error
     Compilation compilation;
@@ -798,22 +820,39 @@ end
     dpiAllocGetValueHexStrFunc += "\tstatic std::unordered_map<int64_t, GetValueHexStrFunc> handle_to_func = {\n";
     for (auto info : dpiExporterInfoVec) {
         auto moduleName = info.moduleName;
-        auto rewriter   = new DPIExporterRewriter(tree, info, false);
-        auto newTree    = rewriter->transform(tree);
+        fmt::println("---------------- [dpi_exporter] start processing module:<{}> ----------------", moduleName);
+        auto rewriter = new DPIExporterRewriter(tree, info, false);
+        auto newTree  = rewriter->transform(tree);
+
+        auto isTopModule = false;
         if (rewriter->instSize == 0) {
             ASSERT(!hasTopModule, "Multiple top-level modules found in the design!", topModuleName, moduleName);
             hasTopModule  = true;
+            isTopModule   = true;
             topModuleName = moduleName;
         }
 
-        auto rewriter_1         = new DPIExporterRewriter(newTree, info, true, rewriter->instSize);
+        // Update syntax tree
+        fmt::println("[dpi_exporter] [0] start rebuilding syntax tree");
+        fflush(stdout);
+        tree = slang_common::rebuildSyntaxTree(*newTree, true);
+        fmt::println("[dpi_exporter] [0] done rebuilding syntax tree");
+        fflush(stdout);
+
+        auto rewriter_1         = new DPIExporterRewriter(tree, info, true, rewriter->instSize);
         rewriter_1->hierPathVec = rewriter->hierPathVec;
         rewriter_1->portVec     = rewriter->portVec;
         auto newTree_1          = rewriter_1->transform(newTree);
-        tree                    = slang_common::rebuildSyntaxTree(*newTree_1);
 
-        if (hasTopModule) {
-            ASSERT(rewriter_1->instSize == 0);
+        // Update syntax tree
+        fmt::println("[dpi_exporter] [1] start rebuilding syntax tree");
+        fflush(stdout);
+        tree = slang_common::rebuildSyntaxTree(*newTree_1);
+        fmt::println("[dpi_exporter] [1] done rebuilding syntax tree");
+        fflush(stdout);
+
+        if (rewriter->instSize == 0 && isTopModule) {
+            ASSERT(rewriter_1->instSize == 0, moduleName, topModuleName, rewriter->instSize, rewriter_1->instSize);
             rewriter_1->instSize = 1;
         }
 
@@ -821,7 +860,7 @@ end
             for (auto &p : rewriter_1->portVec) {
                 auto uniqueHandleId      = p.handleId + (i << 24);
                 std::string hierPathName = "";
-                if (hasTopModule) {
+                if (isTopModule) {
                     hierPathName = moduleName;
                 } else {
                     hierPathName = rewriter_1->hierPathNameVec[i];
@@ -842,6 +881,10 @@ end
             }
         }
         dpiFuncFileContent += rewriter_1->dpiFuncFileContent;
+
+        fmt::println("---------------- [dpi_exporter] finish processing module:<{}> ----------------\n", moduleName);
+        delete rewriter;
+        delete rewriter_1;
     }
 
     // Generate <handle_by_name>
@@ -949,11 +992,17 @@ using GetValueHexStrFunc = std::function<void (char*)>;
 )") + "\n\n" + dpiFuncFileContent;
 
     std::fstream dpiFuncFile;
-    dpiFuncFile.open(std::string(outdir) + "/dpi_func.cpp", std::ios::out);
+    dpiFuncFile.open(std::string(outdir) + "/" + dpiFileName, std::ios::out);
     dpiFuncFile << dpiFuncFileContent;
     dpiFuncFile.close();
 
+    fmt::println("[dpi_exporter] start generate new files, outdir: {}", outdir);
+    fflush(stdout);
+
     generateNewFile(SyntaxPrinter::printFile(*tree), outdir);
+
+    fmt::println("[dpi_exporter] finish generate new files, outdir: {}", outdir);
+    fflush(stdout);
 
     // Delete temporary files
     for (auto &file : files) {
