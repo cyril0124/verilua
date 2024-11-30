@@ -189,6 +189,8 @@ using PortInfo = struct {
     bitwidth_t bitWidth;
     uint64_t handleId;
     std::string typeStr;
+    std::string hierPathName;
+    std::string hierPathNameDot;
 };
 
 using DPIExporterInfo = struct {
@@ -197,6 +199,82 @@ using DPIExporterInfo = struct {
     std::vector<std::string> signalPatternVec;
     std::vector<std::string> disableSignalPatternVec;
     bool isTopModule;
+};
+
+// Used when distributeDPI is FALSE
+class DPIExporterRewriter_1 : public slang::syntax::SyntaxRewriter<DPIExporterRewriter_1> {
+  public:
+    slang::ast::Compilation compilation;
+    std::shared_ptr<SyntaxTree> &tree;
+
+    SemanticModel model;
+
+    std::string topModuleName;
+    std::string clock;
+    std::vector<PortInfo> portVec;
+    bool findTopModule = false;
+
+    DPIExporterRewriter_1(std::shared_ptr<SyntaxTree> &tree, std::string topModuleName, std::string clock, std::vector<PortInfo> portVec) : tree(tree), topModuleName(topModuleName), clock(clock), portVec(portVec), model(compilation) { compilation.addSyntaxTree(tree); }
+
+    void handle(ModuleDeclarationSyntax &syntax) {
+        if (syntax.header->name.rawText() == topModuleName) {
+            MemberSyntax *firstMember = nullptr;
+            for (auto m : syntax.members) {
+                firstMember = m;
+                break;
+            }
+            ASSERT(firstMember != nullptr, "TODO:");
+
+            std::string param   = "";
+            std::string param_1 = "";
+            for (auto &p : portVec) {
+                if (p.bitWidth == 1) {
+                    param += fmt::format("\tinput bit {}_{},\n", p.hierPathName, p.name);
+                } else {
+                    param += fmt::format("\tinput bit [{}:0] {}_{},\n", p.bitWidth - 1, p.hierPathName, p.name);
+                }
+
+                param_1 += fmt::format("{}.{}, ", p.hierPathNameDot, p.name);
+            }
+
+            param.pop_back();
+            param.pop_back();
+
+            param_1.pop_back();
+            param_1.pop_back();
+
+            // Check clock signal
+            auto instSym = model.syntaxToInstanceSymbol(syntax);
+            auto clkSym  = instSym->body.find(clock);
+            if (clkSym != nullptr) {
+                auto bitWidth = 0;
+                if (clkSym->kind == SymbolKind::Variable) {
+                    auto varSym = &clkSym->as<VariableSymbol>();
+                    bitWidth    = varSym->getType().getBitWidth();
+                } else if (clkSym->kind == SymbolKind::Net) {
+                    auto netSym = &clkSym->as<NetSymbol>();
+                    bitWidth    = netSym->getType().getBitWidth();
+                } else {
+                    PANIC("Unsupported clock type", toString(clkSym->kind));
+                }
+                ASSERT(bitWidth == 1, "Unsupported clock bitwidth", bitWidth);
+            } else {
+                PANIC("Cannot find clock signal", topModuleName, clock);
+            }
+
+            insertAtBack(syntax.members, parse(fmt::format(R"(
+import "DPI-C" function void dpi_exporter_tick(
+{}    
+);
+
+always @(posedge {}.{}) begin
+    dpi_exporter_tick({});
+end
+)",
+                                                           param, topModuleName, clock, param_1)));
+            findTopModule = true;
+        }
+    }
 };
 
 class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewriter> {
@@ -214,10 +292,16 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
     std::vector<std::string> hierPathNameVec;
     std::vector<PortInfo> portVec;
 
+    std::vector<PortInfo> portVecAll;
+
+    std::string dpiTickFuncParam;
+    std::string dpiTickFuncBody;
+
     int instSize          = 0;
     bool writeGenStatment = false;
+    bool distributeDPI    = false;
 
-    DPIExporterRewriter(std::shared_ptr<SyntaxTree> &tree, DPIExporterInfo info, bool writeGenStatment = false, int instSize = 0) : tree(tree), info(info), writeGenStatment(writeGenStatment), instSize(instSize), model(compilation) {
+    DPIExporterRewriter(std::shared_ptr<SyntaxTree> &tree, DPIExporterInfo info, bool distributeDPI, bool writeGenStatment = false, int instSize = 0) : tree(tree), info(info), distributeDPI(distributeDPI), writeGenStatment(writeGenStatment), instSize(instSize), model(compilation) {
         compilation.addSyntaxTree(tree);
         moduleName = info.moduleName;
         clock      = info.clock;
@@ -264,12 +348,6 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
             fmt::println("[DPIExporterRewriter] found module: {}, writeGenStatment: {}, instSize: {}", moduleName, writeGenStatment, instSize);
 
             if (writeGenStatment) {
-                MemberSyntax *lastMember;
-                for (auto m : syntax.members) {
-                    lastMember = m;
-                }
-                ASSERT(lastMember != nullptr, "TODO:");
-
                 std::string sv_readSignalFuncParam       = "";
                 std::string sv_readSignalFuncInvokeParam = "";
                 std::string dpiFuncParam                 = "";
@@ -380,6 +458,31 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                             for (int k = 0; k < beatSize; k++) {
                                 dpiFuncBody += fmt::format("\t__{}_{}[{}] = {}[{}];\n", hierPathName, p.name, k, p.name, k);
                             }
+                        }
+
+                        if (!distributeDPI) {
+                            if (p.bitWidth == 1) {
+                                dpiTickFuncParam += fmt::format("const uint8_t {}_{}, ", hierPathName, p.name);
+                            } else {
+                                dpiTickFuncParam += fmt::format("const uint32_t *{}_{}, ", hierPathName, p.name);
+                            }
+
+                            if (beatSize == 1) {
+                                if (p.bitWidth == 1) {
+                                    dpiTickFuncBody += fmt::format("\t__{}_{} = {}_{};\n", hierPathName, p.name, hierPathName, p.name);
+                                } else {
+                                    dpiTickFuncBody += fmt::format("\t__{}_{} = *{}_{};\n", hierPathName, p.name, hierPathName, p.name);
+                                }
+                            } else {
+                                for (int k = 0; k < beatSize; k++) {
+                                    dpiTickFuncBody += fmt::format("\t__{}_{}[{}] = {}_{}[{}];\n", hierPathName, p.name, k, hierPathName, p.name, k);
+                                }
+                            }
+
+                            auto pp            = p;
+                            pp.hierPathName    = hierPathName;
+                            pp.hierPathNameDot = hierPath;
+                            portVecAll.emplace_back(pp);
                         }
                     }
 
@@ -500,7 +603,15 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                 dpiFuncFileContent += dpiFuncBody;
                 dpiFuncFileContent += "\n";
 
-                insertAfter(*lastMember, parse(sv_genStatement));
+                if (distributeDPI) {
+                    MemberSyntax *lastMember;
+                    for (auto m : syntax.members) {
+                        lastMember = m;
+                    }
+                    ASSERT(lastMember != nullptr, "TODO: syntax.members is nullptr");
+
+                    insertAtBack(syntax.members, parse(sv_genStatement));
+                }
             } else {
                 auto instSym    = model.syntaxToInstanceSymbol(syntax);
                 auto foundClock = false;
@@ -520,7 +631,7 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
 
                         // TODO: Check port type
                         if (checkValidSignal(portName)) {
-                            portVec.emplace_back(PortInfo{.name = portName, .direction = std::string(direction), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet"}); // TODO: typeStr
+                            portVec.emplace_back(PortInfo{.name = portName, .direction = std::string(direction), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet", .hierPathName = "", .hierPathNameDot = ""}); // TODO: typeStr
                             fmt::println("[DPIExporterRewriter] [{}VALID{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth, globalHandleIdx);
                             fflush(stdout);
                             globalHandleIdx++;
@@ -537,7 +648,7 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
 
                         // TODO: Check net type
                         if (checkValidSignal(netName)) {
-                            portVec.emplace_back(PortInfo{.name = netName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet"});
+                            portVec.emplace_back(PortInfo{.name = netName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet", .hierPathName = "", .hierPathNameDot = ""});
                             fmt::println("[DPIExporterRewriter] [{}VALID{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, netName, bitWidth, globalHandleIdx);
                             fflush(stdout);
                             globalHandleIdx++;
@@ -554,7 +665,7 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
 
                         // TODO: Check var type
                         if (checkValidSignal(varName)) {
-                            portVec.emplace_back(PortInfo{.name = varName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiReg"});
+                            portVec.emplace_back(PortInfo{.name = varName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiReg", .hierPathName = "", .hierPathNameDot = ""});
                             fmt::println("[DPIExporterRewriter] [{}VALID{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, varName, bitWidth, globalHandleIdx);
                             fflush(stdout);
                             globalHandleIdx++;
@@ -586,7 +697,7 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
 
                 ASSERT(foundClock, "Clock signal not found!", moduleName, clock);
 
-                if (!info.isTopModule) {
+                if (!info.isTopModule && distributeDPI) {
                     if (syntax.header->parameters == nullptr) {
                         // If the module has no parameters, add one
                         SmallVector<TokenOrSyntax> declsVec;
@@ -624,10 +735,12 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
             hierPathVec.emplace_back(hierPath);
             fmt::println("[DPIExporterRewriter] [{}INSTANCE{}] moudleName:<{}>, instName:<{}>, hierPath:<{}>", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, inst.type.rawText(), _instName, hierPath);
 
-            // Each module has only one unique instance ID
-            SmallVector<TokenOrSyntax> paramAssignVec;
-            paramAssignVec.push_back(TokenOrSyntax(&parse(fmt::format(".instId({})", instSize))));
-            inst.parameters = &this->factory.parameterValueAssignment(makeId("#"), makeId("("), paramAssignVec.copy(this->alloc), makeId(")"));
+            if (distributeDPI) {
+                // Each module has only one unique instance ID
+                SmallVector<TokenOrSyntax> paramAssignVec;
+                paramAssignVec.push_back(TokenOrSyntax(&parse(fmt::format(".instId({})", instSize))));
+                inst.parameters = &this->factory.parameterValueAssignment(makeId("#"), makeId("("), paramAssignVec.copy(this->alloc), makeId(")"));
+            }
 
             instSize++;
         }
@@ -641,6 +754,9 @@ int main(int argc, char **argv) {
     program.add_argument("-od", "--out-dir").help("output directory").default_value(DEFAULT_OUTPUT_DIR).action([](const std::string &value) { return value; });
     program.add_argument("-wd", "--work-dir").help("working directory").default_value(DEFAULT_WORK_DIR).action([](const std::string &value) { return value; });
     program.add_argument("-df", "--dpi-file").help("name of the generated DPI file").default_value("dpi_func.cpp").action([](const std::string &value) { return value; });
+    program.add_argument("-t", "--top").help("top-level module name").default_value("").action([](const std::string &value) { return value; });
+    program.add_argument("-tc", "--top-clock").help("clock signal of the top-level module").default_value("clock").action([](const std::string &value) { return value; });
+    program.add_argument("-dd", "--distribute-dpi").help("distribute dpi functions in modules").implicit_value(true).default_value(false);
     program.add_argument("-j", "--threads").help("threads to use").default_value(1).action([](const std::string &value) { return std::stoi(value); });
     program.add_argument("-s", "--show-driver-cmd").help("print out the driver command").implicit_value(true).default_value(false);
     program.add_argument("-sof", "--slang-option-file").help("slang option file").default_value("").action([](const std::string &value) { return value; });
@@ -651,10 +767,13 @@ int main(int argc, char **argv) {
         ASSERT(false, err.what());
     }
 
-    std::string configFile  = fs::absolute(program.get<std::string>("--config")).string();
-    std::string outdir      = fs::absolute(program.get<std::string>("--out-dir")).string();
-    std::string workdir     = fs::absolute(program.get<std::string>("--work-dir")).string();
-    std::string dpiFileName = program.get<std::string>("--dpi-file");
+    std::string configFile    = fs::absolute(program.get<std::string>("--config")).string();
+    std::string outdir        = fs::absolute(program.get<std::string>("--out-dir")).string();
+    std::string workdir       = fs::absolute(program.get<std::string>("--work-dir")).string();
+    std::string topModuleName = program.get<std::string>("--top");
+    std::string topClock      = program.get<std::string>("--top-clock");
+    std::string dpiFileName   = program.get<std::string>("--dpi-file");
+    bool distributeDPI        = program.get<bool>("--distribute-dpi");
     fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n", configFile, dpiFileName, outdir, workdir);
 
     std::vector<std::string> _files = program.get<std::vector<std::string>>("--file");
@@ -724,6 +843,12 @@ int main(int argc, char **argv) {
             PANIC("Compilation error");
         }
     }
+
+    if (topModuleName == "") {
+        topModuleName = compilation.getRoot().topInstances[0]->name;
+        fmt::println("[dpi_exporter] `--top` is not set, use `{}` as top module name", topModuleName);
+    }
+    fmt::println("[dpi_exporter] topModuleName: {}", topModuleName);
 
     sol::state lua;
     lua.open_libraries(sol::lib::base);
@@ -796,10 +921,14 @@ end
     ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
 
     std::unordered_set<uint64_t> handleSet;
-    bool hasTopModule         = false;
-    std::string topModuleName = "";
+    bool hasTopModule = false;
 
     std::string dpiFuncFileContent = "";
+
+    // Used when distributeDPI is FALSE
+    std::vector<PortInfo> portVecAll;
+    std::string dpiTickFunc     = "extern \"C\" void dpi_exporter_tick(";
+    std::string dpiTickFuncBody = "";
 
     std::string dpiHandleByNameFunc = "extern \"C\" int64_t dpi_exporter_handle_by_name(std::string_view name) {\n";
     dpiHandleByNameFunc += "\tstatic std::unordered_map<std::string_view, int64_t> name_to_handle = {\n";
@@ -821,38 +950,48 @@ end
     for (auto info : dpiExporterInfoVec) {
         auto moduleName = info.moduleName;
         fmt::println("---------------- [dpi_exporter] start processing module:<{}> ----------------", moduleName);
-        auto rewriter = new DPIExporterRewriter(tree, info, false);
+        auto rewriter = new DPIExporterRewriter(tree, info, distributeDPI, false);
         auto newTree  = rewriter->transform(tree);
 
         auto isTopModule = false;
         if (rewriter->instSize == 0) {
-            ASSERT(!hasTopModule, "Multiple top-level modules found in the design!", topModuleName, moduleName);
-            hasTopModule  = true;
-            isTopModule   = true;
-            topModuleName = moduleName;
+            ASSERT(!hasTopModule, "Multiple top-level modules found in the design!", moduleName);
+            hasTopModule = true;
+            isTopModule  = true;
         }
 
-        // Update syntax tree
-        fmt::println("[dpi_exporter] [0] start rebuilding syntax tree");
-        fflush(stdout);
-        tree = slang_common::rebuildSyntaxTree(*newTree, true);
-        fmt::println("[dpi_exporter] [0] done rebuilding syntax tree");
-        fflush(stdout);
+        if (distributeDPI) {
+            // Update syntax tree
+            fmt::println("[dpi_exporter] [0] start rebuilding syntax tree");
+            fflush(stdout);
+            tree = slang_common::rebuildSyntaxTree(*newTree, true);
+            fmt::println("[dpi_exporter] [0] done rebuilding syntax tree");
+            fflush(stdout);
+        }
 
-        auto rewriter_1         = new DPIExporterRewriter(tree, info, true, rewriter->instSize);
+        auto rewriter_1         = new DPIExporterRewriter(tree, info, distributeDPI, true, rewriter->instSize);
         rewriter_1->hierPathVec = rewriter->hierPathVec;
         rewriter_1->portVec     = rewriter->portVec;
         auto newTree_1          = rewriter_1->transform(newTree);
 
-        // Update syntax tree
-        fmt::println("[dpi_exporter] [1] start rebuilding syntax tree");
-        fflush(stdout);
-        tree = slang_common::rebuildSyntaxTree(*newTree_1);
-        fmt::println("[dpi_exporter] [1] done rebuilding syntax tree");
-        fflush(stdout);
+        if (distributeDPI) {
+            // Update syntax tree
+            fmt::println("[dpi_exporter] [1] start rebuilding syntax tree");
+            fflush(stdout);
+            tree = slang_common::rebuildSyntaxTree(*newTree_1);
+            fmt::println("[dpi_exporter] [1] done rebuilding syntax tree");
+            fflush(stdout);
+        } else {
+            dpiTickFunc += rewriter_1->dpiTickFuncParam;
+            dpiTickFuncBody += rewriter_1->dpiTickFuncBody;
+
+            for (auto &p : rewriter_1->portVecAll) {
+                portVecAll.emplace_back(p);
+            }
+        }
 
         if (rewriter->instSize == 0 && isTopModule) {
-            ASSERT(rewriter_1->instSize == 0, moduleName, topModuleName, rewriter->instSize, rewriter_1->instSize);
+            ASSERT(rewriter_1->instSize == 0, moduleName, rewriter->instSize, rewriter_1->instSize);
             rewriter_1->instSize = 1;
         }
 
@@ -885,6 +1024,25 @@ end
         fmt::println("---------------- [dpi_exporter] finish processing module:<{}> ----------------\n", moduleName);
         delete rewriter;
         delete rewriter_1;
+    }
+
+    if (!distributeDPI) {
+        int idx = 0;
+        for (auto &p : portVecAll) {
+            fmt::println("[{}] handleId:<{}> hierPathName:<{}> signalName:<{}> typeStr:<{}> bitWidth:<{}>", idx, p.handleId, p.hierPathName, p.name, p.typeStr, p.bitWidth);
+            idx++;
+        }
+
+        auto rewriter = new DPIExporterRewriter_1(tree, topModuleName, topClock, portVecAll);
+        auto newTree  = rewriter->transform(tree);
+        ASSERT(rewriter->findTopModule, "Cannot find top module", topModuleName);
+
+        // Update syntax tree
+        fmt::println("[dpi_exporter] start rebuilding syntax tree");
+        fflush(stdout);
+        tree = slang_common::rebuildSyntaxTree(*newTree, true);
+        fmt::println("[dpi_exporter] done rebuilding syntax tree");
+        fflush(stdout);
     }
 
     // Generate <handle_by_name>
@@ -990,6 +1148,14 @@ using GetValue32Func = std::function<uint32_t ()>;
 using GetValueVecFunc = std::function<void (uint32_t *)>;
 using GetValueHexStrFunc = std::function<void (char*)>;
 )") + "\n\n" + dpiFuncFileContent;
+
+    if (!distributeDPI) {
+        dpiTickFunc.pop_back();
+        dpiTickFunc.pop_back();
+        dpiTickFunc += "){\n";
+        dpiTickFunc += dpiTickFuncBody + "}\n\n";
+        dpiFuncFileContent += dpiTickFunc;
+    }
 
     std::fstream dpiFuncFile;
     dpiFuncFile.open(std::string(outdir) + "/" + dpiFileName, std::ios::out);
