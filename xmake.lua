@@ -367,6 +367,12 @@ target("dpi_exporter")
 
     set_plat("linux")
     set_arch("x86_64")
+
+    if is_mode("debug") then
+        -- add_defines("DEBUG")
+        set_symbols("debug")
+        set_optimize("none")
+    end
     
     add_files(
         src_dir .. "/dpi_exporter/dpi_exporter.cpp",

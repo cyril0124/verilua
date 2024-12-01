@@ -26,6 +26,7 @@ assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find lib
 vcs = os.getenv("VCS_HOME") + "/bin/vcs"
 
 cmd_list = [vcs] + [
+    "-debug_access+all", # for FSDB
     "+define+VERILUA",
     
     "-CFLAGS", f'\"-I{verilua_path}/src/include\"',
