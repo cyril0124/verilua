@@ -27,6 +27,11 @@ rule("verilua")
             sim = "iverilog"
         elseif target:toolchain("vcs") ~= nil then
             sim = "vcs"
+            
+            local vcs_no_initreg = target:values("cfg.vcs_no_initreg") == "1"
+            if vcs_no_initreg then
+                target:add("vcs_no_initreg", true)
+            end
         elseif target:toolchain("wave_vpi") ~= nil then
             sim = "wave_vpi"
         else
@@ -285,7 +290,7 @@ return cfg
                 "-kdb",
                 "-j" .. tostring((os.cpuinfo().ncpu or 128)),
                 "-timescale=1ns/1ns",
-                "+vcs+initreg+random",
+                (function () if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+random" end end)(),
                 "+define+SIM_VCS",
                 "+define+VCS",
                 "+define+" .. mode:upper() .. "_MODE",
@@ -587,7 +592,7 @@ source setvars.sh
         if sim == "verilator" then
             run_sh = f([[numactl -m 0 -C 0-7 %s/V%s 2>&1 | tee run.log]], sim_build_dir, tb_top)
         elseif sim == "vcs" then
-            run_sh = f([[%s/simv +vcs+initreg+0 +notimingcheck 2>&1 | tee run.log]], sim_build_dir)
+            run_sh = f([[%s/simv %s +notimingcheck 2>&1 | tee run.log]], sim_build_dir, (function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)())
         elseif sim == "iverilog" then
             run_sh = f([[vvp_wrapper -M %s -m lua_vpi %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
         elseif sim == "wave_vpi" then
@@ -702,7 +707,7 @@ verdi -f filelist.f -sv -nologo $@
             assert(os.isfile(vvpcmd), "[on_run] verilua vvp_wrapper not found!")
             os.exec(table.concat(run_prefix, " ") .. " " .. vvpcmd .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
         elseif sim == "vcs" then
-            local run_flags = {"+vcs+initreg+0", "+notimingcheck"}
+            local run_flags = {(function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)(), "+notimingcheck"}
             local _run_flags = target:values("vcs.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
