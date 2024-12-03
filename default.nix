@@ -117,6 +117,7 @@ in stdenv.mkDerivation rec {
     '' else ''''}
 
     xmake build -v -F xmake-nix.lua testbench_gen
+    xmake build -v -F xmake-nix.lua dpi_exporter
   '';
 
   lua_bin = pkgs.writeScriptBin "lua"
