@@ -455,9 +455,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                         } else {
                             // dpiFuncFileContent += fmt::format("volatile uint32_t __{}_{}[{}]; // bits: {}, handleId: {}\n", hierPathName, p.name, beatSize, p.bitWidth, p.handleId);
                             dpiFuncFileContent += fmt::format("uint32_t __{}_{}[{}]; // bits: {}, handleId: {}\n", hierPathName, p.name, beatSize, p.bitWidth, p.handleId);
-                            for (int k = 0; k < beatSize; k++) {
-                                dpiFuncBody += fmt::format("\t__{}_{}[{}] = {}[{}];\n", hierPathName, p.name, k, p.name, k);
-                            }
+                            dpiTickFuncBody += fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, __{0}_{1});\n", hierPathName, p.name, beatSize);
                         }
 
                         if (!distributeDPI) {
@@ -474,9 +472,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                                     dpiTickFuncBody += fmt::format("\t__{}_{} = *{}_{};\n", hierPathName, p.name, hierPathName, p.name);
                                 }
                             } else {
-                                for (int k = 0; k < beatSize; k++) {
-                                    dpiTickFuncBody += fmt::format("\t__{}_{}[{}] = {}_{}[{}];\n", hierPathName, p.name, k, hierPathName, p.name, k);
-                                }
+                                dpiTickFuncBody += fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, __{0}_{1});\n", hierPathName, p.name, beatSize);
                             }
 
                             auto pp            = p;
@@ -532,11 +528,7 @@ extern "C" uint64_t {}_{}_GET64() {{
                                                               dpiFuncNamePrefix, p.name, hierPathName, p.name, hierPathName, p.name);
 
                             {
-                                std::string tmp = "";
-                                for (int k = 0; k < beatSize; k++) {
-                                    tmp = tmp + fmt::format("\tvalues[{}] = __{}_{}[{}];\n", k, hierPathName, p.name, k);
-                                }
-                                tmp.pop_back();
+                                std::string tmp = fmt::format("\tstd::copy(__{0}_{1}, __{0}_{1} + {2}, values);\n", hierPathName, p.name, beatSize);
 
                                 dpiFuncFileContent += fmt::format(R"(
 extern "C" void {}_{}_GET_VEC(uint32_t *values) {{
@@ -1142,6 +1134,7 @@ end
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <algorithm>
 #include <functional>
 
 using GetValue32Func = std::function<uint32_t ()>;
