@@ -58,7 +58,7 @@ local function build_common_info()
         vcpkg_dir .. "/x64-linux/include"
     )
 
-    add_packages("fmt", "mimalloc", "elfio")
+    add_packages("fmt", "elfio")
     
     -- add_links("luajit-5.1")
     -- add_linkdirs(lua_dir .. "/lib")

@@ -303,6 +303,8 @@ ____   ____                .__ .__
   postPhases = [ "patchBinaryPhase" ];
 
   patchBinaryPhase = ''
+    ${if hasVerdiHome then ''
     patchelf --add-rpath "${builtins.getEnv "VERDI_HOME"}/share/FsdbReader/LINUX64" $out/bin/wave_vpi_main_fsdb
+    '' else ''''}
   '';
 }

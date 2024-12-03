@@ -11,7 +11,11 @@ BLUE = "\033[34m"
 RESET = "\033[0m"
 
 verilua_path = os.getenv("VERILUA_HOME")
-libpath = os.getenv("VERILUA_HOME") + "/shared"
+
+if os.environ.get("VERILUA_USE_NIX") != None:
+    libpath = os.environ["VERILUA_LIBS_HOME"]
+else:
+    libpath = verilua_path + "/shared"
 
 if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
     luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`

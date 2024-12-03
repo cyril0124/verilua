@@ -1,6 +1,5 @@
 #include "lua_vpi.h"
 #include "vpi_callback.h"
-#include "mimalloc-new-delete.h"
 
 #define CASE_STR(_X) \
     case _X:         \

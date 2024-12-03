@@ -21,14 +21,18 @@ if not vlt_files:
 assert len(vlt_files) == 1, f"{RED}[vl-verilator-p Error] Only one *.vlt file is allowed!{RESET}"
 
 verilua_path = os.getenv("VERILUA_HOME")
-libpath = verilua_path + "/shared"
+
+if os.environ.get("VERILUA_USE_NIX") != None:
+    libpath = os.environ["VERILUA_LIBS_HOME"]
+else:
+    libpath = verilua_path + "/shared"
 
 if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
     luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
 else:
     luapath = verilua_path + "/luajit-pro/luajit2.1"
 
-liblua_path =luapath + "/lib"
+liblua_path = luapath + "/lib"
 assert libpath != None, "[vl-verilator-p] cannot find VERILUA_HOME!"
 assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator-p] cannot find liblua_vpi.so in " + libpath
 

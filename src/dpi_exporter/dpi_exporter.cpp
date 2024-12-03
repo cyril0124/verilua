@@ -847,7 +847,6 @@ int main(int argc, char **argv) {
     lua.open_libraries(sol::lib::string);
     lua.open_libraries(sol::lib::table);
     lua.open_libraries(sol::lib::math);
-    lua.open_libraries(sol::lib::string);
     lua.open_libraries(sol::lib::io);
     lua.script_file(configFile);
     lua.script(fmt::format(R"(

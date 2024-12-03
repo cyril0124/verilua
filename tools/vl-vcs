@@ -19,7 +19,11 @@ if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX"
 else:
     luapath = verilua_path + "/luajit-pro/luajit2.1"
 
-libpath = verilua_path + "/shared"
+if os.environ.get("VERILUA_USE_NIX") != None:
+    libpath = os.environ["VERILUA_LIBS_HOME"]
+else:
+    libpath = verilua_path + "/shared"
+
 liblua_path = luapath + "/lib"
 assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find liblua_vpi_vcs.so in " + libpath
 

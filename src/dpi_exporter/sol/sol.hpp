@@ -27361,8 +27361,8 @@ namespace sol {
 						break;
 					case lib::bit32:
 #if SOL_IS_ON(SOL_USE_LUAJIT)
-						luaL_requiref(L, "bit32", luaopen_bit, 1);
-						lua_pop(L, 1);
+						// luaL_requiref(L, "bit32", luaopen_bit, 1);
+						// lua_pop(L, 1);
 #elif SOL_IS_ON(SOL_LUA_BIT32_LIB)
 						luaL_requiref(L, "bit32", luaopen_bit32, 1);
 						lua_pop(L, 1);
@@ -27389,14 +27389,14 @@ namespace sol {
 						break;
 					case lib::ffi:
 #if SOL_IS_ON(SOL_USE_LUAJIT) && SOL_IS_OFF(SOL_LUAJIT_FFI_DISABLED)
-						luaL_requiref(L, "ffi", luaopen_ffi, 1);
-						lua_pop(L, 1);
+						// luaL_requiref(L, "ffi", luaopen_ffi, 1);
+						// lua_pop(L, 1);
 #endif // LuaJIT only
 						break;
 					case lib::jit:
 #if SOL_IS_ON(SOL_USE_LUAJIT)
-						luaL_requiref(L, "jit", luaopen_jit, 0);
-						lua_pop(L, 1);
+						// luaL_requiref(L, "jit", luaopen_jit, 0);
+						// lua_pop(L, 1);
 #endif // LuaJIT Only
 						break;
 					case lib::count:
