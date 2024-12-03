@@ -113,9 +113,6 @@ void VeriluaEnv::finalize() {
 #endif
 
     VL_STATIC_DEBUG("VeriluaEnv::finalize() finish!\n");
-
-    // Simulation end here...
-    vpi_control(vpiFinish);
 }
 
 void VeriluaEnv::initialize() {
