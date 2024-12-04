@@ -37,11 +37,11 @@
 #include "minilua/minilua.h"
 #include "sol/sol.hpp"
 
-using namespace slang::parsing;
-
-namespace fs = std::filesystem;
-
-uint64_t globalHandleIdx = 0; // Each signal has its own handle value(integer)
+// ===========================================================
+// Optimization configs
+// ===========================================================
+// #define NO_STD_COPY
+// #define USE_PORT_STRUCT
 
 #define DEFAULT_OUTPUT_DIR ".dpi_exporter"
 #define DEFAULT_WORK_DIR ".dpi_exporter"
@@ -60,6 +60,11 @@ uint64_t globalHandleIdx = 0; // Each signal has its own handle value(integer)
     do {                                                                                                                                                                                                                                                                                                                                                                                                       \
         system(fmt::format("echo \"\n{}\" >> {}", str, filePath).c_str());                                                                                                                                                                                                                                                                                                                                     \
     } while (0)
+
+using namespace slang::parsing;
+namespace fs = std::filesystem;
+
+uint64_t globalHandleIdx = 0; // Each signal has its own handle value(integer)
 
 std::vector<std::string> parseFileList(const std::string &filePath) {
     std::vector<std::string> files;
@@ -435,27 +440,69 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                     sv_genStatement += sv_dpiBlock;
 
                     // Generate DPI file
+#ifdef USE_PORT_STRUCT
+                    std::string dpiPortStruct = "";
+#endif
                     dpiFuncBody += fmt::format("extern \"C\" void {}({}) {{\n", dpiFuncName, dpiFuncParam);
                     dpiFuncFileContent += fmt::format("// hierPath: {}\n", hierPathName);
                     for (auto &p : portVec) {
                         auto beatSize = coverWith32(p.bitWidth);
+#ifdef USE_PORT_STRUCT
+                        auto signalName = fmt::format("{}_ports.{}", hierPathName, p.name);
+#else
+                        auto signalName = fmt::format("__{}_{}", hierPathName, p.name);
+#endif
                         ASSERT(beatSize >= 1);
 
                         // Signal declaration
                         if (beatSize == 1) {
                             if (p.bitWidth == 1) {
+#ifdef USE_PORT_STRUCT
+                                dpiFuncBody += fmt::format("\t{}_ports.{} = {};\n", hierPathName, p.name, p.name);
+#else
                                 // dpiFuncFileContent += fmt::format("volatile uint8_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                                 dpiFuncFileContent += fmt::format("uint8_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                                 dpiFuncBody += fmt::format("\t__{}_{} = {};\n", hierPathName, p.name, p.name);
+#endif // USE_PORT_STRUCT
                             } else {
+#ifdef USE_PORT_STRUCT
+                                dpiFuncBody += fmt::format("\t{}_ports.{} = *{};\n", hierPathName, p.name, p.name);
+#else
                                 // dpiFuncFileContent += fmt::format("volatile uint32_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                                 dpiFuncFileContent += fmt::format("uint32_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                                 dpiFuncBody += fmt::format("\t__{}_{} = *{};\n", hierPathName, p.name, p.name);
+#endif // USE_PORT_STRUCT
                             }
+
+#ifdef USE_PORT_STRUCT
+                            if (p.bitWidth == 1) {
+                                dpiPortStruct += fmt::format("\tbool {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
+                            } else if (p.bitWidth <= 8) {
+                                dpiPortStruct += fmt::format("\tuint8_t {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
+                            } else if (p.bitWidth <= 16) {
+                                dpiPortStruct += fmt::format("\tuint16_t {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
+                            } else {
+                                dpiPortStruct += fmt::format("\tuint32_t {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
+                            }
+#endif
+
                         } else {
+#ifdef USE_PORT_STRUCT
+                            dpiPortStruct += fmt::format("\tuint32_t {}[{}]; // bits: {}, handleId: {}\n", p.name, beatSize, p.bitWidth, p.handleId);
+#else
                             // dpiFuncFileContent += fmt::format("volatile uint32_t __{}_{}[{}]; // bits: {}, handleId: {}\n", hierPathName, p.name, beatSize, p.bitWidth, p.handleId);
                             dpiFuncFileContent += fmt::format("uint32_t __{}_{}[{}]; // bits: {}, handleId: {}\n", hierPathName, p.name, beatSize, p.bitWidth, p.handleId);
-                            dpiTickFuncBody += fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, __{0}_{1});\n", hierPathName, p.name, beatSize);
+#endif // USE_PORT_STRUCT
+
+#ifdef NO_STD_COPY
+                            // No std::copy
+                            for (int k = 0; k < beatSize; k++) {
+                                dpiFuncBody += fmt::format("\t{}[{}] = {}[{}];\n", signalName, k, p.name, k);
+                            }
+#else
+                            // With std::copy
+                            dpiTickFuncBody += fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, {3});\n", hierPathName, p.name, beatSize, signalName);
+#endif // NO_STD_COPY
                         }
 
                         if (!distributeDPI) {
@@ -467,12 +514,20 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
 
                             if (beatSize == 1) {
                                 if (p.bitWidth == 1) {
-                                    dpiTickFuncBody += fmt::format("\t__{}_{} = {}_{};\n", hierPathName, p.name, hierPathName, p.name);
+                                    dpiTickFuncBody += fmt::format("\t{} = {}_{};\n", signalName, hierPathName, p.name);
                                 } else {
-                                    dpiTickFuncBody += fmt::format("\t__{}_{} = *{}_{};\n", hierPathName, p.name, hierPathName, p.name);
+                                    dpiTickFuncBody += fmt::format("\t{} = *{}_{};\n", signalName, hierPathName, p.name);
                                 }
                             } else {
-                                dpiTickFuncBody += fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, __{0}_{1});\n", hierPathName, p.name, beatSize);
+#ifdef NO_STD_COPY
+                                // No std::copy
+                                for (int k = 0; k < beatSize; k++) {
+                                    dpiTickFuncBody += fmt::format("\t{}[{}] = {}_{}[{}];\n", signalName, k, hierPathName, p.name, k);
+                                }
+#else
+                                // With std::copy
+                                dpiTickFuncBody += fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, {3});\n", hierPathName, p.name, beatSize, signalName);
+#endif // NO_STD_COPY
                             }
 
                             auto pp            = p;
@@ -482,27 +537,41 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                         }
                     }
 
+#ifdef USE_PORT_STRUCT
+                    dpiPortStruct = fmt::format(R"(struct __attribute__((aligned(64))) {}_ports_t {{
+{}}};
+
+struct {}_ports_t {}_ports;
+)",
+                                                hierPathName, dpiPortStruct, hierPathName, hierPathName);
+                    dpiFuncFileContent += dpiPortStruct;
+#endif
+
                     for (auto &p : portVec) {
                         auto beatSize = coverWith32(p.bitWidth);
-
+#ifdef USE_PORT_STRUCT
+                        auto signalName = fmt::format("{}_ports.{}", hierPathName, p.name);
+#else
+                        auto signalName = fmt::format("__{}_{}", hierPathName, p.name);
+#endif
                         if (beatSize == 1) {
                             dpiFuncFileContent += fmt::format(R"(
 extern "C" uint32_t {}_{}_GET() {{
-    return (uint32_t)__{}_{};
+    return (uint32_t){};
 }}
                             )",
-                                                              dpiFuncNamePrefix, p.name, hierPathName, p.name);
+                                                              dpiFuncNamePrefix, p.name, signalName);
 
                             dpiFuncFileContent += fmt::format(R"(
 extern "C" uint64_t {}_{}_GET64() {{
-    return (uint64_t)__{}_{};
+    return (uint64_t){};
 }}
                             )",
-                                                              dpiFuncNamePrefix, p.name, hierPathName, p.name);
+                                                              dpiFuncNamePrefix, p.name, signalName);
 
                             dpiFuncFileContent += fmt::format(R"(
 extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
-    uint32_t value = __{}_{};
+    uint32_t value = {};
     for(int i = {}; i >= 0; --i) {{
         hexStr[i] = "0123456789abcdef"[value & 0xF];
         value >>= 4;
@@ -510,26 +579,35 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
     hexStr[{}] = '\0';
 }}
                             )",
-                                                              dpiFuncNamePrefix, p.name, hierPathName, p.name, coverWith4(p.bitWidth) - 1, coverWith4(p.bitWidth));
+                                                              dpiFuncNamePrefix, p.name, signalName, coverWith4(p.bitWidth) - 1, coverWith4(p.bitWidth));
 
                         } else { // beatSize > 1
                             dpiFuncFileContent += fmt::format(R"(
 extern "C" uint32_t {}_{}_GET() {{
-    return (uint32_t)__{}_{}[0];
+    return (uint32_t){}[0];
 }}
                             )",
-                                                              dpiFuncNamePrefix, p.name, hierPathName, p.name);
+                                                              dpiFuncNamePrefix, p.name, signalName);
 
                             dpiFuncFileContent += fmt::format(R"(
 extern "C" uint64_t {}_{}_GET64() {{
-    return (uint64_t)((uint64_t)(__{}_{}[1]) << 32 | (uint64_t)__{}_{}[0]);
+    return (uint64_t)((uint64_t)({}[1]) << 32 | (uint64_t){}[0]);
 }}
                             )",
-                                                              dpiFuncNamePrefix, p.name, hierPathName, p.name, hierPathName, p.name);
+                                                              dpiFuncNamePrefix, p.name, signalName, signalName);
 
                             {
-                                std::string tmp = fmt::format("\tstd::copy(__{0}_{1}, __{0}_{1} + {2}, values);\n", hierPathName, p.name, beatSize);
-
+#ifdef NO_STD_COPY
+                                // No std::copy
+                                std::string tmp = "";
+                                for (int k = 0; k < beatSize; k++) {
+                                    tmp = tmp + fmt::format("\tvalues[{}] = {}[{}];\n", k, signalName, k);
+                                }
+                                tmp.pop_back();
+#else
+                                // With std::copy
+                                std::string tmp = fmt::format("\tstd::copy({0}, {0} + {1}, values);\n", signalName, beatSize);
+#endif
                                 dpiFuncFileContent += fmt::format(R"(
 extern "C" void {}_{}_GET_VEC(uint32_t *values) {{
 {}
@@ -542,13 +620,13 @@ extern "C" void {}_{}_GET_VEC(uint32_t *values) {{
                                 dpiFuncFileContent += fmt::format(R"(
 extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
     uint32_t value;
-    value = __{}_{}[0];
+    value = {}[0];
     for(int i = 8 + {} - 1; i >= {}; --i) {{
         hexStr[i] = "0123456789abcdef"[value & 0xF];
         value >>= 4;
     }}
     
-    value = __{}_{}[1];
+    value = {}[1];
     for(int i = {} - 1; i >= 0; --i) {{
         hexStr[i] = "0123456789abcdef"[value & 0xF];
         value >>= 4;
@@ -558,11 +636,10 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
 }}
 )",
 
-                                                                  dpiFuncNamePrefix, p.name, hierPathName, p.name, coverWith4(p.bitWidth) - 8, coverWith4(p.bitWidth) - 8, hierPathName, p.name, coverWith4(p.bitWidth) - 8, coverWith4(p.bitWidth));
+                                                                  dpiFuncNamePrefix, p.name, signalName, coverWith4(p.bitWidth) - 8, coverWith4(p.bitWidth) - 8, signalName, coverWith4(p.bitWidth) - 8, coverWith4(p.bitWidth));
                             } else { // beatSize > 2
-                                std::string tmp         = "";
-                                std::string beatValName = fmt::format("__{}_{}", hierPathName, p.name);
-                                int beatIdx             = 0;
+                                std::string tmp = "";
+                                int beatIdx     = 0;
                                 for (int k = beatSize - 1; k >= 0; k--) {
                                     tmp = tmp + fmt::format(R"(
     value = {}[{}];
@@ -571,7 +648,7 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
         value >>= 4;
     }}
 )",
-                                                            beatValName, beatIdx, (k + 1) * 8 - 1, k * 8);
+                                                            signalName, beatIdx, (k + 1) * 8 - 1, k * 8);
                                     beatIdx++;
                                 }
                                 tmp.pop_back();
@@ -766,7 +843,21 @@ int main(int argc, char **argv) {
     std::string topClock      = program.get<std::string>("--top-clock");
     std::string dpiFileName   = program.get<std::string>("--dpi-file");
     bool distributeDPI        = program.get<bool>("--distribute-dpi");
-    fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n", configFile, dpiFileName, outdir, workdir);
+    fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n\tdistributeDPI: {}\n", configFile, dpiFileName, outdir, workdir, distributeDPI);
+
+    std::string optString = "";
+
+#ifdef NO_STD_COPY
+    optString += " NO_STD_COPY";
+#else
+    optString += " STD_COPY";
+#endif
+
+#ifdef USE_PORT_STRUCT
+    optString += " USE_PORT_STRUCT";
+#endif
+
+    fmt::print("[dpi_exporter] Optimization: {}\n", optString);
 
     std::vector<std::string> _files = program.get<std::vector<std::string>>("--file");
     std::vector<std::string> files;
