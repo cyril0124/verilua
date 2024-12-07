@@ -12,8 +12,8 @@ let
   luajit-pro = callPackage (fetchFromGitHub {
     owner = "cyril0124";
     repo = "luajit-pro";
-    rev = "fb3c68079c5d79299113767759082bfde5104e28"; 
-    hash = "sha256-6NhDZCUAq4RNFJ8/sO6vXaEUpsYPrFrF4ZwQHPR1XBY=";
+    rev = "daa7a871196272c38dff42116ad5e0c8b159a572"; 
+    hash = "sha256-FU+EeflxKThmrMhvclmNfZ2igXmlxGOJ1sq67g0/7D4=";
   }) {};
 
   luajit_tcc = callPackage (fetchFromGitHub {
@@ -304,7 +304,7 @@ ____   ____                .__ .__
 
   patchBinaryPhase = ''
     ${if hasVerdiHome then ''
-    patchelf --add-rpath "${builtins.getEnv "VERDI_HOME"}/share/FsdbReader/LINUX64" $out/bin/wave_vpi_main_fsdb
+      patchelf --add-rpath "${builtins.getEnv "VERDI_HOME"}/share/FsdbReader/LINUX64" $out/bin/wave_vpi_main_fsdb
     '' else ''''}
   '';
 }
