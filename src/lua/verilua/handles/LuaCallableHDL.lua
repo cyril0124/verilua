@@ -284,7 +284,11 @@ function CallableHDL:_init(fullpath, name, hdl)
     elseif self.is_multi_beat == true and self.is_array == false then
         self.get = function (this, force_multi_beat)
             if this.beat_num <= 2 and not force_multi_beat then
-                return tonumber(C.c_get_value64(this.hdl))
+                if this.beat_num == 2 then
+                    return C.c_get_value64(this.hdl)
+                else
+                    return C.c_get_value(this.hdl)
+                end
             else
                 do
                     C.c_get_value_multi_2(this.hdl, this.c_results, this.beat_num)

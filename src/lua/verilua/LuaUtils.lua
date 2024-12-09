@@ -82,7 +82,7 @@ function utils.to_hex_str(t, reverse)
 
     local t_copy = {}
     if t_len == 1 and t_type == "cdata" then
-         t_copy[1] = bit_tohex(tonumber(t))
+         t_copy[1] = bit_tohex(t)
     else
         for i = 1, t_len do
             t_copy[i] = bit_tohex(t[i])
