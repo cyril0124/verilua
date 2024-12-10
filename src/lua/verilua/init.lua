@@ -2,11 +2,11 @@
 -- jit.opt.start("loopunroll=100", "minstitch=0", "hotloop=1", "tryside=100")
 
 local os = require "os"
+local io = require "io"
 local math = require "math"
 local debug = require "debug"
 local string = require "string"
 
-local io = io
 local type = type
 local print = print
 local table = table

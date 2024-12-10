@@ -1,15 +1,28 @@
+local io = require "io"
+local os = require "os"
+local bit = require "bit"
 local ffi = require "ffi"
-local utils = {}
-local this = utils
+local math = require "math"
 
-local bit, io, math, string, os = bit, io, math, string, os
-local tostring, tonumber, ipairs, type, pairs, assert, print = tostring, tonumber, ipairs, type, pairs, assert, print
-local format = string.format
-local tconcat = table.concat
+local type = type
+local pcall = pcall
+local pairs = pairs
+local print = print
+local string = string
+local ipairs = ipairs
+local assert = assert
+local f = string.format
+local ffi_new = ffi.new
+local tonumber = tonumber
+local tostring = tostring
 local bit_tohex = bit.tohex
 local bit_lshift = bit.lshift
 local math_random = math.random
-local ffi_new = ffi.new
+local table_concat = table.concat
+local setmetatable = setmetatable
+
+local utils = {}
+local this = utils
 
 --
 ---@param t table The table to be serialized
@@ -23,7 +36,7 @@ function utils.serialize(t, conn)
     --     table.insert(serialized, tostring(k) .. "=" .. tostring(v))
     -- end
     -- table.sort(serialized)
-    return tconcat(serialized, conn)
+    return table_concat(serialized, conn)
 end
 
 --
@@ -57,7 +70,7 @@ function utils.to_hex_str(t, reverse)
     local t_type = type(t)
 
     if t_type == "number" then
-        return format("%x", t)
+        return f("%x", t)
     end
 
     local t_len
@@ -97,7 +110,7 @@ function utils.to_hex_str(t, reverse)
         end
     end
 
-    return tconcat(t_copy, " ")
+    return table_concat(t_copy, " ")
 end
 
 --
@@ -154,10 +167,10 @@ function utils.to_hex(hex_table)
     local ret = ""
     if type(hex_table) == "table" then
         for index, value in ipairs(hex_table) do
-            ret = ret .. string.format("%x ", value)
+            ret = ret .. f("%x ", value)
         end
     else
-        ret = ret .. string.format("%x", hex_table)
+        ret = ret .. f("%x", hex_table)
     end
     return ret
 end
@@ -264,7 +277,7 @@ function utils.enum_define(enum_table)
             __call = utils.enum_search,
 
             __index = function(t, v)
-                assert(false, format("Unknown enum value => %s  enum name => %s", tostring(v), t.name))
+                assert(false, f("Unknown enum value => %s  enum name => %s", tostring(v), t.name))
             end
         }
     )
@@ -416,7 +429,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
         else
             max_val = bit.lshift(1ULL, num_bits) - 1
         end
-        assert(bitpat.v <= max_val, string.format("bitpat.v (%d) exceeds the maximum value (%d) for the specified bit range [%d, %d]", bitpat.v, max_val, bitpat.s, bitpat.e))
+        assert(bitpat.v <= max_val, f("bitpat.v (%d) exceeds the maximum value (%d) for the specified bit range [%d, %d]", bitpat.v, max_val, bitpat.s, bitpat.e))
 
         -- Determine which block and position within the block to apply the bit pattern
         local start_block = math.floor(bitpat.s / 64) + 1

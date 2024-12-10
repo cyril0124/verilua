@@ -1,32 +1,41 @@
-local CallableHDL = require "verilua.handles.LuaCallableHDL"
+local ffi = require "ffi"
 local utils = require "LuaUtils"
 local stringx = require "pl.stringx"
-local ffi = require "ffi"
-
-local C = ffi.C
-local ffi_str = ffi.string
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local BeatWidth = 32
-local HexStr = HexStr
-local BinStr = BinStr
-local DecStr = DecStr
+
+local type = type
+local assert = assert
+local f = string.format
+local tonumber = tonumber
+local table_insert = table.insert
+local setmetatable = setmetatable
+
+local C = ffi.C
+local ffi_string = ffi.string
+
+local HexStr = _G.HexStr
+local BinStr = _G.BinStr
+local DecStr = _G.DecStr
+local await_posedge = _G.await_posedge
+local await_negedge = _G.await_negedge
+
 local compare_value_str = utils.compare_value_str
-local await_posedge = await_posedge
-local await_negedge = await_negedge
-local assert, type, tonumber, setmetatable = assert, type, tonumber, setmetatable
-local tinsert = table.insert
-local format = string.format
 
 ffi.cdef[[
     long long c_handle_by_name(const char* name);
-    void c_set_value_by_name(const char *path, uint64_t value);
+    unsigned int c_get_signal_width(long long handle);
+
     uint64_t c_get_value_by_name(const char *path);
+    const char *c_get_value_str(long long handle, int format);
+   
     void c_force_value_by_name(const char *path, long long value);
     void c_release_value_by_name(const char *path);
+   
+    void c_set_value_by_name(const char *path, uint64_t value);
     void c_set_value_str_by_name(const char *path, const char *str);
     void c_force_value_str_by_name(const char *path, const char *str);
-    const char *c_get_value_str(long long handle, int format);
-    unsigned int c_get_signal_width(long long handle);
 ]]
 
 local set_force_enable = false
@@ -48,7 +57,7 @@ local function create_proxy(path, use_prefix)
         set = function (t, v)
             assert(v ~= nil)
             if set_force_enable then
-                tinsert(force_path_table, local_path)
+                table_insert(force_path_table, local_path)
                 C.c_force_value_by_name(local_path, tonumber(v))
             else
                 C.c_set_value_by_name(local_path, tonumber(v))
@@ -69,7 +78,7 @@ local function create_proxy(path, use_prefix)
         set_force = function (t, v)
             assert(v ~= nil)
             if set_force_enable then
-                tinsert(force_path_table, local_path)
+                table_insert(force_path_table, local_path)
             end
             C.c_force_value_by_name(local_path, tonumber(v))
         end,
@@ -130,7 +139,7 @@ local function create_proxy(path, use_prefix)
         --      assert(hex_str == "0x123")
         -- 
         get_hex = function (t)
-            return format("0x%x", tonumber(C.c_get_value_by_name(local_path)))
+            return f("0x%x", tonumber(C.c_get_value_by_name(local_path)))
         end,
 
         -- 
@@ -142,9 +151,9 @@ local function create_proxy(path, use_prefix)
         get_str = function (t, fmt)
             local hdl = C.c_handle_by_name_safe(local_path)
             if hdl == -1 then
-                assert(false, format("No handle found => %s", local_path))
+                assert(false, f("No handle found => %s", local_path))
             end
-            return ffi_str(C.c_get_value_str(hdl, fmt))
+            return ffi_string(C.c_get_value_str(hdl, fmt))
         end,
 
 
@@ -155,7 +164,7 @@ local function create_proxy(path, use_prefix)
         -- 
         set_str = function(t, str)
             if set_force_enable then
-                tinsert(force_path_table, local_path)
+                table_insert(force_path_table, local_path)
                 C.c_force_value_str_by_name(local_path, str)
             else
                 C.c_set_value_str_by_name(local_path, str)
@@ -274,7 +283,7 @@ local function create_proxy(path, use_prefix)
         hdl = function (t)
             local hdl = C.c_handle_by_name_safe(local_path)
             if hdl == -1 then
-                assert(false, format("No handle found => %s", local_path))
+                assert(false, f("No handle found => %s", local_path))
             end
             return hdl
         end,
@@ -309,8 +318,8 @@ local function create_proxy(path, use_prefix)
 
         dump_str = function (t)
             local hdl = C.c_handle_by_name(local_path)
-            local s = ("[%s] => "):format(local_path)
-            s = s .. "0x" .. ffi_str(C.c_get_value_str(hdl, HexStr))
+            local s = f("[%s] => ", local_path)
+            s = s .. "0x" .. ffi_string(C.c_get_value_str(hdl, HexStr))
             return s
         end,
 
@@ -337,7 +346,7 @@ local function create_proxy(path, use_prefix)
             end
             
             if t:get() ~= value then
-                assert(false, format("[%s] expect => %d, but got => %d", local_path, value, t:get()))
+                assert(false, f("[%s] expect => %d, but got => %d", local_path, value, t:get()))
             end
         end,
 
@@ -351,7 +360,7 @@ local function create_proxy(path, use_prefix)
             end
             
             if t:get() == value then
-                assert(false, format("[%s] expect not => %d, but got => %d", local_path, value, t:get()))
+                assert(false, f("[%s] expect not => %d, but got => %d", local_path, value, t:get()))
             end
         end,
 
@@ -364,42 +373,42 @@ local function create_proxy(path, use_prefix)
         expect_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
             if not compare_value_str( "0x" .. this:get_str(HexStr), hex_value_str) then
-                assert(false, format("[%s] expect => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
+                assert(false, f("[%s] expect => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
             end
         end,
     
         expect_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
             if not compare_value_str( "0b" .. this:get_str(BinStr), bin_value_str) then
-                assert(false, format("[%s] expect => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
+                assert(false, f("[%s] expect => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
     
         expect_dec_str = function(this, dec_value_str)
             assert(type(dec_value_str) == "string")
             if not compare_value_str(this:get_str(DecStr), dec_value_str) then
-                assert(false, format("[%s] expect => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
+                assert(false, f("[%s] expect => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
             end
         end,
 
         expect_not_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
             if compare_value_str( "0x" .. this:get_str(HexStr), hex_value_str) then
-                assert(false, format("[%s] expect not => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
+                assert(false, f("[%s] expect not => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
             end
         end,
     
         expect_not_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
             if compare_value_str( "0b" .. this:get_str(BinStr), bin_value_str) then
-                assert(false, format("[%s] expect not => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
+                assert(false, f("[%s] expect not => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
     
         expect_not_dec_str = function(this, dec_value_str)
             assert(type(dec_value_str) == "string")
             if compare_value_str(this:get_str(DecStr), dec_value_str) then
-                assert(false, format("[%s] expect not => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
+                assert(false, f("[%s] expect not => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
             end
         end,
 
@@ -532,7 +541,7 @@ local function create_proxy(path, use_prefix)
                 return tonumber(C.c_get_value_by_name(local_path))
             elseif data_type == "hex" then
                 local val = C.c_get_value_by_name(local_path)
-                return string.format("0x%x", val)
+                return f("0x%x", val)
             elseif data_type == "name" then
                 return local_path
             elseif data_type == "hdl" then

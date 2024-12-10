@@ -1,15 +1,16 @@
+local io = require "io"
 local class = require "pl.class"
 local texpect = require "TypeExpect"
 
+local type = type
+local print = print
 local ipairs = ipairs
 local assert = assert
 local printf = printf
-local print = print
-local type = type
-local io = io
 local f = string.format
-local cfg = cfg
 local table_insert = table.insert
+
+local cfg = _G.cfg
 local verilua_debug = _G.verilua_debug
 
 local CoverGroup = class()

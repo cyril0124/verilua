@@ -5,15 +5,15 @@ local tcc = require "TccWrapper"
 local path = require "pl.path"
 local utils = require "LuaUtils"
 
-local cfg = cfg
-local VeriluaMode = VeriluaMode
-local verilua_debug = verilua_debug
-local verilua_warning = verilua_warning
-
 local pcall = pcall
 local assert = assert
 local tonumber = tonumber
 local ffi_new = ffi.new
+
+local cfg = _G.cfg
+local VeriluaMode = _G.VeriluaMode
+local verilua_debug = _G.verilua_debug
+local verilua_warning = _G.verilua_warning
 
 if cfg.simulator == "vcs" then
     ffi.cdef[[

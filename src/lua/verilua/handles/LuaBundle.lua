@@ -1,15 +1,18 @@
 local ffi = require "ffi"
+local List = require "pl.List"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
-local List = require "pl.List"
 local texpect = require "TypeExpect"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local C = ffi.C
-local assert, print, rawset, ipairs = assert, print, rawset, ipairs
-local tinsert = table.insert
-local format = string.format
-local tconcat = table.concat
+local print = print
+local assert = assert
+local rawset = rawset
+local ipairs = ipairs
+local f = string.format
+local table_concat = table.concat
+local table_insert = table.insert
 
 local verilua_debug = _G.verilua_debug
 local HexStr = _G.HexStr
@@ -49,7 +52,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         assert(prefix ~= nil, "prefix is required for decoupled bundle!")
     end
 
-    verilua_debug("New Bundle => ", "name: " .. self.name, "signals: {" .. tconcat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
+    verilua_debug("New Bundle => ", "name: " .. self.name, "signals: {" .. table_concat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
     
     if is_decoupled == true then
         self.bits = {}
@@ -93,7 +96,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
             end
 
             rawset(self, signal, CallableHDL(fullpath, signal))
-            tinsert(self.signals_table, signal)
+            table_insert(self.signals_table, signal)
         end
     end
 
@@ -117,7 +120,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         self.get_all = function (this)
             local ret = {}
             for i, sig in ipairs(self.signals_table) do
-                tinsert(ret, self[sig]:get())
+                table_insert(ret, self[sig]:get())
             end
             return ret
         end
@@ -142,7 +145,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
             local s = ""
 
             if this.name ~= "Unknown" then
-                s = s .. format("[%s] ", this.name)
+                s = s .. f("[%s] ", this.name)
             end
             
             s = s .. "| valid: " .. this.valid:get()
@@ -153,7 +156,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
 
             for i, signal in ipairs(this.signals_table) do
                 if signal ~= "valid" and signal ~= "ready" then
-                    s = s .. format(" | %s: 0x%s", signal, this.bits[signal]:get_str(HexStr))
+                    s = s .. f(" | %s: 0x%s", signal, this.bits[signal]:get_str(HexStr))
                 end
             end
 
@@ -164,7 +167,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
             local s = ""
 
             if this.name ~= "Unknown" then
-                s = s .. format("[%s] ", this.name)
+                s = s .. f("[%s] ", this.name)
             end
 
             if this.valid ~= nil then
@@ -177,7 +180,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
 
             for i, signal in ipairs(this.signals_table) do
                 if signal ~= "valid" and signal ~= "ready" then
-                    s = s .. format(" | %s: 0x%s", signal, this[signal]:get_str(HexStr))
+                    s = s .. f(" | %s: 0x%s", signal, this[signal]:get_str(HexStr))
                 end
             end
 

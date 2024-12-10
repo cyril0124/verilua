@@ -1,17 +1,17 @@
-local scheduler = require "verilua.scheduler.LuaScheduler"
 local os = require "os"
-
-local verilua_hello = _G.verilua_hello
-local verilua_info = _G.verilua_info
-local verilua_warning = _G.verilua_warning
-local VeriluaMode = _G.VeriluaMode
-local cfg = _G.cfg
+local scheduler = require "verilua.scheduler.LuaScheduler"
 
 local type = type
 local print = print
 local assert = assert
 local ipairs = ipairs
 local table_insert = table.insert
+
+local cfg = _G.cfg
+local VeriluaMode = _G.VeriluaMode
+local verilua_info = _G.verilua_info
+local verilua_hello = _G.verilua_hello
+local verilua_warning = _G.verilua_warning
 
 assert(scheduler ~= nil)
 

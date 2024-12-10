@@ -1,7 +1,8 @@
-local debug = require "debug"
 local ffi = require "ffi"
+local math = require "math"
+local debug = require "debug"
 local class = require "pl.class"
-local C = ffi.C
+local coroutine = require "coroutine"
 
 ffi.cdef[[
     void verilua_time_callback(uint64_t time, int id);
@@ -15,27 +16,28 @@ ffi.cdef[[
     void verilua_negedge_callback_hdl_always(long long handle, int id);
 ]]
 
-local verilua_debug = verilua_debug
 
+local C = ffi.C
 local type = type
 local pairs = pairs
 local print = print
 local assert = assert
 local ipairs = ipairs
 local random = math.random
-local tinsert = table.insert
+local table_insert = table.insert
 local coro_yield = coroutine.yield
 local coro_resume = coroutine.resume
 local coro_status = coroutine.status
 local coro_create = coroutine.create
 
+local verilua_debug = _G.verilua_debug
 
-local scommon = require("verilua.scheduler.LuaSchedulerCommonV2")
+local scommon = require "verilua.scheduler.LuaSchedulerCommonV2"
 local YieldType = scommon.YieldType
 
 local Scheduler = class()
 
-local TASK_MAX = 100
+local TASK_MAX = 1000
 
 function Scheduler:_init()
     self.id_max = 10000
@@ -100,7 +102,7 @@ function Scheduler:_init()
 
     self.remove_task = function (this, id)
         this.task_count = this.task_count - 1
-        tinsert(this.will_remove_tasks, id)
+        table_insert(this.will_remove_tasks, id)
     end
 
     self.query_task = function (this, id)
@@ -132,10 +134,10 @@ function Scheduler:_init()
             task_id = self:alloc_task_id()
         end
     
-        tinsert(self.id_task_tbl, task_id, coro_create(func))
-        tinsert(self.id_name_tbl, task_id, name)
-        tinsert(self.id_cnt_tbl, task_id, 0)
-        tinsert(self.id_fired_tbl, task_id, false)
+        table_insert(self.id_task_tbl, task_id, coro_create(func))
+        table_insert(self.id_name_tbl, task_id, name)
+        table_insert(self.id_cnt_tbl, task_id, 0)
+        table_insert(self.id_fired_tbl, task_id, false)
         this.task_count = this.task_count + 1
 
         if schedule_task or false then
@@ -172,7 +174,7 @@ function Scheduler:_init()
             if this.event_name_tbl[integer_value] == nil then
                 assert(false, "Unknown event => " .. integer_value)
             end
-            tinsert(this.event_tbl[integer_value], task_id)
+            table_insert(this.event_tbl[integer_value], task_id)
         elseif types == NOOP then
             -- do nothing
         else
@@ -269,7 +271,7 @@ function Scheduler:_init()
     end
 
     self.send_event = function (this, event_id_integer)
-        tinsert(this.will_wakeup_event, event_id_integer)
+        table_insert(this.will_wakeup_event, event_id_integer)
         this.has_wakeup_event = true
     end
 

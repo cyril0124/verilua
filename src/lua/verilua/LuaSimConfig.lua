@@ -1,7 +1,8 @@
-local os = os
-local io = io
+local os = require "os"
+local io = require "io"
+local debug = require "debug"
+
 local type = type
-local debug = debug
 local print = print
 local pairs = pairs
 local error = error

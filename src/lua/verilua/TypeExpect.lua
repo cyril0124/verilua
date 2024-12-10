@@ -1,9 +1,10 @@
 local inspect = require "inspect"
-local tostring = tostring
+
+local type = type
+local error = error
 local ipairs = ipairs
 local assert = assert
-local error = error
-local type = type
+local tostring = tostring
 
 local debug_str = _G.debug_str -- provided by init.lua
 local f = function(...) return debug_str(string.format(...)) end

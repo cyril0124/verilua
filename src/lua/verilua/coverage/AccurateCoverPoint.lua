@@ -6,6 +6,7 @@ local assert = assert
 local printf = printf
 local f = string.format
 local table_insert = table.insert
+
 local verilua_debug = _G.verilua_debug
 
 local AccurateCoverPoint = class()

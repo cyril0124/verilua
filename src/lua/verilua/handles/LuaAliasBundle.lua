@@ -4,9 +4,14 @@ local class = require "pl.class"
 local texpect = require "TypeExpect"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
-local assert, type, print, rawset = assert, type, print, rawset
-local tconcat = table.concat
-local format = string.format
+local type = type
+local print = print
+local rawset = rawset
+local assert = assert
+local f = string.format
+local table_concat = table.concat
+
+local HexStr = _G.HexStr
 local verilua_debug = _G.verilua_debug
 
 local AliasBundle = class()
@@ -66,7 +71,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
         end
     end, alias_signal_tbl))
 
-    verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. tconcat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
+    verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. table_concat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
 
     -- Construct CallableHDL bundle
     for i = 1, #self.signals_tbl do
@@ -79,7 +84,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
         local s = ""
 
         if this.name ~= "Unknown" then
-            s = s .. format("[%s] ", this.name)
+            s = s .. f("[%s] ", this.name)
         end
     
         if this.valid ~= nil then
@@ -94,7 +99,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
             local alias_name = self.alias_tbl[i]
             local real_name = self.signals_tbl[i]
             if real_name ~= "valid" and real_name ~= "ready" then
-                s = s .. format(" | %s: 0x%s", real_name .. " -> " .. alias_name, this[alias_name]:get_str(HexStr))
+                s = s .. f(" | %s: 0x%s", real_name .. " -> " .. alias_name, this[alias_name]:get_str(HexStr))
             end
         end
 

@@ -170,36 +170,6 @@ TO_LUA long long c_get_value_by_name(const char *path) {
 #endif
 }
 
-// return datas with more than 64bit, each table entry is a 32bit value(4 byte)
-TO_LUA int c_get_value_multi_by_name(lua_State *L) {
-#ifndef VCS
-    ENTER_VPI_REGION();
-#endif
-
-    const char *path = luaL_checkstring(L, 1);
-    const int n = luaL_checkinteger(L, 2);
-
-    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    VL_FATAL(handle, "No handle found: {}\n", path);
-
-    s_vpi_value v;
-    v.format = vpiVectorVal;
-    _vpi_get_value(handle, &v);
-
-    // return a Lua table
-    lua_newtable(L);
-    for (int i = 0; i < n; i++) {
-        lua_pushinteger(L, i + 1); // table index of Lua is started from 1
-        lua_pushinteger(L, v.value.vector[i].aval);
-        lua_settable(L, -3);
-    }
-
-#ifndef VCS
-    LEAVE_VPI_REGION();
-#endif
-    return 1;
-}
-
 TO_LUA void c_set_value_by_name(const char *path, uint64_t value) {
     ENTER_VPI_REGION();
     
@@ -224,43 +194,6 @@ TO_LUA void c_set_value_by_name(const char *path, uint64_t value) {
     delete vector;
 
     LEAVE_VPI_REGION();
-}
-
-TO_LUA int c_set_value_multi_by_name(lua_State *L) {
-    ENTER_VPI_REGION();
-    
-    const char *path = luaL_checkstring(L, 1);  // Check and get the first argument
-    vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    VL_FATAL(handle, "No handle found: {}\n", path);
-
-#ifdef VL_DEF_VPI_LEARN
-    VeriluaEnv::get_instance().hdl_cache_rev[handle] = VpiPermission::WRITE;
-#endif
-
-    luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
-
-    // int table_length = luaL_len(L, 2);  // Get table length
-    int table_length = lua_objlen(L, 2);
-    std::vector<s_vpi_vecval> vector(table_length);
-
-    for (int idx = 1; idx <= table_length; idx++) {
-        lua_pushinteger(L, idx);  // Push the index onto the stack
-        lua_gettable(L, 2);  // Get the table value at the index
-
-        uint32_t value = luaL_checkinteger(L, -1);  // Check and get the value
-        vector[idx-1].aval = value;
-        vector[idx-1].bval = 0;
-
-        lua_pop(L, 1);  // Pop the value from the stack
-    }
-
-    s_vpi_value v;
-    v.format = vpiVectorVal;
-    v.value.vector = vector.data();
-    _vpi_put_value(handle, &v, NULL, vpiNoDelay);
-
-    LEAVE_VPI_REGION();
-    return 0;  // Number of return values
 }
 
 // TODO: Force/Release statement only work in VCS. (Verilator cannot use Force/Release for some reason. It would be fix in the future. )
@@ -316,7 +249,7 @@ TO_LUA void c_force_value(long long handle, long long value) {
 #if defined(VCS) || defined(IVERILOG)
     ENTER_VPI_REGION();
 
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
     v.format = vpiIntVal;
     v.value.integer = value;
@@ -338,7 +271,7 @@ TO_LUA void c_release_value(long long handle) {
 #if defined(VCS) || defined(IVERILOG)
     ENTER_VPI_REGION();
 
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
     v.format = vpiSuppressVal;
     _vpi_put_value(actual_handle, &v, NULL, vpiReleaseFlag);
@@ -354,7 +287,7 @@ TO_LUA uint32_t c_get_value(long long handle) {
     ENTER_VPI_REGION();
 #endif
 
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
 
     // v.format = vpiIntVal;
@@ -384,7 +317,7 @@ TO_LUA uint64_t c_get_value64(long long handle) {
     ENTER_VPI_REGION();
 #endif
 
-    unsigned int* actual_handle = reinterpret_cast<vpiHandle>(handle);
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
     s_vpi_value v;
 
     v.format = vpiVectorVal;
@@ -414,26 +347,7 @@ TO_LUA uint64_t c_get_value64(long long handle) {
     return value;
 }
 
-TO_LUA void c_get_value_multi_1(long long handle, uint32_t *ret, int n) {
-#ifndef VCS
-    ENTER_VPI_REGION();
-#endif 
-
-    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-
-    s_vpi_value v;
-    v.format = vpiVectorVal;
-    _vpi_get_value(actual_handle, &v);
-    for(int i = 0; i < n; i++) {
-        ret[i] = v.value.vector[i].aval;
-    }
-
-#ifndef VCS
-    LEAVE_VPI_REGION();
-#endif
-}
-
-TO_LUA void c_get_value_multi_2(long long handle, uint32_t *ret, int n) {
+TO_LUA void c_get_value_multi(long long handle, uint32_t *ret, int n) {
 #ifndef VCS
     ENTER_VPI_REGION();
 #endif 
@@ -463,32 +377,6 @@ TO_LUA void c_get_value_multi_2(long long handle, uint32_t *ret, int n) {
 #ifndef VCS
     LEAVE_VPI_REGION();
 #endif
-}
-
-TO_LUA int c_get_value_multi(lua_State *L) {
-#ifndef VCS
-    ENTER_VPI_REGION();
-#endif
-
-    long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
-    int n = luaL_checkinteger(L, 2);  // Check and get the second argument
-    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-
-    s_vpi_value v;
-    v.format = vpiVectorVal;
-    _vpi_get_value(actual_handle, &v);
-
-    lua_newtable(L);  // Create a new table and push it onto the stack
-    for (int i = 0; i < n; i++) {
-        lua_pushinteger(L, i + 1);  // Push the index onto the stack (Lua indices start at 1)
-        lua_pushinteger(L, v.value.vector[i].aval);  // Push the value onto the stack
-        lua_settable(L, -3);  // Set the table value at the index to the value
-    }
-
-#ifndef VCS
-    LEAVE_VPI_REGION();
-#endif
-    return 1;  // Number of return values (the table is already on the stack)
 }
 
 TO_LUA void c_set_value(long long handle, uint32_t value) {
@@ -521,9 +409,9 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
+    static s_vpi_vecval vector[1000]; // TODO: Configurable
     s_vpi_value v;
 
-    s_vpi_vecval *vector = (s_vpi_vecval *)malloc(size * sizeof(s_vpi_vecval));
     for(int i = 0; i < size; i++) {
         vector[i].aval = 0;
         vector[i].bval = 0;
@@ -534,8 +422,6 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
     v.format = vpiVectorVal;
     v.value.vector = vector;
     _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
-
-    free((void *)vector);
 
     LEAVE_VPI_REGION();
 }
@@ -549,9 +435,9 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
+    static s_vpi_vecval vector[2];
     s_vpi_value v;
 
-    s_vpi_vecval *vector = (s_vpi_vecval *)malloc(2 * sizeof(s_vpi_vecval));
     vector[1].aval = value >> 32;
     vector[1].bval = 0;
     vector[0].aval = (value << 32) >> 32;
@@ -561,48 +447,10 @@ TO_LUA void c_set_value64(long long handle, uint64_t value) {
     v.value.vector = vector;
     _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
 
-    free((void *)vector);
-
     LEAVE_VPI_REGION();
 }
 
-TO_LUA int c_set_value_multi(lua_State *L) {
-    ENTER_VPI_REGION();
-
-    long long handle = luaL_checkinteger(L, 1);  // Check and get the first argument
-    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
-
-#ifdef VL_DEF_VPI_LEARN
-    VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
-#endif
-
-    luaL_checktype(L, 2, LUA_TTABLE);  // Check the second argument is a table
-
-    // int table_length = luaL_len(L, 2);  // Get table length
-    int table_length = lua_objlen(L, 2);
-    std::vector<s_vpi_vecval> vector(table_length);
-
-    for (int idx = 1; idx <= table_length; idx++) {
-        lua_pushinteger(L, idx);  // Push the index onto the stack
-        lua_gettable(L, 2);  // Get the table value at the index
-
-        uint32_t value = luaL_checkinteger(L, -1);  // Check and get the value
-        vector[idx-1].aval = value;
-        vector[idx-1].bval = 0;
-
-        lua_pop(L, 1);  // Pop the value from the stack
-    }
-
-    s_vpi_value v;
-    v.format = vpiVectorVal;
-    v.value.vector = vector.data();
-    _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
-
-    LEAVE_VPI_REGION();
-    return 0;  // Number of return values
-}
-
-TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
+TO_LUA void c_set_value_multi(long long handle, uint32_t *values, int n) {
     ENTER_VPI_REGION();
     
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -611,7 +459,8 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
     VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE;
 #endif
 
-    s_vpi_vecval *vector = (s_vpi_vecval *)malloc(n * sizeof(s_vpi_vecval));
+    static s_vpi_vecval vector[1000]; // TODO: Configurable
+
     for(int i = 0; i < n; i++) {
         vector[i].aval = values[i];
         vector[i].bval = 0;
@@ -622,8 +471,6 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
     v.value.vector = vector;
     _vpi_put_value(actual_handle, &v, NULL, vpiNoDelay);
     
-    free((void *)vector)
-
     LEAVE_VPI_REGION();
 }
 
@@ -654,7 +501,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
 
 #ifdef VL_DEF_VPI_LEARN
 #define GENERATE_FUNCTION(NUM) \
-    TO_LUA void c_set_value_multi_1_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
+    TO_LUA void c_set_value_multi_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
         ENTER_VPI_REGION(); \
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle); \
         VeriluaEnv::get_instance().hdl_cache_rev[actual_handle] = VpiPermission::WRITE; \
@@ -668,7 +515,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
     }
 #else
 #define GENERATE_FUNCTION(NUM) \
-    TO_LUA void c_set_value_multi_1_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
+    TO_LUA void c_set_value_multi_beat_##NUM(long long handle, ARG_SELECT(NUM)) { \
         ENTER_VPI_REGION(); \
         vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle); \
         s_vpi_vecval vector[NUM] = {0}; \
@@ -681,6 +528,7 @@ TO_LUA void c_set_value_multi_1(long long handle, uint32_t *values, int n) {
     }
 #endif
 
+GENERATE_FUNCTION(2)
 GENERATE_FUNCTION(3)
 GENERATE_FUNCTION(4)
 GENERATE_FUNCTION(5)
@@ -692,7 +540,7 @@ GENERATE_FUNCTION(7)
 // Then macro GENERATE_FUNCTION(8) will be expanded as: 
 // 
 GENERATE_FUNCTION(8)
-// TO_LUA void c_set_value_multi_1_beat_8(
+// TO_LUA void c_set_value_multi_beat_8(
 //     long long handle, 
 //     uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, 
 //     uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7 
@@ -829,20 +677,20 @@ TO_LUA void c_set_value_str(long long handle, const char *str) {
         // Binary
         auto substr = _str.substr(2);
         writable.assign(substr.begin(), substr.end());
-        writable.push_back('\0');
+        writable.emplace_back('\0');
         value_s.format = vpiBinStrVal;
         value_s.value.str = writable.data();
     } else if (prefix == "0x") {
         // Hexdecimal
         auto substr = _str.substr(2);
         writable.assign(substr.begin(), substr.end());
-        writable.push_back('\0');
+        writable.emplace_back('\0');
         value_s.format = vpiHexStrVal;
         value_s.value.str = writable.data();
     } else {
         // Decimal
         writable.assign(_str.begin(), _str.end());
-        writable.push_back('\0');
+        writable.emplace_back('\0');
         value_s.format = vpiDecStrVal;
         value_s.value.str = writable.data();
     }
@@ -871,20 +719,20 @@ TO_LUA void c_set_value_str_by_name(const char *path, const char *str) {
         // Binary
         auto substr = _str.substr(2);
         writable.assign(substr.begin(), substr.end());
-        writable.push_back('\0');
+        writable.emplace_back('\0');
         value_s.format = vpiBinStrVal;
         value_s.value.str = writable.data();
     } else if (prefix == "0x") {
         // Hexdecimal
         auto substr = _str.substr(2);
         writable.assign(substr.begin(), substr.end());
-        writable.push_back('\0');
+        writable.emplace_back('\0');
         value_s.format = vpiHexStrVal;
         value_s.value.str = writable.data();
     } else {
         // Decimal
         writable.assign(_str.begin(), _str.end());
-        writable.push_back('\0');
+        writable.emplace_back('\0');
         value_s.format = vpiDecStrVal;
         value_s.value.str = writable.data();
     }
@@ -1023,8 +871,6 @@ TO_LUA void iterate_vpi_type(const char *module_name, int type) {
 
         fmt::println("[{}] name => {} type => {}", count, name, vpi_type);
 
-        // int size = vpi_get(vpiSize, hdl);
-        // printf("Size of array: %d\n", size);
         count++;
     }
 

@@ -5,6 +5,7 @@ local type = type
 local assert = assert
 local printf = printf
 local f = string.format
+
 local verilua_debug = _G.verilua_debug
 
 local CoverPoint = class()
