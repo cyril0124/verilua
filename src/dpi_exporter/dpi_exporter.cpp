@@ -501,7 +501,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
                             }
 #else
                             // With std::copy
-                            dpiTickFuncBody += fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, {3});\n", hierPathName, p.name, beatSize, signalName);
+                            dpiFuncBody += fmt::format("\tstd::copy({0}, {0} + {1}, {2});\n", p.name, beatSize, signalName);
 #endif // NO_STD_COPY
                         }
 
