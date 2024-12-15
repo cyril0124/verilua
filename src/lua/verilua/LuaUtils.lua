@@ -3,6 +3,7 @@ local os = require "os"
 local bit = require "bit"
 local ffi = require "ffi"
 local math = require "math"
+local table_new = require "table.new"
 
 local type = type
 local pcall = pcall
@@ -21,6 +22,7 @@ local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
 local math_floor = math.floor
+local ffi_istype = ffi.istype
 local math_random = math.random
 local table_concat = table.concat
 local setmetatable = setmetatable
@@ -68,53 +70,55 @@ end
 ---@param reverse boolean Whether to reverse the byte order, defaults to true
 ---@return string The hexadecimal string
 --
+do
+    local function get_result(t_len, t, reverse)
+        local t_copy = table_new(t_len, 0)
+
+        if t_len == 1 then
+            t_copy[1] = bit_tohex(t)
+        else
+            for i = 1, t_len do
+                if reverse then
+                    t_copy[t_len - i + 1] = bit_tohex(t[i])
+                else
+                    t_copy[i] = bit_tohex(t[i])
+                end
+            end
+        end
+
+        return table_concat(t_copy, " ")
+    end
+
 function utils.to_hex_str(t, reverse)
-    reverse = reverse or true
+        local reverse = reverse or true
     
+        local result = ""
+        local t_len = 0
     local t_type = type(t)
 
     if t_type == "number" then
-        return f("%x", t)
-    end
-
-    local t_len
-    if t_type == "cdata" then
-        local ok, len = pcall(function (t)
+            result = f("%x", t)
+        elseif t_type == "cdata" then
+            if ffi_istype("uint64_t", t) then
+                t_len = 1
+            else
             -- 
             -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
             -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
             -- 
-            return t[0]
-        end, t)
-        
-        if ok then
-            t_len = len
-        else
-            t_len = 1
-        end
+                t_len = t[0]
+            end
+
+            result = get_result(t_len, t, reverse)
     else
         assert(t_type == "table")
         t_len = #t
+
+            result = get_result(t_len, t, reverse)
     end
 
-    local t_copy = {}
-    if t_len == 1 and t_type == "cdata" then
-         t_copy[1] = bit_tohex(t)
-    else
-        for i = 1, t_len do
-            t_copy[i] = bit_tohex(t[i])
-        end
+        return result
     end
-
-    if reverse then
-        local i, n = 1, t_len
-        while i < n do
-            t_copy[i], t_copy[n] = t_copy[n], t_copy[i]
-            i, n = i + 1, n - 1
-        end
-    end
-
-    return table_concat(t_copy, " ")
 end
 
 --
