@@ -8,6 +8,7 @@ local type = type
 local pcall = pcall
 local pairs = pairs
 local print = print
+local error = error
 local string = string
 local ipairs = ipairs
 local assert = assert
@@ -15,8 +16,11 @@ local f = string.format
 local ffi_new = ffi.new
 local tonumber = tonumber
 local tostring = tostring
+local math_ceil = math.ceil
 local bit_tohex = bit.tohex
+local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
+local math_floor = math.floor
 local math_random = math.random
 local table_concat = table.concat
 local setmetatable = setmetatable
@@ -122,7 +126,7 @@ function utils.log2Ceil(n)
         return 0
     else
         local log_val = math.log(n) / math.log(2)
-        local ceil_val = math.ceil(log_val)
+        local ceil_val = math_ceil(log_val)
         return ceil_val
     end
 end
@@ -134,7 +138,7 @@ end
 ---@return number The processed value
 --
 function utils.bitfield32(begin, endd, val)
-    return bit.rshift( bit.lshift(val, 32 - endd), begin + 32- endd )
+    return bit_rshift( bit_lshift(val, 32 - endd), begin + 32- endd )
 end
 
 --
@@ -145,7 +149,7 @@ end
 --
 function utils.bitfield64(begin, endd, val)
     local val64 = ffi_new('uint64_t', val)
-    return bit.rshift( bit.lshift(val64, 64 - endd), begin + 64- endd )
+    return bit_rshift( bit_lshift(val64, 64 - endd), begin + 64- endd )
 end
 
 --
@@ -154,7 +158,7 @@ end
 ---@return number The combined 64-bit value
 --
 function utils.to64bit(hi, lo)
-    return bit.lshift(hi, 32) + lo
+    return bit_lshift(hi, 32) + lo
 end
 
 -- 
@@ -193,7 +197,7 @@ function utils.num_to_binstr(num)
     while num > 0 do
         local bit = num % 2
         binstr = tostring(bit) .. binstr
-        num = math.floor(num / 2)
+        num = math_floor(num / 2)
     end
     return binstr
 end
@@ -205,7 +209,7 @@ end
 --
 function utils.get_progress_bar(progress, length)
     -- https://cn.piliapp.com/symbol/
-    local completed = math.floor(progress * length)
+    local completed = math_floor(progress * length)
     local remaining = length - completed
     local progressBar = "┃" .. string.rep("█", completed) .. "▉" .. string.rep(" ", remaining) .. "┃"
     return progressBar
@@ -331,7 +335,7 @@ local function dec_to_bin(dec)
     repeat
         local rem = num % 2
         bin = rem .. bin
-        num = math.floor(num / 2)
+        num = math_floor(num / 2)
     until num == 0
     return bin
 end
@@ -402,7 +406,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
     end
 
     -- Calculate the number of 64-bit blocks required to handle the specified width
-    local num_blocks = math.ceil(width / 64)
+    local num_blocks = math_ceil(width / 64)
     
     -- Initialize the value as a table of zeros (each element represents a 64-bit block)
     local v = {}
@@ -427,13 +431,13 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
         if num_bits == 64 then
             max_val = 0xFFFFFFFFFFFFFFFFULL
         else
-            max_val = bit.lshift(1ULL, num_bits) - 1
+            max_val = bit_lshift(1ULL, num_bits) - 1
         end
         assert(bitpat.v <= max_val, f("bitpat.v (%d) exceeds the maximum value (%d) for the specified bit range [%d, %d]", bitpat.v, max_val, bitpat.s, bitpat.e))
 
         -- Determine which block and position within the block to apply the bit pattern
-        local start_block = math.floor(bitpat.s / 64) + 1
-        local end_block = math.floor(bitpat.e / 64) + 1
+        local start_block = math_floor(bitpat.s / 64) + 1
+        local end_block = math_floor(bitpat.e / 64) + 1
         local start_pos = bitpat.s % 64
         local end_pos = bitpat.e % 64
 
@@ -443,9 +447,9 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
             if num_bits == 64 then
                 mask = 0xFFFFFFFFFFFFFFFFULL
             else
-                mask = bit.lshift(1ULL, num_bits) - 1
+                mask = bit_lshift(1ULL, num_bits) - 1
             end
-            local shifted_value = bit.lshift(bit.band(bitpat.v, mask), start_pos)
+            local shifted_value = bit_lshift(bit.band(bitpat.v, mask), start_pos)
             v[start_block] = bit.bor(v[start_block], shifted_value)
         else
             -- The bit pattern spans across multiple blocks
@@ -453,12 +457,12 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
             local upper_bits = num_bits - lower_bits
 
             -- Lower part in the start block
-            local lower_mask = bit.lshift(1ULL, lower_bits) - 1
+            local lower_mask = bit_lshift(1ULL, lower_bits) - 1
             local lower_value = bit.band(bitpat.v, lower_mask)
-            v[start_block] = bit.bor(v[start_block], bit.lshift(lower_value, start_pos))
+            v[start_block] = bit.bor(v[start_block], bit_lshift(lower_value, start_pos))
 
             -- Upper part in the end block
-            local upper_value = bit.rshift(bitpat.v, lower_bits)
+            local upper_value = bit_rshift(bitpat.v, lower_bits)
             v[end_block] = bit.bor(v[end_block], upper_value)
         end
     end
