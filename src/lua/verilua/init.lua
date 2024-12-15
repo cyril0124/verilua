@@ -418,6 +418,7 @@ local AliasBundle = require "verilua.handles.LuaAliasBundle"
 local CoverGroup = require "verilua.coverage.CoverGroup"
 local CoverPoint = require "verilua.coverage.CoverPoint"
 local AccurateCoverPoint = require "verilua.coverage.AccurateCoverPoint"
+local utils = require "verilua.LuaUtils"
 
 local stringx = require "pl.stringx"
 do
@@ -1040,6 +1041,28 @@ do
         assert(count > 0, f("\n[tcc_compile] Did not find any symbols! Please specify symbol_name or symbol_ptr_pattern in tcc code by a custom C comment: \"// $sym<SymbolName> $ptr<SymbolPtrPattern>\"! Or you could specify this info by the input table \"<string>:tcc_compile({{sym = <symbol_name>, ptr = <symbol_ptr_pattern>}, <other...>})\"\nThe tcc code is:\n%s", str))
         
         return lib
+    end
+
+    -- 
+    --  Example:
+    --    local enum = ("NameOfEnum"):enum_define {
+    --        A = 1,
+    --        B = 2  
+    --    }
+    --    
+    --    assert(enum.name == "NameOfEnum")
+    --    assert(enum.A == 1)
+    --    assert(enum.B == 2)
+    --    assert(enum(1) == "A")
+    --    assert(enum(2) == "B")
+    --
+    getmetatable('').__index.enum_define = function (str, enum_table)
+        local enum_table = enum_table
+        assert(type(enum_table) == "table")
+        
+        enum_table.name = str
+
+        return utils.enum_define(enum_table)
     end
 end
 
