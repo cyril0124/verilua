@@ -89,33 +89,33 @@ do
         return table_concat(t_copy, " ")
     end
 
-function utils.to_hex_str(t, reverse)
+    function utils.to_hex_str(t, reverse)
         local reverse = reverse or true
-    
+        
         local result = ""
         local t_len = 0
-    local t_type = type(t)
+        local t_type = type(t)
 
-    if t_type == "number" then
+        if t_type == "number" then
             result = f("%x", t)
         elseif t_type == "cdata" then
             if ffi_istype("uint64_t", t) then
                 t_len = 1
             else
-            -- 
-            -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
-            -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
-            -- 
+                -- 
+                -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
+                -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
+                -- 
                 t_len = t[0]
             end
 
             result = get_result(t_len, t, reverse)
-    else
-        assert(t_type == "table")
-        t_len = #t
+        else
+            assert(t_type == "table")
+            t_len = #t
 
             result = get_result(t_len, t, reverse)
-    end
+        end
 
         return result
     end
