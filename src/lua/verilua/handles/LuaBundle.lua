@@ -119,8 +119,8 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
     if not self.is_decoupled then
         self.get_all = function (this)
             local ret = {}
-            for i, sig in ipairs(self.signals_table) do
-                table_insert(ret, self[sig]:get())
+            for i, sig in ipairs(this.signals_table) do
+                table_insert(ret, this[sig]:get())
             end
             return ret
         end

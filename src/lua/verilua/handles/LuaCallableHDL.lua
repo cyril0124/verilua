@@ -4,6 +4,7 @@ local debug = require "debug"
 local utils = require "LuaUtils"
 local class = require "pl.class"
 local texpect = require "TypeExpect"
+local table_new = require "table.new"
 
 local BeatWidth = 32
 
@@ -89,7 +90,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- 
         self.is_array = true
         self.array_size = tonumber(C.c_get_signal_width(self.hdl))
-        self.array_hdls = {}
+        self.array_hdls = table_new(self.array_size, 0)
         for i = 1, self.array_size do
             self.array_hdls[i] = C.c_handle_by_index(self.fullpath, self.hdl, i - 1)
         end
@@ -296,6 +297,14 @@ function CallableHDL:_init(fullpath, name, hdl)
             end
 
             self.set_index_unsafe = self.set_index
+
+            self.get_index_all = function (this, force_multi_beat)
+                local ret = table_new(this.array_size, 0)
+                for index = 0, this.array_size - 1 do
+                    ret[index + 1] = this.get_index(this, index, force_multi_beat)
+                end
+                return ret
+            end
         elseif self.beat_num == 2 then
             self.get_index = function (this, index, force_multi_beat)
                 local chosen_hdl = this.array_hdls[index + 1]
@@ -336,6 +345,29 @@ function CallableHDL:_init(fullpath, name, hdl)
                     -- value is a table where <lsb ... msb>
                     C.c_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
                 end
+            end
+
+            self.get_index_all = function (this, force_multi_beat)
+                local force_multi_beat = force_multi_beat or false
+                local ret = table_new(this.array_size, 0)
+                if force_multi_beat then
+                    for index = 0, this.array_size - 1 do
+                        this.get_index(this, index, true)
+
+                        -- Transform cdata to table
+                        local tmp = table_new(this.beat_num, 0)
+                        for i = 1, this.beat_num do
+                            tmp[i] = this.c_results[i]
+                        end
+    
+                        ret[index + 1] = tmp
+                    end
+                else
+                    for index = 0, this.array_size - 1 do
+                        ret[index + 1] = this.get_index(this, index, false)
+                    end
+                end
+                return ret
             end
         else -- self.beat_num >= 3
             assert(self.beat_num > 2)
@@ -413,14 +445,22 @@ function CallableHDL:_init(fullpath, name, hdl)
                     end
                 end
             end
-        end
 
-        self.get_index_all = function (this, force_multi_beat)
-            local ret = {}
-            for index = 0, this.array_size - 1 do
-                table_insert(ret, this.get_index(this, index, force_multi_beat))
+            self.get_index_all = function (this)
+                local ret = table_new(this.array_size, 0)
+                for index = 0, this.array_size - 1 do
+                    this.get_index(this, index)
+
+                    -- Transform cdata to table
+                    local tmp = table_new(this.beat_num, 0)
+                    for i = 1, this.beat_num do
+                        tmp[i] = this.c_results[i]
+                    end
+
+                    ret[index + 1] = tmp
+                end
+                return ret
             end
-            return ret
         end
 
         self.get_index_str = function (this, index, fmt)
