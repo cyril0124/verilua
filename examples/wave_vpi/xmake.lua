@@ -1,5 +1,5 @@
 local PWD = os.getenv("PWD")
-local sim = os.getenv("SIM") or "verilator"
+local sim = os.getenv("SIM") or "iverilog"
 
 target("gen_wave")
     add_rules("verilua")
