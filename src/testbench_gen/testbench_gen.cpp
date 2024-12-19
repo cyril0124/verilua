@@ -721,25 +721,25 @@ endmodule
         signalConnect.erase(signalConnect.length() - 2);
 
         if (clockSignalName != "clock") {
-            clockAndResetAlias = fmt::format(R"(`ifdef SIM_VERILAROT
+            clockAndResetAlias = fmt::format(R"(`ifdef SIM_VERILATOR
 wire {};
 assign {} = clock;
-`else // SIM_VERILAROT
+`else // SIM_VERILATOR
 wire clock;
 assign clock = {};
-`endif // SIM_VERILAROT
+`endif // SIM_VERILATOR
 )",
                                              clockSignalName, clockSignalName, clockSignalName);
         }
 
         if (resetSignalName != "reset") {
-            clockAndResetAlias = fmt::format(R"(`ifdef SIM_VERILAROT
+            clockAndResetAlias = fmt::format(R"(`ifdef SIM_VERILATOR
 wire {};
 assign {} = reset;
-`else // SIM_VERILAROT
+`else // SIM_VERILATOR
 wire reset;
 assign reset = {};
-`endif // SIM_VERILAROT
+`endif // SIM_VERILATOR
 )",
                                              resetSignalName, resetSignalName, resetSignalName);
         }
