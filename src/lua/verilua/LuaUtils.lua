@@ -51,7 +51,7 @@ end
 --
 function utils.reverse_table(tab)
     local size = #tab
-    local new_tab = {}
+    local new_tab = table_new(size, 0)
 
     for i, v in ipairs(tab) do
         new_tab[size - i + 1] = v
@@ -75,7 +75,7 @@ do
         local t_copy = table_new(t_len, 0)
 
         if t_len == 1 then
-            t_copy[1] = bit_tohex(t)
+            t_copy[1] = bit_tohex(t[1])
         else
             for i = 1, t_len do
                 if reverse then
@@ -89,9 +89,12 @@ do
         return table_concat(t_copy, " ")
     end
 
-    function utils.to_hex_str(t, reverse)
-        local reverse = reverse or true
-        
+    function utils.to_hex_str(t, _reverse)
+        local reverse = _reverse
+        if reverse == nil then
+            reverse = true
+        end
+
         local result = ""
         local t_len = 0
         local t_type = type(t)
@@ -100,16 +103,15 @@ do
             result = f("%x", t)
         elseif t_type == "cdata" then
             if ffi_istype("uint64_t", t) then
-                t_len = 1
+                result = bit_tohex(t)
             else
                 -- 
                 -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
                 -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
                 -- 
                 t_len = t[0]
+                result = get_result(t_len, t, reverse)
             end
-
-            result = get_result(t_len, t, reverse)
         else
             assert(t_type == "table")
             t_len = #t
