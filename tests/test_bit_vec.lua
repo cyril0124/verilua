@@ -100,4 +100,81 @@ describe("BitVec test", function ()
 
         expect.fail(function () local a = BitVec({0x12345678}, 64) end, "Bit width must not exceed")
     end)
+
+    it("should work properly for dump()", function ()
+        local bitvec = BitVec({0x12345678})
+        expect.equal(bitvec:dump_str(), "12345678")
+        expect.equal(bitvec:dump_str(false), "12345678")
+
+        local bitvec = BitVec({0x12345678, 0x4455667788})
+        expect.equal(bitvec:dump_str(), "55667788 12345678")
+        expect.equal(bitvec:dump_str(false), "12345678 55667788")
+    end)
+
+    it("should work properly for get_bitfield_hex_str()", function ()
+        local tests = {
+            {data = {0x12345678}, s = 0, e = 15, expected = nil},
+            {data = {0x12345678}, s = 16, e = 31, expected = nil},
+            {data = {0x12345678}, s = 32, e = 47, expected = nil},
+
+            -- 0 ~ 31, 32 ~ 63
+            {data = {0x12345678, 0x11aabbcc}, s = 16, e = 31, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 16, e = 31 + 16, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 40, e = 60, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 40, e = 60, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 0, e = 15, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 0, e = 40, expected = "000001cc12345678"},
+
+            -- 0 ~ 31, 32 ~ 63, 64 ~ 95, 96 ~ 127, 128 ~ 159
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 35, e = 84, expected = "0000008adbd5b7dd"},
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 68, e = 155, expected = "002345678deadbeefff00045"},
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 0, e = 159, expected = "12345678deadbeefff000456deadbeef01010101"},
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 0, e = 128, expected = "00000000deadbeefff000456deadbeef01010101"},
+        }
+
+        for _, test in ipairs(tests) do
+            local bitvec = BitVec(test.data)
+            local result = bitvec:get_bitfield_hex_str(test.s, test.e)
+            local expected = test.expected
+            if expected == nil then
+                expected = bit.tohex(tonumber(bitvec:get_bitfield(test.s, test.e)))
+            end
+            assert(result == expected, f("Failed for s=%d, e=%d: expected 0x%s, got 0x%s", test.s, test.e, expected, result))
+        end
+    end)
+
+    it("should work properly for get_bitfield_vec()", function ()
+        local tests = {
+            {data = {0x12345678}, s = 0, e = 15, expected = nil},
+            {data = {0x12345678}, s = 16, e = 31, expected = nil},
+            {data = {0x12345678}, s = 32, e = 47, expected = nil},
+
+            -- 0 ~ 31, 32 ~ 63
+            {data = {0x12345678, 0x11aabbcc}, s = 16, e = 31, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 16, e = 31 + 16, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 40, e = 60, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 40, e = 60, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 0, e = 15, expected = nil},
+            {data = {0x12345678, 0x11aabbcc}, s = 0, e = 40, expected = {0x12345678, 0x1cc}},
+
+            -- 0 ~ 31, 32 ~ 63, 64 ~ 95, 96 ~ 127, 128 ~ 159
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 35, e = 84, expected = {0xdbd5b7dd, 0x8a}},
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 68, e = 155, expected = {0xfff00045, 0x8deadbee, 0x234567}},
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 0, e = 159, expected = {0x1010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}},
+            {data = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x12345678}, s = 0, e = 128, expected = {0x01010101, 0xdeadbeef, 0xff000456, 0xdeadbeef, 0x0}},
+        }
+
+        for _, test in ipairs(tests) do
+            local bitvec = BitVec(test.data)
+            local result = bitvec:get_bitfield_vec(test.s, test.e)
+            local expected = test.expected
+            if expected == nil then
+                expected = {tonumber(bitvec:get_bitfield(test.s, test.e))}
+            end
+
+            for i, _ in ipairs(result) do
+                assert(expected[i] == result[i], f("Failed for s=%d, e=%d: expected 0x%x at index %d, got 0x%x", test.s, test.e, expected[i], i, result[i]))
+            end
+        end
+    end)
 end)

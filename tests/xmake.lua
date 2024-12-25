@@ -6,7 +6,7 @@ target("test_all")
         local files = target:sourcefiles()
         for i, file in ipairs(files) do
             print("=== [%d] start test %s ==================================", i, file)
-            os.exec("lua %s --stop-on-fail", file)
+            os.exec("lua %s --stop-on-fail --no-quiet", file)
             print("")
         end
     end)

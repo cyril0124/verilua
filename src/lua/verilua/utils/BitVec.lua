@@ -1,16 +1,22 @@
 local ffi = require "ffi"
 local bit = require "bit"
 local math = require "math"
+local utils = require "LuaUtils"
 local class = require "pl.class"
+local table_new = require "table.new"
 
 local type = type
+local print = print
 local assert = assert
 local bit_bor = bit.bor
+local tonumber = tonumber
 local bit_band = bit.band
 local bit_bnot = bit.bnot
+local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
 local math_floor = math.floor
+local to_hex_str = utils.to_hex_str
 
 local BitVec = class()
 
@@ -24,7 +30,7 @@ function BitVec:_init(data, bit_width)
     if typ == "table" then
         self.u32_vec = data
 
-        local auto_bit_width = (#data * 32)
+        local auto_bit_width = #data * 32
         if bit_width then
             if bit_width > auto_bit_width then
                 assert(false, "Bit width must not exceed " .. auto_bit_width .. " bits")
@@ -93,7 +99,43 @@ function BitVec:get_bitfield(s, e)
 end
 
 function BitVec:get_bitfield_hex_str(s, e)
-    assert(false, "TODO: get_bitfield_hex_str")
+    local beat_size = math_floor((e - s) / 32) + 1
+    
+    local result = ""
+    if beat_size == 1 then
+        result = bit_tohex(tonumber(self:get_bitfield(s, e)))
+    else
+        local ss = s
+        local ee = s + 31
+        for i = 1, beat_size - 1 do
+            result = bit_tohex(tonumber(self:get_bitfield(ss, ee))) .. result
+            ss = ee + 1
+            ee = ee + 32
+        end
+        result = bit_tohex(tonumber(self:get_bitfield(ss, e))) .. result
+    end
+
+    return result
+end
+
+function BitVec:get_bitfield_vec(s, e)
+    local beat_size = math_floor((e - s) / 32) + 1
+
+    local result = table_new(beat_size, 0)
+    if beat_size == 1 then
+        result[1] = tonumber(self:get_bitfield(s, e))
+    else
+        local ss = s
+        local ee = s + 31
+        for i = 1, beat_size - 1 do
+            result[i] = tonumber(self:get_bitfield(ss, ee))
+            ss = ee + 1
+            ee = ee + 32
+        end
+        result[beat_size] = tonumber(self:get_bitfield(ss, e))
+    end
+
+    return result
 end
 
 function BitVec:set_bitfield(s, e, v)
@@ -141,6 +183,18 @@ end
 
 function BitVec:set_bitfield_hex_str(s, e, v_str)
     assert(false, "TODO: set_bitfield_hex_str")
+end
+
+function BitVec:set_bitfield_vec(s, e, u32_vec)
+    assert(false, "TODO: set_bitfield_vec")
+end
+
+function BitVec:dump_str(reverse)
+    return to_hex_str(self.u32_vec, reverse)
+end
+
+function BitVec:dump(reverse)
+    print(self:dump_str(reverse))
 end
 
 return BitVec
