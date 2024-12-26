@@ -20,45 +20,59 @@ local to_hex_str = utils.to_hex_str
 
 local BitVec = class()
 
+local function hex_str_to_u32_vec(hex_str)
+    local hex_length = #hex_str
+    local full_beats = math_floor(hex_length / 8)
+    local u32_vec = table_new(full_beats, 0)
+
+    for i = 0, full_beats - 1 do
+        local start_index = hex_length - (i + 1) * 8 + 1
+        local hex_part = hex_str:sub(start_index, start_index + 7)
+        u32_vec[i + 1] = tonumber(hex_part, 16)
+    end
+
+    local remaining_chars = hex_length % 8
+    if remaining_chars > 0 then
+        local start_index = 1
+        local hex_part = hex_str:sub(start_index, remaining_chars)
+        u32_vec[full_beats + 1] = tonumber(hex_part, 16)
+    end
+
+    return u32_vec
+end
+
 -- 
 -- Little Endian:
 --  u32_vec: LSB {u32_0, u32_1, u32_2, u32_3, ...} MSB
 -- 
 function BitVec:_init(data, bit_width)
     local typ = type(data)
+    local auto_bit_width
 
     if typ == "table" then
         self.u32_vec = data
-
-        local auto_bit_width = #data * 32
-        if bit_width then
-            if bit_width > auto_bit_width then
-                assert(false, "Bit width must not exceed " .. auto_bit_width .. " bits")
-            end
-            self.bit_width = bit_width
-        else
-            self.bit_width = auto_bit_width
-        end
+        auto_bit_width = #data * 32
     elseif typ == "cdata" then
         if ffi.istype("uint64_t", data) then
             assert(false, "Unsupported type: cdata(uint64_t)")
         end
         
         self.u32_vec = data
-
-        local auto_bit_width = data[0] * 32
-        if bit_width then
-            if bit_width > auto_bit_width then
-                assert(false, "Bit width must not exceed " .. auto_bit_width .. " bits")
-            end
-            self.bit_width = bit_width
-        else
-            self.bit_width = auto_bit_width
-        end
+        auto_bit_width = data[0] * 32
     elseif typ == "string" then
-        assert(false, "TODO: from_hex_str")
+        self.u32_vec = hex_str_to_u32_vec(data)
+        auto_bit_width = #data * 4
     else
         assert(false, "Unsupported type: " .. typ)
+    end
+
+    if bit_width then
+        if bit_width > auto_bit_width then
+            assert(false, "Bit width must not exceed " .. auto_bit_width .. " bits")
+        end
+        self.bit_width = bit_width
+    else
+        self.bit_width = auto_bit_width
     end
 end
 
@@ -181,12 +195,35 @@ function BitVec:set_bitfield(s, e, v)
     end
 end
 
-function BitVec:set_bitfield_hex_str(s, e, v_str)
-    assert(false, "TODO: set_bitfield_hex_str")
+function BitVec:set_bitfield_hex_str(s, e, hex_str)
+    self:set_bitfield_vec(s, e, hex_str_to_u32_vec(hex_str))
 end
 
 function BitVec:set_bitfield_vec(s, e, u32_vec)
-    assert(false, "TODO: set_bitfield_vec")
+    local beat_size = math_floor((e - s) / 32) + 1
+
+    local start_beat_id = math.floor(s / 32) + 1
+    local end_beat_id = math.floor(e / 32) + 1
+    assert(beat_size == #u32_vec)
+
+    if start_beat_id == end_beat_id then
+        self:set_bitfield(s, e, u32_vec[1])
+    else
+        if beat_size == 1 then
+            self:set_bitfield(s, e, u32_vec[1])
+        else
+            local ss = s
+            local ee = s + 31
+            for i = 1, beat_size - 1 do
+                self:set_bitfield(ss, ee, u32_vec[i])
+                ss = ee + 1
+                ee = ee + 32
+            end
+            local vmask = bit_lshift(1ULL, e - ss + 1) - 1
+            local masked_v = bit_band(u32_vec[beat_size], vmask)
+            self:set_bitfield(ss, e, masked_v)
+        end
+    end
 end
 
 function BitVec:dump_str(reverse)

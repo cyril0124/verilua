@@ -177,4 +177,80 @@ describe("BitVec test", function ()
             end
         end
     end)
+
+    it("should work properly for set_bitfield_vec()", function ()
+        local tests = {
+            {data = {0x00}, s = 0, e = 7, value = {0x10}, expected = {0x10}},
+            {data = {0x00}, s = 0, e = 31, value = {0x12345678}, expected = {0x12345678}},
+            {data = {0x1234}, s = 16, e = 31, value = {0x12345678}, expected = {0x56781234}},
+
+            {data = {0x00, 0x1234}, s = 0, e = 31, value = {0x12345678}, expected = {0x12345678, 0x1234}},
+            {data = {0x00, 0x1234}, s = 32, e = 48, value = {0x12345678}, expected = {0x00, 0x5678}},
+            {data = {0x00, 0x1234}, s = 16, e = 47, value = {0x12345678}, expected = {0x56780000, 0x1234}},
+
+            -- 0 ~ 31, 32 ~ 63, 64 ~ 95
+            {data = {0x00, 0x1234, 0x5678}, s = 0, e = 47, value = {0x12345678, 0x22334455}, expected = {0x12345678, 0x4455, 0x5678}},
+            {data = {0x00, 0x1234, 0x5678}, s = 0, e = 95, value = {0x12345678, 0x22334455, 0xaaaacccc}, expected = {0x12345678, 0x22334455, 0xaaaacccc}},
+
+            -- 0 ~ 31, 32 ~ 63, 64 ~ 95, 96 ~ 127
+            {data = {0x00, 0x1234, 0x5678, 0xdead}, s = 48, e = 100, value = {0x12345678, 0x22334455}, expected = {0x00, 0x56781234, 0x44551234, 0xdeb3}},
+            {data = {0x00, 0x1234, 0x5678, 0xdead}, s = 70, e = 110, value = {0x12345678, 0x22334455}, expected = {0x00, 0x1234, 0x8d159e38, 0x9544}},
+        }
+
+        for _, test in ipairs(tests) do
+            local bitvec = BitVec(test.data)
+            local result = bitvec.u32_vec
+            bitvec:set_bitfield_vec(test.s, test.e, test.value)
+
+            for i, _ in ipairs(result) do
+                assert(result[i] == test.expected[i], f("Failed for s=%d, e=%d: expected 0x%x at index %d, got 0x%x", test.s, test.e, test.expected[i], i, result[i]))
+            end
+        end
+
+    end)
+
+    it("should work properly for set_bitfield_hex_str()", function ()
+        local tests = {
+            {data = {0x00}, s = 0, e = 7, value = "10", expected = {0x10}},
+            {data = {0x00}, s = 0, e = 31, value = "12345678", expected = {0x12345678}},
+            {data = {0x1234}, s = 16, e = 31, value = "12345678", expected = {0x56781234}},
+
+            {data = {0x00, 0x1234}, s = 0, e = 31, value = "12345678", expected = {0x12345678, 0x1234}},
+            {data = {0x00, 0x1234}, s = 32, e = 48, value = "12345678", expected = {0x00, 0x5678}},
+            {data = {0x00, 0x1234}, s = 16, e = 47, value = "12345678", expected = {0x56780000, 0x1234}},
+
+            -- -- 0 ~ 31, 32 ~ 63, 64 ~ 95
+            {data = {0x00, 0x1234, 0x5678}, s = 0, e = 47, value = "2233445512345678", expected = {0x12345678, 0x4455, 0x5678}},
+            {data = {0x00, 0x1234, 0x5678}, s = 0, e = 95, value = "aaaacccc2233445512345678", expected = {0x12345678, 0x22334455, 0xaaaacccc}},
+
+            -- -- 0 ~ 31, 32 ~ 63, 64 ~ 95, 96 ~ 127
+            {data = {0x00, 0x1234, 0x5678, 0xdead}, s = 48, e = 100, value = "2233445512345678", expected = {0x00, 0x56781234, 0x44551234, 0xdeb3}},
+            {data = {0x00, 0x1234, 0x5678, 0xdead}, s = 70, e = 110, value = "2233445512345678", expected = {0x00, 0x1234, 0x8d159e38, 0x9544}},
+        }
+
+        for _, test in ipairs(tests) do
+            local bitvec = BitVec(test.data)
+            local result = bitvec.u32_vec
+            bitvec:set_bitfield_hex_str(test.s, test.e, test.value)
+
+            for i, _ in ipairs(result) do
+                assert(result[i] == test.expected[i], f("Failed for s=%d, e=%d: expected 0x%x at index %d, got 0x%x", test.s, test.e, test.expected[i], i, result[i]))
+            end
+        end
+    end)
+
+    it("should work properly for creating BitVec using hex string", function ()
+        local bitvec = BitVec("a")
+        assert(bitvec.bit_width == 4)
+        assert(bitvec.u32_vec[1] == 0xa, bit.tohex(bitvec.u32_vec[1]))
+
+        local bitvec = BitVec("1122")
+        assert(bitvec.bit_width == 16)
+        assert(bitvec.u32_vec[1] == 0x1122, bit.tohex(bitvec.u32_vec[1]))
+
+        local bitvec = BitVec("12345678aabbccdd")
+        assert(bitvec.bit_width == 64)
+        assert(bitvec.u32_vec[2] == 0x12345678)
+        assert(bitvec.u32_vec[1] == 0xaabbccdd)
+    end)
 end)
