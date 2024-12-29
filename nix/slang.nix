@@ -13,10 +13,10 @@ in stdenv.mkDerivation {
   version = "6.0";
   
   src = fetchFromGitHub {
-    owner = "MikePopoloski";
+    owner = "cyril0124";
     repo = "slang";
-    rev = "6e18236363e4f59af69d90496c3dc44a899eb6f1";
-    hash = "sha256-NcYDQfy+pu+LgzYrTlVLTeeJcUho1+FaYpVaANAqdIY=";
+    rev = "915482f4b14af5cd76bd37a0fb7b207ae4266eb3";
+    hash = "sha256-OzMm/obuVoK1RYZ4Bo/mCqcCeWCnVKMSp4i4XBDZVrc=";
   };
 
   nativeBuildInputs = [
