@@ -15,7 +15,7 @@ local bit_bnot = bit.bnot
 local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
-local math_floor = math.floor
+local math_floor = math_floor
 local to_hex_str = utils.to_hex_str
 
 local BitVec = class()
@@ -27,15 +27,15 @@ local function hex_str_to_u32_vec(hex_str)
 
     for i = 0, full_beats - 1 do
         local start_index = hex_length - (i + 1) * 8 + 1
-        local hex_part = hex_str:sub(start_index, start_index + 7)
-        u32_vec[i + 1] = tonumber(hex_part, 16)
+        -- local hex_part = hex_str:sub(start_index, start_index + 7)
+        u32_vec[i + 1] = tonumber(hex_str:sub(start_index, start_index + 7), 16)
     end
 
     local remaining_chars = hex_length % 8
     if remaining_chars > 0 then
-        local start_index = 1
-        local hex_part = hex_str:sub(start_index, remaining_chars)
-        u32_vec[full_beats + 1] = tonumber(hex_part, 16)
+        -- local start_index = 1
+        -- local hex_part = hex_str:sub(start_index, remaining_chars)
+        u32_vec[full_beats + 1] = tonumber(hex_str:sub(1, remaining_chars), 16)
     end
 
     return u32_vec
@@ -155,8 +155,8 @@ end
 function BitVec:set_bitfield(s, e, v)
     assert((e - s) <= 63, "Bitfield size must not exceed 64 bits")
 
-    local start_beat_id = math.floor(s / 32) + 1
-    local end_beat_id = math.floor(e / 32) + 1
+    local start_beat_id = math_floor(s / 32) + 1
+    local end_beat_id = math_floor(e / 32) + 1
 
     local start_bit = s % 32
     local end_bit = e % 32
@@ -202,8 +202,8 @@ end
 function BitVec:set_bitfield_vec(s, e, u32_vec)
     local beat_size = math_floor((e - s) / 32) + 1
 
-    local start_beat_id = math.floor(s / 32) + 1
-    local end_beat_id = math.floor(e / 32) + 1
+    local start_beat_id = math_floor(s / 32) + 1
+    local end_beat_id = math_floor(e / 32) + 1
     assert(beat_size == #u32_vec)
 
     if start_beat_id == end_beat_id then

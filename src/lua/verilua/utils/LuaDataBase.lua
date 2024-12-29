@@ -1,22 +1,25 @@
 local io = require "io"
 local os = require "os"
-local sqlite3 = require "lsqlite3"
-local class = require "pl.class"
 local ffi = require "ffi"
 local lfs = require "lfs"
+local class = require "pl.class"
+local sqlite3 = require "lsqlite3"
 local texpect = require "TypeExpect"
+local table_new = require "table.new"
 
-local assert = assert
-local ipairs = ipairs
-local print = print
-local printf = printf
-local string = string
 local type = type
 local load = load
+local print = print
 local pairs = pairs
+local printf = printf
+local string = string
+local assert = assert
+local ipairs = ipairs
 local f = string.format
 local table_insert = table.insert
 local table_unpack = table.unpack
+
+local verilua = _G.verilua
 local verilua_debug = _G.verilua_debug
 
 ffi.cdef[[
@@ -97,7 +100,7 @@ function LuaDataBase:_init(init_tbl)
     -- Pre-allocate memory
     self.save_cnt_max = save_cnt_max
     self.save_cnt = 1
-    self.cache = {} -- TODO: using FFI data structure
+    self.cache = table_new(save_cnt_max, 0) -- TODO: using FFI data structure
     for i = 1, save_cnt_max do
         table_insert(self.cache, pre_alloc_entry)
     end
