@@ -15,7 +15,7 @@ local bit_bnot = bit.bnot
 local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
-local math_floor = math_floor
+local math_floor = math.floor
 local to_hex_str = utils.to_hex_str
 
 local BitVec = class()
