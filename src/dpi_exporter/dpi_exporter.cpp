@@ -51,14 +51,29 @@
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-#define INSERT_BEFORE_FILE_HEAD(filePath, str)                                                                                                                                                                                                                                                                                                                                                                 \
-    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
-        system(fmt::format("sed -i \"1i {}\" {}", str, filePath).c_str());                                                                                                                                                                                                                                                                                                                                     \
+#define DELETE_FILE(filePath) \
+    do { \
+        if (std::filesystem::exists(filePath)) { \
+            std::filesystem::remove(filePath); \
+        } \
     } while (0)
 
-#define INSERT_AFTER_FILE_END(filePath, str)                                                                                                                                                                                                                                                                                                                                                                   \
-    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
-        system(fmt::format("echo \"\n{}\" >> {}", str, filePath).c_str());                                                                                                                                                                                                                                                                                                                                     \
+#define INSERT_BEFORE_FILE_HEAD(filePath, str) \
+    do { \
+        std::ifstream inFile(filePath); \
+        std::stringstream buffer; \
+        buffer << "\n" << str << "\n" << inFile.rdbuf(); \
+        inFile.close(); \
+        std::ofstream outFile(filePath); \
+        outFile << buffer.rdbuf(); \
+        outFile.close(); \
+    } while (0)
+
+#define INSERT_AFTER_FILE_END(filePath, str) \
+    do { \
+        std::ofstream outFile(filePath, std::ios::app); \
+        outFile << "\n" << str; \
+        outFile.close(); \
     } while (0)
 
 using namespace slang::parsing;
@@ -1255,7 +1270,7 @@ using GetValueHexStrFunc = std::function<void (char*)>;
 
     // Delete temporary files
     for (auto &file : files) {
-        std::system(fmt::format("rm {}", file).c_str());
+        DELETE_FILE(file);
     }
 
     fmt::println("FINISH!");
