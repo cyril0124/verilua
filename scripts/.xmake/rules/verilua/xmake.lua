@@ -12,120 +12,117 @@ local function get_command_path(os, command)
     return command_path
 end
 
-rule("verilua")
-    set_extensions(".v", ".sv", ".lua", ".vlt", ".vcd", ".fst", ".fsdb")
-    
-    on_load(function (target)
-        local f = string.format
-        local no_copy_lua = os.getenv("NO_COPY_LUA") ~= nil -- do not copy the lua files into the build directory, this is helpful for thread safety.
+local function before_build_or_run(target)
+    local f = string.format
+    local no_copy_lua = os.getenv("NO_COPY_LUA") ~= nil -- do not copy the lua files into the build directory, this is helpful for thread safety.
 
-        -- Check if any of the valid toolchains is set. If not, raise an error.
-        local sim
-        if target:toolchain("verilator") ~= nil then
-            sim = "verilator"
-        elseif target:toolchain("iverilog") ~= nil then
-            sim = "iverilog"
-        elseif target:toolchain("vcs") ~= nil then
-            sim = "vcs"
-            
-            local vcs_no_initreg = target:values("cfg.vcs_no_initreg") == "1"
-            if vcs_no_initreg then
-                target:add("vcs_no_initreg", true)
+    -- Check if any of the valid toolchains is set. If not, raise an error.
+    local sim
+    if target:toolchain("verilator") ~= nil then
+        sim = "verilator"
+    elseif target:toolchain("iverilog") ~= nil then
+        sim = "iverilog"
+    elseif target:toolchain("vcs") ~= nil then
+        sim = "vcs"
+        
+        local vcs_no_initreg = target:values("cfg.vcs_no_initreg") == "1"
+        if vcs_no_initreg then
+            target:add("vcs_no_initreg", true)
+        end
+    elseif target:toolchain("wave_vpi") ~= nil then
+        sim = "wave_vpi"
+    else
+        raise("[before_build_or_run] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
+    end
+
+    target:add("sim", sim)
+    cprint("${✅} [verilua-xmake] [%s] simulator is ${green underline}%s${reset}", target:name(), sim)
+
+    -- Check if VERILUA_HOME is set.
+    assert(verilua_home ~= "", "[before_build_or_run] [%s] please set VERILUA_HOME", target:name())
+
+    -- Generate build directory 
+    local top = assert(target:values("cfg.top"), "[before_build_or_run] You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
+    local build_dir_name = target:values("cfg.build_dir_name") or top
+    local build_dir_path = target:values("cfg.build_dir_path") or ("build/" .. target:get("sim"))
+    local build_dir = target:values("cfg.build_dir") or path.absolute(build_dir_path .. "/" .. build_dir_name)
+    local sim_build_dir = build_dir .. "/sim_build"
+    target:add("top", top)
+    target:add("build_dir", build_dir)
+    target:add("sim_build_dir", sim_build_dir)
+    cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
+    cprint("${✅} [verilua-xmake] [%s] build directory is ${green underline}%s${reset}", target:name(), build_dir)
+
+    if not os.isfile(sim_build_dir) then
+        os.mkdir(sim_build_dir)
+    end
+
+    -- Copy lua main file into build_dir
+    local lua_main = path.absolute(os.getenv("LUA_SCRIPT") or assert(target:values("cfg.lua_main"), "[before_build_or_run] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"))
+    cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
+    os.cp(lua_main, build_dir)
+
+    -- Copy other lua files into build_dir
+    local sourcefiles = target:sourcefiles()
+    if not no_copy_lua then
+        for _, sourcefile in ipairs(sourcefiles) do
+            if sourcefile:endswith(".lua") then
+                os.cp(sourcefile, build_dir)
             end
-        elseif target:toolchain("wave_vpi") ~= nil then
-            sim = "wave_vpi"
+        end
+    end
+
+    -- Check verilua mode
+    local mode = "normal"
+    if sim ~= "wave_vpi" then
+        local _mode = target:values("cfg.mode")
+        if _mode ~= nil then
+            assert(_mode == "normal" or _mode == "step" or _mode == "dominant", "[before_build_or_run] mode should be `normal`, `step` or `dominant`")
+            mode = _mode
+        end
+        target:add("mode", mode)
+    end
+    cprint("${✅} [verilua-xmake] [%s] verilua mode is ${green underline}%s${reset}", target:name(), mode)
+
+
+    -- Generate verilua cfg file
+    local tb_top = target:values("cfg.tb_top") or "tb_top"
+    local other_cfg = target:values("cfg.other_cfg")
+    local other_cfg_path = "nil"
+    local shutdown_cycles = target:values("cfg.shutdown_cycles")
+    local deps = target:values("cfg.deps")
+    local deps_str = ""
+
+    target:add("tb_top", tb_top)
+
+    if other_cfg == nil or other_cfg == "" then
+        other_cfg = "nil" 
+    else
+        local _other_cfg = other_cfg
+        other_cfg = "\"" .. path.basename(other_cfg) .. "\""
+        other_cfg_path = "\"" .. path.absolute(path.directory(_other_cfg)) .. "\""
+        cprint("${✅} [verilua-xmake] [%s] other_cfg is ${green underline}%s${reset}", target:name(), other_cfg)
+    end
+
+    if shutdown_cycles == nil then 
+        shutdown_cycles = "10000 * 10" 
+    end
+    cprint("${✅} [verilua-xmake] [%s] shutdown_cycles is ${green underline}%s${reset}", target:name(), shutdown_cycles)
+
+    if deps ~= nil then
+        if type(deps) == "table" then
+            for _, dep in ipairs(deps) do
+                deps_str = deps_str .. "\"" .. path.absolute(dep) .. "\"" .. ",\n"
+                cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), dep)
+            end
         else
-            raise("[on_load] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
+            deps_str = "\"" .. path.absolute(deps) .. "\""
+            cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), deps)
         end
+    end
 
-        target:add("sim", sim)
-        cprint("${✅} [verilua-xmake] [%s] simulator is ${green underline}%s${reset}", target:name(), sim)
-
-        -- Check if VERILUA_HOME is set.
-        assert(verilua_home ~= "", "[on_load] [%s] please set VERILUA_HOME", target:name())
-
-        -- Generate build directory 
-        local top = assert(target:values("cfg.top"), "[on_load] You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
-        local build_dir_name = target:values("cfg.build_dir_name") or top
-        local build_dir_path = target:values("cfg.build_dir_path") or ("build/" .. target:get("sim"))
-        local build_dir = target:values("cfg.build_dir") or path.absolute(build_dir_path .. "/" .. build_dir_name)
-        local sim_build_dir = build_dir .. "/sim_build"
-        target:add("top", top)
-        target:add("build_dir", build_dir)
-        target:add("sim_build_dir", sim_build_dir)
-        cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
-        cprint("${✅} [verilua-xmake] [%s] build directory is ${green underline}%s${reset}", target:name(), build_dir)
-
-        if not os.isfile(sim_build_dir) then
-            os.mkdir(sim_build_dir)
-        end
-
-        -- Copy lua main file into build_dir
-        local lua_main = path.absolute(os.getenv("LUA_SCRIPT") or assert(target:values("cfg.lua_main"), "[on_load] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"))
-        cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
-        os.cp(lua_main, build_dir)
-
-        -- Copy other lua files into build_dir
-        local sourcefiles = target:sourcefiles()
-        if not no_copy_lua then
-            for _, sourcefile in ipairs(sourcefiles) do
-                if sourcefile:endswith(".lua") then
-                    os.cp(sourcefile, build_dir)
-                end
-            end
-        end
-
-        -- Check verilua mode
-        local mode = "normal"
-        if sim ~= "wave_vpi" then
-            local _mode = target:values("cfg.mode")
-            if _mode ~= nil then
-                assert(_mode == "normal" or _mode == "step" or _mode == "dominant", "[on_load] mode should be `normal`, `step` or `dominant`")
-                mode = _mode
-            end
-            target:add("mode", mode)
-        end
-        cprint("${✅} [verilua-xmake] [%s] verilua mode is ${green underline}%s${reset}", target:name(), mode)
-
-
-        -- Generate verilua cfg file
-        local tb_top = target:values("cfg.tb_top") or "tb_top"
-        local other_cfg = target:values("cfg.other_cfg")
-        local other_cfg_path = "nil"
-        local shutdown_cycles = target:values("cfg.shutdown_cycles")
-        local deps = target:values("cfg.deps")
-        local deps_str = ""
-
-        target:add("tb_top", tb_top)
-
-        if other_cfg == nil or other_cfg == "" then
-            other_cfg = "nil" 
-        else
-            local _other_cfg = other_cfg
-            other_cfg = "\"" .. path.basename(other_cfg) .. "\""
-            other_cfg_path = "\"" .. path.absolute(path.directory(_other_cfg)) .. "\""
-            cprint("${✅} [verilua-xmake] [%s] other_cfg is ${green underline}%s${reset}", target:name(), other_cfg)
-        end
-
-        if shutdown_cycles == nil then 
-            shutdown_cycles = "10000 * 10" 
-        end
-        cprint("${✅} [verilua-xmake] [%s] shutdown_cycles is ${green underline}%s${reset}", target:name(), shutdown_cycles)
-
-        if deps ~= nil then
-            if type(deps) == "table" then
-                for _, dep in ipairs(deps) do
-                    deps_str = deps_str .. "\"" .. path.absolute(dep) .. "\"" .. ",\n"
-                    cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), dep)
-                end
-            else
-                deps_str = "\"" .. path.absolute(deps) .. "\""
-                cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), deps)
-            end
-        end
-
-        local cfg_file = path.absolute(target:get("build_dir") .. "/verilua_cfg.lua")
-        local cfg_file_str = f([[
+    local cfg_file = path.absolute(target:get("build_dir") .. "/verilua_cfg.lua")
+    local cfg_file_str = f([[
 local lua_cfg = require "LuaSimConfig"
 
 local VeriluaMode = lua_cfg.VeriluaMode
@@ -153,41 +150,51 @@ cfg.vpi_learn = false
 
 -- Mix with other config
 if cfg.other_cfg ~= nil then
-    _G.package.path = _G.package.path .. ";" .. cfg.other_cfg_path .. "/?.lua"
-    local _cfg = require(cfg.other_cfg)
-    assert(type(_cfg) == "table")
+_G.package.path = _G.package.path .. ";" .. cfg.other_cfg_path .. "/?.lua"
+local _cfg = require(cfg.other_cfg)
+assert(type(_cfg) == "table")
 
-    lua_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
+lua_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
 end
 
 return cfg
 ]], tb_top, os.getenv("PWD"), sim, mode:upper(), path.absolute(build_dir .. "/" .. path.basename(lua_main) .. ".lua"), deps_str, other_cfg, other_cfg_path, shutdown_cycles)
-        if not no_copy_lua then
-            io.writefile(cfg_file, cfg_file_str)
-        end
+    if not no_copy_lua then
+        io.writefile(cfg_file, cfg_file_str)
+    end
 
-        target:add("cfg_file", cfg_file)
+    target:add("cfg_file", cfg_file)
 
-        if sim == "wave_vpi" then
-            local get_waveform = false
-            local waveform_file = ""
-            for _, sourcefile in ipairs(sourcefiles) do
-                if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") or sourcefile:endswith(".fsdb") then
-                    assert(get_waveform == false, "[on_load] Multiple waveform files are not supported")
-                    get_waveform = true
-                    waveform_file = path.absolute(sourcefile)
-                end
-            end
-            if waveform_file ~= "" then
-                target:add("waveform_file", waveform_file)
+    if sim == "wave_vpi" then
+        local get_waveform = false
+        local waveform_file = ""
+        for _, sourcefile in ipairs(sourcefiles) do
+            if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") or sourcefile:endswith(".fsdb") then
+                assert(get_waveform == false, "[before_build_or_run] Multiple waveform files are not supported")
+                get_waveform = true
+                waveform_file = path.absolute(sourcefile)
             end
         end
+        if waveform_file ~= "" then
+            target:add("waveform_file", waveform_file)
+        end
+    end
 
-        target:set("kind", "binary")
+    target:set("kind", "binary")
+end
+
+rule("verilua")
+    set_extensions(".v", ".sv", ".lua", ".vlt", ".vcd", ".fst", ".fsdb")
+    
+    on_load(function (target)
     end)
 
     on_config(function (target)
     end)
+
+    before_build(before_build_or_run)
+    
+    before_run(before_build_or_run)
 
     on_build(function (target)
         assert(verilua_home ~= "", "[on_build] [%s] please set VERILUA_HOME", target:name())
@@ -368,24 +375,25 @@ return cfg
         if sim ~= "wave_vpi" and not not_gen_tb then
             local vfiles = {}
             local top_file = target:values("cfg.top_file") -- Top of the design, not the testbench top
+            local has_top_file_cfg = top_file ~= nil
             local file_str = ""
-            if top_file == nil then
-                for _, sourcefile in ipairs(target:sourcefiles()) do
-                    if sourcefile:endswith(top .. ".v") or sourcefile:endswith(top .. ".sv") then
+            for _, sourcefile in ipairs(target:sourcefiles()) do
+                if sourcefile:endswith(top .. ".v") or sourcefile:endswith(top .. ".sv") then
+                    if not has_top_file_cfg then
                         assert(top_file == nil, "[on_build] duplicate top_file! " .. sourcefile)
                         top_file = path.absolute(sourcefile)
                     end
-                    if sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
-                        if sourcefile:endswith(tb_top .. ".sv") then
-                            raise("<%s.sv> is already exist! %s", tb_top, path.absolute(sourcefile))
-                        end
-                        table.insert(vfiles, sourcefile)
-                        file_str = file_str .. "-f " .. path.absolute(sourcefile) .. " "
+                end
+                if sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
+                    if sourcefile:endswith(tb_top .. ".sv") then
+                        raise("<%s.sv> is already exist! %s", tb_top, path.absolute(sourcefile))
                     end
+                    table.insert(vfiles, sourcefile)
+                    file_str = file_str .. "-f " .. path.absolute(sourcefile) .. " "
                 end
             end
 
-            assert(top_file ~= nil, "[on_build] Cannot find top module file! top is " .. top .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
+            assert(top_file ~= nil, "[on_build] Cannot find top module file! top is %s You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")", top)
             assert(os.isfile(top_file), "[on_build] Cannot find top module file! top_file is " .. top_file .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
             assert(file_str ~= "", "[on_build] Cannot find any .v/.sv files!")
             print("top_file is " .. top_file)
@@ -629,7 +637,7 @@ verdi -f filelist.f -sv -nologo $@
         elseif sim == "wave_vpi" then
             os.touch(target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
         end
-    end)
+    end) -- on_build
 
     on_clean(function (target)
         local build_dir = target:get("build_dir")
@@ -644,7 +652,7 @@ verdi -f filelist.f -sv -nologo $@
                 end
             end
         }
-    end)
+    end) -- on_clean
 
     on_run(function (target)
         assert(verilua_home ~= "", "[on_run] [%s] please set VERILUA_HOME", target:name())
@@ -755,4 +763,4 @@ verdi -f filelist.f -sv -nologo $@
         else
             raise("TODO: [on_run] unknown simulaotr => " .. sim)
         end
-    end)
+    end) -- on_run
