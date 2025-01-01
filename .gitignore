@@ -17,3 +17,4 @@ tmp/
 result
 FsdbReader
 luajit-pro
+.pixi

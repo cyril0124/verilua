@@ -12,12 +12,14 @@ local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
-add_requires("conan::fmt/11.0.2", {alias = "fmt"})
-add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
-add_requires("conan::libassert/2.1.0", {alias = "libassert"})
-add_requires("conan::argparse/3.1", {alias = "argparse"})
-add_requires("conan::elfio/3.12", {alias = "elfio"})
-add_requires("conan::inja/3.4.0", {alias = "inja"})
+if not os.getenv("USE_PIX") then
+    add_requires("conan::fmt/11.0.2", {alias = "fmt"})
+    add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
+    add_requires("conan::libassert/2.1.0", {alias = "libassert"})
+    add_requires("conan::argparse/3.1", {alias = "argparse"})
+    add_requires("conan::elfio/3.12", {alias = "elfio"})
+    add_requires("conan::inja/3.4.0", {alias = "inja"})
+end
 
 local function build_common()
     set_languages("c99", "c++20")
