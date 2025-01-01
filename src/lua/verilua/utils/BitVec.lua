@@ -234,4 +234,8 @@ function BitVec:dump(reverse)
     print(self:dump_str(reverse))
 end
 
+function BitVec:__tostring()
+    return self:dump_str()
+end
+
 return BitVec
