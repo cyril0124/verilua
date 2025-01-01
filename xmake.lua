@@ -19,11 +19,15 @@ add_requires("conan::argparse/3.1", {alias = "argparse"})
 add_requires("conan::elfio/3.12", {alias = "elfio"})
 add_requires("conan::inja/3.4.0", {alias = "inja"})
 
-local function build_common_info()
-    set_kind("shared")
+local function build_common()
     set_languages("c99", "c++20")
     set_targetdir(build_dir .. "/bin")
     set_objectdir(build_dir .. "/obj")
+end
+
+local function build_lib_common()
+    set_kind("shared")
+    build_common()
 
     -- shared lib link flags (! instead of add_ldflags)
     add_shflags(
@@ -68,6 +72,10 @@ local function build_common_info()
         add_defines("DEBUG")
         set_symbols("debug")
         set_optimize("none")
+        -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
+        -- add_ldflags("-fsanitize=address")
+    else
+        add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
     end
 
     -- on install
@@ -91,68 +99,26 @@ local function build_common_info()
 end
 
 -- 
--- Build target for VERILATOR
+-- Build lua_vpi libraries
 -- 
-target(lib_name)
-    add_defines("VERILATOR")
-
-    if is_mode("debug") then
-        add_defines("DEBUG")
-        set_symbols("debug")
-        set_optimize("none")
-        -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
-        -- add_ldflags("-fsanitize=address")
-    else
-        add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
+for sim, name in pairs({
+    ["VERILATOR"] = lib_name,
+    ["VCS"]       = lib_name .. "_vcs",
+    ["WAVE_VPI"]  = lib_name .. "_wave_vpi",
+    ["IVERILOG"]  = iverilog_home and lib_name .. "_iverilog" or "",
+}) do
+    if name ~= "" then
+        target(name) do
+            add_defines(sim)
+            build_lib_common()
+        end
     end
-
-    build_common_info()
-
-
--- 
--- Build target for VCS
--- 
-target(lib_name.."_vcs")
-    add_defines("VCS")
-
-    if is_mode("debug") then
-        add_defines("DEBUG")
-        set_symbols("debug")
-        set_optimize("none")
-        -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
-        -- add_ldflags("-fsanitize=address")
-    else
-        add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
-    end
-
-    build_common_info()
-
--- 
--- Build target for wave_vpi
--- 
-target(lib_name.."_wave_vpi")
-
-    add_defines("WAVE_VPI")
-
-    if is_mode("debug") then
-        add_defines("DEBUG")
-        set_symbols("debug")
-        set_optimize("none")
-        -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
-        -- add_ldflags("-fsanitize=address")
-    else
-        add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
-    end
-
-    build_common_info()
+end
 
 local function wave_vpi_main_common()
     set_kind("binary")
-    set_languages("c99", "c++20")
-    -- set_toolset("cxx", "clang++-18")
-    -- set_toolset("ld", "clang++-18")
-    set_targetdir(build_dir .. "/bin")
-    set_objectdir(build_dir .. "/obj")
+    build_common()
+
     add_deps(lib_name .. "_wave_vpi")
 
     add_shflags(
@@ -233,37 +199,11 @@ target("wave_vpi_main_fsdb")
 -- Build target for Iverilog
 -- 
 if iverilog_home ~= nil then
-    target(lib_name .. "_iverilog")
-        add_defines("IVERILOG")
-
-        if is_mode("debug") then
-            add_defines("DEBUG")
-            set_symbols("debug")
-            set_optimize("none")
-            -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
-            -- add_ldflags("-fsanitize=address")
-        else
-            -- Notice: can only use -O0 in iverilog otherwise there will be a segmentation fault!
-            add_cxflags("-O0 -funroll-loops -march=native -fomit-frame-pointer")
-        end
-
-        build_common_info()
-
     target("iverilog_vpi_module")
         add_defines("IVERILOG")
         set_filename(lib_name .. ".vpi")
-        
-        if is_mode("debug") then
-            add_defines("DEBUG")
-            set_symbols("debug")
-            set_optimize("none")
-            -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
-            -- add_ldflags("-fsanitize=address")
-        else
-            add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
-        end
 
-        build_common_info()
+        build_lib_common()
 
         add_links("vpi", "veriuser")
         add_linkdirs(iverilog_home .. "/lib")
@@ -280,9 +220,8 @@ if iverilog_home ~= nil then
 
     target("vvp_wrapper")
         set_kind("binary")
-        set_languages("c99", "c++20")
-        set_targetdir(build_dir .. "/bin")
-        set_objectdir(build_dir .. "/obj")
+        build_common()
+        
         add_deps(lib_name .. "_iverilog")
 
         add_files(
@@ -328,11 +267,7 @@ end
 
 target("testbench_gen")
     set_kind("binary")
-
-    set_languages("c++20")
-
-    set_plat("linux")
-    set_arch("x86_64")
+    build_common()
     
     add_files(
         src_dir .. "/testbench_gen/*.cpp",
@@ -362,11 +297,7 @@ target("testbench_gen")
 
 target("dpi_exporter")
     set_kind("binary")
-
-    set_languages("c++20")
-
-    set_plat("linux")
-    set_arch("x86_64")
+    build_common()
 
     if is_mode("debug") then
         -- add_defines("DEBUG")
@@ -455,7 +386,7 @@ target("reinstall_luajit")
 
         os.cd(luajit_pro_dir)
         -- execute("git reset --hard origin/master")
-        execute("git pull origin master")
+        -- execute("git pull origin master")
         execute("bash init.sh")
         os.trycp(luajit_dir .. "/bin/luajit", luajit_dir .. "/bin/lua")
 
