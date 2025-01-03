@@ -16,6 +16,8 @@ local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
 local math_floor = math.floor
+local string_rep = string.rep
+local setmetatable = setmetatable
 local to_hex_str = utils.to_hex_str
 
 local BitVec = class()
@@ -49,30 +51,102 @@ function BitVec:_init(data, bit_width)
     local typ = type(data)
     local auto_bit_width
 
+    self.__type = "BitVec"
+
     if typ == "table" then
-        self.u32_vec = data
         auto_bit_width = #data * 32
+        if bit_width then
+            local data_len = #data
+            local beat_size = math_floor(math_floor(bit_width + 31) / 32)
+            self.u32_vec = table_new(beat_size, 0)
+
+            for i = 1, data_len do
+                self.u32_vec[i] = data[i]
+            end
+
+            for i = data_len + 1, beat_size do
+                self.u32_vec[i] = 0
+            end
+
+            if data_len > beat_size then
+                assert(false, "Input u32_vec length: " .. data_len .. " must not exceed " .. beat_size)
+            end
+
+            self.bit_width = bit_width
+        else
+            self.u32_vec = data
+            self.bit_width = auto_bit_width
+        end
     elseif typ == "cdata" then
         if ffi.istype("uint64_t", data) then
             assert(false, "Unsupported type: cdata(uint64_t)")
         end
-        
-        self.u32_vec = data
-        auto_bit_width = data[0] * 32
+
+        local data_len = tonumber(data[0])
+        auto_bit_width = data_len * 32
+
+        if bit_width then
+            local beat_size = math_floor(math_floor(bit_width + 31) / 32)
+            self.u32_vec = table_new(beat_size, 0)
+
+            for i = 1, data_len do
+                self.u32_vec[i] = data[i]
+            end
+
+            for i = data_len + 1, beat_size do
+                self.u32_vec[i] = 0
+            end
+
+            if data_len > beat_size then
+                assert(false, "Input u32_vec length: " .. data_len .. " must not exceed " .. beat_size)
+            end
+
+            self.bit_width = bit_width
+        else
+            self.u32_vec = table_new(tonumber(data[0]), 0)
+            for i  = 1, data_len do
+                self.u32_vec[i] = data[i]
+            end
+            self.bit_width = auto_bit_width
+        end
+    elseif typ == "number" then
+        auto_bit_width = 32
+        if bit_width then
+            local beat_size = math_floor(math_floor(bit_width + 31) / 32)
+            
+            self.u32_vec = table_new(beat_size, 0)
+            self.u32_vec[1] = data
+            for i = 2, beat_size do
+                self.u32_vec[i] = 0
+            end
+
+            self.bit_width = bit_width
+        else
+            self.u32_vec = {data}
+            self.bit_width = auto_bit_width
+        end
     elseif typ == "string" then
-        self.u32_vec = hex_str_to_u32_vec(data)
         auto_bit_width = #data * 4
+        if bit_width then
+            local hex_str = data
+            local hex_str_len = math_floor(math_floor(bit_width + 3) / 4)
+
+            if #hex_str > hex_str_len then
+                assert(false, "Input hex_str length: " .. #hex_str .. " must not exceed " .. hex_str_len)
+            end
+
+            if hex_str_len > #hex_str then
+                hex_str = string_rep("0", hex_str_len - #hex_str) .. hex_str
+            end
+
+            self.u32_vec = hex_str_to_u32_vec(hex_str)
+            self.bit_width = bit_width
+        else
+            self.u32_vec = hex_str_to_u32_vec(data)
+            self.bit_width = auto_bit_width
+        end
     else
         assert(false, "Unsupported type: " .. typ)
-    end
-
-    if bit_width then
-        if bit_width > auto_bit_width then
-            assert(false, "Bit width must not exceed " .. auto_bit_width .. " bits")
-        end
-        self.bit_width = bit_width
-    else
-        self.bit_width = auto_bit_width
     end
 end
 
@@ -90,7 +164,7 @@ function BitVec:get_bitfield(s, e)
     local mask = 0ULL
 
     for i = start_beat_id, end_beat_id do
-        local u32 = u32_vec[i] or 0ULL
+        local u32 = u32_vec[i] or 0
 
         if i == start_beat_id then
             if start_beat_id == end_beat_id then
@@ -167,7 +241,7 @@ function BitVec:set_bitfield(s, e, v)
     local masked_v = 0ULL
 
     for i = start_beat_id, end_beat_id do
-        local u32 = u32_vec[i] or 0ULL
+        local u32 = u32_vec[i] or 0
 
         if i == start_beat_id then
             if start_beat_id == end_beat_id then
@@ -191,7 +265,7 @@ function BitVec:set_bitfield(s, e, v)
             u32 = bit_bor(bit_band(u32, 0ULL), masked_v)
         end
 
-        u32_vec[i] = u32
+        u32_vec[i] = tonumber(u32)
     end
 end
 
@@ -235,7 +309,144 @@ function BitVec:dump(reverse)
 end
 
 function BitVec:__tostring()
-    return self:dump_str()
+    local result = ""
+    for i = 1, #self.u32_vec do
+        result = bit_tohex(self.u32_vec[i]) .. result
+    end
+    return result
+end
+
+function BitVec:__concat(other)
+    assert(false, "TODO:")
+end
+
+function BitVec:__eq(other)
+    local self_len = #self.u32_vec
+    local other_len = #other.u32_vec
+    local result = true
+
+    if self_len == other_len then
+        for i = 1, self_len do
+            if self.u32_vec[i] ~= other.u32_vec[i] then
+                result = false
+                break
+            end
+        end
+    elseif self_len > other_len then
+        for i = 1, other_len do
+            if self.u32_vec[i] ~= other.u32_vec[i] then
+                result = false
+                break
+            end
+        end
+        for i = other_len + 1, self_len do
+            if self.u32_vec[i] ~= 0 then
+                result = false
+                break
+            end
+        end
+    elseif self_len < other_len then
+        for i = 1, self_len do
+            if self.u32_vec[i] ~= other.u32_vec[i] then
+                result = false
+                break
+            end
+        end
+        for i = self_len + 1, other_len do
+            if other.u32_vec[i] ~= 0 then
+                result = false
+                break
+            end
+        end
+    end
+
+    return result
+end
+
+function BitVec:__len()
+    return self.bit_width
+end
+
+local subbitvec_shared_mt = {
+    __newindex = function (t, k, v)
+        local typ = type(v)
+        if k == "value" then
+            if typ == "number" then
+                t:set(v)
+            elseif typ == "cdata" then
+                if not ffi.istype("uint64_t", v) then
+                    assert(false, "Unsupported type: " .. typ)
+                end
+                t:set(v)
+            elseif typ == "string" then
+                t:set_hex_str(v)
+            end
+        else
+            assert(false, "Unknown key: " .. k)
+        end
+    end,
+
+    __tostring = function (t)
+        return t:dump_str()
+    end,
+
+    __eq = function (t, other)
+        return t:dump_str() == other:dump_str()
+    end,
+
+    __len = function (t)
+        return t._e - t._s + 1
+    end,
+
+    -- TODO: concat
+}
+
+function BitVec:__call(s, e)
+    if not self._call_cache then
+        self._call_cache = {}
+    end
+
+    local key = s .. "_" .. e
+    if not self._call_cache[key] then
+        self._call_cache[key] = setmetatable({
+            __type = "SubBitVec",
+            _s = s,
+            _e = e,
+
+            set = function (t, v)
+                self:set_bitfield(t._s, t._e, v)
+            end,
+
+            set_hex_str = function (t, hex_str)
+                self:set_bitfield_hex_str(t._s, t._e, hex_str)
+            end,
+
+            set_vec = function (t, u32_vec)
+                self:set_bitfield_vec(t._s, t._e, u32_vec)
+            end,
+
+            get = function (t)
+                return self:get_bitfield(t._s, t._e)
+            end,
+
+            get_hex_str = function (t)
+                return self:get_bitfield_hex_str(t._s, t._e)
+            end,
+
+            get_vec = function (t)
+                return self:get_bitfield_vec(t._s, t._e)
+            end,
+            
+            dump_str = function (t)
+                return self:get_bitfield_hex_str(t._s, t._e)
+            end,
+
+            dump = function (t)
+                print(self:dump_str())
+            end
+        }, subbitvec_shared_mt)
+    end
+    return self._call_cache[key]
 end
 
 return BitVec

@@ -12,6 +12,7 @@ describe("BitVec test", function ()
         local tests = {
             -- 0 ~ 31
             {data = {0xFFFFFFFF}, s = 0, e = 31, expected = 0xFFFFFFFF},
+            {data = 0xFFFFFFFF, s = 0, e = 31, expected = 0xFFFFFFFF},
     
             -- 0 ~ 31, 32 ~ 63
             {data = {0xFFFFFFFF, 0x00000000}, s = 0, e = 31, expected = 0xFFFFFFFF},
@@ -49,6 +50,8 @@ describe("BitVec test", function ()
         local tests = {
             -- 0 ~ 31
             {data = {0x00000000}, s = 0, e = 15, value = 0x1234, expected = {0x1234}},
+            {data = {0x00000000}, s = 0, e = 15, value = 0xFFFF, expected = {0xFFFF}},
+            {data = 0, s = 0, e = 15, value = 0xFFFF, expected = {0xFFFF}},
             {data = {0x00000000}, s = 0, e = 31, value = 0xFFFFFFFF, expected = {0xFFFFFFFF}},
             {data = {0xFFFFFFFF}, s = 0, e = 31, value = 0x00000000, expected = {0x00000000}},
     
@@ -98,7 +101,7 @@ describe("BitVec test", function ()
         local bitvec = BitVec({0x12345678, 0x9ABCDEF0}, 56)
         expect.equal(bitvec.bit_width, 56)
 
-        expect.fail(function () local a = BitVec({0x12345678}, 64) end, "Bit width must not exceed")
+        expect.fail(function () local a = BitVec({0x12345678, 0x123, 0x446}, 64) end, "must not exceed")
     end)
 
     it("should work properly for dump()", function ()
@@ -253,15 +256,114 @@ describe("BitVec test", function ()
         assert(bitvec.u32_vec[2] == 0x12345678)
         assert(bitvec.u32_vec[1] == 0xaabbccdd)
 
+        local bitvec = BitVec("2345678aabbccdd", 64)
+        assert(bitvec.bit_width == 64)
+        assert(bitvec.u32_vec[2] == 0x02345678)
+        assert(bitvec.u32_vec[1] == 0xaabbccdd)
+
         local bitvec_1 = BitVec({0x123, 0x456, 0x789})
         local bitvec_2 = BitVec("000007890000045600000123")
         expect.equal(bitvec_1:dump_str(), bitvec_2:dump_str())
         expect.equal(bitvec_1:dump_str(false), bitvec_2:dump_str(false))
+
+        for _, bitvec in ipairs({BitVec("", 64), BitVec({}, 64)}) do
+            bitvec(0, 7):set(0x23)
+            assert(bitvec.bit_width == 64)
+            expect.equal(tonumber(bitvec(0, 7):get()), 0x23)
+        end
+    end)
+
+    it("should work properly for creating BitVec using number", function ()
+        local bitvec = BitVec(0)
+        expect.equal(#bitvec, 32)
+        expect.equal(#(bitvec.u32_vec), 1)
+        expect.equal(tostring(bitvec), "00000000")
+
+        local bitvec = BitVec(0x12345678, 128)
+        expect.equal(#bitvec, 128)
+        expect.equal(#(bitvec.u32_vec), 4)
+        expect.equal(tostring(bitvec), "00000000000000000000000012345678")
     end)
 
     it("should work properly for __tostring", function ()
         local bitvec = BitVec("a")
         expect.equal(tostring(bitvec), "0000000a")
         expect.equal(bitvec:dump_str(), "0000000a")
+
+        local bitvec = BitVec({0x123, 0x456})
+        expect.equal(bitvec:dump_str(), "00000456 00000123")
+        expect.equal(tostring(bitvec), "0000045600000123")
+    end)
+
+    it("should work properly for __call", function ()
+        local bitvec = BitVec({0x123, 0x456})
+
+        bitvec(0, 15):set(0xFF)
+        expect.equal(bitvec:dump_str(), "00000456 000000ff")
+        expect.equal(tostring(bitvec), "00000456000000ff")
+
+        bitvec(16, 31):set(0xFF)
+        expect.equal(bitvec:dump_str(), "00000456 00ff00ff")
+        expect.equal(tostring(bitvec), "0000045600ff00ff")
+
+        local tmp = bitvec(32, 47)
+        tmp:set(0xFF)
+        expect.equal(bitvec:dump_str(), "000000ff 00ff00ff")
+        expect.equal(tostring(bitvec), "000000ff00ff00ff")
+
+        tmp.value = 0x123
+        expect.equal(tostring(tmp), "00000123")
+        expect.equal(tostring(bitvec), "0000012300ff00ff")
+        
+        tmp.value  = "1123"
+        expect.equal(tostring(tmp), "00001123")
+        expect.equal(tostring(bitvec), "0000112300ff00ff")
+
+        expect.equal(#tmp, (47 - 32) + 1)
+    end)
+
+    it("should work properly for __eq", function ()
+        local bitvec = BitVec({0x123, 0x456})
+        local bitvec2 = BitVec({0x123, 0x456})
+        assert(bitvec == bitvec2)
+
+        local bitvec = BitVec({0x123, 0x456})
+        local bitvec2 = BitVec({0x1213, 0x456})
+        assert(bitvec ~= bitvec2)
+
+        local bitvec = BitVec({0x123, 0x456, 0x01})
+        local bitvec2 = BitVec({0x123, 0x456})
+        assert(bitvec ~= bitvec2)
+
+        local bitvec = BitVec({0x123, 0x456, 0x00})
+        local bitvec2 = BitVec({0x123, 0x456})
+        assert(bitvec == bitvec2)
+
+        local bitvec = BitVec({0x123, 0x456})
+        local bitvec2 = BitVec({0x123, 0x456, 0x00})
+        assert(bitvec == bitvec2)
+
+        local bitvec = BitVec({0x123, 0x456})
+        local bitvec2 = BitVec({0x123, 0x456, 0x01})
+        assert(bitvec ~= bitvec2)
+
+        local bitvec = BitVec({0x00, 0x00})
+        local tmp = bitvec(12, 18)
+        local tmp2 = bitvec(34, 38)
+        tmp.value = 0x01
+        tmp2.value = 0x02
+        assert(tmp ~= tmp2)
+        
+        tmp.value = 0x05
+        tmp2.value = "5"
+        assert(tmp == tmp2)
+    end)
+
+    it("should work properly for __len", function ()
+        local bitvec = BitVec({0x123, 0x456}, 63)
+        expect.equal(#bitvec, 63)
+
+        local bitvec = BitVec({0x123, 0x456, 0x789})
+        expect.equal(#bitvec, 96)
     end)
 end)
