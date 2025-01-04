@@ -700,6 +700,20 @@ TO_LUA void c_set_value_str(long long handle, const char *str) {
     LEAVE_VPI_REGION();
 }
 
+TO_LUA void c_set_value_hex_str(long long handle, const char *str) {
+    ENTER_VPI_REGION();
+
+    vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
+
+    s_vpi_value value_s;
+    value_s.format = vpiHexStrVal;
+    value_s.value.str = (char *)str;
+
+    _vpi_put_value(actual_handle, &value_s, nullptr, vpiNoDelay);
+    
+    LEAVE_VPI_REGION();
+}
+
 TO_LUA void c_set_value_str_by_name(const char *path, const char *str) {
     ENTER_VPI_REGION();
 

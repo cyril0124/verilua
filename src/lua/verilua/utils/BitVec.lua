@@ -148,6 +148,19 @@ function BitVec:_init(data, bit_width)
     else
         assert(false, "Unsupported type: " .. typ)
     end
+
+    self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
+    if self.beat_size == 1 then
+        self._update_u32_vec = function (t, data)
+            t.u32_vec[1] = data
+        end
+    elseif self.beat_size > 1 then
+        self._update_u32_vec = function (t, data)
+            for i = 1, t.beat_size do
+                t.u32_vec[i] = data[i]
+            end
+        end
+    end
 end
 
 function BitVec:get_bitfield(s, e)
@@ -298,6 +311,21 @@ function BitVec:set_bitfield_vec(s, e, u32_vec)
             self:set_bitfield(ss, e, masked_v)
         end
     end
+end
+
+function BitVec:_set_bitfield(s, e, v)
+    self:set_bitfield(s, e, v)
+    return self
+end
+
+function BitVec:_set_bitfield_hex_str(s, e, hex_str)
+    self:set_bitfield_hex_str(s, e, hex_str)
+    return self
+end
+
+function BitVec:_set_bitfield_vec(s, e, u32_vec)
+    self:set_bitfield_vec(s, e, u32_vec)
+    return self
 end
 
 function BitVec:dump_str(reverse)

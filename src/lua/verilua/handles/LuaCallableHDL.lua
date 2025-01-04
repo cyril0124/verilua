@@ -1,6 +1,7 @@
 local ffi = require "ffi"
 local math = require "math"
 local debug = require "debug"
+local BitVec = require "BitVec"
 local utils = require "LuaUtils"
 local class = require "pl.class"
 local texpect = require "TypeExpect"
@@ -57,6 +58,7 @@ ffi.cdef[[
   void c_set_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
 
   void c_set_value_str(long long handle, const char *str);
+  void c_set_value_hex_str(long long handle, const char *str);
   const char *c_get_value_str(long long handle, int format);
 ]]
 
@@ -91,6 +93,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.is_array = true
         self.array_size = tonumber(C.c_get_signal_width(self.hdl))
         self.array_hdls = table_new(self.array_size, 0)
+        self.array_bitvecs = table_new(self.array_size, 0)
         for i = 1, self.array_size do
             self.array_hdls[i] = C.c_handle_by_index(self.fullpath, self.hdl, i - 1)
         end
@@ -124,11 +127,29 @@ function CallableHDL:_init(fullpath, name, hdl)
                 return C.c_get_value(this.hdl)
             end
 
+            self.get_bitvec = function (this)
+                if this.bitvec then
+                    this.bitvec:_update_u32_vec(C.c_get_value(this.hdl))
+                    return this.bitvec
+                else
+                    this.bitvec = BitVec(C.c_get_value(this.hdl), this.width)
+                    return this.bitvec
+                end
+            end
+
             self.set = function (this, value)
                 C.c_set_value(this.hdl, value)
             end
 
             self.set_unsafe = self.set
+
+            self.set_bitfield = function (this, s, e, v)
+                C.c_set_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
+            end
+
+            self.set_bitfield_hex_str = function (this, s, e, hex_str)
+                C.c_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+            end
         elseif self.beat_num == 2 then
             self.get = function (this, force_multi_beat)
                 if force_multi_beat then
@@ -136,6 +157,18 @@ function CallableHDL:_init(fullpath, name, hdl)
                     return this.c_results
                 else
                     return C.c_get_value64(this.hdl)
+                end
+            end
+
+            self.get_bitvec = function (this)
+                C.c_get_value_multi(this.hdl, this.c_results, this.beat_num)
+
+                if this.bitvec then
+                    this.bitvec:_update_u32_vec(this.c_results)
+                    return this.bitvec
+                else
+                    this.bitvec = BitVec(this.c_results, this.width)
+                    return this.bitvec
                 end
             end
 
@@ -168,12 +201,34 @@ function CallableHDL:_init(fullpath, name, hdl)
                     C.c_set_value_multi_beat_2(this.hdl, value[1], value[2]);
                 end
             end
+
+            self.set_bitfield = function (this, s, e, v)
+                local bv = this:get_bitvec():_set_bitfield(s, e, v)
+                C.c_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+            end
+
+            self.set_bitfield_hex_str = function (this, s, e, hex_str)
+                local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
+                C.c_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+            end
         else -- self.beat_num >= 3
             assert(self.beat_num > 2)
 
             self.get = function (this)
                 C.c_get_value_multi(this.hdl, this.c_results, this.beat_num)
                 return this.c_results
+            end
+
+            self.get_bitvec = function (this)
+                C.c_get_value_multi(this.hdl, this.c_results, this.beat_num)
+
+                if this.bitvec then
+                    this.bitvec:_update_u32_vec(this.c_results)
+                    return this.bitvec
+                else
+                    this.bitvec = BitVec(this.c_results, this.width)
+                    return this.bitvec
+                end
             end
 
             self.set = function (this, value, force_single_beat)
@@ -241,6 +296,16 @@ function CallableHDL:_init(fullpath, name, hdl)
                     end
                 end
             end
+
+            self.set_bitfield = function (this, s, e, v)
+                local bv = this:get_bitvec():_set_bitfield(s, e, v)
+                this:set_unsafe(bv.u32_vec)
+            end
+
+            self.set_bitfield_hex_str = function (this, s, e, hex_str)
+                local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
+                this:set_unsafe(bv.u32_vec)
+            end
         end
 
         -- 
@@ -253,9 +318,17 @@ function CallableHDL:_init(fullpath, name, hdl)
             return ffi_string(C.c_get_value_str(this.hdl, fmt))
         end
 
+        self.get_hex_str = function (this)
+            return ffi_string(C.c_get_value_str(this.hdl, HexStr))
+        end
+
         self.set_str = function (this, str)
             C.c_set_value_str(this.hdl, str)
-        end 
+        end
+
+        self.set_hex_str = function (this, str)
+            C.c_set_value_hex_str(this.hdl, str)
+        end
 
         self.get_index = function (this, index, force_multi_beat)
             assert(false, f("[%s] Normal handle does not support <CallableHDL>:get_index()", this.fullpath))
@@ -304,6 +377,27 @@ function CallableHDL:_init(fullpath, name, hdl)
                     ret[index + 1] = this.get_index(this, index, force_multi_beat)
                 end
                 return ret
+            end
+            
+            self.get_index_bitvec = function (this, index)
+                local chosen_hdl = this.array_hdls[index + 1]
+                if this.array_bitvecs[index + 1] then
+                    this.array_bitvecs[index + 1]:_update_u32_vec(C.c_get_value(chosen_hdl))
+                    return this.array_bitvecs[index + 1]
+                else
+                    this.array_bitvecs[index + 1] = BitVec(C.c_get_value(chosen_hdl), this.width)
+                    return this.array_bitvecs[index + 1]
+                end
+            end
+
+            self.set_index_bitfield = function (this, index, s, e, v)
+                local chosen_hdl = this.array_hdls[index + 1]
+                C.c_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
+            end
+
+            self.set_index_bitfield_hex_str = function (this, index, s, e, hex_str)
+                local chosen_hdl = this.array_hdls[index + 1]
+                C.c_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
             end
         elseif self.beat_num == 2 then
             self.get_index = function (this, index, force_multi_beat)
@@ -369,6 +463,31 @@ function CallableHDL:_init(fullpath, name, hdl)
                 end
                 return ret
             end
+
+            self.get_index_bitvec = function (this, index)
+                local chosen_hdl = this.array_hdls[index + 1]
+                C.c_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+
+                if this.array_bitvecs[index + 1] then
+                    this.array_bitvecs[index + 1]:_update_u32_vec(this.c_results)
+                    return this.array_bitvecs[index + 1]
+                else
+                    this.array_bitvecs[index + 1] = BitVec(this.c_results, this.width)
+                    return this.array_bitvecs[index + 1]
+                end
+            end
+
+            self.set_index_bitfield = function (this, index, s, e, v)
+                local chosen_hdl = this.array_hdls[index + 1]
+                local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
+                C.c_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
+            end
+
+            self.set_index_bitfield_hex_str = function (this, index, s, e, hex_str)
+                local chosen_hdl = this.array_hdls[index + 1]
+                local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
+                C.c_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
+            end
         else -- self.beat_num >= 3
             assert(self.beat_num > 2)
 
@@ -376,6 +495,19 @@ function CallableHDL:_init(fullpath, name, hdl)
                 local chosen_hdl = this.array_hdls[index + 1]
                 C.c_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
                 return this.c_results
+            end
+
+            self.get_index_bitvec = function (this, index)
+                local chosen_hdl = this.array_hdls[index + 1]
+                C.c_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+
+                if this.array_bitvecs[index + 1] then
+                    this.array_bitvecs[index + 1]:_update_u32_vec(this.c_results)
+                    return this.array_bitvecs[index + 1]
+                else
+                    this.array_bitvecs[index + 1] = BitVec(this.c_results, this.width)
+                    return this.array_bitvecs[index + 1]
+                end
             end
 
             self.set_index = function(this, index, value, force_single_beat)
@@ -461,6 +593,16 @@ function CallableHDL:_init(fullpath, name, hdl)
                 end
                 return ret
             end
+
+            self.set_index_bitfield = function (this, index, s, e, v)
+                local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
+                this:set_index_unsafe(index, bv.u32_vec)
+            end
+
+            self.set_index_bitfield_hex_str = function (this, index, s, e, hex_str)
+                local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
+                this:set_index_unsafe(index, bv.u32_vec)
+            end
         end
 
         self.get_index_str = function (this, index, fmt)
@@ -468,13 +610,27 @@ function CallableHDL:_init(fullpath, name, hdl)
             return ffi_string(C.c_get_value_str(chosen_hdl, fmt))
         end
 
+        self.get_index_hex_str = function (this, index)
+            local chosen_hdl = this.array_hdls[index + 1]
+            return ffi_string(C.c_get_value_str(chosen_hdl, HexStr))
+        end
+
         self.set_index_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
             C.c_set_value_str(chosen_hdl, str)
         end
 
+        self.set_index_hex_str = function (this, index, str)
+            local chosen_hdl = this.array_hdls[index + 1]
+            C.c_set_value_hex_str(chosen_hdl, str)
+        end
+
         self.get = function(this)
             assert(false, f("[%s] Array handle does not support <CallableHDL>:get(force_multi_beat), instead using <CallableHDL>:get_index(index, force_multi_beat)", this.fullpath))
+        end
+
+        self.get_bitvec = function(this)
+            assert(false, f("[%s] Array handle does not support <CallableHDL>:get_bitvec(), instead using <CallableHDL>:get_index_bitvec(index)", this.fullpath))
         end
 
         self.set = function (this, value, force_single_beat)
@@ -489,8 +645,24 @@ function CallableHDL:_init(fullpath, name, hdl)
             assert(false, f("[%s] Array handle does not support <CallableHDL>:get_str(fmt), instead using <CallableHDL>:get_index_str(index, fmt)", this.fullpath))
         end
 
+        self.get_hex_str = function (this)
+            assert(false, f("[%s] Array handle does not support <CallableHDL>:get_hex_str(), instead using <CallableHDL>:get_index_hex_str(index, fmt)", this.fullpath))
+        end
+
         self.set_str = function (this, str)
             assert(false, f("[%s] Array handle does not support <CallableHDL>:set_str(str), instead using <CallableHDL>:set_index_str(index, str)", this.fullpath))
+        end
+
+        self.set_bitfield = function (this, s, e, v)
+            assert(false, f("[%s] Array handle does not support <CallableHDL>:set_bitfield(s, e, v), instead using <CallableHDL>:set_index_bitfield(index, s, e, v)", this.fullpath))
+        end
+
+        self.set_bitfield_hex_str = function (this, s, e, hex_str)
+            assert(false, f("[%s] Array handle does not support <CallableHDL>:set_bitfield_hex_str(s, e, hex_str), instead using <CallableHDL>:set_index_bitfield_hex_str(index, hex_str)", this.fullpath))
+        end
+
+        self.set_hex_str = function (this, str)
+            assert(false, f("[%s] Array handle does not support <CallableHDL>:set_hex_str(str), instead using <CallableHDL>:set_index_hex_str(index, str)", this.fullpath))
         end
     end
 
