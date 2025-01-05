@@ -389,7 +389,7 @@ rule("verilua")
                         raise("<%s.sv> is already exist! %s", tb_top, path.absolute(sourcefile))
                     end
                     table.insert(vfiles, sourcefile)
-                    file_str = file_str .. "-f " .. path.absolute(sourcefile) .. " "
+                    file_str = file_str .. " " .. path.absolute(sourcefile)
                 end
             end
 
@@ -426,14 +426,14 @@ rule("verilua")
                 for _, file in ipairs(vfiles) do
                     -- If any of the vfiles are changed, we should re-generate the testbench
                     if os.isfile(file) and os.mtime(file) > os.mtime(target:targetfile()) then
-                        cprint("tb_gen_cmd: ${dim}%s${reset}", gen_cmd)
+                        cprint("testbench_gen cmd: ${dim}%s${reset}", gen_cmd)
                         os.exec(gen_cmd)
                         is_generated = true
                         break
                     end
                 end
                 if not os.isfile(build_dir .. "/" .. tb_top ..".sv") and not is_generated then
-                    cprint("tb_gen_cmd: ${dim}%s${reset}", gen_cmd)
+                    cprint("testbench_gen cmd: ${dim}%s${reset}", gen_cmd)
                     os.exec(gen_cmd)
                     is_generated = true
                 end

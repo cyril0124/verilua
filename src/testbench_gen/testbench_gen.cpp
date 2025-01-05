@@ -1,5 +1,4 @@
 #include "SlangCommon.h"
-#include "argparse/argparse.hpp"
 #include "fmt/base.h"
 #include "fmt/color.h"
 #include "inja/inja.hpp"
@@ -10,11 +9,14 @@
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/driver/Driver.h"
 #include "slang/parsing/TokenKind.h"
 #include "slang/syntax/AllSyntax.h"
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -132,138 +134,96 @@ std::vector<std::string> parseFileList(const std::string &filePath) {
 }
 
 int main(int argc, const char *argv[]) {
-    argparse::ArgumentParser program("testbench_gen", "1.0");
-    program.add_argument("-f", "--file").help("file/filelist to parse").required().append().action([](const std::string &value) { return value; });
-    program.add_argument("-t", "--top").help("top module name").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-p", "--period").help("clock period").default_value(5).action([](const std::string &value) { return std::stoi(value); });
-    program.add_argument("--tbtop").help("testbench top module name").default_value("tb_top").action([](const std::string &value) { return value; });
-    program.add_argument("--dut-name").help("testbench dut inst name").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-v", "--verbose").help("verbose output").implicit_value(true).default_value(false);
-    program.add_argument("-od", "--out-dir").help("output directory").default_value(".").action([](const std::string &value) { return value; });
-    program.add_argument("-ne", "--ignore-error").help("ignore the slang compilation error").implicit_value(true).default_value(false);
-    program.add_argument("-cs", "--clock-signal").help("clock signal name").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-rs", "--reset-signal").help("reset signal name").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-cc", "--custom-code").help("input custom code <file>, will be inserted in the bottom of the testbench module").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-ccs", "--custom-code-str").help("input custom code <string>, will be inserted in the bottom of the testbench module").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-cco", "--custom-code-outer").help("input custom code <file>, will be inserted in outer of the testbench module").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-ccso", "--custom-code-str-outer").help("input custom code <string>, will be inserted in outer of the testbench module").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-ck", "--check-output").help("check generated testbench files").implicit_value(true).default_value(false);
-    // TODO: remove these options
-    program.add_argument("-ds", "--dsignals").help("signal patterns (a pattern file) indicated which signal should be ignore while generate port interface functions").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-nd", "--nodpi").help("disable DPI functions").implicit_value(true).default_value(false);
+    OS::setupConsole();
+    slang::driver::Driver driver;
 
-    try {
-        program.parse_args(argc, argv);
-    } catch (const std::runtime_error &err) {
-        ASSERT(false, err.what());
+    std::optional<std::string> _tbtopName;
+    std::optional<std::string> _dutName;
+    std::optional<std::string> _outdir;
+    std::optional<std::string> _clockSignalName;
+    std::optional<std::string> _resetSignalName;
+    std::optional<std::string> _customCodeFile;
+    std::optional<std::string> _customCodeStr;
+    std::optional<std::string> _customCodeOuterFile;
+    std::optional<std::string> _customCodeStrOuter;
+    std::optional<int> _period;
+    std::optional<bool> _verbose;
+    std::optional<bool> _checkOutput;
+    std::optional<bool> _nodpi;
+
+    driver.cmdLine.add("--tbtop", _tbtopName, "testbench top module name", "<top module name>");
+    driver.cmdLine.add("--dut-name", _dutName, "testbench dut inst name", "<dut instance name>");
+    driver.cmdLine.add("--od,--out-dir", _outdir, "output directory", "<directory>");
+    driver.cmdLine.add("--cs,--clock-signal", _clockSignalName, "clock signal name", "<signal name>");
+    driver.cmdLine.add("--rs,--reset-signal", _resetSignalName, "reset signal name", "<signal name>");
+    driver.cmdLine.add("--cc,--custom-code", _customCodeFile, "input custom code <file>, will be inserted in the bottom of the testbench module", "<file>");
+    driver.cmdLine.add("--ccs,--custom-code-str", _customCodeStr, "input custom code <string>, will be inserted in the bottom of the testbench module", "<string>");
+    driver.cmdLine.add("--cco,--custom-code-outer", _customCodeOuterFile, "input custom code <file>, will be inserted in the top of the testbench module", "<file>");
+    driver.cmdLine.add("--ccso,--custom-code-str-outer", _customCodeStrOuter, "input custom code <string>, will be inserted in the top of the testbench module", "<string>");
+    driver.cmdLine.add("-p,--period", _period, "clock period", "<period value>");
+    driver.cmdLine.add("--vb,--verbose", _verbose, "verbose output");
+    driver.cmdLine.add("--co,--check-output", _checkOutput, "check output");
+
+    // TODO: remove this
+    driver.cmdLine.add("--nd,--nodpi", _nodpi, "disable dpi generation");
+
+    std::optional<bool> showHelp;
+    driver.cmdLine.add("-h,--help", showHelp, "Display available options");
+
+    driver.addStandardArgs();
+    ASSERT(driver.parseCommandLine(argc, argv));
+
+    if (showHelp) {
+        std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("Testbench generator for verilua").c_str());
+        return 0;
     }
 
-    std::string topName             = program.get<std::string>("--top");
-    std::string tbtopName           = program.get<std::string>("--tbtop");
-    std::string dutName             = program.get<std::string>("--dut-name");
-    std::string outdir              = program.get<std::string>("--out-dir");
-    std::string disableSignalFile   = program.get<std::string>("--dsignals");
-    std::string clockSignalName     = program.get<std::string>("--clock-signal");
-    std::string resetSignalName     = program.get<std::string>("--reset-signal");
-    std::string customCodeFile      = program.get<std::string>("--custom-code");
-    std::string customCodeStr       = program.get<std::string>("--custom-code-str");
-    std::string customCodeOuterFile = program.get<std::string>("--custom-code-outer");
-    std::string customCodeStrOuter  = program.get<std::string>("--custom-code-str-outer");
-    int period                      = program.get<int>("--period");
-    bool verbose                    = program.get<bool>("--verbose");
-    bool ignoreError                = program.get<bool>("--ignore-error");
-    bool checkOutput                = program.get<bool>("--check-output");
-
-    std::vector<std::string> _files = program.get<std::vector<std::string>>("--file");
-    std::vector<std::string> files;
-    for (const auto &file : _files) {
-        if (file.ends_with(".f")) {
-            // Parse filelist
-            std::vector<std::string> fileList = parseFileList(file);
-            for (const auto &listedFile : fileList) {
-                files.push_back(fs::absolute(listedFile).string());
-            }
-        } else {
-            files.push_back(fs::absolute(file).string());
-        }
-    }
-
-    for (const auto &file : files) {
-        fmt::println("[testbench_gen] get file: {}", file);
-    }
+    ASSERT(driver.processOptions());
 
     std::vector<std::string_view> filesSV;
-    filesSV.reserve(files.size());
-    for (const auto &str : files) {
-        filesSV.emplace_back(str);
+    size_t fileCount = 0;
+    for (auto buffer : driver.sourceLoader.loadSources()) {
+        fileCount++;
+
+        auto name = driver.sourceManager.getRawFileName(buffer.id);
+        if (auto idx = name.find_last_of("/\\"); idx != name.npos)
+            name = name.substr(idx + 1);
+
+        filesSV.push_back(name);
+        fmt::println("[testbench_gen] [{}] get file: {}", fileCount, name);
+        fflush(stdout);
     }
 
-    // Parse syntax tree
-    std::shared_ptr<SyntaxTree> tree;
-    auto treeOrError = SyntaxTree::fromFiles(filesSV);
-    if (treeOrError) {
-        tree = *treeOrError;
-    } else {
-        auto err = treeOrError.error();
-        fmt::println("Error: {}\ncode: {}\nmessage: {}\ncatagory: {}", err.second, err.first.value(), err.first.message(), err.first.category().name());
-        ASSERT(false);
-    }
+    ASSERT(driver.parseAllSources());
 
-    // Make sure that we have built the SyntaxTree successfully, any error will stop the program
-    auto treeDiags = tree->diagnostics();
-    if (treeDiags.empty() == false) {
-        if (slang_common::checkDiagsError(treeDiags)) {
-            auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), treeDiags);
-            fmt::println("{}", ret);
+    auto compilation = driver.createCompilation();
 
-            PANIC("Syntax error");
-        }
-    }
+    bool compileSuccess = driver.reportCompilation(*compilation, false);
+    ASSERT(compileSuccess);
 
-    // Do compilation and check any compilation error
-    Compilation compilation;
-    compilation.addSyntaxTree(tree);
+    std::string tbtopName           = _tbtopName.value_or("tb_top");
+    std::string dutName             = _dutName.value_or("");
+    std::string outdir              = _outdir.value_or(".");
+    std::string clockSignalName     = _clockSignalName.value_or("");
+    std::string resetSignalName     = _resetSignalName.value_or("");
+    std::string customCodeFile      = _customCodeFile.value_or("");
+    std::string customCodeStr       = _customCodeStr.value_or("");
+    std::string customCodeOuterFile = _customCodeOuterFile.value_or("");
+    std::string customCodeStrOuter  = _customCodeStrOuter.value_or("");
+    int period                      = _period.value_or(10);
+    bool verbose                    = _verbose.value_or(false);
+    bool checkOutput                = _checkOutput.value_or(false);
+    bool nodpi                      = _checkOutput.value_or(true);
 
-    if (!ignoreError) {
-        auto compDiags = compilation.getAllDiagnostics();
-        if (compDiags.empty() == false) {
-            if (slang_common::checkDiagsError(compDiags)) {
-                auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), compDiags);
-                fmt::println("{}", ret);
-
-                PANIC("Compilation error");
-            }
-        }
-    }
-
-    auto &rootSymbol        = compilation.getRoot();
+    std::string topName     = "";
+    auto &rootSymbol        = compilation->getRoot();
     std::string rootTopName = "";
     ASSERT(rootSymbol.topInstances.size() >= 1, "Root symbol should have at least 1 top instance");
 
     if (rootSymbol.topInstances.size() == 1) {
-        rootSymbol.topInstances[0]->getDefinition().name;
+        topName = std::string(rootSymbol.topInstances[0]->getDefinition().name);
     } else {
-        if (topName == "") {
-            for (int i = 0; i < rootSymbol.topInstances.size(); i++) {
-                auto rootTopSymbol = rootSymbol.topInstances[i];
-                fmt::println("[testbench_gen] rootTopName[{}]: {}", i, rootTopSymbol->getDefinition().name);
-            }
-            PANIC("There are too many top instances, please specify the top module name!");
-        } else {
-            bool found = false;
-            fmt::println("[testbench_gen] there are multiple top instances in your design, searching for the correct one...");
-            for (int i = 0; i < rootSymbol.topInstances.size(); i++) {
-                auto rootTopSymbol = rootSymbol.topInstances[i];
-                auto name          = rootTopSymbol->getDefinition().name;
-                fmt::println("[testbench_gen] get rootTopName[{}]: {}", i, name);
-                if (name == topName) {
-                    fmt::println("[testbench_gen] got user input topName: {}", name);
-                    ASSERT(found == false, "Multiple top modules with the same name found!");
-                    found = true;
-                }
-            }
-            ASSERT(found, "Top module name not found!", topName);
-        }
+        PANIC("TODO:");
     }
 
     if (dutName == "") {
@@ -273,7 +233,7 @@ int main(int argc, const char *argv[]) {
     fmt::println("[testbench_gen] topName: {} dutName: {}", topName, dutName);
 
     TestbenchGenParser parser(topName, verbose);
-    compilation.getRoot().visit(parser);
+    compilation->getRoot().visit(parser);
 
     bool clockSignalHasMatch = false;
     bool resetSignalHasMatch = false;
@@ -793,45 +753,20 @@ endmodule
     }
 
     if (checkOutput) {
-        fmt::println("[testbench_gen] Checking output files...");
-        std::shared_ptr<SyntaxTree> outTree;
+        fmt::println("\n[testbench_gen] Checking output files...");
+
         std::string tbtopFile  = outdir + "/" + tbtopName + ".sv";
         std::string othersFile = outdir + "/" + "others.sv";
-        filesSV.emplace_back(tbtopFile);
-        filesSV.emplace_back(othersFile);
 
-        for (auto file : filesSV) {
-            fmt::println("[testbench_gen] Checking file: {}", file);
-        }
+        driver.sourceLoader.addFiles(tbtopFile);
+        driver.sourceLoader.addFiles(othersFile);
+        driver.options.topModules.clear();
+        driver.options.topModules.push_back(tbtopName);
 
-        auto treeOrError = SyntaxTree::fromFiles(filesSV);
-        if (treeOrError) {
-            outTree = *treeOrError;
-        } else {
-            auto err = treeOrError.error();
-            fmt::println("Error: {}\ncode: {}\nmessage: {}\ncatagory: {}", err.second, err.first.value(), err.first.message(), err.first.category().name());
-            ASSERT(false);
-        }
+        ASSERT(driver.processOptions());
+        ASSERT(driver.parseAllSources());
 
-        auto treeDiags = outTree->diagnostics();
-        if (treeDiags.empty() == false) {
-            if (slang_common::checkDiagsError(treeDiags)) {
-                auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), treeDiags);
-                fmt::println("{}", ret);
-                ASSERT(false, "Syntax error");
-            }
-        }
-
-        Compilation outCompilation;
-        outCompilation.addSyntaxTree(outTree);
-
-        auto compDiags = outCompilation.getAllDiagnostics();
-        if (compDiags.empty() == false) {
-            if (slang_common::checkDiagsError(compDiags)) {
-                auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), compDiags);
-                fmt::println("{}", ret);
-                ASSERT(false, "Compilation error");
-            }
-        }
+        auto compilationForCheck = driver.createCompilation();
+        ASSERT(driver.reportCompilation(*compilationForCheck, false));
     }
 }

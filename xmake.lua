@@ -285,7 +285,7 @@ target("testbench_gen")
     add_links("svlang")
     add_linkdirs(slang_dir .. "/lib")
 
-    add_packages("fmt", "mimalloc", "libassert", "argparse", "inja")
+    add_packages("fmt", "mimalloc", "libassert", "inja")
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
