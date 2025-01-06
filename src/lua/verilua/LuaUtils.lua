@@ -496,11 +496,14 @@ end
 --
 function utils.shuffle(t)
     local n = #t
+    local k = 0
+
     while n >= 2 do
-      local k = math_random(n)
+      k = math_random(1, n)
       t[n], t[k] = t[k], t[n]
       n = n - 1
     end
+    
     return t
 end
 

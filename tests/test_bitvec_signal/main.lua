@@ -50,8 +50,24 @@ fork {
             expect.equal(tostring(value64:get_bitvec()), "1234567890abcdef")
 
         do
+            local bv = value64:get_bitvec()
+            bv:set_bitfield(32, 63, 0xdead)
+
             clock:negedge()
-            value32:set_bitfield(16, 31, 0xdead)
+                value64:set_hex_str(tostring(bv))
+            clock:negedge()
+                expect.equal(value64:get_hex_str(), "0000dead90abcdef")
+
+            bv:set_bitfield_hex_str(0, 15, "aabb")
+            clock:negedge()
+                value64:set(bv.u32_vec)
+            clock:negedge()
+                expect.equal(value64:get_hex_str(), "0000dead90abaabb")
+        end
+
+        do
+            clock:negedge()
+                value32:set_bitfield(16, 31, 0xdead)
             clock:negedge()
                 expect.equal(value32:get_hex_str(), "dead5678")
 
