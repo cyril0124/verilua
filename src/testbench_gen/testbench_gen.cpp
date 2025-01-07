@@ -150,6 +150,7 @@ int main(int argc, const char *argv[]) {
     std::optional<int> _period;
     std::optional<bool> _verbose;
     std::optional<bool> _checkOutput;
+    std::optional<bool> _dryrun;
     std::optional<bool> _nodpi;
 
     driver.cmdLine.add("--tt,--tbtop", _tbtopName, "testbench top module name", "<top module name>");
@@ -165,6 +166,7 @@ int main(int argc, const char *argv[]) {
     driver.cmdLine.add("-p,--period", _period, "clock period", "<period value>");
     driver.cmdLine.add("--vb,--verbose", _verbose, "verbose output");
     driver.cmdLine.add("--co,--check-output", _checkOutput, "check output");
+    driver.cmdLine.add("--dr,--dryrun", _dryrun, "do not generate testbench");
 
     // TODO: remove this
     driver.cmdLine.add("--nd,--nodpi", _nodpi, "disable dpi generation");
@@ -178,6 +180,22 @@ int main(int argc, const char *argv[]) {
     if (showHelp) {
         std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("Testbench generator for verilua").c_str());
         return 0;
+    }
+
+    if (_dryrun.value_or(false)) {
+        fmt::println(R"(
+--------------- [testbench_gen] ---------------
+      _                               
+     | |                              
+   __| |_ __ _   _    _ __ _   _ _ __  
+  / _` | '__| | | |  | '__| | | | '_ \ 
+ | (_| | |  | |_| |  | |  | |_| | | | |
+  \__,_|_|   \__, |  |_|   \__,_|_| |_|
+              __/ |                     
+             |___/           
+-----------------------------------------------
+)");
+       return 0; 
     }
 
     for (const auto &file : _files) {
