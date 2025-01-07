@@ -137,6 +137,7 @@ int main(int argc, const char *argv[]) {
     OS::setupConsole();
     slang::driver::Driver driver;
 
+    std::vector<std::string> _files;
     std::optional<std::string> _tbtopName;
     std::optional<std::string> _dutName;
     std::optional<std::string> _outdir;
@@ -151,8 +152,8 @@ int main(int argc, const char *argv[]) {
     std::optional<bool> _checkOutput;
     std::optional<bool> _nodpi;
 
-    driver.cmdLine.add("--tbtop", _tbtopName, "testbench top module name", "<top module name>");
-    driver.cmdLine.add("--dut-name", _dutName, "testbench dut inst name", "<dut instance name>");
+    driver.cmdLine.add("--tt,--tbtop", _tbtopName, "testbench top module name", "<top module name>");
+    driver.cmdLine.add("--dn,--dut-name", _dutName, "testbench dut inst name", "<dut instance name>");
     driver.cmdLine.add("--od,--out-dir", _outdir, "output directory", "<directory>");
     driver.cmdLine.add("--cs,--clock-signal", _clockSignalName, "clock signal name", "<signal name>");
     driver.cmdLine.add("--rs,--reset-signal", _resetSignalName, "reset signal name", "<signal name>");
@@ -160,6 +161,7 @@ int main(int argc, const char *argv[]) {
     driver.cmdLine.add("--ccs,--custom-code-str", _customCodeStr, "input custom code <string>, will be inserted in the bottom of the testbench module", "<string>");
     driver.cmdLine.add("--cco,--custom-code-outer", _customCodeOuterFile, "input custom code <file>, will be inserted in the top of the testbench module", "<file>");
     driver.cmdLine.add("--ccso,--custom-code-str-outer", _customCodeStrOuter, "input custom code <string>, will be inserted in the top of the testbench module", "<string>");
+    driver.cmdLine.add("--fl,--filelist", _files, "input file or filelist", "<file/filelist>");
     driver.cmdLine.add("-p,--period", _period, "clock period", "<period value>");
     driver.cmdLine.add("--vb,--verbose", _verbose, "verbose output");
     driver.cmdLine.add("--co,--check-output", _checkOutput, "check output");
@@ -178,9 +180,20 @@ int main(int argc, const char *argv[]) {
         return 0;
     }
 
+    for (const auto &file : _files) {
+        if (file.ends_with(".f")) {
+            // Parse filelist
+            std::vector<std::string> fileList = parseFileList(file);
+            for (const auto &listedFile : fileList) {
+                driver.sourceLoader.addFiles(fs::absolute(listedFile).string());
+            }
+        } else {
+            driver.sourceLoader.addFiles(fs::absolute(file).string());
+        }
+    }
+
     ASSERT(driver.processOptions());
 
-    std::vector<std::string_view> filesSV;
     size_t fileCount = 0;
     for (auto buffer : driver.sourceLoader.loadSources()) {
         fileCount++;
@@ -189,12 +202,12 @@ int main(int argc, const char *argv[]) {
         if (auto idx = name.find_last_of("/\\"); idx != name.npos)
             name = name.substr(idx + 1);
 
-        filesSV.push_back(name);
         fmt::println("[testbench_gen] [{}] get file: {}", fileCount, name);
         fflush(stdout);
     }
 
     ASSERT(driver.parseAllSources());
+    ASSERT(driver.reportParseDiags());
 
     auto compilation = driver.createCompilation();
 
