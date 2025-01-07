@@ -1,0 +1,7 @@
+simv*/
+csrc/
+sim_build*/
+.dpi_exporter/
+simv*
+ucli.key
+vc_hdrs.h

@@ -1,0 +1,5 @@
+`verilator_config
+
+public_flat_rd -module "Top" -var "*"
+public_flat_rd -module "Sub" -var "*"
+public_flat_rd -module "Another" -var "*"
