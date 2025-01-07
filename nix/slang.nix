@@ -3,20 +3,20 @@
 , stdenv
 , fetchFromGitHub
 , callPackage
-, includeTools ? false
+, includeTools ? true 
 , enableShared ? !stdenv.hostPlatform.isStatic
 }:
 let 
   pkgsu = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/4a793e2f3288b8f89430aab927d08d347e20b83e.tar.gz") {};
 in stdenv.mkDerivation {
   pname = "slang";
-  version = "6.0";
+  version = "7.0";
   
   src = fetchFromGitHub {
     owner = "cyril0124";
     repo = "slang";
-    rev = "915482f4b14af5cd76bd37a0fb7b207ae4266eb3";
-    hash = "sha256-OzMm/obuVoK1RYZ4Bo/mCqcCeWCnVKMSp4i4XBDZVrc=";
+    rev = "976e83b96da150130c3acec1d7b03997a2b7cd87";
+    hash = "sha256-ABEzdKK/l1/NeQkjj9eFKUf6kslxpIBl8mBufeVjDrI=";
   };
 
   nativeBuildInputs = [
