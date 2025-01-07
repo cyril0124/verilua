@@ -1,6 +1,7 @@
 #include "SemanticModel.h"
 #include "SlangCommon.h"
 #include "fmt/base.h"
+#include "fmt/color.h"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
@@ -99,24 +100,31 @@ void generateNewFile(const std::string &content, const std::string &newPath) {
     std::string line;
     std::string currentFile;
     std::ofstream outFile;
+    std::vector<std::string> buffer;
 
-    if (newPath != "") {
+    if (!newPath.empty()) {
         if (!std::filesystem::exists(newPath)) {
             std::filesystem::create_directories(newPath);
         }
     }
 
+    auto flushBuffer = [&]() {
+        if (!buffer.empty() && outFile.is_open()) {
+            for (const auto &l : buffer) {
+                outFile << l << '\n';
+            }
+            buffer.clear();
+        }
+    };
+
     while (std::getline(stream, line)) {
         if (line.find("//BEGIN:") == 0) {
+            flushBuffer();
             currentFile = line.substr(8);
 
             std::filesystem::path path = currentFile;
-            if (newPath != "") {
+            if (!newPath.empty()) {
                 currentFile = newPath + "/" + path.filename().string();
-
-                if (!std::filesystem::exists(newPath)) {
-                    std::filesystem::create_directories(newPath);
-                }
             }
 
             outFile.open(currentFile, std::ios::out | std::ios::trunc);
@@ -125,16 +133,21 @@ void generateNewFile(const std::string &content, const std::string &newPath) {
                 ASSERT(false);
             }
         } else if (line.find("//END:") == 0) {
+            flushBuffer();
             if (outFile.is_open()) {
                 outFile.close();
             }
         } else {
             if (outFile.is_open()) {
-                outFile << line << std::endl;
+                buffer.push_back(line);
+                if (buffer.size() >= 10000) {
+                    flushBuffer();
+                }
             }
         }
     }
 
+    flushBuffer();
     if (outFile.is_open()) {
         outFile.close();
     }
@@ -144,10 +157,6 @@ std::string backupFile(std::string_view inputFile, std::string workdir) {
     std::filesystem::path _workdir(workdir);
     std::filesystem::path path(inputFile);
     std::string targetFile = std::string(workdir) + "/" + path.filename().string() + ".bak";
-
-    if (!std::filesystem::exists(_workdir)) {
-        std::filesystem::create_directories(_workdir);
-    }
 
     if (std::filesystem::exists(targetFile)) {
         std::filesystem::remove(targetFile);
@@ -856,6 +865,45 @@ int main(int argc, char **argv) {
                        "(instead of figuring it out automatically)",
                        "<name>", CommandLineFlags::CommaList);
 
+    driver.cmdLine.add(
+        "-y,--libdir",
+        [&driver](std::string_view value) {
+            driver.sourceLoader.addSearchDirectories(value);
+            return "";
+        },
+        "Library search paths, which will be searched for missing modules", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
+
+    driver.cmdLine.add(
+        "-I,--include-directory,+incdir",
+        [&driver](std::string_view value) {
+            if (auto ec = driver.sourceManager.addUserDirectories(value)) {
+                fmt::print(fg(driver.textDiagClient->warningColor), "warning: ");
+                fmt::println("include directory '{}': {}", value, ec.message());
+            }
+            return "";
+        },
+        "Additional include search paths", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
+
+    driver.cmdLine.add(
+        "-f",
+        [&driver](std::string_view value) {
+            driver.processCommandFiles(value, /* makeRelative */ false, /* separateUnit */ false);
+            return "";
+        },
+        "One or more command files containing additional program options. "
+        "Paths in the file are considered relative to the current directory.",
+        "<file-pattern>[,...]", CommandLineFlags::CommaList);
+
+    driver.cmdLine.add(
+        "-F",
+        [&driver](std::string_view value) {
+            driver.processCommandFiles(value, /* makeRelative */ true, /* separateUnit */ false);
+            return "";
+        },
+        "One or more command files containing additional program options. "
+        "Paths in the file are considered relative to the file itself.",
+        "<file-pattern>[,...]", CommandLineFlags::CommaList);
+
     driver.cmdLine.setPositional(
         [&driver, &_files](std::string_view value) {
             if (!driver.options.excludeExts.empty()) {
@@ -911,6 +959,10 @@ int main(int argc, char **argv) {
     optString += " USE_PORT_STRUCT";
 #endif
     fmt::print("[dpi_exporter] Optimization: {}\n", optString);
+
+    if (!std::filesystem::exists(workdir)) {
+        std::filesystem::create_directories(workdir);
+    }
 
     for (const auto &file : _files) {
         if (file.ends_with(".f")) {
@@ -1261,7 +1313,8 @@ using GetValueHexStrFunc = std::function<void (char*)>;
 extern "C" std::string dpi_exporter_get_top_name() {{
     return std::string("{}");
 }}
-)", topModuleName);
+)",
+                                                topModuleName);
     dpiFuncFileContent += "\n\n" + dpiFuncGetTopName;
 
     if (!distributeDPI) {
