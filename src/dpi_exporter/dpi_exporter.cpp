@@ -1,6 +1,5 @@
 #include "SemanticModel.h"
 #include "SlangCommon.h"
-#include "argparse/argparse.hpp"
 #include "fmt/base.h"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
@@ -51,29 +50,29 @@
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-#define DELETE_FILE(filePath) \
-    do { \
-        if (std::filesystem::exists(filePath)) { \
-            std::filesystem::remove(filePath); \
-        } \
+#define DELETE_FILE(filePath)                                                                                                                                                                                                                                                                                                                                                                                  \
+    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
+        if (std::filesystem::exists(filePath)) {                                                                                                                                                                                                                                                                                                                                                               \
+            std::filesystem::remove(filePath);                                                                                                                                                                                                                                                                                                                                                                 \
+        }                                                                                                                                                                                                                                                                                                                                                                                                      \
     } while (0)
 
-#define INSERT_BEFORE_FILE_HEAD(filePath, str) \
-    do { \
-        std::ifstream inFile(filePath); \
-        std::stringstream buffer; \
-        buffer << "\n" << str << "\n" << inFile.rdbuf(); \
-        inFile.close(); \
-        std::ofstream outFile(filePath); \
-        outFile << buffer.rdbuf(); \
-        outFile.close(); \
+#define INSERT_BEFORE_FILE_HEAD(filePath, str)                                                                                                                                                                                                                                                                                                                                                                 \
+    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
+        std::ifstream inFile(filePath);                                                                                                                                                                                                                                                                                                                                                                        \
+        std::stringstream buffer;                                                                                                                                                                                                                                                                                                                                                                              \
+        buffer << "\n" << str << "\n" << inFile.rdbuf();                                                                                                                                                                                                                                                                                                                                                       \
+        inFile.close();                                                                                                                                                                                                                                                                                                                                                                                        \
+        std::ofstream outFile(filePath);                                                                                                                                                                                                                                                                                                                                                                       \
+        outFile << buffer.rdbuf();                                                                                                                                                                                                                                                                                                                                                                             \
+        outFile.close();                                                                                                                                                                                                                                                                                                                                                                                       \
     } while (0)
 
-#define INSERT_AFTER_FILE_END(filePath, str) \
-    do { \
-        std::ofstream outFile(filePath, std::ios::app); \
-        outFile << "\n" << str; \
-        outFile.close(); \
+#define INSERT_AFTER_FILE_END(filePath, str)                                                                                                                                                                                                                                                                                                                                                                   \
+    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
+        std::ofstream outFile(filePath, std::ios::app);                                                                                                                                                                                                                                                                                                                                                        \
+        outFile << "\n" << str;                                                                                                                                                                                                                                                                                                                                                                                \
+        outFile.close();                                                                                                                                                                                                                                                                                                                                                                                       \
     } while (0)
 
 using namespace slang::parsing;
@@ -832,118 +831,129 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
 };
 
 int main(int argc, char **argv) {
-    argparse::ArgumentParser program("dpi_exporter");
-    program.add_argument("-f", "--file").help("file/filelist to parse").required().append().action([](const std::string &value) { return value; });
-    program.add_argument("-c", "--config").help("`Lua` file that contains the module info and the corresponding signal info").required().action([](const std::string &value) { return value; });
-    program.add_argument("-od", "--out-dir").help("output directory").default_value(DEFAULT_OUTPUT_DIR).action([](const std::string &value) { return value; });
-    program.add_argument("-wd", "--work-dir").help("working directory").default_value(DEFAULT_WORK_DIR).action([](const std::string &value) { return value; });
-    program.add_argument("-df", "--dpi-file").help("name of the generated DPI file").default_value("dpi_func.cpp").action([](const std::string &value) { return value; });
-    program.add_argument("-t", "--top").help("top-level module name").default_value("").action([](const std::string &value) { return value; });
-    program.add_argument("-tc", "--top-clock").help("clock signal of the top-level module").default_value("clock").action([](const std::string &value) { return value; });
-    program.add_argument("-dd", "--distribute-dpi").help("distribute dpi functions in modules").implicit_value(true).default_value(false);
-    program.add_argument("-j", "--threads").help("threads to use").default_value(1).action([](const std::string &value) { return std::stoi(value); });
-    program.add_argument("-s", "--show-driver-cmd").help("print out the driver command").implicit_value(true).default_value(false);
-    program.add_argument("-sof", "--slang-option-file").help("slang option file").default_value("").action([](const std::string &value) { return value; });
+    OS::setupConsole();
+    slang::driver::Driver driver;
 
-    try {
-        program.parse_args(argc, argv);
-    } catch (const std::runtime_error &err) {
-        ASSERT(false, err.what());
+    std::vector<std::string> files;
+    std::vector<std::string> _files;
+    std::optional<std::string> _configFile;
+    std::optional<std::string> _outdir;
+    std::optional<std::string> _workdir;
+    std::optional<std::string> _dpiFile;
+    std::optional<std::string> _topClock;
+    std::optional<bool> _distributeDPI;
+
+    driver.cmdLine.add("--fl,--filelist", _files, "input file or filelist", "<file/filelist>");
+    driver.cmdLine.add("-c,--config", _configFile, "`Lua` file that contains the module info and the corresponding signal info", "<lua file>");
+    driver.cmdLine.add("--od,--out-dir", _outdir, "output directory", "<directory>");
+    driver.cmdLine.add("--wd,--work-dir", _workdir, "working directory", "<directory>");
+    driver.cmdLine.add("--df,--dpi-file", _dpiFile, "name of the generated DPI file", "<file name>");
+    driver.cmdLine.add("--tc,--top-clock", _topClock, "clock signal of the top-level module", "<name>");
+    driver.cmdLine.add("--dd,--distribute-dpi", _distributeDPI, "distribute DPI functions");
+
+    driver.cmdLine.add("--top", driver.options.topModules,
+                       "One or more top-level modules to instantiate "
+                       "(instead of figuring it out automatically)",
+                       "<name>", CommandLineFlags::CommaList);
+
+    driver.cmdLine.setPositional(
+        [&driver, &_files](std::string_view value) {
+            if (!driver.options.excludeExts.empty()) {
+                if (size_t extIndex = value.find_last_of('.'); extIndex != std::string_view::npos) {
+                    if (driver.options.excludeExts.count(std::string(value.substr(extIndex + 1))))
+                        return "";
+                }
+            }
+
+            _files.push_back(std::string(value));
+            return "";
+        },
+        "files");
+
+    std::optional<bool> showHelp;
+    driver.cmdLine.add("-h,--help", showHelp, "Display available options");
+
+    // driver.addStandardArgs();
+    ASSERT(driver.parseCommandLine(argc, argv));
+
+    if (showHelp) {
+        std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
+        return 0;
     }
 
-    std::string configFile    = fs::absolute(program.get<std::string>("--config")).string();
-    std::string outdir        = fs::absolute(program.get<std::string>("--out-dir")).string();
-    std::string workdir       = fs::absolute(program.get<std::string>("--work-dir")).string();
-    std::string topModuleName = program.get<std::string>("--top");
-    std::string topClock      = program.get<std::string>("--top-clock");
-    std::string dpiFileName   = program.get<std::string>("--dpi-file");
-    bool distributeDPI        = program.get<bool>("--distribute-dpi");
+    if (_configFile->empty()) {
+        PANIC("No config file specified! please use -c/--config <lua file>");
+    }
+
+    std::string configFile    = fs::absolute(_configFile.value()).string();
+    std::string outdir        = fs::absolute(_outdir.value_or(DEFAULT_OUTPUT_DIR)).string();
+    std::string workdir       = fs::absolute(_workdir.value_or(DEFAULT_WORK_DIR)).string();
+    std::string dpiFileName   = _dpiFile.value_or("dpi_func.cpp");
+    std::string topModuleName = "";
+    std::string topClock      = _topClock.value_or("clock");
+    bool distributeDPI        = _distributeDPI.value_or(false);
     fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n\tdistributeDPI: {}\n", configFile, dpiFileName, outdir, workdir, distributeDPI);
 
-    std::string optString = "";
+    if (!driver.options.topModules.empty()) {
+        if (driver.options.topModules.size() > 1) {
+            PANIC("Multiple top-level modules specified!", driver.options.topModules);
+        }
+        topModuleName = driver.options.topModules[0];
+    }
 
+    std::string optString = "";
 #ifdef NO_STD_COPY
     optString += " NO_STD_COPY";
 #else
     optString += " STD_COPY";
 #endif
-
 #ifdef USE_PORT_STRUCT
     optString += " USE_PORT_STRUCT";
 #endif
-
     fmt::print("[dpi_exporter] Optimization: {}\n", optString);
 
-    std::vector<std::string> _files = program.get<std::vector<std::string>>("--file");
-    std::vector<std::string> files;
     for (const auto &file : _files) {
         if (file.ends_with(".f")) {
             // Parse filelist
             std::vector<std::string> fileList = parseFileList(file);
             for (const auto &listedFile : fileList) {
-                files.push_back(backupFile(fs::absolute(listedFile).string(), workdir));
+                auto f = fs::absolute(backupFile(listedFile, workdir)).string();
+                driver.sourceLoader.addFiles(f);
+                files.push_back(f);
             }
         } else {
-            files.push_back(backupFile(fs::absolute(file).string(), workdir));
+            auto f = fs::absolute(backupFile(file, workdir)).string();
+            driver.sourceLoader.addFiles(f);
+            files.push_back(f);
         }
     }
 
-    for (const auto &file : files) {
-        fmt::println("[dpi_exporter] get file: {}", file);
+    size_t fileCount = 0;
+    for (auto buffer : driver.sourceLoader.loadSources()) {
+        fileCount++;
+        auto fullpathName = driver.sourceManager.getFullPath(buffer.id);
+
+        fmt::println("[testbench_gen] [{}] get file: {}", fileCount, fullpathName.string());
         fflush(stdout);
     }
 
-    std::vector<std::string_view> filesSV;
-    filesSV.reserve(files.size());
-    for (const auto &str : files) {
-        filesSV.emplace_back(str);
-    }
-
-    slang::driver::Driver driver;
-    driver.addStandardArgs();
-
-    std::string slangOptionFile = program.get<std::string>("--slang-option-file");
-    std::string cmdArgs         = "dpi_exporter --single-unit";
-    for (const auto &file : files) {
-        cmdArgs += " " + file;
-    }
-
-    if (slangOptionFile != "") {
-        cmdArgs += " -f " + fs::absolute(slangOptionFile).string();
-    }
-
-    if (program.get<int>("--threads") != 1) {
-        cmdArgs += " -j " + std::to_string(program.get<int>("--threads"));
-    }
-
-    if (program.get<bool>("--show-driver-cmd")) {
-        fmt::println("[dpi_exporter] driver commands: {}{}{}", ANSI_COLOR_GREEN, cmdArgs, ANSI_COLOR_RESET);
-    }
-
-    ASSERT(driver.parseCommandLine(cmdArgs));
     ASSERT(driver.processOptions());
+    driver.options.singleUnit = true;
+
     ASSERT(driver.parseAllSources());
     ASSERT(driver.reportParseDiags());
     ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
 
+    auto compilation    = driver.createCompilation();
+    bool compileSuccess = driver.reportCompilation(*compilation, false);
+    ASSERT(compileSuccess);
+
     // Get syntax tree
+    ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
     std::shared_ptr<SyntaxTree> tree = driver.syntaxTrees[0];
 
-    // Do compilation and check any compilation error
-    Compilation compilation;
-    compilation.addSyntaxTree(tree);
-
-    auto compDiags = compilation.getAllDiagnostics();
-    if (compDiags.empty() == false) {
-        if (slang_common::checkDiagsError(compDiags)) {
-            auto ret = DiagnosticEngine::reportAll(SyntaxTree::getDefaultSourceManager(), compDiags);
-            fmt::println("{}", ret);
-            PANIC("Compilation error");
-        }
-    }
-
     if (topModuleName == "") {
-        topModuleName = compilation.getRoot().topInstances[0]->name;
+        topModuleName = compilation->getRoot().topInstances[0]->name;
         fmt::println("[dpi_exporter] `--top` is not set, use `{}` as top module name", topModuleName);
     }
     fmt::println("[dpi_exporter] topModuleName: {}", topModuleName);

@@ -322,7 +322,7 @@ target("dpi_exporter")
     add_links("svlang")
     add_linkdirs(slang_dir .. "/lib")
 
-    add_packages("fmt", "mimalloc", "libassert", "argparse")
+    add_packages("fmt", "mimalloc", "libassert")
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
