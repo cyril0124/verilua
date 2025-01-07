@@ -70,6 +70,7 @@ using GetValueHexStrFunc = std::function<void (char*)>;
 extern "C" {
 #endif
 
+std::string dpi_exporter_get_top_name();
 int64_t dpi_exporter_handle_by_name(std::string_view name);
 std::string dpi_exporter_get_type_str(int64_t handle);
 uint32_t dpi_exporter_get_bitwidth(int64_t handle);
@@ -305,9 +306,9 @@ PLI_INT32 vpi_free_object(vpiHandle object) {
     return 0;
 }
 
-vpiHandle vpi_handle_by_name(PLI_BYTE8 * name, vpiHandle scope) {
+vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     static std::string topName = []() {
-        auto envVar = std::getenv("TOP_NAME");
+        auto envVar = std::getenv("DUT_TOP");
         if (envVar == nullptr) {
             return std::string("");
         } else {
@@ -315,24 +316,18 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 * name, vpiHandle scope) {
         }
     }();
 
-    static std::string dpiTop = []() {
-        auto envVar = std::getenv("DPI_TOP");
-        if (envVar == nullptr) {
-            return std::string("");
-        } else {
-            return std::string(envVar);
-        }
+    static std::string topModuleName = []() {
+        return dpi_exporter_get_top_name();
     }();
 
     std::string nameString(name);
-    if(topName != "" && dpiTop != "") {
-        // nameString = replace(nameString, "TOP_tb_top_uut", "Top"); // TODO:
-        nameString = replace(nameString, dpiTop, topName); 
+    if(topName != "" && topModuleName != "") {
+        nameString = replace(nameString, topName, topModuleName); 
     }
     std::replace(nameString.begin(), nameString.end(), '.', '_');
     
     auto _hdl = dpi_exporter_handle_by_name(nameString);
-    FATAL(_hdl != -1, "Cannot find handle => name: %s, topName:<%s> dpiTop:<%s>\n", nameString.c_str(), topName.c_str(), dpiTop.c_str());
+    FATAL(_hdl != -1, "Cannot find handle => name: %s, org_name: %s, topName:<%s> topModuleName:<%s>\n", nameString.c_str(), name, topName.c_str(), topModuleName.c_str());
 
     ComplexHandlePtr hdl = memAllocator.allocate<ComplexHandle>(std::string(name), _hdl);
 

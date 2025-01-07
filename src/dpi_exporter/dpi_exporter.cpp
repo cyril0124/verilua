@@ -1257,6 +1257,13 @@ using GetValueVecFunc = std::function<void (uint32_t *)>;
 using GetValueHexStrFunc = std::function<void (char*)>;
 )") + "\n\n" + dpiFuncFileContent;
 
+    std::string dpiFuncGetTopName = fmt::format(R"(
+extern "C" std::string dpi_exporter_get_top_name() {{
+    return std::string("{}");
+}}
+)", topModuleName);
+    dpiFuncFileContent += "\n\n" + dpiFuncGetTopName;
+
     if (!distributeDPI) {
         dpiTickFunc.pop_back();
         dpiTickFunc.pop_back();
