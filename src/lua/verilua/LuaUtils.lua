@@ -510,7 +510,7 @@ end
 do
     local function normalize_hex(hex)
         -- remove prefix and leading zeros and convert to lower case
-        return string.lower(hex):gsub("^0x0*", "0x")
+        return hex:lower():gsub("^0x0*", "0x")
     end
     
     local function normalize_bin(bin)
@@ -528,6 +528,7 @@ do
     ---@param str2 string The second string to be compared
     ---@return boolean Whether the two strings are equal
     --
+    -- ! NOTICE: prefix is required, e.g. "0x" for hex, "0b" for binary, "" for decimal
     function utils.compare_value_str(str1, str2)
         if str1:sub(1, 2) == "0x" and str2:sub(1, 2) == "0x" then
             -- process hex strings

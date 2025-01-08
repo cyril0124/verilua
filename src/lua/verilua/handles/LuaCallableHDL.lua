@@ -869,42 +869,56 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.expect_hex_str = function(this, hex_value_str)
         assert(type(hex_value_str) == "string")
-        if not compare_value_str("0x" .. this:get_str(HexStr), hex_value_str) then
+        if not (this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "")) then
             assert(false, f("[%s] expect => %s, but got => %s", this.fullpath, hex_value_str, this:get_str(HexStr)))
+        end
+    end
+
+    self.expect_hex_str_v2 = function(this, hex_value_str_no_prefix)
+        assert(type(hex_value_str_no_prefix) == "string")
+        if not (this:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0*", "")) then
+            assert(false, f("[%s] expect => %s, but got => %s", this.fullpath, hex_value_str_no_prefix, this:get_str(HexStr)))
         end
     end
 
     self.expect_bin_str = function(this, bin_value_str)
         assert(type(bin_value_str) == "string")
-        if not compare_value_str("0b" .. this:get_str(BinStr), bin_value_str) then
+        if not (this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*")) then
             assert(false, f("[%s] expect => %s, but got => %s", this.fullpath, bin_value_str, this:get_str(BinStr)))
         end
     end
 
     self.expect_dec_str = function(this, dec_value_str)
         assert(type(dec_value_str) == "string")
-        if not compare_value_str(this:get_str(DecStr), dec_value_str) then
+        if not (this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")) then
             assert(false, f("[%s] expect => %s, but got => %s", this.fullpath, dec_value_str, this:get_str(DecStr)))
         end
     end
 
     self.expect_not_hex_str = function(this, hex_value_str)
         assert(type(hex_value_str) == "string")
-        if compare_value_str("0x" .. this:get_str(HexStr), hex_value_str) then
+        if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "") then
             assert(false, f("[%s] expect not => %s, but got => %s", this.fullpath, hex_value_str, this:get_str(HexStr)))
+        end
+    end
+
+    self.expect_not_hex_str_1 = function(this, hex_value_str_no_prefix)
+        assert(type(hex_value_str_no_prefix) == "string")
+        if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0*", "") then
+            assert(false, f("[%s] expect not => %s, but got => %s", this.fullpath, hex_value_str_no_prefix, this:get_str(HexStr)))
         end
     end
 
     self.expect_not_bin_str = function(this, bin_value_str)
         assert(type(bin_value_str) == "string")
-        if compare_value_str("0b" .. this:get_str(BinStr), bin_value_str) then
+        if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*") then
             assert(false, f("[%s] expect not => %s, but got => %s", this.fullpath, bin_value_str, this:get_str(BinStr)))
         end
     end
 
     self.expect_not_dec_str = function(this, dec_value_str)
         assert(type(dec_value_str) == "string")
-        if compare_value_str(this:get_str(DecStr), dec_value_str) then
+        if this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "") then
             assert(false, f("[%s] expect not => %s, but got => %s", this.fullpath, dec_value_str, this:get_str(DecStr)))
         end
     end
@@ -961,17 +975,22 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.is_hex_str = function (this, hex_value_str)
         assert(type(hex_value_str) == "string")
-        return compare_value_str("0x" .. this:get_str(HexStr), hex_value_str)
+        return this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "")
+    end
+
+    self.is_hex_str_v2 = function (this, hex_value_str_no_prefix)
+        assert(type(hex_value_str_no_prefix) == "string")
+        return this:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0x0*", "")
     end
 
     self.is_bin_str = function (this, bin_value_str)
         assert(type(bin_value_str) == "string")
-        return compare_value_str("0b" .. this:get_str(BinStr), bin_value_str)
+        return this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*")
     end
 
     self.is_dec_str = function (this, dec_value_str)
         assert(type(dec_value_str) == "string")
-        return compare_value_str(this:get_str(DecStr), dec_value_str)
+        return this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")
     end
 end
 

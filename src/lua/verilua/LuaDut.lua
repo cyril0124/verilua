@@ -156,6 +156,18 @@ local function create_proxy(path, use_prefix)
             return ffi_string(C.c_get_value_str(hdl, fmt))
         end,
 
+        -- 
+        -- Example:
+        --      local hex_str = dut.cycles:get_hex_str()
+        --      assert(hex_str == "0x123")
+        -- 
+        get_hex_str = function (t)
+            local hdl = C.c_handle_by_name_safe(local_path)
+            if hdl == -1 then
+                assert(false, f("No handle found => %s", local_path))
+            end
+            return ffi_string(C.c_get_value_str(hdl, HexStr))
+        end,
 
         -- 
         -- Example:
@@ -372,42 +384,56 @@ local function create_proxy(path, use_prefix)
         -- 
         expect_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
-            if not compare_value_str( "0x" .. this:get_str(HexStr), hex_value_str) then
+            if not (this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "")) then
                 assert(false, f("[%s] expect => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
+            end
+        end,
+
+        expect_hex_str_v2 = function(this, hex_value_str_no_prefix)
+            assert(type(hex_value_str_no_prefix) == "string")
+            if not (this:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0*", "")) then
+                assert(false, f("[%s] expect => %s, but got => %s", this.fullpath, hex_value_str_no_prefix, this:get_str(HexStr)))
             end
         end,
     
         expect_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
-            if not compare_value_str( "0b" .. this:get_str(BinStr), bin_value_str) then
+            if not (this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*")) then
                 assert(false, f("[%s] expect => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
     
         expect_dec_str = function(this, dec_value_str)
             assert(type(dec_value_str) == "string")
-            if not compare_value_str(this:get_str(DecStr), dec_value_str) then
+            if not (this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")) then
                 assert(false, f("[%s] expect => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
             end
         end,
 
         expect_not_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
-            if compare_value_str( "0x" .. this:get_str(HexStr), hex_value_str) then
+            if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "") then
                 assert(false, f("[%s] expect not => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
+            end
+        end,
+
+        expect_not_hex_str_1 = function(this, hex_value_str_no_prefix)
+            assert(type(hex_value_str_no_prefix) == "string")
+            if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0*", "") then
+                assert(false, f("[%s] expect not => %s, but got => %s", this.fullpath, hex_value_str_no_prefix, this:get_str(HexStr)))
             end
         end,
     
         expect_not_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
-            if compare_value_str( "0b" .. this:get_str(BinStr), bin_value_str) then
+            if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*") then
                 assert(false, f("[%s] expect not => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
     
         expect_not_dec_str = function(this, dec_value_str)
             assert(type(dec_value_str) == "string")
-            if compare_value_str(this:get_str(DecStr), dec_value_str) then
+            if this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "") then
                 assert(false, f("[%s] expect not => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
             end
         end,
@@ -485,15 +511,19 @@ local function create_proxy(path, use_prefix)
         --          dut.path.to.signal:_if(dut.signal:is_hex_str("0x1")):expect(123)
         --
         is_hex_str = function(t, hex_value_str)
-            return compare_value_str( "0x" .. t:get_str(HexStr), hex_value_str)
+            return t:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "")
+        end,
+
+        is_hex_str_v2 = function(t, hex_value_str_no_prefix)
+            return t:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0x0*", "")
         end,
 
         is_bin_str = function(t, bin_value_str)
-            return compare_value_str( "0b" .. t:get_str(BinStr), bin_value_str)
+            return t:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*")
         end,
 
         is_dec_str = function(t, dec_value_str)
-            return compare_value_str(t:get_str(DecStr), dec_value_str)
+            return t:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")
         end,
 
         -- 
