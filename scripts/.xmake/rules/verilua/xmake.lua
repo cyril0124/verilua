@@ -87,21 +87,21 @@ local function before_build_or_run(target)
 
     -- Generate verilua cfg file
     local tb_top = target:values("cfg.tb_top") or "tb_top"
-    local other_cfg = target:values("cfg.other_cfg")
-    local other_cfg_path = "nil"
+    local user_cfg = target:values("cfg.user_cfg") or target:values("cfg.other_cfg")
+    local user_cfg_path = "nil"
     local shutdown_cycles = target:values("cfg.shutdown_cycles")
     local deps = target:values("cfg.deps")
     local deps_str = ""
 
     target:add("tb_top", tb_top)
 
-    if other_cfg == nil or other_cfg == "" then
-        other_cfg = "nil" 
+    if user_cfg == nil or user_cfg == "" then
+        user_cfg = "nil" 
     else
-        local _other_cfg = other_cfg
-        other_cfg = "\"" .. path.basename(other_cfg) .. "\""
-        other_cfg_path = "\"" .. path.absolute(path.directory(_other_cfg)) .. "\""
-        cprint("${✅} [verilua-xmake] [%s] other_cfg is ${green underline}%s${reset}", target:name(), other_cfg)
+        local _user_cfg = user_cfg
+        user_cfg = "\"" .. path.basename(user_cfg) .. "\""
+        user_cfg_path = "\"" .. path.absolute(path.directory(_user_cfg)) .. "\""
+        cprint("${✅} [verilua-xmake] [%s] user_cfg is ${green underline}%s${reset}", target:name(), user_cfg)
     end
 
     if shutdown_cycles == nil then 
@@ -139,8 +139,8 @@ cfg.srcs = {"./?.lua"}
 cfg.deps = {
 %s
 }
-cfg.other_cfg = %s
-cfg.other_cfg_path = %s
+cfg.user_cfg = %s
+cfg.user_cfg_path = %s
 cfg.period = 10
 cfg.unit = "ns"
 cfg.enable_shutdown = true
@@ -149,16 +149,16 @@ cfg.luapanda_debug = false
 cfg.vpi_learn = false
 
 -- Mix with other config
-if cfg.other_cfg ~= nil then
-_G.package.path = _G.package.path .. ";" .. cfg.other_cfg_path .. "/?.lua"
-local _cfg = require(cfg.other_cfg)
-assert(type(_cfg) == "table")
+if cfg.user_cfg ~= nil then
+    _G.package.path = _G.package.path .. ";" .. cfg.user_cfg_path .. "/?.lua"
+    local _cfg = require(cfg.user_cfg)
+    assert(type(_cfg) == "table")
 
-lua_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
+    lua_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
 end
 
 return cfg
-]], tb_top, os.getenv("PWD"), sim, mode:upper(), path.absolute(build_dir .. "/" .. path.basename(lua_main) .. ".lua"), deps_str, other_cfg, other_cfg_path, shutdown_cycles)
+]], tb_top, os.getenv("PWD"), sim, mode:upper(), path.absolute(build_dir .. "/" .. path.basename(lua_main) .. ".lua"), deps_str, user_cfg, user_cfg_path, shutdown_cycles)
     if not no_copy_lua then
         io.writefile(cfg_file, cfg_file_str)
     end
