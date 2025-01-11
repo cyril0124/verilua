@@ -144,16 +144,18 @@ local get_mode = function()
     end
 end
 
-local VERILUA_HOME = assert(os.getenv("VERILUA_HOME"), "[LuaSimulator] VERILUA_HOME is not set")
-local print_hierarchy_lib = (utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c")):tcc_compile {
-    {
-        sym = "print_hierarchy",
-        ptr = "void (*)(unsigned int*, int)"
-    }
-}
-
+local print_hierarchy_lib
 local print_hierarchy = function (max_level)
     local max_level = max_level or 0
+    if not print_hierarchy_lib then
+        local VERILUA_HOME = assert(os.getenv("VERILUA_HOME"), "[LuaSimulator] VERILUA_HOME is not set")
+        print_hierarchy_lib = (utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c")):tcc_compile {
+            {
+                sym = "print_hierarchy",
+                ptr = "void (*)(unsigned int*, int)"
+            }
+        }
+    end
     print_hierarchy_lib.print_hierarchy(ffi_new("unsigned int*", nil), max_level)
 end
 
