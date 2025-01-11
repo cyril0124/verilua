@@ -2,23 +2,13 @@
 #include "SlangCommon.h"
 #include "fmt/base.h"
 #include "fmt/color.h"
+#include "sol/sol.hpp"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
-#include "slang/ast/Expression.h"
-#include "slang/ast/SemanticFacts.h"
 #include "slang/ast/Symbol.h"
-#include "slang/ast/symbols/InstanceSymbols.h"
-#include "slang/ast/symbols/PortSymbols.h"
-#include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/driver/Driver.h"
-#include "slang/numeric/SVInt.h"
-#include "slang/parsing/Parser.h"
-#include "slang/parsing/Preprocessor.h"
-#include "slang/parsing/TokenKind.h"
 #include "slang/syntax/AllSyntax.h"
-#include "slang/syntax/SyntaxKind.h"
-#include "slang/syntax/SyntaxNode.h"
 #include "slang/syntax/SyntaxPrinter.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
@@ -32,10 +22,6 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-
-#define LUA_IMPL
-#include "minilua/minilua.h"
-#include "sol/sol.hpp"
 
 // ===========================================================
 // Optimization configs

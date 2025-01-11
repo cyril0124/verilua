@@ -316,11 +316,14 @@ target("dpi_exporter")
         src_dir .. "/dpi_exporter",
         slang_dir .. "/include",
         extern_dir .. "/slang-common",
-        extern_dir .. "/boost_unordered/include"
+        extern_dir .. "/boost_unordered/include",
+        lua_dir .. "/include/luajit-2.1",
+        vcpkg_dir .. "/x64-linux/include"
     )
 
-    add_links("svlang")
-    add_linkdirs(slang_dir .. "/lib")
+    add_links("svlang", "luajit-5.1")
+    add_linkdirs(slang_dir .. "/lib", lua_dir .. "/lib")
+    add_rpathdirs(slang_dir .. "/lib", lua_dir .. "/lib")
 
     add_packages("fmt", "mimalloc", "libassert")
 
