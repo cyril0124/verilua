@@ -178,7 +178,10 @@ end
 -- 
 -- load configuration
 -- 
-local cfg = require "LuaSimConfig"
+_G.cfg = require "LuaSimConfig"
+_G.colors = cfg.colors
+_G.VeriluaMode = cfg.VeriluaMode
+
 local cfg_name, cfg_path
 do
     local path = require "pl.path"
@@ -208,10 +211,6 @@ do
     cfg:merge_config(_cfg)
     cfg:post_config()
 end
-
-_G.cfg = cfg
-_G.colors = cfg.colors
-_G.VeriluaMode = cfg.VeriluaMode
 _G.verilua_get_error = false -- Set by each scheduler when there is an error in the ongoing task
 
 -- 
