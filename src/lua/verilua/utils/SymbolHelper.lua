@@ -3,12 +3,12 @@ local ffi = require "ffi"
 local C = ffi.C
 local type = type
 local error = error
-local tonumber = tonumber
 local ffi_cast = ffi.cast
 local ffi_string = ffi.string
 
 ffi.cdef[[
     char *get_executable_name(void);
+    char *get_self_cmdline(void);
     uint64_t get_symbol_address(const char *filename, const char *symbol);
 ]]
 
@@ -16,15 +16,23 @@ local get_executable_name = function()
     return ffi_string(C.get_executable_name())
 end
 
+local get_self_cmdline = function()
+    return ffi_string(C.get_self_cmdline())
+end
+
+local executable_name = nil
 local get_global_symbol_addr = function(symbol_name)
-    local executable_name = get_executable_name()
-    return tonumber(C.get_symbol_address(executable_name, symbol_name))
+    if not executable_name then
+        executable_name = get_executable_name()
+    end
+    return C.get_symbol_address(executable_name, symbol_name)
 end
 
 local ffi_cast = function (type_str, value)
     if type(value) == "number" then
         return ffi_cast(type_str, ffi.cast("const char*", value))
     elseif type(value) == "string" then
+        -- Get symbol address and cast it to the type_str according to the symbol name(value)
         local symbol_addr = get_global_symbol_addr(value)
         return ffi_cast(type_str, symbol_addr)
     elseif type(value) == "cdata" then
@@ -53,6 +61,7 @@ end
 
 return {
     get_executable_name = get_executable_name,
+    get_self_cmdline = get_self_cmdline,
     get_global_symbol_addr = get_global_symbol_addr,
     ffi_cast = ffi_cast,
 }

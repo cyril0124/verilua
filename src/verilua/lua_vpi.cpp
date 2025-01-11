@@ -448,7 +448,29 @@ TO_LUA char *get_executable_name() {
     return NULL;
 }
 
+TO_LUA char* get_self_cmdline() {
+    std::ifstream cmdline_file("/proc/self/cmdline", std::ios::in | std::ios::binary);
+    VL_FATAL(cmdline_file.is_open(), "Failed to open /proc/self/cmdline");
+
+    std::ostringstream buffer;
+    buffer << cmdline_file.rdbuf();
+    std::string cmdline_content = buffer.str();
+
+    // Replace null characters with spaces
+    for (size_t i = 0; i < cmdline_content.size(); ++i) {
+        if (cmdline_content[i] == '\0') {
+            cmdline_content[i] = ' ';
+        }
+    }
+
+    char* result = strdup(cmdline_content.c_str());
+    VL_FATAL(result, "Failed to allocate memory");
+
+    return result;
+}
+
 TO_LUA uint64_t get_symbol_address(const char *filename, const char *symbol) {
+    static UNORDERED_MAP<std::string, uint64_t> symbol_address_map;
     static uint64_t offset = 0;
     static bool get_offset = false;
     if (!get_offset) {
@@ -460,6 +482,12 @@ TO_LUA uint64_t get_symbol_address(const char *filename, const char *symbol) {
         struct link_map *map;
         VL_FATAL(dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0, "dlinfo failed!");
         offset = (uint64_t)map->l_addr;
+    }
+
+    if(symbol_address_map.find(symbol) != symbol_address_map.end()) {
+        uint64_t address = symbol_address_map[symbol];
+        VL_INFO("Symbol `{}` found at `symbol_address_map`, address: 0x{:x}\n", symbol, address);
+        return address;
     }
 
     ELFIO::elfio reader;
@@ -476,17 +504,16 @@ TO_LUA uint64_t get_symbol_address(const char *filename, const char *symbol) {
     ELFIO::symbol_section_accessor symbols(reader, symtab);
     for (unsigned int i = 0; i < symbols.get_symbols_num(); ++i) {
         std::string name;
-        ELFIO::Elf64_Addr value;
         ELFIO::Elf_Xword size;
-        unsigned char bind;
-        unsigned char type;
+        ELFIO::Elf64_Addr value;
         ELFIO::Elf_Half section_index;
-        unsigned char other;
+        unsigned char bind, type, other;
 
         symbols.get_symbol(i, name, value, size, bind, type, section_index, other);
 
         if (name == symbol) {
-            VL_INFO("Symbol '{}' found at address: 0x{:x} offset: 0x{:x} final_address: 0x{:x}\n", symbol, static_cast<uint64_t>(value), offset, static_cast<uint64_t>(value + offset));
+            VL_INFO("Symbol `{}` found at address: 0x{:x} offset: 0x{:x} final_address: 0x{:x}\n", symbol, static_cast<uint64_t>(value), offset, static_cast<uint64_t>(value + offset));
+            symbol_address_map.insert({symbol, static_cast<uint64_t>(value + offset)});
             return static_cast<uint64_t>(value + offset);
         }
     }
