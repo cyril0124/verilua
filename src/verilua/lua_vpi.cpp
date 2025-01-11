@@ -522,6 +522,66 @@ TO_LUA uint64_t get_symbol_address(const char *filename, const char *symbol) {
     return 0; 
 }
 
+TO_LUA char *get_simulator_auto() {
+    static const std::unordered_map<std::string, std::string> SYMBOL_TO_SIMULATOR = {
+        {"+verilator+", "verilator"},
+        {"liblua_vpi_vcs.so", "vcs"},
+        {"liblua_vpi_iverilog.so", "iverilog"},
+        {"liblua_vpi_wave_vpi.so", "wave_vpi"}
+    };
+
+    static std::string executable_name = get_executable_name();
+    static std::string cached_result;
+
+    if (!cached_result.empty()) {
+        return const_cast<char*>(cached_result.c_str());
+    }
+
+    ELFIO::elfio reader;
+    if (!reader.load(executable_name)) {
+        VL_FATAL(false, "Failed to load ELF file: {}", executable_name);
+        return "unknown";
+    }
+
+    for (const auto& section : reader.sections) {
+        if (section->get_size() == 0 || !section->get_data()) {
+            continue; // Skip empty sections
+        }
+
+        std::string_view content(section->get_data(), section->get_size());
+        size_t pos = 0;
+
+        // Check the last line
+        while ((pos = content.find('\n', pos)) != std::string_view::npos) {
+            std::string_view line = content.substr(0, pos);
+            for (const auto& [symbol, simulator] : SYMBOL_TO_SIMULATOR) {
+                if (line.find(symbol) != std::string_view::npos) {
+                    cached_result = simulator; // Cached result
+                    VL_INFO("Symbol `{}` found, simulator type: {}\n", symbol, simulator);
+                    return const_cast<char*>(cached_result.c_str());
+                }
+            }
+            content.remove_prefix(pos + 1);
+            pos = 0;
+        }
+
+        // Check the last line
+        if (!content.empty()) {
+            for (const auto& [symbol, simulator] : SYMBOL_TO_SIMULATOR) {
+                if (content.find(symbol) != std::string_view::npos) {
+                    cached_result = simulator;
+                    VL_INFO("Symbol `{}` found, simulator type: {}\n", symbol, simulator);
+                    return const_cast<char*>(cached_result.c_str());
+                }
+            }
+        }
+    }
+
+    VL_INFO("No target symbol found in ELF file: {}\n", executable_name);
+    cached_result = "unknown";
+    return const_cast<char*>(cached_result.c_str());
+}
+
 TO_LUA {
     typedef struct {
         int *pool;

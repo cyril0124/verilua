@@ -1,6 +1,6 @@
 local cfg = {}
 
-cfg.simulator = os.getenv("SIM") or "verilator"
+cfg.simulator = _G.cfg.simulator
 if cfg.simulator == "verilator" then
     cfg.top = "TOP.tb_top"
 else

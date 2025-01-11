@@ -47,7 +47,14 @@ cfg.VeriluaMode = setmetatable({
 })
 
 local function get_debug_info(level)
-    local info = debug.getinfo(level or 2, "nSl") -- Level 2 because we're inside a function
+    local _level = level or 2 -- Level 2 because we're inside a function
+    local info
+    
+    -- Get valid debug info. If not found(i.e. info.currentline == -1), then try to get the debug info from the previous level.
+    repeat
+        info = debug.getinfo(_level, "nSl")
+        _level = _level - 1
+    until info.currentline ~= -1
     
     local file = info.short_src -- info.source
     local line = info.currentline
@@ -143,7 +150,7 @@ function cfg:get_or_else_log(cfg_str, default, log_str)
     return cfg
 end
 
---- Dumps the content of the configuration table as a string.
+-- Dumps the content of the configuration table as a string.
 function cfg:dump_str()
     local inspect = require "inspect"
     return inspect(self, {
@@ -156,12 +163,41 @@ function cfg:dump_str()
     })
 end
 
---- Prints the content of the configuration table.
+-- Prints the content of the configuration table.
 function cfg:dump()
     print("----------------------- cfg:dump --------------------------------")
     print(self:dump_str())
     print("----------------------------------------------------------------")
 end
+
+-- 
+-- Provide a lazy way for accessing some configuration key while loading `<user cfg>.lua`.
+-- You can access the following key in `<user_cfg>.lua` using `_G.cfg.<xxx>`.
+-- Example:
+--      ```user_cfg.lua
+--          local cfg = {}
+--          
+--          cfg.simulator = _G.cfg.simulator
+-- 
+--          return cfg
+--      ```
+--
+setmetatable(cfg, {
+    __index = function (t, k)
+        if k == "simulator" then
+            local ffi = require "ffi"
+            ffi.cdef[[
+                char *get_simulator_auto();
+            ]]
+            local simulator = ffi.string(ffi.C.get_simulator_auto())
+            if simulator ~= "unknown" then
+                cfg.simulator = simulator
+                config_info(f("[LazyAccess] Automatically detected simulator: %s", simulator), get_debug_info(3))
+            end
+            return simulator
+        end
+    end
+})
 
 function cfg:get_cfg()
     local VERILUA_CFG_PATH = os.getenv("VERILUA_CFG_PATH")
@@ -184,6 +220,7 @@ end
 function cfg:merge_config(other_cfg, info_str)
     local info_str = info_str or ""
     assert(type(other_cfg) == "table")
+    setmetatable(self, nil)
 
     for k, v in pairs(other_cfg) do
         if self[k] ~= nil then
@@ -217,6 +254,19 @@ function cfg:post_config()
     assert(cfg.top, "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <DUT_TOP> or <cfg.top>")
 
     cfg.simulator = cfg.simulator or os.getenv("SIM")
+    if not cfg.simulator then
+        -- Try get simulator automatically
+        local ffi = require "ffi"
+        ffi.cdef[[
+            char *get_simulator_auto();
+        ]]
+
+        local simulator = ffi.string(ffi.C.get_simulator_auto())
+        if simulator ~= "unknown" then
+            config_info(f("[cfg:post_config] Automatically detected simulator: %s", simulator))
+            cfg.simulator = simulator
+        end
+    end
     assert(cfg.simulator, "[cfg:post_config] <cfg.simulator>(simulator) is not set! You should set <cfg.simulator> via enviroment variable <SIM> or <cfg.simulator>")
 
     cfg.script = cfg.script or os.getenv("LUA_SCRIPT")
