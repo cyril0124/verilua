@@ -181,7 +181,9 @@ void VeriluaEnv::initialize() {
 
     // Use pure luaL_dofile() to make luajit-pro load the script successfully
     if (luaL_dofile(this->L, INIT_FILE.c_str()) != LUA_OK) {
-        VL_FATAL(false,"Error calling INIT_FILE: {}, {}", INIT_FILE, lua_tostring(this->L, -1));
+        auto _err_info = lua_tostring(this->L, -1);
+        std::string err_info = _err_info ? std::string(_err_info) : "No error information found. Perhaps you didn't provide error information when calling `assert`.";
+        VL_FATAL(false,"Error calling INIT_FILE: {}, {}", INIT_FILE, err_info);
     }
 
     const char *DUT_TOP = std::getenv("DUT_TOP");
@@ -199,7 +201,9 @@ void VeriluaEnv::initialize() {
 
     // Use pure luaL_dofile() to make luajit-pro load the script successfully
     if (luaL_dofile(this->L, LUA_SCRIPT) != LUA_OK) {
-        VL_FATAL(false,"Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, lua_tostring(this->L, -1));
+        auto _err_info = lua_tostring(this->L, -1);
+        std::string err_info = _err_info ? std::string(_err_info) : "No error information found. Perhaps you didn't provide error information when calling `assert`.";
+        VL_FATAL(false,"Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, err_info);
     }
 
     sol::protected_function verilua_init = (*this->lua)["verilua_init"];
