@@ -212,26 +212,6 @@ int main(int argc, const char *argv[]) {
 
     ASSERT(driver.processOptions());
 
-    size_t fileCount = 0;
-    for (auto buffer : driver.sourceLoader.loadSources()) {
-        fileCount++;
-
-        auto name = driver.sourceManager.getRawFileName(buffer.id);
-        if (auto idx = name.find_last_of("/\\"); idx != name.npos)
-            name = name.substr(idx + 1);
-
-        fmt::println("[testbench_gen] [{}] get file: {}", fileCount, name);
-        fflush(stdout);
-    }
-
-    ASSERT(driver.parseAllSources());
-    ASSERT(driver.reportParseDiags());
-
-    auto compilation = driver.createCompilation();
-
-    bool compileSuccess = driver.reportCompilation(*compilation, false);
-    ASSERT(compileSuccess);
-
     std::string tbtopName           = _tbtopName.value_or("tb_top");
     std::string dutName             = _dutName.value_or("");
     std::string outdir              = _outdir.value_or(".");
@@ -245,6 +225,31 @@ int main(int argc, const char *argv[]) {
     bool verbose                    = _verbose.value_or(false);
     bool checkOutput                = _checkOutput.value_or(false);
     bool nodpi                      = _checkOutput.value_or(true);
+
+    size_t fileCount = 0;
+    std::ofstream slangOptFile(outdir + "/slang.opt");
+    ASSERT(slangOptFile.is_open(), "Failed to open slang.opt file");
+    for (auto buffer : driver.sourceLoader.loadSources()) {
+        fileCount++;
+
+        auto fullpath = driver.sourceManager.getFullPath(buffer.id).string();
+        fmt::println("[testbench_gen] [{}] get file: {}", fileCount, fullpath);
+        fflush(stdout);
+
+        slangOptFile << fullpath << "\n"; // TODO: save other options
+    }
+    slangOptFile << outdir + "/" + tbtopName + ".sv" << "\n";
+    slangOptFile << outdir + "/" + "others.sv" << "\n";
+    slangOptFile << "--top " << tbtopName << "\n";
+    slangOptFile.close();
+
+    ASSERT(driver.parseAllSources());
+    ASSERT(driver.reportParseDiags());
+
+    auto compilation = driver.createCompilation();
+
+    bool compileSuccess = driver.reportCompilation(*compilation, false);
+    ASSERT(compileSuccess);
 
     std::string topName     = "";
     auto &rootSymbol        = compilation->getRoot();

@@ -335,6 +335,65 @@ target("dpi_exporter")
         print("---------------------------------------------------------- ")
     end)
 
+
+local function signal_db_gen_common()
+    if is_mode("debug") then
+        -- add_defines("DEBUG")
+        set_symbols("debug")
+        set_optimize("none")
+    end
+    
+    add_files(
+        src_dir .. "/signal_db_gen/signal_db_gen.cpp",
+        extern_dir .. "/slang-common/*.cc"
+    )
+
+    local slang_dir = extern_dir .. "/slang-prebuild/install_shared"
+    add_includedirs(
+        src_dir .. "/include",
+        src_dir .. "/signal_db_gen",
+        slang_dir .. "/include",
+        extern_dir .. "/slang-common",
+        extern_dir .. "/boost_unordered/include",
+        lua_dir .. "/include/luajit-2.1",
+        vcpkg_dir .. "/x64-linux/include"
+    )
+
+    add_links("svlang", "luajit-5.1")
+    add_linkdirs(slang_dir .. "/lib", lua_dir .. "/lib")
+    add_rpathdirs(slang_dir .. "/lib", lua_dir .. "/lib")
+
+    add_packages("fmt", "mimalloc", "libassert")
+end
+
+target("signal_db_gen")
+    set_kind("binary")
+    build_common()
+    signal_db_gen_common()
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        print("* copy " .. target:targetfile() .. " into " .. tools_dir)
+            os.run("cp " .. target:targetfile() .. " " .. tools_dir)
+        print("---------------------------------------------------------- ")
+    end)
+
+target("signal_db_gen_lib")
+    set_kind("shared")
+    set_filename("libsignal_db_gen.so")
+    add_defines("SO_LIB")
+    build_common()
+    signal_db_gen_common()
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        print("* copy " .. target:targetfile() .. " into " .. shared_dir)
+            os.run("cp " .. target:targetfile() .. " " .. shared_dir)
+        print("---------------------------------------------------------- ")
+    end)
+
 target("update_submodules")
     set_kind("phony")
     on_run(function (target)
