@@ -663,37 +663,23 @@ TO_LUA void c_set_value_str(long long handle, const char *str) {
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
 
-    auto _str = std::string(str);
-    auto prefix = _str.substr(0, 2);
-
-    std::vector<char> writable;
     s_vpi_value value_s;
+    const char *value_str = str;
 
-    // #define vpiBinStrVal          1
-    // #define vpiOctStrVal          2
-    // #define vpiDecStrVal          3
-    // #define vpiHexStrVal          4
-    if (prefix == "0b") {
+    if (strncmp(str, "0b", 2) == 0) {
         // Binary
-        auto substr = _str.substr(2);
-        writable.assign(substr.begin(), substr.end());
-        writable.emplace_back('\0');
         value_s.format = vpiBinStrVal;
-        value_s.value.str = writable.data();
-    } else if (prefix == "0x") {
-        // Hexdecimal
-        auto substr = _str.substr(2);
-        writable.assign(substr.begin(), substr.end());
-        writable.emplace_back('\0');
+        value_str += 2; // Skip prefix
+    } else if (strncmp(str, "0x", 2) == 0) {
+        // Hexadecimal
         value_s.format = vpiHexStrVal;
-        value_s.value.str = writable.data();
+        value_str += 2; // Skip prefix
     } else {
         // Decimal
-        writable.assign(_str.begin(), _str.end());
-        writable.emplace_back('\0');
         value_s.format = vpiDecStrVal;
-        value_s.value.str = writable.data();
     }
+
+    value_s.value.str = const_cast<char*>(value_str);
     
     _vpi_put_value(actual_handle, &value_s, nullptr, vpiNoDelay);
     
@@ -719,40 +705,26 @@ TO_LUA void c_set_value_str_by_name(const char *path, const char *str) {
 
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
 
-    auto _str = std::string(str);
-    auto prefix = _str.substr(0, 2);
-
-    std::vector<char> writable;
     s_vpi_value value_s;
+    const char *value_str = str;
 
-    // #define vpiBinStrVal          1
-    // #define vpiOctStrVal          2
-    // #define vpiDecStrVal          3
-    // #define vpiHexStrVal          4
-    if (prefix == "0b") {
+    if (strncmp(str, "0b", 2) == 0) {
         // Binary
-        auto substr = _str.substr(2);
-        writable.assign(substr.begin(), substr.end());
-        writable.emplace_back('\0');
         value_s.format = vpiBinStrVal;
-        value_s.value.str = writable.data();
-    } else if (prefix == "0x") {
-        // Hexdecimal
-        auto substr = _str.substr(2);
-        writable.assign(substr.begin(), substr.end());
-        writable.emplace_back('\0');
+        value_str += 2; // Skip prefix
+    } else if (strncmp(str, "0x", 2) == 0) {
+        // Hexadecimal
         value_s.format = vpiHexStrVal;
-        value_s.value.str = writable.data();
+        value_str += 2; // Skip prefix
     } else {
         // Decimal
-        writable.assign(_str.begin(), _str.end());
-        writable.emplace_back('\0');
         value_s.format = vpiDecStrVal;
-        value_s.value.str = writable.data();
     }
-    
+
+    value_s.value.str = const_cast<char*>(value_str);
+
     _vpi_put_value(handle, &value_s, nullptr, vpiNoDelay);
-    
+
     LEAVE_VPI_REGION();
 }
 
@@ -760,44 +732,26 @@ TO_LUA void c_force_value_str_by_name(const char *path, const char *str) {
 #if defined(VCS) || defined(IVERILOG)
     ENTER_VPI_REGION();
 
+    static s_vpi_time t = {.type = vpiSimTime, .high = 0, .low = 0};
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
 
-    auto _str = std::string(str);
-    auto prefix = _str.substr(0, 2);
-
-    std::vector<char> writable;
     s_vpi_value value_s;
-    
-    s_vpi_time t;
-    t.type = vpiSimTime;
-    t.high = 0;
-    t.low = 0;
+    const char *value_str = str;
 
-    // #define vpiBinStrVal          1
-    // #define vpiOctStrVal          2
-    // #define vpiDecStrVal          3
-    // #define vpiHexStrVal          4
-    if (prefix == "0b") {
+    if (strncmp(str, "0b", 2) == 0) {
         // Binary
-        auto substr = _str.substr(2);
-        writable.assign(substr.begin(), substr.end());
-        writable.push_back('\0');
         value_s.format = vpiBinStrVal;
-        value_s.value.str = writable.data();
-    } else if (prefix == "0x") {
-        // Hexdecimal
-        auto substr = _str.substr(2);
-        writable.assign(substr.begin(), substr.end());
-        writable.push_back('\0');
+        value_str += 2; // Skip prefix
+    } else if (strncmp(str, "0x", 2) == 0) {
+        // Hexadecimal
         value_s.format = vpiHexStrVal;
-        value_s.value.str = writable.data();
+        value_str += 2; // Skip prefix
     } else {
         // Decimal
-        writable.assign(_str.begin(), _str.end());
-        writable.push_back('\0');
         value_s.format = vpiDecStrVal;
-        value_s.value.str = writable.data();
     }
+
+    value_s.value.str = const_cast<char*>(value_str);
     
     _vpi_put_value(handle, &value_s, &t, vpiForceFlag);
     
