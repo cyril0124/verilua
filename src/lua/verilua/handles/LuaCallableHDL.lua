@@ -249,7 +249,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                     end
 
                     if beat_num == 3 then
-                        C.c_set_value_multi_beat_3(this.hdl, value[1], value[2]);
+                        C.c_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
                     elseif beat_num == 4 then
                         C.c_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
                     elseif beat_num == 5 then
