@@ -135,15 +135,6 @@ local function create_proxy(path, use_prefix)
 
         -- 
         -- Example:
-        --      local hex_str = dut.cycles:get_hex()
-        --      assert(hex_str == "0x123")
-        -- 
-        get_hex = function (t)
-            return f("0x%x", tonumber(C.c_get_value_by_name(local_path)))
-        end,
-
-        -- 
-        -- Example:
         --      local bin_str = dut.cycles:get_str(BinStr)
         --      local dec_str = dut.cycles:get_str(DecStr)
         --      local hex_str = dut.cycles:get_str(HexStr)
@@ -159,7 +150,7 @@ local function create_proxy(path, use_prefix)
         -- 
         -- Example:
         --      local hex_str = dut.cycles:get_hex_str()
-        --      assert(hex_str == "0x123")
+        --      assert(hex_str == "123")
         -- 
         get_hex_str = function (t)
             local hdl = C.c_handle_by_name_safe(local_path)
@@ -171,8 +162,9 @@ local function create_proxy(path, use_prefix)
 
         -- 
         -- Example:
-        --      dut.cycles:set_str("0x123")
-        --      dut.cycles:set_str("0b101010")
+        --      -- Notice: prefix is required
+        --      dut.cycles:set_str("0x123")    -- for hex string
+        --      dut.cycles:set_str("0b101010") -- for binary string
         -- 
         set_str = function(t, str)
             if set_force_enable then
@@ -182,6 +174,21 @@ local function create_proxy(path, use_prefix)
                 C.c_set_value_str_by_name(local_path, str)
             end
         end,
+
+        -- 
+        -- Example:
+        --      -- Notice: prefix is not required
+        --      dut.cycles:set_hex_str("123")
+        -- 
+        set_hex_str = function (t, str)
+            if set_force_enable then
+                table_insert(force_path_table, local_path)
+                C.c_force_value_str_by_name(local_path, "0x" .. str)
+            else
+                C.c_set_value_str_by_name(local_path, "0x" .. str)
+            end
+        end,
+
         set_force_str = function(t, str)
             C.c_force_value_str_by_name(local_path, str)
         end,
@@ -384,49 +391,37 @@ local function create_proxy(path, use_prefix)
         -- 
         expect_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
-            if not (this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "")) then
-                assert(false, f("[%s] expect => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
-            end
-        end,
-
-        expect_hex_str_v2 = function(this, hex_value_str_no_prefix)
-            assert(type(hex_value_str_no_prefix) == "string")
-            if not (this:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0*", "")) then
-                assert(false, f("[%s] expect => %s, but got => %s", this.fullpath, hex_value_str_no_prefix, this:get_str(HexStr)))
+            local left = this:get_hex_str():lower():gsub("^0*", "")
+            local right = hex_value_str:lower():gsub("^0*", "")
+            if left ~= right then
+                assert(false, f("[%s] expect => %s, but got => %s", local_path, right, left))
             end
         end,
     
         expect_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
-            if not (this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*")) then
+            if this:get_str(BinStr):gsub("^0*", "") ~= bin_value_str:gsub("^0*") then
                 assert(false, f("[%s] expect => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
     
         expect_dec_str = function(this, dec_value_str)
             assert(type(dec_value_str) == "string")
-            if not (this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")) then
+            if this:get_str(DecStr):gsub("^0*", "") ~= dec_value_str:gsub("^0*", "") then
                 assert(false, f("[%s] expect => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
             end
         end,
 
         expect_not_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
-            if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "") then
+            if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0*", "") then
                 assert(false, f("[%s] expect not => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
-            end
-        end,
-
-        expect_not_hex_str_1 = function(this, hex_value_str_no_prefix)
-            assert(type(hex_value_str_no_prefix) == "string")
-            if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0*", "") then
-                assert(false, f("[%s] expect not => %s, but got => %s", this.fullpath, hex_value_str_no_prefix, this:get_str(HexStr)))
             end
         end,
     
         expect_not_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
-            if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*") then
+            if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*") then
                 assert(false, f("[%s] expect not => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
@@ -511,15 +506,11 @@ local function create_proxy(path, use_prefix)
         --          dut.path.to.signal:_if(dut.signal:is_hex_str("0x1")):expect(123)
         --
         is_hex_str = function(t, hex_value_str)
-            return t:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0x0*", "")
-        end,
-
-        is_hex_str_v2 = function(t, hex_value_str_no_prefix)
-            return t:get_hex_str():lower():gsub("^0*", "") == hex_value_str_no_prefix:lower():gsub("^0x0*", "")
+            return t:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0*", "")
         end,
 
         is_bin_str = function(t, bin_value_str)
-            return t:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0b0*")
+            return t:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*")
         end,
 
         is_dec_str = function(t, dec_value_str)

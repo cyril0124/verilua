@@ -474,7 +474,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
     end
 
     -- Convert the result to a hexadecimal string
-    local hexstr = "0x"
+    local hexstr = ""
     for i = num_blocks, 1, -1 do
         hexstr = hexstr .. bit_tohex(v[i])
     end
@@ -542,60 +542,5 @@ do
         end
     end
 end
-
-
--- 
--- simple test
--- 
--- assert(utils.bitfield_str("0000322", 8, 9, 10) == "01")
--- assert(utils.bitfield_str("322", 0, 8) == "101000010")
--- assert(utils.bitfield_str("322", 0, 9, 10) == "0101000010")
--- assert(utils.bitfield_str("0x123", 0, 2) == "011")
--- assert(utils.bitfield_str("0b0101", 0, 3) == "0101") -- get: 0101
--- assert(utils.bitfield_str("0b01  01", 0, 3) == "0101") -- get: 0101
--- assert(tonumber(utils.bitfield_str("123", 0, 6), 2) == 123) -- get: 123
--- assert(tonumber(utils.bitfield_str("0x1000004", 0, 15), 2) == 4) 
--- assert(utils.bitfield_str("0x12345678_12345678 12345678 12345678 12345678 12345678 12345678 12345678", 0, 4) == "11000")
-
--- assert(utils.bitpat_to_hexstr({
---     {s = 0, e = 1, v = 2},
---     {s = 4, e = 7, v = 4},
---     {s = 63, e = 63, v = 1}
--- }, 64) == "0x8000000000000042")
-
--- assert(utils.bitpat_to_hexstr({
---     {s = 0, e = 1, v = 2},
---     {s = 4, e = 7, v = 4},
---     {s = 127, e = 127, v = 1}
--- }, 128) == "0x80000000000000000000000000000042")
-
--- assert(utils.bitpat_to_hexstr({
---     {s = 0, e = 1, v = 2},
---     {s = 4, e = 7, v = 4},
---     {s = 255, e = 255, v = 1}
--- }, 256) == "0x8000000000000000000000000000000000000000000000000000000000000042")
-
--- assert(utils.bitpat_to_hexstr({
---     {s = 0, e = 1, v = 2},
---     {s = 4, e = 7, v = 4},
---     {s = 109, e = 109, v = 1}
--- }, 110) == "0x00002000000000000000000000000042")
-
--- assert(utils.bitpat_to_hexstr({
---     {s = 0, e = 1, v = 2},
---     {s = 4, e = 7, v = 4},
---     {s = 65, e = 127, v = 0x11231}
--- }, 128) == "0x00000000000224620000000000000042")
-
--- assert(utils.bitpat_to_hexstr({
---     {s = 0, e = 63, v = 0xdead}
--- }, 512) == "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead")
-
--- assert(utils.bitpat_to_hexstr({
---     {s = 0, e = 63, v = 0xdead},
---     {s = 256, e = 255 + 63, v = 0xbeef},
--- }, 512) == "0x000000000000000000000000000000000000000000000000000000000000beef000000000000000000000000000000000000000000000000000000000000dead")
-
-
 
 return utils

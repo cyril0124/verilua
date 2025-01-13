@@ -667,15 +667,6 @@ do
     getmetatable('').__index.get = function (str)
         return tonumber(ffi.C.c_get_value_by_name(str))
     end
-
-    -- 
-    -- Example:
-    --      local hex_str = ("tb_top.cycles"):get_hex()
-    --      assert(hex_str == "0x123")
-    -- 
-    getmetatable('').__index.get_hex = function (str)
-        return f("0x%x", tonumber(ffi.C.c_get_value_by_name(str)))
-    end
     
     -- 
     -- Example:

@@ -9,7 +9,7 @@ fork {
 
         if cfg.simulator == "wave_vpi" then
             dut.clock:posedge()
-            dut.value:expect_hex_str("0x10000000")
+            dut.value:expect_hex_str("10000000")
         else
             dut.clock:posedge(10, function ()
                 dut.value:dump()
