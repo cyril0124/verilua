@@ -14,7 +14,6 @@ local string = string
 local ipairs = ipairs
 local assert = assert
 local f = string.format
-local ffi_new = ffi.new
 local tonumber = tonumber
 local tostring = tostring
 local math_ceil = math.ceil
@@ -144,7 +143,8 @@ end
 ---@return number The processed value
 --
 function utils.bitfield32(begin, endd, val)
-    return bit_rshift( bit_lshift(val, 32 - endd), begin + 32- endd )
+    local mask = bit_lshift(1ULL, endd - begin + 1) - 1
+    return tonumber(bit.band(bit_rshift(val + 0ULL, begin), mask))
 end
 
 --
@@ -154,8 +154,7 @@ end
 ---@return number The processed value
 --
 function utils.bitfield64(begin, endd, val)
-    local val64 = ffi_new('uint64_t', val)
-    return bit_rshift( bit_lshift(val64, 64 - endd), begin + 64- endd )
+    return bit_rshift( bit_lshift(val + 0ULL, 64 - endd - 1), begin + 64- endd - 1 )
 end
 
 --

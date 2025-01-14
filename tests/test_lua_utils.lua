@@ -6,6 +6,48 @@ local describe, it, expect = lester.describe, lester.it, lester.expect
 local assert, print, f = assert, print, string.format
 
 describe("LuaUtils test", function ()
+    it("should work for bitfield32() and bitfiled64()", function ()
+        local tests = {
+            {0xffffffff, 0, 1, 3},
+            {0xffffffff, 0, 3, 15},
+            {0xffffffff, 0, 4, 31},
+            {0xffffffff, 0, 7, 255},
+            {0xffffffff, 0, 15, 65535},
+            {0xffffffff, 16, 31, 65535},
+            {0xffffffff, 0, 31, 2 ^ 32 - 1},
+        }
+        for _, test in ipairs(tests) do
+            local result = utils.bitfield32(test[2], test[3], test[1])
+            assert(type(result) == "number", type(result))
+            assert(result == test[4], tostring(result) .. " " .. tostring(test[4]))
+        end
+
+        for _, test in ipairs(tests) do
+            local result = utils.bitfield64(test[2], test[3], test[1])
+            assert(type(result) == "cdata", type(result))
+            assert(result == test[4], tostring(result) .. " " .. tostring(test[4]))
+        end
+
+        local tests = {
+            {0xffffffffffffffffULL, 0, 1, 3},
+            {0xffffffffffffffffULL, 0, 3, 15},
+            {0xffffffffffffffffULL, 0, 4, 31},
+            {0xffffffffffffffffULL, 0, 7, 255},
+            {0xffffffffffffffffULL, 0, 15, 65535},
+            {0xffffffffffffffffULL, 16, 31, 65535},
+            {0xffffffffffffffffULL, 0, 31, 2 ^ 32 - 1},
+            {0xffffffffffffffffULL, 0, 63, 0xffffffffffffffffULL},
+            {0xffffffffffffffffULL, 62, 63, 3},
+            {0xffffffffffffffffULL, 63, 63, 1},
+        }
+
+        for _, test in ipairs(tests) do
+            local result = utils.bitfield64(test[2], test[3], test[1])
+            assert(type(result) == "cdata", type(result))
+            assert(result == test[4], tostring(result) .. " " .. tostring(test[4]))
+        end
+    end)
+
     it("should work properly for bitfield_str()", function ()
         expect.equal(utils.bitfield_str("0000322", 8, 9, 10), "01")
         expect.equal(utils.bitfield_str("322", 0, 8), "101000010")
