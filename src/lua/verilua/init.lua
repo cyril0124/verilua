@@ -1233,19 +1233,6 @@ do
     -- TODO: join?
 end
 
-
-local io = require "io"
-io.writefile = function(filename, data, opt)
-    opt = opt or {}
-    local f, err = io.open(tostring(filename), "w", opt)
-    if not f then
-        return false, err
-    end
-    f:write(data)
-    f:close()
-    return true
-end
-
 -- 
 -- setup random seed
 -- 

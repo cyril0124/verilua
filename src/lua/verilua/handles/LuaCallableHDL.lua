@@ -11,6 +11,7 @@ local BeatWidth = 32
 
 local type = type
 local print = print
+local rawset = rawset
 local assert = assert
 local f = string.format
 local tonumber = tonumber
@@ -993,6 +994,79 @@ function CallableHDL:__call(force_multi_beat)
     else
         return C.c_get_value(self.hdl)
     end
+end
+
+-- 
+-- Handles assignment to CallableHDL objects. If key is "value".
+-- Processes based on value type:
+--      - number
+--      - string(with prefix)
+--      - table(u32_vec)
+--      - cdata (uint64_t or uint64_t[])
+--      - boolean
+-- Auto-type-based value assignment.
+-- 
+function CallableHDL:__newindex(k, v)
+    -- 
+    -- Example:
+    --      <chdl>.value = 123
+    --      <chdl>.value = 0x123
+    --      <chdl>.value = 0x112233ULL
+    --      <chdl>.value = "0x123"
+    --      <chdl>.value = "0b01011"
+    --      <chdl>.value = "123"
+    --      <chdl>.value = {0x123, 0x456}
+    --      <chdl>.value = true
+    --      <chdl>.value = false
+    -- 
+    if k == "value" then
+        assert(not self.is_array, "TODO: not implemented for array type <chdl>")
+        
+        local v_type = type(v)
+
+        if v_type == "number" then
+            self:set_unsafe(v, true)
+        elseif v_type == "string" then
+            self:set_str(v)
+        elseif v_type == "table" then
+            if self.beat_num == 1 then
+                self:set_unsafe(v[1], true)
+            else
+                self:set(v)
+            end
+        elseif v_type == "cdata" then
+            if ffi.istype("uint64_t", v) then
+                self:set_unsafe(v, true)
+            elseif ffi.istype("uint64_t[]", v) then
+                local is_multi_beat = self.is_multi_beat
+                if self.beat_num == 1 then
+                    self:set_unsafe(v[1], true) 
+                else
+                    self:set(v)
+                end
+            else
+                assert(false, "[CallableHDL] invalid value type: " .. v_type)
+            end
+        elseif v_type == "boolean" then
+            if v then
+                self:set_unsafe(1, true)
+            else
+                self:set_unsafe(0, true)
+            end
+        else
+            assert(false, "[CallableHDL] invalid value type: " .. v_type)
+        end
+    else
+        rawset(self, k, v)
+    end
+end
+
+function CallableHDL:__len()
+    return self.width
+end
+
+function CallableHDL:__tostring()
+    return f("<[CallableHDL] fullpath: %s, width: %d, beat_num: %d>", self.fullpath, self.width, self.beat_num)
 end
 
 return CallableHDL
