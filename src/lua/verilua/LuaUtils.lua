@@ -542,4 +542,14 @@ do
     end
 end
 
+function utils.urandom64()
+    return math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
+end
+
+function utils.urandom64_range(min, max)
+    local random_value = math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
+    local result = min + (random_value % (max - min + 1ULL --[[ range ]]))
+    return result
+end
+
 return utils

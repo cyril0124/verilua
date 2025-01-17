@@ -106,4 +106,32 @@ describe("LuaUtils test", function ()
         }, 64) == "000600000000dead")
     end)
 
+    it("should work properly for urandom64() and urandom64_range()", function ()
+        local success = false
+        for i = 1, 10000 do
+            local v = utils.urandom64()
+            assert(type(v) == "cdata")
+            if v >= 0xFFFFFFFULL then
+                success = true
+            end
+        end
+        assert(success)
+
+        local tests = {
+            {MIN = 0xFFFF, MAX = 0xFFFFF},
+            {MIN = 0xFFFFFFFFULL, MAX = 0xFFFFFFFFFULL}
+        }
+        for i, v in ipairs(tests) do
+            local MIN = v.MIN
+            local MAX = v.MAX
+            for i = 1, 10000 do
+                local v = utils.urandom64_range(MIN, MAX)
+                assert(type(v) == "cdata")
+                if v > MAX or v < MIN then
+                    assert(false)
+                end
+            end
+        end
+    end)
+
 end)
