@@ -838,10 +838,6 @@ function CallableHDL:_init(fullpath, name, hdl)
         print(this:dump_str())
     end
 
-    self.get_width = function (this)
-        return this.width
-    end
-
     self.expect = function (this, value)
         local typ = type(value)
         assert(typ == "number" or typ == "cdata")
