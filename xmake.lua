@@ -62,7 +62,7 @@ local function build_lib_common()
         vcpkg_dir .. "/x64-linux/include"
     )
 
-    add_packages("fmt", "elfio")
+    add_packages("fmt", "elfio", "mimalloc")
     
     -- add_links("luajit-5.1")
     -- add_linkdirs(lua_dir .. "/lib")
@@ -110,6 +110,9 @@ for sim, name in pairs({
     if name ~= "" then
         target(name) do
             add_defines(sim)
+            if sim == "IVERILOG" then
+                add_defines("USE_MIMALLOC")
+            end
             build_lib_common()
         end
     end
@@ -246,14 +249,17 @@ if iverilog_home ~= nil then
 
         add_links("vvp")
         add_linkdirs(iverilog_home .. "/lib")
+        add_rpathdirs(iverilog_home .. "/lib")
 
         add_links("luajit-5.1")
         add_linkdirs(lua_dir .. "/lib")
-
-        add_packages("fmt", "mimalloc")
+        add_rpathdirs(lua_dir .. "/lib")
 
         add_links("lua_vpi_iverilog")
         add_linkdirs(shared_dir)
+        add_rpathdirs(shared_dir)
+
+        add_packages("fmt", "mimalloc")
 
         after_build(function (target)
             print("--------------------- [After Build] ---------------------- ")
