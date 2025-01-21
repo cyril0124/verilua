@@ -112,6 +112,36 @@ fork {
                 assert(value128:get_bitvec():get_bitfield(0, 15) == 0xbeef)
         end
 
+        do
+            clock:negedge()
+                value128.value = 0
+            clock:negedge()
+                value128:expect_hex_str("0")
+            
+            clock:negedge()
+                value128.value = {0x123, 0x456, 0, 0}
+            clock:negedge()
+                value128:expect_hex_str("00000000000000000000045600000123")
+            
+            clock:negedge()
+                value128.value = 0x7777777777777777ULL
+            clock:negedge()
+                value128:expect_hex_str("7777777777777777")
+
+            local bv = BitVec("0", 128)
+            
+            clock:negedge()
+                value128.value = bv
+            clock:negedge()
+                value128:expect_hex_str("0")
+
+            clock:negedge()
+                bv:set_bitfield_hex_str(110, 127, "1234")
+                value128.value = bv
+            clock:negedge()
+                value128:expect_hex_str("048d0000000000000000000000000000")
+        end
+
         print("Finish")
         sim.finish()
     end

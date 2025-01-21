@@ -400,7 +400,7 @@ TO_LUA void c_set_value(long long handle, uint32_t value) {
     LEAVE_VPI_REGION();
 }
 
-TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t size) {
+TO_LUA void c_set_value64_force_single(long long handle, uint64_t value, uint32_t size) {
     ENTER_VPI_REGION();
 
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(handle);
@@ -417,7 +417,8 @@ TO_LUA void c_set_value_force_single(long long handle, uint32_t value, uint32_t 
         vector[i].bval = 0;
     }
 
-    vector[0].aval = value;
+    vector[1].aval = value >> 32;
+    vector[0].aval = (value << 32) >> 32;
     
     v.format = vpiVectorVal;
     v.value.vector = vector;

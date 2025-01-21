@@ -344,6 +344,14 @@ function BitVec:__tostring()
     return result
 end
 
+function BitVec:to_hex_str()
+    local result = ""
+    for i = 1, #self.u32_vec do
+        result = bit_tohex(self.u32_vec[i]) .. result
+    end
+    return result
+end
+
 function BitVec:__concat(other)
     assert(false, "TODO:")
 end
