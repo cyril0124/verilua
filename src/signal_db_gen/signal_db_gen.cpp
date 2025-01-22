@@ -91,56 +91,29 @@ public:
     slang::driver::Driver driver;
     std::optional<bool> showHelp;
     std::optional<std::string> outfile;
+    std::optional<std::string> signalDBFile;
 
     WrappedDriver() {
-        lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::string, sol::lib::table, sol::lib::io);
-
-        driver.addStandardArgs();
-        driver.cmdLine.add("-h,--help", showHelp, "Display available options");
-        driver.cmdLine.add("-o,--out", outfile, "Output file name", "<file>");
-    }
-
-    int parseCmdLine(int argc, char **argv) {
-        ASSERT(driver.parseCommandLine(argc, argv));
-
-        if (showHelp) {
-            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
-            return 0;
-        }
-
-        this->_parseCmdLine();
-
-        return 1;
-    }
-
-    int parseCmdLine(std::string_view argList) {
-        ASSERT(driver.parseCommandLine(argList));
-
-        if (showHelp) {
-            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
-            return 0;
-        }
-
-        this->_parseCmdLine();
-        
-        return 1;
-    }
-
-    std::unique_ptr<slang::ast::Compilation> getCompilelation() {
-        ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
-        auto compilation    = driver.createCompilation();
-        bool compileSuccess = driver.reportCompilation(*compilation, false);
-        ASSERT(compileSuccess);
-
-        return compilation;
-    }
-
-    void generateSignalDB() {
-        ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
-        
+        lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::string, sol::lib::table, sol::lib::io, sol::lib::os);
         lua.script(R"(
+            _G.package.path = package.path .. ";" .. os.getenv("VERILUA_HOME") .. "/src/lua/thirdparty_lib/?.lua"
             _G.sb = require "string.buffer"
+            _G.inspect = require "inspect"
             _G.signal_db_table = {}
+
+            function print_signal_db(signal_db_file)
+                local file = io.open(signal_db_file, "r")
+                local signal_db_data = {}
+                if file then
+                    local data = file:read("*a")
+                    file:close()
+                    signal_db_data = sb.decode(data)
+                else
+                    error("[signal_db_gen] [decode] Failed to open 'signala_db.ldb'")
+                end
+
+                print(inspect(signal_db_data))
+            end
 
             function insert_signal_db(hier_path_vec)
                 local curr = signal_db_table
@@ -159,10 +132,54 @@ public:
             end
         )");
 
+        driver.addStandardArgs();
+        driver.cmdLine.add("-h,--help", showHelp, "Display available options");
+        driver.cmdLine.add("-o,--out", outfile, "Output file name", "<file>");
+        driver.cmdLine.add("-s,--signal-db", signalDBFile, "Input signalDB file", "<file>");
+    }
+
+    int parseCmdLine(int argc, char **argv) {
+        ASSERT(driver.parseCommandLine(argc, argv));
+
+        if (showHelp) {
+            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
+            return 0;
+        }
+
+        return this->_parseCmdLine();
+    }
+
+    int parseCmdLine(std::string_view argList) {
+        ASSERT(driver.parseCommandLine(argList));
+
+        if (showHelp) {
+            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
+            return 0;
+        }
+
+        return this->_parseCmdLine();
+    }
+
+    std::unique_ptr<slang::ast::Compilation> getCompilelation() {
+        ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
+        auto compilation    = driver.createCompilation();
+        bool compileSuccess = driver.reportCompilation(*compilation, false);
+        ASSERT(compileSuccess);
+
+        return compilation;
+    }
+
+    void generateSignalDB() {
+        ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
+
         SignalGetter getter;
         this->getCompilelation()->getRoot().visit(getter);
         for (auto const &hierPath : getter.hierPathVec) {
-            lua["insert_signal_db"](hierPath);
+            auto ret = lua["insert_signal_db"](hierPath);
+            if(!ret.valid()) {
+                sol::error  err = ret;
+                PANIC("Failed to call lua function `insert_signal_db", err.what());
+            }
         }
 
         std::string outFile = outfile.value_or("signal_db.ldb");
@@ -182,7 +199,17 @@ public:
 private:
     bool alreadyParsed = false;
 
-    void _parseCmdLine() {
+    int _parseCmdLine() {
+        if(signalDBFile.has_value()) {
+            // Read signal db file and print it
+            auto ret = lua["print_signal_db"](signalDBFile.value());
+            if(!ret.valid()) {
+                sol::error  err = ret;
+                PANIC("Failed to call lua function `print_signal_db", err.what());
+            }
+            return 0;
+        }
+
         std::string topModuleName = "";
 
         if (!driver.options.topModules.empty()) {
@@ -209,6 +236,8 @@ private:
         ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
         
         alreadyParsed = true;
+
+        return 1;
     }
 };
 
