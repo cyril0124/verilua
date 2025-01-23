@@ -134,4 +134,34 @@ describe("LuaUtils test", function ()
         end
     end)
 
+    it("should work properly for str_group_by() and str_sep()", function ()
+        local tests = {
+            {"1234567890", 3, {"123", "456", "789", "0"}},
+            {"1234567890", 4, {"1234", "5678", "90"}},
+            {"1234567890", 5, {"12345", "67890"}},
+            {"1234567890", 6, {"123456", "7890"}},
+            {"1234567890", 7, {"1234567", "890"}},
+        }
+        for _, test in ipairs(tests) do
+            local str = test[1]
+            local nr_group = test[2]
+            local result = test[3]
+            expect.equal(utils.str_group_by(str, nr_group), result)
+        end
+
+        local tests = {
+            {"1234567890", 3, "123,456,789,0", ","},
+            {"1234567890", 4, "1234,5678,90", ","},
+            {"1234567890", 5, "12345,67890", ","},
+            {"1234567890", 6, "123456,7890", ","},
+            {"1234567890", 7, "1234567,890", ","},
+        }
+        for _, test in ipairs(tests) do
+            local str = test[1]
+            local nr_group = test[2]
+            local result = test[3]
+            local separator = test[4]
+            expect.equal(utils.str_sep(str, nr_group, separator), result)
+        end
+    end)
 end)

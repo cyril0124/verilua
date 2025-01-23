@@ -552,4 +552,26 @@ function utils.urandom64_range(min, max)
     return result
 end
 
+function utils.str_group_by(str, nr_group)
+    local result = {}
+    for i = 1, #str, nr_group do
+        local chunk = str:sub(i, i + nr_group - 1)
+        table.insert(result, chunk)
+    end
+    return result
+end
+
+function utils.str_sep(str, step, separator)
+    local result = ""
+    local separator = separator or " "
+    for i = 1, #str, step do
+        local chunk = str:sub(i, i + step - 1)
+        result = result .. chunk .. separator
+    end
+
+    result = result:sub(1, -#separator - 1)
+    return result
+end
+
+
 return utils
