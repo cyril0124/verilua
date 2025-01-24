@@ -1,4 +1,5 @@
 local ffi = require "ffi"
+local inspect = require "inspect"
 local lester = require "lester"
 local utils = require "LuaUtils"
 
@@ -58,6 +59,8 @@ describe("LuaUtils test", function ()
         expect.equal(tonumber(utils.bitfield_str("123", 0, 6), 2), 123) -- get: 123
         expect.equal(tonumber(utils.bitfield_str("0x1000004", 0, 15), 2), 4) 
         expect.equal(utils.bitfield_str("0x12345678_12345678 12345678 12345678 12345678 12345678 12345678 12345678", 0, 4), "11000")
+        expect.equal(utils.bitfield_str("0xff", 7, 7), "1")
+        expect.equal(utils.bitfield_str("0x8000000000000000", 63, 63), "1")
     end)
 
     it("should work properly for bitpat_to_hexstr()", function ()
@@ -119,18 +122,28 @@ describe("LuaUtils test", function ()
 
         local tests = {
             {MIN = 0xFFFF, MAX = 0xFFFFF},
-            {MIN = 0xFFFFFFFFULL, MAX = 0xFFFFFFFFFULL}
+            {MIN = 0xFFFFFFFFULL, MAX = 0xFFFFFFFFFULL},
+            {MIN = 0, MAX = 0xFFFFFFFFFFFFFFFFULL}
         }
         for i, v in ipairs(tests) do
             local MIN = v.MIN
             local MAX = v.MAX
+
+            local random_count = 0
+            local random_count_tbl = {}
             for i = 1, 10000 do
                 local v = utils.urandom64_range(MIN, MAX)
+                random_count_tbl[utils.to_hex_str(v)] = v
                 assert(type(v) == "cdata")
                 if v > MAX or v < MIN then
                     assert(false)
                 end
             end
+
+            for _, v in pairs(random_count_tbl) do
+                random_count = random_count + 1
+            end
+            assert(random_count > 100, f("MIN: %s, MAX: %s, random_count: %d, random_count_tbl: %s", utils.to_hex_str(MIN), utils.to_hex_str(MAX), random_count, inspect(random_count_tbl)))
         end
     end)
 

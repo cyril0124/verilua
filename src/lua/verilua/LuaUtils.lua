@@ -377,11 +377,12 @@ function utils.bitfield_str(str, s, e, width)
     end
 
     local len = #bin_str
-    if s < 0 or e < 0 or s >= len or e >= len or s > e then
-        error("Invalid bitfield range.")
+    if s < 0 or e < 0 or s > len or e > len or s > e then
+        error(f("Invalid bitfield range. s:%d, e:%d, len:%d", s, e, len))
     end
 
-    return bin_str:sub(len - e, len - s)
+    local ret = bin_str:sub(len - e, len - s)
+    return ret == "" and "0" or ret
 end
 
 --
@@ -536,7 +537,16 @@ end
 
 function utils.urandom64_range(min, max)
     local random_value = math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
-    local result = min + (random_value % (max - min + 1ULL --[[ range ]]))
+
+    local range = 0ULL
+    if max == 0xFFFFFFFFFFFFFFFFULL then
+        range = 0xFFFFFFFFFFFFFFFFULL
+    else
+        range = max - min + 1ULL
+    end
+    
+    local result = min + (random_value % (range))
+    
     return result
 end
 
