@@ -587,4 +587,36 @@ function utils.reset_bits(value, start, length)
     return bit_band(value, bit_bnot(mask))
 end
 
+function utils.cover_with_n(value, n)
+    return math_ceil(value / n)
+end
+
+function utils.shuffle_bits(bitwidth)
+    assert(bitwidth <= 64, "bitwidth must be less than or equal to 64")
+    if bitwidth <= 32 then
+        return math_random(0, tonumber(utils.bitmask(bitwidth)))
+    else
+        return utils.urandom64_range(0, utils.bitmask(bitwidth))
+    end
+end
+
+function utils.shuffle_bits_hex_str(bitwidth)
+    if bitwidth <= 32 then
+        return bit_tohex(utils.shuffle_bits(bitwidth))
+    else
+        local u32_chunk = utils.cover_with_n(bitwidth, 32)
+        local result = ""
+        local total_bits = bitwidth
+        for i = 1, u32_chunk do
+            if total_bits >= 32 then
+                result = bit_tohex(utils.shuffle_bits(32)) .. result
+            else
+                result = bit_tohex(utils.shuffle_bits(total_bits)) .. result
+            end
+            total_bits = total_bits - 32
+        end
+        return result
+    end
+end
+
 return utils

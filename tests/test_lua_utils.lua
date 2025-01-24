@@ -252,4 +252,66 @@ describe("LuaUtils test", function ()
             expect.equal(result, expected + 0ULL)
         end
     end)
+
+    it("should work properly for cover_with_n()", function ()
+        local tests = {
+            {128, 32, 4},
+            {127, 32, 4},
+            {96, 32, 3},
+            {31, 32, 1},
+            {0, 32, 0},
+            {15, 3, 5},
+            {14, 3, 5},
+        }
+        for i, test in ipairs(tests) do
+            local value = test[1]
+            local n = test[2]
+            local expected = test[3]
+            local result = utils.cover_with_n(value, n)
+            expect.equal(result + 0ULL, expected + 0ULL)
+        end
+    end)
+
+    it("should work properly for shuffle_bits_hex_str()", function ()
+        local test = function(width, iter)
+            local iter = iter or 100
+            local tbl = {}
+            for i = 1, iter do
+                local ret = utils.shuffle_bits_hex_str(width)
+                expect.equal(utils.bitfield_str("0x" .. ret, width, width), "0")
+                for j = 1, width do
+                    local v = utils.bitfield_str("0x".. ret, j - 1, j - 1)
+                    if v == "1" and tbl[j] == nil then
+                        tbl[j] = j
+                        break
+                    end
+                end
+            end
+            return #tbl
+        end
+
+        for i = 1, 70 do
+            expect.equal(test(i), i)
+        end
+
+        local test = function(width, iter)
+            local iter = iter or 100
+            local tbl = {}
+            for i = 1, iter do
+                local ret = utils.shuffle_bits(width)
+                for j = 1, width do
+                    local v = utils.bitfield_str("0x".. utils.to_hex_str(ret), j - 1, j - 1, width)
+                    if v == "1" and tbl[j] == nil then
+                        tbl[j] = j
+                        break
+                    end
+                end
+            end
+            return #tbl
+        end
+
+        for i = 1, 64 do
+            expect.equal(test(i), i)
+        end
+    end)
 end)
