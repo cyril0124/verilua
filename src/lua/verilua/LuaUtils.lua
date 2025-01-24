@@ -59,41 +59,27 @@ function utils.reverse_table(tab)
     return new_tab
 end
 
--- 
--- reverse == true(Default)
---     MSB <=> LSB
--- reverse == false
---     LSB <=> MSB
 --
 ---@param t number|cdata|table The value to be converted to hexadecimal string
----@param reverse boolean Whether to reverse the byte order, defaults to true
----@return string The hexadecimal string
+---@return string The hexadecimal string, MSB <=> LSB
 --
 do
-    local function get_result(t_len, t, reverse)
+    local function get_result(t_len, t, separator)
         local t_copy = table_new(t_len, 0)
 
         if t_len == 1 then
             t_copy[1] = bit_tohex(t[1])
         else
             for i = 1, t_len do
-                if reverse then
-                    t_copy[t_len - i + 1] = bit_tohex(t[i])
-                else
-                    t_copy[i] = bit_tohex(t[i])
-                end
+                t_copy[t_len - i + 1] = bit_tohex(t[i])
             end
         end
 
-        return table_concat(t_copy, " ")
+        return table_concat(t_copy, separator)
     end
 
-    function utils.to_hex_str(t, _reverse)
-        local reverse = _reverse
-        if reverse == nil then
-            reverse = true
-        end
-
+    function utils.to_hex_str(t, separator)
+        local separator = separator or ""
         local result = ""
         local t_len = 0
         local t_type = type(t)
@@ -109,13 +95,13 @@ do
                 -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
                 -- 
                 t_len = t[0]
-                result = get_result(t_len, t, reverse)
+                result = get_result(t_len, t, separator)
             end
         else
             assert(t_type == "table")
             t_len = #t
 
-            result = get_result(t_len, t, reverse)
+            result = get_result(t_len, t, separator)
         end
 
         return result
