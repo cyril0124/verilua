@@ -16,6 +16,8 @@ local assert = assert
 local f = string.format
 local tonumber = tonumber
 local tostring = tostring
+local bit_bnot = bit.bnot
+local bit_band = bit.band
 local math_ceil = math.ceil
 local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
@@ -559,5 +561,20 @@ function utils.str_sep(str, step, separator)
     return result
 end
 
+function utils.bitmask(n)
+    assert(n <= 64, "n must be less than or equal to 64")
+    if n == 64 then
+        return 0xFFFFFFFFFFFFFFFFULL
+    else
+        return bit_lshift(1ULL, n) - 1ULL
+    end
+end
+
+function utils.reset_bits(value, start, length)
+    assert(start < 64)
+    assert(length <= 64)
+    local mask = bit_lshift(utils.bitmask(length), start)
+    return bit_band(value, bit_bnot(mask))
+end
 
 return utils

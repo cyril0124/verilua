@@ -164,4 +164,79 @@ describe("LuaUtils test", function ()
             expect.equal(utils.str_sep(str, nr_group, separator), result)
         end
     end)
+
+    it("should work properly for bitmask()", function ()
+        local tests = {
+            {n = 0, expected = 0},
+            {n = 1, expected = 1},
+            {n = 2, expected = 3},
+            {n = 4, expected = 15},
+            {n = 8, expected = 255},
+            {n = 16, expected = 65535},
+            {n = 32, expected = 0xFFFFFFFFULL},
+            {n = 33, expected = 0x1FFFFFFFFULL},
+            {n = 40, expected = 0xFFFFFFFFFFULL},
+            {n = 48, expected = 0xFFFFFFFFFFFFULL},
+            {n = 56, expected = 0xFFFFFFFFFFFFFFULL},
+            {n = 64, expected = 0xFFFFFFFFFFFFFFFFULL}
+        }
+        
+        for _, test in ipairs(tests) do
+            local n = test.n
+            local expected = test.expected
+            local result = utils.bitmask(n)
+            expect.equal(result, expected + 0ULL)
+        end
+    end)
+
+    it("should work properly for to_hex_str()", function ()
+        local tests = {
+            {0x1234, "1234"},
+            {0x12345678, "12345678"},
+            {0xFFFFFFFF, "ffffffff"},
+            {0xFFFFFFFFFULL, "0000000fffffffff"},
+            {0xFFFFFFFFFFFFFFFFULL, "ffffffffffffffff"},
+            {0x1234567890123456ULL, "1234567890123456"},
+            {{0x1234, 0x2445}, "0000244500001234"},
+            {{0x1234, 0x2445}, "00002445 00001234", " "},
+            {{0x1234, 0x2445}, "00002445_00001234", "_"},
+            {{0x1234, 0x2445ULL}, "000000000000244500001234"},
+            {{0x1234, 0x2445ULL}, "0000000000002445_00001234", "_"},
+            {{0x1234, 0x2445, 0x244}, "000002440000244500001234"},
+            {ffi.new("uint32_t[?]", 4, {3, 0x1234, 0x2445, 0x244}), "000002440000244500001234"},
+        }
+
+        for _, test in ipairs(tests) do
+            local v = test[1]
+            local expected = test[2]
+            local seperator = test[3]
+            local result = utils.to_hex_str(v, seperator)
+            expect.equal(result, expected)
+        end
+    end)
+
+    it("should work properly for reset_bits()", function ()
+        local tests = {
+            {0xFFFF, 0, 4, 0xFFF0},
+            {0xFFFFFFFFFFFFFFFFULL, 0, 8, 0xFFFFFFFFFFFFFF00ULL},
+            {0xFFFFFFFFFFFFFFFFULL, 8, 8, 0xFFFFFFFFFFFF00FFULL},
+            {0xFFFFFFFFFFFFFFFFULL, 16, 16, 0xFFFFFFFF0000FFFFULL},
+            {0xFFFFFFFFFFFFFFFFULL, 32, 32, 0x00000000FFFFFFFFULL},
+            {0xFFFFFFFFFFFFFFFFULL, 0, 64, 0x0000000000000000ULL},
+            {0x123456789ABCDEF0ULL, 4, 8, 0x123456789ABCD000ULL},
+            {0x123456789ABCDEF0ULL, 16, 16, 0x123456780000DEF0ULL},
+            {0x123456789ABCDEF0ULL, 32, 32, 0x000000009ABCDEF0ULL},
+            {0x123456789ABCDEF0ULL, 48, 16, 0x000056789ABCDEF0ULL},
+            {0x123456789ABCDEF0ULL, 60, 4, 0x023456789ABCDEF0ULL},
+        }
+    
+        for i, test in ipairs(tests) do
+            local value = test[1]
+            local start = test[2]
+            local length = test[3]
+            local expected = test[4]
+            local result = utils.reset_bits(value, start, length)
+            expect.equal(result, expected + 0ULL)
+        end
+    end)
 end)
