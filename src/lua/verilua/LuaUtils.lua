@@ -3,6 +3,7 @@ local os = require "os"
 local bit = require "bit"
 local ffi = require "ffi"
 local math = require "math"
+local path = require "pl.path"
 local table_new = require "table.new"
 
 local type = type
@@ -296,22 +297,13 @@ function utils.get_datetime_str()
 end
 
 --
----@param ... string The file name or directory name to get the absolute path
----@return string The absolute path
---
-function utils.abspath(...)
-    local path = require "pl.path"
-    return path.abspath(...)
-end
-
---
 ---@param filename string The file name to be read
 ---@return string The content of the file
 --
 function utils.read_file_str(filename)
-    local file = io.open(utils.abspath(filename), "r") 
+    local file = io.open(path.abspath(filename), "r") 
     if not file then
-        assert(false, "cannot open " .. utils.abspath(filename))
+        assert(false, "cannot open " .. path.abspath(filename))
     end
     local content = file:read("*a")
     file:close()
