@@ -946,7 +946,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.is_bin_str = function (this, bin_value_str)
         assert(type(bin_value_str) == "string")
-        return this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*")
+        return this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*", "")
     end
 
     self.is_dec_str = function (this, dec_value_str)
@@ -1027,7 +1027,7 @@ function CallableHDL:__newindex(k, v)
                     self:set(v)
                 end
             else
-                assert(false, "[CallableHDL] invalid value type: " .. v_type)
+                assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
             end
         elseif v_type == "boolean" then
             if v then
@@ -1036,7 +1036,7 @@ function CallableHDL:__newindex(k, v)
                 self:set_unsafe(0, true)
             end
         else
-            assert(false, "[CallableHDL] invalid value type: " .. v_type)
+            assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
         end
     else
         rawset(self, k, v)
