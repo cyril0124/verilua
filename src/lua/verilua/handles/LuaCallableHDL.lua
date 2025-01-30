@@ -15,6 +15,7 @@ local rawset = rawset
 local assert = assert
 local f = string.format
 local tonumber = tonumber
+local bit_tohex = bit.tohex
 local setmetatable = setmetatable
 local table_insert = table.insert
 
@@ -63,7 +64,17 @@ ffi.cdef[[
   const char *c_get_value_str(long long handle, int format);
 ]]
 
-local CallableHDL = class()
+local post_init_mt = setmetatable({
+    _post_init = function(obj)
+        if _G.cfg:get_or_else("__chdl_mt", true) == true then
+            -- _G.cfg.__chdl_mt = getmetatable(obj)
+
+            _G.cfg.__chdl_mt = setmetatable({__value = 0}, getmetatable(obj))
+        end
+    end
+}, {})
+
+local CallableHDL = class(post_init_mt)
 
 function CallableHDL:_init(fullpath, name, hdl)
     texpect.expect_string(fullpath, "fullpath")
@@ -1042,12 +1053,152 @@ function CallableHDL:__newindex(k, v)
     end
 end
 
+
+-- 
+-- Auto-type-based value comparison.
+-- 
+-- Example:
+--      Note: the compared value MUST be enclosed in a special function named `v`, otherwise it will not be treated as a `__eq` overload.
+--      assert(<chdl> == v(123))
+--      assert(<chdl> == v("0x123"))
+--      assert(<chdl> == v(123ULL))
+--      assert(<chdl> == v({0x123, 0})
+--      assert(<chdl> == v(true))
+--      assert(<chdl> == v(BitVec(123)))
+--      assert(<chdl> == v(BitVec("123")))
+-- 
+function CallableHDL:__eq(other)
+    assert(not self.is_array, "TODO: not implemented for array type <chdl>")
+    
+    local v_type = type(other.__value)
+    local value = other.__value
+
+    if v_type == "number" then
+        return self:is_hex_str(bit_tohex(value))
+    elseif v_type == "string" then
+        local prefix = value:sub(1, 2)
+        if prefix == "0x" then
+            return self:is_hex_str(value:sub(3))
+        elseif prefix == "0b" then
+            return self:is_bin_str(value:sub(3))
+        else
+            return self:is_dec_str(value)
+        end
+    elseif v_type == "table" then
+        if value.__type and value.__type == "BitVec" then
+            return self:is_hex_str(value:to_hex_str())
+        else
+            local result = self:get(true) -- force_multi_beat = true
+            if self.beat_num == 1 then
+                if #value == 1 then
+                    return result == value[1]
+                else
+                    if result ~= value[1] then
+                        return false
+                    else
+                        for i = 2, #value do
+                            if value[i] ~= 0 then
+                                return false
+                            end
+                        end 
+                    end
+                end
+            else
+                for i = 1, self.beat_num do
+                    if value[i] then
+                        if value[i] ~= result[i] then
+                            return false
+                        end
+                    else
+                        if result[i] ~= 0 then
+                            return false
+                        end
+                    end
+                end
+
+                if self.beat_num < #value then
+                    for i = self.beat_num + 1, #value do
+                        if value[i] ~= 0 then
+                            return false
+                        end
+                    end
+                end
+            end
+
+            return true
+        end
+    elseif v_type == "cdata" then
+        if ffi.istype("uint64_t", value) then
+            return self:is_hex_str(bit_tohex(value))
+        elseif ffi.istype("uint32_t[]", value) then
+            local result = self:get(true) -- force_multi_beat = true
+            if self.beat_num == 1 then
+                if value[0] == 1 then
+                    return result == value[1]
+                else
+                    if result ~= value[1] then
+                        return false
+                    else
+                        for i = 2, value[0] do
+                            if value[i] ~= 0 then
+                                return false
+                            end
+                        end 
+                    end
+                end
+            else
+                for i = 1, self.beat_num do
+                    if value[i] then
+                        if value[i] ~= result[i] then
+                            return false
+                        end
+                    else
+                        if result[i] ~= 0 then
+                            return false
+                        end
+                    end
+                end
+
+                if self.beat_num < value[0] then
+                    for i = self.beat_num + 1, #value do
+                        if value[i] ~= 0 then
+                            return false
+                        end
+                    end
+                end
+            end
+
+            return true
+        else
+            assert(false, "[CallableHDL.__eq] invalid value type: " .. v_type)
+        end
+    elseif v_type == "boolean" then
+        if value then
+            return self:is_hex_str("1")
+        else
+            return self:is_hex_str("0")
+        end
+    else
+        assert(false, "[CallableHDL.__eq] invalid value type: " .. v_type)
+    end
+end
+
 function CallableHDL:__len()
     return self.width
 end
 
 function CallableHDL:__tostring()
     return f("<[CallableHDL] fullpath: %s, width: %d, beat_num: %d>", self.fullpath, self.width, self.beat_num)
+end
+
+-- 
+-- This method is used with `__eq`.
+-- 
+_G.v = function (value)
+    -- return setmetatable({__value = value}, _G.cfg.__chdl_mt)
+
+    _G.cfg.__chdl_mt.__value = value
+    return _G.cfg.__chdl_mt
 end
 
 return CallableHDL

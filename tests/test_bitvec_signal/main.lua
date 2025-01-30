@@ -152,7 +152,34 @@ fork {
                 u32_array[4] = 0
                 value128.value = u32_array
             clock:negedge()
+                assert(value128 == v({0x32, 0x34}))
                 value128:expect_hex_str("00000000000000000000003400000032")
+        end
+
+        do
+            clock:negedge()
+                value128.value = 0
+            clock:negedge()
+                value128:dump()
+
+            assert(value128 == v(0))
+            assert(value128 == v("0"))
+            assert(value128 == v("0x0"))
+            assert(value128 == v("0b0"))
+            assert(value128 == v(BitVec(0)))
+            assert(value128 == v({0, 0}))
+            assert(value128 == v({0}))
+            assert(value128 == v({0, 0, 0, 0, 0}))
+            assert(value128 ~= v({0, 0, 0, 0, 1}))
+            assert(value128 ~= v({0, 1}))
+            assert(value128 ~= v({1}))
+            assert(value128 == v(0ULL))
+            assert(value128 ~= v(1ULL))
+            assert(value128 == v(false))
+            assert(value128 ~= v(true))
+            
+            local t = value128:get()
+            assert(value128 == v(t))
         end
 
         print("Finish")
