@@ -181,17 +181,29 @@ function BitVec:get_bitfield(s, e)
 
         if i == start_beat_id then
             if start_beat_id == end_beat_id then
+                -- mask = 0xFFFFFFFFULL >> (31 - end_bit)
+                -- value = (u32 & mask) >> start_bit
+
                 mask = bit_rshift(0xFFFFFFFFULL, 31 - end_bit)
                 value = bit_rshift(bit_band(u32, mask), start_bit)
             else
+                -- mask = 0xFFFFFFFFULL >> start_bit
+                -- value = (((u32 + 0ULL) >> start_bit) & mask) | value
+
                 mask = bit_rshift(0xFFFFFFFFULL, start_bit)
                 value = bit_bor(value, bit_band(bit_rshift(u32 + 0ULL, start_bit), mask))
             end
         elseif i == end_beat_id then
+            -- mask = (1ULL << (end_bit + 1)) - 1
+            -- mask = mask & 0xFFFFFFFFULL
+            -- value = (((u32 + 0ULL) & mask) << ((i - 1) * 32 - s)) | value
+
             mask = bit_lshift(1ULL, end_bit + 1) - 1
             mask = bit_band(mask, 0xFFFFFFFFULL)
             value = bit_bor(value, bit_lshift(bit_band(u32 + 0ULL, mask), (i - 1) * 32 - s))
         else
+            -- value = ((u32 + 0ULL) << ((i - 1) * 32 - s)) | value
+
             value = bit_bor(value, bit_lshift(u32 + 0ULL, ((i - 1) * 32 - s)))
         end
     end
@@ -258,22 +270,40 @@ function BitVec:set_bitfield(s, e, v)
 
         if i == start_beat_id then
             if start_beat_id == end_beat_id then
+                -- mask = ~(((1ULL << (end_bit - start_bit + 1)) - 1) << start_bit)
+                -- vmask = (1ULL << (end_bit - start_bit + 1)) - 1
+                -- masked_v = (v + 0ULL) & vmask
+                -- u32 = (u32 & mask) | (masked_v << start_bit)
+
                 mask = bit_bnot(bit_lshift(bit_lshift(1ULL, end_bit - start_bit + 1) - 1, start_bit))
                 vmask = bit_lshift(1ULL, end_bit - start_bit + 1) - 1
                 masked_v = bit_band(v + 0ULL, vmask)
                 u32 = bit_bor(bit_band(u32, mask), bit_lshift(masked_v, start_bit))
             else
-                mask = bit_bnot(bit_lshift(bit_lshift(1ULL, start_bit - 31) - 1, start_bit))
+                -- mask = ~(((1ULL << (31 - start_bit)) - 1) << start_bit)
+                -- vmask = (1ULL << (32 - start_bit)) - 1
+                -- masked_v = (v + 0ULL) & vmask
+                -- u32 = (u32 & mask) | (masked_v << start_bit)
+
+                mask = bit_bnot(bit_lshift(bit_lshift(1ULL, 31 - start_bit) - 1, start_bit))
                 vmask = bit_lshift(1ULL, 32 - start_bit) - 1
                 masked_v = bit_band(v + 0ULL, vmask)
                 u32 = bit_bor(bit_band(u32, mask), bit_lshift(masked_v, start_bit))
             end
         elseif i == end_beat_id then
+            -- mask = ~((1ULL << (end_bit + 1)) - 1)
+            -- vmask = (1ULL << (end_bit + 1)) - 1
+            -- masked_v = ((v + 0ULL) >> ((i - 1) * 32 - s)) & vmask
+            -- u32 = (u32 & mask) | masked_v
+
             mask = bit_bnot(bit_lshift(1ULL, end_bit + 1) - 1)
             vmask = bit_lshift(1ULL, end_bit + 1) - 1
             masked_v = bit_band(bit_rshift(v + 0ULL, (i - 1) * 32 - s), vmask)
             u32 = bit_bor(bit_band(u32, mask), masked_v)
         else
+            -- masked_v = ((v + 0ULL) >> (32 - start_bit)) & 0xFFFFFFFFULL
+            -- u32 = (u32 & 0ULL) | masked_v
+
             masked_v = bit_band(bit_rshift(v + 0ULL, 32 - start_bit), 0xFFFFFFFFULL)
             u32 = bit_bor(bit_band(u32, 0ULL), masked_v)
         end
