@@ -1,7 +1,8 @@
 local class = require "pl.class"
-local isempty = require "table.isempty"
-
-local error = error
+local success, isempty = pcall(function() return require "table.isempty" end)
+if not success then
+    isempty = function(t) return next(t) == nil end
+end
 
 local Queue = class()
 
