@@ -985,19 +985,18 @@ end
 --      - boolean
 -- Auto-type-based value assignment.
 -- 
+-- Example:
+--      <chdl>.value = 123
+--      <chdl>.value = 0x123
+--      <chdl>.value = 0x112233ULL
+--      <chdl>.value = "0x123"
+--      <chdl>.value = "0b01011"
+--      <chdl>.value = "123"
+--      <chdl>.value = {0x123, 0x456}
+--      <chdl>.value = true
+--      <chdl>.value = false
+-- 
 function CallableHDL:__newindex(k, v)
-    -- 
-    -- Example:
-    --      <chdl>.value = 123
-    --      <chdl>.value = 0x123
-    --      <chdl>.value = 0x112233ULL
-    --      <chdl>.value = "0x123"
-    --      <chdl>.value = "0b01011"
-    --      <chdl>.value = "123"
-    --      <chdl>.value = {0x123, 0x456}
-    --      <chdl>.value = true
-    --      <chdl>.value = false
-    -- 
     if k == "value" then
         assert(not self.is_array, "TODO: not implemented for array type <chdl>")
         
@@ -1020,11 +1019,11 @@ function CallableHDL:__newindex(k, v)
         elseif v_type == "cdata" then
             if ffi.istype("uint64_t", v) then
                 self:set_unsafe(v, true)
-            elseif ffi.istype("uint64_t[]", v) then
+            elseif ffi.istype("uint32_t[]", v) then
                 if self.beat_num == 1 then
                     self:set_unsafe(v[1], true) 
                 else
-                    self:set(v)
+                    self:set_unsafe(v)
                 end
             else
                 assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)

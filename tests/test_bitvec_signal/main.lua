@@ -142,6 +142,19 @@ fork {
                 value128:expect_hex_str("048d0000000000000000000000000000")
         end
 
+        do
+            clock:negedge()
+                local u32_array = ffi.new("uint32_t[?]", 5)
+                u32_array[0] = 4 -- length of the u32_array
+                u32_array[1] = 0x32
+                u32_array[2] = 0x34
+                u32_array[3] = 0
+                u32_array[4] = 0
+                value128.value = u32_array
+            clock:negedge()
+                value128:expect_hex_str("00000000000000000000003400000032")
+        end
+
         print("Finish")
         sim.finish()
     end
