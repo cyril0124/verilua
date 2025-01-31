@@ -69,7 +69,7 @@ local post_init_mt = setmetatable({
         if _G.cfg:get_or_else("__chdl_mt", true) == true then
             -- _G.cfg.__chdl_mt = getmetatable(obj)
 
-            _G.cfg.__chdl_mt = setmetatable({__value = 0}, getmetatable(obj))
+            _G.cfg.__chdl_mt = setmetatable({__value = 0, __verbose = false, __stop_on_fail = false}, getmetatable(obj))
         end
     end
 }, {})
@@ -1067,9 +1067,7 @@ end
 --      assert(<chdl> == v(BitVec(123)))
 --      assert(<chdl> == v(BitVec("123")))
 -- 
-function CallableHDL:__eq(other)
-    assert(not self.is_array, "TODO: not implemented for array type <chdl>")
-    
+function CallableHDL:__eq_impl(other)
     local v_type = type(other.__value)
     local value = other.__value
 
@@ -1183,6 +1181,29 @@ function CallableHDL:__eq(other)
     end
 end
 
+function CallableHDL:__eq(other)
+    assert(not self.is_array, "TODO: not implemented for array type <chdl>")
+
+    local result = self:__eq_impl(other)
+    if (not result) and other.__verbose  then
+        local value_str
+        if type(other.__value) == "boolean" then
+            value_str = other.__value and "1" or "0"
+        else
+            value_str = utils.to_hex_str(other.__value)
+        end
+
+        local err_str = f("[%s] expect => %s, but got => %s", self.fullpath, value_str, self:get_hex_str())
+        if other.__stop_on_fail then
+            assert(false, err_str)
+        else
+            print(err_str)
+        end
+    end
+
+    return result
+end
+
 function CallableHDL:__len()
     return self.width
 end
@@ -1192,12 +1213,31 @@ function CallableHDL:__tostring()
 end
 
 -- 
--- This method is used with `__eq`.
+-- These methods are used with `__eq`.
+--      `v`: a special wrapper function for the value being compared since the `__eq` only allow to compare two metatables with each other.
+--      `vv`: verbose(print error message when the compared value mismatch)
+--      `vs`: verbose and stop on fail
 -- 
 _G.v = function (value)
-    -- return setmetatable({__value = value}, _G.cfg.__chdl_mt)
+    -- return setmetatable({__value = value, __verbose = false}, _G.cfg.__chdl_mt)
 
     _G.cfg.__chdl_mt.__value = value
+    _G.cfg.__chdl_mt.__verbose = false
+    _G.cfg.__chdl_mt.__stop_on_fail = false
+    return _G.cfg.__chdl_mt
+end
+
+_G.vv = function (value)
+    _G.cfg.__chdl_mt.__value = value
+    _G.cfg.__chdl_mt.__verbose = true
+    _G.cfg.__chdl_mt.__stop_on_fail = false
+    return _G.cfg.__chdl_mt
+end
+
+_G.vs = function (value)
+    _G.cfg.__chdl_mt.__value = value
+    _G.cfg.__chdl_mt.__verbose = true
+    _G.cfg.__chdl_mt.__stop_on_fail = true
     return _G.cfg.__chdl_mt
 end
 
