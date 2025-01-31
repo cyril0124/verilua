@@ -110,8 +110,7 @@ describe("BitVec test", function ()
         expect.equal(bitvec:dump_str(false), "12345678")
 
         local bitvec = BitVec({0x12345678, 0x4455667788})
-        expect.equal(bitvec:dump_str(), "55667788 12345678")
-        expect.equal(bitvec:dump_str(false), "12345678 55667788")
+        expect.equal(bitvec:dump_str(), "5566778812345678")
     end)
 
     it("should work properly for get_bitfield_hex_str()", function ()
@@ -291,7 +290,7 @@ describe("BitVec test", function ()
         expect.equal(bitvec:dump_str(), "0000000a")
 
         local bitvec = BitVec({0x123, 0x456})
-        expect.equal(bitvec:dump_str(), "00000456 00000123")
+        expect.equal(bitvec:dump_str(), "0000045600000123")
         expect.equal(tostring(bitvec), "0000045600000123")
     end)
 
@@ -299,16 +298,16 @@ describe("BitVec test", function ()
         local bitvec = BitVec({0x123, 0x456})
 
         bitvec(0, 15):set(0xFF)
-        expect.equal(bitvec:dump_str(), "00000456 000000ff")
+        expect.equal(bitvec:dump_str(), "00000456000000ff")
         expect.equal(tostring(bitvec), "00000456000000ff")
 
         bitvec(16, 31):set(0xFF)
-        expect.equal(bitvec:dump_str(), "00000456 00ff00ff")
+        expect.equal(bitvec:dump_str(), "0000045600ff00ff")
         expect.equal(tostring(bitvec), "0000045600ff00ff")
 
         local tmp = bitvec(32, 47)
         tmp:set(0xFF)
-        expect.equal(bitvec:dump_str(), "000000ff 00ff00ff")
+        expect.equal(bitvec:dump_str(), "000000ff00ff00ff")
         expect.equal(tostring(bitvec), "000000ff00ff00ff")
 
         tmp.value = 0x123
