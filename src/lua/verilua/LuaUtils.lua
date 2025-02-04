@@ -611,4 +611,10 @@ function utils.shuffle_bits_hex_str(bitwidth)
     end
 end
 
+function utils.expand_hex_str(value_hex_str, bitwidth)
+    local len = #value_hex_str
+    local target_len = utils.cover_with_n(bitwidth, 4)
+    return string.rep("0", target_len - len) .. value_hex_str
+end
+
 return utils

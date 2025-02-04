@@ -314,4 +314,25 @@ describe("LuaUtils test", function ()
             expect.equal(test(i), i)
         end
     end)
+
+    it("should work properly for expand_hex_str()", function ()
+        local tests = {
+            {"1234", 8, "1234"},
+            {"1234", 16, "1234"},
+            {"1234", 17, "01234"},
+            {"1234", 32, "00001234"},
+            {"1234", 33, "000001234"},
+            {"1234", 48, "000000001234"},
+            {"1234", 64, "0000000000001234"},
+            {"1234", 256, "0000000000000000000000000000000000000000000000000000000000001234"},
+        }
+
+        for _, test in ipairs(tests) do
+            local hex_str = test[1]
+            local width = test[2]
+            local expected = test[3]
+            local result = utils.expand_hex_str(hex_str, width)
+            expect.equal(result, expected)
+        end
+    end)
 end)
