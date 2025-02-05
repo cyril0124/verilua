@@ -518,22 +518,30 @@ rule("verilua")
         local filelist_sim = {} -- including c/c++ files
         if sim ~= "wave_vpi" then
             for _, sourcefile in ipairs(sourcefiles) do
-                cprint("${📄} read file ${green dim}%s${reset}", path.absolute(sourcefile))
+                local abs_sourcefile = path.absolute(sourcefile)
+                cprint("${📄} read file ${green dim}%s${reset}", abs_sourcefile)
                 if not sourcefile:endswith(".lua") then
-                    if sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
-                        table.insert(filelist_dut, path.absolute(sourcefile))                    
-                    end
                     if sourcefile:endswith(".vlt") then
                         -- Ignore "*.vlt" file if current simulator is not verilator
                         if sim == "verilator" then
-                            table.insert(filelist_sim, path.absolute(sourcefile))
-                            table.insert(argv, path.absolute(sourcefile))
+                            table.insert(filelist_sim, abs_sourcefile)
+                            table.insert(argv, abs_sourcefile)
                         end
+                    elseif sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
+                        table.insert(filelist_dut, abs_sourcefile)
+                        table.insert(filelist_sim, abs_sourcefile)
                     else
-                        table.insert(filelist_sim, path.absolute(sourcefile))
-                        table.insert(argv, path.absolute(sourcefile))
+                        table.insert(filelist_sim, abs_sourcefile)
+                        table.insert(argv, abs_sourcefile)
                     end
                 end
+            end
+
+            if #filelist_dut >= 200 then
+                -- filelist_dut is too long, pass a filelist to simulator 
+                table.insert(argv, "-f " .. build_dir .. "/dut_file.f")
+            else
+                table.join2(argv, filelist_dut) 
             end
 
             -- Write filelist of this build
