@@ -347,7 +347,7 @@ rule("verilua")
             luajitpro_home .. "/include/luajit-2.1",
             verilua_home .. "/src/include"
         )
-        target:add("links", "luajit-5.1", "fmt")
+        target:add("links", "luajit-5.1")
         target:add("linkdirs", luajitpro_home .. "/lib", verilua_libs_home)
         
         if not verilua_use_nix then

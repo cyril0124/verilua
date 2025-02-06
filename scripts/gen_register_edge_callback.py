@@ -60,7 +60,7 @@ VERILUA_PRIVATE inline void execute_sim_event{N}({tmp[:-2]}) {{
     if(!ret.valid()) [[unlikely]] {{
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {{}}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what().c_str());
     }}
 }}
 

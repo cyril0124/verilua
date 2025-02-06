@@ -43,7 +43,7 @@ VERILUA_PRIVATE std::string get_top_module() {
     }
     
     if(const char* env_val = std::getenv("DUT_TOP")) {
-        VL_DEBUG("DUT_TOP is {}\n", env_val);
+        VL_DEBUG("DUT_TOP is %s\n", env_val);
         return std::string(env_val);
     }
     else {
@@ -76,7 +76,7 @@ void VeriluaEnv::finalize() {
     auto ret = lua_finish_callback();
     if(!ret.valid()) [[unlikely]] {
         sol::error err = ret;
-        VL_FATAL(false, "Error calling finish_callback: {}", err.what());
+        VL_FATAL(false, "Error calling finish_callback: %s", err.what());
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -86,9 +86,9 @@ void VeriluaEnv::finalize() {
 
 #ifdef VL_DEF_ACCUMULATE_LUA_TIME
     double percent = lua_time * 100 / time_taken;
-    VL_INFO("time_taken: {:.2f} sec   lua_time_taken: {:.2f} sec   lua_overhead: {:.2f}%\n", time_taken, lua_time, percent);
+    VL_INFO("time_taken: %.2f sec   lua_time_taken: %.2f sec   lua_overhead: %.2f%%\n", time_taken, lua_time, percent);
 #else
-    VL_INFO("time_taken: {:.2f} sec\n", time_taken);
+    VL_INFO("time_taken: %.2f sec\n", time_taken);
 #endif
 
 #ifdef VL_DEF_VPI_LEARN
@@ -103,7 +103,7 @@ void VeriluaEnv::finalize() {
         auto search = this->hdl_cache_rev.find(pair.second);
         VL_FATAL(search != this->hdl_cache_rev.end());
 
-        VL_INFO("[{}]\t{}\t{}\n", index, pair.first, (int)search->second);
+        VL_INFO("[%d]\t%s\t%d\n", index, pair.first.c_str(), (int)search->second);
         outfile << pair.first << "\t" << "rw:" << (int)search->second << std::endl;
         ++index;
     }
@@ -128,7 +128,7 @@ void VeriluaEnv::initialize() {
     if (VERILUA_HOME == nullptr) {
         VL_FATAL(false, "Error: VERILUA_HOME environment variable is not set.");
     }
-    VL_DEBUG("VERILUA_HOME is {}\n", VERILUA_HOME);
+    VL_DEBUG("VERILUA_HOME is %s\n", VERILUA_HOME);
 
 #if !defined(VERILATOR) && !defined(WAVE_VPI) // Verilator/wave_vpi has its own sigabrt_handler() in verilator_main.cpp
     signal(SIGABRT, sigabrt_handler);
@@ -177,19 +177,19 @@ void VeriluaEnv::initialize() {
 
     // Call init.lua at the beginning of the simulation
     std::string INIT_FILE = std::string(VERILUA_HOME) + "/src/lua/verilua/init.lua";
-    VL_STATIC_DEBUG("INIT_FILE is {}\n", INIT_FILE);
+    VL_STATIC_DEBUG("INIT_FILE is %s\n", INIT_FILE.c_str());
 
     // Use pure luaL_dofile() to make luajit-pro load the script successfully
     if (luaL_dofile(this->L, INIT_FILE.c_str()) != LUA_OK) {
         auto _err_info = lua_tostring(this->L, -1);
         std::string err_info = _err_info ? std::string(_err_info) : "No error information found. Perhaps you didn't provide error information when calling `assert`.";
-        VL_FATAL(false,"Error calling INIT_FILE: {}, {}", INIT_FILE, err_info);
+        VL_FATAL(false,"Error calling INIT_FILE: %s, %s", INIT_FILE.c_str(), err_info.c_str());
     }
 
     const char *DUT_TOP = std::getenv("DUT_TOP");
     if(DUT_TOP == nullptr) {
         auto dut_top = get_top_module();
-        VL_WARN("DUT_TOP is not set, automatically set DUT_TOP as {}\n", dut_top);
+        VL_WARN("DUT_TOP is not set, automatically set DUT_TOP as %s\n", dut_top.c_str());
     }
 
     // Load lua main script
@@ -197,13 +197,13 @@ void VeriluaEnv::initialize() {
     if (LUA_SCRIPT == nullptr) {
         VL_FATAL(false, "Error: LUA_SCRIPT environment variable is not set.");
     }
-    VL_DEBUG("LUA_SCRIPT is {}\n", LUA_SCRIPT);
+    VL_DEBUG("LUA_SCRIPT is %s\n", LUA_SCRIPT);
 
     // Use pure luaL_dofile() to make luajit-pro load the script successfully
     if (luaL_dofile(this->L, LUA_SCRIPT) != LUA_OK) {
         auto _err_info = lua_tostring(this->L, -1);
         std::string err_info = _err_info ? std::string(_err_info) : "No error information found. Perhaps you didn't provide error information when calling `assert`.";
-        VL_FATAL(false,"Error calling LUA_SCRIPT: {}, {}", LUA_SCRIPT, err_info);
+        VL_FATAL(false,"Error calling LUA_SCRIPT: %s, %s", LUA_SCRIPT, err_info.c_str());
     }
 
     sol::protected_function verilua_init = (*this->lua)["verilua_init"];
@@ -212,7 +212,7 @@ void VeriluaEnv::initialize() {
     auto ret = verilua_init();
     if(!ret.valid()) {
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling verilua_init, {}", err.what());
+        VL_FATAL(false, "Error calling verilua_init, %s", err.what());
     }
 
     this->sim_event = (*this->lua)["sim_event"];
@@ -264,9 +264,9 @@ void VeriluaEnv::initialize() {
     //         double start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start1.time_since_epoch()).count();
     //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
     //         times.push_back((end_time - start_time) * 1000 * 1000);
-    //         // VL_INFO("[{}] test_func time is {} us\n", i, (end_time - start_time) * 1000 * 1000);
+    //        // VL_INFO("[%d] test_func time is %.2f us\n", i, (end_time - start_time) * 1000 * 1000);
     //     }
-    //     VL_INFO("[test_func] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+    //     VL_INFO("[test_func] TIMES: %d Average time: %.4f us\n", TIMES, calculate_time(times));
 
 
     //     sol::protected_function test_func_with_1arg = (*VeriluaEnv::get_instance().lua)["test_func_with_1arg"];
@@ -280,7 +280,7 @@ void VeriluaEnv::initialize() {
     //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
     //         times.push_back((end_time - start_time) * 1000 * 1000);
     //     }
-    //     VL_INFO("[test_func_with_1arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+    //    VL_INFO("[test_func_with_1arg] TIMES: %d Average time: %.4f us\n", TIMES, calculate_time(times));
 
     //     sol::protected_function test_func_with_2arg = (*VeriluaEnv::get_instance().lua)["test_func_with_2arg"];
     //     for(int i = 0; i < TIMES; i++) {
@@ -293,7 +293,7 @@ void VeriluaEnv::initialize() {
     //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
     //         times.push_back((end_time - start_time) * 1000 * 1000);
     //     }
-    //     VL_INFO("[test_func_with_2arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+    //     VL_INFO("[test_func_with_2arg] TIMES: %d Average time: %.4f us\n", TIMES, calculate_time(times));
 
     //     sol::protected_function test_func_with_4arg = (*VeriluaEnv::get_instance().lua)["test_func_with_4arg"];
     //     for(int i = 0; i < TIMES; i++) {
@@ -306,7 +306,7 @@ void VeriluaEnv::initialize() {
     //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
     //         times.push_back((end_time - start_time) * 1000 * 1000);
     //     }
-    //     VL_INFO("[test_func_with_4arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+    //     VL_INFO("[test_func_with_4arg] TIMES: %d Average time: %.4f us\n", TIMES, calculate_time(times));
 
     //     sol::protected_function test_func_with_8arg = (*VeriluaEnv::get_instance().lua)["test_func_with_8arg"];
     //     for(int i = 0; i < TIMES; i++) {
@@ -319,7 +319,7 @@ void VeriluaEnv::initialize() {
     //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
     //         times.push_back((end_time - start_time) * 1000 * 1000);
     //     }
-    //     VL_INFO("[test_func_with_8arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+    //     VL_INFO("[test_func_with_8arg] TIMES: %d Average time: %.4f us\n", TIMES, calculate_time(times));
 
     //     sol::protected_function test_func_with_vec_arg = (*VeriluaEnv::get_instance().lua)["test_func_with_vec_arg"];
     //     for(int i = 0; i < TIMES; i++) {
@@ -333,7 +333,7 @@ void VeriluaEnv::initialize() {
     //         double end_time = std::chrono::duration_cast<std::chrono::duration<double>>(end1.time_since_epoch()).count();
     //         times.push_back((end_time - start_time) * 1000 * 1000);
     //     }
-    //     VL_INFO("[test_func_with_vec_arg] TIMES: {} Average time: {:.4f} us\n", TIMES, calculate_time(times));
+    //    VL_INFO("[test_func_with_vec_arg] TIMES: %d Average time: %.4f us\n", TIMES, calculate_time(times));
     
     //     VL_FATAL(false);
     // }
@@ -367,7 +367,7 @@ TO_VERILATOR void verilua_schedule_loop() {
     auto ret = verilua_schedule_loop();
     if(!ret.valid()) [[unlikely]] {
         sol::error err = ret;
-        VL_FATAL(false, "{}", err.what());
+        VL_FATAL(false, "%s", err.what());
     }
 }
 
@@ -379,7 +379,7 @@ TO_LUA void dpi_set_scope(char *str) {
 #ifdef IVERILOG
     VL_FATAL(false, "Unsupported!");
 #else
-    VL_STATIC_DEBUG("set svScope name: {}\n", str);
+    VL_STATIC_DEBUG("set svScope name: %s\n", str);
     const svScope scope = svGetScopeFromName(str);
     VL_FATAL(scope, "scope is NULL");
     svSetScope(scope);
@@ -393,7 +393,6 @@ TO_LUA void dpi_set_scope(char *str) {
 // Only for test (LuaJIT FFI)
 TO_LUA void hello() {
   printf("hello from C\n");
-  fmt::print("hello from fmt:print\n");
 }
 
 TO_LUA uint64_t bitfield64(uint64_t begin, uint64_t end, uint64_t val) {
@@ -406,7 +405,7 @@ TO_LUA void c_simulator_control(long long cmd) {
     // #define vpiFinish                67   /* execute simulator's $finish */
     // #define vpiReset                 68   /* execute simulator's $reset */
     // #define vpiSetInteractiveScope   69   /* set simulator's interactive scope */
-    VL_DEBUG("simulator control cmd: {}\n", cmd);
+    VL_DEBUG("simulator control cmd: %d\n", (int)cmd);
     vpi_control(cmd);
 }
 
@@ -436,7 +435,7 @@ TO_LUA char *get_executable_name() {
 
     if (len != -1) {
         path[len] = '\0'; // Null-terminate the string
-        // VL_INFO("Current executable path: {}\n", path);
+        // VL_INFO("Current executable path: %s\n", path);
 
         char *executable_name = (char *)malloc(len + 1);
         if (executable_name) {
@@ -490,19 +489,19 @@ TO_LUA uint64_t get_symbol_address(const char *filename, const char *symbol) {
 
     if(symbol_address_map.find(symbol) != symbol_address_map.end()) {
         uint64_t address = symbol_address_map[symbol];
-        VL_INFO("Symbol `{}` found at `symbol_address_map`, address: 0x{:x}\n", symbol, address);
+        VL_INFO("Symbol `%s` found at `symbol_address_map`, address: 0x%lx\n", symbol, address);
         return address;
     }
 
     ELFIO::elfio reader;
 
     if (!reader.load(filename)) {
-        VL_FATAL(false, "Failed to load ELF file: {}", filename);
+        VL_FATAL(false, "Failed to load ELF file: %s", filename);
     }
 
     ELFIO::section* symtab = reader.sections[".symtab"];
     if (!symtab) {
-        VL_FATAL(false, "Symbol table not found in ELF file: {}", filename);
+        VL_FATAL(false, "Symbol table not found in ELF file: %s", filename);
     }
 
     ELFIO::symbol_section_accessor symbols(reader, symtab);
@@ -516,17 +515,17 @@ TO_LUA uint64_t get_symbol_address(const char *filename, const char *symbol) {
         symbols.get_symbol(i, name, value, size, bind, type, section_index, other);
 
         if (name == symbol) {
-            VL_INFO("Symbol `{}` found at address: 0x{:x} offset: 0x{:x} final_address: 0x{:x}\n", symbol, static_cast<uint64_t>(value), offset, static_cast<uint64_t>(value + offset));
+            VL_INFO("Symbol `%s` found at address: 0x%lx offset: 0x%lx final_address: 0x%lx\n", symbol, static_cast<uint64_t>(value), offset, static_cast<uint64_t>(value + offset));
             symbol_address_map.insert({symbol, static_cast<uint64_t>(value + offset)});
             return static_cast<uint64_t>(value + offset);
         }
     }
 
-    VL_FATAL(false, "Symbol '{}' not found in ELF file: {}", symbol, filename);
+    VL_FATAL(false, "Symbol '%s' not found in ELF file: %s", symbol, filename);
     return 0; 
 }
 
-TO_LUA char *get_simulator_auto() {
+TO_LUA const char *get_simulator_auto() {
     static const std::unordered_map<std::string, std::string> SYMBOL_TO_SIMULATOR = {
         {"+verilator+", "verilator"},
         {"liblua_vpi_vcs.so", "vcs"},
@@ -543,7 +542,7 @@ TO_LUA char *get_simulator_auto() {
 
     ELFIO::elfio reader;
     if (!reader.load(executable_name)) {
-        VL_FATAL(false, "Failed to load ELF file: {}", executable_name);
+        VL_FATAL(false, "Failed to load ELF file: %s", executable_name);
         return "unknown";
     }
 
@@ -561,7 +560,7 @@ TO_LUA char *get_simulator_auto() {
             for (const auto& [symbol, simulator] : SYMBOL_TO_SIMULATOR) {
                 if (line.find(symbol) != std::string_view::npos) {
                     cached_result = simulator; // Cached result
-                    VL_INFO("Symbol `{}` found, simulator type: {}\n", symbol, simulator);
+                    VL_INFO("Symbol `%s` found, simulator type: %s\n", symbol.c_str(), simulator.c_str());
                     return const_cast<char*>(cached_result.c_str());
                 }
             }
@@ -574,14 +573,14 @@ TO_LUA char *get_simulator_auto() {
             for (const auto& [symbol, simulator] : SYMBOL_TO_SIMULATOR) {
                 if (content.find(symbol) != std::string_view::npos) {
                     cached_result = simulator;
-                    VL_INFO("Symbol `{}` found, simulator type: {}\n", symbol, simulator);
+                    VL_INFO("Symbol `%s` found, simulator type: %s\n", symbol.c_str(), simulator.c_str());
                     return const_cast<char*>(cached_result.c_str());
                 }
             }
         }
     }
 
-    VL_INFO("No target symbol found in ELF file: {}\n", executable_name);
+    VL_INFO("No target symbol found in ELF file: %s\n", executable_name.c_str());
     cached_result = "unknown";
     return const_cast<char*>(cached_result.c_str());
 }
@@ -618,14 +617,14 @@ TO_LUA {
         if (idpool->top >= 0) {
             return idpool->pool[idpool->top--];
         } else {
-            VL_FATAL(false, "IDPool is empty! size => {}", idpool->size);
+            VL_FATAL(false, "IDPool is empty! size => %d", idpool->size);
         }
     }
 
     void idpool_release(void *idpool_void, int id) {
         IDPoolForLua *idpool = (IDPoolForLua *)idpool_void;
         if (id > idpool->size) {
-            VL_FATAL(false, "The released id is out of range! id => {}, size => {}", id, idpool->size);
+            VL_FATAL(false, "The released id is out of range! id => %d, size => %d", id, idpool->size);
         }
         idpool->pool[++idpool->top] = id;
     }

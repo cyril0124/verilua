@@ -1,7 +1,6 @@
 local io = require "io"
 local os = require "os"
 local ffi = require "ffi"
-local tcc = require "TccWrapper"
 local path = require "pl.path"
 local utils = require "LuaUtils"
 

@@ -980,8 +980,8 @@ do
     --     assert(lib.get_count() == 1)
     -- 
     
-    local tcc = require "TccWrapper"
     getmetatable('').__index.tcc_compile = function(str, sym_ptr_tbls)
+        local tcc = require "TccWrapper"
         local state = tcc.new()
         assert(state:set_output_type(tcc.OUTPUT.MEMORY))
         assert(state:compile_string(str))

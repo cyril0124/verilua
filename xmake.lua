@@ -62,7 +62,7 @@ local function build_lib_common()
         vcpkg_dir .. "/x64-linux/include"
     )
 
-    add_packages("fmt", "elfio", "mimalloc")
+    add_packages("elfio", "mimalloc")
     
     -- add_links("luajit-5.1")
     -- add_linkdirs(lua_dir .. "/lib")
@@ -259,7 +259,7 @@ if iverilog_home ~= nil then
         add_linkdirs(shared_dir)
         add_rpathdirs(shared_dir)
 
-        add_packages("fmt", "mimalloc")
+        add_packages("mimalloc")
 
         after_build(function (target)
             print("--------------------- [After Build] ---------------------- ")

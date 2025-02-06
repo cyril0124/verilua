@@ -38,7 +38,7 @@ VERILUA_PRIVATE inline static EdgeValue edge_type_to_value(EdgeType &edge_type) 
             expected_value = EdgeValue::DONTCARE;
             break;
         default:
-            VL_FATAL(false, "Invalid edge type: {}", (int)edge_type);
+            VL_FATAL(false, "Invalid edge type: %d", (int)edge_type);
     }
     return expected_value;
 }
@@ -83,7 +83,7 @@ VERILUA_PRIVATE static inline void register_edge_callback_basic(vpiHandle handle
             env.pending_edge_cb_map[handle].emplace_back(id);
             break;
         default:
-            VL_FATAL(false, "Unkonwn edge type => {}", (int)edge_type);
+            VL_FATAL(false, "Unkonwn edge type => %d", (int)edge_type);
     }
 #else
     env.pending_edge_cb_map[handle].emplace_back(CallbackInfo{(TaskID)id, edge_type});
@@ -92,7 +92,7 @@ VERILUA_PRIVATE static inline void register_edge_callback_basic(vpiHandle handle
 
 TO_LUA void verilua_posedge_callback(const char *path, TaskID id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, nullptr);
-    VL_FATAL(signal_handle, "No handle found: {}", path);
+    VL_FATAL(signal_handle, "No handle found: %s", path);
     register_edge_callback_basic(signal_handle, EdgeType::POSEDGE, id);
 }
 
@@ -103,7 +103,7 @@ TO_LUA void verilua_posedge_callback_hdl(long long handle, TaskID id) {
 
 TO_LUA void verilua_negedge_callback(const char *path, TaskID id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, nullptr);
-    VL_FATAL(signal_handle, "No handle found: {}", path);
+    VL_FATAL(signal_handle, "No handle found: %s", path);
     register_edge_callback_basic(signal_handle, EdgeType::NEGEDGE, id);
 }
 
@@ -114,7 +114,7 @@ TO_LUA void verilua_negedge_callback_hdl(long long handle, TaskID id) {
 
 TO_LUA void verilua_edge_callback(const char *path, int id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, nullptr);
-    VL_FATAL(signal_handle, "No handle found: {}", path);
+    VL_FATAL(signal_handle, "No handle found: %s", path);
     register_edge_callback_basic(signal_handle, EdgeType::EDGE, id);
 }
 
@@ -126,7 +126,7 @@ TO_LUA void verilua_edge_callback_hdl(long long handle, TaskID id) {
 
 TO_LUA void c_register_edge_callback(const char *path, int edge_type, TaskID id) {
     vpiHandle signal_handle = vpi_handle_by_name((PLI_BYTE8 *)path, nullptr);
-    VL_FATAL(signal_handle, "No handle found: {}", path);
+    VL_FATAL(signal_handle, "No handle found: %s", path);
     register_edge_callback_basic(signal_handle, (EdgeType)edge_type, id);
 }
 
@@ -165,7 +165,7 @@ TO_LUA void c_register_edge_callback_hdl_always(long long handle, int edge_type,
             expected_value = EdgeValue::DONTCARE;
             break;
         default:
-            VL_FATAL(false, "Invalid edge type: {}", edge_type);
+            VL_FATAL(false, "Invalid edge type: %d", edge_type);
     }
 
     EdgeCbData *user_data = new EdgeCbData;
@@ -250,7 +250,7 @@ TO_LUA void verilua_negedge_callback_hdl_always(long long handle, TaskID id) {
 TO_LUA void c_register_read_write_synch_callback(TaskID id) {
     s_cb_data cb_data;
 
-    VL_STATIC_DEBUG("Register cbReadWriteSynch {}\n", id);
+    VL_STATIC_DEBUG("Register cbReadWriteSynch %d\n", id);
 
     cb_data.reason = cbReadWriteSynch;
     cb_data.cb_rtn = [](p_cb_data cb_data) {
@@ -331,7 +331,7 @@ VERILUA_PRIVATE static PLI_INT32 next_sim_time_callback(p_cb_data cb_data) {
     vpi_free_object(callback_handle);
 
 #ifdef VL_DEF_OPT_VEC_SIMPLE_ACCESS
-    // VL_STATIC_DEBUG("before clean => {}\n", env.vec_value_cache.size());
+    // VL_STATIC_DEBUG("before clean => %d\n", env.vec_value_cache.size());
     env.vec_value_cache.clear();
 #endif
 

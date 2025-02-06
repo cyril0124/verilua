@@ -110,7 +110,7 @@ public:
             auto cycles = dut_ptr->cycles_o;
             if(cycles != 0) {
                 if (cycles == lightsss->get_end_cycles()) {
-                    VL_WARN("checkpoint has reached the main process abort point: {}\n", cycles);
+                    VL_WARN("checkpoint has reached the main process abort point: %d\n", cycles);
                 }
                 if (cycles == lightsss->get_end_cycles() + STEP_FORWARD_CYCLES) {
                     return -1;
@@ -218,7 +218,7 @@ Emulator::Emulator(int argc, char *argv[]) {
     std::function<void(void*)> simulation_initializeTrace = [this](void *traceFilePath) {
 #if VM_TRACE
         args.trace_file = std::string((char *)traceFilePath);
-        VL_INFO("initializeTrace trace_file:{}\n", args.trace_file);
+        VL_INFO("initializeTrace trace_file:%s\n", args.trace_file.c_str());
         this->dump_wave();
 #else
         VL_FATAL(false, "VM_TRACE is not defined!\n");
@@ -230,7 +230,7 @@ Emulator::Emulator(int argc, char *argv[]) {
 #if VM_TRACE
         args.enable_wave = true;
         args.wave_is_close = false;
-        VL_INFO("simulation_enableTrace trace_file:{}\n", args.trace_file);
+        VL_INFO("simulation_enableTrace trace_file:%s\n", args.trace_file.c_str());
         this->dump_wave();
 #else
         VL_FATAL(false, "VM_TRACE is not defined!\n");
@@ -242,7 +242,7 @@ Emulator::Emulator(int argc, char *argv[]) {
 #if VM_TRACE
         args.enable_wave = false;
         args.wave_is_enable = false;
-        VL_INFO("simulation_disableTrace trace_file:{}\n", args.trace_file);
+        VL_INFO("simulation_disableTrace trace_file:%s\n", args.trace_file.c_str());
         this->stop_dump_wave();
 #else
         VL_FATAL(false, "VM_TRACE is not defined!\n");
@@ -268,17 +268,17 @@ void Emulator::fork_child_init() {
 
 #if VM_TRACE
 #if VM_TRACE_FST
-    std::string trace_file = std::string(fmt::format("lightsss_checkpoint_{}.fst", dut_ptr->cycles_o));
+    std::string trace_file = "lightsss_checkpoint_" + std::to_string(dut_ptr->cycles_o) + ".fst";
     
 #else
-    std::string trace_file = std::string(fmt::format("lightsss_checkpoint_{}.vcd", dut_ptr->cycles_o));
+    std::string trace_file = "lightsss_checkpoint_" + std::to_string(dut_ptr->cycles_o) + ".vcd";
 #endif
     if(args.fork_trace_file == "") {
         args.trace_file = trace_file;
     } else {
         args.trace_file = args.fork_trace_file;
     }
-    VL_WARN("the oldest checkpoint start to dump wave: {}\n", args.trace_file);
+    VL_WARN("the oldest checkpoint start to dump wave: %s\n", args.trace_file.c_str());
     args.enable_wave = true;
     args.wave_is_enable = false;
     args.wave_is_close = false;
@@ -555,7 +555,7 @@ void Emulator::finalize(bool success = true) {
 #endif
     } else {
         if (args.enable_fork && !is_fork_child()) {
-            VL_WARN("\nlightsss wakeup_child at {} cycles\n", dut_ptr->cycles_o);
+            VL_WARN("\nlightsss wakeup_child at %d cycles\n", dut_ptr->cycles_o);
             fflush(stdout);
 
             lightsss->wakeup_child(dut_ptr->cycles_o);

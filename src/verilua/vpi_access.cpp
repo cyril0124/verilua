@@ -37,7 +37,7 @@ VERILUA_PRIVATE inline void _vpi_get_value_vec_simple(vpiHandle expr, p_vpi_valu
     auto it = env.vec_value_cache.find(expr);
     if(it != env.vec_value_cache.end()) {
         s_vpi_vecval vecval[2] = {{it->second.u32[0], 0}, {it->second.u32[1], 0}};
-        // VL_INFO("[{}] get value from vec_value_cache => {:x}\n", env.handle_to_name(expr), it->second.u64);
+        VL_INFO("[%s] get value from vec_value_cache => %x\n", env.handle_to_name(expr).c_str(), it->second.u64);
         value_p->value.vector = vecval;
     } else {
         vpi_get_value(expr, value_p);
@@ -82,7 +82,7 @@ TO_LUA long long c_handle_by_name(const char* name) {
 
     // Name not in cache, look it up
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8*)name, NULL);
-    VL_FATAL(handle, "No handle found: {}", name);
+    VL_FATAL(handle, "No handle found: %s", name);
 
     // Cast the handle to long long and store it in the cache
     long long handle_as_ll = reinterpret_cast<long long>(handle);
@@ -144,7 +144,7 @@ TO_LUA long long c_get_value_by_name(const char *path) {
 #endif
 
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    VL_FATAL(handle, "No handle found: {}", path);
+    VL_FATAL(handle, "No handle found: %s", path);
 
     s_vpi_value v;
 
@@ -174,7 +174,7 @@ TO_LUA void c_set_value_by_name(const char *path, uint64_t value) {
     ENTER_VPI_REGION();
     
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    VL_FATAL(handle, "No handle found: {}\n", path);
+    VL_FATAL(handle, "No handle found: %s\n", path);
 
 #ifdef VL_DEF_VPI_LEARN
     VeriluaEnv::get_instance().hdl_cache_rev[handle] = VpiPermission::WRITE;
@@ -203,7 +203,7 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
     ENTER_VPI_REGION();
 
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    VL_FATAL(handle, "No handle found: {}\n", path);
+    VL_FATAL(handle, "No handle found: %s\n", path);
 
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -216,7 +216,7 @@ TO_LUA void c_force_value_by_name(const char *path, long long value) {
 
     _vpi_put_value(handle, &v, &t, vpiForceFlag);
 
-    // VL_INFO("force {}  ==> 0x{:x}\n", path, value);
+    // VL_INFO("force %s  ==> 0x%x\n", path, value);
 
     LEAVE_VPI_REGION();
 #else
@@ -229,7 +229,7 @@ TO_LUA void c_release_value_by_name(const char *path) {
     ENTER_VPI_REGION();
 
     vpiHandle handle = _vpi_handle_by_name((PLI_BYTE8 *)path, NULL);
-    VL_FATAL(handle, "No handle found: {}\n", path);
+    VL_FATAL(handle, "No handle found: %s\n", path);
 
     s_vpi_value v;
     v.format = vpiVectorVal; // TODO: other kinds of value
@@ -361,13 +361,13 @@ TO_LUA void c_get_value_multi(long long handle, uint32_t *ret, int n) {
     for(int i = 1; i < (n + 1); i++) {
 #ifndef IVERILOG
         ret[i] = v.value.vector[i - 1].aval;
-        // VL_INFO("a aval:0x{:x} bval:0x{:x}\n", v.value.vector[i - 1].aval, v.value.vector[i - 1].bval);
+        // VL_INFO("a aval:0x%:x bval:0x%x\n", v.value.vector[i - 1].aval, v.value.vector[i - 1].bval);
 #else
         if(VeriluaEnv::get_instance().resolve_x_as_zero && v.value.vector[i - 1].bval != 0)
             ret[i] = 0;
         else {
             ret[i] = v.value.vector[i - 1].aval;
-            // VL_INFO("aval:0x{:x} bval:0x{:x}\n", v.value.vector[i - 1].aval, v.value.vector[i - 1].bval);
+            // VL_INFO("aval:0x%x bval:0x%x\n", v.value.vector[i - 1].aval, v.value.vector[i - 1].bval);
         }
 #endif
     }
@@ -802,7 +802,7 @@ TO_LUA long long c_handle_by_index(const char *parent_name, long long hdl, int i
     vpiHandle actual_handle = reinterpret_cast<vpiHandle>(hdl);
 
     vpiHandle handle = vpi_handle_by_index(actual_handle, (PLI_INT32)index);
-    VL_FATAL(handle, "No handle found: parent_name => {} index => {}", parent_name, index);
+    VL_FATAL(handle, "No handle found: parent_name => %s index => %d", parent_name, index);
 
     long long handle_as_ll = reinterpret_cast<long long>(handle);
 
@@ -811,7 +811,7 @@ TO_LUA long long c_handle_by_index(const char *parent_name, long long hdl, int i
 
 TO_LUA void iterate_vpi_type(const char *module_name, int type) {
     vpiHandle ref_module_hdl = vpi_handle_by_name((PLI_BYTE8 *)module_name, NULL);
-    VL_FATAL(ref_module_hdl, "No handle found: {}", module_name);
+    VL_FATAL(ref_module_hdl, "No handle found: %s", module_name);
 
     vpiHandle iter = vpi_iterate(type, ref_module_hdl);
 
@@ -830,7 +830,7 @@ TO_LUA void iterate_vpi_type(const char *module_name, int type) {
             type_name = "Unknown"; 
     }
 
-    VL_INFO("start iterate on module_name => {} type => {}/{}\n", module_name, type, type_name);
+    VL_INFO("start iterate on module_name => %s type => %d/%s\n", module_name, type, type_name.c_str());
 
     vpiHandle hdl;
     int count = 0;
@@ -838,7 +838,7 @@ TO_LUA void iterate_vpi_type(const char *module_name, int type) {
         const char *name = vpi_get_str(vpiName, hdl);
         const char *vpi_type = vpi_get_str(vpiType, hdl);
 
-        fmt::println("[{}] name => {} type => {}", count, name, vpi_type);
+        VL_INFO("[%d] name => %s type => %s", count, name, vpi_type);
 
         count++;
     }

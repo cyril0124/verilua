@@ -28,7 +28,7 @@ VERILUA_PRIVATE inline void execute_sim_event2(TaskID id1, TaskID id2) {
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 
@@ -94,7 +94,7 @@ VERILUA_PRIVATE inline void execute_sim_event3(TaskID id1, TaskID id2, TaskID id
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 
@@ -161,7 +161,7 @@ VERILUA_PRIVATE inline void execute_sim_event4(TaskID id1, TaskID id2, TaskID id
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 
@@ -229,7 +229,7 @@ VERILUA_PRIVATE inline void execute_sim_event5(TaskID id1, TaskID id2, TaskID id
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 
@@ -298,7 +298,7 @@ VERILUA_PRIVATE inline void execute_sim_event6(TaskID id1, TaskID id2, TaskID id
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 
@@ -368,7 +368,7 @@ VERILUA_PRIVATE inline void execute_sim_event7(TaskID id1, TaskID id2, TaskID id
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 
@@ -439,7 +439,7 @@ VERILUA_PRIVATE inline void execute_sim_event8(TaskID id1, TaskID id2, TaskID id
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 

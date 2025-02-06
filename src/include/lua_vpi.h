@@ -3,7 +3,6 @@
 #include "lua.hpp"
 #include "svdpi.h"
 #include "vpi_user.h"
-#include "fmt/core.h"
 #include "sol/sol.hpp"
 
 #include <cassert>
@@ -47,8 +46,8 @@
             return env_var != nullptr && std::string(env_var) == "1"; \
         }(); \
         if (__enable_debug) { \
-            fmt::print("[{}:{}:{}] [{}DEBUG{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
-            fmt::print(__VA_ARGS__); \
+            printf("[%s:%s:%d] [%sDEBUG%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+            printf(__VA_ARGS__); \
             fflush(stdout); \
         } \
     } while(0)
@@ -56,8 +55,8 @@
 #ifdef DEBUG
 #define VL_STATIC_DEBUG(...) \
     do { \
-        fmt::print("[{}:{}:{}] [{}STATIC_DEBUG{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
-        fmt::print(__VA_ARGS__); \
+        printf("[%s:%s:%d] [%sSTATIC_DEBUG%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+        printf(__VA_ARGS__); \
     } while(0)
 #else
 #define VL_STATIC_DEBUG(...)
@@ -65,22 +64,23 @@
 
 #define VL_INFO(...) \
     do { \
-        fmt::print("[{}:{}:{}] [{}INFO{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET); \
-        fmt::print(__VA_ARGS__); \
+        printf("[%s:%s:%d] [%sINFO%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET); \
+        printf(__VA_ARGS__); \
     } while(0)
 
 #define VL_WARN(...) \
     do { \
-        fmt::print("[{}:{}:{}] [{}WARN{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_YELLOW, ANSI_COLOR_RESET); \
-        fmt::print(__VA_ARGS__); \
+        printf("[%s:%s:%d] [%sWARN%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_YELLOW, ANSI_COLOR_RESET); \
+        printf(__VA_ARGS__); \
     } while(0)
 
 #define VL_FATAL(cond, ...) \
     do { \
         if (!(cond)) { \
-            fmt::println("\n"); \
-            fmt::print("[{}:{}:{}] [{}FATAL{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
-            fmt::println(__VA_ARGS__ __VA_OPT__(,) "A fatal error occurred without a message.\n"); \
+            printf("\n"); \
+            printf("[%s:%s:%d] [%sFATAL%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+            printf(__VA_ARGS__ __VA_OPT__(,) "A fatal error occurred without a message.\n"); \
+            printf("\n"); \
             fflush(stdout); \
             fflush(stderr); \
             abort(); \
@@ -162,7 +162,7 @@ public:
     }
 
     void release_id(uint64_t id) {
-        VL_FATAL(allocated_ids.find(id) != allocated_ids.end(), "Invalid ID => {}", id);
+        VL_FATAL(allocated_ids.find(id) != allocated_ids.end(), "Invalid ID => %ld", id);
 
         allocated_ids.erase(id);
         available_ids.push(id);
@@ -255,7 +255,7 @@ VERILUA_PRIVATE inline void execute_sim_event(TaskID id) {
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, {}", err.what());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }
 }
 
@@ -281,7 +281,7 @@ VERILUA_PRIVATE inline void execute_main_step() {
     if(!ret.valid()) [[unlikely]] {
         env.finalize();
         sol::error err = ret;
-        VL_FATAL(false, "Error calling main_step, {}", err.what());
+        VL_FATAL(false, "Error calling main_step, %s", err.what());
     }
 }
 
@@ -316,7 +316,7 @@ VERILUA_PRIVATE inline void execute_main_step_safe() {
         env.finalize();
         has_error = true;
         sol::error err = ret;
-        VL_WARN("Error calling main_step, {}", err.what());
+        VL_WARN("Error calling main_step, %s", err.what());
     }
 }
 

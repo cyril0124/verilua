@@ -1,4 +1,3 @@
-#include "fmt/core.h"
 #include "iverilog/libvvp.h"
 #include "lua.hpp"
 // #include "lua_vpi.h"
@@ -116,7 +115,7 @@ int main(int argc, char*argv[]) {
 	for (unsigned idx = 0 ;  idx < module_cnt ;  idx += 1)
 		vpip_load_module(module_tab[idx]);
 
-	fmt::println("\n[{}:{}:{}] [{}INFO{}] hello from vvp_wrapper\n", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET);
+	printf("\n[%s:%s:%d] [%sINFO%s] hello from vvp_wrapper\n", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET);
 
 	return vvp_run(argv[optind]);
 }
