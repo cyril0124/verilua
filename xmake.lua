@@ -273,6 +273,8 @@ end
 
 target("testbench_gen")
     set_kind("binary")
+    add_ldflags("-static")
+
     build_common()
     
     add_files(
@@ -303,6 +305,8 @@ target("testbench_gen")
 
 target("dpi_exporter")
     set_kind("binary")
+    add_ldflags("-static")
+
     build_common()
 
     if is_mode("debug") then
@@ -342,7 +346,7 @@ target("dpi_exporter")
     end)
 
 
-local function signal_db_gen_common()
+local function signal_db_gen_common(is_static)
     if is_mode("debug") then
         -- add_defines("DEBUG")
         set_symbols("debug")
@@ -354,7 +358,7 @@ local function signal_db_gen_common()
         extern_dir .. "/slang-common/*.cc"
     )
 
-    local slang_dir = extern_dir .. "/slang-prebuild/install_shared"
+    local slang_dir = extern_dir .. "/slang-prebuild/install_" .. (is_static and "static" or "shared")
     add_includedirs(
         src_dir .. "/include",
         src_dir .. "/signal_db_gen",
@@ -374,8 +378,10 @@ end
 
 target("signal_db_gen")
     set_kind("binary")
+    add_ldflags("-static")
+
     build_common()
-    signal_db_gen_common()
+    signal_db_gen_common(true)
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
