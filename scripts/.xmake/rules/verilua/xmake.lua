@@ -184,7 +184,7 @@ return cfg
 end
 
 rule("verilua")
-    set_extensions(".v", ".sv", ".lua", ".vlt", ".vcd", ".fst", ".fsdb")
+    set_extensions(".v", ".sv", ".svh", ".lua", ".vlt", ".vcd", ".fst", ".fsdb")
     
     on_load(function (target)
     end)
@@ -384,7 +384,7 @@ rule("verilua")
                         top_file = path.absolute(sourcefile)
                     end
                 end
-                if sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
+                if sourcefile:endswith(".v") or sourcefile:endswith(".sv") or sourcefile:endswith(".svh") then
                     if sourcefile:endswith(tb_top .. ".sv") then
                         raise("<%s.sv> is already exist! %s", tb_top, path.absolute(sourcefile))
                     end
@@ -527,7 +527,7 @@ rule("verilua")
                             table.insert(filelist_sim, abs_sourcefile)
                             table.insert(argv, abs_sourcefile)
                         end
-                    elseif sourcefile:endswith(".v") or sourcefile:endswith(".sv") then
+                    elseif sourcefile:endswith(".v") or sourcefile:endswith(".sv") or sourcefile:endswith(".svh") then
                         table.insert(filelist_dut, abs_sourcefile)
                         table.insert(filelist_sim, abs_sourcefile)
                     else
