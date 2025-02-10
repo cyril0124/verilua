@@ -152,7 +152,7 @@ cfg.vpi_learn = false
 if cfg.user_cfg ~= nil then
     _G.package.path = _G.package.path .. ";" .. cfg.user_cfg_path .. "/?.lua"
     local _cfg = require(cfg.user_cfg)
-    assert(type(_cfg) == "table")
+    assert(type(_cfg) == "table", "cfg is not a table! => type(cfg): " .. type(_cfg) .. " cfg: " .. tostring(_cfg) .. " cfg_path: " .. tostring(cfg.user_cfg_path) .. " cfg_name: " .. tostring(cfg.user_cfg))
 
     lua_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
 end
