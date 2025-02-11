@@ -60,13 +60,15 @@ local function before_build_or_run(target)
     -- Copy lua main file into build_dir
     local lua_main = path.absolute(os.getenv("LUA_SCRIPT") or assert(target:values("cfg.lua_main"), "[before_build_or_run] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"))
     cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
-    os.cp(lua_main, build_dir)
+    if os.mtime(lua_main) > os.mtime(build_dir .. "/" .. path.filename(lua_main)) then
+        os.cp(lua_main, build_dir)
+    end
 
     -- Copy other lua files into build_dir
     local sourcefiles = target:sourcefiles()
     if not no_copy_lua then
         for _, sourcefile in ipairs(sourcefiles) do
-            if sourcefile:endswith(".lua") then
+            if sourcefile:endswith(".lua") and os.mtime(sourcefile) > os.mtime(build_dir .. "/" .. path.filename(sourcefile)) then
                 os.cp(sourcefile, build_dir)
             end
         end
