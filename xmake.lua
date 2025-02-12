@@ -335,6 +335,10 @@ target("dpi_exporter")
     add_linkdirs(slang_dir .. "/lib", lua_dir .. "/lib")
     add_rpathdirs(slang_dir .. "/lib", lua_dir .. "/lib")
 
+    add_links("luajit_pro_helper")
+    add_linkdirs(prj_dir .. "/luajit-pro/target/release")
+    add_rpathdirs(prj_dir .. "/luajit-pro/target/release")
+
     add_packages("fmt", "mimalloc", "libassert")
 
     after_build(function (target)
@@ -372,6 +376,10 @@ local function signal_db_gen_common(is_static)
     add_links("svlang", "luajit-5.1")
     add_linkdirs(slang_dir .. "/lib", lua_dir .. "/lib")
     add_rpathdirs(slang_dir .. "/lib", lua_dir .. "/lib")
+
+    add_links("luajit_pro_helper")
+    add_linkdirs(prj_dir .. "/luajit-pro/target/release")
+    add_rpathdirs(prj_dir .. "/luajit-pro/target/release")
 
     add_packages("fmt", "mimalloc", "libassert")
 end
@@ -432,7 +440,11 @@ target("install_luajit")
         execute("rm -rf " .. luajit_pro_dir)
 
         execute("git clone https://github.com/cyril0124/luajit-pro.git " .. luajit_pro_dir)
+
+        -- build luajit_pro_helper
         os.cd(luajit_pro_dir)
+        execute("cargo build --release")
+        
         execute("bash init.sh")
         os.trycp(luajit_dir .. "/bin/luajit", luajit_dir .. "/bin/lua")
         
@@ -447,6 +459,10 @@ target("install_luajit")
         execute("make")
         execute("make install")
 
+        -- build luajit_pro_helper
+        os.cd(luajit_pro_dir)
+        execute("cargo build --release")
+
         os.cd(curr_dir)
     end)
 
@@ -458,7 +474,10 @@ target("reinstall_luajit")
         local luajit_pro_dir = curr_dir .. "/luajit-pro"
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
 
+        -- build luajit_pro_helper
         os.cd(luajit_pro_dir)
+        execute("cargo build --release")
+
         -- execute("git reset --hard origin/master")
         -- execute("git pull origin master")
         execute("bash init.sh")
