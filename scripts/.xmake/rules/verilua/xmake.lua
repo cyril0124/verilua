@@ -68,7 +68,7 @@ local function before_build_or_run(target)
     local sourcefiles = target:sourcefiles()
     if not no_copy_lua then
         for _, sourcefile in ipairs(sourcefiles) do
-            if sourcefile:endswith(".lua") and os.mtime(sourcefile) > os.mtime(build_dir .. "/" .. path.filename(sourcefile)) then
+            if (sourcefile:endswith(".lua") or sourcefile:endswith(".luau")) and os.mtime(sourcefile) > os.mtime(build_dir .. "/" .. path.filename(sourcefile)) then
                 os.cp(sourcefile, build_dir)
             end
         end
@@ -186,7 +186,7 @@ return cfg
 end
 
 rule("verilua")
-    set_extensions(".v", ".sv", ".svh", ".lua", ".vlt", ".vcd", ".fst", ".fsdb")
+    set_extensions(".v", ".sv", ".svh", ".lua", ".luau", ".vlt", ".vcd", ".fst", ".fsdb")
     
     on_load(function (target)
     end)
@@ -522,7 +522,7 @@ rule("verilua")
             for _, sourcefile in ipairs(sourcefiles) do
                 local abs_sourcefile = path.absolute(sourcefile)
                 cprint("${📄} read file ${green dim}%s${reset}", abs_sourcefile)
-                if not sourcefile:endswith(".lua") then
+                if not sourcefile:endswith(".lua") and not sourcefile:endswith(".luau") then
                     if sourcefile:endswith(".vlt") then
                         -- Ignore "*.vlt" file if current simulator is not verilator
                         if sim == "verilator" then
