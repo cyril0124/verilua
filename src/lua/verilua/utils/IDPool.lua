@@ -42,7 +42,7 @@ end
 
 function IDPool:release(id)
     if id > self.size then
-        assert(false, f("Invalid id! id:%d size:%d ", id, self.sise))
+        assert(false, f("Invalid id! id:%d size:%d ", id, self.size))
     end
 
     --self.pool:append(id) -- Lua implementation
