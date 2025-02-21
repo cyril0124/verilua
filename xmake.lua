@@ -527,13 +527,10 @@ target("install_lua_modules")
         local luajit_pro_dir = curr_dir .. "/luajit-pro"
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
         local libs = {
-            "penlight", 
-            "luasocket", 
-            "lsqlite3", 
-            "argparse", 
-            "busted", 
+            "penlight",
+            "luasocket",
+            "lsqlite3",
             "linenoise", 
-            "luafilesystem",
         }
 
         os.addenvs({PATH = luajit_dir .. "/bin"})
