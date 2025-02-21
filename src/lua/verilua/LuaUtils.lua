@@ -270,15 +270,33 @@ function utils.enum_define(enum_table)
         enum_table.name = "Undefined"
     end
 
-    return setmetatable(enum_table, 
-        {
-            __call = utils.enum_search,
+    enum_table.__reverse__ = {}
+    for k, v in pairs(enum_table) do
+        if k ~= "name" then
+            local rev = enum_table.__reverse__[v]
+            assert(rev == nil or rev ~= k, f("Duplicate value: %s in %s", v, enum_table.name))
+            rawset(enum_table.__reverse__, v, k)
+        end
+    end
 
-            __index = function(t, v)
-                assert(false, f("Unknown enum value => %s  enum name => %s", tostring(v), t.name))
+    return setmetatable(enum_table, {
+        __call = function(t, v)
+            local key = t.__reverse__[v]
+            if key == nil then
+                error("Key not found: " .. v .. " in " .. t.name)
             end
-        }
-    )
+            return key
+        end,
+
+        __index = function(t, v)
+            assert(false, f("Unknown enum value => %s  enum name => %s", tostring(v), t.name))
+        end,
+
+        __newindex = function(t, k, v)
+            rawset(t, k, v)
+            rawset(t.__reverse__, v, k)
+        end
+    })
 end
 
 
