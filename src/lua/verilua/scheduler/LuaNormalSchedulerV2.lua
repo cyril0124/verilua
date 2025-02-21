@@ -23,6 +23,7 @@ local pairs = pairs
 local print = print
 local assert = assert
 local ipairs = ipairs
+local rawset = rawset
 local random = math.random
 local table_insert = table.insert
 local coro_yield = coroutine.yield
@@ -134,10 +135,10 @@ function Scheduler:_init()
             task_id = self:alloc_task_id()
         end
     
-        table_insert(self.id_task_tbl, task_id, coro_create(func))
-        table_insert(self.id_name_tbl, task_id, name)
-        table_insert(self.id_cnt_tbl, task_id, 0)
-        table_insert(self.id_fired_tbl, task_id, false)
+        rawset(self.id_task_tbl, task_id, coro_create(func))
+        rawset(self.id_name_tbl, task_id, name)
+        rawset(self.id_cnt_tbl, task_id, 0)
+        rawset(self.id_fired_tbl, task_id, false)
         this.task_count = this.task_count + 1
 
         if schedule_task or false then

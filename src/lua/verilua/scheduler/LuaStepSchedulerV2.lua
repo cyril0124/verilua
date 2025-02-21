@@ -22,6 +22,7 @@ local pairs = pairs
 local print = print
 local assert = assert
 local ipairs = ipairs
+local rawset = rawset
 local random = math.random
 local tinsert = table.insert
 local coro_resume = coroutine.resume
@@ -125,10 +126,10 @@ function Scheduler:_init()
             task_id = self:alloc_task_id()
         end
     
-        tinsert(self.id_task_tbl, task_id, coro_create(func))
-        tinsert(self.id_name_tbl, task_id, name)
-        tinsert(self.id_cnt_tbl, task_id, 0)
-        tinsert(self.id_fired_tbl, task_id, false)
+        rawset(self.id_task_tbl, task_id, coro_create(func))
+        rawset(self.id_name_tbl, task_id, name)
+        rawset(self.id_cnt_tbl, task_id, 0)
+        rawset(self.id_fired_tbl, task_id, false)
         this.task_count = this.task_count + 1
 
         -- not support (STEP)
