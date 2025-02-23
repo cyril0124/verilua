@@ -21,10 +21,6 @@ verilua.is_register_task_table = false
 verilua.start_time = 0
 verilua.end_time = 0
 
-verilua._main_task = function ()
-    assert(false, "[main_task] Not implemented!")
-end
-
 verilua._start_callback = function ()
     verilua_warning("[start_callback] Not implemented!")
 end
@@ -83,34 +79,6 @@ verilua.finish_callback = function ()
     verilua.end_time = os.clock()
     verilua_info(("---------- [Lua] Simulation finish! Time elapsed: %4.6f seconds ----------"):format(verilua.end_time - verilua.start_time))
     print()
-end
-
-function verilua.register_tasks(task_table)
-    assert(verilua.is_register_task_table == false, "already reigister task table!")
-    verilua.is_register_task_table = true
-
-    table_insert(task_table, {"main_task", verilua.main_task, {}})
-
-    if task_table ~= nil and #task_table ~= 0 then
-        assert(task_table ~= nil)
-        assert(type(task_table) == "table")
-        assert(task_table[1] ~= nil)
-        assert(type(task_table[1]) == "table")
-        scheduler:create_task_table(task_table)
-    end
-end
-
-function verilua.main_task()
-    -- 
-    -- user code
-    -- 
-    verilua._main_task()
-end
-
-function verilua.register_main_task(func)
-    assert(type(func) == "function")
-    verilua._main_task = func
-    scheduler:append_task(nil, "main_task", verilua._main_task, {}, false)
 end
 
 function verilua.register_start_callback(func)

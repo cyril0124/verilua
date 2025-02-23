@@ -1061,42 +1061,6 @@ do
         end
         
         -- 
-        -- Example:
-        --      verilua "mainTask" { function ()
-        --          -- body.
-        --      end }
-
-        --      local function lua_main()
-        --          -- body
-        --      end
-        --      verilua "mainTask" {
-        --          lua_main
-        --      }
-
-        --      verilua("mainTask")({function ()
-        --          -- body
-        --      end})
-
-        --      local function lua_main()
-        --          -- body
-        --      end
-        --      verilua("mainTask")({
-        --          lua_main
-        --      })
-        -- 
-        if cmd == "mainTask" then
-            return function (task_table)
-                assert(type(task_table) == "table")
-                assert(#task_table == 1)
-
-                if enable_verilua_debug then
-                    verilua_debug(f("[verilua/%s]", cmd), "register mainTask")
-                end
-
-                vl.register_main_task(task_table[1])
-            end
-            
-        -- 
         -- Example
         --      verilua "appendTasks" {
         --          another_task = function ()
@@ -1117,7 +1081,7 @@ do
         --          some_task_name = some_task
         --      }
         -- 
-        elseif cmd == "appendTasks" then
+        if cmd == "mainTask" or cmd == "appendTasks" then
             return function (task_table)
                 assert(type(task_table) == "table")
                 for name, func in pairs(task_table) do
@@ -1203,7 +1167,6 @@ do
             end
         else
             local available_cmds = {
-                "mainTask",
                 "appendTasks",
                 "startTask",
                 "finishTask",
