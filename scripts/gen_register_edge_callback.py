@@ -60,7 +60,7 @@ VERILUA_PRIVATE inline void execute_sim_event{N}({tmp[:-2]}) {{
     if(!ret.valid()) [[unlikely]] {{
         env.finalize();
         sol::error  err = ret;
-        VL_FATAL(false, "Error calling sim_event, %s", err.what().c_str());
+        VL_FATAL(false, "Error calling sim_event, %s", err.what());
     }}
 }}
 
@@ -142,7 +142,7 @@ def gen_callback_policy(edge):
         assert False, "Unknown edge => " + edge
 
     code_str = ""
-    for i in range(MAX, MIN, -1):
+    for i in range(MAX, MIN - 1, -1):
         m_tmp = ""
         for j in range(i):
             m_tmp = m_tmp + f"task_id_vec[idx + {j}], "

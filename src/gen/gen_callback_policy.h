@@ -34,6 +34,10 @@ for(const auto& pair : env.pending_posedge_cb_map) {
             register_edge_callback3(handle, task_id_vec[idx + 0], task_id_vec[idx + 1], task_id_vec[idx + 2],  EdgeType::POSEDGE);
             idx += 3;
             task_id_size -= 3;
+        } else if(task_id_size >= 2) {
+            register_edge_callback2(handle, task_id_vec[idx + 0], task_id_vec[idx + 1],  EdgeType::POSEDGE);
+            idx += 2;
+            task_id_size -= 2;
         } else {
             register_edge_callback(handle, task_id_vec[idx], EdgeType::POSEDGE);
             idx += 1;
@@ -72,6 +76,10 @@ for(const auto& pair : env.pending_negedge_cb_map) {
             register_edge_callback3(handle, task_id_vec[idx + 0], task_id_vec[idx + 1], task_id_vec[idx + 2],  EdgeType::NEGEDGE);
             idx += 3;
             task_id_size -= 3;
+        } else if(task_id_size >= 2) {
+            register_edge_callback2(handle, task_id_vec[idx + 0], task_id_vec[idx + 1],  EdgeType::NEGEDGE);
+            idx += 2;
+            task_id_size -= 2;
         } else {
             register_edge_callback(handle, task_id_vec[idx], EdgeType::NEGEDGE);
             idx += 1;
@@ -110,6 +118,10 @@ for(const auto& pair : env.pending_edge_cb_map) {
             register_edge_callback3(handle, task_id_vec[idx + 0], task_id_vec[idx + 1], task_id_vec[idx + 2],  EdgeType::EDGE);
             idx += 3;
             task_id_size -= 3;
+        } else if(task_id_size >= 2) {
+            register_edge_callback2(handle, task_id_vec[idx + 0], task_id_vec[idx + 1],  EdgeType::EDGE);
+            idx += 2;
+            task_id_size -= 2;
         } else {
             register_edge_callback(handle, task_id_vec[idx], EdgeType::EDGE);
             idx += 1;
