@@ -227,6 +227,24 @@ ffi.cdef[[
     int verilator_get_mode(void);
 ]]
 
+do
+    ffi.cdef[[
+        typedef struct timespec {
+            long sec;
+            long nsec;
+        } timespec;
+        int clock_gettime(int clk_id, struct timespec *tp);
+    ]]
+
+    -- High performance implementation of `os.clock()` using LuaJIT FFI
+    local CLOCK_MONOTONIC = 1
+    os.clock = function()
+        local t = ffi.new("timespec[1]")
+        ffi.C.clock_gettime(CLOCK_MONOTONIC, t)
+        return tonumber(t[0].sec) + tonumber(t[0].nsec) * 1e-9
+    end
+end
+
 if cfg.simulator == "vcs" then
     ffi.cdef[[
         void dpi_set_scope(char *str);
@@ -1094,7 +1112,7 @@ do
                         verilua_debug(f("[verilua/%s]", cmd), "get task name => ", name)
                     end
 
-                    scheduler:append_task(nil, name, func, {}, true) -- (<task_id>, <task_name>, <task_func>, <task_param>, <schedule_task>)
+                    scheduler:append_task(nil, name, func, true) -- (<task_id>, <task_name>, <task_func>, <start_now>)
                 end
             end
         
@@ -1190,7 +1208,7 @@ do
                 verilua_debug("[fork] get task name => ", name)
             end
 
-            scheduler:append_task(nil, name, func, {}, true) -- (<task_id>, <task_name>, <task_func>, <task_param>, <schedule_task>)
+            scheduler:append_task(nil, name, func, true) -- (<task_id>, <task_name>, <task_func>, <start_now>)
         end
     end
     -- TODO: join?

@@ -15,7 +15,7 @@ local _ = _tl_compat and _tl_compat.coroutine or coroutine
 local _ = _tl_compat and _tl_compat.debug or debug
 local ipairs = _tl_compat and _tl_compat.ipairs or ipairs
 local _ = _tl_compat and _tl_compat.math or math
-local _ = _tl_compat and _tl_compat.os or os
+local os = _tl_compat and _tl_compat.os or os
 local pairs = _tl_compat and _tl_compat.pairs or pairs
 local string = _tl_compat and _tl_compat.string or string
 local table = _tl_compat and _tl_compat.table or table
@@ -34,6 +34,11 @@ local table_insert = table.insert
 local coro_yield = coroutine.yield
 local coro_resume = coroutine.resume
 local coro_create = coroutine.create
+
+local os_clock
+do
+	os_clock = os.clock
+end
 
 local Timer = 0
 local Posedge = 1
@@ -82,6 +87,9 @@ function Scheduler:_init()
 	self.event_name_map = {}
 	self.has_wakeup_event = false
 	self.pending_wakeup_event = {}
+	do
+		self.acc_time_table = {}
+	end
 	do
 		verilua_debug("[Scheduler]", "Using STEP scheduler")
 	end
@@ -180,6 +188,11 @@ function Scheduler:schedule_task(id)
 	local task_cnt = self.task_execution_count_map[id]
 	self.task_execution_count_map[id] = task_cnt + 1
 
+	local s, e
+	do
+		s = os_clock()
+	end
+
 	local ok, cb_type_or_err, str_value, integer_value
 	do
 		ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id])
@@ -214,6 +227,12 @@ function Scheduler:schedule_task(id)
 		end
 		table_clear(self.pending_wakeup_event)
 	end
+	do
+		e = os_clock()
+		local name = self.task_name_map[id]
+		local key = tostring(id) .. "_" .. name
+		self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
+	end
 end
 
 function Scheduler:schedule_tasks(id)
@@ -231,6 +250,54 @@ end
 function Scheduler:list_tasks()
 	print("[scheduler list tasks]:")
 	print("-------------------------------------------------------------")
+	do
+		local total_time = 0
+		local max_key_str_len = 0
+		for key, time in pairs(self.acc_time_table) do
+			total_time = total_time + time
+
+			local len = #key
+			if len > max_key_str_len then
+				max_key_str_len = len
+			end
+		end
+
+		local max_str_len = 0
+		local print_str_vec = {}
+		for key, time in pairs(self.acc_time_table) do
+			local s = f(
+				"[%" .. max_key_str_len .. "s]   %5.2f ms   percent: %5.2f%%",
+				key,
+				time * 1000,
+				(time / total_time) * 100
+			)
+			local len = #s
+			table_insert(print_str_vec, s)
+
+			if len > max_str_len then
+				max_str_len = len
+			end
+		end
+
+		local get_progress_bar = function(progress, length)
+			local completed = math.floor(progress * length)
+			local remaining = length - completed
+			local progressBar = "┃" .. string.rep("█", completed) .. "" .. string.rep("▒", remaining) .. "┃"
+			return progressBar
+		end
+
+		local idx = 1
+		for _, time in pairs(self.acc_time_table) do
+			local str = print_str_vec[idx]
+			str = str .. string.rep(" ", max_str_len - #str)
+
+			print(f("%-" .. max_str_len .. "s ", str) .. get_progress_bar(time / total_time, 20))
+			idx = idx + 1
+		end
+
+		print(f("total_time: %.2f s / %.2f ms", total_time, total_time * 1000))
+		print("-------------------------------------------------------------")
+	end
 
 	local max_name_str_len = 0
 	for _, name in pairs(self.task_name_map) do

@@ -118,7 +118,7 @@ for N in range(MIN, MAX + 1):
     m_tmp2 = ""
 
     for i in range(1, N + 1):
-        m_tmp = m_tmp + f"\tscheduler:schedule_tasks(id{i})\n"
+        m_tmp = m_tmp + f"\tscheduler:schedule_task(id{i})\n"
         m_tmp2 = m_tmp2 + f"id{i}, "
     
     m_tmp = m_tmp[:-1]

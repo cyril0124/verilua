@@ -104,7 +104,7 @@ _G.finish_callback = function()
 end
 
 _G.sim_event = function(id)
-    scheduler:schedule_tasks(id)
+    scheduler:schedule_task(id)
 end
 
 _G.lua_main_step = function()
@@ -117,65 +117,65 @@ end
 ---------------------------------------------------------------------
 
 _G.sim_event2 = function(id1, id2)
-	scheduler:schedule_tasks(id1)
-	scheduler:schedule_tasks(id2)    
+	scheduler:schedule_task(id1)
+	scheduler:schedule_task(id2)    
 end
 
 
 _G.sim_event3 = function(id1, id2, id3)
-	scheduler:schedule_tasks(id1)
-	scheduler:schedule_tasks(id2)
-	scheduler:schedule_tasks(id3)    
+	scheduler:schedule_task(id1)
+	scheduler:schedule_task(id2)
+	scheduler:schedule_task(id3)    
 end
 
 
 _G.sim_event4 = function(id1, id2, id3, id4)
-	scheduler:schedule_tasks(id1)
-	scheduler:schedule_tasks(id2)
-	scheduler:schedule_tasks(id3)
-	scheduler:schedule_tasks(id4)    
+	scheduler:schedule_task(id1)
+	scheduler:schedule_task(id2)
+	scheduler:schedule_task(id3)
+	scheduler:schedule_task(id4)    
 end
 
 
 _G.sim_event5 = function(id1, id2, id3, id4, id5)
-	scheduler:schedule_tasks(id1)
-	scheduler:schedule_tasks(id2)
-	scheduler:schedule_tasks(id3)
-	scheduler:schedule_tasks(id4)
-	scheduler:schedule_tasks(id5)    
+	scheduler:schedule_task(id1)
+	scheduler:schedule_task(id2)
+	scheduler:schedule_task(id3)
+	scheduler:schedule_task(id4)
+	scheduler:schedule_task(id5)    
 end
 
 
 _G.sim_event6 = function(id1, id2, id3, id4, id5, id6)
-	scheduler:schedule_tasks(id1)
-	scheduler:schedule_tasks(id2)
-	scheduler:schedule_tasks(id3)
-	scheduler:schedule_tasks(id4)
-	scheduler:schedule_tasks(id5)
-	scheduler:schedule_tasks(id6)    
+	scheduler:schedule_task(id1)
+	scheduler:schedule_task(id2)
+	scheduler:schedule_task(id3)
+	scheduler:schedule_task(id4)
+	scheduler:schedule_task(id5)
+	scheduler:schedule_task(id6)    
 end
 
 
 _G.sim_event7 = function(id1, id2, id3, id4, id5, id6, id7)
-	scheduler:schedule_tasks(id1)
-	scheduler:schedule_tasks(id2)
-	scheduler:schedule_tasks(id3)
-	scheduler:schedule_tasks(id4)
-	scheduler:schedule_tasks(id5)
-	scheduler:schedule_tasks(id6)
-	scheduler:schedule_tasks(id7)    
+	scheduler:schedule_task(id1)
+	scheduler:schedule_task(id2)
+	scheduler:schedule_task(id3)
+	scheduler:schedule_task(id4)
+	scheduler:schedule_task(id5)
+	scheduler:schedule_task(id6)
+	scheduler:schedule_task(id7)    
 end
 
 
 _G.sim_event8 = function(id1, id2, id3, id4, id5, id6, id7, id8)
-	scheduler:schedule_tasks(id1)
-	scheduler:schedule_tasks(id2)
-	scheduler:schedule_tasks(id3)
-	scheduler:schedule_tasks(id4)
-	scheduler:schedule_tasks(id5)
-	scheduler:schedule_tasks(id6)
-	scheduler:schedule_tasks(id7)
-	scheduler:schedule_tasks(id8)    
+	scheduler:schedule_task(id1)
+	scheduler:schedule_task(id2)
+	scheduler:schedule_task(id3)
+	scheduler:schedule_task(id4)
+	scheduler:schedule_task(id5)
+	scheduler:schedule_task(id6)
+	scheduler:schedule_task(id7)
+	scheduler:schedule_task(id8)    
 end
 
 ----------------------------------
