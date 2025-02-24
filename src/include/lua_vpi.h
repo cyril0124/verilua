@@ -235,7 +235,7 @@ public:
         return std::string("Unknown");
     }
 private:
-    VeriluaEnv() : edge_cb_idpool(100) {};
+    VeriluaEnv() : edge_cb_idpool(100000) {};
 };
 
 VERILUA_PRIVATE inline void execute_sim_event(TaskID id) {
