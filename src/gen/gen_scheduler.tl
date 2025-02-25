@@ -388,7 +388,7 @@ function Scheduler:schedule_task(id: TaskID)
     if _G.ACC_TIME then
         e = os_clock()
         local name = self.task_name_map[id]
-        local key = tostring(id) .. "_" .. name
+        local key = tostring(id) .. "@" .. name
         self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
     end
 end
@@ -417,7 +417,24 @@ function Scheduler:list_tasks()
     if _G.ACC_TIME then
         local total_time: number = 0
         local max_key_str_len: integer = 0
+
+        local task_name_count: {string: integer} = {}
+        for key, _time in pairs(self.acc_time_table) do
+            local _task_id, task_name = key:match("([^@]+)@(.*)")
+            task_name_count[task_name] = (task_name_count[task_name] or 0) + 1
+        end
+
+        -- Merge task names with more than 20 occurence into one key
+        local filtered_acc_time_table: {string: number} = {}
         for key, time in pairs(self.acc_time_table) do
+            local _task_id, task_name = key:match("([^@]+)@(.*)")
+            if task_name_count[task_name] >= 20 then
+                key = f("<...>@%s", task_name)
+                filtered_acc_time_table[key] = (filtered_acc_time_table[key] or 0) + time
+            else
+                filtered_acc_time_table[key] = time
+            end
+
             total_time = total_time + time
 
             local len = #key
@@ -425,11 +442,23 @@ function Scheduler:list_tasks()
                 max_key_str_len = len
             end
         end
+        self.acc_time_table = filtered_acc_time_table
+
+        -- Sort the accumulated time table from small to large
+        local sorted_keys: {string} = {}
+        for key, _ in pairs(filtered_acc_time_table) do
+            table.insert(sorted_keys, key)
+        end
+        table.sort(sorted_keys, function(a: string, b: string): boolean
+            return filtered_acc_time_table[a] < filtered_acc_time_table[b]
+        end)
 
         local max_str_len: integer = 0
         local print_str_vec: {string} = {}
-        for key, time in pairs(self.acc_time_table) do
-            local s = f("[%" .. max_key_str_len .. "s]   %5.2f ms   percent: %5.2f%%", key, time * 1000, (time / total_time) * 100)
+        for _, key in ipairs(sorted_keys) do
+            local time = self.acc_time_table[key]
+            local percent = time / total_time * 100
+            local s = f("[%" .. max_key_str_len .. "s]   %5.2f ms   percent: %5.2f%%", key, time * 1000, percent)
             local len = #s
             table_insert(print_str_vec, s)
 
@@ -446,11 +475,12 @@ function Scheduler:list_tasks()
         end
         
         local idx = 1
-        for _, time in pairs(self.acc_time_table) do
+        for _, key in ipairs(sorted_keys) do
+            local time = self.acc_time_table[key]
             local str = print_str_vec[idx]
             str = str .. string.rep(" ", max_str_len - #str)
 
-            print(f("%-" .. max_str_len .. "s ", str) .. get_progress_bar(time / total_time, 20))
+            print(f("%-" .. max_str_len .. "s ", str) .. get_progress_bar(time / total_time, 30))
             idx = idx + 1
         end
         
