@@ -859,6 +859,7 @@ do
 
         local prefix = ""
         local name = "Unknown"
+        local optional_signals = nil
         for key, value in pairs(params_table) do
             if key == "prefix" then
                 assert(type(value) == "string", "[abdl] invalid type for the `prefix` field, valid type: `string`")
@@ -866,10 +867,16 @@ do
             elseif key == "name" then
                 assert(type(value) == "string", "[abdl] invalid type for the `name` field, valid type: `string`")
                 name = value
+            elseif key == "optional_signals" then
+                assert(type(value) == "table")
+                if #value > 0 then
+                    assert(type(value[1]) == "string")
+                end
+                optional_signals = value
             end
         end
 
-        return AliasBundle(alias_tbl, prefix, hier, name)
+        return AliasBundle(alias_tbl, prefix, hier, name, optional_signals)
     end
 
 

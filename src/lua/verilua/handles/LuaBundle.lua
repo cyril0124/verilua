@@ -1,5 +1,4 @@
 local ffi = require "ffi"
-local List = require "pl.List"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local texpect = require "TypeExpect"
@@ -23,15 +22,6 @@ ffi.cdef[[
   long long c_handle_by_name_safe(const char* name);
 ]]
 
-local function contains(tbl, value)
-    for _, v in ipairs(tbl) do
-        if v == value then
-            return true
-        end
-    end
-    return false
-end
-
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optional_signals)
     texpect.expect_table(signals_table, "signals_table")
     texpect.expect_string(prefix, "prefix")
@@ -44,9 +34,13 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
     self.name = name or "Unknown"
     self.is_decoupled = is_decoupled or false
 
+    local valid_index = tablex.find(signals_table, "valid")
+    if optional_signals then
+        texpect.expect_table(optional_signals, "optional_signals")
+    end
     local optional_signals = optional_signals or {} -- optional signals are allowed to be empty
-    local signals_list = List(signals_table)
-    local valid_index = signals_list:index("valid")
+
+
     if is_decoupled == true then
         assert(valid_index ~= nil, "Decoupled Bundle should contains a valid signal!")
         assert(prefix ~= nil, "prefix is required for decoupled bundle!")
@@ -58,10 +52,10 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         self.bits = {}
 
         for _, signal in ipairs(signals_table) do
-            local fullpath = ""
             if signal == "valid" or signal == "ready" then
-                fullpath = hierachy .. "." .. prefix .. signal
-                if not contains(optional_signals, signal) then
+                local fullpath = hierachy .. "." .. prefix .. signal
+
+                if not tablex.find(optional_signals, signal) then
                     rawset(self, signal, CallableHDL(fullpath, signal))
                 else
                     local hdl = C.c_handle_by_name_safe(fullpath)
@@ -71,8 +65,8 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
                     end
                 end
             else
-                fullpath = hierachy .. "." .. prefix .. "bits_" ..  signal
-                if not contains(optional_signals, signal) then
+                local fullpath = hierachy .. "." .. prefix .. "bits_" ..  signal
+                if not tablex.find(optional_signals, signal) then
                     rawset(self.bits, signal, CallableHDL(fullpath, signal))
                 else
                     local hdl = C.c_handle_by_name_safe(fullpath)
@@ -87,8 +81,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         self.signals_table = {}
 
         for _, signal in ipairs(signals_table) do
-            local fullpath = ""
-
+            local fullpath
             if prefix ~= nil then
                 fullpath = hierachy .. "." .. prefix .. signal
             else

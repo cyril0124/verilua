@@ -1,9 +1,11 @@
+local ffi = require "ffi"
 local fun = require "fun"
-local List = require "pl.List"
+local tablex = require "pl.tablex"
 local class = require "pl.class"
 local texpect = require "TypeExpect"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
+local C = ffi.C
 local type = type
 local print = print
 local rawset = rawset
@@ -15,6 +17,10 @@ local HexStr = _G.HexStr
 local verilua_debug = _G.verilua_debug
 
 local AliasBundle = class()
+
+ffi.cdef[[
+  long long c_handle_by_name_safe(const char* name);
+]]
 
 -- 
 -- Access signal using alias name
@@ -44,7 +50,7 @@ local AliasBundle = class()
 --      local value = abdl.alias_name:get()
 --      abdl.alias_name_1:set(123)
 -- 
-function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
+function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name, optional_signals)
     texpect.expect_table(alias_signal_tbl, "alias_signal_tbl")
     texpect.expect_table(alias_signal_tbl[1], "alias_signal_tbl[1]")
     texpect.expect_string(prefix, "prefix")
@@ -62,6 +68,11 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
         return x[1]
     end, alias_signal_tbl))
 
+    if optional_signals then
+        texpect.expect_table(optional_signals, "optional_signals")
+    end
+    local optional_signals = optional_signals or {} -- optional signals are allowed to be empty
+
     self.alias_tbl = fun.totable(fun.map(function (x)
         if x[2] == nil then
             -- No alias name, use real name
@@ -77,7 +88,17 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name)
     for i = 1, #self.signals_tbl do
         local alias_name = self.alias_tbl[i]
         local real_name = self.signals_tbl[i]
-        rawset(self, alias_name, CallableHDL(hierachy .. "." .. prefix .. real_name, real_name, nil))
+        local fullpath = hierachy .. "." .. prefix .. real_name
+
+        if not tablex.find(optional_signals, alias_name) then
+            rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))
+        else
+            local hdl = C.c_handle_by_name_safe(fullpath)
+            if hdl ~= -1 then
+                -- optional are allowed to be empty
+                rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))
+            end
+        end
     end
 
     self.dump_str = function (this)
