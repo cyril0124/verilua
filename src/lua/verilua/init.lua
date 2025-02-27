@@ -253,6 +253,18 @@ if cfg.simulator == "vcs" then
     ]]
 end
 
+-- 
+-- setup breakpoint
+-- 
+_G.bp = function() print("[Breakpoint] Invalid breakpoint!") end
+if os.getenv("VL_DEBUGGER") == "1" then
+    _G.verilua_debug("VL_DEBUGGER is 1")
+    _G.bp = function() 
+        require("LuaPanda").start("localhost", 8818)
+        local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP()
+    end
+end
+
 --
 -- Setup some environment variables
 -- 
@@ -274,14 +286,6 @@ do
     local LUA_SCRIPT = cfg.script
     if LUA_SCRIPT ~= nil then
         setenv_from_lua("LUA_SCRIPT", LUA_SCRIPT)
-    end
-
-    -- 
-    -- setup VL_DEBUG inside init.lua, this can be overwrite by outer environment variable
-    -- 
-    local VL_DEBUG = cfg.luapanda_debug
-    if VL_DEBUG ~= nil then
-        setenv_from_lua("VL_DEBUG", VL_DEBUG)
     end
 
     -- 

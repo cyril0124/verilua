@@ -141,23 +141,6 @@ void VeriluaEnv::initialize() {
     // Initialize sol Lua state
     this->lua = std::make_unique<sol::state_view>(L);
 
-    // Register breakpoint function for lua
-    // DebugPort is 8818
-    const char *debug_enable = std::getenv("VL_DEBUGGER");
-    if (debug_enable != nullptr && (std::strcmp(debug_enable, "1") == 0 || std::strcmp(debug_enable, "enable") == 0) ) {
-        VL_WARN("VL_DEBUGGER is enable\n");
-        this->lua->set_function("bp", [](sol::this_state L){
-            luaL_dostring(L,"require('LuaPanda').start('localhost', 8818); local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP();");
-            return 0;
-        });
-    } else {
-        VL_DEBUG("VL_DEBUGGER is disable\n");
-        this->lua->set_function("bp", [](sol::this_state L){
-            luaL_dostring(L, "print(\"  \\27[31m [lua_vpi.cpp] ==> Invalid breakpoint! \\27[0m \")");
-            return 0;
-        });
-    }
-
 #ifdef IVERILOG
     const char *_resolve_x_as_zero = std::getenv("VL_RESOLVE_X_AS_ZERO");
     if(_resolve_x_as_zero != nullptr) {
