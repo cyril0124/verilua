@@ -373,6 +373,17 @@ function Scheduler:schedule_task(id: TaskID)
         self:_register_callback(id, cb_type_or_err, str_value, integer_value)
     end
 
+    if _G.ACC_TIME then
+        e = os_clock()
+        local name = self.task_name_map[id]
+        if _G.SAFETY then
+            assert(name is string, "task name is not string => " .. tostring(name) .. " id: " .. tostring(id))
+        end
+
+        local key = tostring(id) .. "@" .. name
+        self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
+    end
+
     if self.has_wakeup_event then
         self.has_wakeup_event = false
         for _, event_id in ipairs(self.pending_wakeup_event) do
@@ -383,13 +394,6 @@ function Scheduler:schedule_task(id: TaskID)
             table_clear(self.event_task_id_list_map[event_id])
         end
         table_clear(self.pending_wakeup_event)
-    end
-
-    if _G.ACC_TIME then
-        e = os_clock()
-        local name = self.task_name_map[id]
-        local key = tostring(id) .. "@" .. name
-        self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
     end
 end
 

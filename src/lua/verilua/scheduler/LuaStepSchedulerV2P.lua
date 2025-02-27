@@ -215,6 +215,13 @@ function Scheduler:schedule_task(id)
 	if cb_type_or_err == nil or cb_type_or_err == EarlyExit then
 		self:_remove_task(id)
 	end
+	do
+		e = os_clock()
+		local name = self.task_name_map[id]
+
+		local key = tostring(id) .. "@" .. name
+		self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
+	end
 
 	if self.has_wakeup_event then
 		self.has_wakeup_event = false
@@ -226,12 +233,6 @@ function Scheduler:schedule_task(id)
 			table_clear(self.event_task_id_list_map[event_id])
 		end
 		table_clear(self.pending_wakeup_event)
-	end
-	do
-		e = os_clock()
-		local name = self.task_name_map[id]
-		local key = tostring(id) .. "@" .. name
-		self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
 	end
 end
 
