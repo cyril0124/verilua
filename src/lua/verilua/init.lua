@@ -247,8 +247,9 @@ end
 
 if cfg.simulator == "vcs" then
     ffi.cdef[[
-        void dpi_set_scope(char *str);
         int vcs_get_mode(void);
+        void *svGetScopeFromName(char *str);
+        void svSetScope(void *scope);
     ]]
 end
 
@@ -321,7 +322,8 @@ do
     if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
         if not cfg.attach then
             if cfg.simulator == "vcs" then
-                ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+                ffi.C.svSetScope(ffi.C.svGetScopeFromName(ffi.cast("char *", cfg.top)))
+
                 local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
                 if not success then
                     mode = cfg.VeriluaMode.NORMAL
