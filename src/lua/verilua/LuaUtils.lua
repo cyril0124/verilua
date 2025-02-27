@@ -101,7 +101,10 @@ do
                 result = get_result(t_len, t, separator)
             end
         else
-            assert(t_type == "table")
+            if t_type ~= "table" then
+                assert(false, f("Invalid type: %s", t_type))
+            end
+            
             t_len = #t
 
             result = get_result(t_len, t, separator)
