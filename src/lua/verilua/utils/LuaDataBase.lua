@@ -275,10 +275,10 @@ end
 -- end
 
 function LuaDataBase:clean_up()
-    self:commit()
-    
     local path = require "pl.path"
     printf("[LuaDataBase] [%s => %s] clean up...\n", self.fullpath_name, path.abspath(self.fullpath_name))
+
+    self:commit()
 end
 
 return LuaDataBase
