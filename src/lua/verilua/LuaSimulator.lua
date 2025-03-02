@@ -14,11 +14,18 @@ local VeriluaMode = _G.VeriluaMode
 local verilua_debug = _G.verilua_debug
 local verilua_warning = _G.verilua_warning
 
+local set_dpi_scope
 if cfg.simulator == "vcs" then
     ffi.cdef[[
-        void dpi_set_scope(char *str);
         int vcs_get_mode(void);
+
+        void *svGetScopeFromName(char *str);
+        void svSetScope(void *scope);
     ]]
+
+    set_dpi_scope = function ()
+        ffi.C.svSetScope(ffi.C.svGetScopeFromName(ffi.cast("char *", cfg.top)))
+    end
 end
 
 ffi.cdef[[
@@ -39,7 +46,7 @@ ffi.cdef[[
 local initialize_trace = function (trace_file_path)
     assert(trace_file_path ~= nil)
     if cfg.simulator == "vcs" then
-        ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+        set_dpi_scope()
         ffi.C.simulation_initializeTrace(ffi.cast("char *", trace_file_path))
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
@@ -67,7 +74,7 @@ end
 
 local enable_trace = function ()    
     if cfg.simulator == "vcs" then
-        ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+        set_dpi_scope()
         ffi.C.simulation_enableTrace()
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_enableTrace()
@@ -83,7 +90,7 @@ end
 
 local disable_trace = function ()
     if cfg.simulator == "vcs" then
-        ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+        set_dpi_scope()
         ffi.C.simulation_disableTrace()
     elseif cfg.simulator == "verilator" then
         ffi.C.verilator_simulation_disableTrace()
@@ -129,7 +136,7 @@ end
 
 local get_mode = function()
     if cfg.simulator == "vcs" then
-        ffi.C.dpi_set_scope(ffi.cast("char *", cfg.top))
+        set_dpi_scope()
         local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
         if not success then
             mode = VeriluaMode.NORMAL
