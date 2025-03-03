@@ -31,7 +31,7 @@ CFLAGS += f"-I{verilua_path}/vcpkg/installed/x64-linux/include "
 
 LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -llua_vpi "
 LDFLAGS += f"-Wl,-rpath,{liblua_path} -L{liblua_path} -Wl,--no-as-needed -lluajit-5.1 "
-LDFLAGS_1 = f"-L{verilua_path}/vcpkg/installed/x64-linux/lib -Wl,--no-as-needed -lfmt "
+LDFLAGS_1 = f"-L{verilua_path}/vcpkg/installed/x64-linux/lib -Wl,--no-as-needed "
 
 cmd_list = ["verilator"] + [
     "--vpi",
