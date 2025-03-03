@@ -20,7 +20,7 @@ else:
 
 liblua_path = luapath + "/lib"
 assert libpath != None, "[vl-verilator] cannot find VERILUA_HOME!"
-assert os.path.exists(libpath + "/liblua_vpi.so"), "[vl-verilator] cannot find liblua_vpi.so in " + libpath
+assert os.path.exists(libpath + "/libverilua_verilator.so"), "[vl-verilator] cannot find libverilua_verilator.so in " + libpath
 
 CFLAGS = ""
 LDFLAGS = ""
@@ -29,7 +29,7 @@ CFLAGS += f"-I{luapath}/include -I{luapath}/include/luajit-2.1 "
 CFLAGS += f"-I{verilua_path}/src/include "
 CFLAGS += f"-I{verilua_path}/vcpkg/installed/x64-linux/include "
 
-LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -llua_vpi "
+LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -lverilua_verilator "
 LDFLAGS += f"-Wl,-rpath,{liblua_path} -L{liblua_path} -Wl,--no-as-needed -lluajit-5.1 "
 LDFLAGS_1 = f"-L{verilua_path}/vcpkg/installed/x64-linux/lib -Wl,--no-as-needed "
 

@@ -11,6 +11,11 @@ export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/socket:$LD
 export LD_LIBRARY_PATH=$VERILUA_HOME/wave_vpi/target/release:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=$VERILUA_HOME/luajit-pro/target/release:$LD_LIBRARY_PATH
 
+# Used by libverilua
+export LUA_LIB=$VERILUA_HOME/luajit-pro/luajit2.1/lib
+export LUA_LIB_NAME=luajit-5.1
+export LUA_LINK=shared
+
 export LUA_PATH="\
 ./?.lua;$(pwd)/?.lua;$(pwd)/src/lua/?.lua;\
 $VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?.lua;\

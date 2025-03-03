@@ -1,4 +1,3 @@
-#include "lua_vpi.h"
 #include "Vtb_top.h"
 #include "verilated.h"
 #include "verilated_vpi.h"
@@ -27,9 +26,45 @@
 #endif
 #endif
 
-void vlog_startup_routines_bootstrap(void);
-void verilua_main_step(); // Verilua step
-void verilua_schedule_loop(); // Only for dominant mode
+#define VL_INFO(...) \
+    do { \
+        printf("[%s:%s:%d] [%sINFO%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET); \
+        printf(__VA_ARGS__); \
+    } while(0)
+
+#define VL_WARN(...) \
+    do { \
+        printf("[%s:%s:%d] [%sWARN%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_YELLOW, ANSI_COLOR_RESET); \
+        printf(__VA_ARGS__); \
+    } while(0)
+
+#define VL_FATAL(cond, ...) \
+    do { \
+        if (!(cond)) { \
+            printf("\n"); \
+            printf("[%s:%s:%d] [%sFATAL%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+            printf(__VA_ARGS__ __VA_OPT__(,) "A fatal error occurred without a message.\n"); \
+            printf("\n"); \
+            fflush(stdout); \
+            fflush(stderr); \
+            abort(); \
+        } \
+    } while(0)
+
+typedef void (*VerilatorFunc)(void*);
+
+enum class VeriluaMode { 
+    Normal = 1, 
+    Step = 2, 
+    Dominant = 3
+};
+
+extern "C" {
+    void verilua_alloc_verilator_func(VerilatorFunc func, const char *name);
+    void verilua_main_step(); // Verilua step
+    void verilua_schedule_loop(); // Only for dominant mode
+    void vlog_startup_routines_bootstrap(void);
+}
 
 static volatile int got_sigint = 0;
 static volatile int got_sigabrt = 0;
@@ -76,8 +111,7 @@ struct EmuArgs {
 };
 
 class Emulator final {
-private:
-    Vtb_top *dut_ptr;
+public:
 #if VM_TRACE
 #if VM_TRACE_FST
     VerilatedFstC *tfp;
@@ -90,7 +124,8 @@ private:
     LightSSS *lightsss = nullptr;
     uint32_t lasttime_snapshot = 0;
 
-public:
+    Vtb_top *dut_ptr;
+
     Emulator(int argc, char *argv[]);
     ~Emulator();
 
@@ -147,6 +182,77 @@ public:
     void finalize(bool success);
 };
 
+std::unique_ptr<Emulator> global_emu = nullptr;
+
+extern "C" void _verilator_get_mode(void *mode_output) {
+    int *mode_ptr = (int *)mode_output;
+    int mode_defines = 0;
+    int mode = 0;
+
+#ifdef NORMAL_MODE
+    mode_defines++;
+    mode = (int)VeriluaMode::Normal;
+#endif
+
+#ifdef DOMINANT_MODE
+    mode_defines++;
+    mode = (int)VeriluaMode::Dominant;
+#endif
+
+#ifdef STEP_MODE
+    mode_defines++;
+    mode = (int)VeriluaMode::Step;
+#endif
+
+    if (mode_defines > 1) {
+        VL_FATAL(false, "multiple MODE macros are defined!");
+    }
+
+    *mode_ptr = mode;
+}
+
+extern "C" void _verilator_next_sim_step(void *param) {
+    if(Verilated::gotFinish()) {
+        VL_FATAL(false, "Simulation end...");
+    }
+    global_emu->dut_ptr->eval_step();
+    global_emu->dut_ptr->clock = global_emu->dut_ptr->clock ? 0 : 1;
+    global_emu->dut_ptr->eval_step();
+    Verilated::timeInc(5);
+}
+
+extern "C" void _verilator_simulation_initializeTrace(void *traceFilePath) {
+#if VM_TRACE
+    global_emu->args.trace_file = std::string((char *)traceFilePath);
+    VL_INFO("initializeTrace trace_file:%s\n", global_emu->args.trace_file.c_str());
+    global_emu->dump_wave();
+#else
+    VL_FATAL(false, "VM_TRACE is not defined!\n");
+#endif
+}
+
+extern "C" void _verilator_simulation_enableTrace(void *param) {
+#if VM_TRACE
+    global_emu->args.enable_wave = true;
+    global_emu->args.wave_is_close = false;
+    VL_INFO("simulation_enableTrace trace_file:%s\n", global_emu->args.trace_file.c_str());
+    global_emu->dump_wave();
+#else
+    VL_FATAL(false, "VM_TRACE is not defined!\n");
+#endif
+}
+
+extern "C" void _verilator_simulation_disableTrace(void *param) {
+#if VM_TRACE
+    global_emu->args.enable_wave = false;
+    global_emu->args.wave_is_enable = false;
+    VL_INFO("simulation_disableTrace trace_file:%s\n", global_emu->args.trace_file.c_str());
+    global_emu->stop_dump_wave();
+#else
+    VL_FATAL(false, "VM_TRACE is not defined!\n");
+#endif
+}
+
 Emulator::Emulator(int argc, char *argv[]) {
     dut_ptr = new Vtb_top("");
 
@@ -177,78 +283,11 @@ Emulator::Emulator(int argc, char *argv[]) {
         VL_INFO("enable fork debugging...\n");
     }
 
-    Verilua::alloc_verilator_func([](void *mode_output) {
-        int *mode_ptr = (int *)mode_output;
-        int mode_defines = 0;
-        int mode = 0;
-
-#ifdef NORMAL_MODE
-        mode_defines++;
-        mode = (int)Verilua::VeriluaMode::Normal;
-#endif
-
-#ifdef DOMINANT_MODE
-        mode_defines++;
-        mode = (int)Verilua::VeriluaMode::Dominant;
-#endif
-
-#ifdef STEP_MODE
-        mode_defines++;
-        mode = (int)Verilua::VeriluaMode::Step;
-#endif
-
-        if (mode_defines > 1) {
-            VL_FATAL(false, "multiple MODE macros are defined!");
-        }
-
-        *mode_ptr = mode;
-    }, "get_mode");
-
-    std::function<void(void*)> next_sim_step = [this](void *params) {
-        if(Verilated::gotFinish()) {
-            VL_FATAL(false, "Simulation end...");
-        }
-        dut_ptr->eval_step();
-        dut_ptr->clock = dut_ptr->clock ? 0 : 1;
-        dut_ptr->eval_step();
-        Verilated::timeInc(5);
-    };
-    Verilua::alloc_verilator_func(next_sim_step, "next_sim_step");
-
-    std::function<void(void*)> simulation_initializeTrace = [this](void *traceFilePath) {
-#if VM_TRACE
-        args.trace_file = std::string((char *)traceFilePath);
-        VL_INFO("initializeTrace trace_file:%s\n", args.trace_file.c_str());
-        this->dump_wave();
-#else
-        VL_FATAL(false, "VM_TRACE is not defined!\n");
-#endif
-    };
-    Verilua::alloc_verilator_func(simulation_initializeTrace, "simulation_initializeTrace");
-
-    std::function<void(void*)> simulation_enableTrace = [this](void *params) {
-#if VM_TRACE
-        args.enable_wave = true;
-        args.wave_is_close = false;
-        VL_INFO("simulation_enableTrace trace_file:%s\n", args.trace_file.c_str());
-        this->dump_wave();
-#else
-        VL_FATAL(false, "VM_TRACE is not defined!\n");
-#endif
-    };
-    Verilua::alloc_verilator_func(simulation_enableTrace, "simulation_enableTrace");
-    
-    std::function<void(void*)> simulation_disableTrace = [this](void *params) {
-#if VM_TRACE
-        args.enable_wave = false;
-        args.wave_is_enable = false;
-        VL_INFO("simulation_disableTrace trace_file:%s\n", args.trace_file.c_str());
-        this->stop_dump_wave();
-#else
-        VL_FATAL(false, "VM_TRACE is not defined!\n");
-#endif        
-    };
-    Verilua::alloc_verilator_func(simulation_disableTrace, "simulation_disableTrace");
+    verilua_alloc_verilator_func(_verilator_get_mode, "get_mode");
+    verilua_alloc_verilator_func(_verilator_next_sim_step, "next_sim_step");
+    verilua_alloc_verilator_func(_verilator_simulation_initializeTrace, "simulation_initializeTrace");
+    verilua_alloc_verilator_func(_verilator_simulation_enableTrace, "simulation_enableTrace");
+    verilua_alloc_verilator_func(_verilator_simulation_disableTrace, "simulation_disableTrace");
 }
 
 void Emulator::fork_child_init() {
@@ -600,7 +639,6 @@ int Emulator::run_main() {
     VL_FATAL(false, "unknown mode");
 }
 
-std::unique_ptr<Emulator> global_emu = nullptr;
 
 void signal_handler(int signal) {
     Verilated::threadContextp()->gotError(true);
@@ -621,7 +659,7 @@ void signal_handler(int signal) {
                 fflush(stdout);
 
                 global_emu->end_simulation(false);
-                exit(1);
+                // exit(1);
             }
             break;
         case SIGINT:

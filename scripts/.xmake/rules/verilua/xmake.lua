@@ -311,16 +311,16 @@ rule("verilua")
                 "-LDFLAGS \"-flto -Wl,--no-as-needed\"",
                 "-LDFLAGS \"" .. verilua_extra_vcs_ldflags .. "\"",
                 (verilua_extra_ldflags == "") and "" or "-LDFLAGS \"" .. verilua_extra_ldflags .. "\"",
-                f("-LDFLAGS \"-Wl,-rpath,%s\"", verilua_libs_home), -- for liblua_vpi_vcs.so
+                f("-LDFLAGS \"-Wl,-rpath,%s\"", verilua_libs_home), -- for libverilua_vcs.so
                 f("-LDFLAGS \"-Wl,-rpath,%s/luajit-pro/luajit2.1/lib\"", verilua_home), -- for libluajit-5.1.so
-                f("-LDFLAGS \"-L%s/luajit-pro/luajit2.1/lib -lluajit-5.1 -llua_vpi_vcs\"", verilua_home),
+                f("-LDFLAGS \"-L%s/luajit-pro/luajit2.1/lib -lluajit-5.1 -lverilua_vcs\"", verilua_home),
                 "-LDFLAGS \"-lz\"", -- libz is used by VERDI
                
                 -- These flags are provided by `default.nix`
                 -- "-LDFLAGS \"-Wl,-rpath,/nix/store/pkl664rrz6vb95piixzfm7qy1yc2xzgc-zlib-1.3.1/lib\"",
                 -- "-LDFLAGS\"-Wl,-rpath,/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib -Wl,-rpath,/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64 -Wl,-rpath,/nix/store/swcl0ynnia5c57i6qfdcrqa72j7877mg-gcc-13.2.0-lib/lib\"",
 
-                "-load " .. verilua_libs_home .. "/liblua_vpi_vcs.so",
+                "-load " .. verilua_libs_home .. "/libverilua_vcs.so",
                 "-o", sim_build_dir .. "/simv"
             )
         elseif sim == "wave_vpi" then
@@ -358,14 +358,14 @@ rule("verilua")
         end
 
         if sim == "verilator" then
-            target:add("links", "lua_vpi")
+            target:add("links", "verilua_verilator")
             target:add("files", verilua_home .. "/src/verilator/*.cpp")
         elseif sim == "vcs" then
             -- If you are entering a C++ file or an object file compiled from a C++ file on 
             -- the vcs command line, you must tell VCS to use the standard C++ library for 
             -- linking. To do this, enter the -lstdc++ linker flag with the -LDFLAGS elaboration 
             -- option.
-            target:add("links", "lua_vpi_vcs", "stdc++")
+            target:add("links", "verilua_vcs", "stdc++")
         end
 
         -- Generate <tb_top>.sv
@@ -612,7 +612,7 @@ source setvars.sh
         elseif sim == "vcs" then
             run_sh = f([[%s/simv %s +notimingcheck 2>&1 | tee run.log]], sim_build_dir, (function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)())
         elseif sim == "iverilog" then
-            run_sh = f([[vvp_wrapper -M %s -m lua_vpi %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
+            run_sh = f([[vvp_wrapper -M %s -m libverilua_iverilog %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
         elseif sim == "wave_vpi" then
             local waveform_file = assert(target:get("waveform_file"), "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
             run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
@@ -706,7 +706,7 @@ verdi -f filelist.f -sv -nologo $@
         elseif sim == "iverilog" then
             local vvpcmd = verilua_tools_home .. "/vvp_wrapper"
 
-            local run_flags = {"-M", verilua_libs_home, "-m", "lua_vpi"}
+            local run_flags = {"-M", verilua_libs_home, "-m", "libverilua_iverilog"}
             local _run_options = target:values("iverilog.run_options")
             local _run_plusargs = target:values("iverilog.run_plusargs")
             if _run_options then

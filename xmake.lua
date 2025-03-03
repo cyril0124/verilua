@@ -1,6 +1,5 @@
 ---@diagnostic disable: undefined-global
 
-local lib_name   = "lua_vpi"
 local prj_dir    = os.curdir()
 local src_dir    = prj_dir .. "/src"
 local build_dir  = prj_dir .. "/build"
@@ -12,12 +11,56 @@ local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
-add_requires("conan::fmt/11.0.2", {alias = "fmt"})
-add_requires("conan::mimalloc/2.1.7", {alias = "mimalloc"})
-add_requires("conan::libassert/2.1.0", {alias = "libassert"})
-add_requires("conan::argparse/3.1", {alias = "argparse"})
-add_requires("conan::elfio/3.12", {alias = "elfio"})
-add_requires("conan::inja/3.4.0", {alias = "inja"})
+local build_libverilua_wave_vpi_cmd = [[cargo build --release --features "wave_vpi chunk_task debug acc_time"]]
+
+local function build_libverilua(simulator)
+    if simulator == "verilator" or simulator == "wave_vpi" then
+        os.vrun([[cargo build --release --features "%s chunk_task debug acc_time"]], simulator)
+    else
+        os.vrun([[cargo build --release --features "%s chunk_task merge_cb debug acc_time"]], simulator)
+    end
+end
+
+local function build_lib_common(simulator)
+    set_kind("phony")
+    on_build(function (target)
+        -- try { function () os.vrun("cargo clean") end }
+        if simulator == "verilator" then
+            os.vrun([[cargo build --release --features "%s chunk_task debug acc_time"]], simulator)
+        elseif simulator == "wave_vpi" then
+            os.vrun(build_libverilua_wave_vpi_cmd)
+        else
+            os.vrun([[cargo build --release --features "%s chunk_task merge_cb debug acc_time"]], simulator)
+        end
+        os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_" .. simulator .. ".so")
+    end)
+end
+
+for _, simulator in ipairs({"verilator", "vcs", "iverilog", "wave_vpi"}) do
+    -- libverilua_verilator
+    -- libverilua_vcs
+    -- libverilua_iverilog
+    -- libverilua_wave_vpi
+    target("libverilua_" .. simulator)
+        build_lib_common(simulator)
+end
+
+-- Build all libverilua libraries
+target("build_libverilua")
+    set_kind("phony")
+    on_run(function (target)
+        print("--------------------- [Build libverilua] ---------------------- ")
+        try { function () os.vrun("cargo clean") end }
+        cprint("* Build ${green}libverilua_verilator${reset}")
+            os.vrun("xmake build libverilua_verilator")
+        cprint("* Build ${green}libverilua_vcs${reset}")
+            os.vrun("xmake build libverilua_vcs")
+        cprint("* Build ${green}libverilua_iverilog${reset}")
+            os.vrun("xmake build libverilua_iverilog")
+        cprint("* Build ${green}libverilua_wave_vpi${reset}")
+            os.vrun("xmake build libverilua_wave_vpi")
+        print("---------------------------------------------------------- ")
+    end)
 
 local function build_common()
     set_languages("c99", "c++20")
@@ -25,104 +68,13 @@ local function build_common()
     set_objectdir(build_dir .. "/obj")
 end
 
-local function build_lib_common()
-    set_kind("shared")
-    build_common()
-
-    -- shared lib link flags (! instead of add_ldflags)
-    add_shflags(
-        "-lrt", -- support shm_open
-        "-static-libstdc++ -static-libgcc",
-        "-Wl,--no-as-needed",
-        -- "-Wl,-Bstatic", "-lluajit-5.1", "-Wl,-Bdynamic",
-        {force = true}
-    )
-
-    -- add_defines("DEBUG")
-    add_defines("VL_DEF_ACCUMULATE_LUA_TIME")
-    add_defines("VL_DEF_OPT_MERGE_CALLBACK")
-    add_defines("VL_DEF_OPT_USE_BOOST_UNORDERED")
-    -- add_defines("VL_DEF_OPT_VEC_SIMPLE_ACCESS")
-    -- add_defines("VL_DEF_VPI_LEARN")
-    -- add_defines("VL_DEF_VPI_LOCK_GUARD")
-    
-    add_files(
-        lua_dir .. "/lib/libluajit-5.1.a",
-        src_dir .. "/verilua/lua_vpi.cpp",
-        src_dir .. "/verilua/verilator_helper.cpp",
-        src_dir .. "/verilua/vpi_access.cpp",
-        src_dir .. "/verilua/vpi_callback.cpp"
-    )
-
-    add_includedirs(
-        src_dir .. "/include",
-        src_dir .. "/gen",
-        lua_dir .. "/include/luajit-2.1",
-        extern_dir .. "/boost_unordered",
-        vcpkg_dir .. "/x64-linux/include"
-    )
-
-    add_packages("elfio", "mimalloc")
-    
-    -- add_links("luajit-5.1")
-    -- add_linkdirs(lua_dir .. "/lib")
-    -- add_rpathdirs(lua_dir .. "/lib")
-
-    if is_mode("debug") then
-        add_defines("DEBUG")
-        set_symbols("debug")
-        set_optimize("none")
-        -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
-        -- add_ldflags("-fsanitize=address")
-    else
-        add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
-    end
-
-    -- on install
-    add_headerfiles(
-        src_dir .. "/include/lua_vpi.h"
-    )
-
-    before_build(function (target)
-        print("--------------------- [Before Build] ---------------------- ")
-        os.run("mkdir %s -p", shared_dir)
-        print("---------------------------------------------------------- ")
-    end)
-
-    after_build(function (target)
-        print("--------------------- [After Build] ---------------------- ")
-
-        print("* copy " .. target:targetfile() .. " into " .. shared_dir)
-            os.cp(target:targetfile(), shared_dir)
-        print("---------------------------------------------------------- ")
-    end)
-end
-
--- 
--- Build lua_vpi libraries
--- 
-for sim, name in pairs({
-    ["VERILATOR"] = lib_name,
-    ["VCS"]       = lib_name .. "_vcs",
-    ["WAVE_VPI"]  = lib_name .. "_wave_vpi",
-    ["IVERILOG"]  = iverilog_home and lib_name .. "_iverilog" or "",
-}) do
-    if name ~= "" then
-        target(name) do
-            add_defines(sim)
-            if sim == "IVERILOG" then
-                add_defines("USE_MIMALLOC")
-            end
-            build_lib_common()
-        end
-    end
-end
-
 local function wave_vpi_main_common()
     set_kind("binary")
     build_common()
 
-    add_deps(lib_name .. "_wave_vpi")
+    before_build(function (target)
+        os.vrun(build_libverilua_wave_vpi_cmd)
+    end)
 
     add_shflags(
         "-static-libstdc++ -static-libgcc",
@@ -140,7 +92,8 @@ local function wave_vpi_main_common()
     add_includedirs(
         lua_dir .. "/include/luajit-2.1",
         wavevpi_dir .. "/src",
-        extern_dir .. "/boost_unordered"
+        extern_dir .. "/boost_unordered",
+        vcpkg_dir .. "/x64-linux/include"
     )
 
     if is_mode("debug") then
@@ -157,9 +110,11 @@ local function wave_vpi_main_common()
     add_linkdirs(lua_dir .. "/lib")
     add_rpathdirs(lua_dir .. "/lib")
 
-    add_packages("fmt", "mimalloc", "libassert", "argparse")
+    add_links("fmt", "mimalloc")
+    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
+    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
 
-    add_links("lua_vpi_wave_vpi")
+    add_links("verilua_wave_vpi")
     add_linkdirs(shared_dir)
     add_rpathdirs(shared_dir)
     
@@ -203,29 +158,19 @@ target("wave_vpi_main_fsdb")
 -- 
 if iverilog_home ~= nil then
     target("iverilog_vpi_module")
-        add_defines("IVERILOG")
-        set_filename(lib_name .. ".vpi")
+        set_kind("phony")
+        on_build(function (target)
+            try { function () os.vrun("cargo clean") end }
+            os.vrun([[cargo build --release --features "iverilog iverilog_vpi_mod chunk_task merge_cb debug acc_time"]])
 
-        build_lib_common()
-
-        add_links("vpi", "veriuser")
-        add_linkdirs(iverilog_home .. "/lib")
-
-        after_build(function (target)
-            print("--------------------- [After Build] ---------------------- ")
-    
-            print("* copy " .. target:targetfile() .. " into " .. shared_dir)
-                os.run("cp " .. target:targetfile() .. " " .. shared_dir)
-            
-            print("---------------------------------------------------------- ")
+            os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
         end)
-
 
     target("vvp_wrapper")
         set_kind("binary")
         build_common()
         
-        add_deps(lib_name .. "_iverilog")
+        add_deps("libverilua_iverilog")
 
         add_files(
             src_dir .. "/iverilog/vvp_wrapper.cpp"
@@ -255,14 +200,17 @@ if iverilog_home ~= nil then
         add_linkdirs(lua_dir .. "/lib")
         add_rpathdirs(lua_dir .. "/lib")
 
-        add_links("lua_vpi_iverilog")
+        add_links("verilua_iverilog")
         add_linkdirs(shared_dir)
         add_rpathdirs(shared_dir)
 
-        add_packages("mimalloc")
-
         after_build(function (target)
             print("--------------------- [After Build] ---------------------- ")
+
+            os.vrun("wget -P $(tmpdir) https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0-x86_64.tar.gz")
+            os.vrun("tar -zxvf $(tmpdir)/patchelf-0.18.0-x86_64.tar.gz -C $(tmpdir)")
+
+            os.vrun("$(tmpdir)/bin/patchelf --add-needed libverilua_iverilog.so " .. target:targetfile())
 
             print("* copy " .. target:targetfile() .. " into " .. tools_dir)
                 os.run("cp " .. target:targetfile() .. " " .. tools_dir)
@@ -287,13 +235,16 @@ target("testbench_gen")
         src_dir .. "/include",
         extern_dir .. "/slang-common",
         slang_dir .. "/include",
-        extern_dir .. "/boost_unordered/include"
+        extern_dir .. "/boost_unordered/include",
+        vcpkg_dir .. "/x64-linux/include"
     )
 
     add_links("svlang")
     add_linkdirs(slang_dir .. "/lib")
 
-    add_packages("fmt", "mimalloc", "libassert", "inja")
+    add_links("fmt", "mimalloc")
+    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
+    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
@@ -339,7 +290,9 @@ target("dpi_exporter")
     add_linkdirs(prj_dir .. "/luajit-pro/target/release")
     add_rpathdirs(prj_dir .. "/luajit-pro/target/release")
 
-    add_packages("fmt", "mimalloc", "libassert")
+    add_links("fmt", "mimalloc")
+    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
+    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
@@ -381,7 +334,9 @@ local function signal_db_gen_common(is_static)
     add_linkdirs(prj_dir .. "/luajit-pro/target/release")
     add_rpathdirs(prj_dir .. "/luajit-pro/target/release")
 
-    add_packages("fmt", "mimalloc", "libassert")
+    add_links("fmt", "mimalloc")
+    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
+    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
 end
 
 target("signal_db_gen")
@@ -419,13 +374,6 @@ target("update_submodules")
     on_run(function (target)
         local execute = os.exec
         execute("git submodule update --init --recursive")
-    end)
-
-target("install_python_depends")
-    set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
-        execute("python3 -m pip install -r requirements.txt")
     end)
 
 target("install_luajit")
@@ -536,7 +484,7 @@ target("install_lua_modules")
         os.addenvs({PATH = luajit_dir .. "/bin"})
         for i, lib in ipairs(libs) do
             cprint("\t${💥} ${yellow}[5.%d]${reset} install ${green}%s${reset}", i, lib)
-            execute("luarocks install %s", lib)
+            execute("luarocks install --force-lock %s", lib)
         end
         execute("luarocks list")
     end)
@@ -581,7 +529,16 @@ target("setup_verilua")
         execute("cargo build --release")
         os.cd(os.workingdir())
 
-        execute("xmake -y -P .")
+        execute("xmake run -y -v build_libverilua")
+        execute("xmake build -y -v testbench_gen")
+        execute("xmake build -y -v dpi_exporter")
+        execute("xmake build -y -v signal_db_gen")
+        execute("xmake build -y -v signal_db_gen_lib")
+        execute("xmake build -y -v wave_vpi_main")
+        execute("xmake build -y -v wave_vpi_main_fsdb")
+
+        try { function () execute("xmake build -y -v iverilog_vpi_module") end }
+        try { function () execute("xmake build -y -v vvp_wrapper") end }
     end)
 
 target("install_wave_vpi")
@@ -604,39 +561,35 @@ target("verilua")
     set_kind("phony")
     on_install(function (target)
         local execute = os.exec
-        cprint("${💥} ${yellow}[1]${reset} Update git submodules...") do
+        cprint("${💥} ${yellow}[1/8]${reset} Update git submodules...") do
             execute("xmake run update_submodules")
         end
 
-        cprint("${💥} ${yellow}[2]${reset} Install python dependency...") do
-            execute("xmake run install_python_depends")
-        end
-
-        cprint("${💥} ${yellow}[3]${reset} Install other libs...") do
+        cprint("${💥} ${yellow}[2/8]${reset} Install other libs...") do
             execute("xmake run install_other_libs")
         end
         
-        cprint("${💥} ${yellow}[4]${reset} Install LuaJIT-2.1...") do
+        cprint("${💥} ${yellow}[3/8]${reset} Install LuaJIT-2.1...") do
             execute("xmake run install_luajit")
         end
 
-        cprint("${💥} ${yellow}[5]${reset} Install lua modules...") do
+        cprint("${💥} ${yellow}[4/8]${reset} Install lua modules...") do
             execute("xmake run install_lua_modules")
         end
 
-        cprint("${💥} ${yellow}[6]${reset} Install tinycc...") do
+        cprint("${💥} ${yellow}[5/8]${reset} Install tinycc...") do
             execute("xmake run install_tinycc")
         end
 
-        cprint("${💥} ${yellow}[7]${reset} Setup verilua home on ${green}%s${reset}...", os.shell()) do
+        cprint("${💥} ${yellow}[6/8]${reset} Setup verilua home on ${green}%s${reset}...", os.shell()) do
             execute("xmake run setup_verilua")
         end
         
-        cprint("${💥} ${yellow}[8]${reset} Install wave vpi...") do
+        cprint("${💥} ${yellow}[7/8]${reset} Install wave vpi...") do
             execute("xmake run install_wave_vpi")
         end
 
-        cprint("${💥} ${yellow}[9]${reset} Applying verilua patch for xmake...") do
+        cprint("${💥} ${yellow}[8/8]${reset} Applying verilua patch for xmake...") do
             execute("xmake run apply_xmake_patch")
         end
     end)
@@ -649,7 +602,7 @@ target("install_vcs_patch_lib")
         end
         os.exec("xmake run -v install_other_libs")
         os.exec("git submodule update --init extern/boost_unordered")
-        os.exec("xmake build -v -y lua_vpi_vcs")
+        os.exec("xmake build -v -y libverilua_vcs")
     end)
 
 target("verilua-nix")

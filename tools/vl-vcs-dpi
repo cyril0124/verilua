@@ -25,7 +25,7 @@ else:
     libpath = verilua_path + "/shared"
 
 liblua_path = luapath + "/lib"
-assert os.path.exists(libpath + "/liblua_vpi_vcs.so"), "[vl-vcs] cannot find liblua_vpi_vcs.so in " + libpath
+assert os.path.exists(libpath + "/libverilua_vcs.so"), "[vl-vcs] cannot find libverilua_vcs.so in " + libpath
 
 vcs = os.getenv("VCS_HOME") + "/bin/vcs"
 
@@ -36,14 +36,14 @@ cmd_list = [vcs] + [
     "-LDFLAGS", f'\"-Wl,-rpath,{liblua_path}\"',
     
     "-LDFLAGS", f'\"-L{liblua_path}\"',
-    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from liblua_vpi
+    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from libverilua_vcs
     "-LDFLAGS", f'\"-lluajit-5.1\"',
     
     "-LDFLAGS", f'\"-L{libpath}\"',
-    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from liblua_vpi_vcs
-    "-LDFLAGS", '\"-llua_vpi_vcs\"',
+    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from libverilua_vcs
+    "-LDFLAGS", '\"-lverilua_vcs\"',
     "-LDFLAGS", '-lstdc++',
-    "-load", libpath + "/liblua_vpi_vcs.so",
+    "-load", libpath + "/libverilua_vcs.so",
     f"{verilua_path}/src/dpi_exporter/dummy_vpi.cpp"
 ] + sys.argv[1:]
 
