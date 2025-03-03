@@ -525,7 +525,7 @@ TO_LUA const char *get_simulator_auto() {
 
     ELFIO::elfio reader;
     if (!reader.load(executable_name)) {
-        VL_FATAL(false, "Failed to load ELF file: %s", executable_name);
+        VL_FATAL(false, "Failed to load ELF file: %s", executable_name.c_str());
         return "unknown";
     }
 
