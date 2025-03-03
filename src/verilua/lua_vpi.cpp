@@ -138,6 +138,9 @@ void VeriluaEnv::initialize() {
     this->L = luaL_newstate();
     luaL_openlibs(this->L);
 
+    auto start = std::chrono::high_resolution_clock::now();
+    this->start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
+
     // Initialize sol Lua state
     this->lua = std::make_unique<sol::state_view>(L);
 
@@ -206,9 +209,6 @@ void VeriluaEnv::initialize() {
 #ifdef VL_DEF_OPT_MERGE_CALLBACK
 #include "gen_alloc_sim_event.h"
 #endif
-
-    auto start = std::chrono::high_resolution_clock::now();
-    this->start_time = std::chrono::duration_cast<std::chrono::duration<double>>(start.time_since_epoch()).count();
 
     initialized = true;
     VL_STATIC_DEBUG("VeriluaEnv::initialize() finish!\n");
