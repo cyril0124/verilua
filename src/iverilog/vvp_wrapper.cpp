@@ -1,6 +1,5 @@
 #include "iverilog/libvvp.h"
 #include "lua.hpp"
-// #include "lua_vpi.h"
 #include <cstddef>
 #include <getopt.h>
 #include <cstring>

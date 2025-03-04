@@ -683,6 +683,9 @@ target("test")
         os.exec("xmake build -v -P . test_wave")
         os.exec("xmake run -v -P . test_wave")
 
+        os.cd(prj_dir .. "/tests/test_bitvec_signal")
+        os.exec("xmake run -v -P . test_all")
+
         cprint([[${green}
   _____         _____ _____ 
  |  __ \ /\    / ____/ ____|
