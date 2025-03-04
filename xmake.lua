@@ -267,13 +267,12 @@ target("dpi_exporter")
     end
     
     add_files(
-        src_dir .. "/dpi_exporter/dpi_exporter.cpp",
+        src_dir .. "/dpi_exporter/*.cpp",
         extern_dir .. "/slang-common/*.cc"
     )
 
     local slang_dir = extern_dir .. "/slang-prebuild/install_static"
     add_includedirs(
-        src_dir .. "/include",
         src_dir .. "/dpi_exporter",
         slang_dir .. "/include",
         extern_dir .. "/slang-common",
