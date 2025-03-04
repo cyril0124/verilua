@@ -17,4 +17,9 @@ tmp/
 result
 FsdbReader
 target/
+tools/dpi_exporter
+tools/testbench_gen
+tools/signal_db_gen
+tools/vvp_wrapper
+tools/wave_vpi_*
 luajit-pro
