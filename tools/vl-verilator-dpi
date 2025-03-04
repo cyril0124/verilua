@@ -42,7 +42,7 @@ cmd_list = ["verilator"] + [
     "-LDFLAGS", LDFLAGS,
     "-LDFLAGS", '"' + LDFLAGS_1 + '"',
     "-CFLAGS", CFLAGS
-] + sys.argv[1:] + [f"{verilua_path}/src/dpi_exporter/dummy_vpi.cpp"]
+] + sys.argv[1:] + [f"{verilua_path}/src/dummy_vpi/dummy_vpi.cpp"]
 
 cmd = " ".join(cmd_list)
 

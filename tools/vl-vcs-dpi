@@ -44,7 +44,7 @@ cmd_list = [vcs] + [
     "-LDFLAGS", '\"-lverilua_vcs\"',
     "-LDFLAGS", '-lstdc++',
     "-load", libpath + "/libverilua_vcs.so",
-    f"{verilua_path}/src/dpi_exporter/dummy_vpi.cpp"
+    f"{verilua_path}/src/dummy_vpi/dummy_vpi.cpp"
 ] + sys.argv[1:]
 
 cmd = " ".join(cmd_list)
