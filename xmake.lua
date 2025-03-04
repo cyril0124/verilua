@@ -232,7 +232,7 @@ target("testbench_gen")
 
     local slang_dir = extern_dir .. "/slang-prebuild/install_static"
     add_includedirs(
-        src_dir .. "/include",
+        src_dir .. "/testbench_gen",
         extern_dir .. "/slang-common",
         slang_dir .. "/include",
         extern_dir .. "/boost_unordered/include",
