@@ -438,16 +438,16 @@ pub unsafe extern "C" fn c_set_value_multi(
     });
 }
 
-// TODO: Optimize
-use paste::paste;
-macro_rules! generate_multi_beat_function {
+macro_rules! gen_multi_beat_function {
     ($name:ident, $($i:expr),*) => {
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(complex_handle: ComplexHandleRaw $(, paste!{[<v $i>]}: u32)*) {
+        pub unsafe extern "C" fn $name(complex_handle: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
             let complex_handle = ComplexHandle::from_raw(&complex_handle);
-            let mut vector = [
-                $( t_vpi_vecval { aval: paste!{[<v $i>]} as _, bval: 0 } ),*
-            ];
+            paste::paste! {
+                let mut vector = [
+                    $( t_vpi_vecval { aval: [<v $i>] as _, bval: 0 } ),*
+                ];
+            }
 
             let mut v = s_vpi_value {
                 format: vpiVectorVal as _,
@@ -466,13 +466,13 @@ macro_rules! generate_multi_beat_function {
     };
 }
 
-generate_multi_beat_function!(c_set_value_multi_beat_2, 0, 1);
-generate_multi_beat_function!(c_set_value_multi_beat_3, 0, 1, 2);
-generate_multi_beat_function!(c_set_value_multi_beat_4, 0, 1, 2, 3);
-generate_multi_beat_function!(c_set_value_multi_beat_5, 0, 1, 2, 3, 4);
-generate_multi_beat_function!(c_set_value_multi_beat_6, 0, 1, 2, 3, 4, 5);
-generate_multi_beat_function!(c_set_value_multi_beat_7, 0, 1, 2, 3, 4, 5, 6);
-generate_multi_beat_function!(c_set_value_multi_beat_8, 0, 1, 2, 3, 4, 5, 6, 7);
+gen_multi_beat_function!(c_set_value_multi_beat_2, 0, 1);
+gen_multi_beat_function!(c_set_value_multi_beat_3, 0, 1, 2);
+gen_multi_beat_function!(c_set_value_multi_beat_4, 0, 1, 2, 3);
+gen_multi_beat_function!(c_set_value_multi_beat_5, 0, 1, 2, 3, 4);
+gen_multi_beat_function!(c_set_value_multi_beat_6, 0, 1, 2, 3, 4, 5);
+gen_multi_beat_function!(c_set_value_multi_beat_7, 0, 1, 2, 3, 4, 5, 6);
+gen_multi_beat_function!(c_set_value_multi_beat_8, 0, 1, 2, 3, 4, 5, 6, 7);
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn c_set_value_str(complex_handle: ComplexHandleRaw, value_str: *mut c_char) {
