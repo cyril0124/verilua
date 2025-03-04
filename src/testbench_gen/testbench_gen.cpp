@@ -361,19 +361,15 @@ always #{{clockPeriod}} {{clockSignalName}} = ~{{clockSignalName}};
 
 {{clockAndResetAlias}}
 
-reg [63:0] cycles;
+reg [63:0] cycles; // A timestamp counter for simulation, start from 0 and never reset
 
 initial cycles = 0;
-
 always@(posedge {{clockSignalName}}) begin
-  if ({{resetSignalName}})
-    cycles <= 0;
-  else
-    cycles <= cycles + 1;
+    cycles <= cycles + 1; // Increment the timestamp counter every clock cycle
 end 
 
 `ifdef SIM_VERILATOR
-assign cycles_o = cycles;
+assign cycles_o = cycles; // Tie the timestamp counter to the output port for verilator
 `endif
 
 // -----------------------------------------
