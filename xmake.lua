@@ -173,7 +173,7 @@ if iverilog_home ~= nil then
         add_deps("libverilua_iverilog")
 
         add_files(
-            src_dir .. "/iverilog/vvp_wrapper.cpp"
+            src_dir .. "/vvp_wrapper/vvp_wrapper.cpp"
         )
 
         add_includedirs(
