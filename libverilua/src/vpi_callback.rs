@@ -56,6 +56,8 @@ include!("./gen/gen_register_callback_func.rs");
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn register_start_callback() {
+    log::debug!("register_start_callback");
+
     let env = get_verilua_env();
     if env.has_start_cb {
         return;
@@ -78,6 +80,8 @@ pub unsafe extern "C" fn register_start_callback() {
 }
 
 unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
+    log::debug!("start_callback");
+
     let env = get_verilua_env();
     env.initialize();
     0
@@ -85,11 +89,13 @@ unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn register_final_callback() {
+    log::debug!("register_final_callback");
+
     let env = get_verilua_env();
-    if env.has_start_cb {
+    if env.has_final_cb {
         return;
     } else {
-        env.has_start_cb = true;
+        env.has_final_cb = true;
     }
 
     let mut cb_data = s_cb_data {
@@ -107,6 +113,8 @@ pub unsafe extern "C" fn register_final_callback() {
 }
 
 unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
+    log::debug!("final_callback");
+
     let env = get_verilua_env();
     env.finalize();
     0

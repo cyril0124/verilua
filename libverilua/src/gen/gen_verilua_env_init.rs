@@ -34,7 +34,8 @@ Self {
     initialized: false,
     finalized: false,
     has_start_cb: false,
-
+    has_final_cb: false,
+    
             #[cfg(feature = "chunk_task")]
         lua_sim_event_chunk_1: None,
                 #[cfg(feature = "chunk_task")]
