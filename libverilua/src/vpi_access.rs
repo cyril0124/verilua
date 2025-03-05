@@ -275,7 +275,19 @@ pub unsafe extern "C" fn c_get_value_str(
 
     unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-    unsafe { v.value.str_ }
+    #[cfg(feature = "vcs")]
+    {
+        // Remove leading `space`
+        let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
+        let trimmed_str = raw_str.to_string_lossy().trim_start().to_string();
+        let trimmed_c_str = std::ffi::CString::new(trimmed_str).unwrap();
+        trimmed_c_str.into_raw()
+    }
+
+    #[cfg(not(feature = "vcs"))]
+    {
+        unsafe { v.value.str_ }
+    }
 }
 
 #[unsafe(no_mangle)]
