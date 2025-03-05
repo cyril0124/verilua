@@ -175,6 +175,7 @@ struct EdgeCbDataChunk_{{i}} {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_{{i}}(complex_handle_raw: &ComplexHandleRaw, {{task_id_params}}, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 

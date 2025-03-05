@@ -6,6 +6,7 @@ struct EdgeCbDataChunk_1 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_1(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -124,6 +125,7 @@ struct EdgeCbDataChunk_2 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_2(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -242,6 +244,7 @@ struct EdgeCbDataChunk_3 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_3(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -360,6 +363,7 @@ struct EdgeCbDataChunk_4 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_4(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -478,6 +482,7 @@ struct EdgeCbDataChunk_5 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_5(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -596,6 +601,7 @@ struct EdgeCbDataChunk_6 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_6(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -714,6 +720,7 @@ struct EdgeCbDataChunk_7 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_7(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -832,6 +839,7 @@ struct EdgeCbDataChunk_8 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_8(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -950,6 +958,7 @@ struct EdgeCbDataChunk_9 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_9(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -1068,6 +1077,7 @@ struct EdgeCbDataChunk_10 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_10(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID,task_id_10: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -1186,6 +1196,7 @@ struct EdgeCbDataChunk_11 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_11(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID,task_id_10: &TaskID,task_id_11: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -1304,6 +1315,7 @@ struct EdgeCbDataChunk_12 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_12(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID,task_id_10: &TaskID,task_id_11: &TaskID,task_id_12: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -1422,6 +1434,7 @@ struct EdgeCbDataChunk_13 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_13(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID,task_id_10: &TaskID,task_id_11: &TaskID,task_id_12: &TaskID,task_id_13: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -1540,6 +1553,7 @@ struct EdgeCbDataChunk_14 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_14(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID,task_id_10: &TaskID,task_id_11: &TaskID,task_id_12: &TaskID,task_id_13: &TaskID,task_id_14: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -1658,6 +1672,7 @@ struct EdgeCbDataChunk_15 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_15(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID,task_id_10: &TaskID,task_id_11: &TaskID,task_id_12: &TaskID,task_id_13: &TaskID,task_id_14: &TaskID,task_id_15: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -1776,6 +1791,7 @@ struct EdgeCbDataChunk_16 {
     pub vpi_value: t_vpi_value,
     pub vpi_time: t_vpi_time,
 }
+#[inline(always)]
 unsafe fn do_register_edge_callback_chunk_16(complex_handle_raw: &ComplexHandleRaw, task_id_1: &TaskID,task_id_2: &TaskID,task_id_3: &TaskID,task_id_4: &TaskID,task_id_5: &TaskID,task_id_6: &TaskID,task_id_7: &TaskID,task_id_8: &TaskID,task_id_9: &TaskID,task_id_10: &TaskID,task_id_11: &TaskID,task_id_12: &TaskID,task_id_13: &TaskID,task_id_14: &TaskID,task_id_15: &TaskID,task_id_16: &TaskID, edge_type: &EdgeType, edge_cb_id: &EdgeCallbackID) -> vpiHandle  {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
