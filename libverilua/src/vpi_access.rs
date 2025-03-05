@@ -291,6 +291,39 @@ pub unsafe extern "C" fn vpiml_get_value_str(
     }
 }
 
+macro_rules! gen_get_value_str {
+    ($name:ident, $format:ident) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $name(complex_handle: ComplexHandleRaw) -> *const c_char {
+            let complex_handle = ComplexHandle::from_raw(&complex_handle);
+            let mut v = s_vpi_value {
+                format: $format as _,
+                value: t_vpi_value__bindgen_ty_1 { integer: 0 },
+            };
+
+            unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
+
+            #[cfg(feature = "vcs")]
+            {
+                // Remove leading `space`
+                let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
+                let trimmed_str = raw_str.to_string_lossy().trim_start().to_string();
+                let trimmed_c_str = std::ffi::CString::new(trimmed_str).unwrap();
+                trimmed_c_str.into_raw()
+            }
+
+            #[cfg(not(feature = "vcs"))]
+            {
+                unsafe { v.value.str_ }
+            }
+        }
+    };
+}
+
+gen_get_value_str!(vpiml_get_value_hex_str, vpiHexStrVal);
+gen_get_value_str!(vpiml_get_value_bin_str, vpiBinStrVal);
+gen_get_value_str!(vpiml_get_value_dec_str, vpiDecStrVal);
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_set_value(complex_handle: ComplexHandleRaw, value: u32) {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
@@ -525,26 +558,31 @@ pub unsafe extern "C" fn vpiml_set_value_str(
     };
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_value_hex_str(
-    complex_handle: ComplexHandleRaw,
-    value_str: *mut c_char,
-) {
-    let complex_handle = ComplexHandle::from_raw(&complex_handle);
-    let mut v = s_vpi_value {
-        format: vpiHexStrVal as _,
-        value: t_vpi_value__bindgen_ty_1 { str_: value_str },
-    };
+macro_rules! gen_set_value_str {
+    ($name:ident, $format:ident) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $name(complex_handle: ComplexHandleRaw, value_str: *mut c_char) {
+            let complex_handle = ComplexHandle::from_raw(&complex_handle);
+            let mut v = s_vpi_value {
+                format: $format as _,
+                value: t_vpi_value__bindgen_ty_1 { str_: value_str },
+            };
 
-    unsafe {
-        vpi_put_value(
-            complex_handle.vpi_handle,
-            &mut v,
-            std::ptr::null_mut(),
-            vpiNoDelay as _,
-        )
+            unsafe {
+                vpi_put_value(
+                    complex_handle.vpi_handle,
+                    &mut v,
+                    std::ptr::null_mut(),
+                    vpiNoDelay as _,
+                )
+            };
+        }
     };
 }
+
+gen_set_value_str!(vpiml_set_value_hex_str, vpiHexStrVal);
+gen_set_value_str!(vpiml_set_value_bin_str, vpiBinStrVal);
+gen_set_value_str!(vpiml_set_value_dec_str, vpiDecStrVal);
 
 #[unsafe(no_mangle)]
 pub extern "C" fn vpiml_set_value_str_by_name(path: *mut c_char, value_str: *mut c_char) {
