@@ -219,11 +219,11 @@ _G.verilua_get_error = false -- Set by each scheduler when there is an error in 
 _G.ffi = require "ffi"
 ffi.cdef[[
     int setenv(const char *name, const char *value, int overwrite);
-    long long c_handle_by_name_safe(const char* name);
-    void c_set_value_by_name(const char *path, uint32_t value);
-    uint64_t c_get_value_by_name(const char *path);
-    void c_force_value_by_name(const char *path, long long value);
-    void c_release_value_by_name(const char *path);
+    long long vpiml_handle_by_name_safe(const char* name);
+    void vpiml_set_value_by_name(const char *path, uint32_t value);
+    uint64_t vpiml_get_value_by_name(const char *path);
+    void vpiml_force_value_by_name(const char *path, long long value);
+    void vpiml_release_value_by_name(const char *path);
     int verilator_get_mode(void);
 ]]
 
@@ -538,7 +538,7 @@ do
     --      local hdl = ("tb_top.clock"):hdl()
     -- 
     getmetatable('').__index.hdl = function(str)
-        local hdl = ffi.C.c_handle_by_name_safe(str)
+        local hdl = ffi.C.vpiml_handle_by_name_safe(str)
 
         if hdl == -1 then
             assert(false, f("[hdl] no handle found => %s", str))
@@ -665,7 +665,7 @@ do
     --      cycles_str:set("0b111")
     -- 
     getmetatable('').__index.set = function (str, value)
-        ffi.C.c_set_value_by_name(str, tonumber(value))
+        ffi.C.vpiml_set_value_by_name(str, tonumber(value))
     end
 
     -- 
@@ -676,10 +676,10 @@ do
     --      cycles_str:set_release()  -- release handle
     -- 
     getmetatable('').__index.set_force = function (str, value)
-        ffi.C.c_force_value_by_name(str, tonumber(value))
+        ffi.C.vpiml_force_value_by_name(str, tonumber(value))
     end
     getmetatable('').__index.set_release = function (str)
-        ffi.C.c_release_value_by_name(str)
+        ffi.C.vpiml_release_value_by_name(str)
     end
 
     -- 
@@ -689,7 +689,7 @@ do
     --      local value_of_cycles = ("tb_top.cycles"):get()
     -- 
     getmetatable('').__index.get = function (str)
-        return tonumber(ffi.C.c_get_value_by_name(str))
+        return tonumber(ffi.C.vpiml_get_value_by_name(str))
     end
     
     -- 

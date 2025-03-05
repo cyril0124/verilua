@@ -40,7 +40,7 @@ ffi.cdef[[
     int verilator_get_mode(void);
     void c_simulator_control(long long cmd);
 
-    void iterate_vpi_type(const char *module_name, int type);
+    void vpiml_iterate_vpi_type(const char *module_name, int type);
 ]]
 
 local initialize_trace = function (trace_file_path)
@@ -166,7 +166,7 @@ local print_hierarchy = function (max_level)
 end
 
 local iterate_vpi_type = function (module_name, type)
-    ffi.C.iterate_vpi_type(module_name, type)
+    ffi.C.vpiml_iterate_vpi_type(module_name, type)
 end
 
 return {

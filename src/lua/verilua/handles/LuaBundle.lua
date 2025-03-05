@@ -19,7 +19,7 @@ local HexStr = _G.HexStr
 local Bundle = class()
 
 ffi.cdef[[
-  long long c_handle_by_name_safe(const char* name);
+  long long vpiml_handle_by_name_safe(const char* name);
 ]]
 
 function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optional_signals)
@@ -58,7 +58,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
                 if not tablex.find(optional_signals, signal) then
                     rawset(self, signal, CallableHDL(fullpath, signal))
                 else
-                    local hdl = C.c_handle_by_name_safe(fullpath)
+                    local hdl = C.vpiml_handle_by_name_safe(fullpath)
                     if hdl ~= -1 then
                         -- optional are allowed to be empty
                         rawset(self, signal, CallableHDL(fullpath, signal, hdl))
@@ -69,7 +69,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
                 if not tablex.find(optional_signals, signal) then
                     rawset(self.bits, signal, CallableHDL(fullpath, signal))
                 else
-                    local hdl = C.c_handle_by_name_safe(fullpath)
+                    local hdl = C.vpiml_handle_by_name_safe(fullpath)
                     if hdl ~= -1 then
                         -- optional are allowed to be empty
                         rawset(self.bits, signal, CallableHDL(fullpath, signal, hdl))

@@ -35,33 +35,33 @@ local await_noop = _G.await_noop
 local compare_value_str = utils.compare_value_str
 
 ffi.cdef[[
-  long long c_handle_by_name_safe(const char* name);
-  long long c_handle_by_index(const char *parent_name, long long hdl, int index);
+  long long vpiml_handle_by_name_safe(const char* name);
+  long long vpiml_handle_by_index(const char *parent_name, long long hdl, int index);
 
-  const char *c_get_hdl_type(long long handle);
-  unsigned int c_get_signal_width(long long handle);
+  const char *vpiml_get_hdl_type(long long handle);
+  unsigned int vpiml_get_signal_width(long long handle);
 
-  void c_set_value(long long handle, uint32_t value);
-  void c_set_value64(long long handle, uint64_t value);
-  void c_set_value64_force_single(long long handle, uint64_t value, uint32_t size);
+  void vpiml_set_value(long long handle, uint32_t value);
+  void vpiml_set_value64(long long handle, uint64_t value);
+  void vpiml_set_value64_force_single(long long handle, uint64_t value, uint32_t size);
   
-  uint32_t c_get_value(long long handle);
-  uint64_t c_get_value64(long long handle);
+  uint32_t vpiml_get_value(long long handle);
+  uint64_t vpiml_get_value64(long long handle);
 
-  void c_get_value_multi(long long handle, uint32_t *ret, int n);
+  void vpiml_get_value_multi(long long handle, uint32_t *ret, int n);
 
-  void c_set_value_multi(long long handle, uint32_t *values, int length);
-  void c_set_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1); 
-  void c_set_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2); 
-  void c_set_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
-  void c_set_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
-  void c_set_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
-  void c_set_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
-  void c_set_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
+  void vpiml_set_value_multi(long long handle, uint32_t *values, int length);
+  void vpiml_set_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1); 
+  void vpiml_set_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2); 
+  void vpiml_set_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
+  void vpiml_set_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
+  void vpiml_set_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
+  void vpiml_set_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
+  void vpiml_set_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
 
-  void c_set_value_str(long long handle, const char *str);
-  void c_set_value_hex_str(long long handle, const char *str);
-  const char *c_get_value_str(long long handle, int format);
+  void vpiml_set_value_str(long long handle, const char *str);
+  void vpiml_set_value_hex_str(long long handle, const char *str);
+  const char *vpiml_get_value_str(long long handle, int format);
 ]]
 
 local post_init_mt = setmetatable({
@@ -84,14 +84,14 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.name = name or "Unknown"
     self.always_fired = false -- used by <chdl>:always_posedge()
 
-    local tmp_hdl = hdl or C.c_handle_by_name_safe(fullpath)
+    local tmp_hdl = hdl or C.vpiml_handle_by_name_safe(fullpath)
     if tmp_hdl == -1 then
         local err = f("[CallableHDL:_init] No handle found! fullpath: %s name: %s\t\n%s\n", fullpath, self.name == "" and "Unknown" or self.name, debug.traceback())
         verilua_debug(err)
         assert(false, err)
     end
     self.hdl = tmp_hdl
-    self.hdl_type = ffi_string((C.c_get_hdl_type(self.hdl)))
+    self.hdl_type = ffi_string((C.vpiml_get_hdl_type(self.hdl)))
 
     self.is_array = false
     self.array_size = 0
@@ -103,11 +103,11 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- Verilator treat it as "vpiMemory"
         -- 
         self.is_array = true
-        self.array_size = tonumber(C.c_get_signal_width(self.hdl))
+        self.array_size = tonumber(C.vpiml_get_signal_width(self.hdl))
         self.array_hdls = table_new(self.array_size, 0)
         self.array_bitvecs = table_new(self.array_size, 0)
         for i = 1, self.array_size do
-            self.array_hdls[i] = C.c_handle_by_index(self.fullpath, self.hdl, i - 1)
+            self.array_hdls[i] = C.vpiml_handle_by_index(self.fullpath, self.hdl, i - 1)
         end
 
         self.hdl = self.array_hdls[1] -- Point to the first hdl
@@ -115,7 +115,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         assert(false, f("Unknown hdl_type => %s fullpath => %s name => %s", self.hdl_type, self.fullpath, self.name))
     end
 
-    self.width = tonumber(C.c_get_signal_width(self.hdl))
+    self.width = tonumber(C.vpiml_get_signal_width(self.hdl))
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
 
@@ -126,44 +126,44 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     if self.beat_num == 1 then
         self.get = function (this)
-            return C.c_get_value(this.hdl)
+            return C.vpiml_get_value(this.hdl)
         end
 
         self.get_bitvec = function (this)
             if this.bitvec then
-                this.bitvec:_update_u32_vec(C.c_get_value(this.hdl))
+                this.bitvec:_update_u32_vec(C.vpiml_get_value(this.hdl))
                 return this.bitvec
             else
-                this.bitvec = BitVec(C.c_get_value(this.hdl), this.width)
+                this.bitvec = BitVec(C.vpiml_get_value(this.hdl), this.width)
                 return this.bitvec
             end
         end
 
         self.set = function (this, value)
-            C.c_set_value(this.hdl, value)
+            C.vpiml_set_value(this.hdl, value)
         end
 
         self.set_unsafe = self.set
 
         self.set_bitfield = function (this, s, e, v)
-            C.c_set_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
+            C.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
         end
 
         self.set_bitfield_hex_str = function (this, s, e, hex_str)
-            C.c_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+            C.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
         end
     elseif self.beat_num == 2 then
         self.get = function (this, force_multi_beat)
             if force_multi_beat then
-                C.c_get_value_multi(this.hdl, this.c_results, this.beat_num)
+                C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
                 return this.c_results
             else
-                return C.c_get_value64(this.hdl)
+                return C.vpiml_get_value64(this.hdl)
             end
         end
 
         self.get_bitvec = function (this)
-            C.c_get_value_multi(this.hdl, this.c_results, this.beat_num)
+            C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
 
             if this.bitvec then
                 this.bitvec:_update_u32_vec(this.c_results)
@@ -176,7 +176,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.set = function (this, value, force_single_beat)
             if force_single_beat then
-                C.c_set_value64(this.hdl, value)
+                C.vpiml_set_value64(this.hdl, value)
             else
                 if type(value) ~= "table" then
                     assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
@@ -186,7 +186,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                     assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
                 end
 
-                C.c_set_value_multi_beat_2(this.hdl, value[1], value[2])
+                C.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2])
             end
         end
 
@@ -197,32 +197,32 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- 
         self.set_unsafe = function (this, value, force_single_beat)
             if force_single_beat then
-                C.c_set_value64(this.hdl, value)
+                C.vpiml_set_value64(this.hdl, value)
             else
                 -- value is a table where <lsb ... msb>
-                C.c_set_value_multi_beat_2(this.hdl, value[1], value[2]);
+                C.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2]);
             end
         end
 
         self.set_bitfield = function (this, s, e, v)
             local bv = this:get_bitvec():_set_bitfield(s, e, v)
-            C.c_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+            C.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
         end
 
         self.set_bitfield_hex_str = function (this, s, e, hex_str)
             local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-            C.c_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+            C.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
         end
     else -- self.beat_num >= 3
         assert(self.beat_num > 2)
 
         self.get = function (this)
-            C.c_get_value_multi(this.hdl, this.c_results, this.beat_num)
+            C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
             return this.c_results
         end
 
         self.get_bitvec = function (this)
-            C.c_get_value_multi(this.hdl, this.c_results, this.beat_num)
+            C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
 
             if this.bitvec then
                 this.bitvec:_update_u32_vec(this.c_results)
@@ -238,7 +238,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 if type(value) == "table" then
                     assert(false)
                 end
-                C.c_set_value64_force_single(this.hdl, value, this.beat_num)
+                C.vpiml_set_value64_force_single(this.hdl, value, this.beat_num)
             else
                 -- value is a table where <lsb ... msb>
                 if type(value) ~= "table" then
@@ -251,50 +251,50 @@ function CallableHDL:_init(fullpath, name, hdl)
                 end
 
                 if beat_num == 3 then
-                    C.c_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
+                    C.vpiml_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
                 elseif beat_num == 4 then
-                    C.c_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+                    C.vpiml_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
                 elseif beat_num == 5 then
-                    C.c_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+                    C.vpiml_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
                 elseif beat_num == 6 then
-                    C.c_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                    C.vpiml_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
                 elseif beat_num == 7 then
-                    C.c_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                    C.vpiml_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
                 elseif beat_num == 8 then
-                    C.c_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                    C.vpiml_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                 else
                     for i = 1, this.beat_num do
                         this.c_results[i - 1] = value[i]
                     end
-                    C.c_set_value_multi(this.hdl, this.c_results, this.beat_num)
+                    C.vpiml_set_value_multi(this.hdl, this.c_results, this.beat_num)
                 end
             end
         end
 
         self.set_unsafe = function (this, value, force_single_beat)
             if force_single_beat then
-                C.c_set_value64_force_single(this.hdl, value, this.beat_num)
+                C.vpiml_set_value64_force_single(this.hdl, value, this.beat_num)
             else
                 -- value is a table where <lsb ... msb>
                 local beat_num = this.beat_num
 
                 if beat_num == 3 then
-                    C.c_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
+                    C.vpiml_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
                 elseif beat_num == 4 then
-                    C.c_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+                    C.vpiml_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
                 elseif beat_num == 5 then
-                    C.c_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+                    C.vpiml_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
                 elseif beat_num == 6 then
-                    C.c_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                    C.vpiml_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
                 elseif beat_num == 7 then
-                    C.c_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                    C.vpiml_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
                 elseif beat_num == 8 then
-                    C.c_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                    C.vpiml_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                 else
                     for i = 1, this.beat_num do
                         this.c_results[i - 1] = value[i]
                     end
-                    C.c_set_value_multi(this.hdl, this.c_results, this.beat_num)
+                    C.vpiml_set_value_multi(this.hdl, this.c_results, this.beat_num)
                 end
             end
         end
@@ -317,19 +317,19 @@ function CallableHDL:_init(fullpath, name, hdl)
     -- #define vpiHexStrVal          4
     -- 
     self.get_str = function (this, fmt)
-        return ffi_string(C.c_get_value_str(this.hdl, fmt))
+        return ffi_string(C.vpiml_get_value_str(this.hdl, fmt))
     end
 
     self.get_hex_str = function (this)
-        return ffi_string(C.c_get_value_str(this.hdl, HexStr))
+        return ffi_string(C.vpiml_get_value_str(this.hdl, HexStr))
     end
 
     self.set_str = function (this, str)
-        C.c_set_value_str(this.hdl, str)
+        C.vpiml_set_value_str(this.hdl, str)
     end
 
     self.set_hex_str = function (this, str)
-        C.c_set_value_hex_str(this.hdl, str)
+        C.vpiml_set_value_hex_str(this.hdl, str)
     end
 
     if self.is_array then
@@ -344,12 +344,12 @@ function CallableHDL:_init(fullpath, name, hdl)
             -- 
             self.get_index = function (this, index)
                 local chosen_hdl = this.array_hdls[index + 1]
-                return C.c_get_value(chosen_hdl)
+                return C.vpiml_get_value(chosen_hdl)
             end
 
             self.set_index = function(this, index, value)
                 local chosen_hdl = this.array_hdls[index + 1]
-                C.c_set_value(chosen_hdl, value)
+                C.vpiml_set_value(chosen_hdl, value)
             end
 
             self.set_index_unsafe = self.set_index
@@ -365,31 +365,31 @@ function CallableHDL:_init(fullpath, name, hdl)
             self.get_index_bitvec = function (this, index)
                 local chosen_hdl = this.array_hdls[index + 1]
                 if this.array_bitvecs[index + 1] then
-                    this.array_bitvecs[index + 1]:_update_u32_vec(C.c_get_value(chosen_hdl))
+                    this.array_bitvecs[index + 1]:_update_u32_vec(C.vpiml_get_value(chosen_hdl))
                     return this.array_bitvecs[index + 1]
                 else
-                    this.array_bitvecs[index + 1] = BitVec(C.c_get_value(chosen_hdl), this.width)
+                    this.array_bitvecs[index + 1] = BitVec(C.vpiml_get_value(chosen_hdl), this.width)
                     return this.array_bitvecs[index + 1]
                 end
             end
 
             self.set_index_bitfield = function (this, index, s, e, v)
                 local chosen_hdl = this.array_hdls[index + 1]
-                C.c_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
+                C.vpiml_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
             end
 
             self.set_index_bitfield_hex_str = function (this, index, s, e, hex_str)
                 local chosen_hdl = this.array_hdls[index + 1]
-                C.c_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+                C.vpiml_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
             end
         elseif self.beat_num == 2 then
             self.get_index = function (this, index, force_multi_beat)
                 local chosen_hdl = this.array_hdls[index + 1]
                 if force_multi_beat then
-                    C.c_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                    C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
                     return this.c_results
                 else
-                    return C.c_get_value64(chosen_hdl)
+                    return C.vpiml_get_value64(chosen_hdl)
                 end
             end
 
@@ -399,7 +399,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                     if type(value) == "table" then
                         assert(false)
                     end
-                    C.c_set_value64(chosen_hdl, value)
+                    C.vpiml_set_value64(chosen_hdl, value)
                 else
                     -- value is a table where <lsb ... msb>
                     if type(value) ~= "table" then
@@ -410,17 +410,17 @@ function CallableHDL:_init(fullpath, name, hdl)
                         assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
                     end
 
-                    C.c_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
+                    C.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
                 end
             end
 
             self.set_index_unsafe = function(this, index, value, force_single_beat)
                 local chosen_hdl = this.array_hdls[index + 1]
                 if force_single_beat then
-                    C.c_set_value64(chosen_hdl, value)
+                    C.vpiml_set_value64(chosen_hdl, value)
                 else
                     -- value is a table where <lsb ... msb>
-                    C.c_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
+                    C.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
                 end
             end
 
@@ -449,7 +449,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
             self.get_index_bitvec = function (this, index)
                 local chosen_hdl = this.array_hdls[index + 1]
-                C.c_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
 
                 if this.array_bitvecs[index + 1] then
                     this.array_bitvecs[index + 1]:_update_u32_vec(this.c_results)
@@ -463,26 +463,26 @@ function CallableHDL:_init(fullpath, name, hdl)
             self.set_index_bitfield = function (this, index, s, e, v)
                 local chosen_hdl = this.array_hdls[index + 1]
                 local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
-                C.c_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
+                C.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
             end
 
             self.set_index_bitfield_hex_str = function (this, index, s, e, hex_str)
                 local chosen_hdl = this.array_hdls[index + 1]
                 local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
-                C.c_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
+                C.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
             end
         else -- self.beat_num >= 3
             assert(self.beat_num > 2)
 
             self.get_index = function (this, index)
                 local chosen_hdl = this.array_hdls[index + 1]
-                C.c_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
                 return this.c_results
             end
 
             self.get_index_bitvec = function (this, index)
                 local chosen_hdl = this.array_hdls[index + 1]
-                C.c_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
 
                 if this.array_bitvecs[index + 1] then
                     this.array_bitvecs[index + 1]:_update_u32_vec(this.c_results)
@@ -499,7 +499,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                     if type(value) == "table" then
                         assert(false)
                     end
-                    C.c_set_value64(chosen_hdl, value)
+                    C.vpiml_set_value64(chosen_hdl, value)
                 else
                     -- value is a table where <lsb ... msb>
                     if type(value) ~= "table" then
@@ -512,22 +512,22 @@ function CallableHDL:_init(fullpath, name, hdl)
                     end
 
                     if beat_num == 3 then     -- 32 * 3 = 96 bits
-                        C.c_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
+                        C.vpiml_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
                     elseif beat_num == 4 then -- 32 * 4 = 128 bits
-                        C.c_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
+                        C.vpiml_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
                     elseif beat_num == 5 then -- 32 * 5 = 160 bits
-                        C.c_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
+                        C.vpiml_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
                     elseif beat_num == 6 then -- 32 * 6 = 192 bits
-                        C.c_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                        C.vpiml_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
                     elseif beat_num == 7 then -- 32 * 7 = 224 bits
-                        C.c_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                        C.vpiml_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
                     elseif beat_num == 8 then -- 32 * 8 = 256 bits
-                        C.c_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                        C.vpiml_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                     else
                         for i = 1, this.beat_num do
                             this.c_results[i - 1] = value[i]
                         end
-                        C.c_set_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                        C.vpiml_set_value_multi(chosen_hdl, this.c_results, this.beat_num)
                     end
                 end
             end
@@ -535,28 +535,28 @@ function CallableHDL:_init(fullpath, name, hdl)
             self.set_index_unsafe = function(this, index, value, force_single_beat)
                 local chosen_hdl = this.array_hdls[index + 1]
                 if force_single_beat then
-                    C.c_set_value64(chosen_hdl, value)
+                    C.vpiml_set_value64(chosen_hdl, value)
                 else
                     -- value is a table where <lsb ... msb>
                     local beat_num = this.beat_num
 
                     if beat_num == 3 then     -- 32 * 3 = 96 bits
-                        C.c_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
+                        C.vpiml_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
                     elseif beat_num == 4 then -- 32 * 4 = 128 bits
-                        C.c_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
+                        C.vpiml_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
                     elseif beat_num == 5 then -- 32 * 5 = 160 bits
-                        C.c_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
+                        C.vpiml_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
                     elseif beat_num == 6 then -- 32 * 6 = 192 bits
-                        C.c_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                        C.vpiml_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
                     elseif beat_num == 7 then -- 32 * 7 = 224 bits
-                        C.c_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                        C.vpiml_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
                     elseif beat_num == 8 then -- 32 * 8 = 256 bits
-                        C.c_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                        C.vpiml_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                     else
                         for i = 1, this.beat_num do
                             this.c_results[i - 1] = value[i]
                         end
-                        C.c_set_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                        C.vpiml_set_value_multi(chosen_hdl, this.c_results, this.beat_num)
                     end
                 end
             end
@@ -590,22 +590,22 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         self.get_index_str = function (this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi_string(C.c_get_value_str(chosen_hdl, fmt))
+            return ffi_string(C.vpiml_get_value_str(chosen_hdl, fmt))
         end
 
         self.get_index_hex_str = function (this, index)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi_string(C.c_get_value_str(chosen_hdl, HexStr))
+            return ffi_string(C.vpiml_get_value_str(chosen_hdl, HexStr))
         end
 
         self.set_index_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
-            C.c_set_value_str(chosen_hdl, str)
+            C.vpiml_set_value_str(chosen_hdl, str)
         end
 
         self.set_index_hex_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
-            C.c_set_value_hex_str(chosen_hdl, str)
+            C.vpiml_set_value_hex_str(chosen_hdl, str)
         end
     else
         self.at = function (this, idx)
@@ -976,13 +976,13 @@ function CallableHDL:__call(force_multi_beat)
 
     if self.is_multi_beat then
         if self.beat_num <= 2 and not force_multi_beat then
-            return tonumber(C.c_get_value64(self.hdl))
+            return tonumber(C.vpiml_get_value64(self.hdl))
         else
-            C.c_get_value_multi(self.hdl, self.c_results, self.beat_num)
+            C.vpiml_get_value_multi(self.hdl, self.c_results, self.beat_num)
             return self.c_results
         end
     else
-        return C.c_get_value(self.hdl)
+        return C.vpiml_get_value(self.hdl)
     end
 end
 
@@ -1189,6 +1189,8 @@ function CallableHDL:__eq(other)
         local value_str
         if type(other.__value) == "boolean" then
             value_str = other.__value and "1" or "0"
+        elseif type(other.__value) == "string" then
+            value_str = other.__value
         else
             value_str = utils.to_hex_str(other.__value)
         end

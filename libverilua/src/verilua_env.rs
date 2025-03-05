@@ -163,7 +163,7 @@ impl VeriluaEnv {
         }
 
         if !self.has_final_cb {
-            unsafe { vpi_callback::register_final_callback() };
+            unsafe { vpi_callback::vpiml_register_final_callback() };
         }
 
         let lua_dofile: LuaFunction = self.lua.globals().get("dofile").unwrap();

@@ -24,9 +24,9 @@ extern "C" fn init_env_logger() {
 
 #[unsafe(no_mangle)]
 pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 4] = [
-    Some(vpi_callback::register_next_sim_time_callback),
-    Some(vpi_callback::register_start_callback),
-    Some(vpi_callback::register_final_callback),
+    Some(vpi_callback::vpiml_register_next_sim_time_callback),
+    Some(vpi_callback::vpiml_register_start_callback),
+    Some(vpi_callback::vpiml_register_final_callback),
     None,
 ];
 

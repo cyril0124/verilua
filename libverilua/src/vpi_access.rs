@@ -40,26 +40,27 @@ pub unsafe extern "C" fn complex_handle_by_name(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_handle_by_name(name: *mut c_char) -> ComplexHandleRaw {
+pub unsafe extern "C" fn vpiml_handle_by_name(name: *mut c_char) -> ComplexHandleRaw {
     let handle = unsafe { complex_handle_by_name(name, std::ptr::null_mut()) };
     let chdl = ComplexHandle::from_raw(&handle);
     assert!(
         !(chdl.vpi_handle as vpiHandle).is_null(),
-        "[c_handle_by_name] No handle found: {}",
+        "[vpiml_handle_by_name] No handle found: {}",
         unsafe { CStr::from_ptr(name).to_str().unwrap() }
     );
     handle
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_handle_by_name_safe(name: *mut c_char) -> ComplexHandleRaw {
+pub unsafe extern "C" fn vpiml_handle_by_name_safe(name: *mut c_char) -> ComplexHandleRaw {
     let handle = unsafe { complex_handle_by_name(name, std::ptr::null_mut()) };
     let chdl = ComplexHandle::from_raw(&handle);
     if (chdl.vpi_handle as vpiHandle).is_null() {
         #[cfg(feature = "debug")]
-        log::debug!("[c_handle_by_name_safe] get null handle => {}", unsafe {
-            CStr::from_ptr(name).to_string_lossy().into_owned()
-        });
+        log::debug!(
+            "[vpiml_handle_by_name_safe] get null handle => {}",
+            unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() }
+        );
 
         -1
     } else {
@@ -68,7 +69,7 @@ pub unsafe extern "C" fn c_handle_by_name_safe(name: *mut c_char) -> ComplexHand
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_handle_by_index(
+pub unsafe extern "C" fn vpiml_handle_by_index(
     parent_name: *mut c_char, // TODO: remove this since complex handle has name
     complex_handle: ComplexHandleRaw,
     idx: u32,
@@ -94,13 +95,13 @@ pub unsafe extern "C" fn c_handle_by_index(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn iterate_vpi_type(module_name: *mut c_char, vpi_type: u32) {
+pub unsafe extern "C" fn vpiml_iterate_vpi_type(module_name: *mut c_char, vpi_type: u32) {
     let ref_module_handle = unsafe { complex_handle_by_name(module_name, std::ptr::null_mut()) };
     let chdl = ComplexHandle::from_raw(&ref_module_handle);
     let iter = unsafe { vpi_iterate(vpi_type as _, chdl.vpi_handle as vpiHandle) };
 
     println!(
-        "[iterate_vpi_type] start iterate on module_name => {} type => {}",
+        "[vpiml_iterate_vpi_type] start iterate on module_name => {} type => {}",
         unsafe { CStr::from_ptr(module_name).to_str().unwrap() },
         match vpi_type {
             vpiNet => "vpiNet",
@@ -129,29 +130,29 @@ pub unsafe extern "C" fn iterate_vpi_type(module_name: *mut c_char, vpi_type: u3
     }
 
     if count == 0 {
-        println!("[iterate_vpi_type] No objects found")
+        println!("[vpiml_iterate_vpi_type] No objects found")
     }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_get_signal_width(complex_handle: ComplexHandleRaw) -> c_longlong {
+pub unsafe extern "C" fn vpiml_get_signal_width(complex_handle: ComplexHandleRaw) -> c_longlong {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     unsafe { vpi_get(vpiSize as _, complex_handle.vpi_handle as vpiHandle) as _ }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_get_hdl_type(complex_handle: ComplexHandleRaw) -> *const c_char {
+pub unsafe extern "C" fn vpiml_get_hdl_type(complex_handle: ComplexHandleRaw) -> *const c_char {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     unsafe { vpi_get_str(vpiType as _, complex_handle.vpi_handle as vpiHandle) as _ }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_get_value_by_name(path: *mut c_char) -> c_longlong {
+pub unsafe extern "C" fn vpiml_get_value_by_name(path: *mut c_char) -> c_longlong {
     let chdl =
         ComplexHandle::from_raw(&unsafe { complex_handle_by_name(path, std::ptr::null_mut()) });
     assert!(
         !chdl.vpi_handle.is_null(),
-        "[c_get_value_by_name] handle is null: {}",
+        "[vpiml_get_value_by_name] handle is null: {}",
         unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
     );
 
@@ -175,7 +176,7 @@ pub unsafe extern "C" fn c_get_value_by_name(path: *mut c_char) -> c_longlong {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_get_value(complex_handle: ComplexHandleRaw) -> u32 {
+pub unsafe extern "C" fn vpiml_get_value(complex_handle: ComplexHandleRaw) -> u32 {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     let mut v = s_vpi_value {
         format: vpiVectorVal as _,
@@ -197,7 +198,7 @@ pub unsafe extern "C" fn c_get_value(complex_handle: ComplexHandleRaw) -> u32 {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_get_value64(complex_handle: ComplexHandleRaw) -> u64 {
+pub unsafe extern "C" fn vpiml_get_value64(complex_handle: ComplexHandleRaw) -> u64 {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     let mut v = s_vpi_value {
         format: vpiVectorVal as _,
@@ -226,7 +227,7 @@ pub unsafe extern "C" fn c_get_value64(complex_handle: ComplexHandleRaw) -> u64 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn c_get_value_multi(complex_handle: ComplexHandleRaw, ret: *mut u32, len: u32) {
+pub extern "C" fn vpiml_get_value_multi(complex_handle: ComplexHandleRaw, ret: *mut u32, len: u32) {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     let mut v = s_vpi_value {
         format: vpiVectorVal as _,
@@ -257,7 +258,7 @@ pub extern "C" fn c_get_value_multi(complex_handle: ComplexHandleRaw, ret: *mut 
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_get_value_str(
+pub unsafe extern "C" fn vpiml_get_value_str(
     complex_handle: ComplexHandleRaw,
     fmt: u32,
 ) -> *const c_char {
@@ -291,7 +292,7 @@ pub unsafe extern "C" fn c_get_value_str(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_set_value(complex_handle: ComplexHandleRaw, value: u32) {
+pub unsafe extern "C" fn vpiml_set_value(complex_handle: ComplexHandleRaw, value: u32) {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
 
     let mut vec_v = t_vpi_vecval {
@@ -316,7 +317,7 @@ pub unsafe extern "C" fn c_set_value(complex_handle: ComplexHandleRaw, value: u3
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_set_value64_force_single(
+pub unsafe extern "C" fn vpiml_set_value64_force_single(
     complex_handle: ComplexHandleRaw,
     value: u64,
     size: u32,
@@ -361,7 +362,7 @@ pub unsafe extern "C" fn c_set_value64_force_single(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_set_value64(complex_handle: ComplexHandleRaw, value: u64) {
+pub unsafe extern "C" fn vpiml_set_value64(complex_handle: ComplexHandleRaw, value: u64) {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     thread_local! {
         static VECTORS: UnsafeCell<[t_vpi_vecval; 2]> = const { UnsafeCell::new([t_vpi_vecval {
@@ -396,20 +397,20 @@ pub unsafe extern "C" fn c_set_value64(complex_handle: ComplexHandleRaw, value: 
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_set_value_by_name(path: *mut c_char, value: u64) {
+pub unsafe extern "C" fn vpiml_set_value_by_name(path: *mut c_char, value: u64) {
     let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
     assert!(
         !complex_handle.vpi_handle.is_null(),
-        "[c_set_value_by_name] No handle found: {}",
+        "[vpiml_set_value_by_name] No handle found: {}",
         unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
     );
 
-    unsafe { c_set_value64(complex_handle_raw as _, value) };
+    unsafe { vpiml_set_value64(complex_handle_raw as _, value) };
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_set_value_multi(
+pub unsafe extern "C" fn vpiml_set_value_multi(
     complex_handle: ComplexHandleRaw,
     value: *const u32,
     n: i32,
@@ -480,16 +481,19 @@ macro_rules! gen_set_value_multi_beat {
     };
 }
 
-gen_set_value_multi_beat!(c_set_value_multi_beat_2, 0, 1);
-gen_set_value_multi_beat!(c_set_value_multi_beat_3, 0, 1, 2);
-gen_set_value_multi_beat!(c_set_value_multi_beat_4, 0, 1, 2, 3);
-gen_set_value_multi_beat!(c_set_value_multi_beat_5, 0, 1, 2, 3, 4);
-gen_set_value_multi_beat!(c_set_value_multi_beat_6, 0, 1, 2, 3, 4, 5);
-gen_set_value_multi_beat!(c_set_value_multi_beat_7, 0, 1, 2, 3, 4, 5, 6);
-gen_set_value_multi_beat!(c_set_value_multi_beat_8, 0, 1, 2, 3, 4, 5, 6, 7);
+gen_set_value_multi_beat!(vpiml_set_value_multi_beat_2, 0, 1);
+gen_set_value_multi_beat!(vpiml_set_value_multi_beat_3, 0, 1, 2);
+gen_set_value_multi_beat!(vpiml_set_value_multi_beat_4, 0, 1, 2, 3);
+gen_set_value_multi_beat!(vpiml_set_value_multi_beat_5, 0, 1, 2, 3, 4);
+gen_set_value_multi_beat!(vpiml_set_value_multi_beat_6, 0, 1, 2, 3, 4, 5);
+gen_set_value_multi_beat!(vpiml_set_value_multi_beat_7, 0, 1, 2, 3, 4, 5, 6);
+gen_set_value_multi_beat!(vpiml_set_value_multi_beat_8, 0, 1, 2, 3, 4, 5, 6, 7);
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_set_value_str(complex_handle: ComplexHandleRaw, value_str: *mut c_char) {
+pub unsafe extern "C" fn vpiml_set_value_str(
+    complex_handle: ComplexHandleRaw,
+    value_str: *mut c_char,
+) {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     let mut v = s_vpi_value {
         format: vpiHexStrVal as _,
@@ -522,7 +526,7 @@ pub unsafe extern "C" fn c_set_value_str(complex_handle: ComplexHandleRaw, value
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_set_value_hex_str(
+pub unsafe extern "C" fn vpiml_set_value_hex_str(
     complex_handle: ComplexHandleRaw,
     value_str: *mut c_char,
 ) {
@@ -543,20 +547,23 @@ pub unsafe extern "C" fn c_set_value_hex_str(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn c_set_value_str_by_name(path: *mut c_char, value_str: *mut c_char) {
+pub extern "C" fn vpiml_set_value_str_by_name(path: *mut c_char, value_str: *mut c_char) {
     let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
     assert!(
         !complex_handle.vpi_handle.is_null(),
-        "[c_set_value_str_by_name] No handle found: {}",
+        "[vpiml_set_value_str_by_name] No handle found: {}",
         unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
     );
 
-    unsafe { c_set_value_str(complex_handle_raw, value_str) };
+    unsafe { vpiml_set_value_str(complex_handle_raw, value_str) };
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_force_value(complex_handle_raw: ComplexHandleRaw, value: c_longlong) {
+pub unsafe extern "C" fn vpiml_force_value(
+    complex_handle_raw: ComplexHandleRaw,
+    value: c_longlong,
+) {
     let complex_handle_raw = ComplexHandle::from_raw(&complex_handle_raw);
     if cfg!(feature = "verilator") {
         panic!("force value is not supported in verilator!");
@@ -587,7 +594,7 @@ pub unsafe extern "C" fn c_force_value(complex_handle_raw: ComplexHandleRaw, val
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_release_value(complex_handle: ComplexHandleRaw) {
+pub unsafe extern "C" fn vpiml_release_value(complex_handle: ComplexHandleRaw) {
     let complex_handle = ComplexHandle::from_raw(&complex_handle);
     if cfg!(feature = "verilator") {
         panic!("release value is not supported in verilator!");
@@ -612,38 +619,38 @@ pub unsafe extern "C" fn c_release_value(complex_handle: ComplexHandleRaw) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_force_value_by_name(path: *mut c_char, value: c_longlong) {
+pub unsafe extern "C" fn vpiml_force_value_by_name(path: *mut c_char, value: c_longlong) {
     let handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
     let chdl = ComplexHandle::from_raw(&handle);
     assert!(
         !chdl.vpi_handle.is_null(),
-        "[c_force_value_by_name] No handle found: {}",
+        "[vpiml_force_value_by_name] No handle found: {}",
         unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
     );
 
-    unsafe { c_force_value(handle as _, value) };
+    unsafe { vpiml_force_value(handle as _, value) };
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_release_value_by_name(path: *mut c_char) {
+pub unsafe extern "C" fn vpiml_release_value_by_name(path: *mut c_char) {
     let handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
     let chdl = ComplexHandle::from_raw(&handle);
     assert!(
         !chdl.vpi_handle.is_null(),
-        "[c_release_value_by_name] No handle found: {}",
+        "[vpiml_release_value_by_name] No handle found: {}",
         unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
     );
 
-    unsafe { c_release_value(handle as _) };
+    unsafe { vpiml_release_value(handle as _) };
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_force_value_str_by_name(path: *mut c_char, value_str: *mut c_char) {
+pub unsafe extern "C" fn vpiml_force_value_str_by_name(path: *mut c_char, value_str: *mut c_char) {
     let handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
     let chdl = ComplexHandle::from_raw(&handle);
     assert!(
         !chdl.vpi_handle.is_null(),
-        "[c_force_value_str_by_name] No handle found: {}",
+        "[vpiml_force_value_str_by_name] No handle found: {}",
         unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
     );
 

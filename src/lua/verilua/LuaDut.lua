@@ -24,18 +24,18 @@ local await_negedge = _G.await_negedge
 local compare_value_str = utils.compare_value_str
 
 ffi.cdef[[
-    long long c_handle_by_name(const char* name);
-    unsigned int c_get_signal_width(long long handle);
+    long long vpiml_handle_by_name(const char* name);
+    unsigned int vpiml_get_signal_width(long long handle);
 
-    uint64_t c_get_value_by_name(const char *path);
-    const char *c_get_value_str(long long handle, int format);
+    uint64_t vpiml_get_value_by_name(const char *path);
+    const char *vpiml_get_value_str(long long handle, int format);
    
-    void c_force_value_by_name(const char *path, long long value);
-    void c_release_value_by_name(const char *path);
+    void vpiml_force_value_by_name(const char *path, long long value);
+    void vpiml_release_value_by_name(const char *path);
    
-    void c_set_value_by_name(const char *path, uint64_t value);
-    void c_set_value_str_by_name(const char *path, const char *str);
-    void c_force_value_str_by_name(const char *path, const char *str);
+    void vpiml_set_value_by_name(const char *path, uint64_t value);
+    void vpiml_set_value_str_by_name(const char *path, const char *str);
+    void vpiml_force_value_str_by_name(const char *path, const char *str);
 ]]
 
 local set_force_enable = false
@@ -58,9 +58,9 @@ local function create_proxy(path, use_prefix)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                C.c_force_value_by_name(local_path, tonumber(v))
+                C.vpiml_force_value_by_name(local_path, tonumber(v))
             else
-                C.c_set_value_by_name(local_path, tonumber(v))
+                C.vpiml_set_value_by_name(local_path, tonumber(v))
             end
         end,
 
@@ -80,10 +80,10 @@ local function create_proxy(path, use_prefix)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
-            C.c_force_value_by_name(local_path, tonumber(v))
+            C.vpiml_force_value_by_name(local_path, tonumber(v))
         end,
         set_release = function (t)
-            C.c_release_value_by_name(local_path)
+            C.vpiml_release_value_by_name(local_path)
         end,
 
         -- 
@@ -104,7 +104,7 @@ local function create_proxy(path, use_prefix)
             set_force_enable = false
 
             for i, path in ipairs(force_path_table) do
-                C.c_release_value_by_name(path)
+                C.vpiml_release_value_by_name(path)
             end
         end,
 
@@ -130,7 +130,7 @@ local function create_proxy(path, use_prefix)
         --      local value = dut.cycles:get()
         -- 
         get = function (t)
-            return tonumber(C.c_get_value_by_name(local_path))
+            return tonumber(C.vpiml_get_value_by_name(local_path))
         end,
 
         -- 
@@ -140,11 +140,11 @@ local function create_proxy(path, use_prefix)
         --      local hex_str = dut.cycles:get_str(HexStr)
         -- 
         get_str = function (t, fmt)
-            local hdl = C.c_handle_by_name_safe(local_path)
+            local hdl = C.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
             end
-            return ffi_string(C.c_get_value_str(hdl, fmt))
+            return ffi_string(C.vpiml_get_value_str(hdl, fmt))
         end,
 
         -- 
@@ -153,11 +153,11 @@ local function create_proxy(path, use_prefix)
         --      assert(hex_str == "123")
         -- 
         get_hex_str = function (t)
-            local hdl = C.c_handle_by_name_safe(local_path)
+            local hdl = C.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
             end
-            return ffi_string(C.c_get_value_str(hdl, HexStr))
+            return ffi_string(C.vpiml_get_value_str(hdl, HexStr))
         end,
 
         -- 
@@ -169,9 +169,9 @@ local function create_proxy(path, use_prefix)
         set_str = function(t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                C.c_force_value_str_by_name(local_path, str)
+                C.vpiml_force_value_str_by_name(local_path, str)
             else
-                C.c_set_value_str_by_name(local_path, str)
+                C.vpiml_set_value_str_by_name(local_path, str)
             end
         end,
 
@@ -183,14 +183,14 @@ local function create_proxy(path, use_prefix)
         set_hex_str = function (t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                C.c_force_value_str_by_name(local_path, "0x" .. str)
+                C.vpiml_force_value_str_by_name(local_path, "0x" .. str)
             else
-                C.c_set_value_str_by_name(local_path, "0x" .. str)
+                C.vpiml_set_value_str_by_name(local_path, "0x" .. str)
             end
         end,
 
         set_force_str = function(t, str)
-            C.c_force_value_str_by_name(local_path, str)
+            C.vpiml_force_value_str_by_name(local_path, str)
         end,
 
         -- 
@@ -300,7 +300,7 @@ local function create_proxy(path, use_prefix)
         --      local hdl = dut.cycles:hdl()
         -- 
         hdl = function (t)
-            local hdl = C.c_handle_by_name_safe(local_path)
+            local hdl = C.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
             end
@@ -332,13 +332,13 @@ local function create_proxy(path, use_prefix)
         --      assert(width == 64)
         -- 
         get_width = function (t)
-            return tonumber(C.c_get_signal_width(C.c_handle_by_name(local_path)))
+            return tonumber(C.vpiml_get_signal_width(C.vpiml_handle_by_name(local_path)))
         end,
 
         dump_str = function (t)
-            local hdl = C.c_handle_by_name(local_path)
+            local hdl = C.vpiml_handle_by_name(local_path)
             local s = f("[%s] => ", local_path)
-            s = s .. "0x" .. ffi_string(C.c_get_value_str(hdl, HexStr))
+            s = s .. "0x" .. ffi_string(C.vpiml_get_value_str(hdl, HexStr))
             return s
         end,
 
@@ -550,7 +550,7 @@ local function create_proxy(path, use_prefix)
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
-            C.c_set_value_by_name(fullpath, v)
+            C.vpiml_set_value_by_name(fullpath, v)
         end,
 
         -- 
@@ -559,14 +559,14 @@ local function create_proxy(path, use_prefix)
         __call = function(t, v)
             local data_type = v or "integer"
             if data_type == "integer" then
-                return tonumber(C.c_get_value_by_name(local_path))
+                return tonumber(C.vpiml_get_value_by_name(local_path))
             elseif data_type == "hex" then
-                local val = C.c_get_value_by_name(local_path)
+                local val = C.vpiml_get_value_by_name(local_path)
                 return f("0x%x", val)
             elseif data_type == "name" then
                 return local_path
             elseif data_type == "hdl" then
-                return C.c_handle_by_name(local_path)
+                return C.vpiml_handle_by_name(local_path)
             else
                 assert(false, "invalid data type: " .. data_type)
             end

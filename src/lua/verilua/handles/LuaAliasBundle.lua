@@ -19,7 +19,7 @@ local verilua_debug = _G.verilua_debug
 local AliasBundle = class()
 
 ffi.cdef[[
-  long long c_handle_by_name_safe(const char* name);
+  long long vpiml_handle_by_name_safe(const char* name);
 ]]
 
 -- 
@@ -93,7 +93,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name, optional_si
         if not tablex.find(optional_signals, alias_name) then
             rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))
         else
-            local hdl = C.c_handle_by_name_safe(fullpath)
+            local hdl = C.vpiml_handle_by_name_safe(fullpath)
             if hdl ~= -1 then
                 -- optional are allowed to be empty
                 rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))

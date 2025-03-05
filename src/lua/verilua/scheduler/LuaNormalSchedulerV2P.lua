@@ -51,15 +51,15 @@ local NOOP = 44
 local EarlyExit = 11
 
 ffi.cdef([[
-    void verilua_time_callback(uint64_t time, int id);
-    void verilua_posedge_callback(const char *path, int id);
-    void verilua_posedge_callback_hdl(long long handle, int id);
-    void verilua_negedge_callback(const char *path, int id);
-    void verilua_negedge_callback_hdl(long long handle, int id);
-    void verilua_edge_callback(const char *path, int id);
-    void verilua_edge_callback_hdl(long long handle, int id);
-    void verilua_posedge_callback_hdl_always(long long handle, int id);
-    void verilua_negedge_callback_hdl_always(long long handle, int id);
+    void vpiml_register_time_callback(uint64_t time, int id);
+    void vpiml_register_posedge_callback(const char *path, int id);
+    void vpiml_register_posedge_callback_hdl(long long handle, int id);
+    void vpiml_register_negedge_callback(const char *path, int id);
+    void vpiml_register_negedge_callback_hdl(long long handle, int id);
+    void vpiml_register_edge_callback(const char *path, int id);
+    void vpiml_register_edge_callback_hdl(long long handle, int id);
+    void vpiml_register_posedge_callback_hdl_always(long long handle, int id);
+    void vpiml_register_negedge_callback_hdl_always(long long handle, int id);
 ]])
 
 local Scheduler = class()
@@ -126,17 +126,17 @@ end
 
 function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
 	if cb_type == PosedgeHDL then
-		C.verilua_posedge_callback_hdl(integer_value, id)
+		C.vpiml_register_posedge_callback_hdl(integer_value, id)
 	elseif cb_type == Posedge then
-		C.verilua_posedge_callback(str_value, id)
+		C.vpiml_register_posedge_callback(str_value, id)
 	elseif cb_type == PosedgeAlwaysHDL then
-		C.verilua_posedge_callback_hdl_always(integer_value, id)
+		C.vpiml_register_posedge_callback_hdl_always(integer_value, id)
 	elseif cb_type == NegedgeHDL then
-		C.verilua_negedge_callback_hdl(integer_value, id)
+		C.vpiml_register_negedge_callback_hdl(integer_value, id)
 	elseif cb_type == Negedge then
-		C.verilua_negedge_callback(str_value, id)
+		C.vpiml_register_negedge_callback(str_value, id)
 	elseif cb_type == Timer then
-		C.verilua_time_callback(integer_value, id)
+		C.vpiml_register_time_callback(integer_value, id)
 	elseif cb_type == Event then
 		if self.event_name_map[integer_value] == nil then
 			assert(false, "Unknown event => " .. integer_value)
