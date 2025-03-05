@@ -239,36 +239,55 @@ impl VeriluaEnv {
 
         let total_time = self.start_time.elapsed();
 
-        use prettytable::{Cell, Row, Table, row};
-        let mut table = Table::new();
+        use tabled::{
+            builder::Builder,
+            settings::{
+                Alignment, Color, Height, Panel, Shadow, Style, Width, object::Columns,
+                object::Rows,
+            },
+        };
 
-        let title = Cell::new("Verilua Statistic")
-            .with_hspan(3)
-            .with_style(prettytable::Attr::Bold)
-            .style_spec("c");
-        let title_row = Row::new(vec![title]);
+        let mut builder = Builder::new();
+        builder.push_record(["total_time_taken", "lua_time_taken", "lua_overhead"]);
 
-        table.add_row(title_row);
-        table.add_row(row!["total_time_taken", "lua_time_taken", "lua_overhead"]);
-
+        let mut _overhead: f64 = 0.0;
         #[cfg(feature = "acc_time")]
-        table.add_row(row![
-            format!("{:.2} sec", total_time.as_secs_f64()),
-            format!("{:.2} sec", self.lua_time.as_secs_f64()),
-            format!(
-                "{:.2}%",
-                (self.lua_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0
-            )
-        ]);
+        {
+            _overhead = (self.lua_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0;
+            builder.push_record([
+                format!("{:.2} sec", total_time.as_secs_f64()).as_str(),
+                format!("{:.2} sec", self.lua_time.as_secs_f64()).as_str(),
+                format!("{_overhead:.2}%").as_str(),
+            ]);
+        }
 
         #[cfg(not(feature = "acc_time"))]
-        table.add_row(row![
-            format!("{:.2} sec", total_time.as_secs_f64()),
-            "--",
-            "--"
-        ]);
+        {
+            builder.push_record([
+                format!("{:.2} sec", total_time.as_secs_f64()).as_str(),
+                "--",
+                "--",
+            ]);
+        }
 
-        table.printstd();
+        let mut table = builder.build();
+        table
+            .with(Panel::header("VERILUA STATISTIC")) // TODO: Add verilua scenario(HVL/HSE/WAL)
+            .with(Alignment::center())
+            .with(Shadow::new(1))
+            .with(Style::modern())
+            .modify(Rows::new(0..), Width::increase(25));
+
+        #[cfg(feature = "acc_time")]
+        {
+            if _overhead > 50.0 {
+                table.modify((2, 2), Color::FG_RED);
+            } else {
+                table.modify((2, 2), Color::FG_GREEN);
+            }
+        }
+
+        println!("{}", table);
 
         self.hdl_cache
             .iter()
@@ -276,9 +295,6 @@ impl VeriluaEnv {
             .for_each(|(idx, (_, complex_handle))| {
                 log::trace!("[{idx}] {:?}", ComplexHandle::from_raw(complex_handle));
             });
-
-        let standard_font = figlet_rs::FIGfont::standard().unwrap();
-        println!("{}", standard_font.convert("VERILUA FINISH").unwrap());
     }
 }
 
