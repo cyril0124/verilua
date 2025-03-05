@@ -241,10 +241,7 @@ impl VeriluaEnv {
 
         use tabled::{
             builder::Builder,
-            settings::{
-                Alignment, Color, Height, Panel, Shadow, Style, Width, object::Columns,
-                object::Rows,
-            },
+            settings::{Alignment, Color, Panel, Shadow, Style, Width, object::Rows},
         };
 
         let mut builder = Builder::new();

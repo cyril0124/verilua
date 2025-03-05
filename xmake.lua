@@ -13,14 +13,6 @@ local iverilog_home = os.getenv("IVERILOG_HOME")
 
 local build_libverilua_wave_vpi_cmd = [[cargo build --release --features "wave_vpi chunk_task debug acc_time"]]
 
-local function build_libverilua(simulator)
-    if simulator == "verilator" or simulator == "wave_vpi" then
-        os.vrun([[cargo build --release --features "%s chunk_task debug acc_time"]], simulator)
-    else
-        os.vrun([[cargo build --release --features "%s chunk_task merge_cb debug acc_time"]], simulator)
-    end
-end
-
 local function build_lib_common(simulator)
     set_kind("phony")
     on_build(function (target)
