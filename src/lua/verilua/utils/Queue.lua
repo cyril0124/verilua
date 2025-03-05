@@ -51,4 +51,8 @@ function Queue:size()
     return self.last - self.first + 1
 end
 
+function Queue:__len()
+    return self.last - self.first + 1
+end
+
 return Queue
