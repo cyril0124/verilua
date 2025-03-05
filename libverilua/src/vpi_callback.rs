@@ -390,86 +390,73 @@ unsafe extern "C" fn time_callback_handler(cb_data: *mut t_cb_data) -> PLI_INT32
     0
 }
 
-macro_rules! gen_register_edge_callback {
-    ($func_name:ident, $edge_type:ident) => {
-        #[inline(always)]
-        unsafe fn $func_name(complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
-            let env = get_verilua_env();
+macro_rules! gen_register_edge_callback_common {
+    ($edge_type:ident) => {
+        paste::paste! {
+            #[inline(always)]
+            unsafe fn [<register_ $edge_type _callback_common>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
+                let env = get_verilua_env();
 
-            #[cfg(feature = "merge_cb")]
-            {
-                let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                paste::paste! {
-                    let t = complex_handle.[<$edge_type _cb_count>].entry(task_id).or_default();
+                #[cfg(feature = "merge_cb")]
+                {
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+
+                        let t = complex_handle.[<$edge_type _cb_count>].entry(task_id).or_default();
+                    *t += 1;
+
+                    #[cfg(not(feature = "chunk_task"))]
+                    if *t > 1 {
+                        return;
+                    }
                 }
-                *t += 1;
 
-                #[cfg(not(feature = "chunk_task"))]
-                if *t > 1 {
-                    return;
-                }
-            }
-
-            #[cfg(feature = "chunk_task")]
-            {
-                paste::paste! {
+                #[cfg(feature = "chunk_task")]
+                {
                     env.[<pending_ $edge_type _cb_map>].entry(complex_handle_raw)
                         .or_insert_with(|| Vec::with_capacity(32))
                         .push(task_id);
                 }
-            }
 
-            #[cfg(not(feature = "chunk_task"))]
-            env.pending_edge_cb_map
-                .entry(complex_handle_raw)
-                .or_insert_with(|| Vec::with_capacity(32))
-                .push(CallbackInfo {
-                    edge_type: $edge_type,
-                    task_id,
-                });
+                #[cfg(not(feature = "chunk_task"))]
+                env.pending_edge_cb_map
+                    .entry(complex_handle_raw)
+                    .or_insert_with(|| Vec::with_capacity(32))
+                    .push(CallbackInfo {
+                        edge_type: $edge_type,
+                        task_id,
+                    });
+            }
         }
     };
 }
 
-gen_register_edge_callback!(register_posedge_callback_common, posedge);
-gen_register_edge_callback!(register_negedge_callback_common, negedge);
-gen_register_edge_callback!(register_edge_callback_common, edge);
+gen_register_edge_callback_common!(posedge);
+gen_register_edge_callback_common!(negedge);
+gen_register_edge_callback_common!(edge);
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_posedge_callback_hdl(
-    complex_handle: ComplexHandleRaw,
-    task_id: TaskID,
-) {
-    unsafe { register_posedge_callback_common(complex_handle, task_id) };
+macro_rules! gen_verilua_edge_callback {
+    ($edge_type:ident) => {
+        // Generate the callback function for the edge type:
+        //  1. verilua_<edge_type>_callback_hdl
+        //  2. verilua_<edge_type>_callback
+        paste::paste! {
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<verilua_ $edge_type _callback_hdl>](complex_handle: ComplexHandleRaw, task_id: TaskID) {
+                unsafe { [<register_ $edge_type _callback_common>](complex_handle, task_id) };
+            }
+
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<verilua_ $edge_type _callback>](path: *mut c_char, task_id: TaskID) {
+                let complex_handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
+                unsafe { [<register_ $edge_type _callback_common>](complex_handle, task_id) };
+            }
+        }
+    };
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_negedge_callback_hdl(
-    complex_handle: ComplexHandleRaw,
-    task_id: TaskID,
-) {
-    unsafe { register_negedge_callback_common(complex_handle, task_id) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_edge_callback_hdl(
-    complex_handle: ComplexHandleRaw,
-    task_id: TaskID,
-) {
-    unsafe { register_edge_callback_common(complex_handle, task_id) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_posedge_callback(path: *mut c_char, task_id: TaskID) {
-    let complex_handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-    unsafe { register_posedge_callback_common(complex_handle, task_id) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_negedge_callback(path: *mut c_char, task_id: TaskID) {
-    let complex_handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-    unsafe { register_negedge_callback_common(complex_handle, task_id) };
-}
+gen_verilua_edge_callback!(posedge);
+gen_verilua_edge_callback!(negedge);
+gen_verilua_edge_callback!(edge);
 
 #[inline(always)]
 unsafe fn do_register_edge_callback_always(
@@ -480,34 +467,30 @@ unsafe fn do_register_edge_callback_always(
 ) -> vpiHandle {
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
-    let mut t = t_vpi_time {
-        type_: vpiSuppressTime as _,
-        high: 0,
-        low: 0,
-        real: 0.0,
-    };
-
-    let mut v = t_vpi_value {
-        format: vpiIntVal as _,
-        value: t_vpi_value__bindgen_ty_1 { integer: 0 },
-    };
-
     let user_data = Box::into_raw(Box::new(EdgeCbData {
         task_id: *task_id,
         complex_handle_raw: *complex_handle_raw,
         callback_id: *edge_cb_id,
         edge_type: *edge_type,
-        vpi_time: t,
-        vpi_value: v,
+        vpi_time: t_vpi_time {
+            type_: vpiSuppressTime as _,
+            high: 0,
+            low: 0,
+            real: 0.0,
+        },
+        vpi_value: t_vpi_value {
+            format: vpiIntVal as _,
+            value: t_vpi_value__bindgen_ty_1 { integer: 0 },
+        },
     }));
 
     let mut cb_data = s_cb_data {
         reason: cbValueChange as _,
         cb_rtn: Some(edge_callback_always),
-        time: &mut t,
+        time: unsafe { &mut (*user_data).vpi_time },
         obj: complex_handle.vpi_handle,
         user_data: user_data as *mut _,
-        value: &mut v,
+        value: unsafe { &mut (*user_data).vpi_value },
         index: 0,
     };
 
@@ -544,53 +527,28 @@ unsafe extern "C" fn edge_callback_always(cb_data: *mut t_cb_data) -> PLI_INT32 
     0
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_posedge_callback_hdl_always(
-    complex_handle: ComplexHandleRaw,
-    task_id: TaskID,
-) {
-    let env = get_verilua_env();
+macro_rules! gen_verilua_edge_callback_always {
+    // Generate the callback function for the edge type:
+    //  1. verilua_<edge_type>_callback_hdl_always
+    //  2. verilua_<edge_type>_callback_always
+    ($edge_type:ident, $edge_type_enum:ty) => {
+        paste::paste! {
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<verilua_ $edge_type _callback_hdl_always>](complex_handle: ComplexHandleRaw, task_id: TaskID) {
+                let env = get_verilua_env();
+                unsafe { do_register_edge_callback_always(&complex_handle, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
+            }
 
-    unsafe {
-        do_register_edge_callback_always(
-            &complex_handle,
-            &task_id,
-            &EdgeType::Posedge,
-            &env.edge_cb_idpool.alloc_id(),
-        )
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<verilua_ $edge_type _callback_always>](path: *mut c_char, task_id: TaskID) {
+                let complex_handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
+                let env = get_verilua_env();
+                unsafe { do_register_edge_callback_always(&complex_handle, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
+            }
+        }
     };
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_negedge_callback_hdl_always(
-    complex_handle: ComplexHandleRaw,
-    task_id: TaskID,
-) {
-    let env = get_verilua_env();
-
-    unsafe {
-        do_register_edge_callback_always(
-            &complex_handle,
-            &task_id,
-            &EdgeType::Negedge,
-            &env.edge_cb_idpool.alloc_id(),
-        )
-    };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_edge_callback_hdl_always(
-    complex_handle: ComplexHandleRaw,
-    task_id: TaskID,
-) {
-    let env = get_verilua_env();
-
-    unsafe {
-        do_register_edge_callback_always(
-            &complex_handle,
-            &task_id,
-            &EdgeType::Edge,
-            &env.edge_cb_idpool.alloc_id(),
-        )
-    };
-}
+gen_verilua_edge_callback_always!(posedge, EdgeType::Posedge);
+gen_verilua_edge_callback_always!(negedge, EdgeType::Negedge);
+gen_verilua_edge_callback_always!(edge, EdgeType::Edge);

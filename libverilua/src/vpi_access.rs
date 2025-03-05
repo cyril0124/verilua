@@ -438,7 +438,7 @@ pub unsafe extern "C" fn c_set_value_multi(
     });
 }
 
-macro_rules! gen_multi_beat_function {
+macro_rules! gen_set_value_multi_beat {
     ($name:ident, $($i:expr),*) => {
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn $name(complex_handle: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
@@ -456,23 +456,25 @@ macro_rules! gen_multi_beat_function {
                 }
             };
 
-            unsafe { vpi_put_value(
-                complex_handle.vpi_handle,
-                &mut v as *mut _,
-                std::ptr::null_mut(),
-                vpiNoDelay as _
-            );}
+            unsafe {
+                vpi_put_value(
+                    complex_handle.vpi_handle,
+                    &mut v as *mut _,
+                    std::ptr::null_mut(),
+                    vpiNoDelay as _
+                )
+            };
         }
     };
 }
 
-gen_multi_beat_function!(c_set_value_multi_beat_2, 0, 1);
-gen_multi_beat_function!(c_set_value_multi_beat_3, 0, 1, 2);
-gen_multi_beat_function!(c_set_value_multi_beat_4, 0, 1, 2, 3);
-gen_multi_beat_function!(c_set_value_multi_beat_5, 0, 1, 2, 3, 4);
-gen_multi_beat_function!(c_set_value_multi_beat_6, 0, 1, 2, 3, 4, 5);
-gen_multi_beat_function!(c_set_value_multi_beat_7, 0, 1, 2, 3, 4, 5, 6);
-gen_multi_beat_function!(c_set_value_multi_beat_8, 0, 1, 2, 3, 4, 5, 6, 7);
+gen_set_value_multi_beat!(c_set_value_multi_beat_2, 0, 1);
+gen_set_value_multi_beat!(c_set_value_multi_beat_3, 0, 1, 2);
+gen_set_value_multi_beat!(c_set_value_multi_beat_4, 0, 1, 2, 3);
+gen_set_value_multi_beat!(c_set_value_multi_beat_5, 0, 1, 2, 3, 4);
+gen_set_value_multi_beat!(c_set_value_multi_beat_6, 0, 1, 2, 3, 4, 5);
+gen_set_value_multi_beat!(c_set_value_multi_beat_7, 0, 1, 2, 3, 4, 5, 6);
+gen_set_value_multi_beat!(c_set_value_multi_beat_8, 0, 1, 2, 3, 4, 5, 6, 7);
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn c_set_value_str(complex_handle: ComplexHandleRaw, value_str: *mut c_char) {
