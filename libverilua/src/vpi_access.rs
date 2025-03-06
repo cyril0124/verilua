@@ -27,7 +27,9 @@ pub unsafe extern "C" fn complex_handle_by_name(
                 #[cfg(feature = "debug")]
                 log::debug!("[complex_handle_by_name] miss cache => {}", name_str);
 
-                let chdl = ComplexHandle::new(unsafe { vpi_handle_by_name(name, scope) }, name);
+                let vpi_handle = unsafe { vpi_handle_by_name(name, scope) };
+                let width = unsafe { vpi_get(vpiSize as _, vpi_handle) };
+                let chdl = ComplexHandle::new(vpi_handle, name, width as _);
                 let chdl_ptr = chdl.into_raw();
                 env.hdl_cache.insert(name_str, chdl_ptr);
 
@@ -86,8 +88,11 @@ pub unsafe extern "C" fn vpiml_handle_by_index(
             idx
         );
 
+        let width = unsafe { vpi_get(vpiSize as _, ret_vpi_handle) };
+
         let final_name_cstr = std::ffi::CString::new(final_name).unwrap();
-        let ret_complex_handle = ComplexHandle::new(ret_vpi_handle, final_name_cstr.into_raw());
+        let ret_complex_handle =
+            ComplexHandle::new(ret_vpi_handle, final_name_cstr.into_raw(), width as _);
 
         ret_complex_handle.into_raw()
     }
@@ -134,9 +139,11 @@ pub unsafe extern "C" fn vpiml_iterate_vpi_type(module_name: *mut c_char, vpi_ty
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_get_signal_width(complex_handle_raw: ComplexHandleRaw) -> c_longlong {
+pub unsafe extern "C" fn vpiml_get_signal_width(
+    complex_handle_raw: ComplexHandleRaw,
+) -> c_longlong {
     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    unsafe { vpi_get(vpiSize as _, complex_handle.vpi_handle as vpiHandle) as _ }
+    complex_handle.width as _
 }
 
 #[unsafe(no_mangle)]
@@ -567,7 +574,10 @@ pub unsafe extern "C" fn vpiml_set_value_str(
 macro_rules! gen_set_value_str {
     ($name:ident, $format:ident) => {
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
+        pub unsafe extern "C" fn $name(
+            complex_handle_raw: ComplexHandleRaw,
+            value_str: *mut c_char,
+        ) {
             let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
             let mut v = s_vpi_value {
                 format: $format as _,
@@ -723,4 +733,38 @@ pub unsafe extern "C" fn vpiml_force_value_str_by_name(path: *mut c_char, value_
     v.value.str_ = final_value_str;
 
     unsafe { vpi_put_value(chdl.vpi_handle, &mut v, &mut t, vpiForceFlag as _) };
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_set_shuffled(complex_handle_raw: ComplexHandleRaw) {
+    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+    if complex_handle.width <= 32 {
+        unsafe {
+            vpiml_set_value(complex_handle_raw, libc::rand() as u32);
+        }
+    } else if complex_handle.width <= 64 {
+        unsafe {
+            vpiml_set_value64(
+                complex_handle_raw,
+                ((libc::rand() as u64) << 32) | (libc::rand() as u64),
+            );
+        }
+    } else {
+        let mut value = Vec::with_capacity(complex_handle.beat_num);
+        value.extend((0..complex_handle.beat_num).map(|_| unsafe { libc::rand() } as u32));
+
+        unsafe {
+            vpiml_set_value_multi(
+                complex_handle_raw,
+                value.as_ptr(),
+                complex_handle.beat_num as i32,
+            );
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_set_shuffled_by_name(path: *mut c_char) {
+    let handle = unsafe { vpiml_handle_by_name(path) };
+    unsafe { vpiml_set_shuffled(handle as _) };
 }

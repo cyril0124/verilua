@@ -55,6 +55,8 @@ ffi.cdef[[
     void vpiml_set_value_hex_str(long long handle, const char *str);
     void vpiml_set_value_bin_str(long long handle, const char *str);
     void vpiml_set_value_dec_str(long long handle, const char *str);
+
+    void vpiml_set_shuffled(long long handle);
 ]]
 
 local post_init_mt = setmetatable({
@@ -168,6 +170,10 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.set_dec_str = function (this, str)
         C.vpiml_set_value_dec_str(this.hdl, str)
+    end
+
+    self.set_shuffled = function (this)
+        C.vpiml_set_shuffled(this.hdl)
     end
 
     if self.is_array then

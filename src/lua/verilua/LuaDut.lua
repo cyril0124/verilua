@@ -36,6 +36,8 @@ ffi.cdef[[
     void vpiml_set_value_by_name(const char *path, uint64_t value);
     void vpiml_set_value_str_by_name(const char *path, const char *str);
     void vpiml_force_value_str_by_name(const char *path, const char *str);
+
+    void vpiml_set_shuffled_by_name(const char *path);
 ]]
 
 local set_force_enable = false
@@ -62,6 +64,16 @@ local function create_proxy(path, use_prefix)
             else
                 C.vpiml_set_value_by_name(local_path, tonumber(v))
             end
+        end,
+
+        -- 
+        -- Randomly set the value of the signal
+        -- 
+        -- Example:
+        --      dut.path.to.signal:set_shuffled()
+        -- 
+        set_shuffled = function (t)
+            C.vpiml_set_shuffled_by_name(local_path)
         end,
 
         -- 

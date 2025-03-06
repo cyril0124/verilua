@@ -27,6 +27,8 @@ pub type ComplexHandleRaw = c_longlong;
 pub struct ComplexHandle {
     pub vpi_handle: vpiHandle,
     pub name: *mut c_char,
+    pub width: usize,
+    pub beat_num: usize,
 
     #[cfg(feature = "merge_cb")]
     pub posedge_cb_count: HashMap<TaskID, u32>,
@@ -37,12 +39,14 @@ pub struct ComplexHandle {
 }
 
 impl ComplexHandle {
-    pub fn new(vpi_handle: vpiHandle, name: *mut c_char) -> Self {
+    pub fn new(vpi_handle: vpiHandle, name: *mut c_char, width: usize) -> Self {
         #[cfg(feature = "merge_cb")]
         {
             Self {
                 vpi_handle,
                 name,
+                width,
+                beat_num: (width + 31) / 32,
                 posedge_cb_count: HashMap::new(),
                 negedge_cb_count: HashMap::new(),
                 edge_cb_count: HashMap::new(),
@@ -51,7 +55,12 @@ impl ComplexHandle {
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            Self { vpi_handle, name }
+            Self {
+                vpi_handle,
+                name,
+                width,
+                beat_num: (width + 31) / 32,
+            }
         }
     }
 
@@ -77,9 +86,11 @@ impl Debug for ComplexHandle {
         {
             write!(
                 f,
-                "ComplexHandle({}, name: {}, posedge_cb_count: {:?}, negedge_cb_count: {:?}, edge_cb_count: {:?})",
+                "ComplexHandle({}, name: {}, width: {}, beat_num: {}, posedge_cb_count: {:?}, negedge_cb_count: {:?}, edge_cb_count: {:?})",
                 self.vpi_handle as c_longlong,
                 unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() },
+                self.width,
+                self.beat_num,
                 self.posedge_cb_count,
                 self.negedge_cb_count,
                 self.edge_cb_count
@@ -90,9 +101,11 @@ impl Debug for ComplexHandle {
         {
             write!(
                 f,
-                "ComplexHandle({}, name: {})",
+                "ComplexHandle({}, name: {}, width: {}, beat_num: {})",
                 self.vpi_handle as c_longlong,
-                unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() }
+                unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() },
+                self.width,
+                self.beat_num
             )
         }
     }
