@@ -11,6 +11,9 @@ local ffi_string = ffi.string
 ffi.cdef[[
     void vpiml_set_value(long long handle, uint32_t value);
     uint32_t vpiml_get_value(long long handle);
+
+    void vpiml_force_value(long long handle, uint32_t value);
+    void vpiml_release_value(long long handle);
 ]]
 
 local chdl = {
@@ -22,6 +25,8 @@ local chdl = {
     set_cached = function (this, value, force_single_beat) assert(false, f("<chdl>:set_cached() is not implemented!, fullpath => %s, bitwidth => %d", this.fullpath, this.width)) end,
     set_bitfield = function (this, s, e, v) assert(false, "<chdl>:set_bitfield() is not implemented!") end,
     set_bitfield_hex_str = function (this, s, e, hex_str) assert(false, "<chdl>:set_bitfield_hex_str() is not implemented!") end,
+    set_force = function (this, value) assert(false, "<chdl>:set_force() is not implemented!") end,
+    set_release = function (this) assert(false, "<chdl>:set_release() is not implemented!") end,
 }
 
 local chdl_array = {
@@ -75,6 +80,14 @@ local function chdl_init(this)
 
     chdl.set_bitfield_hex_str = function (this, s, e, hex_str)
         C.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+    end
+
+    chdl.set_force = function (this, value)
+        C.vpiml_force_value(this.hdl, value)
+    end
+
+    chdl.set_release = function (this)
+        C.vpiml_release_value(this.hdl)
     end
 end
 

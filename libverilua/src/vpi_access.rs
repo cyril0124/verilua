@@ -337,239 +337,271 @@ gen_get_value_str!(vpiml_get_value_hex_str, vpiHexStrVal);
 gen_get_value_str!(vpiml_get_value_bin_str, vpiBinStrVal);
 gen_get_value_str!(vpiml_get_value_dec_str, vpiDecStrVal);
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_value(complex_handle_raw: ComplexHandleRaw, value: u32) {
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+macro_rules! gen_set_force_value {
+    ($action:ident, $flag:ty) => {
+        // Generate:
+        //      vpiml_<set/force>_value and vpiml_<set/force>_value_by_name
+        //      vpiml_<set/force>_value64 and vpiml_<set/force>_value64_by_name
+        //      vpiml_<set/force>_value64_force_single and vpiml_<set/force>_value64_force_single_by_name
+        paste::paste!{
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value>](complex_handle_raw: ComplexHandleRaw, value: u32) {
+                if $flag == vpiForceFlag && cfg!(feature = "verilator") {
+                    panic!("force value is not supported in verilator!");
+                }
 
-    let mut vec_v = t_vpi_vecval {
-        aval: value as _,
-        bval: 0,
-    };
-    let mut v = s_vpi_value {
-        format: vpiVectorVal as _,
-        value: t_vpi_value__bindgen_ty_1 {
-            vector: &mut vec_v as *mut _,
-        },
-    };
+                let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
-    unsafe {
-        vpi_put_value(
-            complex_handle.vpi_handle,
-            &mut v as *mut _,
-            std::ptr::null_mut(),
-            vpiNoDelay as _,
-        )
-    };
-}
+                let mut vec_v = t_vpi_vecval {
+                    aval: value as _,
+                    bval: 0,
+                };
+                let mut v = if $flag == vpiForceFlag {
+                    s_vpi_value {
+                        format: vpiIntVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            integer: value as _,
+                        },
+                    }
+                } else {
+                    s_vpi_value {
+                        format: vpiVectorVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            vector: &mut vec_v as *mut _,
+                        },
+                    }
+                };
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_value64_force_single(
-    complex_handle_raw: ComplexHandleRaw,
-    value: u64,
-    size: u32,
-) {
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    thread_local! {
-        static VECTORS: UnsafeCell<[t_vpi_vecval; MAX_VECTOR_SIZE]> = const {UnsafeCell::new([t_vpi_vecval {
-            aval: 0,
-            bval: 0,
-        }; MAX_VECTOR_SIZE]) };
-    }
-
-    #[cfg(feature = "debug")]
-    assert!(size <= MAX_VECTOR_SIZE as _);
-
-    VECTORS.with(|vectors| {
-        let vectors = unsafe { &mut *vectors.get() };
-        for vector in vectors.iter_mut().take(size as usize) {
-            vector.aval = 0;
-            vector.bval = 0;
-        }
-
-        vectors[1].aval = (value >> 32) as _;
-        vectors[0].aval = ((value << 32) >> 32) as _;
-
-        let mut v = s_vpi_value {
-            format: vpiVectorVal as _,
-            value: t_vpi_value__bindgen_ty_1 {
-                vector: vectors.as_mut_ptr(),
-            },
-        };
-
-        unsafe {
-            vpi_put_value(
-                complex_handle.vpi_handle,
-                &mut v as *mut _,
-                std::ptr::null_mut(),
-                vpiNoDelay as _,
-            )
-        };
-    });
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_value64(complex_handle_raw: ComplexHandleRaw, value: u64) {
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    thread_local! {
-        static VECTORS: UnsafeCell<[t_vpi_vecval; 2]> = const { UnsafeCell::new([t_vpi_vecval {
-            aval: 0,
-            bval: 0,
-        }; 2]) };
-    }
-
-    VECTORS.with(|vectors| {
-        let vectors = unsafe { &mut *vectors.get() };
-        vectors[1].aval = (value >> 32) as _;
-        vectors[1].bval = 0;
-        vectors[0].aval = ((value << 32) >> 32) as _;
-        vectors[0].bval = 0;
-
-        let mut v = s_vpi_value {
-            format: vpiVectorVal as _,
-            value: t_vpi_value__bindgen_ty_1 {
-                vector: vectors.as_mut_ptr(),
-            },
-        };
-
-        unsafe {
-            vpi_put_value(
-                complex_handle.vpi_handle,
-                &mut v as *mut _,
-                std::ptr::null_mut(),
-                vpiNoDelay as _,
-            )
-        };
-    })
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_value_by_name(path: *mut c_char, value: u64) {
-    let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    assert!(
-        !complex_handle.vpi_handle.is_null(),
-        "[vpiml_set_value_by_name] No handle found: {}",
-        unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
-    );
-
-    unsafe { vpiml_set_value64(complex_handle_raw as _, value) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_value_multi(
-    complex_handle_raw: ComplexHandleRaw,
-    value: *const u32,
-    n: i32,
-) {
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    thread_local! {
-        static VECTORS: UnsafeCell<[t_vpi_vecval; MAX_VECTOR_SIZE]> = const {UnsafeCell::new([t_vpi_vecval {
-            aval: 0,
-            bval: 0,
-        }; MAX_VECTOR_SIZE])};
-    }
-
-    #[cfg(feature = "debug")]
-    assert!(n <= MAX_VECTOR_SIZE as _);
-
-    VECTORS.with(|vectors| {
-        let vectors = unsafe { &mut *vectors.get() };
-        for (i, vector) in vectors.iter_mut().enumerate().take(n as usize) {
-            vector.aval = unsafe { *value.add(i) } as _;
-            vector.bval = 0;
-        }
-
-        let mut v = s_vpi_value {
-            format: vpiVectorVal as _,
-            value: t_vpi_value__bindgen_ty_1 {
-                vector: vectors.as_mut_ptr(),
-            },
-        };
-
-        unsafe {
-            vpi_put_value(
-                complex_handle.vpi_handle,
-                &mut v as *mut _,
-                std::ptr::null_mut(),
-                vpiNoDelay as _,
-            )
-        };
-    });
-}
-
-macro_rules! gen_set_value_multi_beat {
-    ($name:ident, $($i:expr),*) => {
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
-            let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-            paste::paste! {
-                let mut vector = [
-                    $( t_vpi_vecval { aval: [<v $i>] as _, bval: 0 } ),*
-                ];
+                unsafe {
+                    vpi_put_value(
+                        complex_handle.vpi_handle,
+                        &mut v as *mut _,
+                        std::ptr::null_mut(),
+                        $flag as _,
+                    )
+                };
             }
 
-            let mut v = s_vpi_value {
-                format: vpiVectorVal as _,
-                value: t_vpi_value__bindgen_ty_1 {
-                    vector: &mut vector as *mut _
-                }
-            };
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value_by_name>](path: *mut c_char, value: u32) {
+                let complex_handle_raw = unsafe { vpiml_handle_by_name(path) };
+                unsafe { [<vpiml_ $action _value>](complex_handle_raw as _, value) };
+            }
 
-            unsafe {
-                vpi_put_value(
-                    complex_handle.vpi_handle,
-                    &mut v as *mut _,
-                    std::ptr::null_mut(),
-                    vpiNoDelay as _
-                )
-            };
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value64>](complex_handle_raw: ComplexHandleRaw, value: u64) {
+                if $flag == vpiForceFlag && cfg!(feature = "verilator") {
+                    panic!("force value is not supported in verilator!");
+                }
+
+                let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                let vectors = &mut complex_handle.vectors;
+                vectors[1].aval = (value >> 32) as _;
+                vectors[1].bval = 0;
+                vectors[0].aval = ((value << 32) >> 32) as _;
+                vectors[0].bval = 0;
+
+                let mut v = s_vpi_value {
+                    format: vpiVectorVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        vector: vectors.as_mut_ptr(),
+                    },
+                };
+
+                unsafe {
+                    vpi_put_value(
+                        complex_handle.vpi_handle,
+                        &mut v as *mut _,
+                        std::ptr::null_mut(),
+                        $flag as _,
+                    )
+                };
+            }
+
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value64_by_name>](path: *mut c_char, value: u64) {
+                let complex_handle_raw = unsafe { vpiml_handle_by_name(path) };
+                unsafe { [<vpiml_ $action _value64>](complex_handle_raw as _, value) };
+            }
+
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value64_force_single>](complex_handle_raw: ComplexHandleRaw, value: u64) {
+                if $flag == vpiForceFlag && cfg!(feature = "verilator") {
+                    panic!("force value is not supported in verilator!");
+                }
+
+                let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                let vectors = &mut complex_handle.vectors;
+                for vector in vectors.iter_mut().take(complex_handle.beat_num as usize) {
+                    vector.aval = 0;
+                    vector.bval = 0;
+                }
+
+                vectors[1].aval = (value >> 32) as _;
+                vectors[0].aval = ((value << 32) >> 32) as _;
+
+                let mut v = s_vpi_value {
+                    format: vpiVectorVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        vector: vectors.as_mut_ptr(),
+                    },
+                };
+
+                unsafe {
+                    vpi_put_value(
+                        complex_handle.vpi_handle,
+                        &mut v as *mut _,
+                        std::ptr::null_mut(),
+                        $flag as _,
+                    )
+                };
+            }
+
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value_multi>](
+                complex_handle_raw: ComplexHandleRaw,
+                value: *const u32
+            ) {
+                if $flag == vpiForceFlag && cfg!(feature = "verilator") {
+                    panic!("force value is not supported in verilator!");
+                }
+
+                let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                let vectors = &mut complex_handle.vectors;
+                for (i, vector) in vectors.iter_mut().enumerate().take(complex_handle.beat_num as usize) {
+                    vector.aval = unsafe { *value.add(i) } as _;
+                    vector.bval = 0;
+                }
+
+                let mut v = s_vpi_value {
+                    format: vpiVectorVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        vector: vectors.as_mut_ptr(),
+                    },
+                };
+
+                unsafe {
+                    vpi_put_value(
+                        complex_handle.vpi_handle,
+                        &mut v as *mut _,
+                        std::ptr::null_mut(),
+                        $flag as _,
+                    )
+                };
+            }
+        }
+    }
+}
+
+gen_set_force_value!(set, vpiNoDelay);
+gen_set_force_value!(force, vpiForceFlag);
+
+macro_rules! gen_set_force_value_multi_beat {
+    ($action:ident, $count:literal, $flag:ident, $($i:literal),*) => {
+        paste::paste! {
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value_multi_beat_ $count>](complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
+                if $flag == vpiForceFlag && cfg!(feature = "verilator") {
+                    panic!("force value is not supported in verilator!");
+                }
+
+                let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                paste::paste! {
+                    let mut vector = [
+                        $( t_vpi_vecval { aval: [<v $i>] as _, bval: 0 } ),*
+                    ];
+                }
+
+                let mut v = s_vpi_value {
+                    format: vpiVectorVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        vector: &mut vector as *mut _
+                    }
+                };
+
+                unsafe {
+                    vpi_put_value(
+                        complex_handle.vpi_handle,
+                        &mut v as *mut _,
+                        std::ptr::null_mut(),
+                        $flag as _
+                    )
+                };
+            }
         }
     };
 }
 
-gen_set_value_multi_beat!(vpiml_set_value_multi_beat_2, 0, 1);
-gen_set_value_multi_beat!(vpiml_set_value_multi_beat_3, 0, 1, 2);
-gen_set_value_multi_beat!(vpiml_set_value_multi_beat_4, 0, 1, 2, 3);
-gen_set_value_multi_beat!(vpiml_set_value_multi_beat_5, 0, 1, 2, 3, 4);
-gen_set_value_multi_beat!(vpiml_set_value_multi_beat_6, 0, 1, 2, 3, 4, 5);
-gen_set_value_multi_beat!(vpiml_set_value_multi_beat_7, 0, 1, 2, 3, 4, 5, 6);
-gen_set_value_multi_beat!(vpiml_set_value_multi_beat_8, 0, 1, 2, 3, 4, 5, 6, 7);
+gen_set_force_value_multi_beat!(set, 2, vpiNoDelay, 0, 1);
+gen_set_force_value_multi_beat!(set, 3, vpiNoDelay, 0, 1, 2);
+gen_set_force_value_multi_beat!(set, 4, vpiNoDelay, 0, 1, 2, 3);
+gen_set_force_value_multi_beat!(set, 5, vpiNoDelay, 0, 1, 2, 3, 4);
+gen_set_force_value_multi_beat!(set, 6, vpiNoDelay, 0, 1, 2, 3, 4, 5);
+gen_set_force_value_multi_beat!(set, 7, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6);
+gen_set_force_value_multi_beat!(set, 8, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6, 7);
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_value_str(
-    complex_handle_raw: ComplexHandleRaw,
-    value_str: *mut c_char,
-) {
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    let mut v = s_vpi_value {
-        format: vpiHexStrVal as _,
-        value: t_vpi_value__bindgen_ty_1 { integer: 0 },
-    };
+gen_set_force_value_multi_beat!(force, 2, vpiForceFlag, 0, 1);
+gen_set_force_value_multi_beat!(force, 3, vpiForceFlag, 0, 1, 2);
+gen_set_force_value_multi_beat!(force, 4, vpiForceFlag, 0, 1, 2, 3);
+gen_set_force_value_multi_beat!(force, 5, vpiForceFlag, 0, 1, 2, 3, 4);
+gen_set_force_value_multi_beat!(force, 6, vpiForceFlag, 0, 1, 2, 3, 4, 5);
+gen_set_force_value_multi_beat!(force, 7, vpiForceFlag, 0, 1, 2, 3, 4, 5, 6);
+gen_set_force_value_multi_beat!(force, 8, vpiForceFlag, 0, 1, 2, 3, 4, 5, 6, 7);
 
-    let cstr = unsafe { CStr::from_ptr(value_str) };
-    let str_bytes = cstr.to_bytes();
-    let final_value_str = if str_bytes.starts_with(b"0b") {
-        v.format = vpiBinStrVal as _;
-        unsafe { value_str.add(2) }
-    } else if str_bytes.starts_with(b"0x") {
-        v.format = vpiHexStrVal as _;
-        unsafe { value_str.add(2) }
-    } else {
-        v.format = vpiDecStrVal as _;
-        value_str
-    };
+macro_rules! gen_set_force_value_str {
+    ($action:ident, $flag:ty) => {
+        paste::paste! {
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value_str>](
+                complex_handle_raw: ComplexHandleRaw,
+                value_str: *mut c_char,
+            ) {
+                if $flag == vpiForceFlag && cfg!(feature = "verilator") {
+                    panic!("force value is not supported in verilator!");
+                }
 
-    v.value.str_ = final_value_str;
+                let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                let mut v = s_vpi_value {
+                    format: vpiHexStrVal as _,
+                    value: t_vpi_value__bindgen_ty_1 { integer: 0 },
+                };
 
-    unsafe {
-        vpi_put_value(
-            complex_handle.vpi_handle,
-            &mut v,
-            std::ptr::null_mut(),
-            vpiNoDelay as _,
-        )
+                let cstr = unsafe { CStr::from_ptr(value_str) };
+                let str_bytes = cstr.to_bytes();
+                let final_value_str = if str_bytes.starts_with(b"0b") {
+                    v.format = vpiBinStrVal as _;
+                    unsafe { value_str.add(2) }
+                } else if str_bytes.starts_with(b"0x") {
+                    v.format = vpiHexStrVal as _;
+                    unsafe { value_str.add(2) }
+                } else {
+                    v.format = vpiDecStrVal as _;
+                    value_str
+                };
+
+                v.value.str_ = final_value_str;
+
+                unsafe {
+                    vpi_put_value(
+                        complex_handle.vpi_handle,
+                        &mut v,
+                        std::ptr::null_mut(),
+                        $flag as _,
+                    )
+                };
+            }
+
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_ $action _value_str_by_name>](path: *mut c_char, value_str: *mut c_char) {
+                let complex_handle_raw = unsafe { vpiml_handle_by_name(path) };
+                unsafe { [<vpiml_ $action _value_str>](complex_handle_raw as _, value_str) };
+            }
+        }
     };
 }
+
+gen_set_force_value_str!(set, vpiNoDelay);
+gen_set_force_value_str!(force, vpiForceFlag);
 
 macro_rules! gen_set_value_str {
     ($name:ident, $format:ident) => {
@@ -601,50 +633,6 @@ gen_set_value_str!(vpiml_set_value_bin_str, vpiBinStrVal);
 gen_set_value_str!(vpiml_set_value_dec_str, vpiDecStrVal);
 
 #[unsafe(no_mangle)]
-pub extern "C" fn vpiml_set_value_str_by_name(path: *mut c_char, value_str: *mut c_char) {
-    let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    assert!(
-        !complex_handle.vpi_handle.is_null(),
-        "[vpiml_set_value_str_by_name] No handle found: {}",
-        unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
-    );
-
-    unsafe { vpiml_set_value_str(complex_handle_raw, value_str) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_force_value(complex_handle_raw: ComplexHandleRaw, value: u32) {
-    let complex_handle_raw = ComplexHandle::from_raw(&complex_handle_raw);
-    if cfg!(feature = "verilator") {
-        panic!("force value is not supported in verilator!");
-    } else {
-        let mut v = s_vpi_value {
-            format: vpiIntVal as _,
-            value: t_vpi_value__bindgen_ty_1 {
-                integer: value as _,
-            },
-        };
-
-        let mut t = t_vpi_time {
-            type_: vpiSimTime as _,
-            high: 0,
-            low: 0,
-            real: 0.0,
-        };
-
-        unsafe {
-            vpi_put_value(
-                complex_handle_raw.vpi_handle,
-                &mut v,
-                &mut t,
-                vpiForceFlag as _,
-            )
-        };
-    }
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRaw) {
     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
     if cfg!(feature = "verilator") {
@@ -670,19 +658,6 @@ pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRa
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_force_value_by_name(path: *mut c_char, value: u32) {
-    let handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-    let chdl = ComplexHandle::from_raw(&handle);
-    assert!(
-        !chdl.vpi_handle.is_null(),
-        "[vpiml_force_value_by_name] No handle found: {}",
-        unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
-    );
-
-    unsafe { vpiml_force_value(handle as _, value) };
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_release_value_by_name(path: *mut c_char) {
     let handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
     let chdl = ComplexHandle::from_raw(&handle);
@@ -693,46 +668,6 @@ pub unsafe extern "C" fn vpiml_release_value_by_name(path: *mut c_char) {
     );
 
     unsafe { vpiml_release_value(handle as _) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_force_value_str_by_name(path: *mut c_char, value_str: *mut c_char) {
-    let handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-    let chdl = ComplexHandle::from_raw(&handle);
-    assert!(
-        !chdl.vpi_handle.is_null(),
-        "[vpiml_force_value_str_by_name] No handle found: {}",
-        unsafe { CStr::from_ptr(path).to_string_lossy().into_owned() }
-    );
-
-    let mut v = s_vpi_value {
-        format: vpiHexStrVal as _,
-        value: t_vpi_value__bindgen_ty_1 { integer: 0 },
-    };
-
-    let mut t = t_vpi_time {
-        type_: vpiSimTime as _,
-        high: 0,
-        low: 0,
-        real: 0.0,
-    };
-
-    let cstr = unsafe { CStr::from_ptr(value_str) };
-    let str_bytes = cstr.to_bytes();
-    let final_value_str = if str_bytes.starts_with(b"0b") {
-        v.format = vpiBinStrVal as _;
-        unsafe { value_str.add(2) }
-    } else if str_bytes.starts_with(b"0x") {
-        v.format = vpiHexStrVal as _;
-        unsafe { value_str.add(2) }
-    } else {
-        v.format = vpiDecStrVal as _;
-        value_str
-    };
-
-    v.value.str_ = final_value_str;
-
-    unsafe { vpi_put_value(chdl.vpi_handle, &mut v, &mut t, vpiForceFlag as _) };
 }
 
 #[unsafe(no_mangle)]
@@ -754,11 +689,7 @@ pub unsafe extern "C" fn vpiml_set_shuffled(complex_handle_raw: ComplexHandleRaw
         value.extend((0..complex_handle.beat_num).map(|_| unsafe { libc::rand() } as u32));
 
         unsafe {
-            vpiml_set_value_multi(
-                complex_handle_raw,
-                value.as_ptr(),
-                complex_handle.beat_num as i32,
-            );
+            vpiml_set_value_multi(complex_handle_raw, value.as_ptr());
         }
     }
 }

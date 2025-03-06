@@ -10,6 +10,8 @@ use crate::vpi_callback::CallbackInfo;
 
 use super::*;
 
+const MAX_VECTOR_SIZE: usize = 32;
+
 thread_local! {
     pub static VERILUA_ENV: UnsafeCell<VeriluaEnv> = UnsafeCell::new(VeriluaEnv::default());
 }
@@ -29,6 +31,7 @@ pub struct ComplexHandle {
     pub name: *mut c_char,
     pub width: usize,
     pub beat_num: usize,
+    pub vectors: smallvec::SmallVec<[t_vpi_vecval; MAX_VECTOR_SIZE]>,
 
     #[cfg(feature = "merge_cb")]
     pub posedge_cb_count: HashMap<TaskID, u32>,
@@ -40,13 +43,27 @@ pub struct ComplexHandle {
 
 impl ComplexHandle {
     pub fn new(vpi_handle: vpiHandle, name: *mut c_char, width: usize) -> Self {
+        let beat_num = (width as f64 / 32.0).ceil() as usize;
+
+        assert!(
+            beat_num <= MAX_VECTOR_SIZE as usize,
+            "beat_num is too large: {}, width: {}, name: {}",
+            beat_num,
+            width,
+            unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() }
+        );
+
         #[cfg(feature = "merge_cb")]
         {
             Self {
                 vpi_handle,
                 name,
                 width,
-                beat_num: (width + 31) / 32,
+                beat_num,
+                vectors: smallvec::smallvec![t_vpi_vecval {
+                    aval: 0,
+                    bval: 0,
+                }; MAX_VECTOR_SIZE],
                 posedge_cb_count: HashMap::new(),
                 negedge_cb_count: HashMap::new(),
                 edge_cb_count: HashMap::new(),
@@ -59,7 +76,11 @@ impl ComplexHandle {
                 vpi_handle,
                 name,
                 width,
-                beat_num: (width + 31) / 32,
+                beat_num,
+                vectors: smallvec::smallvec![t_vpi_vecval {
+                    aval: 0,
+                    bval: 0,
+                }; MAX_VECTOR_SIZE],
             }
         }
     }

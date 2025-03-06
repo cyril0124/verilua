@@ -13,8 +13,12 @@ ffi.cdef[[
     uint64_t vpiml_get_value64(long long handle);
     void vpiml_get_value_multi(long long handle, uint32_t *ret, int n);
 
-    void vpiml_set_value64(long long handle, uint64_t value);\
+    void vpiml_set_value64(long long handle, uint64_t value);
     void vpiml_set_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
+
+    void vpiml_force_value64(long long handle, uint64_t value);
+    void vpiml_force_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
+    void vpiml_release_value(long long handle);
 ]]
 
 local chdl = {
@@ -26,6 +30,8 @@ local chdl = {
     set_cached = function (this, value, force_single_beat) assert(false, f("<chdl>:set_cached() is not implemented!, fullpath => %s, bitwidth => %d", this.fullpath, this.width)) end,
     set_bitfield = function (this, s, e, v) assert(false, "<chdl>:set_bitfield() is not implemented!") end,
     set_bitfield_hex_str = function (this, s, e, hex_str) assert(false, "<chdl>:set_bitfield_hex_str() is not implemented!") end,
+    set_force = function (this, value, force_single_beat) assert(false, "<chdl>:set_force() is not implemented!") end,
+    set_release = function (this) assert(false, "<chdl>:set_release() is not implemented!") end,
 }
 
 local chdl_array = {
@@ -105,6 +111,26 @@ local function chdl_init()
     chdl.set_bitfield_hex_str = function (this, s, e, hex_str)
         local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
         C.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+    end
+
+    chdl.set_force = function (this, value, force_single_beat)
+        if force_single_beat then
+            C.vpiml_force_value64(this.hdl, value)
+        else
+            if type(value) ~= "table" then
+                assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set_force(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
+            end
+
+            if #value ~= 2 then
+                assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
+            end
+
+            C.vpiml_force_value_multi_beat_2(this.hdl, value[1], value[2])
+        end
+    end
+
+    chdl.set_release = function (this)
+        C.vpiml_release_value(this.hdl)
     end
 end
 

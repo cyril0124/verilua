@@ -14,16 +14,26 @@ ffi.cdef[[
     uint64_t vpiml_get_value64(long long handle);
 
     void vpiml_set_value64(long long handle, uint64_t value);
-    void vpiml_set_value64_force_single(long long handle, uint64_t value, uint32_t size);
+    void vpiml_set_value64_force_single(long long handle, uint64_t value);
 
-    void vpiml_set_value_multi(long long handle, uint32_t *values, int length);
+    void vpiml_set_value_multi(long long handle, uint32_t *values);
     void vpiml_set_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1); 
     void vpiml_set_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2); 
     void vpiml_set_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
     void vpiml_set_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
     void vpiml_set_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
     void vpiml_set_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
-    void vpiml_set_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);  
+    void vpiml_set_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
+
+    void vpiml_force_value64_force_single(long long handle, uint64_t value);
+    void vpiml_force_value_multi(long long handle, uint32_t *values);
+    void vpiml_force_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
+    void vpiml_force_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2);
+    void vpiml_force_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
+    void vpiml_force_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
+    void vpiml_force_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
+    void vpiml_force_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
+    void vpiml_force_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
 ]]
 
 local chdl = {
@@ -35,6 +45,8 @@ local chdl = {
     set_cached = function (this, value, force_single_beat) assert(false, f("<chdl>:set_cached() is not implemented!, fullpath => %s, bitwidth => %d", this.fullpath, this.width)) end,
     set_bitfield = function (this, s, e, v) assert(false, "<chdl>:set_bitfield() is not implemented!") end,
     set_bitfield_hex_str = function (this, s, e, hex_str) assert(false, "<chdl>:set_bitfield_hex_str() is not implemented!") end,
+    set_force = function (this, value, force_single_beat) assert(false, "<chdl>:set_force() is not implemented!") end,
+    set_release = function (this) assert(false, "<chdl>:set_release() is not implemented!") end,
 }
 
 local chdl_array = {
@@ -77,7 +89,7 @@ local function chdl_init()
             if type(value) == "table" then
                 assert(false)
             end
-            C.vpiml_set_value64_force_single(this.hdl, value, this.beat_num)
+            C.vpiml_set_value64_force_single(this.hdl, value)
         else
             -- value is a table where <lsb ... msb>
             if type(value) ~= "table" then
@@ -106,7 +118,7 @@ local function chdl_init()
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(this.hdl, this.c_results, this.beat_num)
+                C.vpiml_set_value_multi(this.hdl, this.c_results)
             end
         end
     end
@@ -118,7 +130,7 @@ local function chdl_init()
     -- 
     chdl.set_unsafe = function (this, value, force_single_beat)
         if force_single_beat then
-            C.vpiml_set_value64_force_single(this.hdl, value, this.beat_num)
+            C.vpiml_set_value64_force_single(this.hdl, value)
         else
             -- value is a table where <lsb ... msb>
             local beat_num = this.beat_num
@@ -139,7 +151,7 @@ local function chdl_init()
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(this.hdl, this.c_results, this.beat_num)
+                C.vpiml_set_value_multi(this.hdl, this.c_results)
             end
         end
     end
@@ -151,7 +163,7 @@ local function chdl_init()
             end
 
             this.cached_value = value
-            C.vpiml_set_value64_force_single(this.hdl, value, this.beat_num)
+            C.vpiml_set_value64_force_single(this.hdl, value)
         else
             assert(false, f("<chdl>:set_cached() is only supported for single beat value, fullpath => %s, bitwidth => %d", this.fullpath, this.width))
         end
@@ -165,6 +177,45 @@ local function chdl_init()
     chdl.set_bitfield_hex_str = function (this, s, e, hex_str)
         local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
         this:set_unsafe(bv.u32_vec)
+    end
+
+    chdl.set_force = function (this, value, force_single_beat)
+        if force_single_beat then
+            if type(value) == "table" then
+                assert(false)
+            end
+            C.vpiml_force_value64_force_single(this.hdl, value)
+        else
+            -- value is a table where <lsb ... msb>
+            if type(value) ~= "table" then
+                assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set_force(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
+            end
+            
+            local beat_num = this.beat_num
+            if #value ~= beat_num then
+                assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
+            end
+
+            -- TODO: Check performance
+            if beat_num == 3 then
+                C.vpiml_force_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
+            elseif beat_num == 4 then
+                C.vpiml_force_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+            elseif beat_num == 5 then
+                C.vpiml_force_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+            elseif beat_num == 6 then
+                C.vpiml_force_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+            elseif beat_num == 7 then
+                C.vpiml_force_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+            elseif beat_num == 8 then
+                C.vpiml_force_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+            else
+                for i = 1, this.beat_num do
+                    this.c_results[i - 1] = value[i]
+                end
+                C.vpiml_force_value_multi(this.hdl, this.c_results)
+            end
+        end
     end
 end
 
@@ -199,7 +250,7 @@ local function chdl_array_init()
             if type(value) == "table" then
                 assert(false)
             end
-            C.vpiml_set_value64(chosen_hdl, value)
+            C.vpiml_force_value64_force_single(chosen_hdl, value)
         else
             -- value is a table where <lsb ... msb>
             if type(value) ~= "table" then
@@ -227,7 +278,7 @@ local function chdl_array_init()
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                C.vpiml_set_value_multi(chosen_hdl, this.c_results)
             end
         end
     end
@@ -235,7 +286,7 @@ local function chdl_array_init()
     chdl_array.set_index_unsafe = function(this, index, value, force_single_beat)
         local chosen_hdl = this.array_hdls[index + 1]
         if force_single_beat then
-            C.vpiml_set_value64(chosen_hdl, value)
+            C.vpiml_force_value64_force_single(chosen_hdl, value)
         else
             -- value is a table where <lsb ... msb>
             local beat_num = this.beat_num
@@ -256,7 +307,7 @@ local function chdl_array_init()
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(chosen_hdl, this.c_results, this.beat_num)
+                C.vpiml_set_value_multi(chosen_hdl, this.c_results)
             end
         end
     end
