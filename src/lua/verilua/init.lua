@@ -222,7 +222,7 @@ ffi.cdef[[
     long long vpiml_handle_by_name_safe(const char* name);
     void vpiml_set_value_by_name(const char *path, uint32_t value);
     uint64_t vpiml_get_value_by_name(const char *path);
-    void vpiml_force_value_by_name(const char *path, long long value);
+    void vpiml_force_value_by_name(const char *path, uint32_t value);
     void vpiml_release_value_by_name(const char *path);
     int verilator_get_mode(void);
 ]]

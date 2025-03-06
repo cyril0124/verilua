@@ -64,6 +64,11 @@ impl ComplexHandle {
     pub fn into_raw(self) -> ComplexHandleRaw {
         Box::into_raw(Box::new(self)) as ComplexHandleRaw
     }
+
+    #[inline(always)]
+    pub fn get_name(&self) -> String {
+        unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() }
+    }
 }
 
 impl Debug for ComplexHandle {

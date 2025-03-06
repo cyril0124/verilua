@@ -12,6 +12,7 @@ local wavevpi_dir = prj_dir .. "/wave_vpi"
 local iverilog_home = os.getenv("IVERILOG_HOME")
 
 local build_libverilua_wave_vpi_cmd = [[cargo build --release --features "wave_vpi chunk_task debug acc_time"]]
+local build_iverilog_vpi_module_cmd = [[cargo build --release --features "iverilog iverilog_vpi_mod chunk_task merge_cb debug acc_time"]]
 
 local function build_lib_common(simulator)
     set_kind("phony")
@@ -21,6 +22,8 @@ local function build_lib_common(simulator)
             os.vrun([[cargo build --release --features "%s chunk_task debug acc_time"]], simulator)
         elseif simulator == "wave_vpi" then
             os.vrun(build_libverilua_wave_vpi_cmd)
+        elseif simulator == "iverilog" then
+            os.vrun(build_iverilog_vpi_module_cmd)
         else
             os.vrun([[cargo build --release --features "%s chunk_task merge_cb debug acc_time"]], simulator)
         end
@@ -51,6 +54,8 @@ target("build_libverilua")
             os.vrun("xmake build libverilua_iverilog")
         cprint("* Build ${green}libverilua_wave_vpi${reset}")
             os.vrun("xmake build libverilua_wave_vpi")
+        cprint("* Build ${green}iverilog_vpi_module${reset}")
+            os.vrun(build_iverilog_vpi_module_cmd)
         print("---------------------------------------------------------- ")
     end)
 
@@ -153,7 +158,7 @@ if iverilog_home ~= nil then
         set_kind("phony")
         on_build(function (target)
             try { function () os.vrun("cargo clean") end }
-            os.vrun([[cargo build --release --features "iverilog iverilog_vpi_mod chunk_task merge_cb debug acc_time"]])
+            os.vrun(build_iverilog_vpi_module_cmd)
 
             os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
         end)

@@ -30,7 +30,7 @@ ffi.cdef[[
     uint64_t vpiml_get_value_by_name(const char *path);
     const char *vpiml_get_value_str(long long handle, int format);
    
-    void vpiml_force_value_by_name(const char *path, long long value);
+    void vpiml_force_value_by_name(const char *path, uint32_t value);
     void vpiml_release_value_by_name(const char *path);
    
     void vpiml_set_value_by_name(const char *path, uint64_t value);

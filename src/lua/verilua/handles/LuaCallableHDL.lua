@@ -36,7 +36,7 @@ local compare_value_str = utils.compare_value_str
 
 ffi.cdef[[
     long long vpiml_handle_by_name_safe(const char* name);
-    long long vpiml_handle_by_index(const char *parent_name, long long hdl, int index);
+    long long vpiml_handle_by_index(long long hdl, int index);
 
     const char *vpiml_get_hdl_type(long long handle);
     unsigned int vpiml_get_signal_width(long long handle);
@@ -100,7 +100,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.array_hdls = table_new(self.array_size, 0)
         self.array_bitvecs = table_new(self.array_size, 0)
         for i = 1, self.array_size do
-            self.array_hdls[i] = C.vpiml_handle_by_index(self.fullpath, self.hdl, i - 1)
+            self.array_hdls[i] = C.vpiml_handle_by_index(self.hdl, i - 1)
         end
 
         self.hdl = self.array_hdls[1] -- Point to the first hdl

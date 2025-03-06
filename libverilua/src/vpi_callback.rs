@@ -391,7 +391,7 @@ unsafe extern "C" fn time_callback_handler(cb_data: *mut t_cb_data) -> PLI_INT32
 }
 
 macro_rules! gen_vpiml_register_edge_callback {
-    ($($edge_type:ident),*) => {
+    ($(($edge_type:ident, $edge_type_enum:ty)),*) => {
         // Generate the callback function for the edge type:
         //  1. vpiml_register_<edge_type>_callback_hdl
         //  2. vpiml_register_<edge_type>_callback
@@ -426,26 +426,30 @@ macro_rules! gen_vpiml_register_edge_callback {
                         .entry(complex_handle_raw)
                         .or_insert_with(|| Vec::with_capacity(32))
                         .push(CallbackInfo {
-                            edge_type: $edge_type,
+                            edge_type: $edge_type_enum,
                             task_id,
                         });
                 }
 
                 #[unsafe(no_mangle)]
-                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_hdl>](complex_handle: ComplexHandleRaw, task_id: TaskID) {
-                    unsafe { [<vpiml_register_ $edge_type _callback_common>](complex_handle, task_id) };
+                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_hdl>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
+                    unsafe { [<vpiml_register_ $edge_type _callback_common>](complex_handle_raw, task_id) };
                 }
 
                 #[unsafe(no_mangle)]
                 pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback>](path: *mut c_char, task_id: TaskID) {
-                    let complex_handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-                    unsafe { [<vpiml_register_ $edge_type _callback_common>](complex_handle, task_id) };
+                    let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
+                    unsafe { [<vpiml_register_ $edge_type _callback_common>](complex_handle_raw, task_id) };
                 }
             }
         )*
     };
 }
-gen_vpiml_register_edge_callback!(posedge, negedge, edge);
+gen_vpiml_register_edge_callback!(
+    (posedge, EdgeType::Posedge),
+    (negedge, EdgeType::Negedge),
+    (edge, EdgeType::Edge)
+);
 
 #[inline(always)]
 unsafe fn do_register_edge_callback_always(
@@ -524,16 +528,16 @@ macro_rules! gen_vpiml_register_edge_callback_always {
         $(
             paste::paste! {
                 #[unsafe(no_mangle)]
-            pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_hdl_always>](complex_handle: ComplexHandleRaw, task_id: TaskID) {
-                let env = get_verilua_env();
-                unsafe { do_register_edge_callback_always(&complex_handle, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
-            }
+                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_hdl_always>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
+                    let env = get_verilua_env();
+                    unsafe { do_register_edge_callback_always(&complex_handle_raw, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
+                }
 
-            #[unsafe(no_mangle)]
-            pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_always>](path: *mut c_char, task_id: TaskID) {
-                let complex_handle = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
-                let env = get_verilua_env();
-                    unsafe { do_register_edge_callback_always(&complex_handle, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
+                #[unsafe(no_mangle)]
+                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_always>](path: *mut c_char, task_id: TaskID) {
+                    let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
+                    let env = get_verilua_env();
+                    unsafe { do_register_edge_callback_always(&complex_handle_raw, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
                 }
             }
         )*
