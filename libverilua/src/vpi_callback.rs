@@ -5,7 +5,9 @@
 use std::cell::Cell;
 
 use crate::{
-    verilua_env::{ComplexHandle, ComplexHandleRaw, EdgeCallbackID, TaskID, get_verilua_env},
+    verilua_env::{
+        ComplexHandle, ComplexHandleRaw, EdgeCallbackID, TaskID, VeriluaEnv, get_verilua_env,
+    },
     vpi_access::complex_handle_by_name,
 };
 
@@ -91,7 +93,7 @@ unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 pub unsafe extern "C" fn vpiml_register_final_callback() {
     log::debug!("vpiml_register_final_callback");
 
-    let env = get_verilua_env();
+    let env: &mut verilua_env::VeriluaEnv = get_verilua_env();
     if env.has_final_cb {
         return;
     } else {
@@ -103,7 +105,7 @@ pub unsafe extern "C" fn vpiml_register_final_callback() {
         cb_rtn: Some(final_callback),
         time: std::ptr::null_mut(),
         obj: std::ptr::null_mut(),
-        user_data: std::ptr::null_mut(),
+        user_data: env as *mut _ as *mut i8,
         value: std::ptr::null_mut(),
         index: 0,
     };
@@ -114,8 +116,7 @@ pub unsafe extern "C" fn vpiml_register_final_callback() {
 
 unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     log::debug!("final_callback");
-
-    let env = get_verilua_env();
+    let env = unsafe { &mut *((*_cb_data).user_data as *mut VeriluaEnv) };
     env.finalize();
     0
 }
