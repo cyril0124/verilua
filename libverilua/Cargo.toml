@@ -1,5 +1,5 @@
 [package]
-name = "verilua_rust"
+name = "libverilua"
 version = "0.1.0"
 edition = "2024"
 build = "build.rs"
