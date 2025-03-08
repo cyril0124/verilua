@@ -471,10 +471,12 @@ rule("verilua")
                 table.insert(argv, "-I" .. path.absolute(dir))
             end
 
-            local linkdirs = target:get("linkdirs")
+            local linkdirs, rpathdirs = target:get("linkdirs"), target:get("rpathdirs")
             for _, dir in ipairs(linkdirs) do
-                table.insert(argv, "-LDFLAGS")
-                table.insert(argv, "-L" .. path.absolute(dir))
+                table.insert(argv, "-LDFLAGS \"-L" .. path.absolute(dir) .. "\"")
+            end
+            for _, dir in ipairs(rpathdirs) do
+                table.insert(argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(dir) .. "\"")
             end
 
             local links = target:get("links")
@@ -496,10 +498,12 @@ rule("verilua")
                 table.insert(argv, "-I" .. path.absolute(dir))
             end
 
-            local linkdirs = target:get("linkdirs")
+            local linkdirs, rpathdirs = target:get("linkdirs"), target:get("rpathdirs")
             for _, dir in ipairs(linkdirs) do
-                table.insert(argv, "-LDFLAGS")
-                table.insert(argv, "-L" .. path.absolute(dir))
+                table.insert(argv, "-LDFLAGS \"-L" .. path.absolute(dir) .. "\"")
+            end
+            for _, dir in ipairs(rpathdirs) do
+                table.insert(argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(dir) .. "\"")
             end
 
             local links = target:get("links")
