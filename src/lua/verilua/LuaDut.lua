@@ -547,6 +547,22 @@ local function create_proxy(path, use_prefix)
         with_prefix = function(t, prefix_str)
             return create_proxy(local_path .. '.' .. prefix_str, true)
         end,
+
+        -- 
+        -- Create a `Bundle` with the signals which meet the certain conditions
+        --  
+        -- Example:
+        --      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_", endswith = "_value" }
+        --      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_" }
+        --      local bdl = dut.path.to.mod:auto_bundle { endswith = "_value" }
+        --      local bdl = dut.path.to.mod:auto_bundle { matches = "^io_" }
+        --      local bdl = dut.path.to.mod:auto_bundle { filter = function (name, width)
+        --          return width == 32 and name:endswith("_value")
+        --      end }
+        -- 
+        auto_bundle = function(t, params)
+            return require("SignalDB"):auto_bundle(local_path, params)
+        end
     }, {
         __index = function(t, k)
             if not use_prefix then

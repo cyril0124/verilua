@@ -879,6 +879,22 @@ do
         return AliasBundle(alias_tbl, prefix, hier, name, optional_signals)
     end
 
+    -- 
+    -- Create a `Bundle` with the signals which meet the certain conditions
+    --  
+    -- Example:
+    --      local bdl = ("tb_top.path.to.mod"):auto_bundle { startswith = "io_in_", endswith = "_value" }
+    --      local bdl = ("tb_top.path.to.mod"):auto_bundle { startswith = "io_in_" }
+    --      local bdl = ("tb_top.path.to.mod"):auto_bundle { endswith = "_value" }
+    --      local bdl = ("tb_top.path.to.mod"):auto_bundle { matches = "^io_" }
+    --      local bdl = ("tb_top.path.to.mod"):auto_bundle { filter = function (name, width)
+    --          return width == 32 and name:endswith("_value")
+    --      end }
+    -- 
+    getmetatable('').__index.auto_bundle = function (str, params_table)
+        return require("SignalDB"):auto_bundle(str, params_table)
+    end
+
 
 ----------------------------------------------------------------------
 -- Functional coverage related string extension

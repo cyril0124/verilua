@@ -1,5 +1,4 @@
 #include "fmt/base.h"
-#include "fmt/color.h"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
@@ -11,15 +10,12 @@
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
 #include "sol/sol.hpp"
+#include <chrono>
 #include <cstddef>
-#include <cstdio>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
 
 using namespace slang;
@@ -33,9 +29,9 @@ std::vector<std::string> splitString(std::string_view input, char delimiter) {
     size_t tokenCount = std::count(input.begin(), input.end(), delimiter) + 1;
     tokens.reserve(tokenCount);
 
-    const char* ptr = input.data();
-    const char* endPtr = ptr + input.size();
-    const char* tokenStart = ptr;
+    const char *ptr        = input.data();
+    const char *endPtr     = ptr + input.size();
+    const char *tokenStart = ptr;
 
     while (ptr < endPtr) {
         if (*ptr == delimiter) {
@@ -50,92 +46,137 @@ std::vector<std::string> splitString(std::string_view input, char delimiter) {
 }
 
 class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
-public:
-    std::vector<std::vector<std::string>> hierPathVec;
+  public:
+    std::vector<std::string> hierPathVec;
+    std::vector<size_t> bitWidthVec;
+    std::vector<std::string> typeStrVec;
 
-    SignalGetter() {}
+    SignalGetter(bool ignoreTrivialSignals = true, bool ignoreUnderscoreSignals = true, bool verbose = false) : ignoreTrivialSignals(ignoreTrivialSignals), ignoreUnderscoreSignals(ignoreUnderscoreSignals), verbose(verbose) {}
 
-    void handle(const NetSymbol &ast) {
-        std::string hierPath;
-        ast.getHierarchicalPath(hierPath);
-        processHierPath(hierPath);
-        // visitDefault(ast);
+    void handle(const InstanceBodySymbol &ast) {
+        auto varIter = ast.membersOfType<VariableSymbol>();
+        for (const auto &var : varIter) {
+            std::string hierPath;
+            var.getHierarchicalPath(hierPath);
+
+            auto bitWidth = var.getType().getBitWidth();
+            auto typeStr  = var.getType().toString();
+
+            collectSignalInfo(hierPath, bitWidth, typeStr);
+
+            if (verbose) {
+                fmt::println("[InstanceBodySymbol] [VAR] {} bitwidth: {} type: {}", hierPath, bitWidth, typeStr);
+            }
+        }
+
+        auto netIter = ast.membersOfType<NetSymbol>();
+        for (const auto &net : netIter) {
+            std::string hierPath;
+            net.getHierarchicalPath(hierPath);
+
+            auto bitWidth = net.getType().getBitWidth();
+            auto dataType = net.netType.getDataType().toString();
+            auto typeStr  = net.getType().toString();
+
+            collectSignalInfo(hierPath, bitWidth, typeStr);
+
+            if (verbose) {
+                fmt::println("[InstanceBodySymbol] [NET] {} bitwidth: {} dataType: {} type: {}", hierPath, bitWidth, dataType, typeStr);
+            }
+        }
+
+        visitDefault(ast);
     }
 
-    void handle(const VariableSymbol &ast) {
-        std::string hierPath;
-        ast.getHierarchicalPath(hierPath);
-        processHierPath(hierPath);
-        // visitDefault(ast);
-    }
-private:
-    void processHierPath(std::string_view hierPath) {
-        std::vector<std::string> result = splitString(hierPath, '.');
-        if(checkValid(result.back())) {
-            hierPathVec.emplace_back(result);
+  private:
+    bool verbose                 = false;
+    bool ignoreTrivialSignals    = true;
+    bool ignoreUnderscoreSignals = true;
+
+    inline void collectSignalInfo(std::string_view hierPath, size_t bitWidth, std::string typeStr) {
+        if (hierPath.starts_with(".")) {
+            // TODO: Handle this case
+            return;
+        }
+
+        std::string_view signalName = getSignalName(hierPath);
+        if (checkValid(signalName, typeStr)) {
+            if (verbose) {
+                fmt::println("==> {} {}", hierPath, signalName);
+                std::vector<std::string> result = splitString(hierPath, '.');
+                for (auto const &r : result) {
+                    fmt::println("\t {} {}", r, typeStr);
+                }
+            }
+
+            hierPathVec.emplace_back(hierPath);
+            bitWidthVec.emplace_back(bitWidth);
+            typeStrVec.emplace_back(typeStr);
         }
     }
 
-    bool checkValid(std::string_view signalName) {
+    inline std::string_view getSignalName(std::string_view hierPath) {
+        size_t lastDotPos = hierPath.rfind('.');
+        if (lastDotPos != std::string::npos) {
+            return hierPath.substr(lastDotPos + 1);
+        }
+        UNREACHABLE("signal name not found in hierPath: {}", hierPath);
+    }
+
+    inline bool checkValid(std::string_view signalName, std::string_view typeStr) {
         // Ignore some special signals which are automatically generated by Chisel
-        if(signalName.starts_with("_GEN_") || signalName.starts_with("_T_") || signalName.find("_WIRE_") != std::string::npos) {
-            return false;
+        if (ignoreTrivialSignals) {
+            if (signalName.starts_with("_GEN_") || signalName.starts_with("_T_") || signalName.find("_WIRE_") != std::string::npos) {
+                return false;
+            }
         }
+
+        if (ignoreUnderscoreSignals) {
+            if (signalName.starts_with("_")) {
+                return false;
+            }
+        }
+
+        static constexpr std::string_view invalidTypePrefixes[] = {"void", "string", "integer", "int", "struct", "cg"};
+        for (const auto &prefix : invalidTypePrefixes) {
+            if (typeStr.starts_with(prefix)) {
+                return false;
+            }
+        }
+
         return true;
     }
 };
 
 class WrappedDriver {
-public:
+  public:
     sol::state lua;
     slang::driver::Driver driver;
     std::optional<bool> showHelp;
+    std::optional<bool> quiet;
+    std::optional<bool> ignoreTrivialSignals;
+    std::optional<bool> ignoreUnderscoreSignals;
+    std::optional<bool> verbose;
     std::optional<std::string> outfile;
     std::optional<std::string> signalDBFile;
 
     WrappedDriver() {
+        start = std::chrono::high_resolution_clock::now();
+
+        std::string veriluaHome = std::getenv("VERILUA_HOME");
+        ASSERT(veriluaHome.size() > 0, "VERILUA_HOME is not set");
+
         lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::string, sol::lib::table, sol::lib::io, sol::lib::os);
-        lua.script(R"(
-            _G.package.path = package.path .. ";" .. os.getenv("VERILUA_HOME") .. "/src/lua/thirdparty_lib/?.lua"
-            _G.sb = require "string.buffer"
-            _G.inspect = require "inspect"
-            _G.signal_db_table = {}
-
-            function print_signal_db(signal_db_file)
-                local file = io.open(signal_db_file, "r")
-                local signal_db_data = {}
-                if file then
-                    local data = file:read("*a")
-                    file:close()
-                    signal_db_data = sb.decode(data)
-                else
-                    error("[signal_db_gen] [decode] Failed to open 'signala_db.ldb'")
-                end
-
-                print(inspect(signal_db_data))
-            end
-
-            function insert_signal_db(hier_path_vec)
-                local curr = signal_db_table
-                local end_idx = #hier_path_vec
-
-                for i, v in ipairs(hier_path_vec) do
-                    if i == end_idx then
-                        table.insert(curr, v)
-                    else
-                        if not curr[v] then
-                            curr[v] = {}
-                        end
-                        curr = curr[v]
-                    end
-                end
-            end
-        )");
+        lua.safe_script_file(veriluaHome + "/src/signal_db_gen/signal_db_gen.lua");
 
         driver.addStandardArgs();
         driver.cmdLine.add("-h,--help", showHelp, "Display available options");
         driver.cmdLine.add("-o,--out", outfile, "Output file name", "<file>");
         driver.cmdLine.add("-s,--signal-db", signalDBFile, "Input signalDB file", "<file>");
+        driver.cmdLine.add("-q,--quiet", quiet, "Quiet mode");
+        driver.cmdLine.add("--it,--ignore-trivial-signals", ignoreTrivialSignals, "Ignore trivial signals");
+        driver.cmdLine.add("--iu,--ignore-underscore-signals", ignoreUnderscoreSignals, "Ignore underscore signals");
+        driver.cmdLine.add("--vb,--verbose", verbose, "Verbose mode");
     }
 
     int parseCmdLine(int argc, char **argv) {
@@ -146,7 +187,7 @@ public:
             return 0;
         }
 
-        return this->_parseCmdLine();
+        return this->doParseCmdLine();
     }
 
     int parseCmdLine(std::string_view argList) {
@@ -157,54 +198,42 @@ public:
             return 0;
         }
 
-        return this->_parseCmdLine();
-    }
-
-    std::unique_ptr<slang::ast::Compilation> getCompilelation() {
-        ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
-        auto compilation    = driver.createCompilation();
-        bool compileSuccess = driver.reportCompilation(*compilation, false);
-        ASSERT(compileSuccess);
-
-        return compilation;
+        return this->doParseCmdLine();
     }
 
     void generateSignalDB() {
         ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
 
-        SignalGetter getter;
+        SignalGetter getter(ignoreTrivialSignals.value_or(false), ignoreUnderscoreSignals.value_or(false), verbose.value_or(false));
         this->getCompilelation()->getRoot().visit(getter);
-        for (auto const &hierPath : getter.hierPathVec) {
-            auto ret = lua["insert_signal_db"](hierPath);
-            if(!ret.valid()) {
-                sol::error  err = ret;
-                PANIC("Failed to call lua function `insert_signal_db", err.what());
-            }
+
+        auto ret = lua["insert_signal_db"](getter.hierPathVec.size(), getter.hierPathVec, getter.bitWidthVec, getter.typeStrVec);
+        if (!ret.valid()) {
+            sol::error err = ret;
+            PANIC("[signal_db_gen] Failed to call lua function `insert_signal_db", err.what());
         }
 
-        std::string outFile = outfile.value_or("signal_db.ldb");
+        auto ret2 = lua["encode_signal_db"](outfile.value_or("signal_db.ldb"));
+        if (!ret2.valid()) {
+            sol::error err = ret2;
+            PANIC("[signal_db_gen] Failed to call lua function `encode_signal_db", err.what());
+        }
 
-        lua.script(fmt::format(R"(
-            local encoded_table = sb.encode(signal_db_table)
-            local file = io.open("{}", "w")
-            if file then
-                file:write(encoded_table)
-                file:close()
-            else
-                error("[encode] Failed to open '{}'")
-            end
-        )", outFile, outFile));
+        auto end      = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        fmt::println("[signal_db_gen] Time taken: {} ms", duration.count());
     }
 
-private:
+  private:
     bool alreadyParsed = false;
+    std::chrono::high_resolution_clock::time_point start;
 
-    int _parseCmdLine() {
-        if(signalDBFile.has_value()) {
+    int doParseCmdLine() {
+        if (signalDBFile.has_value()) {
             // Read signal db file and print it
             auto ret = lua["print_signal_db"](signalDBFile.value());
-            if(!ret.valid()) {
-                sol::error  err = ret;
+            if (!ret.valid()) {
+                sol::error err = ret;
                 PANIC("Failed to call lua function `print_signal_db", err.what());
             }
             return 0;
@@ -224,8 +253,10 @@ private:
             fileCount++;
             auto fullpathName = driver.sourceManager.getFullPath(buffer.id);
 
-            fmt::println("[signal_db_gen] [{}] get file: {}", fileCount, fullpathName.string());
-            fflush(stdout);
+            if (!quiet.has_value() || !quiet.value()) {
+                fmt::println("[signal_db_gen] [{}] get file: {}", fileCount, fullpathName.string());
+                fflush(stdout);
+            }
         }
 
         ASSERT(driver.processOptions());
@@ -234,28 +265,34 @@ private:
         ASSERT(driver.parseAllSources());
         ASSERT(driver.reportParseDiags());
         ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
-        
+
         alreadyParsed = true;
 
         return 1;
+    }
+
+    std::unique_ptr<slang::ast::Compilation> getCompilelation() {
+        ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
+        auto compilation    = driver.createCompilation();
+        bool compileSuccess = driver.reportCompilation(*compilation, false);
+        ASSERT(compileSuccess);
+
+        return compilation;
     }
 };
 
 #ifdef SO_LIB
 extern "C" void signal_db_gen_main(const char *argList) {
+    WrappedDriver driver;
+    int ret = driver.parseCmdLine(std::string_view(argList));
 #else
 int main(int argc, char **argv) {
     OS::setupConsole();
-#endif
-
     WrappedDriver driver;
-#ifdef SO_LIB
-    int ret = driver.parseCmdLine(std::string_view(argList));
-#else
     int ret = driver.parseCmdLine(argc, argv);
 #endif
 
-    if(ret == 1) {
+    if (ret == 1) {
         driver.generateSignalDB();
     }
 

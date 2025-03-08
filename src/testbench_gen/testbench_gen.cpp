@@ -97,23 +97,13 @@ int main(int argc, const char *argv[]) {
     bool nodpi                      = _checkOutput.value_or(true);
 
     size_t fileCount = 0;
-    std::ofstream slangOptFile(outdir + "/slang.opt");
-    ASSERT(slangOptFile.is_open(), "Failed to open slang.opt file");
     for (auto buffer : driver.sourceLoader.loadSources()) {
         fileCount++;
 
         auto fullpath = driver.sourceManager.getFullPath(buffer.id).string();
         fmt::println("[testbench_gen] [{}] get file: {}", fileCount, fullpath);
         fflush(stdout);
-
-        slangOptFile << fullpath << "\n"; // TODO: save other options
     }
-    slangOptFile << outdir + "/" + tbtopName + ".sv"
-                 << "\n";
-    slangOptFile << outdir + "/" + "others.sv"
-                 << "\n";
-    slangOptFile << "--top " << tbtopName << "\n";
-    slangOptFile.close();
 
     ASSERT(driver.parseAllSources());
     ASSERT(driver.reportParseDiags());
