@@ -1,40 +1,10 @@
-local ffi = require "ffi"
+local vpiml = require "vpiml"
 local BitVec = require "BitVec"
 local table_new = require "table.new"
 
-local C = ffi.C
 local type = type
 local assert = assert
 local f = string.format
-local ffi_new = ffi.new
-local ffi_string = ffi.string
-
-ffi.cdef[[
-    void vpiml_get_value_multi(long long handle, uint32_t *ret, int n);
-    uint64_t vpiml_get_value64(long long handle);
-
-    void vpiml_set_value64(long long handle, uint64_t value);
-    void vpiml_set_value64_force_single(long long handle, uint64_t value);
-
-    void vpiml_set_value_multi(long long handle, uint32_t *values);
-    void vpiml_set_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1); 
-    void vpiml_set_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2); 
-    void vpiml_set_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
-    void vpiml_set_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
-    void vpiml_set_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
-    void vpiml_set_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
-    void vpiml_set_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
-
-    void vpiml_force_value64_force_single(long long handle, uint64_t value);
-    void vpiml_force_value_multi(long long handle, uint32_t *values);
-    void vpiml_force_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
-    void vpiml_force_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2);
-    void vpiml_force_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
-    void vpiml_force_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
-    void vpiml_force_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
-    void vpiml_force_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
-    void vpiml_force_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
-]]
 
 local chdl = {
     get = function (this) assert(false, "<chdl>:get() is not implemented!") end,
@@ -64,16 +34,16 @@ local chdl_array = {
 
 local function chdl_init()
     chdl.get = function (this)
-        C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
+        vpiml.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
         return this.c_results
     end
 
     chdl.get64 = function (this)
-        return C.vpiml_get_value64(this.hdl)
+        return vpiml.vpiml_get_value64(this.hdl)
     end
 
     chdl.get_bitvec = function (this)
-        C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
+        vpiml.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
 
         if this.bitvec then
             this.bitvec:_update_u32_vec(this.c_results)
@@ -89,7 +59,7 @@ local function chdl_init()
             if type(value) == "table" then
                 assert(false)
             end
-            C.vpiml_set_value64_force_single(this.hdl, value)
+            vpiml.vpiml_set_value64_force_single(this.hdl, value)
         else
             -- value is a table where <lsb ... msb>
             if type(value) ~= "table" then
@@ -103,22 +73,22 @@ local function chdl_init()
 
             -- TODO: Check performance
             if beat_num == 3 then
-                C.vpiml_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
+                vpiml.vpiml_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
             elseif beat_num == 4 then
-                C.vpiml_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+                vpiml.vpiml_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
             elseif beat_num == 5 then
-                C.vpiml_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+                vpiml.vpiml_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
             elseif beat_num == 6 then
-                C.vpiml_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                vpiml.vpiml_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
             elseif beat_num == 7 then
-                C.vpiml_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                vpiml.vpiml_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
             elseif beat_num == 8 then
-                C.vpiml_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                vpiml.vpiml_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
             else
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(this.hdl, this.c_results)
+                vpiml.vpiml_set_value_multi(this.hdl, this.c_results)
             end
         end
     end
@@ -130,28 +100,28 @@ local function chdl_init()
     -- 
     chdl.set_unsafe = function (this, value, force_single_beat)
         if force_single_beat then
-            C.vpiml_set_value64_force_single(this.hdl, value)
+            vpiml.vpiml_set_value64_force_single(this.hdl, value)
         else
             -- value is a table where <lsb ... msb>
             local beat_num = this.beat_num
 
             if beat_num == 3 then
-                C.vpiml_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
+                vpiml.vpiml_set_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
             elseif beat_num == 4 then
-                C.vpiml_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+                vpiml.vpiml_set_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
             elseif beat_num == 5 then
-                C.vpiml_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+                vpiml.vpiml_set_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
             elseif beat_num == 6 then
-                C.vpiml_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                vpiml.vpiml_set_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
             elseif beat_num == 7 then
-                C.vpiml_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                vpiml.vpiml_set_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
             elseif beat_num == 8 then
-                C.vpiml_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                vpiml.vpiml_set_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
             else
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(this.hdl, this.c_results)
+                vpiml.vpiml_set_value_multi(this.hdl, this.c_results)
             end
         end
     end
@@ -163,7 +133,7 @@ local function chdl_init()
             end
 
             this.cached_value = value
-            C.vpiml_set_value64_force_single(this.hdl, value)
+            vpiml.vpiml_set_value64_force_single(this.hdl, value)
         else
             assert(false, f("<chdl>:set_cached() is only supported for single beat value, fullpath => %s, bitwidth => %d", this.fullpath, this.width))
         end
@@ -184,7 +154,7 @@ local function chdl_init()
             if type(value) == "table" then
                 assert(false)
             end
-            C.vpiml_force_value64_force_single(this.hdl, value)
+            vpiml.vpiml_force_value64_force_single(this.hdl, value)
         else
             -- value is a table where <lsb ... msb>
             if type(value) ~= "table" then
@@ -198,22 +168,22 @@ local function chdl_init()
 
             -- TODO: Check performance
             if beat_num == 3 then
-                C.vpiml_force_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
+                vpiml.vpiml_force_value_multi_beat_3(this.hdl, value[1], value[2], value[3]);
             elseif beat_num == 4 then
-                C.vpiml_force_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
+                vpiml.vpiml_force_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
             elseif beat_num == 5 then
-                C.vpiml_force_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
+                vpiml.vpiml_force_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
             elseif beat_num == 6 then
-                C.vpiml_force_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                vpiml.vpiml_force_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
             elseif beat_num == 7 then
-                C.vpiml_force_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                vpiml.vpiml_force_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
             elseif beat_num == 8 then
-                C.vpiml_force_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                vpiml.vpiml_force_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
             else
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_force_value_multi(this.hdl, this.c_results)
+                vpiml.vpiml_force_value_multi(this.hdl, this.c_results)
             end
         end
     end
@@ -227,13 +197,13 @@ local function chdl_array_init()
 
     chdl_array.get_index = function (this, index)
         local chosen_hdl = this.array_hdls[index + 1]
-        C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+        vpiml.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
         return this.c_results
     end
 
     chdl_array.get_index_bitvec = function (this, index)
         local chosen_hdl = this.array_hdls[index + 1]
-        C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+        vpiml.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
 
         if this.array_bitvecs[index + 1] then
             this.array_bitvecs[index + 1]:_update_u32_vec(this.c_results)
@@ -250,7 +220,7 @@ local function chdl_array_init()
             if type(value) == "table" then
                 assert(false)
             end
-            C.vpiml_force_value64_force_single(chosen_hdl, value)
+            vpiml.vpiml_force_value64_force_single(chosen_hdl, value)
         else
             -- value is a table where <lsb ... msb>
             if type(value) ~= "table" then
@@ -263,22 +233,22 @@ local function chdl_array_init()
             end
 
             if beat_num == 3 then     -- 32 * 3 = 96 bits
-                C.vpiml_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
+                vpiml.vpiml_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
             elseif beat_num == 4 then -- 32 * 4 = 128 bits
-                C.vpiml_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
+                vpiml.vpiml_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
             elseif beat_num == 5 then -- 32 * 5 = 160 bits
-                C.vpiml_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
+                vpiml.vpiml_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
             elseif beat_num == 6 then -- 32 * 6 = 192 bits
-                C.vpiml_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                vpiml.vpiml_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
             elseif beat_num == 7 then -- 32 * 7 = 224 bits
-                C.vpiml_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                vpiml.vpiml_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
             elseif beat_num == 8 then -- 32 * 8 = 256 bits
-                C.vpiml_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                vpiml.vpiml_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
             else
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(chosen_hdl, this.c_results)
+                vpiml.vpiml_set_value_multi(chosen_hdl, this.c_results)
             end
         end
     end
@@ -286,28 +256,28 @@ local function chdl_array_init()
     chdl_array.set_index_unsafe = function(this, index, value, force_single_beat)
         local chosen_hdl = this.array_hdls[index + 1]
         if force_single_beat then
-            C.vpiml_force_value64_force_single(chosen_hdl, value)
+            vpiml.vpiml_force_value64_force_single(chosen_hdl, value)
         else
             -- value is a table where <lsb ... msb>
             local beat_num = this.beat_num
 
             if beat_num == 3 then     -- 32 * 3 = 96 bits
-                C.vpiml_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
+                vpiml.vpiml_set_value_multi_beat_3(chosen_hdl, value[1], value[2], value[3])
             elseif beat_num == 4 then -- 32 * 4 = 128 bits
-                C.vpiml_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
+                vpiml.vpiml_set_value_multi_beat_4(chosen_hdl, value[1], value[2], value[3], value[4])
             elseif beat_num == 5 then -- 32 * 5 = 160 bits
-                C.vpiml_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
+                vpiml.vpiml_set_value_multi_beat_5(chosen_hdl, value[1], value[2], value[3], value[4], value[5])
             elseif beat_num == 6 then -- 32 * 6 = 192 bits
-                C.vpiml_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
+                vpiml.vpiml_set_value_multi_beat_6(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6])
             elseif beat_num == 7 then -- 32 * 7 = 224 bits
-                C.vpiml_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
+                vpiml.vpiml_set_value_multi_beat_7(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
             elseif beat_num == 8 then -- 32 * 8 = 256 bits
-                C.vpiml_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                vpiml.vpiml_set_value_multi_beat_8(chosen_hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
             else
                 for i = 1, this.beat_num do
                     this.c_results[i - 1] = value[i]
                 end
-                C.vpiml_set_value_multi(chosen_hdl, this.c_results)
+                vpiml.vpiml_set_value_multi(chosen_hdl, this.c_results)
             end
         end
     end

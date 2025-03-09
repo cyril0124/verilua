@@ -20,14 +20,13 @@ local pairs = _tl_compat and _tl_compat.pairs or pairs
 local string = _tl_compat and _tl_compat.string or string
 local table = _tl_compat and _tl_compat.table or table
 
-local ffi = require("ffi")
 local math = require("math")
 local debug = require("debug")
+local vpiml = require("vpiml")
 local class = require("pl.class")
 local coroutine = require("coroutine")
 local table_clear = require("table.clear")
 
-local C = ffi.C
 local f = string.format
 local random = math.random
 local table_insert = table.insert
@@ -49,18 +48,6 @@ local PosedgeAlwaysHDL = 6
 local Event = 12
 local NOOP = 44
 local EarlyExit = 11
-
-ffi.cdef([[
-    void vpiml_register_time_callback(uint64_t time, int id);
-    void vpiml_register_posedge_callback(const char *path, int id);
-    void vpiml_register_posedge_callback_hdl(long long handle, int id);
-    void vpiml_register_negedge_callback(const char *path, int id);
-    void vpiml_register_negedge_callback_hdl(long long handle, int id);
-    void vpiml_register_edge_callback(const char *path, int id);
-    void vpiml_register_edge_callback_hdl(long long handle, int id);
-    void vpiml_register_posedge_callback_hdl_always(long long handle, int id);
-    void vpiml_register_negedge_callback_hdl_always(long long handle, int id);
-]])
 
 local Scheduler = class()
 
@@ -126,17 +113,17 @@ end
 
 function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
 	if cb_type == PosedgeHDL then
-		C.vpiml_register_posedge_callback_hdl(integer_value, id)
+		vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
 	elseif cb_type == Posedge then
-		C.vpiml_register_posedge_callback(str_value, id)
+		vpiml.vpiml_register_posedge_callback(str_value, id)
 	elseif cb_type == PosedgeAlwaysHDL then
-		C.vpiml_register_posedge_callback_hdl_always(integer_value, id)
+		vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
 	elseif cb_type == NegedgeHDL then
-		C.vpiml_register_negedge_callback_hdl(integer_value, id)
+		vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
 	elseif cb_type == Negedge then
-		C.vpiml_register_negedge_callback(str_value, id)
+		vpiml.vpiml_register_negedge_callback(str_value, id)
 	elseif cb_type == Timer then
-		C.vpiml_register_time_callback(integer_value, id)
+		vpiml.vpiml_register_time_callback(integer_value, id)
 	elseif cb_type == Event then
 		if self.event_name_map[integer_value] == nil then
 			assert(false, "Unknown event => " .. integer_value)

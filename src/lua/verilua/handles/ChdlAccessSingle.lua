@@ -1,20 +1,9 @@
-local ffi = require "ffi"
+local vpiml = require "vpiml"
 local BitVec = require "BitVec"
 local table_new = require "table.new"
 
-local C = ffi.C
 local assert = assert
 local f = string.format
-local ffi_new = ffi.new
-local ffi_string = ffi.string
-
-ffi.cdef[[
-    void vpiml_set_value(long long handle, uint32_t value);
-    uint32_t vpiml_get_value(long long handle);
-
-    void vpiml_force_value(long long handle, uint32_t value);
-    void vpiml_release_value(long long handle);
-]]
 
 local chdl = {
     get = function (this) assert(false, "<chdl>:get() is not implemented!") end,
@@ -44,23 +33,23 @@ local chdl_array = {
 
 local function chdl_init(this)
     chdl.get = function (this)
-        return C.vpiml_get_value(this.hdl)
+        return vpiml.vpiml_get_value(this.hdl)
     end
 
     chdl.get64 = chdl.get
 
     chdl.get_bitvec = function (this)
         if this.bitvec then
-            this.bitvec:_update_u32_vec(C.vpiml_get_value(this.hdl))
+            this.bitvec:_update_u32_vec(vpiml.vpiml_get_value(this.hdl))
             return this.bitvec
         else
-            this.bitvec = BitVec(C.vpiml_get_value(this.hdl), this.width)
+            this.bitvec = BitVec(vpiml.vpiml_get_value(this.hdl), this.width)
             return this.bitvec
         end
     end
 
     chdl.set = function (this, value)
-        C.vpiml_set_value(this.hdl, value)
+        vpiml.vpiml_set_value(this.hdl, value)
     end
 
     chdl.set_unsafe = chdl.set
@@ -71,23 +60,23 @@ local function chdl_init(this)
         end
 
         this.cached_value = value
-        C.vpiml_set_value(this.hdl, value)
+        vpiml.vpiml_set_value(this.hdl, value)
     end
 
     chdl.set_bitfield = function (this, s, e, v)
-        C.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
+        vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
     end
 
     chdl.set_bitfield_hex_str = function (this, s, e, hex_str)
-        C.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+        vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
     end
 
     chdl.set_force = function (this, value)
-        C.vpiml_force_value(this.hdl, value)
+        vpiml.vpiml_force_value(this.hdl, value)
     end
 
     chdl.set_release = function (this)
-        C.vpiml_release_value(this.hdl)
+        vpiml.vpiml_release_value(this.hdl)
     end
 end
 
@@ -102,12 +91,12 @@ local function chdl_array_init()
     -- 
     chdl_array.get_index = function (this, index)
         local chosen_hdl = this.array_hdls[index + 1]
-        return C.vpiml_get_value(chosen_hdl)
+        return vpiml.vpiml_get_value(chosen_hdl)
     end
 
     chdl_array.set_index = function(this, index, value)
         local chosen_hdl = this.array_hdls[index + 1]
-        C.vpiml_set_value(chosen_hdl, value)
+        vpiml.vpiml_set_value(chosen_hdl, value)
     end
 
     chdl_array.set_index_unsafe = chdl_array.set_index
@@ -123,22 +112,22 @@ local function chdl_array_init()
     chdl_array.get_index_bitvec = function (this, index)
         local chosen_hdl = this.array_hdls[index + 1]
         if this.array_bitvecs[index + 1] then
-            this.array_bitvecs[index + 1]:_update_u32_vec(C.vpiml_get_value(chosen_hdl))
+            this.array_bitvecs[index + 1]:_update_u32_vec(vpiml.vpiml_get_value(chosen_hdl))
             return this.array_bitvecs[index + 1]
         else
-            this.array_bitvecs[index + 1] = BitVec(C.vpiml_get_value(chosen_hdl), this.width)
+            this.array_bitvecs[index + 1] = BitVec(vpiml.vpiml_get_value(chosen_hdl), this.width)
             return this.array_bitvecs[index + 1]
         end
     end
 
     chdl_array.set_index_bitfield = function (this, index, s, e, v)
         local chosen_hdl = this.array_hdls[index + 1]
-        C.vpiml_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
+        vpiml.vpiml_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
     end
 
     chdl_array.set_index_bitfield_hex_str = function (this, index, s, e, hex_str)
         local chosen_hdl = this.array_hdls[index + 1]
-        C.vpiml_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+        vpiml.vpiml_set_value(chosen_hdl, this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
     end
 
     chdl_array.set_index_all = function (this, values, force_single_beat)

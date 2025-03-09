@@ -1,25 +1,10 @@
-local ffi = require "ffi"
+local vpiml = require "vpiml"
 local BitVec = require "BitVec"
 local table_new = require "table.new"
 
-local C = ffi.C
 local type = type
 local assert = assert
 local f = string.format
-local ffi_new = ffi.new
-local ffi_string = ffi.string
-
-ffi.cdef[[
-    uint64_t vpiml_get_value64(long long handle);
-    void vpiml_get_value_multi(long long handle, uint32_t *ret, int n);
-
-    void vpiml_set_value64(long long handle, uint64_t value);
-    void vpiml_set_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
-
-    void vpiml_force_value64(long long handle, uint64_t value);
-    void vpiml_force_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
-    void vpiml_release_value(long long handle);
-]]
 
 local chdl = {
     get = function (this, force_multi_beat) assert(false, "<chdl>:get() is not implemented!") end,
@@ -50,19 +35,19 @@ local chdl_array = {
 local function chdl_init()
     chdl.get = function (this, force_multi_beat)
         if force_multi_beat then
-            C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
+            vpiml.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
             return this.c_results
         else
-            return C.vpiml_get_value64(this.hdl)
+            return vpiml.vpiml_get_value64(this.hdl)
         end
     end
 
     chdl.get64 = function (this)
-        return C.vpiml_get_value64(this.hdl)
+        return vpiml.vpiml_get_value64(this.hdl)
     end
 
     chdl.get_bitvec = function (this)
-        C.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
+        vpiml.vpiml_get_value_multi(this.hdl, this.c_results, this.beat_num)
 
         if this.bitvec then
             this.bitvec:_update_u32_vec(this.c_results)
@@ -75,7 +60,7 @@ local function chdl_init()
 
     chdl.set = function (this, value, force_single_beat)
         if force_single_beat then
-            C.vpiml_set_value64(this.hdl, value)
+            vpiml.vpiml_set_value64(this.hdl, value)
         else
             if type(value) ~= "table" then
                 assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
@@ -85,7 +70,7 @@ local function chdl_init()
                 assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
             end
 
-            C.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2])
+            vpiml.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2])
         end
     end
 
@@ -96,26 +81,26 @@ local function chdl_init()
     -- 
     chdl.set_unsafe = function (this, value, force_single_beat)
         if force_single_beat then
-            C.vpiml_set_value64(this.hdl, value)
+            vpiml.vpiml_set_value64(this.hdl, value)
         else
             -- value is a table where <lsb ... msb>
-            C.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2]);
+            vpiml.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2]);
         end
     end
 
     chdl.set_bitfield = function (this, s, e, v)
         local bv = this:get_bitvec():_set_bitfield(s, e, v)
-        C.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+        vpiml.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
     end
 
     chdl.set_bitfield_hex_str = function (this, s, e, hex_str)
         local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-        C.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+        vpiml.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
     end
 
     chdl.set_force = function (this, value, force_single_beat)
         if force_single_beat then
-            C.vpiml_force_value64(this.hdl, value)
+            vpiml.vpiml_force_value64(this.hdl, value)
         else
             if type(value) ~= "table" then
                 assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set_force(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
@@ -125,12 +110,12 @@ local function chdl_init()
                 assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
             end
 
-            C.vpiml_force_value_multi_beat_2(this.hdl, value[1], value[2])
+            vpiml.vpiml_force_value_multi_beat_2(this.hdl, value[1], value[2])
         end
     end
 
     chdl.set_release = function (this)
-        C.vpiml_release_value(this.hdl)
+        vpiml.vpiml_release_value(this.hdl)
     end
 end
 
@@ -143,10 +128,10 @@ local function chdl_array_init()
     chdl_array.get_index = function (this, index, force_multi_beat)
         local chosen_hdl = this.array_hdls[index + 1]
         if force_multi_beat then
-            C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+            vpiml.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
             return this.c_results
         else
-            return C.vpiml_get_value64(chosen_hdl)
+            return vpiml.vpiml_get_value64(chosen_hdl)
         end
     end
 
@@ -156,7 +141,7 @@ local function chdl_array_init()
             if type(value) == "table" then
                 assert(false)
             end
-            C.vpiml_set_value64(chosen_hdl, value)
+            vpiml.vpiml_set_value64(chosen_hdl, value)
         else
             -- value is a table where <lsb ... msb>
             if type(value) ~= "table" then
@@ -167,17 +152,17 @@ local function chdl_array_init()
                 assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
             end
 
-            C.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
+            vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
         end
     end
 
     chdl_array.set_index_unsafe = function(this, index, value, force_single_beat)
         local chosen_hdl = this.array_hdls[index + 1]
         if force_single_beat then
-            C.vpiml_set_value64(chosen_hdl, value)
+            vpiml.vpiml_set_value64(chosen_hdl, value)
         else
             -- value is a table where <lsb ... msb>
-            C.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
+            vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
         end
     end
 
@@ -206,7 +191,7 @@ local function chdl_array_init()
 
     chdl_array.get_index_bitvec = function (this, index)
         local chosen_hdl = this.array_hdls[index + 1]
-        C.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
+        vpiml.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
 
         if this.array_bitvecs[index + 1] then
             this.array_bitvecs[index + 1]:_update_u32_vec(this.c_results)
@@ -220,13 +205,13 @@ local function chdl_array_init()
     chdl_array.set_index_bitfield = function (this, index, s, e, v)
         local chosen_hdl = this.array_hdls[index + 1]
         local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
-        C.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
+        vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
     end
 
     chdl_array.set_index_bitfield_hex_str = function (this, index, s, e, hex_str)
         local chosen_hdl = this.array_hdls[index + 1]
         local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
-        C.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
+        vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
     end
 
     chdl_array.set_index_all = function (this, values, force_single_beat)

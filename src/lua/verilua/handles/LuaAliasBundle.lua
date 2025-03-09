@@ -1,11 +1,10 @@
-local ffi = require "ffi"
 local fun = require "fun"
+local vpiml = require "vpiml"
 local tablex = require "pl.tablex"
 local class = require "pl.class"
 local texpect = require "TypeExpect"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
-local C = ffi.C
 local type = type
 local print = print
 local rawset = rawset
@@ -17,10 +16,6 @@ local HexStr = _G.HexStr
 local verilua_debug = _G.verilua_debug
 
 local AliasBundle = class()
-
-ffi.cdef[[
-  long long vpiml_handle_by_name_safe(const char* name);
-]]
 
 -- 
 -- Access signal using alias name
@@ -93,7 +88,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name, optional_si
         if not tablex.find(optional_signals, alias_name) then
             rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))
         else
-            local hdl = C.vpiml_handle_by_name_safe(fullpath)
+            local hdl = vpiml.vpiml_handle_by_name_safe(fullpath)
             if hdl ~= -1 then
                 -- optional are allowed to be empty
                 rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))

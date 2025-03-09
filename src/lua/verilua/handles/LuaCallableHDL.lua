@@ -1,5 +1,6 @@
 local ffi = require "ffi"
 local math = require "math"
+local vpiml = require "vpiml"
 local debug = require "debug"
 local BitVec = require "BitVec"
 local utils = require "LuaUtils"
@@ -34,31 +35,6 @@ local await_noop = _G.await_noop
 
 local compare_value_str = utils.compare_value_str
 
-ffi.cdef[[
-    long long vpiml_handle_by_name_safe(const char* name);
-    long long vpiml_handle_by_index(long long hdl, int index);
-
-    const char *vpiml_get_hdl_type(long long handle);
-    unsigned int vpiml_get_signal_width(long long handle);
-
-    uint32_t vpiml_get_value(long long handle);
-    uint64_t vpiml_get_value64(long long handle);
-
-    void vpiml_get_value_multi(long long handle, uint32_t *ret, int n);
-
-    const char *vpiml_get_value_str(long long handle, int format);
-    const char *vpiml_get_value_hex_str(long long handle);
-    const char *vpiml_get_value_bin_str(long long handle);
-    const char *vpiml_get_value_dec_str(long long handle);
-
-    void vpiml_set_value_str(long long handle, const char *str);
-    void vpiml_set_value_hex_str(long long handle, const char *str);
-    void vpiml_set_value_bin_str(long long handle, const char *str);
-    void vpiml_set_value_dec_str(long long handle, const char *str);
-
-    void vpiml_set_shuffled(long long handle);
-]]
-
 local post_init_mt = setmetatable({
     _post_init = function(obj)
         if _G.cfg:get_or_else("__chdl_mt", true) == true then
@@ -79,14 +55,14 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.name = name or "Unknown"
     self.always_fired = false -- used by <chdl>:always_posedge()
 
-    local tmp_hdl = hdl or C.vpiml_handle_by_name_safe(fullpath)
+    local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
     if tmp_hdl == -1 then
         local err = f("[CallableHDL:_init] No handle found! fullpath: %s name: %s\t\n%s\n", fullpath, self.name == "" and "Unknown" or self.name, debug.traceback())
         verilua_debug(err)
         assert(false, err)
     end
     self.hdl = tmp_hdl
-    self.hdl_type = ffi_string((C.vpiml_get_hdl_type(self.hdl)))
+    self.hdl_type = ffi_string(vpiml.vpiml_get_hdl_type(self.hdl))
 
     self.is_array = false
     self.array_size = 0
@@ -98,11 +74,11 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- Verilator treat it as "vpiMemory"
         -- 
         self.is_array = true
-        self.array_size = tonumber(C.vpiml_get_signal_width(self.hdl))
+        self.array_size = tonumber(vpiml.vpiml_get_signal_width(self.hdl))
         self.array_hdls = table_new(self.array_size, 0)
         self.array_bitvecs = table_new(self.array_size, 0)
         for i = 1, self.array_size do
-            self.array_hdls[i] = C.vpiml_handle_by_index(self.hdl, i - 1)
+            self.array_hdls[i] = vpiml.vpiml_handle_by_index(self.hdl, i - 1)
         end
 
         self.hdl = self.array_hdls[1] -- Point to the first hdl
@@ -110,7 +86,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         assert(false, f("Unknown hdl_type => %s fullpath => %s name => %s", self.hdl_type, self.fullpath, self.name))
     end
 
-    self.width = tonumber(C.vpiml_get_signal_width(self.hdl))
+    self.width = tonumber(vpiml.vpiml_get_signal_width(self.hdl))
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
     self.cached_value = nil
@@ -141,70 +117,70 @@ function CallableHDL:_init(fullpath, name, hdl)
     -- #define vpiHexStrVal          4
     -- 
     self.get_str = function (this, fmt)
-        return ffi_string(C.vpiml_get_value_str(this.hdl, fmt))
+        return ffi_string(vpiml.vpiml_get_value_str(this.hdl, fmt))
     end
 
     self.get_hex_str = function (this)
-        return ffi_string(C.vpiml_get_value_hex_str(this.hdl))
+        return ffi_string(vpiml.vpiml_get_value_hex_str(this.hdl))
     end
 
     self.get_bin_str = function (this)
-        return ffi_string(C.vpiml_get_value_bin_str(this.hdl))
+        return ffi_string(vpiml.vpiml_get_value_bin_str(this.hdl))
     end
 
     self.get_dec_str = function (this)
-        return ffi_string(C.vpiml_get_value_dec_str(this.hdl))
+        return ffi_string(vpiml.vpiml_get_value_dec_str(this.hdl))
     end
 
     self.set_str = function (this, str)
-        C.vpiml_set_value_str(this.hdl, str)
+        vpiml.vpiml_set_value_str(this.hdl, str)
     end
 
     self.set_hex_str = function (this, str)
-        C.vpiml_set_value_hex_str(this.hdl, str)
+        vpiml.vpiml_set_value_hex_str(this.hdl, str)
     end
 
     self.set_bin_str = function (this, str)
-        C.vpiml_set_value_bin_str(this.hdl, str)
+        vpiml.vpiml_set_value_bin_str(this.hdl, str)
     end
 
     self.set_dec_str = function (this, str)
-        C.vpiml_set_value_dec_str(this.hdl, str)
+        vpiml.vpiml_set_value_dec_str(this.hdl, str)
     end
 
     self.set_shuffled = function (this)
-        C.vpiml_set_shuffled(this.hdl)
+        vpiml.vpiml_set_shuffled(this.hdl)
     end
 
     if self.is_array then
         self.get_index_str = function (this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi_string(C.vpiml_get_value_str(chosen_hdl, fmt))
+            return ffi_string(vpiml.vpiml_get_value_str(chosen_hdl, fmt))
         end
 
         self.get_index_hex_str = function (this, index)
             local chosen_hdl = this.array_hdls[index + 1]
-            return ffi_string(C.vpiml_get_value_hex_str(chosen_hdl))
+            return ffi_string(vpiml.vpiml_get_value_hex_str(chosen_hdl))
         end
 
         self.set_index_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
-            C.vpiml_set_value_str(chosen_hdl, str)
+            vpiml.vpiml_set_value_str(chosen_hdl, str)
         end
 
         self.set_index_hex_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
-            C.vpiml_set_value_hex_str(chosen_hdl, str)
+            vpiml.vpiml_set_value_hex_str(chosen_hdl, str)
         end
 
         self.set_index_bin_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
-            C.vpiml_set_value_bin_str(chosen_hdl, str)
+            vpiml.vpiml_set_value_bin_str(chosen_hdl, str)
         end
 
         self.set_index_dec_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
-            C.vpiml_set_value_dec_str(chosen_hdl, str)
+            vpiml.vpiml_set_value_dec_str(chosen_hdl, str)
         end
     end
 
@@ -513,13 +489,13 @@ function CallableHDL:__call(force_multi_beat)
 
     if self.is_multi_beat then
         if self.beat_num <= 2 and not force_multi_beat then
-            return tonumber(C.vpiml_get_value64(self.hdl))
+            return tonumber(vpiml.vpiml_get_value64(self.hdl))
         else
-            C.vpiml_get_value_multi(self.hdl, self.c_results, self.beat_num)
+            vpiml.vpiml_get_value_multi(self.hdl, self.c_results, self.beat_num)
             return self.c_results
         end
     else
-        return C.vpiml_get_value(self.hdl)
+        return vpiml.vpiml_get_value(self.hdl)
     end
 end
 
