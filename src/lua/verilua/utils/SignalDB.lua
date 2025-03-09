@@ -210,6 +210,8 @@ function SignalDB:auto_bundle(hier_path, params)
         end
     end
 
+    assert(#signals > 0, "[auto_bundle] No signals found! params: " .. inspect(params))
+
     if params.prefix then
         return Bundle(signals, params.prefix, hier_path, "auto_bundle", false, {})
     else
