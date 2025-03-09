@@ -1,118 +1,86 @@
-local List = require "pl.List"
 local class = require "pl.class"
-local ffi = require "ffi"
+local utils = require "LuaUtils"
+local table_new = require "table.new"
 
-local C = ffi.C
+local type = type
 local assert = assert
 local f = string.format
 
-ffi.cdef[[
-    void* idpool_init(int size, int shuffle);
-    int idpool_alloc(void *idpool_void);
-    void idpool_release(void *idpool_void, int id);
-    int idpool_pool_size(void *idpool_void);
-    void idpool_free(void *idpool_void);
-]]
-
-
 local IDPool = class()
 
-function IDPool:_init(size, shuffle)
-    local _shuffle = shuffle or false
-    self.size = size
-    
-    -- Lua implementation
-    -- self.pool = List()
-    -- for i = self.size, 1, -1 do
-    --     self.pool:append(i)
-    -- end
+-- 
+-- Example:
+--      local idpool = IDPool(100)
+--      local id = idpool:alloc()
+--      idpool:release(id)
+-- 
+--      local idpool = IDPool { start_value = 10, size = 100 }
+--      local id = idpool:alloc()
+--      idpool:release(id)
+-- 
+function IDPool:_init(params, shuffle)
+    local _shuffle = false
+    if type(params) == "table" then
+        _shuffle = params.shuffle or false
+        
+        self.pool_size = assert(params.size, "[IDPool] size is required")
 
-    self.c_pool = C.idpool_init(size, _shuffle)
+        self.start_value = params.start_value or 0
+        self.end_value = self.start_value + self.pool_size - 1
+    else
+        self.start_value = 0
+        self.end_value = params - 1
+        self.pool_size = params
+        _shuffle = shuffle or false
+    end
+
+    self.pool = table_new(self.pool_size, 0)
+    self.size = self.pool_size
+    
+    local index = 1
+    for i = self.end_value, self.start_value, -1 do
+        self.pool[index] = i
+        index = index + 1
+    end
+
+    if _shuffle then
+        utils.shuffle(self.pool)
+    end
 end
 
 function IDPool:alloc()
-    -- if #self.pool > 0 then
-        -- return self.pool:pop() -- Lua implementation
-    if C.idpool_pool_size(self.c_pool) > 0 then
-        return C.idpool_alloc(self.c_pool) -- C implementation
-    else
-        assert(false, "IDPool is empty! size => " .. self.size)
-    end
+    local id = self.pool[self.size]
+    self.pool[self.size] = nil
+    self.size = self.size - 1
+    assert(self.size >= 0, "[IDPool] pool is empty")
+    return id
 end
 
 function IDPool:release(id)
-    if id > self.size then
-        assert(false, f("Invalid id! id:%d size:%d ", id, self.size))
+    if id < self.start_value or id > self.end_value then
+        assert(false, f("[IDPool] id is out of range: %d, start_value => %d, end_value => %d", id, self.start_value, self.end_value))
     end
 
-    --self.pool:append(id) -- Lua implementation
-    C.idpool_release(self.c_pool, id)
+    for i = 1, self.size do
+        if self.pool[i] == id then
+            assert(false, f("[IDPool] id is already in the pool: %d", id))
+        end
+    end
+
+    self.size = self.size + 1
+    self.pool[self.size] = id
 end
 
 function IDPool:is_full()
-    -- return #self.pool == 0 -- Lua implementation
-    return C.idpool_pool_size(self.c_pool) == 0 -- C implementation
+    return self.size == self.pool_size
 end
 
 function IDPool:pool_size()
-    -- return #self.pool -- Lua implementation
-    return C.idpool_pool_size(self.c_pool) -- C implementation
+    return self.pool_size
 end
 
--- Below is a tcc version of IDPool
--- local lib = ([[
--- #include <stdio.h>
--- #include <stdlib.h>
--- #include <assert.h>
-
--- typedef struct {
---     int *pool;
---     int size;
---     int top;
--- } IDPool;
-
--- // Initialize the IDPool
--- // $sym<IDPool_init> $ptr<void *(*)(int)>
--- void* IDPool_init(int size) {
---     IDPool *idpool = (IDPool *)malloc(sizeof(IDPool));
---     idpool->size = size;
---     idpool->pool = (int *)malloc(size * sizeof(int));
---     idpool->top = size - 1;
-    
---     for (int i = 0; i < size; i++) {
---         idpool->pool[i] = size - i;
---     }
-    
---     return (void*)idpool;
--- }
-
--- // Allocate an ID
--- // $sym<IDPool_alloc> $ptr<int (*)(void *)>
--- int IDPool_alloc(void *idpool_void) {
--- 	IDPool *idpool = (IDPool *)idpool_void;
---     if (idpool->top >= 0) {
---         return idpool->pool[idpool->top--];
---     } else {
---         fprintf(stderr, "IDPool is empty! size => %d\n", idpool->size);
---         assert(0);
---     }
--- }
-
--- // Release an ID back to the pool
--- // $sym<IDPool_release> $ptr<void (*)(void *, int)>
--- void IDPool_release(void *idpool_void, int id) {
--- 	IDPool *idpool = (IDPool *)idpool_void;
---     if (id > idpool->size) {
---         assert(0);
---         return;
---     }
---     idpool->pool[++idpool->top] = id;
--- }
-
--- ]]):tcc_compile()
-
--- local idpool_c = lib.IDPool_init(1000)
--- local a = lib.IDPool_alloc(idpool_c)
--- lib.IDPool_release(idpool_c, i)
+function IDPool:__len()
+    return #self.pool
+end
 
 return IDPool

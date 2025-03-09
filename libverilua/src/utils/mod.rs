@@ -1,5 +1,3 @@
-pub mod idpool;
-
 use goblin::elf::Elf;
 use hashbrown::HashMap;
 use libc::{PATH_MAX, c_char, readlink};
