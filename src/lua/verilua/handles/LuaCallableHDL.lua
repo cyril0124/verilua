@@ -332,6 +332,10 @@ function CallableHDL:_init(fullpath, name, hdl)
         C.c_set_value_hex_str(this.hdl, str)
     end
 
+    self.set_shuffled = function (this)
+        this:set_hex_str(utils.shuffle_bits_hex_str(this.width))
+    end
+
     if self.is_array then
         self.at = function (this, idx)
             this.hdl = this.array_hdls[idx + 1] -- idx is zero-based
