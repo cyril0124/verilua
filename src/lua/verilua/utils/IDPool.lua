@@ -72,11 +72,11 @@ function IDPool:release(id)
 end
 
 function IDPool:is_full()
-    return self.size == self.pool_size
+    return self.size == 0
 end
 
 function IDPool:pool_size()
-    return self.pool_size
+    return self.pool_size - self.size
 end
 
 function IDPool:__len()
