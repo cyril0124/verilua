@@ -8,6 +8,23 @@ use vpi_user::*;
 
 const MAX_VECTOR_SIZE: usize = 32;
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_get_top_module() -> *const libc::c_char {
+    let iter: vpiHandle = unsafe { vpi_iterate(vpiModule as _, std::ptr::null_mut()) };
+    assert!(!iter.is_null(), "No module exist...");
+
+    let top_module: vpiHandle = unsafe { vpi_scan(iter) };
+    assert!(!top_module.is_null(), "Canot find top module...");
+
+    let top_module_name = unsafe { vpi_get_str(vpiName as _, top_module) };
+
+    if std::env::var("DUT_TOP").is_err() {
+        unsafe { std::env::set_var("DUT_TOP", CStr::from_ptr(top_module_name).to_str().unwrap()) };
+    }
+
+    top_module_name as _
+}
+
 #[inline(always)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn complex_handle_by_name(

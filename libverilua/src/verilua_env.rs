@@ -221,7 +221,9 @@ impl VeriluaEnv {
 
         if std::env::var("DUT_TOP").is_err() {
             unsafe {
-                let dut_top = CStr::from_ptr(utils::get_top_module()).to_str().unwrap();
+                let dut_top = CStr::from_ptr(vpi_access::vpiml_get_top_module())
+                    .to_str()
+                    .unwrap();
                 std::env::set_var("DUT_TOP", dut_top);
                 log::debug!("DUT_TOP is not set, set it to `{dut_top}`");
             }
