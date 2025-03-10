@@ -24,6 +24,7 @@ $VERILUA_HOME/luajit-pro/luajit2.1/share/luajit-2.1/?.lua;\
 $VERILUA_HOME/src/gen/?.lua;\
 $VERILUA_HOME/src/lua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/?.lua;\
+$VERILUA_HOME/src/lua/verilua/vpiml/?.lua;\
 $VERILUA_HOME/src/lua/verilua/coverage/?.lua;\
 $VERILUA_HOME/src/lua/verilua/handles/?.lua;\
 $VERILUA_HOME/src/lua/verilua/scheduler/?.lua;\
