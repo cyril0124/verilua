@@ -1263,33 +1263,3 @@ end
 
 _G.sim = require "LuaSimulator"
 _G.dut = (require "LuaDut").create_proxy(cfg.top)
-
-----------------------------------------------------------------------------
--- These functions are only used to test the ffi function invoke overhead
------------------------------------------------------------ ----------------
-function test_func()
-    return 0;
-end
-
-function test_func_with_1arg(arg)
-    return arg
-end
-
-function test_func_with_2arg(arg1, arg2)
-    assert(arg1 == arg2)
-    return arg1
-end
-
-function test_func_with_4arg(arg1, arg2, arg3, arg4)
-    assert(arg1 == arg4)
-    return arg1
-end
-
-function test_func_with_8arg(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
-    assert(arg1 == arg8)
-    return arg1
-end
-
-function test_func_with_vec_arg(vec)
-    return vec[1]
-end
