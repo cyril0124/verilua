@@ -31,7 +31,7 @@ local chdl_array = {
     set_index_unsafe_all = function (this, values, force_single_beat) assert(false, f("[%s] Normal handle does not support <chdl>:set_index_unsafe_all()", this.fullpath)) end, 
 }
 
-local function chdl_init(this)
+local function chdl_init()
     chdl.get = function (this)
         return vpiml.vpiml_get_value(this.hdl)
     end
@@ -146,10 +146,10 @@ local function chdl_array_init()
 end
 
 return function (is_array)
-    chdl_init(chdl)
+    chdl_init()
 
     if is_array then
-        chdl_array_init(chdl_array)
+        chdl_array_init()
         for k, func in pairs(chdl_array) do
             chdl[k] = func
         end

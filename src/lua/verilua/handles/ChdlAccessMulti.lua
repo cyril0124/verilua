@@ -324,10 +324,10 @@ local function chdl_array_init()
 end
 
 return function (is_array)
-    chdl_init(chdl)
+    chdl_init()
 
     if is_array then
-        chdl_array_init(chdl_array)
+        chdl_array_init()
         for k, func in pairs(chdl_array) do
             chdl[k] = func
         end
