@@ -274,7 +274,7 @@ class WrappedDriver {
     std::unique_ptr<slang::ast::Compilation> getCompilelation() {
         ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
         auto compilation    = driver.createCompilation();
-        bool compileSuccess = driver.reportCompilation(*compilation, false);
+        bool compileSuccess = driver.reportCompilation(*compilation, quiet.value_or(false));
         ASSERT(compileSuccess);
 
         return compilation;
