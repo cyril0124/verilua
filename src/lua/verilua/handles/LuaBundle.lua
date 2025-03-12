@@ -183,4 +183,8 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
     
 end
 
+function Bundle:__tostring()
+    return f("<[Bundle] name: %s, signals: {%s}, hierachy: %s>", self.name, table_concat(self.signals_table, ", "), self.hierachy)
+end
+
 return Bundle
