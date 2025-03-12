@@ -7,13 +7,14 @@ local path = require "pl.path"
 local table_new = require "table.new"
 
 local type = type
-local pcall = pcall
+local next = next
 local pairs = pairs
 local print = print
 local error = error
 local string = string
 local ipairs = ipairs
 local assert = assert
+local rawset = rawset
 local f = string.format
 local tonumber = tonumber
 local tostring = tostring
@@ -298,7 +299,19 @@ function utils.enum_define(enum_table)
         __newindex = function(t, k, v)
             rawset(t, k, v)
             rawset(t.__reverse__, v, k)
-        end
+        end,
+
+        __pairs = function(t)
+            return function(_, k)
+                k = next(t, k)
+                while k do
+                    if k ~= "name" and k ~= "__reverse__" then
+                        return k, t[k]
+                    end
+                    k = next(t, k)
+                end
+            end, nil
+        end,
     })
 end
 
