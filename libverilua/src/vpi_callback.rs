@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 
 use std::cell::Cell;
+use std::ffi::CString;
 
 use crate::{
     verilua_env::{
@@ -122,6 +123,89 @@ unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
+    let mut t = t_vpi_time {
+        type_: vpiSimTime as _,
+        high: 0,
+        low: 0,
+        real: 0.0,
+    };
+
+    let mut cb_data = s_cb_data {
+        reason: cbReadWriteSynch as _,
+        cb_rtn: Some(read_write_synch_callback),
+        time: &mut t,
+        obj: std::ptr::null_mut(),
+        user_data: std::ptr::null_mut(),
+        value: std::ptr::null_mut(),
+        index: 0,
+    };
+
+    let handle = unsafe { vpi_register_cb(&mut cb_data as _) };
+    unsafe { vpi_free_object(handle) };
+}
+
+unsafe extern "C" fn read_write_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
+    let env = get_verilua_env();
+
+    env.hdl_put_value.iter_mut().for_each(|complex_handle_raw| {
+        let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
+
+        let mut v = match complex_handle.put_value_format {
+            vpiIntVal => s_vpi_value {
+                format: vpiIntVal as _,
+                value: t_vpi_value__bindgen_ty_1 {
+                    integer: complex_handle.put_value_integer as _,
+                },
+            },
+            vpiVectorVal => s_vpi_value {
+                format: vpiVectorVal as _,
+                value: t_vpi_value__bindgen_ty_1 {
+                    vector: complex_handle.put_value_vectors.as_mut_ptr(),
+                },
+            },
+            vpiHexStrVal | vpiDecStrVal | vpiOctStrVal | vpiBinStrVal => s_vpi_value {
+                format: complex_handle.put_value_format as _,
+                value: t_vpi_value__bindgen_ty_1 {
+                    str_: CString::new(complex_handle.put_value_str.as_str())
+                        .unwrap()
+                        .into_raw() as _,
+                },
+            },
+            vpiSuppressVal => s_vpi_value {
+                format: vpiSuppressVal as _,
+                value: t_vpi_value__bindgen_ty_1 {
+                    integer: complex_handle.put_value_integer as _,
+                },
+            },
+            vpiScalarVal => s_vpi_value {
+                format: vpiScalarVal as _,
+                value: t_vpi_value__bindgen_ty_1 {
+                    scalar: complex_handle.put_value_integer as _,
+                },
+            },
+            _ => panic!(
+                "Unsupported value format: {}",
+                complex_handle.put_value_format
+            ),
+        };
+
+        unsafe {
+            vpi_put_value(
+                complex_handle.vpi_handle,
+                &mut v as *mut _,
+                std::ptr::null_mut(),
+                complex_handle.put_value_flag as _,
+            )
+        };
+    });
+
+    env.hdl_put_value.clear();
+
+    0
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_next_sim_time_callback() {
     thread_local! {
         static INIT: Cell<bool> = const { Cell::new(false) }
@@ -234,6 +318,11 @@ unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT3
 
     let handle = unsafe { vpi_register_cb(cb_data) };
     unsafe { vpi_free_object(handle) };
+
+    #[cfg(not(feature = "wave_vpi"))]
+    {
+        unsafe { vpiml_register_read_write_synch_callback() };
+    }
 
     0
 }

@@ -152,6 +152,26 @@ function CallableHDL:_init(fullpath, name, hdl)
         vpiml.vpiml_set_shuffled(this.hdl)
     end
 
+    self.set_imm_str = function (this, str)
+        vpiml.vpiml_set_imm_value_str(this.hdl, str)
+    end
+
+    self.set_imm_hex_str = function (this, str)
+        vpiml.vpiml_set_imm_value_hex_str(this.hdl, str)
+    end
+
+    self.set_imm_bin_str = function (this, str)
+        vpiml.vpiml_set_imm_value_bin_str(this.hdl, str)
+    end
+
+    self.set_imm_dec_str = function (this, str)
+        vpiml.vpiml_set_imm_value_dec_str(this.hdl, str)
+    end
+
+    self.set_imm_shuffled = function (this)
+        vpiml.vpiml_set_imm_shuffled(this.hdl)
+    end
+
     if self.is_array then
         self.get_index_str = function (this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
@@ -557,6 +577,46 @@ function CallableHDL:__newindex(k, v)
                 self:set_unsafe(1, true)
             else
                 self:set_unsafe(0, true)
+            end
+        else
+            assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
+        end
+    elseif k == "value_imm" then
+        assert(not self.is_array, "TODO: not implemented for array type <chdl>")
+        
+        local v_type = type(v)
+
+        if v_type == "number" then
+            self:set_imm_unsafe(v, true)
+        elseif v_type == "string" then
+            self:set_imm_str(v)
+        elseif v_type == "table" then
+            if v.__type and v.__type == "BitVec" then
+                self:set_imm_hex_str(v:to_hex_str())
+            else
+                if self.beat_num == 1 then
+                    self:set_imm_unsafe(v[1], true)
+                else
+                    self:set(v)
+                end
+            end
+        elseif v_type == "cdata" then
+            if ffi.istype("uint64_t", v) then
+                self:set_imm_unsafe(v, true)
+            elseif ffi.istype("uint32_t[]", v) then
+                if self.beat_num == 1 then
+                    self:set_imm_unsafe(v[1], true) 
+                else
+                    self:set_imm_unsafe(v)
+                end
+            else
+                assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
+            end
+        elseif v_type == "boolean" then
+            if v then
+                self:set_imm_unsafe(1, true)
+            else
+                self:set_imm_unsafe(0, true)
             end
         else
             assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)

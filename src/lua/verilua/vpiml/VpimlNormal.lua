@@ -42,6 +42,20 @@ ffi.cdef[[
     void vpiml_set_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
     void vpiml_set_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
 
+    void vpiml_set_imm_value(long long handle, uint32_t value);
+    void vpiml_set_imm_value64(long long handle, uint64_t value);
+    void vpiml_set_imm_value64_force_single(long long handle, uint64_t value);
+    void vpiml_set_imm_value_by_name(const char *path, uint64_t value);
+    void vpiml_set_imm_value_str_by_name(const char *path, const char *str);
+    void vpiml_set_imm_value_multi(long long handle, uint32_t *values);
+    void vpiml_set_imm_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
+    void vpiml_set_imm_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2); 
+    void vpiml_set_imm_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
+    void vpiml_set_imm_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
+    void vpiml_set_imm_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
+    void vpiml_set_imm_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
+    void vpiml_set_imm_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
+
     void vpiml_force_value(long long handle, uint32_t value);
     void vpiml_force_value64(long long handle, uint64_t value);
     void vpiml_force_value64_force_single(long long handle, uint64_t value);
@@ -55,8 +69,26 @@ ffi.cdef[[
     void vpiml_force_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
     void vpiml_force_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
     void vpiml_force_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
+
+    void vpiml_force_imm_value(long long handle, uint32_t value);
+    void vpiml_force_imm_value64(long long handle, uint64_t value);
+    void vpiml_force_imm_value64_force_single(long long handle, uint64_t value);
+    void vpiml_force_imm_value_by_name(const char *path, uint32_t value);
+    void vpiml_force_imm_value_str_by_name(const char *path, const char *str);
+    void vpiml_force_imm_value_multi(long long handle, uint32_t *values);
+    void vpiml_force_imm_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
+    void vpiml_force_imm_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2);
+    void vpiml_force_imm_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
+    void vpiml_force_imm_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
+    void vpiml_force_imm_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
+    void vpiml_force_imm_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
+    void vpiml_force_imm_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
+
     void vpiml_release_value(long long handle);
     void vpiml_release_value_by_name(const char *path);
+
+    void vpiml_release_imm_value(long long handle);
+    void vpiml_release_imm_value_by_name(const char *path);
 
     const char *vpiml_get_value_str(long long handle, int format);
     const char *vpiml_get_value_hex_str(long long handle);
@@ -68,8 +100,16 @@ ffi.cdef[[
     void vpiml_set_value_bin_str(long long handle, const char *str);
     void vpiml_set_value_dec_str(long long handle, const char *str);
 
+    void vpiml_set_imm_value_str(long long handle, const char *str);
+    void vpiml_set_imm_value_hex_str(long long handle, const char *str);
+    void vpiml_set_imm_value_bin_str(long long handle, const char *str);
+    void vpiml_set_imm_value_dec_str(long long handle, const char *str);
+
     void vpiml_set_shuffled(long long handle);
     void vpiml_set_shuffled_by_name(const char *path);
+
+    void vpiml_set_imm_shuffled(long long handle);
+    void vpiml_set_imm_shuffled_by_name(const char *path);
 ]]
 
 return {
@@ -111,6 +151,20 @@ return {
     vpiml_set_value_multi_beat_6 = C.vpiml_set_value_multi_beat_6,
     vpiml_set_value_multi_beat_7 = C.vpiml_set_value_multi_beat_7,
     vpiml_set_value_multi_beat_8 = C.vpiml_set_value_multi_beat_8,
+
+    vpiml_set_imm_value = C.vpiml_set_imm_value,
+    vpiml_set_imm_value64 = C.vpiml_set_imm_value64,
+    vpiml_set_imm_value64_force_single = C.vpiml_set_imm_value64_force_single,
+    vpiml_set_imm_value_by_name = C.vpiml_set_imm_value_by_name,
+    vpiml_set_imm_value_str_by_name = C.vpiml_set_imm_value_str_by_name,
+    vpiml_set_imm_value_multi = C.vpiml_set_imm_value_multi,
+    vpiml_set_imm_value_multi_beat_2 = C.vpiml_set_imm_value_multi_beat_2,
+    vpiml_set_imm_value_multi_beat_3 = C.vpiml_set_imm_value_multi_beat_3,
+    vpiml_set_imm_value_multi_beat_4 = C.vpiml_set_imm_value_multi_beat_4,
+    vpiml_set_imm_value_multi_beat_5 = C.vpiml_set_imm_value_multi_beat_5,
+    vpiml_set_imm_value_multi_beat_6 = C.vpiml_set_imm_value_multi_beat_6,
+    vpiml_set_imm_value_multi_beat_7 = C.vpiml_set_imm_value_multi_beat_7,
+    vpiml_set_imm_value_multi_beat_8 = C.vpiml_set_imm_value_multi_beat_8,
     
     vpiml_force_value = C.vpiml_force_value,
     vpiml_force_value64 = C.vpiml_force_value64,
@@ -125,8 +179,27 @@ return {
     vpiml_force_value_multi_beat_6 = C.vpiml_force_value_multi_beat_6,
     vpiml_force_value_multi_beat_7 = C.vpiml_force_value_multi_beat_7,
     vpiml_force_value_multi_beat_8 = C.vpiml_force_value_multi_beat_8,
+
+    vpiml_force_imm_value = C.vpiml_force_imm_value,
+    vpiml_force_imm_value64 = C.vpiml_force_imm_value64,
+    vpiml_force_imm_value64_force_single = C.vpiml_force_imm_value64_force_single,
+    vpiml_force_imm_value_by_name = C.vpiml_force_imm_value_by_name,
+    vpiml_force_imm_value_str_by_name = C.vpiml_force_imm_value_str_by_name,
+    vpiml_force_imm_value_multi = C.vpiml_force_imm_value_multi,
+    vpiml_force_imm_value_multi_beat_2 = C.vpiml_force_imm_value_multi_beat_2,
+    vpiml_force_imm_value_multi_beat_3 = C.vpiml_force_imm_value_multi_beat_3,
+    vpiml_force_imm_value_multi_beat_4 = C.vpiml_force_imm_value_multi_beat_4,
+    vpiml_force_imm_value_multi_beat_5 = C.vpiml_force_imm_value_multi_beat_5,
+    vpiml_force_imm_value_multi_beat_6 = C.vpiml_force_imm_value_multi_beat_6,
+    vpiml_force_imm_value_multi_beat_7 = C.vpiml_force_imm_value_multi_beat_7,
+    vpiml_force_imm_value_multi_beat_8 = C.vpiml_force_imm_value_multi_beat_8,
+
     vpiml_release_value = C.vpiml_release_value,
     vpiml_release_value_by_name = C.vpiml_release_value_by_name,
+
+    vpiml_release_imm_value = C.vpiml_release_imm_value,
+    vpiml_release_imm_value_by_name = C.vpiml_release_imm_value_by_name,
+
     vpiml_get_value_str = C.vpiml_get_value_str,
     vpiml_get_value_hex_str = C.vpiml_get_value_hex_str,
     vpiml_get_value_bin_str = C.vpiml_get_value_bin_str,

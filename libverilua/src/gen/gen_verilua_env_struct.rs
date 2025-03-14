@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub struct VeriluaEnv {
     pub hdl_cache: HashMap<String, ComplexHandleRaw>,
+    pub hdl_put_value: Vec<ComplexHandleRaw>,
 
     #[cfg(feature = "chunk_task")]
     pub pending_posedge_cb_map: HashMap<ComplexHandleRaw, Vec<TaskID>>,

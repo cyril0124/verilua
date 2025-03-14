@@ -47,6 +47,16 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
+        set_imm = function (t, v)
+            assert(v ~= nil)
+            if set_force_enable then
+                table_insert(force_path_table, local_path)
+                vpiml.vpiml_force_imm_value_by_name(local_path, tonumber(v))
+            else
+                vpiml.vpiml_set_imm_value_by_name(local_path, tonumber(v))
+            end
+        end,
+
         -- 
         -- Randomly set the value of the signal
         -- 
@@ -559,7 +569,7 @@ local function create_proxy(path, use_prefix)
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
-            vpiml.vpiml_set_value_by_name(fullpath, v)
+            vpiml.vpiml_set_imm_value_by_name(fullpath, v)
         end,
 
         -- 

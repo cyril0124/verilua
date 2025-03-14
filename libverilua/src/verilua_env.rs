@@ -31,7 +31,12 @@ pub struct ComplexHandle {
     pub name: *mut c_char,
     pub width: usize,
     pub beat_num: usize,
-    pub vectors: smallvec::SmallVec<[t_vpi_vecval; MAX_VECTOR_SIZE]>,
+
+    pub put_value_format: u32,
+    pub put_value_flag: u32,
+    pub put_value_integer: u32,
+    pub put_value_str: String,
+    pub put_value_vectors: smallvec::SmallVec<[t_vpi_vecval; MAX_VECTOR_SIZE]>,
 
     #[cfg(feature = "merge_cb")]
     pub posedge_cb_count: HashMap<TaskID, u32>,
@@ -60,7 +65,11 @@ impl ComplexHandle {
                 name,
                 width,
                 beat_num,
-                vectors: smallvec::smallvec![t_vpi_vecval {
+                put_value_format: 0,
+                put_value_flag: 0,
+                put_value_integer: 0,
+                put_value_str: String::new(),
+                put_value_vectors: smallvec::smallvec![t_vpi_vecval {
                     aval: 0,
                     bval: 0,
                 }; MAX_VECTOR_SIZE],
@@ -77,7 +86,11 @@ impl ComplexHandle {
                 name,
                 width,
                 beat_num,
-                vectors: smallvec::smallvec![t_vpi_vecval {
+                put_value_format: 0,
+                put_value_flag: 0,
+                put_value_integer: 0,
+                put_value_str: String::new(),
+                put_value_vectors: smallvec::smallvec![t_vpi_vecval {
                     aval: 0,
                     bval: 0,
                 }; MAX_VECTOR_SIZE],

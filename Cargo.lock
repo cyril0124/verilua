@@ -292,6 +292,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "libverilua"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "env_logger",
+ "figlet-rs",
+ "goblin",
+ "hashbrown",
+ "lazy_static",
+ "libc",
+ "log",
+ "mimalloc",
+ "mlua",
+ "num_enum",
+ "once_cell",
+ "paste",
+ "rand",
+ "smallvec",
+ "static_init",
+ "tabled",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -766,29 +789,6 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
-
-[[package]]
-name = "verilua_rust"
-version = "0.1.0"
-dependencies = [
- "cc",
- "env_logger",
- "figlet-rs",
- "goblin",
- "hashbrown",
- "lazy_static",
- "libc",
- "log",
- "mimalloc",
- "mlua",
- "num_enum",
- "once_cell",
- "paste",
- "rand",
- "smallvec",
- "static_init",
- "tabled",
-]
 
 [[package]]
 name = "wasi"

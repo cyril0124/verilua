@@ -350,7 +350,7 @@ target("signal_db_gen")
         print("---------------------------------------------------------- ")
     end)
 
-target("signal_db_gen_lib")
+target("libsignal_db_gen")
     set_kind("shared")
     set_filename("libsignal_db_gen.so")
     add_defines("SO_LIB")
@@ -634,8 +634,7 @@ target("test")
     set_kind("phony")
     on_run(function (target)
         local old_env = os.getenvs()
-        os.cd(prj_dir .. "/examples/tutorial_example")
-
+        
         local simulators = {}
 
         if try { function () return os.iorun("which vvp_wrapper") end } then
@@ -650,37 +649,65 @@ target("test")
 
         assert(#simulators > 0, "No simulators found!")
 
-        for _, sim in ipairs(simulators) do
-            os.setenv("SIM", sim)
-            os.exec("rm build -rf")
-            os.exec("xmake build -v -P .")
-            if sim == "vcs" then
-                -- ignore error
-                try { function () os.exec("xmake run -v -P .") end }
-            else
-                os.exec("xmake run -v -P .")
+        do
+            os.cd(prj_dir .. "/examples/tutorial_example")
+
+            for _, sim in ipairs(simulators) do
+                os.setenv("SIM", sim)
+                os.exec("rm build -rf")
+                os.exec("xmake build -v -P .")
+                if sim == "vcs" then
+                    -- ignore error
+                    try { function () os.exec("xmake run -v -P .") end }
+                else
+                    os.exec("xmake run -v -P .")
+                end
             end
         end
 
-        os.setenvs(old_env)
-        os.cd(prj_dir .. "/examples/wave_vpi")
-        os.setenv("SIM", "iverilog")
-        os.exec("rm build -rf")
-        os.exec("xmake build -v -P . gen_wave")
-        os.exec("xmake run -v -P . gen_wave")
-        os.exec("xmake build -v -P . sim_wave")
-        os.exec("xmake run -v -P . sim_wave")
+        do
+            os.setenvs(old_env)
+            os.cd(prj_dir .. "/examples/wave_vpi")
+            os.setenv("SIM", "iverilog")
+            os.exec("rm build -rf")
+            os.exec("xmake build -v -P . gen_wave")
+            os.exec("xmake run -v -P . gen_wave")
+            os.exec("xmake build -v -P . sim_wave")
+            os.exec("xmake run -v -P . sim_wave")
+        end
         
-        os.setenvs(old_env)
-        os.cd(prj_dir .. "/tests/wave_vpi_padding_issue")
-        os.exec("rm build -rf")
-        os.exec("xmake build -v -P . test")
-        os.exec("xmake run -v -P . test")
-        os.exec("xmake build -v -P . test_wave")
-        os.exec("xmake run -v -P . test_wave")
+        do
+            os.setenvs(old_env)
+            os.cd(prj_dir .. "/tests/wave_vpi_padding_issue")
+            os.exec("rm build -rf")
+            os.exec("xmake build -v -P . test")
+            os.exec("xmake run -v -P . test")
+            os.exec("xmake build -v -P . test_wave")
+            os.exec("xmake run -v -P . test_wave")
+        end
 
-        os.cd(prj_dir .. "/tests/test_bitvec_signal")
-        os.exec("xmake run -v -P . test_all")
+        do
+            os.setenvs(old_env)
+            os.cd(prj_dir .. "/tests/test_bitvec_signal")
+            os.exec("xmake run -v -P . test_all")
+        end
+
+        do
+            os.setenvs(old_env)
+            os.cd(prj_dir .. "/tests/test_edge")
+
+            for _, sim in ipairs(simulators) do
+                os.setenv("SIM", sim)
+                os.exec("rm build -rf")
+                os.exec("xmake build -v -P .")
+                if sim == "vcs" then
+                    -- ignore error
+                    try { function () os.exec("xmake run -v -P .") end }
+                else
+                    os.exec("xmake run -v -P .")
+                end
+            end
+        end
 
         cprint([[${green}
   _____         _____ _____ 
