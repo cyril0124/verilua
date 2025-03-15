@@ -189,26 +189,28 @@ do
 
     cfg_name, cfg_path = cfg:get_user_cfg()
     
-    if cfg_path == nil then
-        cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
+    if cfg_name then
+        if cfg_path == nil then
+            cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
+        end
+        
+        assert(type(cfg_path) == "string")
+
+        if string.len(cfg_path) ~= 0 then
+            _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua" 
+        end
+
+        cfg_name = path.basename(cfg_name) -- strip basename
+
+        if stringx.endswith(cfg_name, ".lua") then
+            cfg_name = stringx.rstrip(cfg_name, ".lua") -- strip ".lua" suffix
+        end
+
+        local _cfg = require(cfg_name)
+        assert(type(_cfg) == "table", f("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
+
+        cfg:merge_config(_cfg)
     end
-    
-    assert(type(cfg_path) == "string")
-
-    if string.len(cfg_path) ~= 0 then
-        _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua" 
-    end
-
-    cfg_name = path.basename(cfg_name) -- strip basename
-
-    if stringx.endswith(cfg_name, ".lua") then
-        cfg_name = stringx.rstrip(cfg_name, ".lua") -- strip ".lua" suffix
-    end
-
-    local _cfg = require(cfg_name)
-    assert(type(_cfg) == "table", f("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
-
-    cfg:merge_config(_cfg)
     cfg:post_config()
 end
 _G.verilua_get_error = false -- Set by each scheduler when there is an error in the ongoing task

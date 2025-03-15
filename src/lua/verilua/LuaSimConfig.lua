@@ -202,7 +202,6 @@ setmetatable(cfg, {
 function cfg:get_cfg()
     local VERILUA_CFG_PATH = os.getenv("VERILUA_CFG_PATH")
     local VERILUA_CFG = os.getenv("VERILUA_CFG")
-    assert(VERILUA_CFG, "`VERILUA_CFG` is not set! You should set configuration file via enviroment variable <VERILUA_CFG>")
 
     if VERILUA_CFG_PATH ~= nil then
         -- Add package path for the config file
@@ -302,8 +301,6 @@ function cfg:post_config()
     cfg.srcs            = cfg:get_or_else("srcs", {"./?.lua"})
     cfg.deps            = cfg:get_or_else("deps", {}) -- Dependencies
     cfg.attach          = cfg:get_or_else("attach", false) -- Attach verilua to simulator
-    cfg.clock           = cfg:get_or_else("clock", cfg.top .. ".clock")
-    cfg.reset           = cfg:get_or_else("reset", cfg.top .. ".reset")
     cfg.period          = cfg:get_or_else("period", 10)
     cfg.unit            = cfg:get_or_else("unit", "ns")
     cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
