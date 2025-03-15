@@ -25,6 +25,11 @@ pub unsafe extern "C" fn vpiml_get_top_module() -> *const libc::c_char {
     top_module_name as _
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_get_simulator_auto() -> *const libc::c_char {
+    return utils::get_simulator_auto();
+}
+
 #[inline(always)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn complex_handle_by_name(

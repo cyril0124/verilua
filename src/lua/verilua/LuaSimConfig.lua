@@ -1,5 +1,6 @@
 local os = require "os"
 local io = require "io"
+local ffi = require "ffi"
 local debug = require "debug"
 
 local type = type
@@ -185,11 +186,10 @@ end
 setmetatable(cfg, {
     __index = function (t, k)
         if k == "simulator" then
-            local ffi = require "ffi"
             ffi.cdef[[
-                char *get_simulator_auto();
+                const char *vpiml_get_simulator_auto();
             ]]
-            local simulator = ffi.string(ffi.C.get_simulator_auto())
+            local simulator = ffi.string(ffi.C.vpiml_get_simulator_auto())
             if simulator ~= "unknown" then
                 cfg.simulator = simulator
                 config_info(f("[LazyAccess] Automatically detected simulator: %s", simulator), get_debug_info(3))
@@ -250,18 +250,14 @@ end
 function cfg:post_config()
     -- Check necessary configs
     local cfg = self
-    cfg.top = cfg.top or os.getenv("DUT_TOP")
-    assert(cfg.top, "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <DUT_TOP> or <cfg.top>")
 
-    cfg.simulator = cfg.simulator or os.getenv("SIM")
+    cfg.simulator = rawget(cfg, "simulator") or os.getenv("SIM")
     if not cfg.simulator then
         -- Try get simulator automatically
-        local ffi = require "ffi"
         ffi.cdef[[
-            char *get_simulator_auto();
+            const char *vpiml_get_simulator_auto();
         ]]
-
-        local simulator = ffi.string(ffi.C.get_simulator_auto())
+        local simulator = ffi.string(ffi.C.vpiml_get_simulator_auto())
         if simulator ~= "unknown" then
             config_info(f("[cfg:post_config] Automatically detected simulator: %s", simulator))
             cfg.simulator = simulator
@@ -291,7 +287,17 @@ function cfg:post_config()
     else
         cfg.mode = "nil"
     end
-    
+
+    -- Make `cfg` available globally since it is used by `SignalDB` which provides the `vpiml_get_top_module()` function
+    _G.cfg = cfg
+    cfg.top = cfg.top or os.getenv("DUT_TOP")
+    if not cfg.top then
+        local vpiml = require "vpiml"
+        config_warn(f("[cfg:post_config] <cfg.top>(top-level name) is not set! Try to get it from `vpiml.vpiml_get_top_module()`..."))
+        cfg.top = ffi.string(vpiml.vpiml_get_top_module())
+    end
+    assert(cfg.top, "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <DUT_TOP> or <cfg.top>")
+
     -- Setup configs with default values
     cfg.srcs            = cfg:get_or_else("srcs", {"./?.lua"})
     cfg.deps            = cfg:get_or_else("deps", {}) -- Dependencies

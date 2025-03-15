@@ -5,6 +5,7 @@ local C = ffi.C
 
 ffi.cdef[[
     const char *vpiml_get_top_module();
+    const char *vpiml_get_simulator_auto();
 
     void vpiml_register_time_callback(uint64_t time, int id);
     void vpiml_register_posedge_callback(const char *path, int id);
@@ -114,6 +115,7 @@ ffi.cdef[[
 
 return {
     vpiml_get_top_module = C.vpiml_get_top_module,
+    vpiml_get_simulator_auto = C.vpiml_get_simulator_auto,
     
     vpiml_register_time_callback = C.vpiml_register_time_callback,
     vpiml_register_posedge_callback = C.vpiml_register_posedge_callback,
