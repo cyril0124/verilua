@@ -1,6 +1,5 @@
 local utils = require "LuaUtils"
-local VeriluaMode = VeriluaMode
-local STEP = VeriluaMode.STEP
+local STEP = _G.SchedulerMode.STEP
 local verilua_mode = cfg.mode
 local period = cfg.period
 local ceil = math.ceil

@@ -28,7 +28,7 @@ local colors = {
 }
 cfg.colors = colors
 
-cfg.VeriluaMode = setmetatable({    
+cfg.SchedulerMode = setmetatable({    
     NORMAL   = 1,
     STEP     = 2,
     DOMINANT = 3,
@@ -42,7 +42,7 @@ cfg.VeriluaMode = setmetatable({
                 return name
             end
         end
-        assert(false, "[VeriluaMode] Key no found: " .. v)
+        assert(false, "[SchedulerMode] Key no found: " .. v)
     end
 })
 
@@ -156,7 +156,7 @@ function cfg:dump_str()
     return inspect(self, {
         process = function(item, path)
             local t = type(item)
-            if t ~= "function" and t ~= "thread" and path[#path] ~= inspect.METATABLE and item ~= self.colors and item ~= self.VeriluaMode then
+            if t ~= "function" and t ~= "thread" and path[#path] ~= inspect.METATABLE and item ~= self.colors and item ~= self.SchedulerMode then
                 return item
             end
         end
@@ -276,17 +276,17 @@ function cfg:post_config()
         if type(cfg.mode) == "string" then
             local mode_str = cfg.mode:upper()
             if mode_str == "N" or mode_str == "NORMAL" then
-                cfg.mode = cfg.VeriluaMode.NORMAL
+                cfg.mode = cfg.SchedulerMode.NORMAL
             elseif mode_str == "S" or mode_str == "STEP" then
-                cfg.mode = cfg.VeriluaMode.STEP
+                cfg.mode = cfg.SchedulerMode.STEP
             elseif mode_str == "D" or mode_str == "DOMINANT" then
-                cfg.mode = cfg.VeriluaMode.DOMINANT
+                cfg.mode = cfg.SchedulerMode.DOMINANT
             else
-                assert(false, "Invalid VeriluaMode: " .. cfg.mode)
+                assert(false, "Invalid SchedulerMode: " .. cfg.mode)
             end
         else
             assert(type(cfg.mode) == "number")
-            assert(cfg.mode == cfg.VeriluaMode.NORMAL or cfg.mode == cfg.VeriluaMode.STEP or cfg.mode == cfg.VeriluaMode.DOMINANT, "Invalid VeriluaMode: " .. cfg.mode)
+            assert(cfg.mode == cfg.SchedulerMode.NORMAL or cfg.mode == cfg.SchedulerMode.STEP or cfg.mode == cfg.SchedulerMode.DOMINANT, "Invalid SchedulerMode: " .. cfg.mode)
         end
     else
         cfg.mode = "nil"

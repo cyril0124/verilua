@@ -10,7 +10,7 @@ local tonumber = tonumber
 local ffi_new = ffi.new
 
 local cfg = _G.cfg
-local VeriluaMode = _G.VeriluaMode
+local SchedulerMode = _G.SchedulerMode
 local verilua_debug = _G.verilua_debug
 local verilua_warning = _G.verilua_warning
 
@@ -139,7 +139,7 @@ local get_mode = function()
         set_dpi_scope()
         local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
         if not success then
-            mode = VeriluaMode.NORMAL
+            mode = SchedulerMode.NORMAL
             verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
         end
         return tonumber(mode)

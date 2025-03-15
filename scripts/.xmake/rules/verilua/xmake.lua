@@ -127,13 +127,13 @@ local function before_build_or_run(target)
     local cfg_file_str = f([[
 local lua_cfg = require "LuaSimConfig"
 
-local VeriluaMode = lua_cfg.VeriluaMode
+local SchedulerMode = lua_cfg.SchedulerMode
 local cfg = {}
 
 cfg.top = os.getenv("DUT_TOP") or "%s"
 cfg.prj_dir = os.getenv("PRJ_DIR") or "%s"
 cfg.simulator = os.getenv("SIM") or "%s"
-cfg.mode = VeriluaMode.%s
+cfg.mode = SchedulerMode.%s
 cfg.seed = os.getenv("SEED") or 101
 cfg.attach = false
 cfg.script = os.getenv("LUA_SCRIPT") or "%s"

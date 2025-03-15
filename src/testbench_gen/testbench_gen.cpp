@@ -254,7 +254,7 @@ end
 // -----------------------------------------
 
 `ifdef SIM_VCS
-// VeriluaMode
+// SchedulerMode
 parameter NormalMode = 1;
 parameter StepMode = 2;
 parameter DominantMode = 3;

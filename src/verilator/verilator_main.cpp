@@ -53,7 +53,7 @@
 
 typedef void (*VerilatorFunc)(void*);
 
-enum class VeriluaMode { 
+enum class SchedulerMode { 
     Normal = 1, 
     Step = 2, 
     Dominant = 3
@@ -191,17 +191,17 @@ extern "C" void _verilator_get_mode(void *mode_output) {
 
 #ifdef NORMAL_MODE
     mode_defines++;
-    mode = (int)VeriluaMode::Normal;
+    mode = (int)SchedulerMode::Normal;
 #endif
 
 #ifdef DOMINANT_MODE
     mode_defines++;
-    mode = (int)VeriluaMode::Dominant;
+    mode = (int)SchedulerMode::Dominant;
 #endif
 
 #ifdef STEP_MODE
     mode_defines++;
-    mode = (int)VeriluaMode::Step;
+    mode = (int)SchedulerMode::Step;
 #endif
 
     if (mode_defines > 1) {

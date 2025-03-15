@@ -8,7 +8,7 @@ local ipairs = ipairs
 local table_insert = table.insert
 
 local cfg = _G.cfg
-local VeriluaMode = _G.VeriluaMode
+local SchedulerMode = _G.SchedulerMode
 local verilua_info = _G.verilua_info
 local verilua_hello = _G.verilua_hello
 local verilua_warning = _G.verilua_warning
@@ -56,9 +56,7 @@ end
 verilua.finish_callback = function ()
     print()
     verilua_info(("--------------------- [Lua] Start doing finish_callback ---------------------"):format(verilua.end_time - verilua.start_time))
-    if cfg.mode ~= VeriluaMode.STEP then
-        scheduler:list_tasks()
-    end
+	scheduler:list_tasks()
 
     -- Automatically save default coverage group into json file
     if #_G.default_cg.cover_points > 0 then

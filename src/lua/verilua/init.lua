@@ -180,7 +180,7 @@ end
 -- 
 _G.cfg = require "LuaSimConfig"
 _G.colors = cfg.colors
-_G.VeriluaMode = cfg.VeriluaMode
+_G.SchedulerMode = cfg.SchedulerMode
 
 local cfg_name, cfg_path
 do
@@ -325,7 +325,7 @@ do
 
                 local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
                 if not success then
-                    mode = cfg.VeriluaMode.NORMAL
+                    mode = cfg.SchedulerMode.NORMAL
                     _G.verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
                 end
                 cfg.mode = tonumber(mode)
@@ -335,10 +335,10 @@ do
                 cfg.mode = tonumber(mode)
             end
         else
-            cfg.mode = cfg.mode or cfg.VeriluaMode.STEP
-            assert(cfg.mode == cfg.VeriluaMode.STEP, "For now, `cfg.mode` only support VeriluaMode.STEP/\"step\" when `cfg.attach` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
+            cfg.mode = cfg.mode or cfg.SchedulerMode.STEP
+            assert(cfg.mode == cfg.SchedulerMode.STEP, "For now, `cfg.mode` only support SchedulerMode.STEP/\"step\" when `cfg.attach` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
         end
-        _G.verilua_debug("VeriluaMode is " .. cfg.VeriluaMode(cfg.mode))
+        _G.verilua_debug("SchedulerMode is " .. cfg.SchedulerMode(cfg.mode))
     end
 end
 
