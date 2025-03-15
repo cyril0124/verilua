@@ -319,66 +319,77 @@ end
 
     function void simulation_initializeTrace;
         input string traceFilePath;
-    `ifdef SIM_VERILATOR
-        $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-        $dumpfile({traceFilePath, ".vcd"});
-        $dumpvars(0, {{tbtopName}});
-    `endif
 
-    `ifdef SIM_VCS
-        $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
-
-        `ifdef FSDB_AUTO_SWITCH
-        `ifndef FILE_SIZE
-            `define FILE_SIZE 25
-        `endif
-        
-        `ifndef NUM_OF_FILES
-            `define NUM_OF_FILES 1000
+        `ifdef SIM_VERILATOR
+            $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+            $dumpfile({traceFilePath, ".vcd"});
+            $dumpvars(0, {{tbtopName}});
         `endif
 
-        $fsdbAutoSwitchDumpfile(`FILE_SIZE, {traceFilePath, ".fsdb"}, `NUM_OF_FILES);
-        `else
-        $fsdbDumpfile({traceFilePath, ".fsdb"});
-        `endif
+        `ifdef SIM_VCS
+            $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
 
-        //
-        // $fsdbDumpvars([depth, instance][, "option"]);
-        // options:
-        //   +all: Record all signals, including memories, MDA (Memory Data Array), packed arrays, structures, etc.
-        //   +mda: Record all memory and MDA signals. MDA (Memory Data Array) signals refer to those related to memory data arrays.
-        //   +IO_Only: Record only input and output port signals.
-        //   +Reg_Only: Record only signals of register type.
-        //   +parameter: Record parameters.
-        //   +fsdbfile+filename: Specify the fsdb file name.
-        // 
-        $fsdbDumpvars(0, {{tbtopName}}, "+all");
-    `endif
+            `ifdef FSDB_AUTO_SWITCH
+                `ifndef FILE_SIZE
+                    `define FILE_SIZE 25
+                `endif
+            
+                `ifndef NUM_OF_FILES
+                    `define NUM_OF_FILES 1000
+                `endif
+
+                $fsdbAutoSwitchDumpfile(`FILE_SIZE, {traceFilePath, ".fsdb"}, `NUM_OF_FILES);
+            `else
+                $fsdbDumpfile({traceFilePath, ".fsdb"});
+            `endif
+
+            `ifdef FSDB_DUMP_SVA
+                //
+                // Dump System Verilog Assertions
+                // Notice: To enable this feature, you also need to add `+fsdb+sva_success` 
+                //         to your `./simv` command line args at runtime or in your `vcs`
+                //         command line args at build time.
+                //
+                $fsdbDumpSVA(0, {{tbtopName}});
+            `endif
+
+            //
+            // $fsdbDumpvars([depth, instance][, "option"]);
+            // options:
+            //   +all: Record all signals, including memories, MDA (Memory Data Array), packed arrays, structures, etc.
+            //   +mda: Record all memory and MDA signals. MDA (Memory Data Array) signals refer to those related to memory data arrays.
+            //   +IO_Only: Record only input and output port signals.
+            //   +Reg_Only: Record only signals of register type.
+            //   +parameter: Record parameters.
+            //   +fsdbfile+filename: Specify the fsdb file name.
+            // 
+            $fsdbDumpvars(0, {{tbtopName}}, "+all");
+        `endif
     endfunction
 
     function void simulation_enableTrace;
-    `ifdef SIM_VERILATOR
-        $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-        $dumpon;
-    `endif
+        `ifdef SIM_VERILATOR
+            $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+            $dumpon;
+        `endif
 
-    `ifdef SIM_VCS
-        $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
-        $fsdbDumpon;
-        // $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
-    `endif
+        `ifdef SIM_VCS
+            $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
+            $fsdbDumpon;
+            // $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
+        `endif
     endfunction
 
     function void simulation_disableTrace;
-    `ifdef SIM_VERILATOR
-        $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-        $dumpoff;
-    `endif
+        `ifdef SIM_VERILATOR
+            $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+            $dumpoff;
+        `endif
 
-    `ifdef SIM_VCS
-        $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
-        $fsdbDumpoff;
-    `endif
+        `ifdef SIM_VCS
+            $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
+            $fsdbDumpoff;
+        `endif
     endfunction
 `endif // SIM_IVERILOG
 
