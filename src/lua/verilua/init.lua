@@ -1244,6 +1244,14 @@ do
     -- TODO: join?
 end
 
+if os.getenv("VL_PREBUILD") == "1" then
+    require "verilua.utils.PrebuildHelper"
+else
+    _G.prebuild = function ()
+        -- do nothing
+    end
+end
+
 -- 
 -- setup random seed
 -- 

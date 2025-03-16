@@ -22,11 +22,17 @@ mimalloc = "0.1.43"
 rand = "0.9.0"
 smallvec = "1.14.0"
 tabled = "0.18.0"
+clap = { version = "4.5.32", features = ["derive"] } # used in verilua_prebuild
 
 [lib]
 name = "verilua"
 path = "src/lib.rs"
-crate-type = ["cdylib"]
+crate-type = ["lib", "cdylib"]
+
+[[bin]]
+name = "verilua_prebuild"
+path = "src/lib.rs"
+required-features = ["verilua_prebuild_bin"]
 
 [features]
 verilator = []
@@ -38,12 +44,7 @@ debug = []
 acc_time = []
 chunk_task = []
 merge_cb = []
-
-[profile.release]
-panic = "abort"
-codegen-units = 1
-opt-level = 3
-# lto = "fat"
+verilua_prebuild_bin = []
 
 [build-dependencies]
 cc = {version = "1.2.15", features = ["parallel"]}

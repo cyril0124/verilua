@@ -2,3 +2,9 @@
 resolver = "2"
 members = ["libverilua"]
 exclude = ["luajit-pro", "wave_vpi"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+opt-level = 3
+# lto = "fat"

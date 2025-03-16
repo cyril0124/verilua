@@ -250,6 +250,12 @@ impl VeriluaEnv {
             );
         };
 
+        #[cfg(feature = "verilua_prebuild_bin")]
+        {
+            log::debug!("[verilua_env] VL_PREBUILD is set to `1`, skip initialize");
+            return;
+        }
+
         let verilua_init: LuaFunction = self
             .lua
             .globals()
@@ -286,6 +292,12 @@ impl VeriluaEnv {
             return;
         } else {
             self.finalized = true;
+        }
+
+        #[cfg(feature = "verilua_prebuild_bin")]
+        {
+            log::debug!("[verilua_env] VL_PREBUILD is set to `1`, skip finalize");
+            return;
         }
 
         let finish_callback: LuaFunction = self.lua.globals().get("finish_callback").unwrap();

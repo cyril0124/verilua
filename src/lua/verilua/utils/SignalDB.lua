@@ -1,9 +1,10 @@
 local ffi = require "ffi"
 local path = require "pl.path"
+local inspect = require "inspect"
 local stringx = require "pl.stringx"
 local texcpect = require "TypeExpect"
-local Bundle = require "verilua.handles.LuaBundle"
 
+local next = next
 local type = type
 local assert = assert
 local f = string.format
@@ -11,31 +12,39 @@ local table_insert = table.insert
 
 local cfg = _G.cfg
 
+local is_prebuild = os.getenv("VL_PREBUILD")
+
 local SignalDB = {
     db_data = nil,
+    top = os.getenv("DUT_TOP"),
     check_file = nil,
     target_file = "./signal_db.ldb",
-    rtl_filelist = "dut_file.f",
+    is_prebuild = is_prebuild,
+    rtl_filelist = is_prebuild and assert(os.getenv("VL_PREBUILD_FILELIST"), "[SignalDB] `VL_PREBUILD_FILELIST` is not set when `VL_PREBUILD` is true!") or "dut_file.f",
     extra_signal_db_gen_args = "",
     initialized = false,
     regenerate = false,
 }
 
 local function get_check_file()
-    local SymbolHelper = require "SymbolHelper"
-
-    local check_file = nil
-    if cfg.simulator == "iverilog" then
-        local cmdline = SymbolHelper.get_self_cmdline()
-        local ret_list = stringx.split(cmdline, " "):filter(function(str) return stringx.endswith(str, ".vvp") end)
-        assert(#ret_list == 1)
-
-        check_file = ret_list[1]
+    if is_prebuild then
+        return nil
     else
-        check_file = SymbolHelper.get_executable_name()
-    end
+        local SymbolHelper = require "SymbolHelper"
 
-    return check_file
+        local check_file = nil
+        if cfg.simulator == "iverilog" then
+            local cmdline = SymbolHelper.get_self_cmdline()
+            local ret_list = stringx.split(cmdline, " "):filter(function(str) return stringx.endswith(str, ".vvp") end)
+            assert(#ret_list == 1)
+
+            check_file = ret_list[1]
+        else
+            check_file = SymbolHelper.get_executable_name()
+        end
+
+        return check_file
+    end
 end
 
 function SignalDB:init(params)
@@ -45,13 +54,13 @@ function SignalDB:init(params)
         return self
     end
 
-    if cfg.simulator == "wave_vpi" then
-        assert(false, "[SignalDB] wave_vpi is not supported yet!")
+    if not self.is_prebuild then
+        assert(cfg.simulator ~= "wave_vpi", "[SignalDB] wave_vpi is not supported yet!")
     end
-    
+
     -- Try to find `rtl_filelist` in: `<check_file_dir>/../<rtl_filelist>`, `./<rtl_filelist>`, `<rtl_filelist>`
     local rtl_filelist = self.rtl_filelist
-    do
+    if not self.is_prebuild then
         self.check_file = self.check_file or get_check_file()
         local dir, _ = path.splitpath(self.check_file)
         if path.isfile(dir .. "/../" .. rtl_filelist) then
@@ -81,13 +90,13 @@ function SignalDB:init(params)
                 end
                 file:close()
             else
-                error("[SignalDB] can not find `" .. self.rtl_filelist .. "`")
+                assert(false, "[SignalDB] can not find `" .. self.rtl_filelist .. "`")
             end
         end
     end
 
     if regen then
-        self:generate_db(f("signal_db_gen -q --it --iu -f %s -o %s", rtl_filelist, self.target_file))
+        self:generate_db(f("-q --it --iu -f %s -o %s", rtl_filelist, self.target_file))
     end
 
     self:load_db(self.target_file)
@@ -100,6 +109,12 @@ end
 function SignalDB:set_extra_args(args_str)
     texcpect.expect_string(args_str, "args_str")
     self.extra_signal_db_gen_args = args_str
+    return self
+end
+
+function SignalDB:add_extra_args(args_str)
+    texcpect.expect_string(args_str, "args_str")
+    self.extra_signal_db_gen_args = self.extra_signal_db_gen_args .. " " .. args_str
     return self
 end
 
@@ -142,14 +157,136 @@ function SignalDB:get_db_data()
 end
 
 function SignalDB:generate_db(args_str)
-    local lib = ffi.load("signal_db_gen")
-    ffi.cdef[[
-        void signal_db_gen_main(const char *argList);
-    ]]
+    local top_args = ""
+    if type(self.top) == "string" and not self.extra_signal_db_gen_args:find("--top") then
+        top_args = " --top " .. self.top
+    end
 
-    local args = args_str .. " " .. self.extra_signal_db_gen_args
-    print(f("[SignalDB] generate_db: %s", args))
-    lib.signal_db_gen_main(args)
+    local args = args_str .. " " .. self.extra_signal_db_gen_args .. top_args
+    local cmd = "signal_db_gen " .. args
+
+    if not self.is_prebuild then
+        local lib = ffi.load("signal_db_gen")
+        ffi.cdef[[
+            void signal_db_gen_main(const char *argList);
+        ]]
+        print(f("[SignalDB] generate_db: %s", cmd))
+        lib.signal_db_gen_main(cmd)
+    else
+        print(f("[SignalDB] generate_db: %s", cmd))
+        os.execute(cmd)
+    end
+end
+
+function SignalDB:get_top_module()
+    assert(self.initialized, "[SignalDB] SignalDB is not initialized! please call `SignalDB:init()` first!")
+    
+    local top_module, _ =  next(self:get_db_data())
+    assert(top_module, "[SignalDB] No top module found!")
+
+    return top_module
+end
+
+function SignalDB:get_signal_info(hier_path)
+    local hier_vec = stringx.split(hier_path, ".")
+
+    local curr = self:get_db_data()
+    local end_idx = #hier_vec
+    for i, v in ipairs(hier_vec) do
+        if i == end_idx then
+            -- @signal_info = { <signal_name>, <bitwidth>, <vpi_type> }
+            for i, signal_info in ipairs(curr) do
+                if signal_info[1] == v then
+                    return signal_info
+                end
+            end
+            return nil
+        end
+
+        curr = curr[v]
+    end
+
+    return nil
+end
+
+local function _find_all(hiers, ret, path, str)
+    for k, v in pairs(hiers) do
+        local k_type = type(k)
+        if k_type == "string" then
+            if stringx.lfind(k, str) ~= nil then
+                table_insert(ret, path .. "." .. k)
+            end
+
+            if type(v) == "table" then
+                _find_all(v, ret, path .. "." .. k, str)
+            end
+        elseif k_type == "number" then
+            local signal_info = v
+            local signal_name = signal_info[1]
+            if stringx.lfind(signal_name, str) ~= nil then
+                table_insert(ret, path .. "." .. signal_name)
+            end
+        end
+    end
+end
+
+local function _find_hier(hiers, ret, path, str)
+    for k, v in pairs(hiers) do
+        local k_type = type(k)
+        if k_type == "string" then
+            if stringx.lfind(k, str) ~= nil then
+                table_insert(ret, path .. "." .. k)
+            end
+
+            if type(v) == "table" then
+                _find_hier(v, ret, path .. "." .. k, str)
+            end
+        end
+    end
+end
+
+local function _find_signal(hiers, ret, path, str)
+    for k, v in pairs(hiers) do
+        local k_type = type(k)
+        if k_type == "string" then
+            if type(v) == "table" then
+                _find_signal(v, ret, path .. "." .. k, str)
+            end
+        elseif k_type == "number" then
+            local signal_info = v
+            local signal_name = signal_info[1]
+            if stringx.lfind(signal_name, str) ~= nil then
+                table_insert(ret, path .. "." .. signal_name)
+            end
+        end
+    end
+end
+
+function SignalDB:find_all(str)
+    local curr = self:get_db_data()
+    local top = self:get_top_module()
+
+    local ret = {}
+    _find_all(assert(curr[top], "[SignalDB] No such top module! => " .. top), ret, top, str)
+    return ret
+end
+
+function SignalDB:find_hier(str)
+    local curr = self:get_db_data()
+    local top = self:get_top_module()
+
+    local ret = {}
+    _find_hier(assert(curr[top], "[SignalDB] No such top module! => " .. top), ret, top, str)
+    return ret
+end
+
+function SignalDB:find_signal(str)
+    local curr = self:get_db_data()
+    local top = self:get_top_module()
+
+    local ret = {}
+    _find_signal(assert(curr[top], "[SignalDB] No such top module! => " .. top), ret, top, str)
+    return ret
 end
 
 function SignalDB:auto_bundle(hier_path, params)
@@ -212,6 +349,7 @@ function SignalDB:auto_bundle(hier_path, params)
 
     assert(#signals > 0, "[auto_bundle] No signals found! params: " .. inspect(params))
 
+    local Bundle = require "verilua.handles.LuaBundle"
     if params.prefix then
         return Bundle(signals, params.prefix, hier_path, "auto_bundle", false, {})
     else

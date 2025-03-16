@@ -1,3 +1,5 @@
+---@diagnostic disable
+
 local verilua_use_nix = os.getenv("VERILUA_USE_NIX") == "1" or false
 local verilua_home = os.getenv("VERILUA_HOME") or "" -- verilua source code home
 local verilua_tools_home = os.getenv("VERILUA_TOOLS_HOME") or (verilua_home .. "/tools")
@@ -57,22 +59,24 @@ local function before_build_or_run(target)
         os.mkdir(sim_build_dir)
     end
 
-    -- Copy lua main file into build_dir
-    local lua_main = path.absolute(os.getenv("LUA_SCRIPT") or assert(target:values("cfg.lua_main"), "[before_build_or_run] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"))
-    cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
-    if os.mtime(lua_main) > os.mtime(build_dir .. "/" .. path.filename(lua_main)) then
-        os.cp(lua_main, build_dir)
-    end
-
-    -- Copy other lua files into build_dir
+    -- Extract dependencies from sourcefiles
+    local deps_path_map = {}
+    local deps_str = ""
     local sourcefiles = target:sourcefiles()
-    if not no_copy_lua then
-        for _, sourcefile in ipairs(sourcefiles) do
-            if (sourcefile:endswith(".lua") or sourcefile:endswith(".luau") or sourcefile:endswith(".tl") or sourcefile:endswith(".d.tl")) and os.mtime(sourcefile) > os.mtime(build_dir .. "/" .. path.filename(sourcefile)) then
-                os.cp(sourcefile, build_dir)
+    for _, sourcefile in ipairs(sourcefiles) do
+        if sourcefile:endswith(".lua") or sourcefile:endswith(".luau") or sourcefile:endswith(".tl") or sourcefile:endswith(".d.tl") then
+            local dir = path.directory(path.absolute(sourcefile))
+            if deps_path_map[dir] == nil then
+                deps_path_map[dir] = true
+                deps_str = deps_str .. dir .. "/?.lua;"
             end
         end
     end
+
+    -- Save lua_main directory into deps_str
+    local lua_main = path.absolute(os.getenv("LUA_SCRIPT") or assert(target:values("cfg.lua_main"), "[before_build_or_run] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"))
+    cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
+    deps_str = deps_str .. path.directory(lua_main) .. "/?.lua;"
 
     -- Check verilua mode
     local mode = "normal"
@@ -92,8 +96,6 @@ local function before_build_or_run(target)
     local user_cfg = target:values("cfg.user_cfg") or target:values("cfg.other_cfg")
     local user_cfg_path = "nil"
     local shutdown_cycles = target:values("cfg.shutdown_cycles")
-    local deps = target:values("cfg.deps")
-    local deps_str = ""
 
     target:add("tb_top", tb_top)
 
@@ -111,17 +113,6 @@ local function before_build_or_run(target)
     end
     cprint("${✅} [verilua-xmake] [%s] shutdown_cycles is ${green underline}%s${reset}", target:name(), shutdown_cycles)
 
-    if deps ~= nil then
-        if type(deps) == "table" then
-            for _, dep in ipairs(deps) do
-                deps_str = deps_str .. "\"" .. path.absolute(dep) .. "\"" .. ",\n"
-                cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), dep)
-            end
-        else
-            deps_str = "\"" .. path.absolute(deps) .. "\""
-            cprint("${✅} [verilua-xmake] [%s] deps is ${green underline}%s${reset}", target:name(), deps)
-        end
-    end
 
     local cfg_file = path.absolute(target:get("build_dir") .. "/verilua_cfg.lua")
     local cfg_file_str = f([[
@@ -136,10 +127,7 @@ cfg.simulator = os.getenv("SIM") or "%s"
 cfg.mode = SchedulerMode.%s
 cfg.seed = os.getenv("SEED") or 101
 cfg.script = os.getenv("LUA_SCRIPT") or "%s"
-cfg.srcs = {"./?.lua"}
-cfg.deps = {
-%s
-}
+cfg.deps = {"%s"}
 cfg.user_cfg = %s
 cfg.user_cfg_path = %s
 cfg.enable_shutdown = true
@@ -155,8 +143,10 @@ if cfg.user_cfg ~= nil then
 end
 
 return cfg
-]], tb_top, os.getenv("PWD"), sim, mode:upper(), path.absolute(build_dir .. "/" .. path.basename(lua_main) .. ".lua"), deps_str, user_cfg, user_cfg_path, shutdown_cycles)
-    if not no_copy_lua then
+]], tb_top, os.getenv("PWD"), sim, mode:upper(), lua_main, deps_str, user_cfg, user_cfg_path, shutdown_cycles)
+    if os.isfile(cfg_file) and io.readfile(cfg_file) == cfg_file_str then
+        cprint("${✅} [verilua-xmake] [%s] verilua_cfg.lua is up-to-date", target:name())
+    else
         io.writefile(cfg_file, cfg_file_str)
     end
 
@@ -182,12 +172,6 @@ end
 
 rule("verilua")
     set_extensions(".v", ".sv", ".svh", ".lua", ".luau", ".tl", ".d.tl", ".vlt", ".vcd", ".fst", ".fsdb")
-    
-    on_load(function (target)
-    end)
-
-    on_config(function (target)
-    end)
 
     before_build(before_build_or_run)
     
@@ -572,38 +556,39 @@ rule("verilua")
             end
         end
 
-        -- Create a clean.sh + build.sh + run.sh that can be used by user to manually run the simulation
+        -- 
+        -- Create a clean.sh + build.sh + run.sh + prebuild.sh that can be used by user to manually run the simulation
+        -- 
+        -- Save the current environment variables
         local _runenvs = target:get("runenvs")
         local extra_runenvs = ""
         if _runenvs ~= nil then
-          for key, value in pairs(_runenvs) do
-            if key == "LD_LIBRARY_PATH" or key == "PATH" then
-              extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. ":$" .. key .. "\n"
-            else
-              extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. "\n"
+            for key, value in pairs(_runenvs) do
+                if key == "LD_LIBRARY_PATH" or key == "PATH" then
+                    extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. ":$" .. key .. "\n"
+                else
+                    extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. "\n"
+                end
             end
-          end
         end
-        local setvars_sh = f([[#!/usr/bin/env bash
+        
+        io.printf(build_dir .. "/setvars.sh", 
+[[#!/usr/bin/env bash
 export VERILUA_CFG=%s
 export SIM=%s
-%s
-]], target:get("cfg_file"), sim, extra_runenvs)
-        io.writefile(build_dir .. "/setvars.sh", setvars_sh)
+%s]], target:get("cfg_file"), sim, extra_runenvs)
 
         local sim_build_dir = target:get("sim_build_dir")
-        local clean_sh = f([[#!/usr/bin/env bash
+        io.printf(build_dir .. "/clean.sh", 
+[[#!/usr/bin/env bash
 source setvars.sh
-rm -rf %s
-]], sim_build_dir)
-        io.writefile(build_dir .. "/clean.sh", clean_sh)
+rm -rf %s]], sim_build_dir)
 
         local buildcmd_str = sim == "wave_vpi" and "# wave_vpi did not support build.sh \n#" or buildcmd:sub(1, -2) .. " " .. table.concat(argv, " ")
-        local build_sh = f([[#!/usr/bin/env bash
+        io.printf(build_dir .. "/build.sh", 
+[[#!/usr/bin/env bash
 source setvars.sh
-%s 2>&1 | tee build.log
-]], buildcmd_str)
-        io.writefile(build_dir .. "/build.sh", build_sh)
+%s 2>&1 | tee build.log]], buildcmd_str)
 
         local run_sh = ""
         if sim == "verilator" then
@@ -619,10 +604,14 @@ source setvars.sh
         io.writefile(build_dir .. "/run.sh",       "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh)
         io.writefile(build_dir .. "/debug_run.sh", "#!/usr/bin/env bash\nsource setvars.sh\n" .. "gdb --args " .. run_sh)
 
-        local verdi_sh = [[#!/usr/bin/env bash
-verdi -f filelist.f -sv -nologo $@
-]]
-        io.writefile(build_dir .. "/verdi.sh", verdi_sh)
+        io.printf(build_dir .. "/prebuild.sh",
+[[#!/usr/bin/env bash
+source setvars.sh
+verilua_prebuild -f %s]], build_dir .."/dut_file.f")
+
+        io.writefile(build_dir .. "/verdi.sh", 
+[[#!/usr/bin/env bash
+verdi -f filelist.f -sv -nologo $@]])
         
         -- Copy the generated binary to targetdir
         local sim_build_dir = target:get("sim_build_dir")

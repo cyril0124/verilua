@@ -365,6 +365,21 @@ target("libsignal_db_gen")
         print("---------------------------------------------------------- ")
     end)
 
+target("verilua_prebuild")
+    set_kind("phony")
+    on_build(function (target)
+        os.exec("cargo build --release --features verilua_prebuild_bin")
+    end)
+
+    after_build(function (target)
+        print("--------------------- [After Build] ---------------------- ")
+
+        local bin = prj_dir .. "/target/release/verilua_prebuild"
+        print("* copy " .. bin .. " into " .. tools_dir)
+            os.run("cp " .. bin .. " " .. tools_dir)
+        print("---------------------------------------------------------- ")
+    end)
+
 target("update_submodules")
     set_kind("phony")
     on_run(function (target)

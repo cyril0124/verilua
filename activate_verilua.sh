@@ -25,6 +25,7 @@ $VERILUA_HOME/src/gen/?.lua;\
 $VERILUA_HOME/src/lua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/vpiml/?.lua;\
+$VERILUA_HOME/src/lua/verilua/sva/?.lua;\
 $VERILUA_HOME/src/lua/verilua/coverage/?.lua;\
 $VERILUA_HOME/src/lua/verilua/handles/?.lua;\
 $VERILUA_HOME/src/lua/verilua/scheduler/?.lua;\
@@ -36,6 +37,10 @@ $VERILUA_HOME/extern/debugger.lua/?.lua;\
 $VERILUA_HOME/extern/luajit_tcc/?.lua;\
 $VERILUA_HOME/extern/lua_inline_c/?.lua;\
 $VERILUA_HOME/extern/lua_inline_c/?/?.lua;\
+"
+
+export LUA_CPATH="\
+$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?.so;\
 "
 
 . "$VERILUA_HOME/extern/lua_inline_c/setvars.sh"

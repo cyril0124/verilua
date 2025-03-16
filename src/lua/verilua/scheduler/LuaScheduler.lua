@@ -2,7 +2,9 @@ local cfg = _G.cfg
 local SchedulerMode = _G.SchedulerMode
 
 local scheduler
-do
+if os.getenv("VL_PREBUILD") then
+    scheduler = require("verilua.scheduler.LuaDummyScheduler")
+else
     local mode = cfg.mode
     local perf_time = os.getenv("VL_PERF_TIME") == "1"
 

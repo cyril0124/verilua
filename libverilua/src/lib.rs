@@ -38,3 +38,6 @@ pub extern "C" fn vlog_startup_routines_bootstrap() {
         unsafe { f() };
     }
 }
+
+#[cfg(feature = "verilua_prebuild_bin")]
+include!("bin/verilua_prebuild.rs");
