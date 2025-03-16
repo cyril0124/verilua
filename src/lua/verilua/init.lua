@@ -321,7 +321,7 @@ end
 -- 
 do
     if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-        if not cfg.attach then
+        if not cfg.is_hse then
             if cfg.simulator == "vcs" then
                 ffi.C.svSetScope(ffi.C.svGetScopeFromName(ffi.cast("char *", cfg.top)))
 
@@ -337,8 +337,11 @@ do
                 cfg.mode = tonumber(mode)
             end
         else
-            cfg.mode = cfg.mode or cfg.SchedulerMode.STEP
-            assert(cfg.mode == cfg.SchedulerMode.STEP, "For now, `cfg.mode` only support SchedulerMode.STEP/\"step\" when `cfg.attach` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
+            if cfg.mode == "nil" then
+                cfg.mode = cfg.SchedulerMode.STEP
+            else
+                assert(cfg.mode == cfg.SchedulerMode.STEP, "For now, `cfg.mode` only support SchedulerMode.STEP/\"step\" when `cfg.is_hse` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
+            end
         end
         _G.verilua_debug("SchedulerMode is " .. cfg.SchedulerMode(cfg.mode))
     end

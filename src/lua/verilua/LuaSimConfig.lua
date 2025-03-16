@@ -300,7 +300,7 @@ function cfg:post_config()
     -- Setup configs with default values
     cfg.srcs            = cfg:get_or_else("srcs", {"./?.lua"})
     cfg.deps            = cfg:get_or_else("deps", {}) -- Dependencies
-    cfg.attach          = cfg:get_or_else("attach", false) -- Attach verilua to simulator
+    cfg.is_hse          = cfg:get_or_else("is_hse", false) or cfg:get_or_else("attach", false) -- Whether use verilua as HSE(Hardware Script Engine)
     cfg.period          = cfg:get_or_else("period", 10)
     cfg.unit            = cfg:get_or_else("unit", "ns")
     cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
@@ -318,7 +318,7 @@ function cfg:post_config()
         cfg.seed = tonumber(env_seed)
     end
 
-    type_check(cfg.attach, "cfg.attach", "boolean")
+    type_check(cfg.is_hse, "cfg.is_hse", "boolean")
     type_check(cfg.seed, "cfg.seed", "number")
 
     setmetatable(cfg, {

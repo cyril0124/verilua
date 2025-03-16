@@ -8,7 +8,6 @@ else
 end
 
 cfg.script = "./verilua/main.lua"
-cfg.attach = true
-cfg.mode = 'step'
+cfg.is_hse = true
 
 return cfg

@@ -135,7 +135,6 @@ cfg.prj_dir = os.getenv("PRJ_DIR") or "%s"
 cfg.simulator = os.getenv("SIM") or "%s"
 cfg.mode = SchedulerMode.%s
 cfg.seed = os.getenv("SEED") or 101
-cfg.attach = false
 cfg.script = os.getenv("LUA_SCRIPT") or "%s"
 cfg.srcs = {"./?.lua"}
 cfg.deps = {
@@ -143,12 +142,8 @@ cfg.deps = {
 }
 cfg.user_cfg = %s
 cfg.user_cfg_path = %s
-cfg.period = 10
-cfg.unit = "ns"
 cfg.enable_shutdown = true
 cfg.shutdown_cycles = os.getenv("SHUTDOWN_CYCLES") or %s
-cfg.luapanda_debug = false
-cfg.vpi_learn = false
 
 -- Mix with other config
 if cfg.user_cfg ~= nil then

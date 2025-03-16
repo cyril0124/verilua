@@ -2,4 +2,4 @@
 
 set -e
 
-dpi_exporter -c ./verilua/dpi_cfg.lua Top.v tb_top.sv
+dpi_exporter -c ./verilua/dpi_cfg.lua -q Top.v tb_top.sv

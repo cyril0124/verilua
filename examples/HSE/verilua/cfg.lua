@@ -14,7 +14,6 @@ end
 cfg.script = "./verilua/main.lua"
 
 -- [mandatory] When using verilua as HSE, you must set this two options.
-cfg.attach = true
-cfg.mode = 'step'
+cfg.is_hse = true
 
 return cfg
