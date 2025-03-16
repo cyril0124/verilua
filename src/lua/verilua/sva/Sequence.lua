@@ -1,3 +1,5 @@
+require 'pl.text'.format_operator()
+
 local class = require "pl.class"
 local List = require "pl.List"
 local string = require "string"
@@ -11,6 +13,7 @@ local pairs = pairs
 local ipairs = ipairs
 local assert = assert
 local f = string.format
+local table_insert = table.insert
 
 ---@enum (key) SequenceElementType
 local SequenceElementType = {
@@ -34,8 +37,10 @@ local SequenceElementType = {
 ---@field name string
 ---@field log_name string
 ---@field values table<string, any>
----@field has_raw boolean
+---@field has_raw_sequence boolean
 ---@field raw_sequence string
+---@field has_port_list boolean
+---@field port_list table<string>
 ---@field verbose boolean
 ---@field compiled boolean
 ---@field compiled_sequence string
@@ -43,6 +48,8 @@ local SequenceElementType = {
 ---@field _transform_element fun(self, element: SequenceElement): string
 ---@field _log fun(self, ...: any)
 ---@field compile fun(self): self
+---@field with_raw fun(self, str: string): self
+---@field with_port_list fun(self, port_list_tbl: table<string>): self
 ---@field with_expr fun(self, chdl_signal: any): self
 ---
 local Sequence = class()
@@ -56,8 +63,10 @@ function Sequence:_init(name)
     self.verbose = true
 
     self.values = {}
-    self.has_raw = false
+    self.has_raw_sequence = false
     self.raw_sequence = ""
+    self.has_port_list = false
+    self.port_list = {}
     self.compiled = false
     self.compiled_sequence = ""
 
@@ -81,8 +90,24 @@ function Sequence:__tostring()
     end
 end
 
+function Sequence:with_port_list(port_list_tbl)
+    texpect.expect_table(port_list_tbl, "port_list_tbl")
+
+    for i, port in ipairs(port_list_tbl) do
+        texpect.expect_string(port, "port")
+
+        table_insert(self.port_list, port)
+    end
+
+    if not self.has_port_list then
+        self.has_port_list = #port_list_tbl > 0
+    end
+
+    return self
+end
+
 function Sequence:with_raw(str)
-    if self.has_raw then
+    if self.has_raw_sequence then
         assert(false, "[Sequence] already has raw string")
     end
 
@@ -90,7 +115,7 @@ function Sequence:with_raw(str)
         assert(false, "[Sequence] compile error: `with_raw` is not allowed after `compile`")
     end
 
-    self.has_raw = true
+    self.has_raw_sequence = true
     self.raw_sequence = str
     return self
 end
@@ -99,6 +124,7 @@ function Sequence:with_values(values_table)
     texpect.expect_table(values_table, "values_table")
     
     for k, v in pairs(values_table) do
+        assert(not self.values[k], "[Sequence] value already exists: " .. k)
         self.values[k] = v
     end
 
@@ -120,13 +146,18 @@ function Sequence:compile()
         assert(false, "[Sequence] compile error: already compiled")
     end
 
-    if self.has_raw then
+    if self.has_raw_sequence then
         local locals, _ = common.get_locals(3)
         common.expand_locals(locals)
 
         local raw_sequence = common.render_sva_template(self.raw_sequence, locals, self.values)
 
-        local compiled_sequence = "sequence " .. self.name .. "; " .. raw_sequence .. "; endsequence"
+        local port_list_str = ""
+        if #self.port_list > 0 then
+            port_list_str = table.concat(self.port_list, ", ")
+        end
+
+        local compiled_sequence = "sequence $name($port_list); $raw_sequence; endsequence" % {name = self.name, port_list = port_list_str, raw_sequence = raw_sequence}
         compiled_sequence = stringx.replace(compiled_sequence, "\n", "")
 
         self.compiled_sequence = string.gsub(compiled_sequence, "%s+", " ")
@@ -154,6 +185,11 @@ function Sequence:compile()
             end
 
             last_elemnt_type = element.typ
+        end
+
+        -- TODO: Port list
+        if self.has_port_list then
+            assert(false, "TODO: Port list")
         end
 
         self.compiled_sequence = "sequence " .. self.name .. ";\n\t" .. self.compiled_sequence .. ";\nendsequence"

@@ -1,3 +1,5 @@
+require 'pl.text'.format_operator()
+
 local class = require "pl.class"
 local string = require "string"
 local common = require "SVACommon"
@@ -16,6 +18,8 @@ local f = string.format
 ---@field values table<string, any>
 ---@field has_raw boolean
 ---@field raw_property string
+---@field has_port_list boolean
+---@field port_list table<string>
 ---@field verbose boolean
 ---@field compiled boolean
 ---@field compiled_property string
@@ -35,6 +39,10 @@ function Property:_init(name)
     self.values = {}
     self.has_raw = false
     self.raw_property = ""
+
+    self.has_port_list = false
+    self.port_list = {}
+
     self.compiled = false
     self.compiled_property = ""
 
@@ -60,6 +68,7 @@ function Property:with_values(values_table)
     texpect.expect_table(values_table, "values_table")
     
     for k, v in pairs(values_table) do
+        assert(not self.values[k], "[Property] value already exists: " .. k)
         self.values[k] = v
     end
 
@@ -91,7 +100,13 @@ function Property:compile()
 
         local raw_property = common.render_sva_template(self.raw_property, locals, self.values)
         
-        local compiled_property = "property " .. self.name .. "; " .. raw_property .. "; endproperty"
+        local port_list_str = ""
+        if #self.port_list > 0 then
+            port_list_str = table.concat(self.port_list, ", ")
+            port_list_str = port_list_str:sub(1, -2)
+        end
+
+        local compiled_property = "property $name($port_list); $raw_property; endproperty" % {name = self.name, port_list = port_list_str, raw_property = raw_property }
         compiled_property = stringx.replace(compiled_property, "\n", "")
 
         self.compiled_property = string.gsub(compiled_property, "%s+", " ")

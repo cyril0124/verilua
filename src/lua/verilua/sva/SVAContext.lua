@@ -10,55 +10,127 @@ local table_insert = table.insert
 ---@class SVAContext
 local SVAContext = {
     unique_stmt_name_vec = {},
-    sequence_vec = {},
-    property_vec = {},
+    sequence_map = {},
+    property_map = {},
     content_vec = {},
 }
 
 setmetatable(SVAContext, {
     __tostring = function(self)
         local content = ""
-        for _, v in pairs(self.sequence_vec) do
-            content = content .. v .. "\n\n"
+        for _, v in pairs(self.sequence_map) do
+            content = content .. tostring(v) .. "\n\n"
         end
 
-        for _, v in pairs(self.property_vec) do
-            content = content .. v .. "\n\n"
+        for _, v in pairs(self.property_map) do
+            content = content .. tostring(v) .. "\n\n"
         end
 
         for _, v in pairs(self.content_vec) do
-            content = content .. v .. "\n\n"
+            content = content .. tostring(v) .. "\n\n"
         end
 
         return content
     end
 })
 
-function SVAContext:cover(cover_name, sequence_or_property)
+function SVAContext:add_sequence(sequence)
+    assert(type(sequence) == "table", "[SVAContext] input value is not a `table`")
+    assert(sequence.__type == "Sequence", "[SVAContext] input value is not a `Sequence`")
+
+    self.sequence_map[sequence.name] = sequence
+    
+    return self
+end
+
+function SVAContext:add_property(property)
+    assert(type(property) == "table", "[SVAContext] input value is not a `table`")
+    assert(property.__type == "Property", "[SVAContext] input value is not a `Property`")
+
+    self.property_map[property.name] = property
+
+    return self
+end
+
+function SVAContext:add(...)
+    local args = {...}
+    
+    for _, other in ipairs(args) do
+        local t = type(other)
+        if t == "table" then
+            assert(other.__type == "Sequence" or other.__type == "Property", "[SVAContext] `__concat` error: input value is not a `Sequence` or `Property`")
+            if other.__type == "Sequence" then
+                self:add_sequence(other)
+            elseif other.__type == "Property" then
+                self:add_property(other)
+            end
+        else
+            assert(false, "[SVAContext] `__concat` error: input value is not a `Sequence` or `Property`")
+        end
+    end
+
+    return self
+end
+
+function SVAContext:cover(cover_name, sequence_or_property_or_name)
     local content = ""
 
-    assert(type(cover_name) == "string", "[SVAContext] cover error: cover_name must be a string")
-    assert(type(sequence_or_property) == "table", "[SVAContext] cover error: sequence_or_property must be a table")
-
-    -- Make sure the cover_name is unique
+    assert(type(cover_name) == "string", "[SVAContext] cover error: `cover_name` must be a string")
+  
+    -- Make sure the cover_name is unique   
     if self.unique_stmt_name_vec[cover_name] then
         pp({unique_stmt_name_vec = self.unique_stmt_name_vec})
         assert(false, "[SVAContext] cover error: cover_name must be unique")
     end
     self.unique_stmt_name_vec[cover_name] = { type = "cover" }
 
-    local t = sequence_or_property.__type
-    if t == "Sequence" then
-        self.sequence_vec[sequence_or_property.name] = tostring(sequence_or_property)
-        content = "%s: cover property (%s);" % {cover_name, tostring(sequence_or_property.name)} -- Provided by `require 'pl.text'.format_operator()`
-    elseif t == "Property" then
-        self.property_vec[sequence_or_property.name] = tostring(sequence_or_property)
+    local sequence_or_property
+    local t = type(sequence_or_property_or_name)
+    if t == "string" then
+        local maybe_sequence = self.sequence_map[sequence_or_property_or_name]
+        local maybe_property = self.property_map[sequence_or_property_or_name]
+        sequence_or_property = maybe_sequence or maybe_property
+
+        assert(not(maybe_sequence and maybe_property), "[SVAContext] cover error: `sequence_or_property_or_name`: %s is both a sequence and a property in the current context" % {sequence_or_property_or_name})
+        assert(sequence_or_property, "[SVAContext] cover error: `sequence_or_property_or_name`: %s is not available in the current context" % {sequence_or_property_or_name})
+    elseif t == "table" then
+        local tt = sequence_or_property_or_name.__type
+        if tt == "Sequence" then
+            local sequence = self.sequence_map[sequence_or_property_or_name.name]
+            if sequence then
+                sequence_or_property = sequence
+            else
+                self:add_sequence(sequence_or_property_or_name)
+                sequence_or_property = sequence_or_property_or_name
+            end
+        elseif tt == "Property" then
+            local property = self.property_map[sequence_or_property_or_name.name]
+            if property then
+                sequence_or_property = property
+            else
+                self:add_property(sequence_or_property_or_name)
+                sequence_or_property = sequence_or_property_or_name
+            end
+        else
+            assert(false, tt)
+        end
+    else
+        assert(false, t)
+    end
+
+    local tt = sequence_or_property.__type
+    if tt == "Sequence" then
+        assert(not sequence_or_property.has_port_list, "[SVAContext] cover error: `sequence_or_property_or_name`: %s has a port_list which is not supported by the SVAContext yet" % {sequence_or_property_or_name})
+        content = "%s: cover sequence (%s);" % {cover_name, tostring(sequence_or_property.name)} -- Provided by `require 'pl.text'.format_operator()`
+    elseif tt == "Property" then
         content = "%s: cover property (%s);" % {cover_name, tostring(sequence_or_property.name)}
     else
         assert(false, "[SVAContext] cover error: sequence_or_property must be a Sequence or Property")
     end
 
     table_insert(self.content_vec, content)
+
+    return self
 end
 
 function SVAContext:generate()
