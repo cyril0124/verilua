@@ -12,7 +12,8 @@ fork {
 
         dut.count:expect(0)
         dut.inc:set(2) -- set value, available at the next clock cycle
-        
+        dut.inc:expect(1)
+
         clock:posedge()
         dut.count:expect(1)
 
@@ -22,6 +23,22 @@ fork {
 
         clock:posedge()
         dut.count:expect(4)
+
+        dut.inc:set(3)
+
+        clock:negedge()
+        dut.count:expect(5)
+
+        clock:negedge()
+        dut.count:expect(8)
+
+        clock:posedge(10)
+        clock:negedge()
+        dut.inc:set_imm(12)
+        dut.inc:expect(12)
+
+        clock:negedge()
+        dut.inc:expect(12)
 
         sim.finish()
     end
