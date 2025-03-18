@@ -19,6 +19,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -46,6 +47,18 @@ inline std::string replaceString(std::string str, const char *pattern, const cha
 };
 
 inline std::string replaceString(std::string str, std::string pattern, std::string replacement) { return replaceString(str, pattern.c_str(), replacement.c_str()); };
+
+inline bool isFileNewer(const std::string &file1, const std::string &file2) {
+    try {
+        auto time1 = std::filesystem::last_write_time(file1);
+        auto time2 = std::filesystem::last_write_time(file2);
+
+        return time1 > time2;
+    } catch (const std::filesystem::filesystem_error &e) {
+        std::cerr << "[isFileNewer] Error: " << e.what() << std::endl;
+        return false;
+    }
+}
 
 using PortInfo = struct {
     std::string name;

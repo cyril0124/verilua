@@ -3,6 +3,21 @@
 using json   = nlohmann::json;
 namespace fs = std::filesystem;
 
+namespace nlohmann {
+template <> struct adl_serializer<PortInfo> {
+    static void to_json(json &j, const PortInfo &p) { j = json{{"name", p.name}, {"dir", p.dir}, {"pType", p.pType}, {"declStr", p.declStr}, {"arraySize", p.arraySize}, {"id", p.id}}; }
+
+    static void from_json(const json &j, PortInfo &p) {
+        j.at("name").get_to(p.name);
+        j.at("dir").get_to(p.dir);
+        j.at("pType").get_to(p.pType);
+        j.at("declStr").get_to(p.declStr);
+        j.at("arraySize").get_to(p.arraySize);
+        j.at("id").get_to(p.id);
+    }
+};
+} // namespace nlohmann
+
 int main(int argc, const char *argv[]) {
     OS::setupConsole();
     slang::driver::Driver driver;
@@ -21,6 +36,7 @@ int main(int argc, const char *argv[]) {
     std::optional<bool> _verbose;
     std::optional<bool> _checkOutput;
     std::optional<bool> _dryrun;
+    std::optional<bool> _regen;
     std::optional<bool> _nodpi;
 
     driver.cmdLine.add("--tt,--tbtop", _tbtopName, "testbench top module name", "<top module name>");
@@ -37,6 +53,7 @@ int main(int argc, const char *argv[]) {
     driver.cmdLine.add("--vb,--verbose", _verbose, "verbose output");
     driver.cmdLine.add("--co,--check-output", _checkOutput, "check output");
     driver.cmdLine.add("--dr,--dryrun", _dryrun, "do not generate testbench");
+    driver.cmdLine.add("-r,--regen", _regen, "force regeneration of testbench");
 
     // TODO: remove this
     driver.cmdLine.add("--nd,--nodpi", _nodpi, "disable dpi generation");
@@ -94,8 +111,41 @@ int main(int argc, const char *argv[]) {
     int period                      = _period.value_or(10);
     bool verbose                    = _verbose.value_or(false);
     bool checkOutput                = _checkOutput.value_or(false);
+    bool regen                      = _regen.value_or(false);
     bool nodpi                      = _checkOutput.value_or(true);
 
+    const std::string tbtopFilePath    = outdir + "/" + tbtopName + ".sv";
+    const std::string othersFilePath   = outdir + "/" + "others.sv";
+    const std::string metaInfoFilePath = outdir + "/tb_gen.meta.json";
+    const std::string portInfoFilePath = outdir + "/tb_gen.portInfos.json";
+
+    bool shouldRegen = !fs::exists(tbtopFilePath) || !fs::exists(othersFilePath) || regen;
+
+    // Get command line into string
+    std::string cmdLineStr = "";
+    for (int i = 0; i < argc; i++) {
+        cmdLineStr += argv[i];
+        cmdLineStr += " ";
+    }
+
+    json metaInfoJson;
+    std::set<std::string> filelistSet;
+    std::ifstream metaInfoFile(metaInfoFilePath);
+    if (metaInfoFile.is_open()) {
+        metaInfoJson = json::parse(metaInfoFile);
+        metaInfoFile.close();
+
+        filelistSet = metaInfoJson["filelist"].get<std::set<std::string>>();
+        if (metaInfoJson["cmdLine"] != cmdLineStr) {
+            fmt::println("[testbench_gen] cmdLine changed, regenerating...");
+            shouldRegen = true;
+        }
+    } else {
+        fmt::println("[testbench_gen] {} not found, regenerating...", metaInfoFilePath);
+        shouldRegen = true;
+    }
+
+    std::vector<std::string> fileVec;
     size_t fileCount = 0;
     for (auto buffer : driver.sourceLoader.loadSources()) {
         fileCount++;
@@ -103,6 +153,27 @@ int main(int argc, const char *argv[]) {
         auto fullpath = driver.sourceManager.getFullPath(buffer.id).string();
         fmt::println("[testbench_gen] [{}] get file: {}", fileCount, fullpath);
         fflush(stdout);
+
+        if (!shouldRegen) {
+            if (!filelistSet.contains(fullpath)) {
+                fmt::println("[testbench_gen] [{}] file not found in meta.filelist, regenerating...", fileCount);
+                shouldRegen = true;
+            }
+
+            if (isFileNewer(fullpath, tbtopFilePath)) {
+                fmt::println("[testbench_gen] [{}] file is newer, regenerating...", fileCount);
+                shouldRegen = true;
+            }
+        }
+        fileVec.push_back(fullpath);
+    }
+
+    if (shouldRegen) {
+        metaInfoJson["filelist"] = fileVec;
+        metaInfoJson["cmdLine"]  = cmdLineStr;
+    } else {
+        fmt::println("[testbench_gen] No need to regenerate");
+        return 0;
     }
 
     ASSERT(driver.parseAllSources());
@@ -133,9 +204,17 @@ int main(int argc, const char *argv[]) {
     TestbenchGenParser parser(topName, verbose);
     compilation->getRoot().visit(parser);
 
+    auto &portInfos = parser.portInfos;
+
+    // Save portInfos to meta file
+    std::ofstream o(metaInfoFilePath);
+    metaInfoJson["portInfos"] = portInfos;
+    o << metaInfoJson.dump(4) << std::endl;
+    o.close();
+
     bool clockSignalHasMatch = false;
     bool resetSignalHasMatch = false;
-    for (auto &port : parser.portInfos) {
+    for (auto &port : portInfos) {
         if (clockSignalName != "" && port.name == clockSignalName) {
             clockSignalHasMatch = true;
         }
@@ -540,7 +619,7 @@ endmodule
             customCodeOuterFileContent = ss.str();
         }
 
-        auto lastId = parser.portInfos.back().id;
+        auto lastId = portInfos.back().id;
         for (auto &port : parser.portInfos) {
             if (port.id != lastId) {
                 signalConnect = signalConnect + fmt::format("\t.{:<30} ({:<30}), // direction: {:<10} dataType: {}\n", port.name, port.name, port.dir, port.pType);
@@ -630,15 +709,15 @@ assign reset = {};
             std::filesystem::create_directory(outdir);
         }
 
-        std::ofstream tbtopFile(outdir + "/" + tbtopName + ".sv");
-        ASSERT(tbtopFile.is_open(), "Can't open file", outdir + "/" + tbtopName + ".sv");
+        std::ofstream tbtopFile(tbtopFilePath);
+        ASSERT(tbtopFile.is_open(), "Can't open file", tbtopFilePath);
 
         tbtopFile << inja::render(tbtopFileContent, tbtopData);
         tbtopFile.close();
 
-        if (!std::filesystem::exists(outdir + "/" + "others.sv")) {
+        if (!std::filesystem::exists(othersFilePath)) {
             fmt::println("[testbench_gen] Creating others.sv...");
-            std::ofstream othersFile(outdir + "/" + "others.sv");
+            std::ofstream othersFile(othersFilePath);
             ASSERT(othersFile.is_open(), "Cannot open others.sv");
             othersFile << R"(
 module Others (
@@ -660,11 +739,8 @@ endmodule
     if (checkOutput) {
         fmt::println("\n[testbench_gen] Checking output files...");
 
-        std::string tbtopFile  = outdir + "/" + tbtopName + ".sv";
-        std::string othersFile = outdir + "/" + "others.sv";
-
-        driver.sourceLoader.addFiles(tbtopFile);
-        driver.sourceLoader.addFiles(othersFile);
+        driver.sourceLoader.addFiles(tbtopFilePath);
+        driver.sourceLoader.addFiles(othersFilePath);
         driver.options.topModules.clear();
         driver.options.topModules.push_back(tbtopName);
 
