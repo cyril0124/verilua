@@ -216,6 +216,19 @@ end
 _G.verilua_get_error = false -- Set by each scheduler when there is an error in the ongoing task
 
 -- 
+-- add source_file/dependencies package path
+-- 
+do
+    for _, src in ipairs(cfg.srcs) do
+        _G.package.path = _G.package.path .. ";" .. src
+    end
+
+    for _, dep in pairs(cfg.deps) do
+        _G.package.path = package.path .. ";" .. dep
+    end
+end
+
+-- 
 -- we should load ffi setenv before setting up other environment variables
 -- 
 _G.ffi = require "ffi"
@@ -300,20 +313,8 @@ do
     if DUT_TOP ~= nil then
         setenv_from_lua("DUT_TOP", DUT_TOP)
     end
-end
 
-
--- 
--- add source_file/dependencies package path
--- 
-do
-    for _, src in ipairs(cfg.srcs) do
-        _G.package.path = _G.package.path .. ";" .. src
-    end
-
-    for _, dep in pairs(cfg.deps) do
-        _G.package.path = package.path .. ";" .. dep
-    end
+    setenv_from_lua("LUA_PATH", _G.package.path)
 end
 
 -- 
