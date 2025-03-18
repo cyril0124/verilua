@@ -325,7 +325,7 @@ local function chdl_init()
                     end
                 end
 
-                chdl.set{{prefix}}_release = function ()
+                chdl.set{{prefix}}_release = function (this)
                     vpiml.vpiml_release{{prefix}}_value(this.hdl)
                 end
             ]==])
