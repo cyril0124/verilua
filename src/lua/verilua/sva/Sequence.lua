@@ -199,6 +199,11 @@ function Sequence:compile()
     return self
 end
 
+function Sequence:__mod(other)
+    self:with_values(other)
+    return self
+end
+
 -- function Sequence:with_expr(chdl_signal)
 --     -- TODO: Check signal width in `[N:M]`
 --     if type(chdl_signal) == "string" then

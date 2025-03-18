@@ -118,4 +118,9 @@ function Property:compile()
     return self
 end
 
+function Property:__mod(other)
+    self:with_values(other)
+    return self
+end
+
 return Property
