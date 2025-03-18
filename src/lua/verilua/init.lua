@@ -45,50 +45,22 @@ _G.HexStr = 4
 do
     local PWD = os.getenv("PWD")
     local PRJ_TOP = os.getenv("PRJ_TOP")
-    local VERILUA_HOME = os.getenv("VERILUA_HOME")
 
     local function append_package_path(path)
         _G.package.path = _G.package.path .. ";" .. path
     end
 
-    local function append_package_cpath(path)
-        _G.package.cpath = _G.package.cpath .. ";" .. path
+    if PWD ~= nil then
+        append_package_path(PWD .. "/?.lua")
+        append_package_path(PWD .. "/src/?.lua")
+        append_package_path(PWD .. "/src/lua/?.lua")
     end
-
-    local LUA_PATH = os.getenv("LUA_PATH") or ""
-    local LUA_CPATH = os.getenv("LUA_CPATH") or ""
-    _G.package.path = _G.package.path .. ";" .. LUA_PATH
-    _G.package.cpath = _G.package.cpath .. ";" .. LUA_CPATH
-
-    append_package_path(PWD .. "?.lua")
-    append_package_path(PWD .. "/?.lua")
-    append_package_path(PWD .. "/src/lua/?.lua")
-    append_package_path(PWD .. "/src/lua/main/?.lua")
-    append_package_path(PWD .. "/src/lua/configs/?.lua")
-    append_package_path(VERILUA_HOME .. "/?.lua")
-    append_package_path(VERILUA_HOME .. "/configs/?.lua")
-    append_package_path(VERILUA_HOME .. "/src/lua/verilua/?.lua")
-    append_package_path(VERILUA_HOME .. "/src/lua/?.lua")
-    append_package_path(VERILUA_HOME .. "/src/lua/thirdparty_lib/?.lua")
-    append_package_path(VERILUA_HOME .. "/extern/LuaPanda/Debugger/?.lua")
-    append_package_path(VERILUA_HOME .. "/extern/luafun/?.lua")
-    append_package_path(VERILUA_HOME .. "/extern/debugger.lua/?.lua")
-    append_package_path(VERILUA_HOME .. "/luajit-pro/luajit2.1/share/lua/5.1/?.lua")
-
-    append_package_cpath(VERILUA_HOME .. "/luajit-pro/luajit2.1/lib/lua/5.1/?.so")
-    append_package_cpath(VERILUA_HOME .. "/luajit-pro/luajit2.1/lib/lua/5.1/?/?.so")
-    append_package_cpath(VERILUA_HOME .. "/extern/LuaPanda/Debugger/debugger_lib/?.so")
 
     if PRJ_TOP ~= nil then
         append_package_path(PRJ_TOP .. "/?.lua")
+        append_package_path(PRJ_TOP .. "/src/?.lua")
+        append_package_path(PRJ_TOP .. "/src/lua/?.lua")
     end
-end
-
--- 
--- used by c++
--- 
-_G.lua_traceback = function ()
-    print(debug.traceback(""))
 end
 
 -- 

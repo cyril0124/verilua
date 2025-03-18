@@ -17,11 +17,9 @@ export LUA_LIB_NAME=luajit-5.1
 export LUA_LINK=shared
 
 export LUA_PATH="\
-./?.lua;$(pwd)/?.lua;$(pwd)/src/lua/?.lua;\
 $VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?.lua;\
 $VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?/init.lua;\
 $VERILUA_HOME/luajit-pro/luajit2.1/share/luajit-2.1/?.lua;\
-$VERILUA_HOME/src/gen/?.lua;\
 $VERILUA_HOME/src/lua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/vpiml/?.lua;\
@@ -33,6 +31,7 @@ $VERILUA_HOME/src/lua/verilua/random/?.lua;\
 $VERILUA_HOME/src/lua/verilua/utils/?.lua;\
 $VERILUA_HOME/src/lua/thirdparty_lib/?.lua;\
 $VERILUA_HOME/extern/luafun/?.lua;\
+$VERILUA_HOME/extern/LuaPanda/Debugger/?.lua;\
 $VERILUA_HOME/extern/debugger.lua/?.lua;\
 $VERILUA_HOME/extern/luajit_tcc/?.lua;\
 $VERILUA_HOME/extern/lua_inline_c/?.lua;\
@@ -41,6 +40,8 @@ $VERILUA_HOME/extern/lua_inline_c/?/?.lua;\
 
 export LUA_CPATH="\
 $VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?.so;\
+$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?/?.so\
+$VERILUA_HOME/extern/LuaPanda/Debugger/debugger_lib/?.so;\
 "
 
 . "$VERILUA_HOME/extern/lua_inline_c/setvars.sh"
