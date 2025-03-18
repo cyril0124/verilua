@@ -64,7 +64,8 @@ local function before_build_or_run(target)
     local deps_str = ""
     local sourcefiles = target:sourcefiles()
     for _, sourcefile in ipairs(sourcefiles) do
-        if sourcefile:endswith(".lua") or sourcefile:endswith(".luau") or sourcefile:endswith(".tl") or sourcefile:endswith(".d.tl") then
+        local ext = path.extension(sourcefile)
+        if ext == ".lua" or ext == ".luau" or ext == ".tl" then
             local dir = path.directory(path.absolute(sourcefile))
             if deps_path_map[dir] == nil then
                 deps_path_map[dir] = true
@@ -156,7 +157,8 @@ return cfg
         local get_waveform = false
         local waveform_file = ""
         for _, sourcefile in ipairs(sourcefiles) do
-            if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") or sourcefile:endswith(".fsdb") then
+            local ext = path.extension(sourcefile)
+            if ext == ".vcd" or ext == ".fst" or ext == ".fsdb" then
                 assert(get_waveform == false, "[before_build_or_run] Multiple waveform files are not supported")
                 get_waveform = true
                 waveform_file = path.absolute(sourcefile)
@@ -306,7 +308,8 @@ rule("verilua")
             local get_waveform = false
             local waveform_file = ""
             for _, sourcefile in ipairs(sourcefiles) do
-                if sourcefile:endswith(".vcd") or sourcefile:endswith(".fst") then
+                local ext = path.extension(sourcefile)
+                if ext == ".vcd" or ext == ".fst" then
                     assert(get_waveform == false, "[on_load] Multiple waveform files are not supported")
                     get_waveform = true
                     waveform_file = path.absolute(sourcefile)
@@ -359,13 +362,14 @@ rule("verilua")
             local has_top_file_cfg = top_file ~= nil
             local file_str = ""
             for _, sourcefile in ipairs(target:sourcefiles()) do
+                local ext = path.extension(sourcefile)
                 if sourcefile:endswith(top .. ".v") or sourcefile:endswith(top .. ".sv") then
                     if not has_top_file_cfg then
                         assert(top_file == nil, "[on_build] duplicate top_file! " .. sourcefile)
                         top_file = path.absolute(sourcefile)
                     end
                 end
-                if sourcefile:endswith(".v") or sourcefile:endswith(".sv") or sourcefile:endswith(".svh") then
+                if ext == ".v" or ext == ".sv" or ext == ".svh" then
                     if sourcefile:endswith(tb_top .. ".sv") then
                         raise("<%s.sv> is already exist! %s", tb_top, path.absolute(sourcefile))
                     end
@@ -503,16 +507,17 @@ rule("verilua")
         local filelist_sim = {} -- including c/c++ files
         if sim ~= "wave_vpi" then
             for _, sourcefile in ipairs(sourcefiles) do
+                local ext = path.extension(sourcefile)
                 local abs_sourcefile = path.absolute(sourcefile)
                 cprint("${📄} read file ${green dim}%s${reset}", abs_sourcefile)
-                if not sourcefile:endswith(".lua") and not sourcefile:endswith(".luau") and not sourcefile:endswith(".tl") and not sourcefile:endswith(".d.tl") then
-                    if sourcefile:endswith(".vlt") then
+                if ext ~= ".lua" and ext ~= ".luau" and ext ~= ".tl" then
+                    if ext == ".vlt" then
                         -- Ignore "*.vlt" file if current simulator is not verilator
                         if sim == "verilator" then
                             table.insert(filelist_sim, abs_sourcefile)
                             table.insert(argv, abs_sourcefile)
                         end
-                    elseif sourcefile:endswith(".v") or sourcefile:endswith(".sv") or sourcefile:endswith(".svh") then
+                    elseif ext == ".v" or ext == ".sv" or ext == ".svh" then
                         table.insert(filelist_dut, abs_sourcefile)
                         table.insert(filelist_sim, abs_sourcefile)
                     else
