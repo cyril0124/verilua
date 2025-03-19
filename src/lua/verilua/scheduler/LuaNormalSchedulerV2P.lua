@@ -112,26 +112,28 @@ function Scheduler:_remove_task(id)
 end
 
 function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
-	if cb_type == PosedgeHDL then
-		vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
-	elseif cb_type == Posedge then
-		vpiml.vpiml_register_posedge_callback(str_value, id)
-	elseif cb_type == PosedgeAlwaysHDL then
-		vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
-	elseif cb_type == NegedgeHDL then
-		vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
-	elseif cb_type == Negedge then
-		vpiml.vpiml_register_negedge_callback(str_value, id)
-	elseif cb_type == Timer then
-		vpiml.vpiml_register_time_callback(integer_value, id)
-	elseif cb_type == Event then
-		if self.event_name_map[integer_value] == nil then
-			assert(false, "Unknown event => " .. integer_value)
+	do
+		if cb_type == PosedgeHDL then
+			vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
+		elseif cb_type == Posedge then
+			vpiml.vpiml_register_posedge_callback(str_value, id)
+		elseif cb_type == PosedgeAlwaysHDL then
+			vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
+		elseif cb_type == NegedgeHDL then
+			vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
+		elseif cb_type == Negedge then
+			vpiml.vpiml_register_negedge_callback(str_value, id)
+		elseif cb_type == Timer then
+			vpiml.vpiml_register_time_callback(integer_value, id)
+		elseif cb_type == Event then
+			if self.event_name_map[integer_value] == nil then
+				assert(false, "Unknown event => " .. integer_value)
+			end
+			table_insert(self.event_task_id_list_map[integer_value], id)
+		elseif cb_type == NOOP then
+		else
+			assert(false, "Unknown YieldType => " .. tostring(cb_type))
 		end
-		table_insert(self.event_task_id_list_map[integer_value], id)
-	elseif cb_type == NOOP then
-	else
-		assert(false, "Unknown YieldType => " .. tostring(cb_type))
 	end
 end
 
@@ -190,14 +192,7 @@ function Scheduler:schedule_task(id)
 		ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id])
 
 		if not ok then
-			print(
-				f(
-					"[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s",
-					id,
-					self.task_name_map[id],
-					debug.traceback(self.task_coroutine_map[id], cb_type_or_err)
-				)
-			)
+			print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map[id], debug.traceback(self.task_coroutine_map[id], cb_type_or_err)))
 
 			_G.verilua_get_error = true
 			assert(false)
@@ -331,15 +326,7 @@ function Scheduler:list_tasks()
 
 	local idx = 0
 	for id, name in pairs(self.task_name_map) do
-		print(
-			f(
-				"[%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d",
-				idx,
-				name,
-				id,
-				self.task_execution_count_map[id]
-			)
-		)
+		print(f("[%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id, self.task_execution_count_map[id]))
 		idx = idx + 1
 	end
 	print("-------------------------------------------------------------")

@@ -179,27 +179,36 @@ function Scheduler:_remove_task(id: TaskID)
 end
 
 function Scheduler:_register_callback(id: TaskID, cb_type: TaskCallbackType, str_value: string, integer_value: integer)
-    if cb_type == PosedgeHDL then
-        vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
-    elseif cb_type == Posedge then
-        vpiml.vpiml_register_posedge_callback(str_value, id)
-    elseif cb_type == PosedgeAlwaysHDL then
-        vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
-    elseif cb_type == NegedgeHDL then
-        vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
-    elseif cb_type == Negedge then
-        vpiml.vpiml_register_negedge_callback(str_value, id)
-    elseif cb_type == Timer then
-        vpiml.vpiml_register_time_callback(integer_value, id)
-    elseif cb_type == Event then
-        if self.event_name_map[integer_value] == nil then
-            assert(false, "Unknown event => " .. integer_value)
+    if _G.NORMAL then
+        if cb_type == PosedgeHDL then
+            vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
+        elseif cb_type == Posedge then
+            vpiml.vpiml_register_posedge_callback(str_value, id)
+        elseif cb_type == PosedgeAlwaysHDL then
+            vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
+        elseif cb_type == NegedgeHDL then
+            vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
+        elseif cb_type == Negedge then
+            vpiml.vpiml_register_negedge_callback(str_value, id)
+        elseif cb_type == Timer then
+            vpiml.vpiml_register_time_callback(integer_value, id)
+        elseif cb_type == Event then
+            if self.event_name_map[integer_value] == nil then
+                assert(false, "Unknown event => " .. integer_value)
+            end
+            table_insert(self.event_task_id_list_map[integer_value], id)
+        elseif cb_type == NOOP then
+            -- do nothing
+        else
+            assert(false, "Unknown YieldType => " .. tostring(cb_type))
         end
-        table_insert(self.event_task_id_list_map[integer_value], id)
-    elseif cb_type == NOOP then
-        -- do nothing
-    else
-        assert(false, "Unknown YieldType => " .. tostring(cb_type))
+    elseif _G.STEP then
+        if cb_type == Event then
+            if self.event_name_map[integer_value] == nil then
+                assert(false, "Unknown event => " .. integer_value)
+            end
+            table_insert(self.event_task_id_list_map[integer_value], id)
+        end
     end
 end
 
@@ -356,7 +365,7 @@ function Scheduler:schedule_task(id: TaskID)
 
     if cb_type_or_err == nil or cb_type_or_err == EarlyExit then
         self:_remove_task(id)
-    elseif _G.NORMAL then
+    else
         self:_register_callback(id, cb_type_or_err, str_value, integer_value)
     end
 
