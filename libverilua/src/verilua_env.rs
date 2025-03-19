@@ -301,7 +301,9 @@ impl VeriluaEnv {
         }
 
         let finish_callback: LuaFunction = self.lua.globals().get("finish_callback").unwrap();
-        finish_callback.call::<()>(()).unwrap();
+        if let Err(err) = finish_callback.call::<()>(()) {
+            panic!("Error calling finish_callback: {err}");
+        }
 
         let total_time = self.start_time.elapsed();
 
