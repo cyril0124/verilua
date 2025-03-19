@@ -96,6 +96,7 @@ if enable_verilua_debug == true then
         io.write("\27[31m") -- RED
         print(_G.debug_str("[VERILUA DEBUG]", ...))
         io.write("\27[0m") -- RESET
+        io.flush()
     end
 else
     _G.verilua_debug = function (...)
