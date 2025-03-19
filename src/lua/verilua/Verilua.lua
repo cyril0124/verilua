@@ -109,6 +109,14 @@ _G.lua_main_step = function()
     scheduler:schedule_all_tasks()
 end
 
+_G.lua_posedge_step = function ()
+	scheduler:schedule_posedge_tasks()
+end
+
+_G.lua_negedge_step = function ()
+	scheduler:schedule_negedge_tasks()
+end
+
 ----------------------------------
 -- dominant mode
 ------------------------------------

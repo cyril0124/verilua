@@ -30,12 +30,14 @@ local colors = {
 cfg.colors = colors
 
 cfg.SchedulerMode = setmetatable({    
-    NORMAL   = 1,
-    STEP     = 2,
-    DOMINANT = 3,
-    N        = 1, -- alias of NORMAL
-    S        = 2, -- alias of STEP
-    D        = 3  -- alias of DOMINANT
+    NORMAL    = 1,
+    STEP      = 2,
+    DOMINANT  = 3,
+    EDGE_STEP = 4,
+    N         = 1, -- alias of NORMAL
+    S         = 2, -- alias of STEP
+    D         = 3, -- alias of DOMINANT
+    E         = 4  -- alias of EDGE_STEP
 }, { 
     __call = function (t, v)
         for name, value in pairs(t) do
@@ -276,6 +278,8 @@ function cfg:post_config()
                 cfg.mode = cfg.SchedulerMode.STEP
             elseif mode_str == "D" or mode_str == "DOMINANT" then
                 cfg.mode = cfg.SchedulerMode.DOMINANT
+            elseif mode_str == "E" or mode_str == "EDGE_STEP" then
+                cfg.mode = cfg.SchedulerMode.EDGE_STEP
             else
                 assert(false, "Invalid SchedulerMode: " .. cfg.mode)
             end

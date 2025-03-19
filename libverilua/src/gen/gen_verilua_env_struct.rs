@@ -66,6 +66,8 @@ pub struct VeriluaEnv {
     pub lua: Lua,
     pub lua_sim_event: Option<LuaFunction>,
     pub lua_main_step: Option<LuaFunction>,
+    pub lua_posedge_step: Option<LuaFunction>,
+    pub lua_negedge_step: Option<LuaFunction>,
 
     pub initialized: bool,
     pub finalized: bool,

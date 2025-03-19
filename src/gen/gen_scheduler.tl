@@ -1,11 +1,11 @@
---[[luajit-pro, teal, pretty, {NORMAL = 1, STEP = 0, ACC_TIME = 0, ENABLE_FUNC_TASK = 0, SAFETY = 0}]]
+--[[luajit-pro, teal, pretty, {NORMAL = 1, STEP = 0, EDGE_STEP = 0, ACC_TIME = 0, ENABLE_FUNC_TASK = 0, SAFETY = 0, VERBOSE = 0}]]
 
-if _G.NORMAL and _G.STEP then
-    assert(false, "Should not have both NORMAL and STEP")
+if _G.NORMAL and _G.STEP and _G.EDGE_STEP then
+    assert(false, "Should not have both NORMAL, STEP and EDGE_STEP")
 end
 
-if not _G.NORMAL and not _G.STEP then
-    assert(false, "Should have either NORMAL or STEP")
+if not _G.NORMAL and not _G.STEP and not _G.EDGE_STEP then
+    assert(false, "Should have either NORMAL, STEP or EDGE_STEP")
 end
 
 local safety_assert
@@ -42,10 +42,15 @@ local Posedge = 1
 local PosedgeHDL = 2
 local Negedge = 3
 local NegedgeHDL = 4
+local PosedgeAlways = 5
 local PosedgeAlwaysHDL = 6
+local NegedgeAlways = 7
+local NegedgeAlwaysHDL = 8
+local Edge = 9
+local EdgeHDL = 10
+local EarlyExit = 11
 local Event = 12
 local NOOP = 44
-local EarlyExit = 11
 
 local type TaskID = integer
 local type TaskCallbackType = integer
@@ -72,6 +77,8 @@ local record SchedulerClass
     task_fired_status_map: {TaskID: boolean}
     task_execution_count_map:  {TaskID: integer}
     pending_removal_tasks: {TaskID}
+    posedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
+    negedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
 
     event_task_id_list_map: {EventID: {TaskID}}
     event_name_map: {EventID: string}
@@ -98,6 +105,8 @@ local record SchedulerClass
     schedule_task: function(SchedulerClass, TaskID)
     schedule_tasks: function(SchedulerClass, TaskID)
     schedule_all_tasks: function(SchedulerClass)
+    schedule_posedge_tasks: function(SchedulerClass) -- Available only when `EDGE_STEP` is enabled
+    schedule_negedge_tasks: function(SchedulerClass) -- Available only when `EDGE_STEP` is enabled
     list_tasks: function(SchedulerClass)
 
     new_event_hdl: function(SchedulerClass, string, EventID): EventHandle
@@ -132,6 +141,11 @@ function Scheduler:_init()
     self.task_fired_status_map = {} -- Used to check if a task has been fired
     self.task_execution_count_map = {}
     self.pending_removal_tasks = {}
+
+    if _G.EDGE_STEP then
+        self.posedge_tasks = {}
+        self.negedge_tasks = {}
+    end
 
     self.event_task_id_list_map = {}
     self.event_name_map = {}
@@ -176,6 +190,14 @@ end
 function Scheduler:_remove_task(id: TaskID)
     self.task_count = self.task_count - 1
     table_insert(self.pending_removal_tasks, id)
+
+    if _G.EDGE_STEP then
+        if self.posedge_tasks[id] then
+            self.posedge_tasks[id] = nil
+        elseif self.negedge_tasks[id] then
+            self.negedge_tasks[id] = nil
+        end
+    end
 end
 
 function Scheduler:_register_callback(id: TaskID, cb_type: TaskCallbackType, str_value: string, integer_value: integer)
@@ -190,6 +212,8 @@ function Scheduler:_register_callback(id: TaskID, cb_type: TaskCallbackType, str
             vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
         elseif cb_type == Negedge then
             vpiml.vpiml_register_negedge_callback(str_value, id)
+        elseif cb_type == NegedgeAlwaysHDL then
+            vpiml.vpiml_register_negedge_callback_hdl_always(integer_value, id)
         elseif cb_type == Timer then
             vpiml.vpiml_register_time_callback(integer_value, id)
         elseif cb_type == Event then
@@ -209,6 +233,21 @@ function Scheduler:_register_callback(id: TaskID, cb_type: TaskCallbackType, str
             end
             table_insert(self.event_task_id_list_map[integer_value], id)
         end
+    elseif _G.EDGE_STEP then
+        if cb_type == PosedgeHDL or cb_type == Posedge or cb_type == PosedgeAlwaysHDL or cb_type == Timer then
+            self.posedge_tasks[id] = true
+        elseif cb_type == NegedgeHDL or cb_type == Negedge or cb_type == NegedgeAlwaysHDL then
+            self.negedge_tasks[id] = true
+        elseif cb_type == NOOP then
+            -- do nothing
+        elseif cb_type == Event then
+            if self.event_name_map[integer_value] == nil then
+                assert(false, "Unknown event => " .. integer_value)
+            end
+            table_insert(self.event_task_id_list_map[integer_value], id)
+        else
+            assert(false, "Unknown YieldType => " .. tostring(cb_type))
+        end
     end
 end
 
@@ -216,7 +255,7 @@ end
 function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTaskBody, start_now: boolean): TaskID
     if _G.NORMAL then
         assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Normal Scheduler] Too many tasks!")
-    elseif _G.STEP then
+    elseif _G.STEP or _G.EDGE_STEP then
         assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Step Scheduler] Too many tasks!")
     end
 
@@ -262,6 +301,8 @@ if _G.ENABLE_FUNC_TASK then
             assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Normal Scheduler] Too many tasks!")
         elseif _G.STEP then
             assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Step Scheduler] Too many tasks!")
+        else
+            assert(false, "Unsupported scheduler type!")
         end
 
         if _G.SAFETY then
@@ -408,6 +449,26 @@ function Scheduler:schedule_all_tasks()
         else
             self:schedule_task(id)
         end
+    end
+end
+
+function Scheduler:schedule_posedge_tasks()
+    if _G.EDGE_STEP then
+        for id, _ in pairs(self.posedge_tasks) do
+            self:schedule_task(id)
+        end
+    else
+        assert(false, "[Scheduler] schedule_posedge_tasks() is only available in EDGE_STEP mode!")
+    end
+end
+
+function Scheduler:schedule_negedge_tasks()
+    if _G.EDGE_STEP then
+        for id, _ in pairs(self.negedge_tasks) do
+            self:schedule_task(id)
+        end
+    else
+        assert(false, "[Scheduler] schedule_negedge_tasks() is only available in EDGE_STEP mode!")
     end
 end
 

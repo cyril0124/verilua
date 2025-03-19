@@ -15,6 +15,8 @@ else
     elseif mode == SchedulerMode.DOMINANT then
         assert(false, "TODO:")
         scheduler = require("verilua.scheduler.LuaDominantSchedulerV2" .. (perf_time and "P" or ""))
+    elseif mode == SchedulerMode.EDGE_STEP then
+        scheduler = require("verilua.scheduler.LuaEdgeStepSchedulerV2" .. (perf_time and "P" or ""))
     else
         assert(false, "Unknown scheduler mode! maybe you forget to set it? please set `cfg.mode` to `normal`, `SchedulerMode.STEP` or `SchedulerMode.DOMINANT`")
     end

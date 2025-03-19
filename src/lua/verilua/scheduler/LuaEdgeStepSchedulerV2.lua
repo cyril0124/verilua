@@ -15,14 +15,14 @@ local _ = _tl_compat and _tl_compat.coroutine or coroutine
 local _ = _tl_compat and _tl_compat.debug or debug
 local ipairs = _tl_compat and _tl_compat.ipairs or ipairs
 local _ = _tl_compat and _tl_compat.math or math
-local os = _tl_compat and _tl_compat.os or os
+local _ = _tl_compat and _tl_compat.os or os
 local pairs = _tl_compat and _tl_compat.pairs or pairs
 local string = _tl_compat and _tl_compat.string or string
 local table = _tl_compat and _tl_compat.table or table
 
 local math = require("math")
 local debug = require("debug")
-local vpiml = require("vpiml")
+require("vpiml")
 local class = require("pl.class")
 local coroutine = require("coroutine")
 local table_clear = require("table.clear")
@@ -33,11 +33,6 @@ local table_insert = table.insert
 local coro_yield = coroutine.yield
 local coro_resume = coroutine.resume
 local coro_create = coroutine.create
-
-local os_clock
-do
-	os_clock = os.clock
-end
 
 local Timer = 0
 local Posedge = 1
@@ -73,17 +68,15 @@ function Scheduler:_init()
 	self.task_fired_status_map = {}
 	self.task_execution_count_map = {}
 	self.pending_removal_tasks = {}
+	do
+		self.posedge_tasks = {}
+		self.negedge_tasks = {}
+	end
 
 	self.event_task_id_list_map = {}
 	self.event_name_map = {}
 	self.has_wakeup_event = false
 	self.pending_wakeup_event = {}
-	do
-		self.acc_time_table = {}
-	end
-	do
-		verilua_debug("[Scheduler]", "Using NORMAL scheduler")
-	end
 end
 
 function Scheduler:_is_coroutine_task(id)
@@ -113,30 +106,27 @@ end
 function Scheduler:_remove_task(id)
 	self.task_count = self.task_count - 1
 	table_insert(self.pending_removal_tasks, id)
+	do
+		if self.posedge_tasks[id] then
+			self.posedge_tasks[id] = nil
+		elseif self.negedge_tasks[id] then
+			self.negedge_tasks[id] = nil
+		end
+	end
 end
 
 function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
 	do
-		if cb_type == PosedgeHDL then
-			vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
-		elseif cb_type == Posedge then
-			vpiml.vpiml_register_posedge_callback(str_value, id)
-		elseif cb_type == PosedgeAlwaysHDL then
-			vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
-		elseif cb_type == NegedgeHDL then
-			vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
-		elseif cb_type == Negedge then
-			vpiml.vpiml_register_negedge_callback(str_value, id)
-		elseif cb_type == NegedgeAlwaysHDL then
-			vpiml.vpiml_register_negedge_callback_hdl_always(integer_value, id)
-		elseif cb_type == Timer then
-			vpiml.vpiml_register_time_callback(integer_value, id)
+		if cb_type == PosedgeHDL or cb_type == Posedge or cb_type == PosedgeAlwaysHDL or cb_type == Timer then
+			self.posedge_tasks[id] = true
+		elseif cb_type == NegedgeHDL or cb_type == Negedge or cb_type == NegedgeAlwaysHDL then
+			self.negedge_tasks[id] = true
+		elseif cb_type == NOOP then
 		elseif cb_type == Event then
 			if self.event_name_map[integer_value] == nil then
 				assert(false, "Unknown event => " .. integer_value)
 			end
 			table_insert(self.event_task_id_list_map[integer_value], id)
-		elseif cb_type == NOOP then
 		else
 			assert(false, "Unknown YieldType => " .. tostring(cb_type))
 		end
@@ -145,7 +135,7 @@ end
 
 function Scheduler:append_task(id, name, task_body, start_now)
 	do
-		assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Normal Scheduler] Too many tasks!")
+		assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Step Scheduler] Too many tasks!")
 	end
 
 	local task_id = id
@@ -169,11 +159,6 @@ function Scheduler:append_task(id, name, task_body, start_now)
 
 	self.task_count = self.task_count + 1
 
-	if true and start_now then
-		self.task_fired_status_map[task_id] = true
-		self:schedule_task(task_id)
-	end
-
 	return task_id
 end
 
@@ -187,11 +172,6 @@ function Scheduler:schedule_task(id)
 
 	local task_cnt = self.task_execution_count_map[id]
 	self.task_execution_count_map[id] = task_cnt + 1
-
-	local s, e
-	do
-		s = os_clock()
-	end
 
 	local ok, cb_type_or_err, str_value, integer_value
 	do
@@ -209,13 +189,6 @@ function Scheduler:schedule_task(id)
 		self:_remove_task(id)
 	else
 		self:_register_callback(id, cb_type_or_err, str_value, integer_value)
-	end
-	do
-		e = os_clock()
-		local name = self.task_name_map[id]
-
-		local key = tostring(id) .. "@" .. name
-		self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
 	end
 
 	if self.has_wakeup_event then
@@ -238,101 +211,30 @@ end
 function Scheduler:schedule_all_tasks()
 	for id, _ in pairs(self.task_name_map) do
 		do
-			local fired = self.task_fired_status_map[id]
-			if not fired then
-				self:schedule_task(id)
-				self.task_fired_status_map[id] = true
-			end
+			self:schedule_task(id)
 		end
 	end
 end
 
 function Scheduler:schedule_posedge_tasks()
 	do
-		assert(false, "[Scheduler] schedule_posedge_tasks() is only available in EDGE_STEP mode!")
+		for id, _ in pairs(self.posedge_tasks) do
+			self:schedule_task(id)
+		end
 	end
 end
 
 function Scheduler:schedule_negedge_tasks()
 	do
-		assert(false, "[Scheduler] schedule_negedge_tasks() is only available in EDGE_STEP mode!")
+		for id, _ in pairs(self.negedge_tasks) do
+			self:schedule_task(id)
+		end
 	end
 end
 
 function Scheduler:list_tasks()
 	print("[scheduler list tasks]:")
 	print("-------------------------------------------------------------")
-	do
-		local total_time = 0
-		local max_key_str_len = 0
-
-		local task_name_count = {}
-		for key, _time in pairs(self.acc_time_table) do
-			local _task_id, task_name = key:match("([^@]+)@(.*)")
-			task_name_count[task_name] = (task_name_count[task_name] or 0) + 1
-		end
-
-		local filtered_acc_time_table = {}
-		for key, time in pairs(self.acc_time_table) do
-			local _task_id, task_name = key:match("([^@]+)@(.*)")
-			if task_name_count[task_name] >= 20 then
-				key = f("<...>@%s", task_name)
-				filtered_acc_time_table[key] = (filtered_acc_time_table[key] or 0) + time
-			else
-				filtered_acc_time_table[key] = time
-			end
-
-			total_time = total_time + time
-
-			local len = #key
-			if len > max_key_str_len then
-				max_key_str_len = len
-			end
-		end
-		self.acc_time_table = filtered_acc_time_table
-
-		local sorted_keys = {}
-		for key, _ in pairs(filtered_acc_time_table) do
-			table.insert(sorted_keys, key)
-		end
-		table.sort(sorted_keys, function(a, b)
-			return filtered_acc_time_table[a] < filtered_acc_time_table[b]
-		end)
-
-		local max_str_len = 0
-		local print_str_vec = {}
-		for _, key in ipairs(sorted_keys) do
-			local time = self.acc_time_table[key]
-			local percent = time / total_time * 100
-			local s = f("[%" .. max_key_str_len .. "s]   %5.2f ms   percent: %5.2f%%", key, time * 1000, percent)
-			local len = #s
-			table_insert(print_str_vec, s)
-
-			if len > max_str_len then
-				max_str_len = len
-			end
-		end
-
-		local get_progress_bar = function(progress, length)
-			local completed = math.floor(progress * length)
-			local remaining = length - completed
-			local progressBar = "┃" .. string.rep("█", completed) .. "" .. string.rep("▒", remaining) .. "┃"
-			return progressBar
-		end
-
-		local idx = 1
-		for _, key in ipairs(sorted_keys) do
-			local time = self.acc_time_table[key]
-			local str = print_str_vec[idx]
-			str = str .. string.rep(" ", max_str_len - #str)
-
-			print(f("%-" .. max_str_len .. "s ", str) .. get_progress_bar(time / total_time, 30))
-			idx = idx + 1
-		end
-
-		print(f("total_time: %.2f s / %.2f ms", total_time, total_time * 1000))
-		print("-------------------------------------------------------------")
-	end
 
 	local max_name_str_len = 0
 	for _, name in pairs(self.task_name_map) do

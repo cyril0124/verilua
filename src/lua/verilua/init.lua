@@ -314,7 +314,7 @@ do
             if cfg.mode == "nil" then
                 cfg.mode = cfg.SchedulerMode.STEP
             else
-                assert(cfg.mode == cfg.SchedulerMode.STEP, "For now, `cfg.mode` only support SchedulerMode.STEP/\"step\" when `cfg.is_hse` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
+                assert(cfg.mode == cfg.SchedulerMode.STEP or cfg.mode == cfg.SchedulerMode.EDGE_STEP, "For now, `cfg.mode` only support SchedulerMode.STEP/\"step\" or SchedulerMode.EDGE_STEP/\"edge_step\" when `cfg.is_hse` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
             end
         end
         _G.verilua_debug("SchedulerMode is " .. cfg.SchedulerMode(cfg.mode))

@@ -39,10 +39,14 @@ local Posedge = 1
 local PosedgeHDL = 2
 local Negedge = 3
 local NegedgeHDL = 4
+
 local PosedgeAlwaysHDL = 6
+
+local NegedgeAlwaysHDL = 8
+
+local EarlyExit = 11
 local Event = 12
 local NOOP = 44
-local EarlyExit = 11
 
 local Scheduler = class()
 
@@ -115,6 +119,8 @@ function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
 			vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
 		elseif cb_type == Negedge then
 			vpiml.vpiml_register_negedge_callback(str_value, id)
+		elseif cb_type == NegedgeAlwaysHDL then
+			vpiml.vpiml_register_negedge_callback_hdl_always(integer_value, id)
 		elseif cb_type == Timer then
 			vpiml.vpiml_register_time_callback(integer_value, id)
 		elseif cb_type == Event then
@@ -218,6 +224,18 @@ function Scheduler:schedule_all_tasks()
 				self.task_fired_status_map[id] = true
 			end
 		end
+	end
+end
+
+function Scheduler:schedule_posedge_tasks()
+	do
+		assert(false, "[Scheduler] schedule_posedge_tasks() is only available in EDGE_STEP mode!")
+	end
+end
+
+function Scheduler:schedule_negedge_tasks()
+	do
+		assert(false, "[Scheduler] schedule_negedge_tasks() is only available in EDGE_STEP mode!")
 	end
 end
 

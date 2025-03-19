@@ -23,6 +23,16 @@ mv ./out/gen_scheduler.tl ./out/LuaStepSchedulerV2.lua
 cp ./out/LuaStepSchedulerV2.lua $file
 sed -i "1i\\$info_str" $file
 
+export ACC_TIME=0
+export NORMAL=0
+export STEP=0
+export EDGE_STEP=1
+file=$VERILUA_HOME/src/lua/verilua/scheduler/LuaEdgeStepSchedulerV2.lua
+luajit gen_scheduler.tl
+mv ./out/gen_scheduler.tl ./out/LuaEdgeStepSchedulerV2.lua
+cp ./out/LuaEdgeStepSchedulerV2.lua $file
+sed -i "1i\\$info_str" $file
+
 export ACC_TIME=1
 export NORMAL=1
 export STEP=0
@@ -40,3 +50,14 @@ luajit gen_scheduler.tl
 mv ./out/gen_scheduler.tl ./out/LuaStepSchedulerV2P.lua
 cp ./out/LuaStepSchedulerV2P.lua $file
 sed -i "1i\\$info_str" $file
+
+export ACC_TIME=1
+export NORMAL=0
+export STEP=0
+export EDGE_STEP=1
+file=$VERILUA_HOME/src/lua/verilua/scheduler/LuaEdgeStepSchedulerV2P.lua
+luajit gen_scheduler.tl
+mv ./out/gen_scheduler.tl ./out/LuaEdgeStepSchedulerV2P.lua
+cp ./out/LuaEdgeStepSchedulerV2P.lua $file
+sed -i "1i\\$info_str" $file
+

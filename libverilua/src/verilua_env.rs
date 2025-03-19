@@ -277,6 +277,18 @@ impl VeriluaEnv {
                 .get("lua_main_step")
                 .expect("Failed to load main_step"),
         );
+        self.lua_posedge_step = Some(
+            self.lua
+                .globals()
+                .get("lua_posedge_step")
+                .expect("Failed to load posedge_step"),
+        );
+        self.lua_negedge_step = Some(
+            self.lua
+                .globals()
+                .get("lua_negedge_step")
+                .expect("Failed to load negedge_step"),
+        );
 
         include!("./gen/gen_sim_event_chunk_init.rs");
 
@@ -378,63 +390,101 @@ pub unsafe extern "C" fn verilua_final() {
     get_verilua_env().finalize();
 }
 
+macro_rules! gen_verilua_step {
+    ($name:ident, $field:ident, $msg:expr) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $name() {
+            let env = get_verilua_env();
+            assert!(
+                env.initialized,
+                concat!($msg, " called before verilua_init()")
+            );
+
+            #[cfg(feature = "acc_time")]
+            let s = Instant::now();
+
+            if let Err(e) = env.$field.as_ref().unwrap().call::<()>(()) {
+                panic!("Error calling {}: {}", stringify!($field), e);
+            };
+
+            #[cfg(feature = "acc_time")]
+            {
+                env.lua_time += s.elapsed();
+            }
+        }
+    };
+}
+
+macro_rules! gen_verilua_step_safe {
+    ($name:ident, $field:ident, $msg:expr) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $name() {
+            thread_local! {
+                static HAS_ERROR: Cell<bool> = const { Cell::new(false) };
+            }
+
+            if HAS_ERROR.with(|f| f.get()) {
+                println!(
+                    concat!("[", stringify!($name), "] `has_error` is `true`! Program should be terminated! Nothing will be done in `Verilua`...")
+                );
+                return;
+            }
+
+            let env = get_verilua_env();
+            assert!(
+                env.initialized,
+                concat!("[", stringify!($name), "] ", $msg, " called before verilua_init()")
+            );
+
+            #[cfg(feature = "acc_time")]
+            let s = Instant::now();
+
+            if let Err(e) = env.$field.as_ref().unwrap().call::<()>(()) {
+                HAS_ERROR.with(|has_error| {
+                    has_error.set(true);
+                });
+                println!(
+                    concat!("[", stringify!($name), "] Error calling ", stringify!($field), ": {}"),
+                    e
+                );
+            };
+
+            #[cfg(feature = "acc_time")]
+            {
+                env.lua_time += s.elapsed();
+            }
+        }
+    };
+}
+
 // Execute the main_step function in a way that is safe to be called.
 // If the main_step function throws an error, the error will be caught
 // and the Verilua environment will be finalized.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_main_step() {
-    let env = get_verilua_env();
-    assert!(
-        env.initialized,
-        "verilua_main_step() called before verilua_init()"
-    );
+gen_verilua_step!(verilua_main_step, lua_main_step, "verilua_main_step()");
+gen_verilua_step!(
+    verilua_posedge_step,
+    lua_posedge_step,
+    "verilua_posedge_step()"
+);
+gen_verilua_step!(
+    verilua_negedge_step,
+    lua_negedge_step,
+    "verilua_negedge_step()"
+);
 
-    #[cfg(feature = "acc_time")]
-    let s = Instant::now();
-
-    if let Err(e) = env.lua_main_step.as_ref().unwrap().call::<()>(()) {
-        panic!("Error calling lua_main_step: {e}");
-    };
-
-    #[cfg(feature = "acc_time")]
-    {
-        env.lua_time += s.elapsed();
-    }
-}
-
-// Same as execute_main_step() while error will not cause the program to crash
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn verilua_main_step_safe() {
-    thread_local! {
-        static HAS_ERROR: Cell<bool> = const { Cell::new(false) };
-    }
-
-    if HAS_ERROR.with(|f| f.get()) {
-        println!(
-            "[verilua_main_step_safe] `has_error` is `true`! Program should be terminated! Nothing will be done in `Verilua`..."
-        );
-        return;
-    }
-
-    let env = get_verilua_env();
-    assert!(
-        env.initialized,
-        "[verilua_main_step_safe] verilua_main_step_safe() called before verilua_init()"
-    );
-
-    #[cfg(feature = "acc_time")]
-    let s = Instant::now();
-
-    if let Err(e) = env.lua_main_step.as_ref().unwrap().call::<()>(()) {
-        HAS_ERROR.with(|has_error| {
-            has_error.set(true);
-        });
-
-        println!("[verilua_main_step_safe] Error calling lua_main_step: {e}");
-    };
-
-    #[cfg(feature = "acc_time")]
-    {
-        env.lua_time += s.elapsed();
-    }
-}
+// Same as verilua_XXX_step_safe() while error will not cause the program to crash
+gen_verilua_step_safe!(
+    verilua_main_step_safe,
+    lua_main_step,
+    "verilua_main_step_safe()"
+);
+gen_verilua_step_safe!(
+    verilua_posedge_step_safe,
+    lua_posedge_step,
+    "verilua_posedge_step()"
+);
+gen_verilua_step_safe!(
+    verilua_negedge_step_safe,
+    lua_negedge_step,
+    "verilua_negedge_step()"
+);

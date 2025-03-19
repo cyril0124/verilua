@@ -22,7 +22,7 @@ local table = _tl_compat and _tl_compat.table or table
 
 local math = require("math")
 local debug = require("debug")
-local vpiml = require("vpiml")
+require("vpiml")
 local class = require("pl.class")
 local coroutine = require("coroutine")
 local table_clear = require("table.clear")
@@ -73,6 +73,10 @@ function Scheduler:_init()
 	self.task_fired_status_map = {}
 	self.task_execution_count_map = {}
 	self.pending_removal_tasks = {}
+	do
+		self.posedge_tasks = {}
+		self.negedge_tasks = {}
+	end
 
 	self.event_task_id_list_map = {}
 	self.event_name_map = {}
@@ -80,9 +84,6 @@ function Scheduler:_init()
 	self.pending_wakeup_event = {}
 	do
 		self.acc_time_table = {}
-	end
-	do
-		verilua_debug("[Scheduler]", "Using NORMAL scheduler")
 	end
 end
 
@@ -113,30 +114,27 @@ end
 function Scheduler:_remove_task(id)
 	self.task_count = self.task_count - 1
 	table_insert(self.pending_removal_tasks, id)
+	do
+		if self.posedge_tasks[id] then
+			self.posedge_tasks[id] = nil
+		elseif self.negedge_tasks[id] then
+			self.negedge_tasks[id] = nil
+		end
+	end
 end
 
 function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
 	do
-		if cb_type == PosedgeHDL then
-			vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
-		elseif cb_type == Posedge then
-			vpiml.vpiml_register_posedge_callback(str_value, id)
-		elseif cb_type == PosedgeAlwaysHDL then
-			vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
-		elseif cb_type == NegedgeHDL then
-			vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
-		elseif cb_type == Negedge then
-			vpiml.vpiml_register_negedge_callback(str_value, id)
-		elseif cb_type == NegedgeAlwaysHDL then
-			vpiml.vpiml_register_negedge_callback_hdl_always(integer_value, id)
-		elseif cb_type == Timer then
-			vpiml.vpiml_register_time_callback(integer_value, id)
+		if cb_type == PosedgeHDL or cb_type == Posedge or cb_type == PosedgeAlwaysHDL or cb_type == Timer then
+			self.posedge_tasks[id] = true
+		elseif cb_type == NegedgeHDL or cb_type == Negedge or cb_type == NegedgeAlwaysHDL then
+			self.negedge_tasks[id] = true
+		elseif cb_type == NOOP then
 		elseif cb_type == Event then
 			if self.event_name_map[integer_value] == nil then
 				assert(false, "Unknown event => " .. integer_value)
 			end
 			table_insert(self.event_task_id_list_map[integer_value], id)
-		elseif cb_type == NOOP then
 		else
 			assert(false, "Unknown YieldType => " .. tostring(cb_type))
 		end
@@ -145,7 +143,7 @@ end
 
 function Scheduler:append_task(id, name, task_body, start_now)
 	do
-		assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Normal Scheduler] Too many tasks!")
+		assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Step Scheduler] Too many tasks!")
 	end
 
 	local task_id = id
@@ -168,11 +166,6 @@ function Scheduler:append_task(id, name, task_body, start_now)
 	self.task_execution_count_map[task_id] = 0
 
 	self.task_count = self.task_count + 1
-
-	if true and start_now then
-		self.task_fired_status_map[task_id] = true
-		self:schedule_task(task_id)
-	end
 
 	return task_id
 end
@@ -238,24 +231,24 @@ end
 function Scheduler:schedule_all_tasks()
 	for id, _ in pairs(self.task_name_map) do
 		do
-			local fired = self.task_fired_status_map[id]
-			if not fired then
-				self:schedule_task(id)
-				self.task_fired_status_map[id] = true
-			end
+			self:schedule_task(id)
 		end
 	end
 end
 
 function Scheduler:schedule_posedge_tasks()
 	do
-		assert(false, "[Scheduler] schedule_posedge_tasks() is only available in EDGE_STEP mode!")
+		for id, _ in pairs(self.posedge_tasks) do
+			self:schedule_task(id)
+		end
 	end
 end
 
 function Scheduler:schedule_negedge_tasks()
 	do
-		assert(false, "[Scheduler] schedule_negedge_tasks() is only available in EDGE_STEP mode!")
+		for id, _ in pairs(self.negedge_tasks) do
+			self:schedule_task(id)
+		end
 	end
 end
 

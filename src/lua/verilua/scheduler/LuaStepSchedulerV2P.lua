@@ -39,9 +39,8 @@ do
 	os_clock = os.clock
 end
 
-local Event = 12
-
 local EarlyExit = 11
+local Event = 12
 
 local Scheduler = class()
 
@@ -208,6 +207,18 @@ function Scheduler:schedule_all_tasks()
 		do
 			self:schedule_task(id)
 		end
+	end
+end
+
+function Scheduler:schedule_posedge_tasks()
+	do
+		assert(false, "[Scheduler] schedule_posedge_tasks() is only available in EDGE_STEP mode!")
+	end
+end
+
+function Scheduler:schedule_negedge_tasks()
+	do
+		assert(false, "[Scheduler] schedule_negedge_tasks() is only available in EDGE_STEP mode!")
 	end
 end
 

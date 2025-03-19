@@ -31,6 +31,8 @@ Self {
     lua,
     lua_sim_event: None,
     lua_main_step: None,
+    lua_posedge_step: None,
+    lua_negedge_step: None,
 
     initialized: false,
     finalized: false,
