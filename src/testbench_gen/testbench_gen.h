@@ -14,6 +14,7 @@
 #include "slang/driver/Driver.h"
 #include "slang/parsing/TokenKind.h"
 #include "slang/syntax/AllSyntax.h"
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -58,6 +59,24 @@ inline bool isFileNewer(const std::string &file1, const std::string &file2) {
         std::cerr << "[isFileNewer] Error: " << e.what() << std::endl;
         return false;
     }
+}
+
+inline std::time_t to_time_t(const std::filesystem::file_time_type &ft) {
+    auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ft - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+    return std::chrono::system_clock::to_time_t(sctp);
+}
+
+inline std::string get_current_time_as_string() {
+    auto now = std::chrono::system_clock::now();
+
+    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+
+    std::tm now_tm = *std::localtime(&now_time_t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S");
+
+    return oss.str();
 }
 
 using PortInfo = struct {

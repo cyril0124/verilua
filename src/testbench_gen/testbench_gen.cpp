@@ -140,6 +140,11 @@ int main(int argc, const char *argv[]) {
             fmt::println("[testbench_gen] cmdLine changed, regenerating...");
             shouldRegen = true;
         }
+
+        if (fs::exists(othersFilePath) && metaInfoJson["othersFileMTime"] != to_time_t(fs::last_write_time(othersFilePath))) {
+            fmt::println("[testbench_gen] {} changed, regenerating...", othersFilePath);
+            shouldRegen = true;
+        }
     } else {
         fmt::println("[testbench_gen] {} not found, regenerating...", metaInfoFilePath);
         shouldRegen = true;
@@ -181,6 +186,7 @@ int main(int argc, const char *argv[]) {
 
     auto compilation = driver.createCompilation();
 
+    // Check compilation errors
     bool compileSuccess = driver.reportCompilation(*compilation, false);
     ASSERT(compileSuccess);
 
@@ -189,10 +195,11 @@ int main(int argc, const char *argv[]) {
     std::string rootTopName = "";
     ASSERT(rootSymbol.topInstances.size() >= 1, "Root symbol should have at least 1 top instance");
 
+    // Try get topName from rootSymbol, there should be only one top instance
     if (rootSymbol.topInstances.size() == 1) {
         topName = std::string(rootSymbol.topInstances[0]->getDefinition().name);
     } else {
-        PANIC("TODO:");
+        PANIC("TODO: Multiple top instances found!");
     }
 
     if (dutName == "") {
@@ -201,17 +208,15 @@ int main(int argc, const char *argv[]) {
 
     fmt::println("[testbench_gen] topName: {} dutName: {}", topName, dutName);
 
+    // Start iterate the whole design to get all available ports
     TestbenchGenParser parser(topName, verbose);
+    auto &portInfos = parser.portInfos;
     compilation->getRoot().visit(parser);
 
-    auto &portInfos = parser.portInfos;
-
-    // Save portInfos to meta file
-    std::ofstream o(metaInfoFilePath);
+    // Save portInfos into meta file
     metaInfoJson["portInfos"] = portInfos;
-    o << metaInfoJson.dump(4) << std::endl;
-    o.close();
 
+    // Check whether clock and reset signal has been matched
     bool clockSignalHasMatch = false;
     bool resetSignalHasMatch = false;
     for (auto &port : portInfos) {
@@ -734,6 +739,19 @@ endmodule
 )";
             othersFile.close();
         }
+
+        // Save othersFileMTime into meta info
+        auto othersFileMTime            = std::filesystem::last_write_time(othersFilePath);
+        metaInfoJson["othersFileMTime"] = to_time_t(othersFileMTime);
+
+        // Save other infos into meta info
+        metaInfoJson["outputFiles"] = {tbtopFilePath, othersFilePath};
+        metaInfoJson["buildTime"]   = get_current_time_as_string();
+
+        // Write meta info into a json file, which can be used next time to check if the output is up to date
+        std::ofstream o(metaInfoFilePath);
+        o << metaInfoJson.dump(4) << std::endl;
+        o.close();
     }
 
     if (checkOutput) {
