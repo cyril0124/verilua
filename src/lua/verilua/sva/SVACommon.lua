@@ -54,6 +54,8 @@ function common.serialize_value(value, name)
     if t == "table" then 
         if value.__type == "CallableHDL" then
             return value.fullpath
+        elseif value.__type == "ProxyTableHandle" then
+            return value:chdl().fullpath
         elseif value.__type == "Sequence" then
             assert(false)
             return tostring(value)

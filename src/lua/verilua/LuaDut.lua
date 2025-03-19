@@ -28,6 +28,9 @@ local function create_proxy(path, use_prefix)
     local local_path = path
     local use_prefix = use_prefix or false
     return setmetatable({
+        __type = "ProxyTableHandle",
+        get_local_path = function (this) return local_path end,
+
         -- 
         -- Example:
         --      local alias_signal = dut.path.to.signal

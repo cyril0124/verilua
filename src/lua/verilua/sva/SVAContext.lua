@@ -26,8 +26,9 @@ setmetatable(SVAContext, {
             content = content .. tostring(v) .. "\n\n"
         end
 
-        for _, v in pairs(self.content_vec) do
-            content = content .. tostring(v) .. "\n\n"
+        local content_count = #self.content_vec
+        for i, v in ipairs(self.content_vec) do
+            content =  content .. "// %d/%d\n" % {i, content_count} .. tostring(v) .. "\n\n"
         end
 
         return content
@@ -54,7 +55,7 @@ end
 
 function SVAContext:add(...)
     local args = {...}
-    
+
     for _, other in ipairs(args) do
         local t = type(other)
         if t == "table" then
@@ -76,7 +77,7 @@ function SVAContext:cover(cover_name, sequence_or_property_or_name)
     local content = ""
 
     assert(type(cover_name) == "string", "[SVAContext] cover error: `cover_name` must be a string")
-  
+
     -- Make sure the cover_name is unique   
     if self.unique_stmt_name_vec[cover_name] then
         pp({unique_stmt_name_vec = self.unique_stmt_name_vec})
