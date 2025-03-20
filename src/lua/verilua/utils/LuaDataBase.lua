@@ -162,7 +162,7 @@ function LuaDataBase:_init(init_tbl)
         commit_data_unpack_items[i] = "this.cache[i][" .. i .. "]"
     end
 
-    local save_func_str = subst([[
+    local save_func_str, _, _ = subst([[
     local assert = assert
     local table_insert = table.insert
         
@@ -182,7 +182,7 @@ function LuaDataBase:_init(init_tbl)
     })
 
 
-    local commit_func_str = subst([[
+    local commit_func_str, _, _ = subst([[
     local assert = assert
     local lfs = require "lfs"
 

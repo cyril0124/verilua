@@ -10,6 +10,8 @@ local pairs = pairs
 local assert = assert
 local f = string.format
 
+local global_values = {}
+
 ---
 ---@class Property
 ---@overload fun(name: string): Property
@@ -68,8 +70,20 @@ function Property:with_values(values_table)
     texpect.expect_table(values_table, "values_table")
     
     for k, v in pairs(values_table) do
-        assert(not self.values[k], "[Property] value already exists: " .. k)
+        assert(not self.values[k], "[Property] with_values: value already exists: " .. k)
         self.values[k] = v
+    end
+
+    return self
+end
+
+-- Global version of `with_values` where the values are available in the global scope
+function Property:with_global_values(values_table)
+    texpect.expect_table(values_table, "values_table")
+    
+    for k, v in pairs(values_table) do
+        assert(not global_values[k], "[Property] with_global_values: value already exists: " .. k)
+        global_values[k] = v
     end
 
     return self
@@ -98,7 +112,7 @@ function Property:compile()
         local locals, _ = common.get_locals(3)
         common.expand_locals(locals)
 
-        local raw_property = common.render_sva_template(self.raw_property, locals, self.values)
+        local raw_property = common.render_sva_template(self.raw_property, locals, self.values, global_values)
         
         local port_list_str = ""
         if #self.port_list > 0 then

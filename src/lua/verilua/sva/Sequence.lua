@@ -15,6 +15,8 @@ local assert = assert
 local f = string.format
 local table_insert = table.insert
 
+local global_values = {}
+
 ---@enum (key) SequenceElementType
 local SequenceElementType = {
     None = 0,
@@ -124,8 +126,20 @@ function Sequence:with_values(values_table)
     texpect.expect_table(values_table, "values_table")
     
     for k, v in pairs(values_table) do
-        assert(not self.values[k], "[Sequence] value already exists: " .. k)
+        assert(not self.values[k], "[Sequence] with_values: value already exists: " .. k)
         self.values[k] = v
+    end
+
+    return self
+end
+
+-- Global version of `with_values` where the values are available in the global scope
+function Sequence:with_global_values(values_table)
+    texpect.expect_table(values_table, "values_table")
+    
+    for k, v in pairs(values_table) do
+        assert(not global_values[k], "[Sequence] with_global_values: value already exists: " .. k)
+        global_values[k] = v
     end
 
     return self
@@ -150,7 +164,7 @@ function Sequence:compile()
         local locals, _ = common.get_locals(3)
         common.expand_locals(locals)
 
-        local raw_sequence = common.render_sva_template(self.raw_sequence, locals, self.values)
+        local raw_sequence = common.render_sva_template(self.raw_sequence, locals, self.values, global_values)
 
         local port_list_str = ""
         if #self.port_list > 0 then

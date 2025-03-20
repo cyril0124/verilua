@@ -71,7 +71,7 @@ function common.serialize_value(value, name)
     return ""
 end
 
-function common.render_sva_template(template, locals, values)
+function common.render_sva_template(template, locals, values, global_values)
     return template:gsub("{{(.-)}}", function(key)
         local is_agg_signal = stringx.lfind(key, ".") ~= nil
 
@@ -84,6 +84,10 @@ function common.render_sva_template(template, locals, values)
                 value = values[signal_vec[1]]
             end
 
+            if not value and global_values then
+                value = global_values[signal_vec[1]]
+            end
+
             for i = 2, #signal_vec do
                 value = value[signal_vec[i]]
             end
@@ -93,10 +97,16 @@ function common.render_sva_template(template, locals, values)
             value = common.serialize_value(value, key)
         else
             value = locals[key]
-        end
 
-        if not value then
-            value = common.serialize_value(values[key], key)
+            if not value then
+                value = values[key]
+            end
+
+            if not value and global_values then
+                value = global_values[key]
+            end
+
+            value = common.serialize_value(value, key)
         end
 
         assert(value, f("[SVACommon] render_sva_template error: Unknown signal: %s\n\ttemplate_str is: %s\n", key, template))
