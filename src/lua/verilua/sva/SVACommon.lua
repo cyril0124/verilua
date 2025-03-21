@@ -1,5 +1,5 @@
 local debug = require "debug"
-local stringx = require "pl.stringx"
+local SVATemplate = require "verilua.sva.SVATemplate"
 
 local type = type
 local pairs = pairs
@@ -34,21 +34,6 @@ function common.expand_locals(locals)
     end
 end
 
-function common.render_template(str)
-    local locals, locals_len = common.get_locals(4)
-    common.expand_locals(locals)
-
-    if locals_len > 0 then
-        str = str:gsub("{{(.-)}}", function(key)
-            local value = locals[key]
-            assert(value, f("[common.render_template] key not found: %s\n\ttemplate_str is: %s\n", key, str))
-            return tostring(value)
-        end)
-    end
-
-    return str
-end
-
 function common.serialize_value(value, name)
     local t = type(value)
     if t == "table" then 
@@ -72,46 +57,36 @@ function common.serialize_value(value, name)
 end
 
 function common.render_sva_template(template, locals, values, global_values)
-    return template:gsub("{{(.-)}}", function(key)
-        local is_agg_signal = stringx.lfind(key, ".") ~= nil
+    local parents = locals
 
-        local value
-        if is_agg_signal then
-            local signal_vec = stringx.split(key, ".")
-            value = locals[signal_vec[1]]
+    -- Merge values and global_values
+    for k, v in pairs(values) do
+        parents[k] = v
+    end
+    for k, v in pairs(global_values) do
+        parents[k] = v
+    end
 
-            if not value then
-                value = values[signal_vec[1]]
-            end
+    local _chunk_name = rawget(parents, "_chunk_name")
+    local _escape = rawget(parents, "_escape")
+    local _inline_escape = rawget(parents, "_inline_escape")
+    local _brackets = rawget(parents, "_brackets")
+    local _debug = rawget(parents, "_debug")
 
-            if not value and global_values then
-                value = global_values[signal_vec[1]]
-            end
+    local ret, err, _ = SVATemplate.substitute(template, {
+        _chunk_name = _chunk_name,
+        _escape = _escape,
+        _inline_escape = _inline_escape,
+        _brackets = _brackets,
+        _debug = _debug,
+        _parent = parents,
+    })
 
-            for i = 2, #signal_vec do
-                value = value[signal_vec[i]]
-            end
+    if err then
+        assert(false, "Failed to render template, error: " .. tostring(err))
+    end
 
-            assert(value, f("[SVACommon] render_sva_template error: Unknown aggregate signal: %s\n\ttemplate_str is: %s\n", key, template))
-
-            value = common.serialize_value(value, key)
-        else
-            value = locals[key]
-
-            if not value then
-                value = values[key]
-            end
-
-            if not value and global_values then
-                value = global_values[key]
-            end
-
-            value = common.serialize_value(value, key)
-        end
-
-        assert(value, f("[SVACommon] render_sva_template error: Unknown signal: %s\n\ttemplate_str is: %s\n", key, template))
-        return tostring(value)
-    end)
+    return ret
 end
 
 function common._log(this, ...)
