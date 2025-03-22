@@ -544,9 +544,10 @@ target("setup_verilua")
         execute("xmake build -y -v testbench_gen")
         execute("xmake build -y -v dpi_exporter")
         execute("xmake build -y -v signal_db_gen")
-        execute("xmake build -y -v signal_db_gen_lib")
+        execute("xmake build -y -v libsignal_db_gen")
         execute("xmake build -y -v wave_vpi_main")
         execute("xmake build -y -v wave_vpi_main_fsdb")
+        execute("xmake build -y -v verilua_prebuild")
 
         try { function () execute("xmake build -y -v iverilog_vpi_module") end }
         try { function () execute("xmake build -y -v vvp_wrapper") end }
