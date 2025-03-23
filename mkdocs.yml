@@ -1,0 +1,52 @@
+site_name: Verilua
+site_url: https://mydomain.org/mysite
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+
+language: zh
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+  - tags
+
+markdown_extensions:
+  - pymdownx.superfences
+
+  # Syntax highlighting
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+
+  # Enable admonition
+  - admonition
+  - pymdownx.details
+
+  # Enable tabbed content
+  - pymdownx.tabbed:
+      alternate_style: true
+
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - index.md
+  - Getting started:
+    - getting-started/install.md
+    - getting-started/simple_hvl_example.md
+    - getting-started/simple_hse_example.md
+    - getting-started/simple_wal_example.md
+  - How-to guides:
+    - how-to-guides/todo.md
+  - Reference:
+    - getting-started/multi_task.md
+    - getting-started/data_structure.md
