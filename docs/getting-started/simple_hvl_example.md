@@ -7,95 +7,13 @@
 ## 0. 准备 RTL 文件
 下面是本节中使用到的 DUT（Design Under Test）的 RTL 代码，主要是一个简单的 Counter 模块。
 ```verilog title="Design.v"
-module Design(
-    input  wire clock,
-    input  wire reset,
-    input  wire inc,
-    output wire [7:0] value
-);
-
-reg [7:0] value_reg;
-
-always@(posedge clock) begin
-    if (reset) 
-        value_reg <= 8'd0;
-    else if (inc == 1'b1) begin
-        value_reg <= value_reg + 1'b1;
-    end 
-end
-
-assign value = value_reg;
-
-endmodule
+--8<-- "examples/tutorial_example/Design.v"
 ```
 
 ## 1. 创建一个 Lua 脚本文件
 下面是本节中使用到的 Lua 脚本文件，它将会在 Verilua 中被调用，从而控制硬件仿真的过程，这类似 C 语言中的 main 函数。
-
 ```lua title="LuaMain.lua" linenums="1"
-verilua "appendTasks" {
-    function ()
-        sim.dump_wave() -- dump wave file
-        
-        dut.clock:negedge()
-            dut.reset = 1 -- or `dut.reset:set(1)`
-        dut.clock:negedge()
-            dut.reset = 0
-        dut.clock:negedge()
-
-        dut.clock:negedge(10, function ()
-            print("current cycle:", dut.cycles:get())
-        end)
-
-        -- we recommend using the `chdl()` method to get the `CallableHDL` of the signal which provides higher performance
-        local clock = dut.clock:chdl()
-
-        dut.value:dump() -- dump the value of the signal to the console
-        dut.value:expect(0)
-
-        clock:negedge()
-            dut.inc:set(1)
-        clock:negedge()
-            dut.inc:set(0)
-        
-        dut.value:expect(1)
-        dut.value:dump()
-
-        clock:negedge()
-            dut.inc:set(1)
-        clock:negedge()
-            dut.inc:set(0)
-        
-        if dut.value:is(2) then
-            print("dump_str() => ", dut.value:dump_str())
-            print("get() => ", dut.value:get())
-        end
-
-        clock:negedge()
-            dut.inc:set(1)
-        
-        clock:posedge(10)
-            dut.inc:set(0)
-
-        dut.value:expect(11)
-
-        sim.finish() -- finish the simulation
-    end
-}
-
--- start task will be called when the simulation starts
-verilua "startTask" {
-    function ()
-        print("Simulation started!")
-    end
-}
-
--- finish task will be called when the simulation finishes
-verilua "finishTask" {
-    function ()
-        print("Simulation finished!")
-    end
-}
+--8<-- "examples/tutorial_example/LuaMain.lua"
 ```
 
 ??? note "上述代码的相关语法解释"

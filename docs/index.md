@@ -2,15 +2,17 @@
 
 Verilua 是一个基于中间件分层架构的硬件验证解耦仿真框架，统一了包括：Hardware Verification Language（`HVL`）、Hardware Script Engine（`HSE`）、Waveform Analysis Language（`WAL`）在内的多种验证场景，解决了验证生态碎片化的问题。
 Verilua 的 HVL、HSE、WAL 能够覆盖硬件验证中的多个流程。
-<div align="center">
-  <img src="./images/hvl_hse_wal_in_flow.png" alt="HVL、HSE、WAL 能够覆盖硬件验证中的多个流程" width="70%">
-</div>
+<figure markdown="span">
+  ![hvl_hse_wal_in_flow](./images/hvl_hse_wal_in_flow.png){ width="70%" }
+  <figcaption>HVL、HSE、WAL 能够覆盖硬件验证中的多个流程</figcaption>
+</figure>
 
 !!! note "硬件验证生态碎片化问题"
     随着各种开源验证框架/语言的出现，使用各种开源的验证框架/语言开发与验证芯片逐渐成为主流，而现代高性能处理器的验证也越来越复杂化，完整的验证流程中不同层次不同模块的验证通常就会包括多个不同的验证环境，不同的验证环境会根据验证需求的不同采用不同的 HVL（Hardware Verification Language），例如对于 ST（System Test），此时对于仿真速度有更高的要求，因此会采用 HVL_A，对于UT（Unit Test）则对验证效率有更高的要求，UT 的验证环境需要能够快速迭代，因此就会可能会采用 HVL_B。不同 HVL 编写的验证组件在不同的验证环境下难以复用，这就导致了验证生态存在碎片化问题，因为这些不同 HVL 编写的验证组件就像孤立的岛屿，难以在多样化的验证场景中实现有效迁移与复用，最终导致整体的验证效率低下。
-    <div align="center">
-      <img src="./images/reuse_issue.png" alt="验证组件的复用问题" width="50%">
-    </div>
+    <figure markdown="span">
+      ![reuse_issue](./images/reuse_issue.png){ width="50%" }
+      <figcaption>验证组件的复用问题</figcaption>
+    </figure>
 
 ## Hardware Verification Language（`HVL`）
 硬件验证语言，专门用于硬件验证场景，能够控制验证平台的运行或者描述复杂的验证逻辑，我们熟悉的 SystemVerilog 就属于一种 HVL（当然也属于 HDL），类似地 [Cocotb](https://www.cocotb.org/) 框架允许将 Python 作为一种 HVL，而 [Verilator](https://veripool.org/guide/latest/) 能够允许用户将 C++ 作为一种 HVL。
@@ -34,15 +36,17 @@ HVL、HSE、WAL 基于同一个中间件（VPI-ML），用于连接 Kernel 和 B
 
 中间件（VPI-ML）和 Frontend、Kernel、Backend 的架构组成是 Verilua 的解耦框架设计的基础，这种架构提供了最大的可扩展性.
 
-<div align="center">
-  <img src="./images/verilua_architecture.png" alt="Verilua 架构" width="70%">
-</div>
+<figure markdown="span">
+  ![verilua_architecture](./images/verilua_architecture.png){ width="70%" }
+  <figcaption>Verilua 架构</figcaption>
+</figure>
 
 !!! note "Verilua 的验证组件复用"
     Verilua 的解耦框架设计允许 HVL、HSE、WAL 的验证组件在这三种场景下的任意一种中复用，任意一种场景下编写的验证组件无需考虑复用性问题，Verilua 从框架层面上就支持复用。从下图可以看到所有相同颜色的组件都是同一份代码，它们在 HVL、HSE、WAL 三个场景下都能无修改复用。
-    <div align="center">
-      <img src="./images/verilua_component_reuse.png" alt="Verilua 的验证组件复用" width="50%">
-    </div>
+    <figure markdown="span">
+      ![verilua_component_reuse](./images/verilua_component_reuse.png){ width="50%" }
+      <figcaption>Verilua 的验证组件复用</figcaption>
+    </figure>
 
 ## 应用案例
 在本节中，我们将展示 Verilua 作为硬件验证语言（HVL）、硬件仿真引擎（HSE）和波形分析语言（WAL）的用例，展示其与传统仿真框架相比的独特特性。我们所有的案例将围绕[香山处理器](https://github.com/OpenXiangShan/XiangShan)南湖V3（`NHV3`）系列开源高性能处理器的缓存子系统的验证和调试过程展开。
@@ -50,9 +54,10 @@ HVL、HSE、WAL 基于同一个中间件（VPI-ML），用于连接 Kernel 和 B
 ### Verilua as an HVL
 在 NHV3 中，我们使用 Verilua 构建了一个针对缓存子系统（包括 L2/L3 缓存）的验证平台，如下图所示。Verilua 作为一种硬件验证语言（HVL）的应用，涉及多个关键的验证组件，例如 FakeCache、FakeDMA、TLCAgent、TLULAgent、L2Monitor、L3Monitor 和 GlobalScoreboard，这些组件均使用 Lua 编写。其中，FakeCache 和 FakeDMA 组件通过 VPI 与待测设计（DUT）的信号进行交互。
 
-<div align="center">
-  <img src="./images/verilua_as_an_hvl.png" alt="Verilua as an HVL" width="70%">
-</div>
+<figure markdown="span">
+  ![verilua_as_an_hvl](./images/verilua_as_an_hvl.png){ width="70%" }
+  <figcaption>Verilua as an HVL</figcaption>
+</figure>
 
 在该验证平台中，每个组件都具备相对独立的功能。例如，L2/L3 Monitor 负责从 L2/L3 缓存中读取总线信号并记录日志，以便后续分析。GlobalScoreboard 是一个关键的检查组件，用于确保缓存系统内的全局数据一致性，这对于维护缓存操作的完整性至关重要。
 
@@ -63,9 +68,10 @@ HVL、HSE、WAL 基于同一个中间件（VPI-ML），用于连接 Kernel 和 B
 
 通过将 Verilua 嵌入到 difftest 仿真环境中，我们可以利用之前开发的组件（如 L2/L3Monitor 和 GlobalScoreboard），并通过 VPI 将它们连接到 L2/L3 缓存总线信号，如下图所示。这种设置使得 Monitor 组件能够记录总线行为，而 GlobalScoreboard 则实时检查数据正确性。如果发生错误，仿真会立即停止，并提供错误信息，从而帮助快速将问题定位到 L2/L3 缓存。
 
-<div align="center">
-  <img src="./images/verilua_as_an_hse.png" alt="Verilua as an HSE" width="70%">
-</div>
+<figure markdown="span">
+  ![verilua_as_an_hse](./images/verilua_as_an_hse.png){ width="70%" }
+  <figcaption>Verilua as an HSE</figcaption>
+</figure>
 
 在这种情况下，Verilua 的使用促进了现有验证组件的重用，而无需重写或插入调试代码片段。整个过程是非侵入式的，最大限度地减少了对原始 RTL 设计的干扰，并避免了因频繁修改 RTL 代码而引入新错误的风险，最终提高了验证过程的效率和准确性。
 
@@ -76,8 +82,9 @@ HVL、HSE、WAL 基于同一个中间件（VPI-ML），用于连接 Kernel 和 B
 
 借助 Verilua，我们可以使用 wave_vpi 后端对波形文件进行仿真。在此仿真过程中，我们可以利用 L2/L3Monitor、GlobalScoreboard 以及前文示例中的其他组件（如下图所示）来帮助识别错误并收集总线信息。通过将这些组件集成到波形仿真场景中，我们能够高效地分析波形。Monitors 和 GlobalScoreboard 会在仿真过程中精确定位错误发生的位置，并告知我们错误的具体来源。这种方法避免了繁琐的波形检查，使得我们可以将 Verilua 作为 WAL 来分析波形并重用验证组件，从而显著提升分析效率，节省调试时间，并提高生产力。
 
-<div align="center">
-  <img src="./images/verilua_as_an_wal.png" alt="Verilua as an WAL" width="70%">
-</div>
+<figure markdown="span">
+  ![verilua_as_an_wal](./images/verilua_as_an_wal.png){ width="70%" }
+  <figcaption>Verilua as an WAL</figcaption>
+</figure>
 
 在这些案例中，Verilua 能够利用同一套基于 Lua 的验证组件来应对 HVL、HSE 和 WAL 的不同场景。这展示了 Verilua 强大的可重用性，并显著提升了验证过程的效率。

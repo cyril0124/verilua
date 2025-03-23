@@ -38,6 +38,12 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
+  # Enable code snippets to be embedded in markdown files
+  - pymdownx.snippets
+
+  - md_in_html
+  - pymdownx.blocks.caption
+
 nav:
   - index.md
   - Getting started:
@@ -48,5 +54,5 @@ nav:
   - How-to guides:
     - how-to-guides/todo.md
   - Reference:
-    - getting-started/multi_task.md
-    - getting-started/data_structure.md
+    - reference/multi_task.md
+    - reference/data_structure.md
