@@ -34,7 +34,7 @@ Verilua 的解耦框架中，分为 Frontend、Kernel、Backend 三个层次，�
 
 HVL、HSE、WAL 基于同一个中间件（VPI-ML），用于连接 Kernel 和 Backend，VPI-ML 能够在各种硬件仿真器中支持，这是实现解耦与复用的关键，特别地对于 HSE，可以使用 `dummy_vpi`（后续将会介绍） 代替这一中间件来减少 HSE 的接入开销。
 
-中间件（VPI-ML）和 Frontend、Kernel、Backend 的架构组成是 Verilua 的解耦框架设计的基础，这种架构提供了最大的可扩展性.
+中间件（VPI-ML）和 Frontend、Kernel、Backend 的架构组成是 Verilua 的解耦框架设计的基础，这种架构提供了最大的可扩展性。
 
 <figure markdown="span">
   ![verilua_architecture](./images/verilua_architecture.png){ width="70%" }
