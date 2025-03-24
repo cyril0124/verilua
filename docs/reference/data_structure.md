@@ -1264,6 +1264,17 @@ local abdl = ([[
 
     !!! warning "上面的参数中，如果没有特别说明可以和另外的参数使用，那么就不能合并使用"
 
+27. `#!lua <dut>:__newindex(k, v)`
+
+    `ProxyTableHandle` 实现了 `__newindex` 这个 Lua 的 metatable 元方法，可以用来设置一个信号的值，例如：
+    ```lua
+    dut.path.to.signal = 10
+    -- equivalent to
+    dut.path.to.signal:set_imm(10)
+    ```
+
+    需要注意的是这种方式赋值只能赋值 32 bit 的数值，并且是立即赋值的类型。
+
 
 ### ProxyTableHandle 的使用
 

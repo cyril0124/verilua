@@ -137,6 +137,7 @@
         }
         ```
 
+<a id="create-xmake-lua"></a>
 ## 2. 创建一个 xmake.lua 文件
 Verilua 的工程（HVL 和 WAL 场景）使用 `xmake` 来管理，因此需要先在你的工程文件夹中创建一个 xmake.lua 文件。xmake 是一个基于 Lua 的构建工具（类似 makefile，cmake 等），提供了灵活的构建方式，关于 xmake 的使用，可以参考 [xmake 官方文档](https://xmake.io/#/getting_started)。
 
