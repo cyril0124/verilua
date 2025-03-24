@@ -111,6 +111,7 @@ fork {
 }
 ```
 
+<a id="task-synchronization"></a>
 ## 任务同步
 多个任务之间的同步可以使用 `EventHandle` 来创建特定事件实现，不同于直接使用全局变量进行同步，`EventHandle` 能够更进一步在事件触发的时候对正在等待的任务进行唤醒，从而实现了及时的任务同步。具体代码如下：
 ```lua linenums="1" hl_lines="8 12 18"
@@ -247,3 +248,33 @@ xmake run TestDesign
 [                              27178@monitor_task]   324.09 ms   percent: 38.00% ┃███████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
 total_time: 0.85 s / 852.91 ms
 ```
+## Start Task 和 Finish Task
+
+Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。
+
+- 通过 `#!lua verilua "startTask" { ... }` 创建 Start Task；
+
+    Start Task 可以由多个函数组成。
+
+    ```lua linenums="1"
+    verilua "startTask" {
+        function ()
+            print("Simulation started!")
+        end,
+        -- Other tasks...
+    }
+    ```
+
+- 通过 `#!lua verilua "finishTask" { ... }` 创建 Finish Task。
+
+    Finish Task 可以由多个函数组成。
+
+    ```lua linenums="1"
+    verilua "finishTask" {
+        function ()
+            print("Simulation finished!")
+        end,
+        -- Other tasks...
+    }
+    ```
+

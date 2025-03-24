@@ -30,24 +30,63 @@
 ## CallableHDL
 
 ### 创建 CallableHDL
-#### 使用 dut 创建
+#### 使用 dut 创建（推荐）
 使用 `dut` 来创建 `chdl` 需要完整的使用 `dut` 表示出一个信号的 hierarchy path（这里的 `dut` 表示的是 Testbench 的模块名称，默认是 `tb_top`），例如：
-```lua linenums="1"
+```lua 
 local signal = dut.path.to.signal:chdl()
 ```
 通常对于一些 DUT 的**顶层信号**，可以使用 `dut.xxx` 表示，例如：
-```lua linenums="1"
+```lua 
 local signal = dut.clock:chdl()
 local signal2 = dut.reset:chdl()
 ```
 对于 DUT 的内部信号，可以使用 `dut.u_<top_module_name>.<internal_signal_name>` 表示，具体原因可以查看[此处的说明](../getting-started/simple_hvl_example.md#about-dut)，代码例子如下： 
-```lua linenums="1"
+```lua 
 local signal = dut.u_Design.value:chdl()
 ```
 
+!!! tip "基于 `dut` 灵活创建 `chdl`"
+    Lua 中，可以使用 string 来灵活访问某个 table 的子变量，例如：
+    ```lua hl_lines="5 6 13 15"
+    local t = {a0 = 1, a1 = 2, b0 = 3, b1 = 4}
+    local a = t.a0
+    local b = t.b0
+
+    local aa = t["a0"]
+    local bb = t["b0"]
+
+    assert(a == aa)
+    assert(b == bb)
+
+    for i = 0, 1 do
+        if i == 0 then
+            assert(t["a" .. i] == t.a0)
+        else
+            assert(t["a" .. i] == t.a1)
+        end
+    end
+    ```
+
+    可以看到利用字符串拼接等方法访问一些有规律的子变量，这提供了更灵活的方式来访问子变量。
+    
+    而 `dut` 本质上也是一个 table，因此也可以使用 string 来访问 `dut` 的子变量，例如：
+    ```lua
+    local signals = {}
+    for i = 1, 5 do
+        table.insert(signals, dut.path.to["some_module_" .. i].value:chdl())
+    end
+    ```
+    上面这个例子中我们使用 for 循环批量获得了 5 个 `chdl` 对象，这些对象分别对应 dut 中 some_module_1 到 some_module_5 这五个有规律的模块的 value 字段，并将其放入了一个 table 中。同样地，对于信号名也可以这么操作：
+    ```lua
+    local signals = {}
+    for i = 1, 5 do
+        table.insert(signals, dut.path.to["some_value_" .. i]:chdl()) 
+    end
+    ```
+
 #### 使用 class 创建
 本质上 `CallableHDL` 是一个 class，因此可以使用类似 `class` 的方式创建，例如：
-```lua linenums="1" 
+```lua  
 local CallableHDL = require "LuaCallableHDL"
 
 local chdl = CallableHDL("name of the chdl", "tb_top.clock")
@@ -58,11 +97,12 @@ local chdl = dut.clock:chdl()
 ```
 `CallableHDL` 接收两个参数，第一个是 `chdl` 的名称，第二个则是信号的完整 hierarchy path。
 
-#### 使用 string literal 创建
+#### 使用 string literal 创建（推荐）
 Lua 的允许重载 string 的 `metatable`，Verilua 基于这个机制实现了一种简化的方式来创建 `chdl`, 例如：
-```lua linenums="1"
+```lua 
 local chdl = ("tb_top.clock"):chdl()
 ```
+<a id="slcp-explain"></a>
 这种方式在 Verilua 中被称为 **S**tring **L**iteral **C**onstructor **P**attern（SLCP），使用 SLCP 的好处在于可以不用像 `class` 构建那样提前使用 `#!lua require` 将 `LuaCallableHDL` 加载代码中，而是在使用时根据后缀的方法名（`:chdl()`）来直接创建 `chdl`。 除了 `chdl` 之外，其他的数据结构同样也支持使用 SLCP 的方式来创建。
 
 
@@ -81,6 +121,8 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 !!! note "`beat` 的概念"
     硬件信号的位宽是没有限制的，但是在 Lua 中普通的 number 类型能够保存 32 bit 的数值，因此 Verilua 以 32 bit 为单位来表示一部分的信号的值，这个单位称为 `beat`。例如：1 ～ 32 bit 的信号可以用 1 个 beat 来表示，33 ～ 64 bit 的信号可以用 2 个 beat 来表示，以此类推。beat 的概念在后续的 API 介绍中会经常遇到。
+
+    可以使用 `#!lua <chdl>.beat_num` 来获得 beat 数。
 
 #### 信号读取
 
@@ -204,7 +246,72 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     
         暂不支持 Cached 赋值方式。
 
-4. `#!lua <chdl>:set_bitfield(s, e, v)`
+4. `#!lua <chdl>:set_str(value)`
+
+    一个通用的字符串赋值方式，可以接收一个 Lua string 类型的字符串，具体的字符串类型由 `value` 的前两位来区分，例如：
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    -- set hex string
+    signal:set_str("0x123")
+
+    -- set binary string
+    signal:set_str("0b01011")
+
+    -- set decimal string
+    signal:set_str("123")
+    ```
+
+    `0x` 表示为 Hex String，`0b` 表示为 Binary String，其他的字符串则表示为 Decimal String。
+
+5. `#!lua <chdl>:set_hex_str(value)`
+
+    使用 Hex String 赋值，`value` 是一个 Lua string 类型的字符串。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    signal:set_hex_str("123")
+
+    clock:posedge()
+
+    signal:expect(0x123)
+    ```
+
+6. `#!lua <chdl>:set_bin_str(value)`
+
+    使用 Binary String 赋值，`value` 是一个 Lua string 类型的字符串。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    signal:set_bin_str("1010")
+
+    clock:posedge()
+
+    signal:expect(0xA)
+    ```
+
+7. `#!lua <chdl>:set_dec_str(value)`
+
+    使用 Decimal String 赋值，`value` 是一个 Lua string 类型的字符串。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    signal:set_dec_str("12")
+
+    clock:posedge()
+
+    signal:expect(12)
+    ```
+
+8. `#!lua <chdl>:set_shuffled()`
+
+    对当前信号进行**随机赋值**，这在验证中很常用。
+
+9. `#!lua <chdl>:set_bitfield(s, e, v)`
 
     设置信号的值 `v`，并且只在 `s` 到 `e` 之间的位宽上赋值。`v` 可以是 Lua number 类型的数值，也可以是一个 `uint64_t` 类型的 `cdata`。
     
@@ -215,7 +322,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     signal:set_bitfield(0, 7, value)
     ```
 
-5. `#!lua <chdl>:set_bitfield_hex_str(s, e, hex_str)`
+10. `#!lua <chdl>:set_bitfield_hex_str(s, e, hex_str)`
 
     设置信号的值，并且只在 `s` 到 `e` 之间的位宽上赋值。`hex_str` 是一个 Hex String 类型的字符串.
 
@@ -226,7 +333,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     signal:set_bitfield_hex_str(0, 7, value)
     ```
 
-6. `#!lua <chdl>:set_force(value)`
+11. `#!lua <chdl>:set_force(value)`
 
     强制赋值（与 `set_release` 配合使用），与 SystemVerilog 中的 `force` 关键字相同。除了 `force` 这个属性上的区别之外，其他和 `set` 一样。
 
@@ -240,11 +347,11 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     signal:set_release()
     ```
 
-7. `#!lua <chdl>:set_release()`
+12. `#!lua <chdl>:set_release()`
 
     释放赋值（与 `set_force` 配合使用），与 SystemVerilog 中的 `release` 关键字相同。对于使用了 `set_force` 的信号，需要使用 `set_release` 来释放赋值，否则会导致信号的值不会更新。
 
-8. `#!lua <chdl>:set_imm(value)`
+13. `#!lua <chdl>:set_imm(value)`
 
     立即赋值版本的 `set`，除了立即赋值的属性之外，其他和 `set` 一样。
 
@@ -270,53 +377,551 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
         ```
 
-9. `#!lua <chdl>:set_imm_unsafe(value)`
+14. `#!lua <chdl>:set_imm_unsafe(value)`
 
     立即赋值版本的 `set_unsafe`，除了立即赋值的属性之外，其他和 `set_unsafe` 一样。
 
-10. `#!lua <chdl>:set_imm_cached(value)`
+15. `#!lua <chdl>:set_imm_cached(value)`
 
     立即赋值版本的 `set_cached`，除了立即赋值的属性之外，其他和 `set_cached` 一样。
 
-11. `#!lua <chdl>:set_imm_bitfield(s, e, v)`
+16. `#!lua <chdl>:set_imm_str(value)`
+
+    立即赋值版本的 `set_str`，除了立即赋值的属性之外，其他和 `set_str` 一样。
+
+17. `#!lua <chdl>:set_imm_hex_str(value)`
+
+    立即赋值版本的 `set_hex_str`，除了立即赋值的属性之外，其他和 `set_hex_str` 一样。
+
+18. `#!lua <chdl>:set_imm_bin_str(value)`
+
+    立即赋值版本的 `set_bin_str`，除了立即赋值的属性之外，其他和 `set_bin_str` 一样。
+
+19. `#!lua <chdl>:set_imm_dec_str(value)`
+
+    立即赋值版本的 `set_dec_str`，除了立即赋值的属性之外，其他和 `set_dec_str` 一样。
+
+20. `#!lua <chdl>:set_imm_shuffled()`
+
+    立即赋值版本的 `set_shuffled`，除了立即赋值的属性之外，其他和 `set_shuffled` 一样。
+
+21. `#!lua <chdl>:set_imm_bitfield(s, e, v)`
 
     立即赋值版本的 `set_bitfield`，除了立即赋值的属性之外，其他和 `set_bitfield` 一样。
 
-12. `#!lua <chdl>:set_imm_bitfield_hex_str(s, e, hex_str)`
+22. `#!lua <chdl>:set_imm_bitfield_hex_str(s, e, hex_str)`
 
     立即赋值版本的 `set_bitfield_hex_str`，除了立即赋值的属性之外，其他和 `set_bitfield_hex_str` 一样。
 
-13. `#!lua <chdl>:set_imm_force(value)`
+23. `#!lua <chdl>:set_imm_force(value)`
 
     立即赋值版本的 `set_force`，除了立即赋值的属性之外，其他和 `set_force` 一样。
 
-14. `#!lua <chdl>:set_imm_release()`
+24. `#!lua <chdl>:set_imm_release()`
 
     立即赋值版本的 `set_release`，除了立即赋值的属性之外，其他和 `set_release` 一样。
 
+
 #### debug 相关
 
-TODO:
+1. `#!lua <chdl>:dump()`
+
+    <a id="chdl-dump"></a>
+
+    用于将信号的值（主要是以 Hex String 的形式）输出到控制台，可以用于查看信号的值，打印的内容如下所示：
+
+    ```shell title="Terminal"
+    [tb_top.value] => 0x01
+    ```
+
+2. `#!lua <chdl>:dump_str()`
+    <a id="chdl-dump_str"></a>
+
+    会将原本`#!lua <chdl>:dump()` 的输出的内容作为一个返回值进行返回，因此 `#!lua <chdl>:dump()` 也等价于 `#!lua print(<chdl>:dump_str())`。
+
+3. `#!lua <chdl>:get_width()`
+
+    获得信号的位宽，也可以直接访问`#!lua <chdl>.width` 来获得。 
+
+4. `#!lua <chdl>:__len()`
+
+    `chdl` 重载了 Lua 的 metatable 的 `__len` 方法，可以直接使用 `#!lua #<chdl>` 来获得信号的位宽。下面的三种方式来获得信号位宽是等价的：
+
+    ```lua
+    local signal = dut.value:chdl()
+    assert(#signal == 32)
+    assert(signal:get_width() == 32)
+    assert(signal.width == 32)
+    ```
 
 #### 验证相关
 
-TODO:
+1. `#!lua <chdl>:expect(value)`
+
+    用于断言信号的值，在验证中很常用，如果信号的值与期望值相等则什么也不会发生，如果不相等则会打印报错信息并停止仿真。错误信息格式如下所示：
+
+    ```shell title="Terminal"
+    [tb_top.value] expect => 10, but got => 0
+    ```
+
+    === "Single"
+
+        `value` 的值是一个 Lua 的 number 类型的值。
+
+    === "Double"
+    
+        `value` 的值可以是一个 Lua 的 number 类型的值，也可以是一个 `uint64_t` 类型的 `cdata`。例如：
+        ```lua
+        local signal = dut.value:chdl()
+        signal:expect(10) -- Lua number
+        signal:expect(0x123ULL) -- uint64_t cdata(the `ULL` suffix is for 64 bit in LuaJIT)
+        ```
+
+    === "Multi"
+    
+        `value` 的值是一个 Lua 的 table，其大小为当前信号的 beat 数。例如：
+        ```lua
+        local signal = dut.value:chdl()
+        assert(#signal == 128)
+
+        signal:expect({0x123, 0x456, 0x111, 0x222}) -- Lua table
+        ```
+
+
+2. `#!lua <chdl>:expect_not(value)`
+
+    和 `#!lua <chdl>:expect(value)` 类似，但是如果信号的值与期望值相等则会打印报错信息并停止仿真。
+
+3. `#!lua <chdl>:expect_hex_str(hex_value_str)`
+
+    比较信号的值是否为指定的 Hex String 值，如果不相等则会打印报错信息并停止仿真。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    signal:expect_hex_str("123")
+    ```
+
+4. `#!lua <chdl>:expect_bin_str(bin_value_str)`
+
+    比较信号的值是否为指定的 Binary String 值，如果不相等则会打印报错信息并停止仿真。
+    
+    ```lua
+    local signal = dut.value:chdl()
+
+    signal:expect_bin_str("1010")
+    ```
+
+5. `#!lua <chdl>:expect_dec_str(dec_value_str)`
+
+    比较信号的值是否为指定的 Decimal String 值，如果不相等则会打印报错信息并停止仿真。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    signal:expect_dec_str("12")
+    ```
+
+6. `#!lua <chdl>:expect_not_hex_str(hex_value_str)`
+
+    和 `#!lua <chdl>:expect_hex_str(hex_value_str)` 的作用相反。
+
+7. `#!lua <chdl>:expect_not_bin_str(bin_value_str)`
+
+    和 `#!lua <chdl>:expect_bin_str(bin_value_str)` 的作用相反。
+
+8.  `#!lua <chdl>:expect_not_dec_str(dec_value_str)`
+
+    和 `#!lua <chdl>:expect_dec_str(dec_value_str)` 的作用相反。
+
+9. `#!lua <chdl>:is(value)`
+
+    判断信号的值是否等于某个值，如果等于则返回 `true`，否则返回 `false`。
+
+    === "Single"
+
+        `value` 的值是一个 Lua 的 number 类型的值。
+
+    === "Double"
+    
+        `value` 的值可以是一个 Lua 的 number 类型的值，也可以是一个 `uint64_t` 类型的 `cdata`。例如：
+        ```lua
+        local signal = dut.value:chdl()
+        local correct = signal:is(10) -- Lua number
+        local correct = signal:is(0x123ULL) -- uint64_t cdata(the `ULL` suffix is for 64 bit in LuaJIT)
+        ```
+
+    === "Multi"
+    
+        `value` 的值是一个 Lua 的 table，其大小为当前信号的 beat 数。例如：
+        ```lua
+        local signal = dut.value:chdl()
+        assert(#signal == 128)
+
+        local correct = signal:is({0x123, 0x456, 0x111, 0x222}) -- Lua table
+        ```
+
+10. `#!lua <chdl>:is_not(value)`
+
+    和 `#!lua <chdl>:is(value)` 的作用相反。
+
+11. `#!lua <chdl>:is_hex_str(hex_value_str)`
+
+    判断信号的值是否等于某个 Hex String 值，如果等于则返回 `true`，否则返回 `false`。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    local correct = signal:is_hex_str("123")
+    ```
+
+12. `#!lua <chdl>:is_bin_str(bin_value_str)`
+
+    判断信号的值是否等于某个 Binary String 值，如果等于则返回 `true`，否则返回 `false`。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    local correct = signal:is_bin_str("1010")
+    ```
+
+13. `#!lua <chdl>:is_dec_str(dec_value_str)`
+
+    判断信号的值是否等于某个 Decimal String 值，如果等于则返回 `true`，否则返回 `false`。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    local correct = signal:is_dec_str("12")
+    ```
 
 #### 信号回调管理
 
-TODO:
+!!! warning "信号回调管理函数只能作用在信号位宽为 1 的信号上"
 
-#### 一些提高开发效率的 API
+1. `#!lua <chdl>:posedge(times, func)`
 
-TODO:
+    用于等待信号的**上升沿**到来，`times` 和 `func` 是可选的两个参数，`times` 表示等待的次数，`func` 表示回调函数。
 
-### TODO：CallableHDL 接口（Array）
+    ```lua
+    local clock = dut.clock:chdl()
+    
+    clock:posedge() -- wait for one posedge
+    clock:posedge(10) -- wait for 10 posedges
 
-TODO:
+    clock:posedge(10, function (c)
+        -- `func` will be called every time posedge arrives, and the argument `c` is the count of the posedge
+        print("posedge count => ", c)
+    end)
+    ```
+
+2. `#!lua <chdl>:negedge(times, func)`
+
+    和 `#!lua <chdl>:posedge(times, func)` 类似，但是在等待信号的**下降沿**到来。
+
+3. `#!lua <chdl>:posedge_until(max_limit, func)`
+
+    在每一个时钟**上升沿**检查 `func` 是否返回 `true`，如果是 `true` 则结束等待上升沿，否则继续等待，直到 `max_limit` 次上升沿到来。
+
+    如果在 `max_limit` 次上升沿到来后，`func` 仍未返回 `true`，则 `posedge_until` 会返回 `false`，否则返回 `true`。
+    
+4. `#!lua <chdl>:negedge_until(max_limit, func)`
+
+    和 `#!lua <chdl>:posedge_until(max_limit, func)` 类似，但是在等待信号的**下降沿**到来。
+
+
+#### 具备自动格式识别的赋值接口
+
+上述的 API 介绍中可以看到针对信号赋值有许多的函数，有时候用户可能需要一种更灵活的方式来赋值信号，能够根据此时输入的值的格式来调用合适的赋值接口函数，Verilua 通过重载 Lua metatable 的 `__newindex` 方法来实现了这一点。
+
+调用的格式为：`#!lua <chdl>.value = <value>`，其中 `<value>` 是一个任意能够表示数值的值，注意到这里等号左边的 `.value`，这是为了能够触发 `__newindex` 元方法，因此在调用时需要加上。
+
+目前 `<value>` 支持的格式包括：
+
+- Lua number 类型的数值；
+    ```lua
+    <chdl>.value = 123
+    <chdl>.value = 0x123
+    ```
+- Lua string 类型的字符串（对于 Hex 和 Binary 需要带上前缀）；
+    ```lua
+    <chdl>.value = "123"
+    <chdl>.value = "0x123"
+    <chdl>.value = "0b01011"
+    ```
+- Lua table（或者叫 list），里面的元素为 number 类型;
+    ```lua
+    <chdl>.value = {0x123, 0x456, 0x789}
+    ```
+- LuaJIT 的 `cdata`，包括了：`uint64_t` 和 `uint32_t[]` ；
+    ```lua
+    <chdl>.value = 0x123ULL -- uint64_t cdata
+
+    local vec = ffi.new("uint32_t[?]", 4) -- uint32_t[] cdata
+    vec[1] = 0x123 -- Notice: the index is 1-based
+    vec[2] = 0x456
+    vec[3] = 0x789
+    <chdl>.value = vec
+    ```
+
+    !!! tip "对于 `uint32_t[]` 的赋值，需要用户手动使用 ffi 创建，因此建议还是采用 Lua table 的方式"
+
+- Lua boolean 类型的值；
+    ```lua
+    <chdl>.value = true
+    <chdl>.value = false
+    ```
+
+!!! tip "可以在一些性能不敏感的场景下使用这种自动识别格式的赋值方式，例如在一些模块的 UT 测试中，这样可以简化业务代码"
+
+#### 具备自动格式识别的比较接口
+
+在实际的验证中，往往需要对信号的值进行比较，来判断信号的值是否符合预期，但是信号的数值表示方式在 `chdl` 中有多种类型，例如 Lua 的 number、string、table、cdata 等，这些类型的比较方式也是不同的，用户可能需要一种能够根据输入的值的格式来进行数值比较的接口，因此 Verilua 通过重载 Lua metatable 的 `__eq` 方法来实现了这一点。
+
+调用的格式为：`#!lua <chdl> == <value_wrapper>(<value>)`，其中 `<value>` 是一个任意能够表示数值的值，为了能够触发 `__eq` 元方法，需要给 `<value>` 包上一个 `<value_wrapper>`。 
+
+`<value_wrapper>` 有三种可以选择，都是全局可用的一个全局变量，分别是：
+
+- `v`：最普通的 `<value_wrapper>`，只是用来触发 `__eq` 元方法，不对 `<value>` 做额外的处理；
+- `vv`：verbose 版本的 `v`，在比较信号的值时，如果比较失败，那么会在命令行中打印出 log 信息，便于调试，报错信息如下所示：
+    ```lua title="Terminal"
+    [tb_top.value] expect => 0132, but got => 0032
+    ```
+- `vs`：verbose + stop 版本的 `v`，在比较信号的值时，如果比较失败，那么会在命令行中打印出 log 信息，同时还会触发 assert 断言报错停止仿真，因此 `vs` 也等价于 `#!lua assert(<chdl> == vv(<value>))`。
+
+
+目前 `<value>` 支持的格式包括（以 `v` 这个 `<value_wrapper>` 为例）：
+
+- Lua number 类型的数值；
+    ```lua
+    local correct = <chdl> == v(123)
+    local correct = <chdl> == v(0x123)
+    ```
+- Lua string 类型的字符串（对于 Hex 和 Binary 需要带上前缀）；
+    ```lua
+    local correct = <chdl> == v("0x123")
+    local correct = <chdl> == v("0b01011")
+    ```
+- Lua table（或者叫 list），里面的元素为 number 类型;
+    ```lua
+    local correct = <chdl> == v({0x123, 0x456, 0x789})
+    ```
+- LuaJIT 的 `cdata`，包括了：`uint64_t` 和 `uint32_t[]`；
+    ```lua
+    local correct = <chdl> == v(0x123ULL) -- uint64_t cdata
+
+    local vec = ffi.new("uint32_t[?]", 4) -- uint32_t[] cdata
+    vec[1] = 0x456 -- Notice: the index is 1-based
+    vec[2] = 0x789
+    vec[3] = 0x000
+    local correct = <chdl> == v(vec)
+    ```
+
+    !!! tip "对于 `uint32_t[]` 的赋值，需要用户手动使用 ffi 创建，因此建议还是采用 Lua table 的方式"
+
+- Lua boolean 类型的值；
+    ```lua
+    local correct = <chdl> == v(true)
+    local correct = <chdl> == v(false)
+    ```
+
+- [`BitVec`](./bitvec.md) 类型的值；
+    ```lua
+    local correct = <chdl> == v(BitVec(123))
+    local correct = <chdl> == v(BitVec("123"))
+    ```
+
+!!! tip "可以在一些性能不敏感的场景下使用这种自动识别格式的比较方式，例如在一些模块的 UT 测试中，这样可以简化业务代码"
+
+
+### CallableHDL 接口（Array）
+
+TODO: 针对 Array 类型的信号，Verilua 的 `chdl` 由独立的 API 进行赋值。
 
 ## Bundle
 
-TODO:
+### 创建 Bundle
+
+#### 使用 class 创建
+
+`Bundle` 是一个 class，因此可以使用类似 `class` 的方式创建，例如：
+
+```lua
+local Bundle = require "LuaBundle"
+
+local bdl = Bundle(
+    {"valid", "ready", "opcode", "data"}, -- 1. <signals_table>
+    "some_prefix_",                       -- 2. <prefix>
+    "path.to.hier",                       -- 3. <hierachy>
+    "name of bundle",                     -- 4. <name>
+    true,                                 -- 5. <is_decoupled>
+    nil                                   -- 6. <optional_signals>
+)
+```
+
+`Bundle` 接收六个参数：
+
+1. `signals_table`
+
+    这个参数是一个 table，其中包含了所有的信号的名称。
+
+2. `prefix`
+
+    这个参数是一个字符串，其中包含了信号的前缀，如果不存在前缀，那么传入的值可以是 `#!lua ""`。
+
+3. `hierachy`
+
+    这个参数是一个字符串，其中包含了信号的完整 hierarchy，这是一个必需添加的参数。
+
+4. `name`
+
+    这个参数是一个字符串，其中包含了信号的名称，可选参数，如果不存在名称，那么传入的值可以是 `#!lua nil`，此时会将 `name` 设置为 `#!lua "Unknown"`。
+
+5. `is_decoupled`
+
+    用来表示这个 `Bundle` 是否是 Decoupled 类型（和 Chisel 中的 [Decoupled 定义](https://www.chisel-lang.org/docs/explanations/interfaces-and-connections#the-standard-ready-valid-interface-readyvalidio--decoupled)一致），可选参数，默认为 `false`，可以传入 `#!lua nil` 来使用默认值。
+
+    对于 Decoupled 类型的 `Bundle`，其中必须要在 `signals_table` 中包含 `valid`，而对于 `ready` 这个信号是可选的。针对 Decoupled 类型的 `Bundle`，有一个 `<bdl>:fire()` 的方法，用来判断信号的 `valid` 是否为 `1`（如果 `ready` 存在还会判断是否 `ready` 也为 1），例如：
+    ```lua
+    local bdl = Bundle({"valid", "ready", "opcode", "data"}, "some_prefix_", "path.to.hier", "name of bundle", true)
+    local valid = bdl.valid:chdl()
+    local ready = bdl.ready:chdl()
+
+    assert(bdl:fire())
+    assert(valid:get() == 1)
+    assert(ready:get() == 1)
+    ```
+
+    如果 `Bundle` 被标记为是 Decoupled 的，那么除了 `valid` 和 `ready` 之外，其他在 `signals_table` 中的信号都会被自动添加一个 `bits_` 的前缀，例如上面的 bdl 会有这些信号：
+    ``` hl_lines="3 4"
+    path.to.hier.some_prefix_valid
+    path.to.hier.some_prefix_ready
+    path.to.hier.some_prefix_bits_opcode
+    path.to.hier.some_prefix_bits_data
+    ```
+
+    !!! note "这样设计的目的是为了方便 Chisel 用户使用 Verilua 来创建 Bundle"
+
+6. `optional_signals`
+
+    用来标记 `signals_table` 中的信号哪些是可选的，如果一个信号被标记为可选的，那么在构建 `Bundle` 的时候如果发现这个信号不存在，就会忽略这个信号的报错，否则就会报错。
+
+上述代码会将下面的信号加入到 `Bundle` 中：
+```
+path.to.hier.some_prefix_valid
+path.to.hier.some_prefix_ready
+path.to.hier.some_prefix_bits_opcode
+path.to.hier.some_prefix_bits_data
+```
+
+这里的每一个信号的访问方式如下：
+```lua
+
+local valid  = bdl.valid
+local ready  = bdl.ready
+local opcode = bdl.bits.opcode
+local data   = bdl.bits.data
+```
+!!! note "这里的每一个信号都是一个 `chdl`"
+对于 Decoupled 类型的 `Bundle` 除了 `valid` 和 `ready` 之外，其他信号的访问需要在 `bits` 下进行访问。
+
+上面都是 Decoupled 类型的 `Bundle`，对于不是 Decoupled 类型的 `Bundle`，这里是另一个例子：
+```lua
+local bdl = Bundle({"data0", "data1", "data2"}, "some_prefix_", "path.to.hier", "name of bundle", false)
+
+local data0 = bdl.data0
+local data1 = bdl.data1
+local data2 = bdl.data2
+```
+
+#### 使用 string literal 创建（推荐）
+
+和 `CallableHDL` 一样，`Bundle` 也可以使用 string literal 来创建，也就是 SLCP，[这里](#slcp-explain) 有介绍 SLCP 的好处，下面是一个例子：
+```lua
+local bdl = ([[
+    | valid
+    | ready
+    | opcode
+    | data
+]]):bdl({hier = "path.to.hier", prefix = "some_prefix_", name = "name of bundle", is_decoupled = false})
+```
+!!! note "Lua 的 `#!lua [[ ]]` 用来表示多行的字符串"
+!!! tip "Lua 中如果函数的参数只有一个，且这个参数的类型是 string 或者 table，那么就可以省略圆括号，因此上面的代码可以简化为：`local bdl = ([[ | valid | ready | opcode | data ]]):bdl {...}`"
+
+上述的代码中，每一个信号需要用 `|` 分隔开，换行不是必须的，因此下面的做法也是可以的：
+```lua
+local bdl = ("valid | ready | opcode | data"):bdl {...}
+local bdl = ("| valid | ready | opcode | data"):bdl {...}
+local bdl = ("| valid |      ready | opcode    | data |"):bdl {...}
+local bdl = ([[ valid | ready
+| opcode
+   | data
+]]):bdl {...}
+```
+
+使用 SLCP 进行构建的时候，参数用 table 的形式传入（key-value 的形式），因此这些参数名和使用 `class` 构建的时候的参数名一致。
+
+
+### Bundle 接口
+
+!!! note "`Bundle` 的对于每一个信号的成员变量仍然还是一个 `CallableHDL`"
+    如果要访问对应信号的值，和 `CallableHDL` 一样操作即可，例如：
+    ```lua
+    local bdl = ("valid | ready | opcode | data"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = true}
+    local valid_value = bdl.valid:get()
+    local ready_value = bdl.ready:get()
+
+    bdl.bits.opcode:set(0x123)
+    bdl.bits.data:set(0x456)
+    ```
+
+1. `#!lua <bdl>:fire()`
+
+    判断信号的 `valid` 是否为 `1`（如果 `ready` 存在还会判断是否 `ready` 也为 1），例如：
+    ```lua
+    local bdl = ("valid | ready | opcode | data"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = true}
+    local valid = bdl.valid:chdl()
+    local ready = bdl.ready:chdl()
+
+    assert(bdl:fire())
+    assert(valid:get() == 1)
+    assert(ready:get() == 1)
+    ```
+
+    !!! warning  "只有 is_decoupled 为 `true` 的 `Bundle` 才有这个方法"
+
+2.  `#!lua <bdl>:get_all()`
+
+    获得所有的信号，并以 Lua table 的形式返回，例如：
+    ```lua
+    local bdl = ("opcode | data "):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = false}
+    local signals = bdl:get_all()
+    local opcode_value = signals[1]
+    local data_value = signals[2]
+    ```
+
+    !!! warning  "只有 is_decoupled 为 `false` 的 `Bundle` 才有这个方法"
+
+3.  `#!lua <bdl>:set_all(values_tbl)`
+
+    设置所有的信号，并以 Lua table 的形式返回，例如：
+    ```lua
+    local bdl = ("opcode | data"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = false}
+    local signals = bdl:set_all({0x123, 0x456})
+    ```
+
+    !!! warning  "只有 is_decoupled 为 `false` 的 `Bundle` 才有这个方法"
+
+4.  `#!lua <bdl>:dump()`
+
+    将 `Bundle` 中所有的信号当前的数值输出到控制台，可以用于查看信号的值，打印的内容如下所示：
+    ```shell title="Terminal"
+    [name of bundle] | valid: 0x1 | ready: 0x1 | opcode: 0x123 | data: 0x456
+    ```
+
+5.  `#!lua <bdl>:dump_str()`
+
+    会将原本`#!lua <bdl>:dump()` 的输出的内容作为一个返回值进行返回，因此 `#!lua <bdl>:dump()` 也等价于 `#!lua print(<bdl>:dump_str())`。
 
 ## AliasBundle
 
@@ -326,6 +931,8 @@ TODO:
 
 TODO:
 
+TODO: ProxyTableHandle 可以将中间的 hierarchy 保存到一个临时的变量中 
+
 ## EventHandle
 
-TODO:
+`EventHandle` 的相关使用介绍已经在 [这里](./multi_task.md#task-synchronization) 有介绍，这里就不再赘述。
