@@ -1,6 +1,6 @@
 local Monitor = require "Monitor"
 
-verilua "appendTasks" {
+fork {
     function ()
         -- Notice: be aware that signals are READ-ONLY when using @wave_vpi backend
         --         so we can't use the following code to reset the dut
@@ -12,11 +12,11 @@ verilua "appendTasks" {
 
         -- create a monitor for monitoring the dut.count signal
         -- this monitor has been reused
-        local monitor = Monitor("MonitorForWave", dut.count:chdl())
+        local monitor = Monitor("MonitorForSimWave", dut.count:chdl())
         monitor:start()
 
         -- run the simulation for 100 clock cycles
-        dut.clock:posedge(100)
+        dut.clock:posedge(20)
 
         -- finish the simulation
         sim.finish()

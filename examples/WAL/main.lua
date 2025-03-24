@@ -1,6 +1,6 @@
 local Monitor = require "Monitor"
 
-verilua "appendTasks" {
+fork {
     function ()
         -- dump wave file
         sim.dump_wave("./wave/test.vcd") -- wave file is stored in ./build/<simulator>/Counter/wave/test.vcd
@@ -16,7 +16,7 @@ verilua "appendTasks" {
         monitor:start()
 
         -- run the simulation for 100 clock cycles
-        dut.clock:posedge(100)
+        dut.clock:posedge(20)
 
         -- finish the simulation
         sim.finish()

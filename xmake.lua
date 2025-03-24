@@ -683,7 +683,7 @@ target("test")
 
         do
             os.setenvs(old_env)
-            os.cd(prj_dir .. "/examples/wave_vpi")
+            os.cd(prj_dir .. "/examples/WAL")
             os.setenv("SIM", "iverilog")
             os.exec("rm build -rf")
             os.exec("xmake build -v -P . gen_wave")

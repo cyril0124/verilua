@@ -10,13 +10,13 @@ function Monitor:_init(name, signal_chdl)
 end
 
 function Monitor:start()
-    verilua "appendTasks" {
+    fork {
         function ()
             local clock = dut.clock:chdl()
 
             while true do
-                (f("[Monitor] [%s] ", self.name) .. self.signal:dump_str()):print()
-                clock:posedge()    
+                print(f("[Monitor] [%s] %s", self.name, self.signal:dump_str()))
+                clock:posedge()
             end
         end
     }
