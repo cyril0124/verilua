@@ -153,8 +153,8 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     返回一个 `BitVec`，关于 `BitVec` 可以查看 [BitVec](./bitvec.md) 的文档。
 
-<a id="chdl-get_str"></a>
 4. `#!lua <chdl>:get_str(fmt)`
+    <a id="chdl-get_str"></a>
 
     获得当前信号的数值，并以 String 的类型返回，接受一个 `fmt` 参数，用于指定返回的字符串的格式，可以是 `HexStr`、`BinStr`、`DecStr`。
 
@@ -176,8 +176,8 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     !!! warning "这里的 `HexStr`、`BinStr`、`DecStr` 是 Verilua 预定义的全局变量，可以直接使用"
 
-<a id="chdl-get_hex_str"></a>
 5. `#!lua <chdl>:get_hex_str()`
+    <a id="chdl-get_hex_str"></a>
 
     获得当前信号的数值，并以 Hex String 的类型返回。
 
@@ -249,8 +249,8 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     
         暂不支持 Cached 赋值方式。
 
-<a id="chdl-set_str"></a>
 4. `#!lua <chdl>:set_str(str)`
+    <a id="chdl-set_str"></a>
 
     一个通用的字符串赋值方式，可以接收一个 Lua string 类型的字符串，具体的字符串类型由 `str` 的前两位来区分，例如：
 
@@ -269,8 +269,8 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     `0x` 表示为 Hex String，`0b` 表示为 Binary String，其他的字符串则表示为 Decimal String。
 
-<a id="chdl-set_hex_str"></a>
 5. `#!lua <chdl>:set_hex_str(str)`
+    <a id="chdl-set_hex_str"></a>
 
     使用 Hex String 赋值，`str` 是一个 Lua string 类型的字符串。
 
@@ -604,8 +604,8 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 !!! warning "信号回调管理函数只能作用在信号位宽为 1 的信号上"
 
-<a id="chdl-posedge"></a>
 1. `#!lua <chdl>:posedge(times, func)`
+    <a id="chdl-posedge"></a>
 
     用于等待信号的**上升沿**到来，`times` 和 `func` 是可选的两个参数，`times` 表示等待的次数，`func` 表示回调函数。
 
@@ -621,20 +621,20 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     end)
     ```
 
-<a id="chdl-negedge"></a>
 2. `#!lua <chdl>:negedge(times, func)`
+    <a id="chdl-negedge"></a>
 
     和 `#!lua <chdl>:posedge(times, func)` 类似，但是在等待信号的**下降沿**到来。
 
-<a id="chdl-posedge_until"></a>
 3. `#!lua <chdl>:posedge_until(max_limit, func)`
+    <a id="chdl-posedge_until"></a>
 
     在每一个时钟**上升沿**检查 `func` 是否返回 `true`，如果是 `true` 则结束等待上升沿，否则继续等待，直到 `max_limit` 次上升沿到来。
 
     如果在 `max_limit` 次上升沿到来后，`func` 仍未返回 `true`，则 `posedge_until` 会返回 `false`，否则返回 `true`。
-    
-<a id="chdl-negedge_until"></a>
+
 4. `#!lua <chdl>:negedge_until(max_limit, func)`
+    <a id="chdl-negedge_until"></a>
 
     和 `#!lua <chdl>:posedge_until(max_limit, func)` 类似，但是在等待信号的**下降沿**到来。
 
