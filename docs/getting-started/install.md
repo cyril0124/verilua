@@ -2,14 +2,13 @@
 本节主要介绍如何安装 Verilua，为了确保安装能够成功，需要全程确保网络环境可用。
 
 ## Prerequisites
+- gcc >= 11.0（需要支持 C++20）
 - 安装 [xmake](https://xmake.io/)
 - 安装 [rust](https://www.rust-lang.org/tools/install)
 - 安装 python3.xx (`mandatory`)
 - （可选）安装 [iverilog](https://github.com/steveicarus/iverilog)
 !!! type "Note"
     如果后续使用过程中需要使用到 iverilog 作为仿真后端（HVL 场景），那么就需要在安装 Verilua 之前提前安装 iverilog。
-
-TODO: gcc 版本
 
 ## 安装步骤(不使用 nix)
 ```shell

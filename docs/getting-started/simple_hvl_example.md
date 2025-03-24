@@ -38,6 +38,7 @@
         使用 `sim.dump_wave()` 生成的波形文件通常保存在 `./build/<simulator>/<target_name>` 中，其中 `<simulator>` 是仿真器的名称，`<target_name>` 是 target 的名称。例如如果使用的 simulator 是 `verilator`，那么就会生成 `./build/verilator/TestDesign` 的波形文件。
 
     * `#!lua dut.clock:negedge()` 这一行中的 `dut` 用于指代当前的一整个 DUT，可以使用 `dut.<top_signal>` 来访问 DUT 的接口信号，这里的 `#!lua dut.clock` 就是 DUT 的顶层 clock 信号，而 `#!lua dut.clock:negedge()` 用于等待 clock 信号的下降沿，一旦调用这一函数，那么就会将此时的函数控制权交给仿真器，等到 clock 的下降沿到达的时候再通过 Scheduler 返回交出控制权的位置；
+    <a id="about-dut"></a>
     !!! tip "关于 dut"
         `dut` 是 Verilua 中的一个全局的 table，主要用来提供**临时**的信号访问功能，具体的功能将在后续的教程中进行介绍（TODO：），如果想用 `dut` 来访问 DUT 的内部信号，那么需要以 `dut.u_<top_module_name>.<internal_signal_name>` 的方式访问，例如 `dut.u_Design.value`，这里加上 `u_<top_module_name>` 的原因是因为 Verilua 在编译的时候会根据所提供的 RTL 信息自动创建 Testbench，这个 Testbench 中会例化当前的 DUT，并将其取名为 `u_Design`。下面是自动生成的 Testbench 的部分代码：
         ```SystemVerilog title="tb_top.sv" linenums="1" hl_lines="28-34"
@@ -90,7 +91,7 @@
         ```
     
     * `#!lua dut.reset = 1` 和 `#!lua dut.reset = 0` 用于使用 dut 来给 reset 信号进行赋值，这种对信号赋值的方式是**立即赋值**，并且只对小于 32 bit 的信号可以这么使用，如果对大于 32 bit 的信号也使用这种方式进行赋值就会只赋值低 32 bit。
-    也可以使用 `#!lua dut.reset:set_imm(1)` 和 `#!lua dut.reset:set_imm(0)` 来代替这两个方式，这里的 imm 是 immediate 的缩写，即立即（TODO：关于立即赋值与普通赋值的区别将会在后续的教程中进行介绍）。
+    也可以使用 `#!lua dut.reset:set_imm(1)` 和 `#!lua dut.reset:set_imm(0)` 来代替这两个方式，这里的 imm 是 immediate 的缩写，即立即（关于立即赋值与普通赋值的区别将会在后续的教程中进行介绍，具体可以看 [这里](../reference/data_structure.md#set_and_set_imm)）。
 
     * `#!lua local clock = dut.clock:chdl()` 用于创建一个 Verilua 的 `CallableHDL` 对象（也叫 `chdl`），这个对象用于管理 `tb_top.clock` 这个信号（`dut` 默认代表的 Testbench 顶层是 `tb_top`，也可以进行修改，但是不建议这么做）。
         - `CallableHDL` 其内部包括了多种信息，包括信号位宽、hierarchy path 等。
@@ -117,7 +118,7 @@
         ```
     * `#!lua dut.value:is(2)` 的 `is` 方法用于判断信号的值是否等于某个值，如果等于则返回 `true`，否则返回 `false`。类似 `is` 的方法还有 `is_hex_str`、`is_dec_str`、`is_bin_str`，还有一个 `is_not` 方法，其功能和 `is` 相反，但是如果等于则返回 `false`，否则返回 `true`。
 
-    * `#!lua dut.inc:set(1)` 的 `set` 方法用于设置信号的值，区别于立即赋值的 `dut.inc = 1`，`set` 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋值。`dut` 的 `set` 方法同样只能赋值最多 32 bit 位宽的信号。
+    * `#!lua dut.inc:set(1)` 的 `set` 方法用于设置信号的值，区别于立即赋值的 `dut.inc = 1`，`set` 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 [这里](../reference/data_structure.md#set_and_set_imm)）。`dut` 的 `set` 方法同样只能赋值最多 32 bit 位宽的信号。
 
     * `#!lua dut.inc:get()` 的 `get` 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值，需要注意的是 `dut` 的 `get` 方法只能用来获得最多 32 bit 位宽信号的值。
 

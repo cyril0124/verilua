@@ -58,6 +58,11 @@ fork {
 ## 注册任务回调
 Verilua 的 task 中支持 `posedge`、`negedge`、`edge`、`time` 仿真行为控制机制，能够满足大部分的硬件仿真交互场景。
 
+<figure markdown="span">
+  ![Edge in the waveform](./images/clock_edge.png){ width="70%" }
+  <figcaption>Edge in the waveform</figcaption>
+</figure>
+
 其中`posedge`、`negedge`、`edge`只能作用在位宽为 1 bit 的信号上，并且可以由 `CallableHDL`、`ProxyTableHandle` 等数据结构来创建。
 下面是一个简单的例子：
 ```lua linenums="1"
