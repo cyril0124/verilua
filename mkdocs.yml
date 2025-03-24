@@ -1,5 +1,8 @@
 site_name: Verilua
+site_author: Chuyu Zheng
 site_url: https://cyril0124.github.io/verilua
+site_description: >-
+  Verilua: An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT
 
 theme:
   name: material
@@ -27,6 +30,9 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  icon:
+    logo: fontawesome/solid/book
+    repo: fontawesome/brands/github
 
 copyright: Copyright &copy; 2023 - 2025 Chuyu Zheng
 
