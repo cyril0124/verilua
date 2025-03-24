@@ -45,6 +45,7 @@ local signal2 = dut.reset:chdl()
 local signal = dut.u_Design.value:chdl()
 ```
 
+<a id="dut-flex_create_chdl"></a>
 !!! tip "基于 `dut` 灵活创建 `chdl`"
     Lua 中，可以使用 string 来灵活访问某个 table 的子变量，例如：
     ```lua hl_lines="5 6 13 15"
@@ -152,6 +153,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     返回一个 `BitVec`，关于 `BitVec` 可以查看 [BitVec](./bitvec.md) 的文档。
 
+<a id="chdl-get_str"></a>
 4. `#!lua <chdl>:get_str(fmt)`
 
     获得当前信号的数值，并以 String 的类型返回，接受一个 `fmt` 参数，用于指定返回的字符串的格式，可以是 `HexStr`、`BinStr`、`DecStr`。
@@ -174,6 +176,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     !!! warning "这里的 `HexStr`、`BinStr`、`DecStr` 是 Verilua 预定义的全局变量，可以直接使用"
 
+<a id="chdl-get_hex_str"></a>
 5. `#!lua <chdl>:get_hex_str()`
 
     获得当前信号的数值，并以 Hex String 的类型返回。
@@ -246,9 +249,10 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     
         暂不支持 Cached 赋值方式。
 
-4. `#!lua <chdl>:set_str(value)`
+<a id="chdl-set_str"></a>
+4. `#!lua <chdl>:set_str(str)`
 
-    一个通用的字符串赋值方式，可以接收一个 Lua string 类型的字符串，具体的字符串类型由 `value` 的前两位来区分，例如：
+    一个通用的字符串赋值方式，可以接收一个 Lua string 类型的字符串，具体的字符串类型由 `str` 的前两位来区分，例如：
 
     ```lua
     local signal = dut.value:chdl()
@@ -265,9 +269,10 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     `0x` 表示为 Hex String，`0b` 表示为 Binary String，其他的字符串则表示为 Decimal String。
 
-5. `#!lua <chdl>:set_hex_str(value)`
+<a id="chdl-set_hex_str"></a>
+5. `#!lua <chdl>:set_hex_str(str)`
 
-    使用 Hex String 赋值，`value` 是一个 Lua string 类型的字符串。
+    使用 Hex String 赋值，`str` 是一个 Lua string 类型的字符串。
 
     ```lua
     local signal = dut.value:chdl()
@@ -599,6 +604,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 !!! warning "信号回调管理函数只能作用在信号位宽为 1 的信号上"
 
+<a id="chdl-posedge"></a>
 1. `#!lua <chdl>:posedge(times, func)`
 
     用于等待信号的**上升沿**到来，`times` 和 `func` 是可选的两个参数，`times` 表示等待的次数，`func` 表示回调函数。
@@ -615,16 +621,19 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     end)
     ```
 
+<a id="chdl-negedge"></a>
 2. `#!lua <chdl>:negedge(times, func)`
 
     和 `#!lua <chdl>:posedge(times, func)` 类似，但是在等待信号的**下降沿**到来。
 
+<a id="chdl-posedge_until"></a>
 3. `#!lua <chdl>:posedge_until(max_limit, func)`
 
     在每一个时钟**上升沿**检查 `func` 是否返回 `true`，如果是 `true` 则结束等待上升沿，否则继续等待，直到 `max_limit` 次上升沿到来。
 
     如果在 `max_limit` 次上升沿到来后，`func` 仍未返回 `true`，则 `posedge_until` 会返回 `false`，否则返回 `true`。
     
+<a id="chdl-negedge_until"></a>
 4. `#!lua <chdl>:negedge_until(max_limit, func)`
 
     和 `#!lua <chdl>:posedge_until(max_limit, func)` 类似，但是在等待信号的**下降沿**到来。
@@ -925,13 +934,347 @@ local bdl = ([[ valid | ready
 
 ## AliasBundle
 
-TODO:
+### 创建 AliasBundle
+
+#### 使用 class 创建
+`AliasBundle` 是一个 class，因此可以使用类似 `class` 的方式创建，例如：
+
+```lua
+local AliasBundle = require "LuaAliasBundle"
+local abdl = AliasBundle(
+    {
+        {"origin_signal_name",   "alias_name"  },
+        {"origin_signal_name_1"  "alias_name_1"},
+    },                                            -- 1. <alias_signal_tbl>
+    "some_prefix",                                -- 2. <prefix>
+    "path.to.hier",                               -- 3. <hierachy>
+    "name of alias bundle",                       -- 4. <name>
+    nil                                           -- 5. <optional_signals>
+)
+```
+`AliasBundle` 接收五个参数：
+
+1. `alias_signal_tbl`
+
+    这个参数是一个 table，每一个元素还是一个 table，并且包括两个元素，分别是信号的原始名称和信号想要创建的别名。
+
+2. `prefix`
+
+    这个参数是一个字符串，其中包含了信号的前缀，如果不存在前缀，那么传入的值可以是 `#!lua ""`。
+
+3. `hierachy`
+
+    这个参数是一个字符串，其中包含了信号的完整 hierarchy，这是一个必需添加的参数。
+
+4. `name`
+
+    这个参数是一个字符串，其中包含了信号的名称，可选参数，如果不存在名称，那么传入的值可以是 `#!lua nil`，此时会将 `name` 设置为 `#!lua "Unknown"`。
+
+5. `optional_signals`
+
+    用来标记 `signals_table` 中的信号哪些是可选的，如果一个信号被标记为可选的，那么在构建 `AliasBundle` 的时候如果发现这个信号不存在，就会忽略这个信号的报错，否则就会报错。
+
+上述代码会将下面的信号加入到 `AliasBundle` 中：
+```
+path.to.hier.some_prefix_origin_signal_name
+path.to.hier.some_prefix_origin_signal_name_1
+```
+
+由于 `AliasBundle` 能够为信号创建别名，因此可以直接**使用这些别名来访问信号**，例如对于上面的这个例子中，可以这样子访问信号：
+```lua
+local value = abdl.alias_name:get()
+abdl.alias_name_1:set(123)
+```
+
+#### 使用 string literal 创建（推荐）
+
+和 `Bundle` 一样，`AliasBundle` 也可以使用 string literal 来创建，也就是 SLCP，[这里](#slcp-explain) 有介绍 SLCP 的好处，下面是一个例子：
+```lua
+local abdl = ([[
+    | origin_signal_name => alias_name
+    | origin_signal_name_1 => alias_name_1
+]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
+```
+
+可以看到和 `Bundle` 不一样的地方在于可以使用 `=>` 来创建别名。实际上并不要求对于每一个信号都要有别名，因此下面这种情况也是允许的：
+```lua hl_lines="3"
+local abdl = ([[
+    | origin_signal_name
+    | origin_signal_name_1 => alias_name_1
+]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
+```
+
+甚至可以都不创建别名，这样就和 `Bundle` 一样了，因此下面这种情况也是允许的：
+```lua
+local abdl = ([[
+    | origin_signal_name
+    | origin_signal_name_1
+]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
+```
+
+### AliasBundle 接口
+
+1. `#!lua <abdl>:dump()`
+
+    将 `AliasBundle` 中所有的信号当前的数值输出到控制台，可以用于查看信号的值，打印的内容如下所示：
+    ```shell title="Terminal"
+    [name of alias bundle] | origin_signal_name -> alias_name: 0x1 | origin_signal_name_1 -> alias_name_1: 0x123
+    ```
+
+2.  `#!lua <abdl>:dump_str()`
+
+    会将原本`#!lua <abdl>:dump()` 的输出的内容作为一个返回值进行返回，因此 `#!lua <abdl>:dump()` 也等价于 `#!lua print(<abdl>:dump_str())`。
 
 ## ProxyTableHandle
 
-TODO:
+`ProxyTableHandle` 不需要用户创建，全局有且只有一个 `ProxyTableHandle` 对象，也就是 `dut` 这个全局变量。
 
-TODO: ProxyTableHandle 可以将中间的 hierarchy 保存到一个临时的变量中 
+!!! note "`ProxyTableHandle` 是一个代理表，其子变量仍然是 `<dut>`"
+    ```lua
+    local a = dut.path.to.signal
+    local b = dut.path.signal
+    assert(dut.__type == "ProxyTableHandle")
+    assert(a.__type == "ProxyTableHandle")
+    assert(b.__type == "ProxyTableHandle")
+    ```
+
+    !!! tip "对于 `CallableHDL`、`Bundle`、`AliasBundle`、`ProxyTableHandle` 都可以使用 `__type` 字段来判断其类型"
+
+### ProxyTableHandle 接口
+
+1. `#!lua <dut>:get_local_path()`
+
+    获得当前的 hierarchy path，例如：
+    ```lua
+    assert(dut:get_local_path() == "tb_top") -- assume that the top module is `tb_top`
+    assert(dut.path.to.hier:get_local_path() == "tb_top.path.to.hier")
+    ```
+
+2. `#!lua <dut>:set(<value>)`
+
+    设置一个信号的值，`<value>` 只能是一个 Lua number 类型的值，例如：
+    ```lua
+    dut.value:set(0x123)
+    ```
+
+    !!! warning "目前 `#!lua <dut>:set(<value>)` 只能赋值 32 bit 的数据到信号中"
+
+3. `#!lua <dut>:set_imm(<value>)`
+
+    立即赋值版本的 `set`，除了立即赋值的属性之外，其他和 `set` 一样。
+
+4. `#!lua <dut>:set_shuffled(<value>)`
+
+    对信号进行随机赋值，这在验证中很常用。
+
+5. `#!lua <dut>:set_force(<value>)`
+
+    强制赋值（与 `set_release` 配合使用），与 SystemVerilog 中的 `force` 关键字相同。除了 `force` 这个属性上的区别之外，其他和 `set` 一样。
+
+    `<value>` 只能是一个 Lua number。
+
+6. `#!lua <dut>:set_release()`
+
+    释放赋值（与 `set_force` 配合使用），与 SystemVerilog 中的 `release` 关键字相同。对于使用了 `set_force` 的信号，需要使用 `set_release` 来释放赋值，否则会导致信号的值不会更新。
+
+7. `#!lua <dut>:force_all()`
+
+    使用了 `#!lua <dut>:force_all()` 之后，接下来 `dut` 的所有赋值操作都会转化为 `force` 类型的赋值。
+
+8. `#!lua <dut>:release_all()`
+
+    解除 `#!lua <dut>:force_all()` 的作用。
+
+9. `#!lua <dut>:force_region(func)`
+
+    在一个区域内（也就是 `func`）强制赋值，这个区域内的所有赋值操作都会转化为 `force` 类型的赋值。
+    ```lua
+    dut:force_region(function ()
+        dut.value:set(0x123)
+        dut.value:set(0x456)
+    end)
+    ```
+
+10. `#!lua <dut>:get()`
+
+    获得一个信号的值，返回的值是一个 Lua 的 number 类型的值，例如：
+    ```lua
+    assert(dut.value:get() == 0x123)
+    ```
+
+    对于超过 32 bit 的信号，返回的值仍然是 32 bit 的数值。
+
+11. `#!lua <dut>:get_str(fmt)`
+
+    作用类似 [`<chdl>:get_str(fmt)`](./#chdl-get_str)。 
+
+12. `#!lua <dut>:get_hex_str()`
+
+    作用类似 [`<chdl>:get_hex_str()`](./#chdl-get_hex_str)。
+
+13. `#!lua <dut>:set_str(str)`
+
+    作用类似 [`<chdl>:set_str(str)`](./#chdl-set_str)。
+
+14. `#!lua <dut>:set_hex_str(str)`
+
+    作用类似 [`<chdl>:set_hex_str(str)`](./#chdl-set_hex_str)。
+
+15. `#!lua <dut>:set_force_str(str)`
+
+    `force` 版本的 `#!lua <dut>:set_str(str)`。
+
+16. `#!lua <dut>:posedge(times, func)`
+
+    作用类似 [`<chdl>:posedge(times, func)`](./#chdl-posedge)。
+
+17. `#!lua <dut>:negedge(times, func)`
+
+    作用类似 [`<chdl>:negedge(times, func)`](./#chdl-negedge)。
+
+18. `#!lua <dut>:posedge_until(max_limit, func)`
+
+    作用类似 [`<chdl>:posedge_until(max_limit, func)`](./#chdl-posedge_until)。
+
+19. `#!lua <dut>:negedge_until(max_limit, func)`
+
+    作用类似 [`<chdl>:negedge_until(max_limit, func)`](./#chdl-negedge_until)。
+
+20. `#!lua <dut>:chdl()`
+
+    基于 `dut` 当前的 hierarchy path 返回一个 `chdl`，例如：
+    ```lua
+    local clock = dut.path.to.clock:chdl()
+
+    -- equivalent to
+
+    local clock = ("tb_top.path.to.clock"):chdl()
+    ```
+
+    [这里](#dut-flex_create_chdl)介绍了有关使用 `#!lua <dut>:chdl()` 创建 `chdl` 的技巧。
+
+21. `#!lua <dut>:get_width()`
+
+    获得信号的位宽。
+
+22. `#!lua <dut>:dump()` / `#!lua <dut>:dump_str()`
+
+    作用类似 [`<chdl>:dump()`](./#chdl-dump) / [`<chdl>:dump_str()`](./#chdl-dump_str)。
+
+23. `#!lua <dut>:expect(value)` / `#!lua <dut>:expect_not(value)` / `#!lua <dut>:expect_hex_str(hex_value_str)` / `#!lua <dut>:expect_bin_str(bin_value_str)` / `#!lua <dut>:expect_dec_str(dec_value_str)` / `#!lua <dut>:expect_not_hex_str(hex_value_str)` / `#!lua <dut>:expect_not_bin_str(bin_value_str)` / `#!lua <dut>:expect_not_dec_str(dec_value_str)`
+
+    作用都和 `chdl` 的对应方法一样。
+
+24. `#!lua <dut>:is(value)` / `#!lua <dut>:is_not(value)` / `#!lua <dut>:is_hex_str(hex_value_str)` / `#!lua <dut>:is_bin_str(bin_value_str)` / `#!lua <dut>:is_dec_str(dec_value_str)`
+
+    作用都和 `chdl` 的对应方法一样。
+
+25. `#!lua <dut>:with_prefix(prefix_str)`
+
+    基于当前的 hierarchy path 创建一个新的 `ProxyTableHandle`，并且会对后续的任何信号访问加上 `prefix_str` 前缀。
+    ```lua
+    local io_in = dut.path.to.mod:with_prefix("io_in_")
+    assert(io_in.value:get_local_path() == "top.path.to.mod.io_in_value")
+    assert(io_in.data:get_local_path() == "top.path.to.mod.io_in_data")
+    ```
+
+26. `#!lua <dut>:auto_bundle(params)`
+
+    创建一个 `Bundle` 对象，并且会根据 `params` 的配置进行匹配，从而创建出一个符合特定信号名称规律的 `Bundle` 对象。
+
+    `params` 是一个 table，其中包含了一些可选的配置，具体的可选配置如下：
+
+    - `startswith`
+
+        匹配以指定字符串开头的信号名称。例如，如果设置 `startswith = "axi_"`，那么只有以 `axi_` 开头的信号会被包含在 `Bundle` 中。
+        ```lua
+        -- assume the following signals exist:
+        --      tb_top.path.to.mod.axi_aw_valid
+        --      tb_top.path.to.mod.axi_ar_valid
+        --      tb_top.path.to.mod.axi_w_valid
+        --      tb_top.path.to.mod.axi_r_valid
+        local bdl = dut.path.to.mod:auto_bundle { startswith = "axi_" }
+
+        assert(bdl.axi_aw_valid.__type == "CallableHDL")
+        assert(bdl.axi_ar_valid.__type == "CallableHDL")
+        assert(bdl.axi_w_valid.__type == "CallableHDL")
+        assert(bdl.axi_r_valid.__type == "CallableHDL")
+        ```
+
+    - `endswith`
+
+        匹配以指定字符串结尾的信号名称。例如，如果设置 `endswith = "_valid"`，那么只有以 `_valid` 结尾的信号会被包含在 `Bundle` 中。
+
+        ```lua
+        -- assume the following signals exist:
+        --      tb_top.path.to.mod.axi_aw_valid
+        --      tb_top.path.to.mod.axi_ar_valid
+        --      tb_top.path.to.mod.axi_w_valid
+        --      tb_top.path.to.mod.axi_r_valid
+        local bdl = dut.path.to.mod:auto_bundle { endswith = "_valid" }
+
+        assert(bdl.axi_aw_valid.__type == "CallableHDL")
+        assert(bdl.axi_ar_valid.__type == "CallableHDL")
+        assert(bdl.axi_w_valid.__type == "CallableHDL")
+        assert(bdl.axi_r_valid.__type == "CallableHDL")
+        ```
+
+        `endswith` 可以和 `startswith` 一起使用，例如：`startswith = "axi_", endswith = "_valid"`。
+
+    - `matches`
+
+        匹配某个正则表达式。例如，如果设置 `matches = "data_[0-9]+"`，那么只有符合 `data_[0-9]+` 正则表达式的信号（如 data_0、data_1 等）会被包含在 `Bundle` 中。
+
+    - `filter`
+
+        过滤函数，可以根据信号名称和信号宽度来过滤掉不需要的信号。该函数接受两个参数：信号名称和信号宽度，返回 true 表示保留该信号，返回 false 表示过滤掉该信号。
+
+        ```lua
+        -- assume the following signals exist:
+        --      tb_top.path.to.mod.value_0  -- width = 1
+        --      tb_top.path.to.mod.value_1  -- width = 32
+        --      tb_top.path.to.mod.value_2  -- width = 64
+        --      tb_top.path.to.mod.value_3  -- width = 128
+        local bdl = dut.path.to.mod:auto_bundle { filter = function (name, width)
+            return width > 1
+        end }
+
+        assert(bdl.value_0 == nil)
+        assert(bdl.value_1.__type == "CallableHDL")
+        assert(bdl.value_2.__type == "CallableHDL")
+        assert(bdl.value_3.__type == "CallableHDL")
+        ```
+    
+    - `prefix`
+
+        和 `startswith` 类似，但是在匹配信号名称时会将 `prefix` 前缀加到信号名称中。
+        ```lua
+        -- assume the following signals exist:
+        --      tb_top.path.to.mod.io_in_value_0
+        --      tb_top.path.to.mod.io_in_value_1
+        --      tb_top.path.to.mod.io_in_value_2
+        --      tb_top.path.to.mod.io_in_value_3
+        local bdl = dut.path.to.mod:auto_bundle { prefix = "io_in_" }
+
+        assert(bdl.value_0.__type == "CallableHDL")
+        assert(bdl.value_1.__type == "CallableHDL")
+        assert(bdl.value_2.__type == "CallableHDL")
+        assert(bdl.value_3.__type == "CallableHDL")
+        ```
+
+    !!! warning "上面的参数中，如果没有特别说明可以和另外的参数使用，那么就不能合并使用"
+
+
+### ProxyTableHandle 的使用
+
+我们可以使用临时的变量来保存一个特定 hierarchy path 的 `ProxyTableHandle`，这样能够方便我们后续的使用，例如：
+```lua
+local mod = dut.path.to.mod
+local another_mod = mode.path.to.another_mod
+
+assert(mod.value:get_local_path() == "tb_top.path.to.mod.value")
+assert(another_mod.value:get_local_path() == "tb_top.path.to.mode.path.to.another_mod.value")
+```
 
 ## EventHandle
 

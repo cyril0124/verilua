@@ -550,6 +550,7 @@ local function create_proxy(path, use_prefix)
         --      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_" }
         --      local bdl = dut.path.to.mod:auto_bundle { endswith = "_value" }
         --      local bdl = dut.path.to.mod:auto_bundle { matches = "^io_" }
+        --      local bdl = dut.path.to.mod:auto_bundle { prefix = "io_in_" }
         --      local bdl = dut.path.to.mod:auto_bundle { filter = function (name, width)
         --          return width == 32 and name:endswith("_value")
         --      end }
