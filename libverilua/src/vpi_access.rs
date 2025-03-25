@@ -797,7 +797,7 @@ pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRa
         panic!("release value is not supported in verilator!");
     } else {
         let mut v = s_vpi_value {
-            format: vpiSuppressVal as _,
+            format: vpiVectorVal as _,
             value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
         };
 
@@ -808,6 +808,13 @@ pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRa
         complex_handle.put_value_flag = vpiReleaseFlag;
         complex_handle.put_value_format = v.format as _;
         complex_handle.put_value_integer = unsafe { v.value.integer } as _;
+        for i in 0..complex_handle.beat_num {
+            complex_handle.put_value_vectors[i].aval =
+                unsafe { v.value.vector.add(i as _).read().aval } as _;
+            complex_handle.put_value_vectors[i].bval =
+                unsafe { v.value.vector.add(i as _).read().bval } as _;
+        }
+
         get_verilua_env().hdl_put_value.push(complex_handle_raw);
     }
 }
@@ -819,7 +826,7 @@ pub unsafe extern "C" fn vpiml_release_imm_value(complex_handle_raw: ComplexHand
         panic!("release value is not supported in verilator!");
     } else {
         let mut v = s_vpi_value {
-            format: vpiSuppressVal as _,
+            format: vpiVectorVal as _,
             value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
         };
 
