@@ -1106,19 +1106,19 @@ local abdl = ([[
 
 11. `#!lua <dut>:get_str(fmt)`
 
-    作用类似 [`<chdl>:get_str(fmt)`](./#chdl-get_str)。 
+    作用类似 [`<chdl>:get_str(fmt)`](#chdl-get_str)。 
 
 12. `#!lua <dut>:get_hex_str()`
 
-    作用类似 [`<chdl>:get_hex_str()`](./#chdl-get_hex_str)。
+    作用类似 [`<chdl>:get_hex_str()`](#chdl-get_hex_str)。
 
 13. `#!lua <dut>:set_str(str)`
 
-    作用类似 [`<chdl>:set_str(str)`](./#chdl-set_str)。
+    作用类似 [`<chdl>:set_str(str)`](#chdl-set_str)。
 
 14. `#!lua <dut>:set_hex_str(str)`
 
-    作用类似 [`<chdl>:set_hex_str(str)`](./#chdl-set_hex_str)。
+    作用类似 [`<chdl>:set_hex_str(str)`](#chdl-set_hex_str)。
 
 15. `#!lua <dut>:set_force_str(str)`
 
@@ -1126,19 +1126,19 @@ local abdl = ([[
 
 16. `#!lua <dut>:posedge(times, func)`
 
-    作用类似 [`<chdl>:posedge(times, func)`](./#chdl-posedge)。
+    作用类似 [`<chdl>:posedge(times, func)`](#chdl-posedge)。
 
 17. `#!lua <dut>:negedge(times, func)`
 
-    作用类似 [`<chdl>:negedge(times, func)`](./#chdl-negedge)。
+    作用类似 [`<chdl>:negedge(times, func)`](#chdl-negedge)。
 
 18. `#!lua <dut>:posedge_until(max_limit, func)`
 
-    作用类似 [`<chdl>:posedge_until(max_limit, func)`](./#chdl-posedge_until)。
+    作用类似 [`<chdl>:posedge_until(max_limit, func)`](#chdl-posedge_until)。
 
 19. `#!lua <dut>:negedge_until(max_limit, func)`
 
-    作用类似 [`<chdl>:negedge_until(max_limit, func)`](./#chdl-negedge_until)。
+    作用类似 [`<chdl>:negedge_until(max_limit, func)`](#chdl-negedge_until)。
 
 20. `#!lua <dut>:chdl()`
 
@@ -1159,7 +1159,7 @@ local abdl = ([[
 
 22. `#!lua <dut>:dump()` / `#!lua <dut>:dump_str()`
 
-    作用类似 [`<chdl>:dump()`](./#chdl-dump) / [`<chdl>:dump_str()`](./#chdl-dump_str)。
+    作用类似 [`<chdl>:dump()`](#chdl-dump) / [`<chdl>:dump_str()`](#chdl-dump_str)。
 
 23. `#!lua <dut>:expect(value)` / `#!lua <dut>:expect_not(value)` / `#!lua <dut>:expect_hex_str(hex_value_str)` / `#!lua <dut>:expect_bin_str(bin_value_str)` / `#!lua <dut>:expect_dec_str(dec_value_str)` / `#!lua <dut>:expect_not_hex_str(hex_value_str)` / `#!lua <dut>:expect_not_bin_str(bin_value_str)` / `#!lua <dut>:expect_not_dec_str(dec_value_str)`
 

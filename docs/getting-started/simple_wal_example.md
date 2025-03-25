@@ -172,4 +172,4 @@ xmake run -P . sim_wave
 [Monitor] [MonitorForSimWave] [tb_top.count] => 0x09
 ```
 
-这和前面我们运行 RTL 仿真时候的[输出](./#gen-wave-result)是一样的。
+这和前面我们运行 RTL 仿真时候的[输出](#gen-wave-result)是一样的。
