@@ -40,10 +40,14 @@ iverilog = []
 iverilog_vpi_mod = []
 vcs = []
 wave_vpi = []
+
 debug = []
 acc_time = []
-chunk_task = []
-merge_cb = []
+
+opt_cb_task = []
+merge_cb = ["opt_cb_task"]
+chunk_task = ["opt_cb_task"]
+
 verilua_prebuild_bin = []
 
 [build-dependencies]

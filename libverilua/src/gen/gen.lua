@@ -359,6 +359,7 @@ pub struct VeriluaEnv {
     pub finalized: bool,
     pub has_start_cb: bool,
     pub has_final_cb: bool,
+    pub has_next_sim_time_cb: bool,
 }
 ]]):render { lua_sim_event_chunk = lua_sim_event_chunk }
 end
@@ -415,6 +416,7 @@ Self {
     finalized: false,
     has_start_cb: false,
     has_final_cb: false,
+    has_next_sim_time_cb: false,
     
     {{lua_sim_event_chunk_init}}
 }

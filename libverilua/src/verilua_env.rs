@@ -198,6 +198,7 @@ impl Default for VeriluaEnv {
 
 impl Drop for VeriluaEnv {
     fn drop(&mut self) {
+        log::debug!("VeriluaEnv::drop()");
         self.finalize();
     }
 }
@@ -214,6 +215,10 @@ impl VeriluaEnv {
 
         if !self.has_final_cb {
             unsafe { vpi_callback::vpiml_register_final_callback() };
+        }
+
+        if !self.has_next_sim_time_cb {
+            unsafe { vpi_callback::vpiml_register_next_sim_time_callback() };
         }
 
         let lua_dofile: LuaFunction = self.lua.globals().get("dofile").unwrap();
@@ -420,23 +425,23 @@ macro_rules! gen_verilua_step_safe {
             thread_local! {
                 static HAS_ERROR: UnsafeCell<bool> = const { UnsafeCell::new(false) };
             }
-
+        
             if HAS_ERROR.with(|has_error| unsafe { *has_error.get() }) {
                 println!(
                     concat!("[", stringify!($name), "] `has_error` is `true`! Program should be terminated! Nothing will be done in `Verilua`...")
                 );
                 return;
             }
-
+        
             let env = get_verilua_env();
             assert!(
                 env.initialized,
                 concat!("[", stringify!($name), "] ", $msg, " called before verilua_init()")
             );
-
+        
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
-
+        
             if let Err(e) = env.$field.as_ref().unwrap().call::<()>(()) {
                 HAS_ERROR.with(|has_error| unsafe {
                     *has_error.get() = true;
@@ -446,7 +451,7 @@ macro_rules! gen_verilua_step_safe {
                     e
                 );
             };
-
+        
             #[cfg(feature = "acc_time")]
             {
                 env.lua_time += s.elapsed();

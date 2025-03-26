@@ -73,4 +73,5 @@ pub struct VeriluaEnv {
     pub finalized: bool,
     pub has_start_cb: bool,
     pub has_final_cb: bool,
+    pub has_next_sim_time_cb: bool,
 }

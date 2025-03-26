@@ -125,6 +125,8 @@ unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 #[inline(always)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
+    log::debug!("vpiml_register_read_write_synch_callback()");
+
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,
         high: 0,
@@ -203,125 +205,129 @@ unsafe extern "C" fn read_write_synch_callback(cb_data: *mut t_cb_data) -> PLI_I
 
     env.hdl_put_value.clear();
 
+    do_register_next_sim_time_callback();
+
     0
+}
+
+#[inline(always)]
+fn do_register_next_sim_time_callback() {
+    let mut t = t_vpi_time {
+        type_: vpiSimTime as _,
+        high: 0,
+        low: 0,
+        real: 0.0,
+    };
+
+    let mut cb_data = s_cb_data {
+        reason: cbNextSimTime as _,
+        cb_rtn: Some(next_sim_time_callback),
+        time: &mut t,
+        obj: std::ptr::null_mut(),
+        user_data: std::ptr::null_mut(),
+        value: std::ptr::null_mut(),
+        index: 0,
+    };
+
+    let handle = unsafe { vpi_register_cb(&mut cb_data as _) };
+    unsafe { vpi_free_object(handle) };
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_next_sim_time_callback() {
-    thread_local! {
-        static INIT: Cell<bool> = const { Cell::new(false) }
-    };
+    let env: &mut verilua_env::VeriluaEnv = get_verilua_env();
+    if env.has_next_sim_time_cb {
+        return;
+    } else {
+        env.has_next_sim_time_cb = true;
+    }
 
-    INIT.with(|r| {
-        if r.get() {
-            return;
-        } else {
-            r.set(true);
-        }
-
-        let mut t = t_vpi_time {
-            type_: vpiSimTime as _,
-            high: 0,
-            low: 0,
-            real: 0.0,
-        };
-
-        let mut cb_data = s_cb_data {
-            reason: cbNextSimTime as _,
-            cb_rtn: Some(next_sim_time_callback),
-            time: &mut t,
-            obj: std::ptr::null_mut(),
-            user_data: std::ptr::null_mut(),
-            value: std::ptr::null_mut(),
-            index: 0,
-        };
-
-        let handle = unsafe { vpi_register_cb(&mut cb_data as _) };
-        unsafe { vpi_free_object(handle) };
-    })
+    do_register_next_sim_time_callback();
 }
 
 unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let env = get_verilua_env();
 
-    #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
-    {
-        #[inline(always)]
-        fn process_cb_chunk<'a>(
-            cb_chunk: &'a HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
-            cb_map: &mut HashMap<ComplexHandleRaw, Vec<TaskID>>,
-        ) {
-            for (_, (complex_handle_raw, task_id_vec)) in cb_chunk {
-                if let Some(pending_cb_vec) = cb_map.get_mut(complex_handle_raw) {
-                    let mut all_match = true;
-                    for task_id in task_id_vec {
-                        if !pending_cb_vec.contains(task_id) {
-                            all_match = false;
-                            break;
+    if cfg!(feature = "opt_cb_task") {
+        #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
+        {
+            #[inline(always)]
+            fn process_cb_chunk<'a>(
+                cb_chunk: &'a HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
+                cb_map: &mut HashMap<ComplexHandleRaw, Vec<TaskID>>,
+            ) {
+                for (_, (complex_handle_raw, task_id_vec)) in cb_chunk {
+                    if let Some(pending_cb_vec) = cb_map.get_mut(complex_handle_raw) {
+                        let mut all_match = true;
+                        for task_id in task_id_vec {
+                            if !pending_cb_vec.contains(task_id) {
+                                all_match = false;
+                                break;
+                            }
                         }
-                    }
 
-                    if all_match {
-                        pending_cb_vec.retain(|id| !task_id_vec.contains(id));
+                        if all_match {
+                            pending_cb_vec.retain(|id| !task_id_vec.contains(id));
 
-                        if pending_cb_vec.is_empty() {
-                            cb_map.remove(complex_handle_raw);
+                            if pending_cb_vec.is_empty() {
+                                cb_map.remove(complex_handle_raw);
+                            }
                         }
                     }
                 }
             }
+
+            process_cb_chunk(
+                &env.pending_posedge_cb_chunk,
+                &mut env.pending_posedge_cb_map,
+            );
+            process_cb_chunk(
+                &env.pending_negedge_cb_chunk,
+                &mut env.pending_negedge_cb_map,
+            );
+            process_cb_chunk(&env.pending_edge_cb_chunk, &mut env.pending_edge_cb_map);
         }
 
-        process_cb_chunk(
-            &env.pending_posedge_cb_chunk,
-            &mut env.pending_posedge_cb_map,
-        );
-        process_cb_chunk(
-            &env.pending_negedge_cb_chunk,
-            &mut env.pending_negedge_cb_map,
-        );
-        process_cb_chunk(&env.pending_edge_cb_chunk, &mut env.pending_edge_cb_map);
-    }
+        #[cfg(feature = "chunk_task")]
+        include!("./gen/gen_callback_policy.rs");
 
-    #[cfg(feature = "chunk_task")]
-    include!("./gen/gen_callback_policy.rs");
+        #[cfg(not(feature = "chunk_task"))]
+        for (complex_handle_raw, cb_infos) in &env.pending_edge_cb_map {
+            let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
+            for cb_info in cb_infos {
+                let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                let cb_hdl = unsafe {
+                    do_register_edge_callback(
+                        complex_handle_raw,
+                        &cb_info.task_id,
+                        &cb_info.edge_type,
+                        &edge_cb_id,
+                    )
+                };
 
-    #[cfg(not(feature = "chunk_task"))]
-    for (complex_handle_raw, cb_infos) in &env.pending_edge_cb_map {
-        let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
-        for cb_info in cb_infos {
-            let edge_cb_id = env.edge_cb_idpool.alloc_id();
-            let cb_hdl = unsafe {
-                do_register_edge_callback(
-                    complex_handle_raw,
-                    &cb_info.task_id,
-                    &cb_info.edge_type,
-                    &edge_cb_id,
-                )
-            };
-
-            if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
-                // TODO: Check ?
-                // panic!("duplicate edge callback id => {}", edge_cb_id);
-            };
+                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                    // TODO: Check ?
+                    // panic!("duplicate edge callback id => {}", edge_cb_id);
+                };
+            }
         }
-    }
 
-    #[cfg(feature = "chunk_task")]
-    {
-        env.pending_posedge_cb_map.clear();
-        env.pending_negedge_cb_map.clear();
+        #[cfg(feature = "chunk_task")]
+        {
+            env.pending_posedge_cb_map.clear();
+            env.pending_negedge_cb_map.clear();
+            env.pending_edge_cb_map.clear();
+        }
+
+        #[cfg(not(feature = "chunk_task"))]
         env.pending_edge_cb_map.clear();
     }
 
-    #[cfg(not(feature = "chunk_task"))]
-    env.pending_edge_cb_map.clear();
-
-    let handle = unsafe { vpi_register_cb(cb_data) };
-    unsafe { vpi_free_object(handle) };
-
-    #[cfg(not(feature = "wave_vpi"))]
-    {
+    if cfg!(feature = "wave_vpi") {
+        let handle = unsafe { vpi_register_cb(cb_data) };
+        unsafe { vpi_free_object(handle) };
+    } else {
+        // NextSimTime callback will be registered in ReadWriteSynch callback
         unsafe { vpiml_register_read_write_synch_callback() };
     }
 
@@ -386,6 +392,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
             .unwrap()
             .call::<()>(user_data.task_id)
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -394,45 +401,52 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
             env.lua_time += s.elapsed();
         }
 
-        #[cfg(feature = "merge_cb")]
-        {
-            let complex_handle = ComplexHandle::from_raw(&user_data.complex_handle_raw);
+        if cfg!(feature = "opt_cb_task") {
+            #[cfg(feature = "merge_cb")]
+            {
+                let complex_handle = ComplexHandle::from_raw(&user_data.complex_handle_raw);
 
-            let remove_cb = match user_data.edge_type {
-                EdgeType::Posedge => {
-                    let t = complex_handle
-                        .posedge_cb_count
-                        .get_mut(&user_data.task_id)
-                        .unwrap();
-                    *t -= 1;
-                    *t == 0
-                }
-                EdgeType::Negedge => {
-                    let t = complex_handle
-                        .negedge_cb_count
-                        .get_mut(&user_data.task_id)
-                        .unwrap();
-                    *t -= 1;
-                    *t == 0
-                }
-                EdgeType::Edge => {
-                    let t = complex_handle
-                        .edge_cb_count
-                        .get_mut(&user_data.task_id)
-                        .unwrap();
-                    *t -= 1;
-                    *t == 0
-                }
-            };
+                let remove_cb = match user_data.edge_type {
+                    EdgeType::Posedge => {
+                        let t = complex_handle
+                            .posedge_cb_count
+                            .get_mut(&user_data.task_id)
+                            .unwrap();
+                        *t -= 1;
+                        *t == 0
+                    }
+                    EdgeType::Negedge => {
+                        let t = complex_handle
+                            .negedge_cb_count
+                            .get_mut(&user_data.task_id)
+                            .unwrap();
+                        *t -= 1;
+                        *t == 0
+                    }
+                    EdgeType::Edge => {
+                        let t = complex_handle
+                            .edge_cb_count
+                            .get_mut(&user_data.task_id)
+                            .unwrap();
+                        *t -= 1;
+                        *t == 0
+                    }
+                };
 
-            if remove_cb {
+                if remove_cb {
+                    unsafe {
+                        vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap())
+                    };
+                    env.edge_cb_idpool.release_id(user_data.callback_id);
+                }
+            }
+
+            #[cfg(not(feature = "merge_cb"))]
+            {
                 unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap()) };
                 env.edge_cb_idpool.release_id(user_data.callback_id);
             }
-        }
-
-        #[cfg(not(feature = "merge_cb"))]
-        {
+        } else {
             unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap()) };
             env.edge_cb_idpool.release_id(user_data.callback_id);
         }
@@ -492,34 +506,49 @@ macro_rules! gen_vpiml_register_edge_callback {
                 unsafe fn [<vpiml_register_ $edge_type _callback_common>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
                     let env = get_verilua_env();
 
-                    #[cfg(feature = "merge_cb")]
-                    {
-                        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    if cfg!(feature = "opt_cb_task") {
+                        #[cfg(feature = "merge_cb")]
+                        {
+                            let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
                             let t = complex_handle.[<$edge_type _cb_count>].entry(task_id).or_default();
-                        *t += 1;
+                            *t += 1;
+
+                            #[cfg(not(feature = "chunk_task"))]
+                            if *t > 1 {
+                                return;
+                            }
+                        }
+
+                        #[cfg(feature = "chunk_task")]
+                        {
+                            env.[<pending_ $edge_type _cb_map>].entry(complex_handle_raw)
+                                .or_insert_with(|| Vec::with_capacity(32))
+                                .push(task_id);
+                        }
 
                         #[cfg(not(feature = "chunk_task"))]
-                        if *t > 1 {
-                            return;
-                        }
-                    }
-
-                    #[cfg(feature = "chunk_task")]
-                    {
-                        env.[<pending_ $edge_type _cb_map>].entry(complex_handle_raw)
+                        env.pending_edge_cb_map
+                            .entry(complex_handle_raw)
                             .or_insert_with(|| Vec::with_capacity(32))
-                            .push(task_id);
-                    }
+                            .push(CallbackInfo {
+                                edge_type: $edge_type_enum,
+                                task_id,
+                            });
+                    } else {
+                        let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                        let cb_hdl = do_register_edge_callback(
+                            &complex_handle_raw,
+                            &task_id,
+                            &$edge_type_enum,
+                            &edge_cb_id
+                        );
 
-                    #[cfg(not(feature = "chunk_task"))]
-                    env.pending_edge_cb_map
-                        .entry(complex_handle_raw)
-                        .or_insert_with(|| Vec::with_capacity(32))
-                        .push(CallbackInfo {
-                            edge_type: $edge_type_enum,
-                            task_id,
-                        });
+                        if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                            // TODO: Check ?
+                            // panic!("duplicate edge callback id => {}", edge_cb_id);
+                        };
+                    }
                 }
 
                 #[unsafe(no_mangle)]

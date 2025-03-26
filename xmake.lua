@@ -17,15 +17,17 @@ local build_iverilog_vpi_module_cmd = [[cargo build --release --features "iveril
 local function build_lib_common(simulator)
     set_kind("phony")
     on_build(function (target)
-        -- try { function () os.vrun("cargo clean") end }
+        try { function () os.vrun("cargo clean") end }
         if simulator == "verilator" then
-            os.vrun([[cargo build --release --features "%s chunk_task debug acc_time"]], simulator)
+            os.vrun([[cargo build --release --features "verilator chunk_task debug acc_time"]], simulator)
+        elseif simulator == "vcs" then
+            os.vrun([[cargo build --release --features "vcs chunk_task merge_cb debug acc_time"]], simulator)
         elseif simulator == "wave_vpi" then
             os.vrun(build_libverilua_wave_vpi_cmd)
         elseif simulator == "iverilog" then
             os.vrun(build_iverilog_vpi_module_cmd)
         else
-            os.vrun([[cargo build --release --features "%s chunk_task merge_cb debug acc_time"]], simulator)
+            raise("Unknown simulator => " .. simulator)
         end
         os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_" .. simulator .. ".so")
     end)
