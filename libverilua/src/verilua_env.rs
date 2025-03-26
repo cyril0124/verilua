@@ -3,8 +3,6 @@ use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::time::{Duration, Instant};
 
-use std::cell::Cell;
-
 #[cfg(not(feature = "chunk_task"))]
 use crate::vpi_callback::CallbackInfo;
 
@@ -420,10 +418,10 @@ macro_rules! gen_verilua_step_safe {
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn $name() {
             thread_local! {
-                static HAS_ERROR: Cell<bool> = const { Cell::new(false) };
+                static HAS_ERROR: UnsafeCell<bool> = const { UnsafeCell::new(false) };
             }
 
-            if HAS_ERROR.with(|f| f.get()) {
+            if HAS_ERROR.with(|has_error| unsafe { *has_error.get() }) {
                 println!(
                     concat!("[", stringify!($name), "] `has_error` is `true`! Program should be terminated! Nothing will be done in `Verilua`...")
                 );
@@ -440,8 +438,8 @@ macro_rules! gen_verilua_step_safe {
             let s = Instant::now();
 
             if let Err(e) = env.$field.as_ref().unwrap().call::<()>(()) {
-                HAS_ERROR.with(|has_error| {
-                    has_error.set(true);
+                HAS_ERROR.with(|has_error| unsafe {
+                    *has_error.get() = true;
                 });
                 println!(
                     concat!("[", stringify!($name), "] Error calling ", stringify!($field), ": {}"),
