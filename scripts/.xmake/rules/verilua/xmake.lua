@@ -358,17 +358,9 @@ rule("verilua")
         end
         if sim ~= "wave_vpi" and not not_gen_tb then
             local vfiles = {}
-            local top_file = target:values("cfg.top_file") -- Top of the design, not the testbench top
-            local has_top_file_cfg = top_file ~= nil
             local file_str = ""
             for _, sourcefile in ipairs(target:sourcefiles()) do
                 local ext = path.extension(sourcefile)
-                if sourcefile:endswith(top .. ".v") or sourcefile:endswith(top .. ".sv") then
-                    if not has_top_file_cfg then
-                        assert(top_file == nil, "[on_build] duplicate top_file! " .. sourcefile)
-                        top_file = path.absolute(sourcefile)
-                    end
-                end
                 if ext == ".v" or ext == ".sv" or ext == ".svh" then
                     if sourcefile:endswith(tb_top .. ".sv") then
                         raise("<%s.sv> is already exist! %s", tb_top, path.absolute(sourcefile))
@@ -378,10 +370,7 @@ rule("verilua")
                 end
             end
 
-            assert(top_file ~= nil, "[on_build] Cannot find top module file! top is %s You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")", top)
-            assert(os.isfile(top_file), "[on_build] Cannot find top module file! top_file is " .. top_file .. " You should set \'top_file\' by set_values(\"cfg.top_file\", \"<your_top_module_file>\")")
             assert(file_str ~= "", "[on_build] Cannot find any .v/.sv files!")
-            print("top_file is " .. top_file)
 
             -- Only the vfiles are needed to be checked
             local tb_gen_flags = {"--top", top, "--tbtop", tb_top, "--nodpi", "--verbose", "--out-dir", build_dir}
