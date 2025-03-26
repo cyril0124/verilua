@@ -322,7 +322,21 @@ pub unsafe extern "C" fn vpiml_get_value_str(
 
     #[cfg(not(feature = "vcs"))]
     {
-        unsafe { v.value.str_ }
+        if cfg!(feature = "iverilog") {
+            let env = get_verilua_env();
+            let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
+            let value_str = raw_str.to_string_lossy().trim_start().to_string();
+
+            if env.resolve_x_as_zero {
+                std::ffi::CString::new(value_str.replace("x", "0"))
+                    .unwrap()
+                    .into_raw()
+            } else {
+                unsafe { v.value.str_ }
+            }
+        } else {
+            unsafe { v.value.str_ }
+        }
     }
 }
 
@@ -349,7 +363,21 @@ macro_rules! gen_get_value_str {
 
             #[cfg(not(feature = "vcs"))]
             {
-                unsafe { v.value.str_ }
+                if cfg!(feature = "iverilog") {
+                    let env = get_verilua_env();
+                    let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
+                    let value_str = raw_str.to_string_lossy().trim_start().to_string();
+
+                    if env.resolve_x_as_zero {
+                        std::ffi::CString::new(value_str.replace("x", "0"))
+                            .unwrap()
+                            .into_raw()
+                    } else {
+                        unsafe { v.value.str_ }
+                    }
+                } else {
+                    unsafe { v.value.str_ }
+                }
             }
         }
     };
