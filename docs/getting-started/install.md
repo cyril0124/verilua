@@ -6,24 +6,27 @@
 - 安装 [xmake](https://xmake.io/)
 - 安装 [rust](https://www.rust-lang.org/tools/install)
 - 安装 python3.xx
-- （可选）安装 [iverilog](https://github.com/steveicarus/iverilog)
+- 根据需求安装下列硬件仿真器
+    - [verilator](https://github.com/verilator/verilator)
+    - [iverilog](https://github.com/steveicarus/iverilog)
 
-    !!! type "Note"
-        如果后续使用过程中需要使用到 iverilog 作为仿真后端（HVL 场景），那么就需要在安装 Verilua 之前提前安装 iverilog。
+        !!! danger "iverilog 版本问题"
+            由于 iverilog 在 [v12_0 release 版本](https://github.com/steveicarus/iverilog/releases/tag/v12_0) 下存在 VPI 的 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会对 Verilua 的多任务调度功能造成影响。所以需要使用目前 iverilog 官方仓库下的 master 分支版本（或者叫 v13-devel 版本），这需要自行编译安装！
 
-    !!! danger "iverilog 版本问题"
-        由于 iverilog 在 [v12_0 release 版本](https://github.com/steveicarus/iverilog/releases/tag/v12_0) 下存在 VPI 的 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会对 Verilua 的多任务调度功能造成影响。所以需要使用目前 iverilog 官方仓库下的 master 分支版本（或者叫 v13-devel 版本），这需要自行编译安装！
+            安装完成后，需要设置环境变量 `IVERILOG_HOME` 指向刚刚安装的 iverilog 目录（包含 `bin` 和 `lib` 的目录）。
 
-        ??? note "iverilog 安装命令"
-            ```shell
-            git clone https://github.com/steveicarus/iverilog.git
-            cd iverilog
-            git checkout master
-            sh autoconf.sh
-            ./configure
-            make
-            sudo make install
-            ```
+            ??? note "iverilog 安装命令"
+                ```shell
+                git clone https://github.com/steveicarus/iverilog.git
+                cd iverilog
+                git checkout master
+                sh autoconf.sh
+                ./configure
+                make
+                sudo make install
+                ```
+
+    - Synopsys VCS
 
 ## 安装步骤(不使用 nix)
 ```shell
