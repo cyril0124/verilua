@@ -686,7 +686,7 @@ verdi -f filelist.f -sv -nologo $@]])
             end
 
             local toolchain = assert(target:toolchain("iverilog"), "[on_run] iverilog not found!")
-            local vvp = assert(toolchain:config("vvp"), "[on_run] vvp not found!")
+            local vvp = assert(toolchain:config("vvp") or try{ function() return os.iorun("which vvp") end }, "[on_run] vvp not found!")
             os.exec(table.concat(run_prefix, " ") .. " " .. vvp .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
         elseif sim == "vcs" then
             local run_flags = {(function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)(), "+notimingcheck"}
