@@ -9,7 +9,6 @@ local vcpkg_dir  = prj_dir .. "/vcpkg_installed"
 local shared_dir = prj_dir .. "/shared"
 local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
-local iverilog_home = os.getenv("IVERILOG_HOME")
 
 local build_libverilua_wave_vpi_cmd = [[cargo build --release --features "wave_vpi chunk_task debug acc_time"]]
 local build_iverilog_vpi_module_cmd = [[cargo build --release --features "iverilog iverilog_vpi_mod chunk_task merge_cb debug acc_time"]]
@@ -152,71 +151,14 @@ target("wave_vpi_main_fsdb")
         end)
     end
 
--- 
--- Build target for Iverilog
--- 
-if iverilog_home ~= nil then
-    target("iverilog_vpi_module")
-        set_kind("phony")
-        on_build(function (target)
-            try { function () os.vrun("cargo clean") end }
-            os.vrun(build_iverilog_vpi_module_cmd)
+target("iverilog_vpi_module")
+    set_kind("phony")
+    on_build(function (target)
+        try { function () os.vrun("cargo clean") end }
+        os.vrun(build_iverilog_vpi_module_cmd)
 
-            os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
-        end)
-
-    target("vvp_wrapper")
-        set_kind("binary")
-        build_common()
-        
-        add_deps("libverilua_iverilog")
-
-        add_files(
-            src_dir .. "/vvp_wrapper/vvp_wrapper.cpp"
-        )
-
-        add_includedirs(
-            iverilog_home .. "/include",
-            src_dir .. "/include",
-            lua_dir .. "/include/luajit-2.1"
-        )
-
-        if is_mode("debug") then
-            add_defines("DEBUG")
-            set_symbols("debug")
-            set_optimize("none")
-            -- add_cxflags("-fsanitize=address", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls")
-            -- add_ldflags("-fsanitize=address")
-        else
-            add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
-        end
-
-        add_links("vvp")
-        add_linkdirs(iverilog_home .. "/lib")
-        add_rpathdirs(iverilog_home .. "/lib")
-
-        add_links("luajit-5.1")
-        add_linkdirs(lua_dir .. "/lib")
-        add_rpathdirs(lua_dir .. "/lib")
-
-        add_links("verilua_iverilog")
-        add_linkdirs(shared_dir)
-        add_rpathdirs(shared_dir)
-
-        after_build(function (target)
-            print("--------------------- [After Build] ---------------------- ")
-
-            os.vrun("wget -P $(tmpdir) https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0-x86_64.tar.gz")
-            os.vrun("tar -zxvf $(tmpdir)/patchelf-0.18.0-x86_64.tar.gz -C $(tmpdir)")
-
-            os.vrun("$(tmpdir)/bin/patchelf --add-needed libverilua_iverilog.so " .. target:targetfile())
-
-            print("* copy " .. target:targetfile() .. " into " .. tools_dir)
-                os.run("cp " .. target:targetfile() .. " " .. tools_dir)
-            
-            print("---------------------------------------------------------- ")
-        end)
-end
+        os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
+    end)
 
 target("testbench_gen")
     set_kind("binary")
@@ -552,7 +494,6 @@ target("setup_verilua")
         execute("xmake build -y -v verilua_prebuild")
 
         try { function () execute("xmake build -y -v iverilog_vpi_module") end }
-        try { function () execute("xmake build -y -v vvp_wrapper") end }
     end)
 
 target("install_wave_vpi")
@@ -655,7 +596,7 @@ target("test")
         
         local simulators = {}
 
-        if try { function () return os.iorun("which vvp_wrapper") end } then
+        if try { function () return os.iorun("which vvp") end } then
             table.insert(simulators, "iverilog")
         end
         if try { function () return os.iorun("which verilator") end } then

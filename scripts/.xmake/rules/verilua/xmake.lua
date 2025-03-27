@@ -577,7 +577,7 @@ source setvars.sh
         elseif sim == "vcs" then
             run_sh = f([[%s/simv %s +notimingcheck 2>&1 | tee run.log]], sim_build_dir, (function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)())
         elseif sim == "iverilog" then
-            run_sh = f([[vvp_wrapper -M %s -m libverilua_iverilog %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
+            run_sh = f([[vvp -M %s -m libverilua_iverilog %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
         elseif sim == "wave_vpi" then
             local waveform_file = assert(target:get("waveform_file"), "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
             run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
@@ -673,16 +673,10 @@ verdi -f filelist.f -sv -nologo $@]])
             
             os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/V" .. tb_top .. " " .. table.concat(run_flags, " "))
         elseif sim == "iverilog" then
-            local vvpcmd = verilua_tools_home .. "/vvp_wrapper"
-
             local run_flags = {"-M", verilua_libs_home, "-m", "libverilua_iverilog"}
-            local _run_options = target:values("iverilog.run_options")
-            local _run_plusargs = target:values("iverilog.run_plusargs")
-            if _run_options then
-                table.join2(run_flags, _run_options)
-            end
-            if _run_plusargs then
-                table.join2(run_flags, _run_plusargs)
+            local _run_flags = target:values("iverilog.run_flags")
+            if _run_flags then
+                table.join2(run_flags, _run_flags)
             end
 
             local run_prefix = {""}
@@ -691,8 +685,9 @@ verdi -f filelist.f -sv -nologo $@]])
                 table.join2(run_prefix, _run_prefix)
             end
 
-            assert(os.isfile(vvpcmd), "[on_run] verilua vvp_wrapper not found!")
-            os.exec(table.concat(run_prefix, " ") .. " " .. vvpcmd .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
+            local toolchain = assert(target:toolchain("iverilog"), "[on_run] iverilog not found!")
+            local vvp = assert(toolchain:config("vvp"), "[on_run] vvp not found!")
+            os.exec(table.concat(run_prefix, " ") .. " " .. vvp .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
         elseif sim == "vcs" then
             local run_flags = {(function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)(), "+notimingcheck"}
             local _run_flags = target:values("vcs.run_flags")
