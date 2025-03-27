@@ -353,7 +353,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     else
         self.dump_str = function (this)
-            return f("[%s] => 0x%s", this.fullpath, this:get_str(HexStr))
+            return f("[%s] => 0x%s", this.fullpath, this:get_hex_str())
         end
     end
 
@@ -525,7 +525,7 @@ end
 --      - number
 --      - string(with prefix)
 --      - table(u32_vec)
---      - cdata (uint64_t or uint64_t[])
+--      - cdata (uint64_t or uint32_t[])
 --      - boolean
 -- Auto-type-based value assignment.
 -- 

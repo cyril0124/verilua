@@ -344,7 +344,7 @@ local function create_proxy(path, use_prefix)
         dump_str = function (t)
             local hdl = vpiml.vpiml_handle_by_name(local_path)
             local s = f("[%s] => ", local_path)
-            s = s .. "0x" .. ffi_string(vpiml.vpiml_get_value_str(hdl, HexStr))
+            s = s .. "0x" .. ffi_string(vpiml.vpiml_get_value_hex_str(hdl))
             return s
         end,
 
