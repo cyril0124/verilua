@@ -11,6 +11,7 @@ local assert = assert
 local f = string.format
 
 local global_values = {}
+local tmp_global_values_key = {}
 
 ---
 ---@class Property
@@ -87,6 +88,42 @@ function Property:with_global_values(values_table)
     end
 
     return self
+end
+
+function Property:_get_global_values()
+    return global_values
+end
+
+-- Adds temporary global values from a given table and returns the key used for storage.
+function Property:with_tmp_global_values(values_table)
+    texpect.expect_table(values_table, "values_table")
+
+    local key = 1
+    for _, _ in pairs(tmp_global_values_key) do
+        key = key + 1
+    end
+
+    for k, v in pairs(values_table) do
+        assert(not global_values[k], "[Property] with_tmp_global_values: value already exists: " .. k)
+        global_values[k] = v
+
+        if not tmp_global_values_key[key] then
+            tmp_global_values_key[key] = {}
+        end
+        table.insert(tmp_global_values_key[key], k)
+    end
+
+    return key
+end
+
+-- Removes temporary global values associated with the provided key.
+function Property:remove_tmp_global_values(key)
+    texpect.expect_number(key, "key")
+
+    for _, v in ipairs(tmp_global_values_key[key]) do
+        global_values[v] = nil
+    end
+    tmp_global_values_key[key] = nil
 end
 
 function Property:with_raw(str)
