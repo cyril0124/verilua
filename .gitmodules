@@ -7,9 +7,6 @@
 [submodule "extern/debugger.lua"]
 	path = extern/debugger.lua
 	url = https://github.com/slembcke/debugger.lua.git
-[submodule "extern/lua_inline_c"]
-	path = extern/lua_inline_c
-	url = https://github.com/cyril0124/lua_inline_c.git
 [submodule "extern/luajit_tcc"]
 	path = extern/luajit_tcc
 	url = https://github.com/cyril0124/luajit_tcc

@@ -34,8 +34,6 @@ $VERILUA_HOME/extern/luafun/?.lua;\
 $VERILUA_HOME/extern/LuaPanda/Debugger/?.lua;\
 $VERILUA_HOME/extern/debugger.lua/?.lua;\
 $VERILUA_HOME/extern/luajit_tcc/?.lua;\
-$VERILUA_HOME/extern/lua_inline_c/?.lua;\
-$VERILUA_HOME/extern/lua_inline_c/?/?.lua;\
 "
 
 export LUA_CPATH="\
