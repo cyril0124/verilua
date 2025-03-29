@@ -10,8 +10,7 @@ build/
 test/
 /.xmake
 .verilua/
-vcpkg/
-vcpkg_installed/
+conan_installed/
 tmp/
 *.log
 result
@@ -21,5 +20,6 @@ tools/dpi_exporter
 tools/testbench_gen
 tools/signal_db_gen
 tools/wave_vpi_*
+tools/verilua_prebuild
 luajit-pro
 scripts/.xmake/linux

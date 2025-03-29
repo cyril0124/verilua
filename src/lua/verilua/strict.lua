@@ -46,11 +46,7 @@ end
 
 mt.__index = function (t, n)
   if mt.strict and not mt.__declared[n] and what() ~= "C" then
-    local should_pass = false
-    local src = what_src()
-    if smatch(src, "lua_inline_c") == nil then
-      error("Global variable '"..n.."' is not declared. Global variables must be 'declared' through a regular assignment (even to nil) at global scope before being used.", 2)
-    end
+    error("Global variable '"..n.."' is not declared. Global variables must be 'declared' through a regular assignment (even to nil) at global scope before being used.", 2)
   end
   return rawget(t, n)
 end

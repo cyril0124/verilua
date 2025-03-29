@@ -26,68 +26,10 @@ int main(int argc, char **argv) {
     driver.cmdLine.add("--dd,--distribute-dpi", _distributeDPI, "distribute DPI functions");
     driver.cmdLine.add("-q,--quiet", _quiet, "quiet mode, print only necessary info");
 
-    driver.cmdLine.add("--top", driver.options.topModules,
-                       "One or more top-level modules to instantiate "
-                       "(instead of figuring it out automatically)",
-                       "<name>", CommandLineFlags::CommaList);
-
-    driver.cmdLine.add(
-        "-y,--libdir",
-        [&driver](std::string_view value) {
-            driver.sourceLoader.addSearchDirectories(value);
-            return "";
-        },
-        "Library search paths, which will be searched for missing modules", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
-
-    driver.cmdLine.add(
-        "-I,--include-directory,+incdir",
-        [&driver](std::string_view value) {
-            if (auto ec = driver.sourceManager.addUserDirectories(value)) {
-                fmt::print(fg(driver.textDiagClient->warningColor), "warning: ");
-                fmt::println("include directory '{}': {}", value, ec.message());
-            }
-            return "";
-        },
-        "Additional include search paths", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
-
-    driver.cmdLine.add(
-        "-f",
-        [&driver](std::string_view value) {
-            driver.processCommandFiles(value, /* makeRelative */ false, /* separateUnit */ false);
-            return "";
-        },
-        "One or more command files containing additional program options. "
-        "Paths in the file are considered relative to the current directory.",
-        "<file-pattern>[,...]", CommandLineFlags::CommaList);
-
-    driver.cmdLine.add(
-        "-F",
-        [&driver](std::string_view value) {
-            driver.processCommandFiles(value, /* makeRelative */ true, /* separateUnit */ false);
-            return "";
-        },
-        "One or more command files containing additional program options. "
-        "Paths in the file are considered relative to the file itself.",
-        "<file-pattern>[,...]", CommandLineFlags::CommaList);
-
-    driver.cmdLine.setPositional(
-        [&driver, &_files](std::string_view value) {
-            if (!driver.options.excludeExts.empty()) {
-                if (size_t extIndex = value.find_last_of('.'); extIndex != std::string_view::npos) {
-                    if (driver.options.excludeExts.count(std::string(value.substr(extIndex + 1))))
-                        return "";
-                }
-            }
-
-            _files.push_back(std::string(value));
-            return "";
-        },
-        "files");
-
     std::optional<bool> showHelp;
     driver.cmdLine.add("-h,--help", showHelp, "Display available options");
 
-    // driver.addStandardArgs();
+    driver.addStandardArgs();
     ASSERT(driver.parseCommandLine(argc, argv));
 
     if (showHelp) {

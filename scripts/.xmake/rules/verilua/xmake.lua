@@ -335,8 +335,8 @@ rule("verilua")
         target:add("linkdirs", luajitpro_home .. "/lib", verilua_libs_home)
         
         if not verilua_use_nix then
-            target:add("linkdirs", verilua_home .. "/vcpkg_installed/x64-linux/lib")
-            target:add("includedirs", verilua_home .. "/vcpkg_installed/x64-linux/include")
+            target:add("linkdirs", verilua_home .. "/conan_installed/lib")
+            target:add("includedirs", verilua_home .. "/conan_installed/include")
         end
 
         if sim == "verilator" then

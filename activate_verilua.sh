@@ -42,7 +42,6 @@ $VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?/?.so\
 $VERILUA_HOME/extern/LuaPanda/Debugger/debugger_lib/?.so;\
 "
 
-. "$VERILUA_HOME/extern/lua_inline_c/setvars.sh"
 . "$VERILUA_HOME/extern/luajit_tcc/setvars.sh"
 
 unset VERILUA_USE_NIX

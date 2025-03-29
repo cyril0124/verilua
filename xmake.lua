@@ -5,7 +5,7 @@ local src_dir    = prj_dir .. "/src"
 local build_dir  = prj_dir .. "/build"
 local lua_dir    = prj_dir .. "/luajit-pro/luajit2.1"
 local extern_dir = prj_dir .. "/extern"
-local vcpkg_dir  = prj_dir .. "/vcpkg_installed"
+local libs_dir   = prj_dir .. "/conan_installed"
 local shared_dir = prj_dir .. "/shared"
 local tools_dir  = prj_dir .. "/tools"
 local wavevpi_dir = prj_dir .. "/wave_vpi"
@@ -57,6 +57,7 @@ target("build_libverilua")
             os.vrun("xmake build libverilua_wave_vpi")
         cprint("* Build ${green}iverilog_vpi_module${reset}")
             os.vrun(build_iverilog_vpi_module_cmd)
+            os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
         print("---------------------------------------------------------- ")
     end)
 
@@ -91,7 +92,7 @@ local function wave_vpi_main_common()
         lua_dir .. "/include/luajit-2.1",
         wavevpi_dir .. "/src",
         extern_dir .. "/boost_unordered",
-        vcpkg_dir .. "/x64-linux/include"
+        libs_dir .. "/include"
     )
 
     if is_mode("debug") then
@@ -110,12 +111,12 @@ local function wave_vpi_main_common()
 
     add_links("fmt", "mimalloc")
     add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
-    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
+    add_linkdirs(libs_dir.. "/lib")
 
     add_links("verilua_wave_vpi")
     add_linkdirs(shared_dir)
     add_rpathdirs(shared_dir)
-    
+
     add_links("wave_vpi_wellen_impl")
     add_linkdirs(wavevpi_dir .. "/target/release")
 
@@ -124,7 +125,7 @@ local function wave_vpi_main_common()
 
         print("* copy " .. target:targetfile() .. " into " .. tools_dir)
             os.run("cp " .. target:targetfile() .. " " .. tools_dir)
-        
+
         print("---------------------------------------------------------- ")
     end)
 end
@@ -165,27 +166,23 @@ target("testbench_gen")
     add_ldflags("-static")
 
     build_common()
-    
+
     add_files(
         src_dir .. "/testbench_gen/*.cpp",
         extern_dir .. "/slang-common/*.cc"
     )
 
-    local slang_dir = extern_dir .. "/slang-prebuild/install_static"
+    add_defines("SLANG_BOOST_SINGLE_HEADER")
+
     add_includedirs(
         src_dir .. "/testbench_gen",
         extern_dir .. "/slang-common",
-        slang_dir .. "/include",
-        extern_dir .. "/boost_unordered/include",
-        vcpkg_dir .. "/x64-linux/include"
+        libs_dir .. "/include"
     )
 
-    add_links("svlang")
-    add_linkdirs(slang_dir .. "/lib")
-
-    add_links("fmt", "mimalloc")
+    add_links("svlang", "fmt", "mimalloc") -- order is important 
     add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
-    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
+    add_linkdirs(libs_dir.. "/lib")
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
@@ -206,33 +203,36 @@ target("dpi_exporter")
         set_symbols("debug")
         set_optimize("none")
     end
-    
+
     add_files(
         src_dir .. "/dpi_exporter/*.cpp",
         extern_dir .. "/slang-common/*.cc"
     )
 
-    local slang_dir = extern_dir .. "/slang-prebuild/install_static"
+    add_defines("SLANG_BOOST_SINGLE_HEADER")
+
     add_includedirs(
         src_dir .. "/dpi_exporter",
-        slang_dir .. "/include",
         extern_dir .. "/slang-common",
-        extern_dir .. "/boost_unordered/include",
         lua_dir .. "/include/luajit-2.1",
-        vcpkg_dir .. "/x64-linux/include"
+        libs_dir .. "/include"
     )
 
-    add_links("svlang", "luajit-5.1")
-    add_linkdirs(slang_dir .. "/lib", lua_dir .. "/lib")
-    add_rpathdirs(slang_dir .. "/lib", lua_dir .. "/lib")
+    add_links("luajit-5.1")
+    add_linkdirs(lua_dir .. "/lib")
+    add_rpathdirs(lua_dir .. "/lib")
+
+    add_links("svlang", "fmt", "mimalloc")
+    add_linkdirs(libs_dir.. "/lib")
+    add_rpathdirs(libs_dir.. "/lib")
 
     add_links("luajit_pro_helper")
     add_linkdirs(prj_dir .. "/luajit-pro/target/release")
     add_rpathdirs(prj_dir .. "/luajit-pro/target/release")
 
-    add_links("fmt", "mimalloc")
     add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
-    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
+    add_linkdirs(libs_dir.. "/lib")
+    add_rpathdirs(libs_dir.. "/lib")
 
     after_build(function (target)
         print("--------------------- [After Build] ---------------------- ")
@@ -249,34 +249,34 @@ local function signal_db_gen_common(is_static)
         set_symbols("debug")
         set_optimize("none")
     end
-    
+
     add_files(
         src_dir .. "/signal_db_gen/signal_db_gen.cpp",
         extern_dir .. "/slang-common/*.cc"
     )
 
-    local slang_dir = extern_dir .. "/slang-prebuild/install_" .. (is_static and "static" or "shared")
+    add_defines("SLANG_BOOST_SINGLE_HEADER")
+
     add_includedirs(
         src_dir .. "/include",
         src_dir .. "/signal_db_gen",
-        slang_dir .. "/include",
+        libs_dir .. "/include",
         extern_dir .. "/slang-common",
-        extern_dir .. "/boost_unordered/include",
-        lua_dir .. "/include/luajit-2.1",
-        vcpkg_dir .. "/x64-linux/include"
+        lua_dir .. "/include/luajit-2.1"
     )
 
-    add_links("svlang", "luajit-5.1")
-    add_linkdirs(slang_dir .. "/lib", lua_dir .. "/lib")
-    add_rpathdirs(slang_dir .. "/lib", lua_dir .. "/lib")
+    add_links("svlang", "fmt", "mimalloc")
+    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
+    add_linkdirs(libs_dir.. "/lib")
+    add_rpathdirs(libs_dir.. "/lib")
+
+    add_links("luajit-5.1")
+    add_linkdirs(lua_dir.. "/lib")
+    add_rpathdirs(lua_dir.. "/lib")
 
     add_links("luajit_pro_helper")
     add_linkdirs(prj_dir .. "/luajit-pro/target/release")
     add_rpathdirs(prj_dir .. "/luajit-pro/target/release")
-
-    add_links("fmt", "mimalloc")
-    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
-    add_linkdirs(vcpkg_dir .. "/x64-linux/lib")
 end
 
 target("signal_db_gen")
@@ -347,16 +347,16 @@ target("install_luajit")
         -- build luajit_pro_helper
         os.cd(luajit_pro_dir)
         execute("cargo build --release")
-        
+
         execute("bash init.sh")
         os.trycp(luajit_dir .. "/bin/luajit", luajit_dir .. "/bin/lua")
-        
+
         os.addenvs({PATH = luajit_dir .. "/bin"})
-        
+
         execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
         execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
         os.cd("luarocks-" .. luarocks_version)
-        
+
         execute("make clean")
         execute("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
         execute("make")
@@ -389,37 +389,27 @@ target("reinstall_luajit")
         os.cd(curr_dir)
     end)
 
+
 target("install_other_libs")
     set_kind("phony")
     on_run(function (target)
-        local execute = os.exec
-        local has_vcpkg = try { function () return os.iorun("vcpkg --version") end }
-        local install_using_git = function ()
-            if not os.exists("vcpkg") then
-                execute("git clone https://github.com/microsoft/vcpkg")
-            end
-            local success = try {
-                function ()
-                    execute("./vcpkg/bootstrap-vcpkg.sh")
-                    execute("./vcpkg/vcpkg x-update-baseline --add-initial-baseline")
-                    execute("./vcpkg/vcpkg install")
-                end
-            }
+        local conan_cmd = "conan"
+        local has_conan = try { function () return os.iorun("conan --version") end }
+
+        if not has_conan then
+            os.mkdir(prj_dir .. "/build")
+            os.cd(prj_dir.. "/build")
+            os.exec("wget https://github.com/conan-io/conan/releases/download/2.14.0/conan-2.14.0-linux-x86_64.tgz")
+            os.mkdir("./conan")
+            os.exec("tar -xvf conan-2.14.0-linux-x86_64.tgz -C ./conan")
+            conan_cmd = prj_dir .. "/build/conan/bin/conan"
         end
 
-        if has_vcpkg then
-            local success = try {
-                function ()
-                    execute("vcpkg x-update-baseline --add-initial-baseline")
-                    execute("vcpkg install --x-install-root ./vcpkg_installed")
-                end
-            }
-            if not success then
-                install_using_git()
-            end
-        else
-            install_using_git()
-        end
+        os.cd(prj_dir .. "/scripts/conan/slang")
+        os.exec(conan_cmd .. " create . --build=missing")
+
+        os.cd(prj_dir)
+        os.exec(conan_cmd .. " install . --output-folder=%s --build=missing", libs_dir)
     end)
 
 target("install_lua_modules")
@@ -496,15 +486,6 @@ target("setup_verilua")
         try { function () execute("xmake build -y -v iverilog_vpi_module") end }
     end)
 
-target("install_wave_vpi")
-    set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
-        os.cd("wave_vpi")
-        execute("bash init.sh")
-        os.cd(os.workingdir())
-    end)
-
 target("apply_xmake_patch")
     set_kind("phony")
     on_run(function (target)
@@ -516,35 +497,31 @@ target("verilua")
     set_kind("phony")
     on_install(function (target)
         local execute = os.exec
-        cprint("${💥} ${yellow}[1/8]${reset} Update git submodules...") do
+        cprint("${💥} ${yellow}[1/7]${reset} Update git submodules...") do
             execute("xmake run update_submodules")
         end
 
-        cprint("${💥} ${yellow}[2/8]${reset} Install other libs...") do
+        cprint("${💥} ${yellow}[2/7]${reset} Install other libs...") do
             execute("xmake run install_other_libs")
         end
         
-        cprint("${💥} ${yellow}[3/8]${reset} Install LuaJIT-2.1...") do
+        cprint("${💥} ${yellow}[3/7]${reset} Install LuaJIT-2.1...") do
             execute("xmake run install_luajit")
         end
 
-        cprint("${💥} ${yellow}[4/8]${reset} Install lua modules...") do
+        cprint("${💥} ${yellow}[4/7]${reset} Install lua modules...") do
             execute("xmake run install_lua_modules")
         end
 
-        cprint("${💥} ${yellow}[5/8]${reset} Install tinycc...") do
+        cprint("${💥} ${yellow}[5/7]${reset} Install tinycc...") do
             execute("xmake run install_tinycc")
         end
 
-        cprint("${💥} ${yellow}[6/8]${reset} Setup verilua home on ${green}%s${reset}...", os.shell()) do
+        cprint("${💥} ${yellow}[6/7]${reset} Setup verilua home on ${green}%s${reset}...", os.shell()) do
             execute("xmake run setup_verilua")
         end
-        
-        cprint("${💥} ${yellow}[7/8]${reset} Install wave vpi...") do
-            execute("xmake run install_wave_vpi")
-        end
 
-        cprint("${💥} ${yellow}[8/8]${reset} Applying verilua patch for xmake...") do
+        cprint("${💥} ${yellow}[7/7]${reset} Applying verilua patch for xmake...") do
             execute("xmake run apply_xmake_patch")
         end
     end)
