@@ -1,5 +1,14 @@
 # Welcome to `Verilua` documentation!
 
+<center>
+  <span style="font-size: 1.8em;">
+      :simple-git: [https://github.com/cyril0124/verilua](https://github.com/cyril0124/verilua)
+  </span>
+</center>
+
+!!! info "English Version Status"
+    The English version of this documentation is currently being prepared. We are working to translate the existing Chinese content into English as soon as possible. In the meantime, you may refer to the Chinese version of this documentation or use your browser's translation tool to read it.
+
 Verilua 是一个基于中间件分层架构的硬件验证解耦仿真框架，统一了包括：Hardware Verification Language（`HVL`）、Hardware Script Engine（`HSE`）、Waveform Analysis Language（`WAL`）在内的多种验证场景，解决了验证生态碎片化的问题。
 Verilua 的 HVL、HSE、WAL 能够覆盖硬件验证中的多个流程。
 <figure markdown="span">
