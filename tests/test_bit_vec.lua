@@ -365,4 +365,21 @@ describe("BitVec test", function ()
         local bitvec = BitVec({0x123, 0x456, 0x789})
         expect.equal(#bitvec, 96)
     end)
+
+    it("should work properly for BitVec:update_value()", function ()
+        local bitvec = BitVec({0x123, 0x456, 0x789})
+        expect.equal(bitvec:dump_str(), "000007890000045600000123")
+
+        bitvec:update_value({0x11, 0x22, 0x33})
+        expect.equal(bitvec:dump_str(), "000000330000002200000011")
+
+        bitvec:update_value({0x11})
+        expect.equal(bitvec:dump_str(), "000000000000000000000011")
+
+        bitvec:update_value(0)
+        expect.equal(bitvec:dump_str(), "000000000000000000000000")
+
+        bitvec:update_value("112233")
+        expect.equal(bitvec:dump_str(), "000000000000000000112233")
+    end)
 end)

@@ -163,6 +163,48 @@ function BitVec:_init(data, bit_width)
     end
 end
 
+function BitVec:update_value(data)
+    local typ = type(data)
+
+    if typ == "table" then
+        local data_len = #data
+        local beat_size = #self.u32_vec
+
+        for i = 1, data_len do
+            self.u32_vec[i] = data[i]
+        end
+
+        for i = data_len + 1, beat_size do
+            self.u32_vec[i] = 0
+        end
+    elseif typ == "cdata" then
+        assert(false, "TODO: cdata")
+    elseif typ == "number" then
+        local beat_size = #self.u32_vec
+
+        self.u32_vec[1] = data
+
+        for i = 2, beat_size do
+            self.u32_vec[i] = 0
+        end
+    elseif typ == "string" then
+        local hex_str = data
+        local hex_str_len = math_floor(math_floor(self.bit_width + 3) / 4)
+
+        if #hex_str > hex_str_len then
+            assert(false, "Input hex_str length: " .. #hex_str .. " must not exceed " .. hex_str_len)
+        end
+
+        if hex_str_len > #hex_str then
+            hex_str = string_rep("0", hex_str_len - #hex_str) .. hex_str
+        end
+
+        self.u32_vec = hex_str_to_u32_vec(hex_str)
+    else
+        assert(false, "Unsupported type: " .. typ)
+    end
+end
+
 function BitVec:get_bitfield(s, e)
     assert((e - s) <= 63, "Bitfield size must not exceed 64 bits")
 
