@@ -62,6 +62,10 @@ function Scheduler:_init()
 	self.task_fired_status_map = {}
 	self.task_execution_count_map = {}
 	self.pending_removal_tasks = {}
+	do
+		self.posedge_tasks = {}
+		self.negedge_tasks = {}
+	end
 
 	self.event_task_id_list_map = {}
 	self.event_name_map = {}
@@ -102,6 +106,13 @@ end
 function Scheduler:_remove_task(id)
 	self.task_count = self.task_count - 1
 	table_insert(self.pending_removal_tasks, id)
+	do
+		if self.posedge_tasks[id] then
+			self.posedge_tasks[id] = nil
+		elseif self.negedge_tasks[id] then
+			self.negedge_tasks[id] = nil
+		end
+	end
 end
 
 function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
@@ -212,13 +223,17 @@ end
 
 function Scheduler:schedule_posedge_tasks()
 	do
-		assert(false, "[Scheduler] schedule_posedge_tasks() is only available in EDGE_STEP mode!")
+		for id, _ in pairs(self.posedge_tasks) do
+			self:schedule_task(id)
+		end
 	end
 end
 
 function Scheduler:schedule_negedge_tasks()
 	do
-		assert(false, "[Scheduler] schedule_negedge_tasks() is only available in EDGE_STEP mode!")
+		for id, _ in pairs(self.negedge_tasks) do
+			self:schedule_task(id)
+		end
 	end
 end
 
