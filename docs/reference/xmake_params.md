@@ -60,6 +60,8 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
 ## 可选参数
 
+<a id="cfg-user-cfg"></a>
+
 1. `#!lua set_values("cfg.user_cfg", <user cfg file>)`
 
     设置用户自定义的配置文件，这个配置文件是一个 Lua 脚本，格式如下所示：
