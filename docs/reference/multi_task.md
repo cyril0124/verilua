@@ -248,6 +248,27 @@ xmake run TestDesign
 [                              27178@monitor_task]   324.09 ms   percent: 38.00% ┃███████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
 total_time: 0.85 s / 852.91 ms
 ```
+
+## 其他 Scheduler API
+
+1. `#!lua scheduler:wakeup_task(<task_id>)`
+
+    通过 `<task_id>` 唤醒一个已经结束的任务，这个任务必须是之前已经被注册过的任务，如果任务之前没有注册过或者这个任务还在运行（没有结束），那么调用的时候会抛出一个错误。
+
+2. `#!lua scheduler:try_wakeup_task(<task_id>)`
+
+    尝试唤醒一个任务，如果这个任务还在运行，则什么都不做，如果这个任务已经结束，则唤醒这个任务。
+
+    ```lua
+    scheduler:try_wakeup_task(123)
+    
+    -- equivalent to
+
+    if scheduler:check_task_exists(123) then
+        scheduler:wakeup_task(123)
+    end
+    ```
+
 ## Start Task 和 Finish Task
 
 Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。

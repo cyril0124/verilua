@@ -73,7 +73,9 @@ local record SchedulerClass
     task_function_map: {TaskID: FunctionTaskBody} -- only for `function` task
     task_yield_info_map: {TaskID: CoroutineYieldInfo} -- only for `function` task
     task_coroutine_map: {TaskID: thread} -- only for `coroutine` task
-    task_name_map: {TaskID: string}
+    task_body_map: {TaskID: CoroutineTaskBody}
+    task_name_map_running: {TaskID: string} -- This map holds all the running task names
+    task_name_map_archived: {TaskID: string} -- This map holds all the archived task names
     task_fired_status_map: {TaskID: boolean}
     task_execution_count_map:  {TaskID: integer}
     pending_removal_tasks: {TaskID}
@@ -100,7 +102,9 @@ local record SchedulerClass
 
     -- Public
     check_task_exists: function(SchedulerClass, TaskID): boolean
-    append_task: function(SchedulerClass, TaskID, string, CoroutineTaskBody, boolean): TaskID
+    append_task: function(SchedulerClass, TaskID, string, CoroutineTaskBody, boolean): TaskID -- Append/Register a new task
+    wakeup_task: function(SchedulerClass, TaskID) -- Wakeup an registered task
+    try_wakeup_task: function(SchedulerClass, TaskID) -- Try to wakeup an registered task, if the task is still running, do nothing, otherwise, wakeup it
     append_function_task: function(SchedulerClass, TaskID, string, FunctionTaskBody, CoroutineTaskBody, boolean): TaskID
     schedule_task: function(SchedulerClass, TaskID)
     schedule_tasks: function(SchedulerClass, TaskID)
@@ -137,7 +141,9 @@ function Scheduler:_init()
     end
 
     self.task_coroutine_map = {}
-    self.task_name_map = {}
+    self.task_body_map = {}
+    self.task_name_map_running = {}
+    self.task_name_map_archived = {}
     self.task_fired_status_map = {} -- Used to check if a task has been fired
     self.task_execution_count_map = {}
     self.pending_removal_tasks = {}
@@ -168,7 +174,7 @@ function Scheduler:_is_coroutine_task(id: TaskID): boolean
 end
 
 function Scheduler:check_task_exists(id: TaskID): boolean
-    return self.task_name_map[id] ~= nil
+    return self.task_name_map_running[id] ~= nil
 end
 
 function Scheduler:_alloc_coroutine_task_id(): TaskID
@@ -273,16 +279,18 @@ function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTas
         end
 
         if self:check_task_exists(id) then
-            local task_name = self.task_name_map[id]
+            local task_name = self.task_name_map_running[id]
             assert(false, "[Scheduler] Task already exists! task_id: " .. id .. ", task_name: " .. task_name )
         end
     else
         task_id = self:_alloc_coroutine_task_id()
     end
 
-    self.task_name_map[task_id] = name
+    self.task_name_map_running[task_id] = name
+    self.task_name_map_archived[task_id] = name
     self.task_fired_status_map[task_id] = false
     self.task_coroutine_map[task_id] = coro_create(task_body as function)
+    self.task_body_map[task_id] = task_body
     self.task_execution_count_map[task_id] = 0
 
     self.task_count = self.task_count + 1
@@ -293,6 +301,38 @@ function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTas
     end
 
     return task_id
+end
+
+function Scheduler:wakeup_task(id: TaskID)
+    local task_name = self.task_name_map_archived[id]
+    if task_name == nil then
+        assert(false, "[Scheduler] Task not registered! task_id: " .. id)
+    end
+
+    if self.task_name_map_running[id] then
+        assert(false, "[Scheduler] Task already running! task_id: " .. id .. ", task_name: " .. task_name)
+    end
+    
+    self.task_name_map_running[id] = task_name
+    self.task_fired_status_map[id] = true
+    self.task_coroutine_map[id] = coro_create(self.task_body_map[id] as function)
+    self:schedule_task(id)
+end
+
+function Scheduler:try_wakeup_task(id: TaskID)
+    if self:check_task_exists(id) then
+        return
+    else
+        local task_name = self.task_name_map_archived[id]
+        if task_name == nil then
+            assert(false, "[Scheduler] Task not registered! task_id: " .. id)
+        end
+
+        self.task_name_map_running[id] = task_name
+        self.task_fired_status_map[id] = true
+        self.task_coroutine_map[id] = coro_create(self.task_body_map[id] as function)
+        self:schedule_task(id)
+    end
 end
 
 if _G.ENABLE_FUNC_TASK then
@@ -320,14 +360,14 @@ if _G.ENABLE_FUNC_TASK then
             end
 
             if self:check_task_exists(id) then
-                local task_name = self.task_name_map[id]
+                local task_name = self.task_name_map_running[id]
                 assert(false, "[Scheduler] Task already exists! task_id: " .. id .. ", task_name: " .. task_name )
             end
         else
             task_id = self:_alloc_function_task_id()
         end
 
-        self.task_name_map[task_id] = name
+        self.task_name_map_running[task_id] = name
         self.task_fired_status_map[task_id] = false
         self.task_function_map[task_id] = task_body
         self.task_execution_count_map[task_id] = 0
@@ -350,7 +390,7 @@ end
 
 function Scheduler:schedule_task(id: TaskID)
     for _, remove_id in ipairs(self.pending_removal_tasks) do
-        self.task_name_map[remove_id] = nil
+        self.task_name_map_running[remove_id] = nil
         self.task_execution_count_map[remove_id] = 0
         self.task_fired_status_map[remove_id] = false
 
@@ -376,7 +416,7 @@ function Scheduler:schedule_task(id: TaskID)
             ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id]) as (boolean, TaskCallbackType, string, integer)
 
             if not ok then
-                print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
+                print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
                 
                 _G.verilua_get_error = true
                 assert(false)
@@ -397,7 +437,7 @@ function Scheduler:schedule_task(id: TaskID)
         ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id]) as (boolean, TaskCallbackType, string, integer)
 
         if not ok then
-            print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
+            print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
             
             _G.verilua_get_error = true
             assert(false)
@@ -412,7 +452,7 @@ function Scheduler:schedule_task(id: TaskID)
 
     if _G.ACC_TIME then
         e = os_clock()
-        local name = self.task_name_map[id]
+        local name = self.task_name_map_running[id]
         if _G.SAFETY then
             assert(name is string, "task name is not string => " .. tostring(name) .. " id: " .. tostring(id))
         end
@@ -439,7 +479,7 @@ function Scheduler:schedule_tasks(id: TaskID)
 end
 
 function Scheduler:schedule_all_tasks()
-    for id, _ in pairs(self.task_name_map) do
+    for id, _ in pairs(self.task_name_map_running) do
         if _G.NORMAL then
             local fired = self.task_fired_status_map[id]
             if not fired then
@@ -550,7 +590,7 @@ function Scheduler:list_tasks()
     end
 
     local max_name_str_len: integer = 0
-    for _, name in pairs(self.task_name_map) do
+    for _, name in pairs(self.task_name_map_running) do
         local len = #name
         if len > max_name_str_len then
             max_name_str_len = len
@@ -558,7 +598,7 @@ function Scheduler:list_tasks()
     end
 
     local idx = 0
-    for id, name in pairs(self.task_name_map) do
+    for id, name in pairs(self.task_name_map_running) do
         print(f("[%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id, self.task_execution_count_map[id]))
         idx = idx + 1
     end
