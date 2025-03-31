@@ -304,7 +304,7 @@ function SignalDB:auto_bundle(hier_path, params)
 
     -- Extract hierarchy vector
     local hier_vec = stringx.split(hier_path, ".")
-    
+
     -- Initialize signal_db
     local curr = self:get_db_data()
 
@@ -350,10 +350,16 @@ function SignalDB:auto_bundle(hier_path, params)
     assert(#signals > 0, "[auto_bundle] No signals found! params: " .. inspect(params))
 
     local Bundle = require "verilua.handles.LuaBundle"
+    local name = "auto_bundle"
+    if params.name then
+        assert(type(params.name) == "string", "[auto_bundle] `name` should be a string!")
+        name = name .. "@" .. params.name
+    end
+
     if params.prefix then
-        return Bundle(signals, params.prefix, hier_path, "auto_bundle", false, {})
+        return Bundle(signals, params.prefix, hier_path, name, false, {})
     else
-        return Bundle(signals, "", hier_path, "auto_bundle", false, {})
+        return Bundle(signals, "", hier_path, name, false, {})
     end
 end
 
