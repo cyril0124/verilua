@@ -476,8 +476,6 @@ extern "C" std::string dpi_exporter_get_top_name() {{
         fmt::println("[dpi_exporter] start generating new rtl files, outdir: {}", outdir);
         fflush(stdout);
 
-        fmt::println("{}", SyntaxPrinter::printFile(*tree));
-
         generateNewFile(SyntaxPrinter::printFile(*tree), outdir);
 
         fmt::println("[dpi_exporter] finish generating new rtl files, outdir: {}", outdir);
