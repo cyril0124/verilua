@@ -417,7 +417,8 @@ function Scheduler:schedule_task(id: TaskID)
 
             if not ok then
                 print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
-                
+                io.flush()
+
                 _G.verilua_get_error = true
                 assert(false)
             end
@@ -438,7 +439,8 @@ function Scheduler:schedule_task(id: TaskID)
 
         if not ok then
             print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
-            
+            io.flush()
+
             _G.verilua_get_error = true
             assert(false)
         end

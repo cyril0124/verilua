@@ -13,6 +13,7 @@ end
 local assert = _tl_compat and _tl_compat.assert or assert
 local _ = _tl_compat and _tl_compat.coroutine or coroutine
 local _ = _tl_compat and _tl_compat.debug or debug
+local io = _tl_compat and _tl_compat.io or io
 local ipairs = _tl_compat and _tl_compat.ipairs or ipairs
 local _ = _tl_compat and _tl_compat.math or math
 local os = _tl_compat and _tl_compat.os or os
@@ -228,6 +229,7 @@ function Scheduler:schedule_task(id)
 
 		if not ok then
 			print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id], cb_type_or_err)))
+			io.flush()
 
 			_G.verilua_get_error = true
 			assert(false)
