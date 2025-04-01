@@ -155,11 +155,11 @@ for i, tbl in ipairs(dpi_exporter_config) do
         end
     end
 
-    if tbl.signal == nil then
-        tbl.signal = {{}}
+    if tbl.signals == nil then
+        tbl.signals = {{}}
     else
-        for i, v in ipairs(tbl.signal) do
-            assert(type(v) == "string", "item of the `signal` table must be string")
+        for i, v in ipairs(tbl.signals) do
+            assert(type(v) == "string", "item of the `signals` table must be string")
         end
     end
 
@@ -182,7 +182,7 @@ end
         bool isTopModule       = item["is_top_module"].get_or(std::string("false")) == "true";
 
         std::vector<std::string> signalPatternVec;
-        for (const auto &strEntry : (sol::table)item["signal"]) {
+        for (const auto &strEntry : (sol::table)item["signals"]) {
             const auto &str = strEntry.second;
             if (str.is<std::string>()) {
                 signalPatternVec.push_back(str.as<std::string>());
