@@ -534,11 +534,27 @@ void DPIExporterRewriter::handle(HierarchyInstantiationSyntax &inst) {
 
         HierPathGetter visitor(_moduleName, _instName);
         compilation.getRoot().visit(visitor);
-        ASSERT(visitor.hierPaths.size() == 1, "TODO:", visitor.hierPaths.size());
 
-        std::string hierPath = visitor.hierPaths[0];
-        hierPathVec.emplace_back(hierPath);
-        fmt::println("[DPIExporterRewriter] [{}INSTANCE{}] moudleName:<{}>, instName:<{}>, hierPath:<{}>", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, inst.type.rawText(), _instName, hierPath);
+        int idx = 0;
+        for (const auto &hierPath : visitor.hierPaths) {
+            bool ignore = false;
+
+            // Check if the hierPath is already in hierPathVec
+            for (const auto &hierPath_1 : hierPathVec) {
+                if (hierPath == hierPath_1) {
+                    ignore = true;
+                    break;
+                }
+            }
+
+            if (ignore) {
+                continue;
+            }
+
+            hierPathVec.emplace_back(hierPath);
+            fmt::println("[DPIExporterRewriter] [{}INSTANCE{}] instName:<{}> moudleName:<{}>, instName:<{}>, hierPath[{}]:<{}>", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, _instName, inst.type.rawText(), _instName, idx, hierPath);
+            idx++;
+        }
 
         if (distributeDPI) {
             // Each module has only one unique instance ID
