@@ -73,6 +73,9 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
             std::string sv_readSignalFuncInvokeParam = "";
             std::string dpiFuncParam                 = "";
             std::string dpiFuncBody                  = "";
+
+            ASSERT(portVec.size() != 0, "Port vector is empty!", moduleName);
+
             for (int i = 0; i < portVec.size(); i++) {
                 auto &p = portVec[i];
                 if (p.bitWidth == 1) {
@@ -160,7 +163,7 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                 std::string dpiPortStruct = "";
 #endif
                 dpiFuncBody += fmt::format("extern \"C\" void {}({}) {{\n", dpiFuncName, dpiFuncParam);
-                dpiFuncFileContent += fmt::format("// hierPath: {}\n", hierPathName);
+                dpiFuncFileContent += fmt::format("// hierPath: {}\n", hierPath);
                 for (auto &p : portVec) {
                     auto beatSize = coverWith32(p.bitWidth);
 #ifdef USE_PORT_STRUCT
@@ -430,6 +433,9 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                     }
                 }
             } else {
+                bool hasAnyNet = false;
+                bool hasAnyVar = false;
+
                 auto netIter = instSym->body.membersOfType<NetSymbol>();
                 for (const auto &net : netIter) {
                     auto netName  = std::string(net.name);
@@ -449,6 +455,8 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                             fflush(stdout);
                         }
                     }
+
+                    hasAnyNet = true;
                 }
 
                 auto varIter = instSym->body.membersOfType<VariableSymbol>();
@@ -470,7 +478,11 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                             fflush(stdout);
                         }
                     }
+
+                    hasAnyVar = true;
                 }
+
+                ASSERT(hasAnyNet || hasAnyVar, "No net or var found in module", moduleName, info);
             }
 
             // Try find clock from instance body

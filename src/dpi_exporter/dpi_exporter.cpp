@@ -201,6 +201,10 @@ end
             }
         }
 
+        if (signalPatternVec.empty()) {
+            fmt::println("[dpi_exporter] {}WARNING{}: no signal pattern found for module: {}!", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, moduleName);
+        }
+
         dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec, disableSignalPatternVec, isTopModule});
     }
     ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
@@ -393,8 +397,10 @@ end
     dpiFuncFileContent += dpiAllocGetValue32Func;
 
     // Generate <alloc_get_value_vec>
-    dpiAllocGetValueVecFunc.pop_back();
-    dpiAllocGetValueVecFunc.pop_back();
+    if (dpiAllocGetValueVecFunc.ends_with(",\n")) {
+        dpiAllocGetValueVecFunc.pop_back();
+        dpiAllocGetValueVecFunc.pop_back();
+    }
     dpiAllocGetValueVecFunc += "\n\t};\n";
     dpiAllocGetValueVecFunc += R"(
     auto it = handle_to_func.find(handle);
@@ -453,18 +459,30 @@ extern "C" std::string dpi_exporter_get_top_name() {{
         dpiFuncFileContent += dpiTickFunc;
     }
 
-    std::fstream dpiFuncFile;
-    dpiFuncFile.open(std::string(outdir) + "/" + dpiFileName, std::ios::out);
-    dpiFuncFile << dpiFuncFileContent;
-    dpiFuncFile.close();
+    {
+        fmt::println("[dpi_exporter] start generating dpi file, outdir: {}, dpiFileName: {}", outdir, dpiFileName == DEFAULT_DPI_FILE_NAME ? dpiFileName + "(default)" : dpiFileName);
+        fflush(stdout);
 
-    fmt::println("[dpi_exporter] start generating new files, outdir: {}, dpiFileName: {}", outdir, dpiFileName == DEFAULT_DPI_FILE_NAME ? dpiFileName + "(default)" : dpiFileName);
-    fflush(stdout);
+        std::fstream dpiFuncFile;
+        dpiFuncFile.open(std::string(outdir) + "/" + dpiFileName, std::ios::out);
+        dpiFuncFile << dpiFuncFileContent;
+        dpiFuncFile.close();
 
-    generateNewFile(SyntaxPrinter::printFile(*tree), outdir);
+        fmt::println("[dpi_exporter] finish generating dpi file, outdir: {}, dpiFileName: {}", outdir, dpiFileName == DEFAULT_DPI_FILE_NAME ? dpiFileName + "(default)" : dpiFileName);
+        fflush(stdout);
+    }
 
-    fmt::println("[dpi_exporter] finish generating new files, outdir: {}, dpiFileName: {}", outdir, dpiFileName == DEFAULT_DPI_FILE_NAME ? dpiFileName + "(default)" : dpiFileName);
-    fflush(stdout);
+    {
+        fmt::println("[dpi_exporter] start generating new rtl files, outdir: {}", outdir);
+        fflush(stdout);
+
+        fmt::println("{}", SyntaxPrinter::printFile(*tree));
+
+        generateNewFile(SyntaxPrinter::printFile(*tree), outdir);
+
+        fmt::println("[dpi_exporter] finish generating new rtl files, outdir: {}", outdir);
+        fflush(stdout);
+    }
 
     // Delete temporary files
     for (auto &file : files) {
