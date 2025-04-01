@@ -10,7 +10,6 @@ class VeriluaConan(ConanFile):
         "slang/8.0",
         "sol2/3.3.1",
         "argparse/3.1",
-        "elfio/3.12",
         "inja/3.4.0",
         "libassert/2.1.4",
         "fmt/11.1.4",
