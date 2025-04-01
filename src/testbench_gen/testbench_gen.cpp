@@ -117,7 +117,6 @@ int main(int argc, const char *argv[]) {
     const std::string tbtopFilePath    = outdir + "/" + tbtopName + ".sv";
     const std::string othersFilePath   = outdir + "/" + "others.sv";
     const std::string metaInfoFilePath = outdir + "/tb_gen.meta.json";
-    const std::string portInfoFilePath = outdir + "/tb_gen.portInfos.json";
 
     bool shouldRegen = !fs::exists(tbtopFilePath) || !fs::exists(othersFilePath) || regen;
 
