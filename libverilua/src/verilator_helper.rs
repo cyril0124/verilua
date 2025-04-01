@@ -2,7 +2,7 @@ use libc::{c_char, c_int, c_void};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
-use crate::verilua_env::VERILUA_ENV;
+use crate::verilua_env::get_verilua_env;
 
 type VerilatorFunc = Option<unsafe extern "C" fn(*mut c_void)>;
 
@@ -103,18 +103,16 @@ pub unsafe extern "C" fn verilua_schedule_loop() {
     #[cfg(feature = "debug")]
     log::debug!("enter verilua_schedule_loop()");
 
-    VERILUA_ENV.with(|env| {
-        let env = unsafe { &mut *env.get() };
-        if let Err(e) = env
-            .lua
-            .globals()
-            .get::<mlua::prelude::LuaFunction>("verilua_schedule_loop")
-            .expect("Failed to load verilua_schedule_loop")
-            .call::<()>(())
-        {
-            panic!("Error calling verilua_schedule_loop: {e}");
-        };
-    });
+    let env = get_verilua_env();
+    if let Err(e) = env
+        .lua
+        .globals()
+        .get::<mlua::prelude::LuaFunction>("verilua_schedule_loop")
+        .expect("Failed to load verilua_schedule_loop")
+        .call::<()>(())
+    {
+        panic!("Error calling verilua_schedule_loop: {e}");
+    };
 
     unreachable!()
 }

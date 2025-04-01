@@ -85,8 +85,7 @@ pub unsafe extern "C" fn vpiml_register_start_callback() {
 unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     log::debug!("start_callback");
 
-    let env = get_verilua_env();
-    env.initialize();
+    unsafe { verilua_env::verilua_init() };
     0
 }
 

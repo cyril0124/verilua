@@ -10,13 +10,19 @@ use super::*;
 
 const MAX_VECTOR_SIZE: usize = 32;
 
-thread_local! {
-    pub static VERILUA_ENV: UnsafeCell<VeriluaEnv> = UnsafeCell::new(VeriluaEnv::default());
-}
+static mut VERILUA_ENV: Option<UnsafeCell<VeriluaEnv>> = None;
 
 #[inline(always)]
 pub fn get_verilua_env() -> &'static mut VeriluaEnv {
-    unsafe { VERILUA_ENV.with(|env| &mut *env.get()) }
+    unsafe {
+        match VERILUA_ENV {
+            Some(ref mut env_cell) => &mut *env_cell.get(),
+            None => {
+                VERILUA_ENV = Some(UnsafeCell::new(VeriluaEnv::default()));
+                get_verilua_env()
+            }
+        }
+    }
 }
 
 pub type TaskID = u32;
@@ -205,7 +211,7 @@ impl Drop for VeriluaEnv {
 
 impl VeriluaEnv {
     pub fn initialize(&mut self) {
-        log::debug!("VeriluaEnv::initialize()");
+        log::debug!("VeriluaEnv::initialize() start",);
 
         if self.initialized {
             return;
@@ -296,6 +302,8 @@ impl VeriluaEnv {
         include!("./gen/gen_sim_event_chunk_init.rs");
 
         self.start_time = Instant::now();
+
+        log::debug!("VeriluaEnv::initialize() finish");
     }
 
     pub fn finalize(&mut self) {
