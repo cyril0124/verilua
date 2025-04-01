@@ -30,6 +30,21 @@ int main(int argc, char **argv) {
     driver.cmdLine.add("-h,--help", showHelp, "Display available options");
 
     driver.addStandardArgs();
+
+    driver.cmdLine.setPositional(
+        [&driver, &_files](std::string_view value) {
+            if (!driver.options.excludeExts.empty()) {
+                if (size_t extIndex = value.find_last_of('.'); extIndex != std::string_view::npos) {
+                    if (driver.options.excludeExts.count(std::string(value.substr(extIndex + 1))))
+                        return "";
+                }
+            }
+
+            _files.push_back(std::string(value));
+            return "";
+        },
+        "files", {}, true);
+
     ASSERT(driver.parseCommandLine(argc, argv));
 
     if (showHelp) {
