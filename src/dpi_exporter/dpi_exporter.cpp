@@ -79,9 +79,6 @@ int main(int argc, char **argv) {
 #else
     optString += " STD_COPY";
 #endif
-#ifdef USE_PORT_STRUCT
-    optString += " USE_PORT_STRUCT";
-#endif
     fmt::print("[dpi_exporter] Optimization: {}\n", optString);
 
     if (!std::filesystem::exists(workdir)) {

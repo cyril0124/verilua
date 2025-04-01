@@ -4,6 +4,7 @@
 #include "SlangCommon.h"
 #include "fmt/base.h"
 #include "fmt/color.h"
+#include <fmt/ranges.h>
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
@@ -29,7 +30,6 @@
 // Optimization configs
 // ===========================================================
 // #define NO_STD_COPY
-// #define USE_PORT_STRUCT
 
 #define DEFAULT_OUTPUT_DIR ".dpi_exporter"
 #define DEFAULT_WORK_DIR ".dpi_exporter"

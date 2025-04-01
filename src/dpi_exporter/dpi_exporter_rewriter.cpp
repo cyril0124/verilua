@@ -13,23 +13,22 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
         }
         ASSERT(firstMember != nullptr, "TODO:");
 
-        std::string param   = "";
-        std::string param_1 = "";
+        std::string dpiTickDeclParam = "";
+        std::string dpiTickFuncParam = "";
+        std::vector<std::string> dpiTickDeclParamVec;
+        std::vector<std::string> dpiTickFuncParamVec;
         for (auto &p : portVec) {
             if (p.bitWidth == 1) {
-                param += fmt::format("\tinput bit {}_{},\n", p.hierPathName, p.name);
+                dpiTickDeclParamVec.push_back(fmt::format("\tinput bit {}_{}", p.hierPathName, p.name));
             } else {
-                param += fmt::format("\tinput bit [{}:0] {}_{},\n", p.bitWidth - 1, p.hierPathName, p.name);
+                dpiTickDeclParamVec.push_back(fmt::format("\tinput bit [{}:0] {}_{}", p.bitWidth - 1, p.hierPathName, p.name));
             }
 
-            param_1 += fmt::format("{}.{}, ", p.hierPathNameDot, p.name);
+            dpiTickFuncParamVec.push_back(fmt::format("{}.{}", p.hierPathNameDot, p.name));
         }
 
-        param.pop_back();
-        param.pop_back();
-
-        param_1.pop_back();
-        param_1.pop_back();
+        dpiTickDeclParam = fmt::to_string(fmt::join(dpiTickDeclParamVec, ",\n"));
+        dpiTickFuncParam = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));
 
         // Check clock signal
         auto instSym = model.syntaxToInstanceSymbol(syntax);
@@ -59,7 +58,7 @@ always @(posedge {}.{}) begin
     dpi_exporter_tick({});
 end
 )",
-                                                       param, topModuleName, clock, param_1)));
+                                                       dpiTickDeclParam, topModuleName, clock, dpiTickFuncParam)));
         findTopModule = true;
     }
 }
@@ -69,42 +68,37 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
         fmt::println("[DPIExporterRewriter] found module: {}, writeGenStatment: {}, instSize: {}", moduleName, writeGenStatment, instSize);
 
         if (writeGenStatment) {
-            std::string sv_readSignalFuncParam       = "";
-            std::string sv_readSignalFuncInvokeParam = "";
-            std::string dpiFuncParam                 = "";
-            std::string dpiFuncBody                  = "";
+            std::string sv_dpiTickDeclParam = "";
+            std::string sv_dpiTickFuncParam = "";
+            std::string dpiTickDeclParam    = "";
 
             ASSERT(portVec.size() != 0, "Port vector is empty!", moduleName);
 
+            std::vector<std::string> sv_dpiTickDeclParamVec;
+            std::vector<std::string> sv_dpiTickFuncParamVec;
+            std::vector<std::string> dpiTickDeclParamVec;
             for (int i = 0; i < portVec.size(); i++) {
                 auto &p = portVec[i];
                 if (p.bitWidth == 1) {
-                    sv_readSignalFuncParam += fmt::format("\t\tinput bit {},\n", p.name, p.name);
+                    sv_dpiTickDeclParamVec.push_back(fmt::format("\t\tinput bit {}", p.name, p.name));
                 } else {
-                    sv_readSignalFuncParam += fmt::format("\t\tinput bit [{}:0] {},\n", p.bitWidth - 1, p.name);
+                    sv_dpiTickDeclParamVec.push_back(fmt::format("\t\tinput bit [{}:0] {}", p.bitWidth - 1, p.name));
                 }
 
-                sv_readSignalFuncInvokeParam += fmt::format("{}, ", p.name);
+                sv_dpiTickFuncParamVec.push_back(fmt::format("{}", p.name));
 
                 if (p.bitWidth == 1) {
-                    dpiFuncParam += fmt::format("const uint8_t {}, ", p.name);
-                    // dpiFuncParam += fmt::format("const svBit {}, ", p.name);
+                    dpiTickDeclParamVec.push_back(fmt::format("const uint8_t {}", p.name));
                 } else {
-                    dpiFuncParam += fmt::format("const uint32_t *{}, ", p.name);
-                    // dpiFuncParam += fmt::format("const svBitVecVal *{}, ", p.name);
+                    dpiTickDeclParamVec.push_back(fmt::format("const uint32_t *{}", p.name));
                 }
             }
 
-            // Remove the last comma
-            sv_readSignalFuncParam.pop_back();
-            sv_readSignalFuncParam.pop_back();
+            sv_dpiTickDeclParam = fmt::to_string(fmt::join(sv_dpiTickDeclParamVec, ",\n"));
+            sv_dpiTickFuncParam = fmt::to_string(fmt::join(sv_dpiTickFuncParamVec, ", "));
+            dpiTickDeclParam    = fmt::to_string(fmt::join(dpiTickDeclParamVec, ", "));
 
-            sv_readSignalFuncInvokeParam.pop_back();
-            sv_readSignalFuncInvokeParam.pop_back();
-
-            dpiFuncParam.pop_back();
-            dpiFuncParam.pop_back();
-
+            std::string dpiFuncBody     = "";
             std::string sv_genStatement = "\ngenerate // DPI Exporter\n";
 
             ASSERT(hierPathNameVec.size() == 0);
@@ -124,7 +118,7 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                 std::string hierPath          = "";
                 std::string hierPathName      = "";
                 std::string dpiFuncNamePrefix = "";
-                std::string dpiFuncName       = "";
+                std::string dpiTickName       = "";
 
                 if (!isTopModule) {
                     hierPath     = hierPathVec[instId];
@@ -135,7 +129,7 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                 }
 
                 dpiFuncNamePrefix = fmt::format("VERILUA_DPI_EXPORTER_{}", hierPathName);
-                dpiFuncName       = fmt::format("{}_TICK", dpiFuncNamePrefix);
+                dpiTickName       = fmt::format("{}_TICK", dpiFuncNamePrefix);
 
                 std::string sv_dpiBlock = "";
                 if (!isTopModule) {
@@ -151,68 +145,34 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
         {}({});
     end
 )",
-                                           hierPath, dpiFuncName, sv_readSignalFuncParam, clock, dpiFuncName, sv_readSignalFuncInvokeParam);
+                                           hierPath, dpiTickName, sv_dpiTickDeclParam, clock, dpiTickName, sv_dpiTickFuncParam);
                 if (!isTopModule) {
                     sv_dpiBlock += "end\n";
                 }
 
                 sv_genStatement += sv_dpiBlock;
 
-                // Generate DPI file
-#ifdef USE_PORT_STRUCT
-                std::string dpiPortStruct = "";
-#endif
-                dpiFuncBody += fmt::format("extern \"C\" void {}({}) {{\n", dpiFuncName, dpiFuncParam);
+                // ----------------------------------------------------------------------
+                // Generate DPI file(C++)
+                // ----------------------------------------------------------------------
+                dpiFuncBody += fmt::format("extern \"C\" void {}({}) {{\n", dpiTickName, dpiTickDeclParam);
                 dpiFuncFileContent += fmt::format("// hierPath: {}\n", hierPath);
                 for (auto &p : portVec) {
-                    auto beatSize = coverWith32(p.bitWidth);
-#ifdef USE_PORT_STRUCT
-                    auto signalName = fmt::format("{}_ports.{}", hierPathName, p.name);
-#else
+                    auto beatSize   = coverWith32(p.bitWidth);
                     auto signalName = fmt::format("__{}_{}", hierPathName, p.name);
-#endif
                     ASSERT(beatSize >= 1);
 
                     // Signal declaration
                     if (beatSize == 1) {
                         if (p.bitWidth == 1) {
-#ifdef USE_PORT_STRUCT
-                            dpiFuncBody += fmt::format("\t{}_ports.{} = {};\n", hierPathName, p.name, p.name);
-#else
-                            // dpiFuncFileContent += fmt::format("volatile uint8_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                             dpiFuncFileContent += fmt::format("uint8_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                             dpiFuncBody += fmt::format("\t__{}_{} = {};\n", hierPathName, p.name, p.name);
-#endif // USE_PORT_STRUCT
                         } else {
-#ifdef USE_PORT_STRUCT
-                            dpiFuncBody += fmt::format("\t{}_ports.{} = *{};\n", hierPathName, p.name, p.name);
-#else
-                            // dpiFuncFileContent += fmt::format("volatile uint32_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                             dpiFuncFileContent += fmt::format("uint32_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                             dpiFuncBody += fmt::format("\t__{}_{} = *{};\n", hierPathName, p.name, p.name);
-#endif // USE_PORT_STRUCT
                         }
-
-#ifdef USE_PORT_STRUCT
-                        if (p.bitWidth == 1) {
-                            dpiPortStruct += fmt::format("\tbool {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
-                        } else if (p.bitWidth <= 8) {
-                            dpiPortStruct += fmt::format("\tuint8_t {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
-                        } else if (p.bitWidth <= 16) {
-                            dpiPortStruct += fmt::format("\tuint16_t {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
-                        } else {
-                            dpiPortStruct += fmt::format("\tuint32_t {}; // bits: {} handleId: {}\n", p.name, p.bitWidth, p.handleId);
-                        }
-#endif
-
                     } else {
-#ifdef USE_PORT_STRUCT
-                        dpiPortStruct += fmt::format("\tuint32_t {}[{}]; // bits: {}, handleId: {}\n", p.name, beatSize, p.bitWidth, p.handleId);
-#else
-                        // dpiFuncFileContent += fmt::format("volatile uint32_t __{}_{}[{}]; // bits: {}, handleId: {}\n", hierPathName, p.name, beatSize, p.bitWidth, p.handleId);
                         dpiFuncFileContent += fmt::format("uint32_t __{}_{}[{}]; // bits: {}, handleId: {}\n", hierPathName, p.name, beatSize, p.bitWidth, p.handleId);
-#endif // USE_PORT_STRUCT
-
 #ifdef NO_STD_COPY
                         // No std::copy
                         for (int k = 0; k < beatSize; k++) {
@@ -256,23 +216,10 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                     }
                 }
 
-#ifdef USE_PORT_STRUCT
-                dpiPortStruct = fmt::format(R"(struct __attribute__((aligned(64))) {}_ports_t {{
-{}}};
-
-struct {}_ports_t {}_ports;
-)",
-                                            hierPathName, dpiPortStruct, hierPathName, hierPathName);
-                dpiFuncFileContent += dpiPortStruct;
-#endif
-
                 for (auto &p : portVec) {
-                    auto beatSize = coverWith32(p.bitWidth);
-#ifdef USE_PORT_STRUCT
-                    auto signalName = fmt::format("{}_ports.{}", hierPathName, p.name);
-#else
+                    auto beatSize   = coverWith32(p.bitWidth);
                     auto signalName = fmt::format("__{}_{}", hierPathName, p.name);
-#endif
+
                     if (beatSize == 1) {
                         dpiFuncFileContent += fmt::format(R"(
 extern "C" uint32_t {}_{}_GET() {{
