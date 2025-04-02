@@ -1,4 +1,4 @@
-use goblin::elf::Elf;
+use goblin::elf::{Elf, Sym};
 use hashbrown::HashMap;
 use libc::{PATH_MAX, c_char, readlink};
 use once_cell::sync::OnceCell;
@@ -114,21 +114,22 @@ pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *cons
         .expect("Failed to read ELF file");
 
     let elf = Elf::parse(&buffer).expect("Failed to parse ELF file");
-    let symtab = elf
-        .syms
-        .iter()
-        .find(|symbol| {
-            if let Some(name) = elf.strtab.get_at(symbol.st_name) {
-                name == symbol_name
-            } else {
-                false
-            }
-        })
-        .expect("Symbol not found");
-    let final_address = symtab.st_value + offset;
-    map.insert(symbol_name, final_address);
+    let symtab_opt = elf.syms.iter().find(|symbol| {
+        if let Some(name) = elf.strtab.get_at(symbol.st_name) {
+            name == symbol_name
+        } else {
+            false
+        }
+    });
 
-    final_address
+    if let Some(symtab) = symtab_opt {
+        let final_address = symtab.st_value + offset;
+        map.insert(symbol_name, final_address);
+        final_address
+    } else {
+        // Symbol not found
+        0
+    }
 }
 
 static CACHE_RESULT: Mutex<Option<String>> = Mutex::new(None);

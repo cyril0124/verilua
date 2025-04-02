@@ -34,6 +34,10 @@ local ffi_cast = function (type_str, value)
     elseif type(value) == "string" then
         -- Get symbol address and cast it to the type_str according to the symbol name(value)
         local symbol_addr = get_global_symbol_addr(value)
+        if symbol_addr == 0 then
+            assert(false, "[SymbolHelper] Symbol not found: ".. value)
+        end
+
         return ffi_cast(type_str, symbol_addr)
     elseif type(value) == "cdata" then
         return ffi_cast(type_str, value)
