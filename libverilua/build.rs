@@ -8,4 +8,7 @@ fn main() {
             panic!("IVERILOG_HOME is not set");
         }
     }
+
+    extern crate cpp_build;
+    cpp_build::build("src/utils/mod.rs");
 }

@@ -73,12 +73,35 @@ lazy_static! {
     static ref SYMBOL_ADDRESS_MAP: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
 }
 
+cpp::cpp! {{
+    #include <cassert>
+    #include <dlfcn.h>
+    #include <link.h>
+}}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *const c_char) -> u64 {
     let filename = unsafe { CStr::from_ptr(filename).to_string_lossy().into_owned() };
     let symbol_name = unsafe { CStr::from_ptr(symbol_name).to_string_lossy().into_owned() };
 
-    let offset: u64 = 0; // Placeholder for actual offset retrieval logic
+    let offset = unsafe {
+        cpp::cpp!([] -> u64 as "uint64_t" {
+            static uint64_t offset = 0;
+            static bool get_offset = false;
+            if (!get_offset) {
+                get_offset = true;
+
+                void *handle = dlopen(NULL, RTLD_LAZY);
+                assert((handle != NULL) && "handle is NULL!");
+
+                struct link_map *map;
+                assert((dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) && "dlinfo failed!");
+
+                offset = (uint64_t)map->l_addr;
+            }
+            return offset;
+        })
+    };
 
     let mut map = SYMBOL_ADDRESS_MAP.lock().unwrap();
     if let Some(&address) = map.get(&symbol_name) {
