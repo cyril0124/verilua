@@ -4,6 +4,7 @@
 #include "SlangCommon.h"
 #include "fmt/base.h"
 #include "fmt/color.h"
+#include "inja/inja.hpp"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
@@ -14,13 +15,13 @@
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
 #include "sol/sol.hpp"
-#include <fmt/ranges.h>
-#include <nlohmann/json.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
+#include <fmt/ranges.h>
 #include <fstream>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <regex>
 #include <span>
 #include <string>

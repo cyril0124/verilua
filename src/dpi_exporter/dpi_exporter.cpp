@@ -31,17 +31,19 @@ class DPIExporter {
     bool distributeDPI;
     bool quiet;
 
+    int totalFileCount;
+
     json metaInfoJson;
     std::string metaInfoFilePath;
 
     bool checkForRegenerate() {
-        if (nocache.value_or(false)) {
-            return true;
-        }
-
         if (!std::filesystem::exists(workdir)) {
             std::filesystem::create_directories(workdir);
             fmt::println("[dpi_exporter] workdir not found, creating and regenerating...");
+            return true;
+        }
+
+        if (nocache.value_or(false)) {
             return true;
         }
 
@@ -164,9 +166,11 @@ class DPIExporter {
                 std::vector<std::string> fileList = parseFileList(file);
                 for (const auto &listedFile : fileList) {
                     files.push_back(listedFile);
+                    totalFileCount++;
                 }
             } else {
                 files.push_back(file);
+                totalFileCount++;
             }
         }
 
@@ -191,7 +195,7 @@ class DPIExporter {
             fileCount++;
 
             if (!quiet) {
-                fmt::println("[dpi_exporter] [{}] get file: {}", fileCount, file);
+                fmt::println("[dpi_exporter] [{}/{}] get file: {}", fileCount, totalFileCount, file);
                 fflush(stdout);
             }
 
@@ -296,32 +300,20 @@ end
         ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
 
         std::string dpiFuncFileContent = "";
-
-        // Used when distributeDPI is FALSE
-        std::vector<PortInfo> portVecAll;
-        std::string dpiTickFunc     = "extern \"C\" void dpi_exporter_tick(";
-        std::string dpiTickFuncBody = "";
-
-        std::string dpiHandleByNameFunc = "extern \"C\" int64_t dpi_exporter_handle_by_name(std::string_view name) {\n";
-        dpiHandleByNameFunc += "\tstatic std::unordered_map<std::string_view, int64_t> name_to_handle = {\n";
-
-        std::string dpiGetTypeStrFunc = "extern \"C\" std::string dpi_exporter_get_type_str(int64_t handle) {\n";
-        dpiGetTypeStrFunc += "\tstatic std::unordered_map<int64_t, std::string_view> handle_to_type_str = {\n";
-
-        std::string dpiGetBitWidthFunc = "extern \"C\" uint32_t dpi_exporter_get_bitwidth(int64_t handle) {\n";
-        dpiGetBitWidthFunc += "\tstatic std::unordered_map<int64_t, uint32_t> handle_to_bitwidth = {\n";
-
-        std::string dpiAllocGetValue32Func = "extern \"C\" GetValue32Func dpi_exporter_alloc_get_value32(int64_t handle) {\n";
-        dpiAllocGetValue32Func += "\tstatic std::unordered_map<int64_t, GetValue32Func> handle_to_func = {\n";
-
-        std::string dpiAllocGetValueVecFunc = "extern \"C\" GetValueVecFunc dpi_exporter_alloc_get_value_vec(int64_t handle) {\n";
-        dpiAllocGetValueVecFunc += "\tstatic std::unordered_map<int64_t, GetValueVecFunc> handle_to_func = {\n";
-
-        std::string dpiAllocGetValueHexStrFunc = "extern \"C\" GetValueHexStrFunc dpi_exporter_alloc_get_value_hex_str(int64_t handle) {\n";
-        dpiAllocGetValueHexStrFunc += "\tstatic std::unordered_map<int64_t, GetValueHexStrFunc> handle_to_func = {\n";
-
+        std::vector<PortInfo> portVecAll; // Used when distributeDPI is FALSE
         std::unordered_set<uint64_t> handleSet;
         bool hasTopModule = false;
+
+        std::vector<std::string> handleByNameVec;
+        std::vector<std::string> getTypeStrVec;
+        std::vector<std::string> getBitWidthVec;
+        std::vector<std::string> getValue32Vec;
+        std::vector<std::string> getValueVecVec;
+        std::vector<std::string> getValueHexStrVec;
+
+        std::vector<std::string> dpiTickFuncParamVec;
+        std::vector<std::string> dpiTickFuncBodyVec;
+
         for (auto info : dpiExporterInfoVec) {
             auto moduleName = info.moduleName;
             fmt::println("---------------- [dpi_exporter] start processing module:<{}> ----------------", moduleName);
@@ -353,16 +345,15 @@ end
                 // Update syntax tree
                 fmt::println("[dpi_exporter] [1] start rebuilding syntax tree");
                 fflush(stdout);
+
                 tree = slang_common::rebuildSyntaxTree(*newTree_1);
+
                 fmt::println("[dpi_exporter] [1] done rebuilding syntax tree");
                 fflush(stdout);
             } else {
-                dpiTickFunc += rewriter_1->dpiTickFuncParam;
-                dpiTickFuncBody += rewriter_1->dpiTickFuncBody;
-
-                for (auto &p : rewriter_1->portVecAll) {
-                    portVecAll.emplace_back(p);
-                }
+                dpiTickFuncParamVec.insert(dpiTickFuncParamVec.end(), rewriter_1->dpiTickFuncParamVec.begin(), rewriter_1->dpiTickFuncParamVec.end());
+                dpiTickFuncBodyVec.insert(dpiTickFuncBodyVec.end(), rewriter_1->dpiTickFuncBodyVec.begin(), rewriter_1->dpiTickFuncBodyVec.end());
+                portVecAll.insert(portVecAll.end(), rewriter_1->portVecAll.begin(), rewriter_1->portVecAll.end());
             }
 
             if (rewriter->instSize == 0 && isTopModule) {
@@ -384,14 +375,18 @@ end
                         PANIC("Duplicated handle id: {}", uniqueHandleId);
                     }
 
-                    dpiHandleByNameFunc += fmt::format("\t\t{{ \"{}_{}\", {} }},\n", hierPathName, p.name, uniqueHandleId);
-                    dpiGetTypeStrFunc += fmt::format("\t\t{{ {}, \"{}\" /* signalName: {}_{} */ }},\n", uniqueHandleId, p.typeStr, hierPathName, p.name);
-                    dpiGetBitWidthFunc += fmt::format("\t\t{{ {}, {} /* signalName: {}_{} */ }},\n", uniqueHandleId, p.bitWidth, hierPathName, p.name);
-                    dpiAllocGetValue32Func += fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET }},\n", uniqueHandleId, hierPathName, p.name);
+                    handleByNameVec.push_back(fmt::format("\t\t{{ \"{}_{}\", {} }}", hierPathName, p.name, uniqueHandleId));
+
+                    getTypeStrVec.push_back(fmt::format("\t\t{{ {}, \"{}\" /* signalName: {}_{} */ }}", uniqueHandleId, p.typeStr, hierPathName, p.name));
+
+                    getBitWidthVec.push_back(fmt::format("\t\t{{ {}, {} /* signalName: {}_{} */ }}", uniqueHandleId, p.bitWidth, hierPathName, p.name));
+
+                    getValue32Vec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET }}", uniqueHandleId, hierPathName, p.name));
+
                     if (p.bitWidth > 32) {
-                        dpiAllocGetValueVecFunc += fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET_VEC }},\n", uniqueHandleId, hierPathName, p.name);
+                        getValueVecVec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET_VEC }}", uniqueHandleId, hierPathName, p.name));
                     }
-                    dpiAllocGetValueHexStrFunc += fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET_HEX_STR }},\n", uniqueHandleId, hierPathName, p.name);
+                    getValueHexStrVec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET_HEX_STR }}", uniqueHandleId, hierPathName, p.name));
                 }
             }
             dpiFuncFileContent += rewriter_1->dpiFuncFileContent;
@@ -422,99 +417,20 @@ end
             fflush(stdout);
         }
 
-        // Generate <handle_by_name>
-        dpiHandleByNameFunc.pop_back();
-        dpiHandleByNameFunc.pop_back();
-        dpiHandleByNameFunc += "\n\t};\n";
-        dpiHandleByNameFunc += R"(
-    auto it = name_to_handle.find(name);
-    if (it != name_to_handle.end()) {
-        return it->second;
-    } else {
-        return -1;
-    }
-)";
-        dpiHandleByNameFunc += "}\n\n";
-        dpiFuncFileContent += dpiHandleByNameFunc;
+        json j;
+        j["topModuleName"]      = topModuleName;
+        j["distributeDPI"]      = distributeDPI ? 1 : 0;
+        j["dpiFuncFileContent"] = dpiFuncFileContent;
+        j["handleByName"]       = fmt::to_string(fmt::join(handleByNameVec, ",\n"));
+        j["getTypeStr"]         = fmt::to_string(fmt::join(getTypeStrVec, ",\n"));
+        j["getBitWidth"]        = fmt::to_string(fmt::join(getBitWidthVec, ",\n"));
+        j["getValue32"]         = fmt::to_string(fmt::join(getValue32Vec, ",\n"));
+        j["getValueVec"]        = fmt::to_string(fmt::join(getValueVecVec, ",\n"));
+        j["getValueHexStr"]     = fmt::to_string(fmt::join(getValueHexStrVec, ",\n"));
+        j["dpiTickFuncParam"]   = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));
+        j["dpiTickFuncBody"]    = fmt::to_string(fmt::join(dpiTickFuncBodyVec, "\n"));
 
-        // Generate <get_type_str>
-        dpiGetTypeStrFunc.pop_back();
-        dpiGetTypeStrFunc.pop_back();
-        dpiGetTypeStrFunc += "\n\t};\n";
-        dpiGetTypeStrFunc += R"(
-    auto it = handle_to_type_str.find(handle);
-    if (it != handle_to_type_str.end()) {
-        return std::string(it->second);
-    } else {
-        return std::string("");
-    }
-)";
-        dpiGetTypeStrFunc += "}\n\n";
-        dpiFuncFileContent += dpiGetTypeStrFunc;
-
-        // Generate <get_bitwidth>
-        dpiGetBitWidthFunc.pop_back();
-        dpiGetBitWidthFunc.pop_back();
-        dpiGetBitWidthFunc += "\n\t};\n";
-        dpiGetBitWidthFunc += R"(
-    auto it = handle_to_bitwidth.find(handle);
-    if (it != handle_to_bitwidth.end()) {
-        return it->second;
-    } else {
-        return 0;
-    }
-)";
-        dpiGetBitWidthFunc += "}\n\n";
-        dpiFuncFileContent += dpiGetBitWidthFunc;
-
-        // Generate <alloc_get_value32>
-        dpiAllocGetValue32Func.pop_back();
-        dpiAllocGetValue32Func.pop_back();
-        dpiAllocGetValue32Func += "\n\t};\n";
-        dpiAllocGetValue32Func += R"(
-    auto it = handle_to_func.find(handle);
-    if (it != handle_to_func.end()) {
-        return it->second;
-    } else {
-        return nullptr;
-    }
-)";
-        dpiAllocGetValue32Func += "}\n\n";
-        dpiFuncFileContent += dpiAllocGetValue32Func;
-
-        // Generate <alloc_get_value_vec>
-        if (dpiAllocGetValueVecFunc.ends_with(",\n")) {
-            dpiAllocGetValueVecFunc.pop_back();
-            dpiAllocGetValueVecFunc.pop_back();
-        }
-        dpiAllocGetValueVecFunc += "\n\t};\n";
-        dpiAllocGetValueVecFunc += R"(
-    auto it = handle_to_func.find(handle);
-    if (it != handle_to_func.end()) {
-        return it->second;
-    } else {
-        return nullptr;
-    }
-)";
-        dpiAllocGetValueVecFunc += "}\n\n";
-        dpiFuncFileContent += dpiAllocGetValueVecFunc;
-
-        // Generate <alloc_get_value_hex_str>
-        dpiAllocGetValueHexStrFunc.pop_back();
-        dpiAllocGetValueHexStrFunc.pop_back();
-        dpiAllocGetValueHexStrFunc += "\n\t};\n";
-        dpiAllocGetValueHexStrFunc += R"(
-    auto it = handle_to_func.find(handle);
-    if (it != handle_to_func.end()) {
-        return it->second;
-    } else {
-        return nullptr;
-    }
-)";
-        dpiAllocGetValueHexStrFunc += "}\n\n";
-        dpiFuncFileContent += dpiAllocGetValueHexStrFunc;
-
-        dpiFuncFileContent = std::string(R"(
+        std::string dpiFileContent = inja::render(R"(
 #include <svdpi.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -527,23 +443,98 @@ end
 using GetValue32Func = std::function<uint32_t ()>;
 using GetValueVecFunc = std::function<void (uint32_t *)>;
 using GetValueHexStrFunc = std::function<void (char*)>;
-)") + "\n\n" + dpiFuncFileContent;
 
-        std::string dpiFuncGetTopName = fmt::format(R"(
-extern "C" std::string dpi_exporter_get_top_name() {{
-    return std::string("{}");
-}}
-)",
-                                                    topModuleName);
-        dpiFuncFileContent += "\n\n" + dpiFuncGetTopName;
+{{dpiFuncFileContent}}
 
-        if (!distributeDPI) {
-            dpiTickFunc.pop_back();
-            dpiTickFunc.pop_back();
-            dpiTickFunc += "){\n";
-            dpiTickFunc += dpiTickFuncBody + "}\n\n";
-            dpiFuncFileContent += dpiTickFunc;
-        }
+extern "C" int64_t dpi_exporter_handle_by_name(std::string_view name) {
+    static std::unordered_map<std::string_view, int64_t> name_to_handle = {
+{{handleByName}}
+    };
+
+    auto it = name_to_handle.find(name);
+    if (it != name_to_handle.end()) {
+        return it->second;
+    } else {
+        return -1;
+    }
+}
+
+extern "C" std::string dpi_exporter_get_type_str(int64_t handle) {
+    static std::unordered_map<int64_t, std::string_view> handle_to_type_str = {
+{{getTypeStr}}
+    };
+
+    auto it = handle_to_type_str.find(handle);
+    if (it != handle_to_type_str.end()) {
+        return std::string(it->second);
+    } else {
+        return std::string("");
+    }
+}
+
+extern "C" uint32_t dpi_exporter_get_bitwidth(int64_t handle) {
+    static std::unordered_map<int64_t, uint32_t> handle_to_bitwidth = {
+{{getBitWidth}}
+    };
+
+    auto it = handle_to_bitwidth.find(handle);
+    if (it != handle_to_bitwidth.end()) {
+        return it->second;
+    } else {
+        return 0;
+    }
+}
+
+extern "C" GetValue32Func dpi_exporter_alloc_get_value32(int64_t handle) {
+    static std::unordered_map<int64_t, GetValue32Func> handle_to_func = {
+{{getValue32}}
+    };
+
+    auto it = handle_to_func.find(handle);
+    if (it!= handle_to_func.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
+}
+
+extern "C" GetValueVecFunc dpi_exporter_alloc_get_value_vec(int64_t handle) {
+    static std::unordered_map<int64_t, GetValueVecFunc> handle_to_func = {
+{{getValueVec}}
+    };
+
+    auto it = handle_to_func.find(handle);
+    if (it!= handle_to_func.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
+}
+
+extern "C" GetValueHexStrFunc dpi_exporter_alloc_get_value_hex_str(int64_t handle) {
+    static std::unordered_map<int64_t, GetValueHexStrFunc> handle_to_func = {
+{{getValueHexStr}}
+    };
+
+    auto it = handle_to_func.find(handle);
+    if (it!= handle_to_func.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
+}
+
+extern "C" std::string dpi_exporter_get_top_name() {
+    return std::string("{{topModuleName}}");
+}
+
+## if distributeDPI == 0
+extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
+{{dpiTickFuncBody}}
+}
+## endif
+        )",
+                                                  j);
 
         {
             fmt::println("[dpi_exporter] start generating dpi file, outdir: {}, dpiFilePath: {}", outdir, dpiFilePath);
@@ -551,7 +542,7 @@ extern "C" std::string dpi_exporter_get_top_name() {{
 
             std::fstream dpiFuncFile;
             dpiFuncFile.open(dpiFilePath, std::ios::out);
-            dpiFuncFile << dpiFuncFileContent;
+            dpiFuncFile << dpiFileContent;
             dpiFuncFile.close();
 
             metaInfoJson["dpiFilePath"] = dpiFilePath;

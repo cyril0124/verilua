@@ -32,15 +32,15 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
     std::string clock;
 
   public:
-    std::string dpiFuncFileContent;
     std::vector<std::string> hierPathVec;
     std::vector<std::string> hierPathNameVec;
     std::vector<PortInfo> portVec;
 
     std::vector<PortInfo> portVecAll;
 
-    std::string dpiTickFuncParam;
-    std::string dpiTickFuncBody;
+    std::string dpiFuncFileContent;
+    std::vector<std::string> dpiTickFuncParamVec;
+    std::vector<std::string> dpiTickFuncBodyVec;
 
     int instSize          = 0;
     bool writeGenStatment = false;
