@@ -3,7 +3,7 @@
 using json = nlohmann::json;
 using namespace slang::parsing;
 
-uint64_t globalHandleIdx = 0; // Each signal has its own handle value(integer)
+uint64_t globalHandleIdx = 0; // Each signal has its own handle value(integer) and is unique
 
 void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
     if (syntax.header->name.rawText() == topModuleName) {
@@ -154,7 +154,7 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                 sv_genStatement += sv_dpiBlock;
 
                 // ----------------------------------------------------------------------
-                // Generate DPI file(C++)
+                // Generate DPI file content(C++)
                 // ----------------------------------------------------------------------
                 std::vector<std::string> dpiTickDDFuncBodyVec;
                 std::vector<std::string> dpiSignalDeclVec;
@@ -212,12 +212,12 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                             dpiTickFuncBodyVec.push_back(fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, {3});", hierPathName, p.name, beatSize, signalName));
 #endif // NO_STD_COPY
                         }
-
-                        auto pp            = p;
-                        pp.hierPathName    = hierPathName;
-                        pp.hierPathNameDot = hierPath;
-                        portVecAll.emplace_back(pp);
                     }
+
+                    auto pp            = p;
+                    pp.hierPathName    = hierPathName;
+                    pp.hierPathNameDot = hierPath;
+                    portVecAll.emplace_back(pp);
                 }
 
                 // Generate DPI accesstor functions
@@ -369,7 +369,7 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
 
                 insertAtBack(syntax.members, parse(sv_genStatement));
             }
-        } else {
+        } else { // writeGenStatment == false
             auto instSym    = model.syntaxToInstanceSymbol(syntax);
             auto foundClock = false;
 
@@ -516,6 +516,7 @@ void DPIExporterRewriter::handle(HierarchyInstantiationSyntax &inst) {
                 }
             }
 
+            // If the hierPath is already in hierPathVec, ignore it
             if (ignore) {
                 continue;
             }

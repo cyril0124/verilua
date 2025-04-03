@@ -31,6 +31,8 @@ class DPIExporter {
     bool distributeDPI;
     bool quiet;
 
+    std::vector<DPIExporterInfo> dpiExporterInfoVec;
+
     int totalFileCount;
 
     json metaInfoJson;
@@ -90,6 +92,81 @@ class DPIExporter {
         }
 
         return false;
+    }
+
+    void extractConfigInfo() {
+        sol::state lua;
+        lua.open_libraries(sol::lib::base);
+        lua.open_libraries(sol::lib::string);
+        lua.open_libraries(sol::lib::table);
+        lua.open_libraries(sol::lib::math);
+        lua.open_libraries(sol::lib::io);
+        lua.script_file(configFile);
+        lua.script(fmt::format(R"(
+assert(dpi_exporter_config ~= nil, "[dpi_exporter] dpi_exporter_config is nil in the config file => {}");
+for i, tbl in ipairs(dpi_exporter_config) do
+    for k, v in pairs(tbl) do
+        local typ = type(v)
+        if typ == "number" then
+            tbl[k] = tostring(v)
+        elseif typ == "boolean" then
+            tbl[k] = tostring(v)
+        end
+    end
+
+    if tbl.signals == nil then
+        tbl.signals = {{}}
+    else
+        for i, v in ipairs(tbl.signals) do
+            assert(type(v) == "string", "item of the `signals` table must be string")
+        end
+    end
+
+    if tbl.disable_signal == nil then
+        tbl.disable_signal = {{}}
+    else
+        for i, v in ipairs(tbl.disable_signal) do
+            assert(type(v) == "string", "item of the `disable_signal` table must be string")
+        end
+    end
+end
+)",
+                               configFile));
+
+        // Extract config info from the provided lua file
+        for (const auto &entry : (sol::table)lua["dpi_exporter_config"]) {
+            sol::table item        = entry.second;
+            std::string moduleName = getLuaTableItemOrFailed(item, "module").as<std::string>();
+            std::string clock      = item["clock"].get_or(std::string("clock"));
+            bool isTopModule       = item["is_top_module"].get_or(std::string("false")) == "true";
+
+            std::vector<std::string> signalPatternVec;
+            for (const auto &strEntry : (sol::table)item["signals"]) {
+                const auto &str = strEntry.second;
+                if (str.is<std::string>()) {
+                    signalPatternVec.push_back(str.as<std::string>());
+                } else {
+                    PANIC("Unexpected type");
+                }
+            }
+
+            std::vector<std::string> disableSignalPatternVec;
+            for (const auto &strEntry : (sol::table)item["disable_signal"]) {
+                const auto &str = strEntry.second;
+                if (str.is<std::string>()) {
+                    disableSignalPatternVec.push_back(str.as<std::string>());
+                } else {
+                    PANIC("Unexpected type");
+                }
+            }
+
+            if (signalPatternVec.empty()) {
+                fmt::println("[dpi_exporter] {}WARNING{}: no signal pattern found for module: {}!", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, moduleName);
+            }
+
+            dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec, disableSignalPatternVec, isTopModule});
+        }
+        ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
     }
 
   public:
@@ -185,7 +262,7 @@ class DPIExporter {
     }
 
     void generate() {
-        if (!checkForRegenerate()) {
+        if (!this->checkForRegenerate()) {
             fmt::println("[dpi_exporter] No need to regenerate, using cache files");
             return;
         }
@@ -225,79 +302,8 @@ class DPIExporter {
         }
         fmt::println("[dpi_exporter] topModuleName: {}", topModuleName);
 
-        sol::state lua;
-        lua.open_libraries(sol::lib::base);
-        lua.open_libraries(sol::lib::string);
-        lua.open_libraries(sol::lib::table);
-        lua.open_libraries(sol::lib::math);
-        lua.open_libraries(sol::lib::io);
-        lua.script_file(configFile);
-        lua.script(fmt::format(R"(
-assert(dpi_exporter_config ~= nil, "[dpi_exporter] dpi_exporter_config is nil in the config file => {}");
-for i, tbl in ipairs(dpi_exporter_config) do
-    for k, v in pairs(tbl) do
-        local typ = type(v)
-        if typ == "number" then
-            tbl[k] = tostring(v)
-        elseif typ == "boolean" then
-            tbl[k] = tostring(v)
-        end
-    end
-
-    if tbl.signals == nil then
-        tbl.signals = {{}}
-    else
-        for i, v in ipairs(tbl.signals) do
-            assert(type(v) == "string", "item of the `signals` table must be string")
-        end
-    end
-
-    if tbl.disable_signal == nil then
-        tbl.disable_signal = {{}}
-    else
-        for i, v in ipairs(tbl.disable_signal) do
-            assert(type(v) == "string", "item of the `disable_signal` table must be string")
-        end
-    end
-end
-)",
-                               configFile));
-
-        // Extract config info from the provided lua file
-        std::vector<DPIExporterInfo> dpiExporterInfoVec;
-        for (const auto &entry : (sol::table)lua["dpi_exporter_config"]) {
-            sol::table item        = entry.second;
-            std::string moduleName = getLuaTableItemOrFailed(item, "module").as<std::string>();
-            std::string clock      = item["clock"].get_or(std::string("clock"));
-            bool isTopModule       = item["is_top_module"].get_or(std::string("false")) == "true";
-
-            std::vector<std::string> signalPatternVec;
-            for (const auto &strEntry : (sol::table)item["signals"]) {
-                const auto &str = strEntry.second;
-                if (str.is<std::string>()) {
-                    signalPatternVec.push_back(str.as<std::string>());
-                } else {
-                    PANIC("Unexpected type");
-                }
-            }
-
-            std::vector<std::string> disableSignalPatternVec;
-            for (const auto &strEntry : (sol::table)item["disable_signal"]) {
-                const auto &str = strEntry.second;
-                if (str.is<std::string>()) {
-                    disableSignalPatternVec.push_back(str.as<std::string>());
-                } else {
-                    PANIC("Unexpected type");
-                }
-            }
-
-            if (signalPatternVec.empty()) {
-                fmt::println("[dpi_exporter] {}WARNING{}: no signal pattern found for module: {}!", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, moduleName);
-            }
-
-            dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec, disableSignalPatternVec, isTopModule});
-        }
-        ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
+        // Get DPIExporterInfoVec from the provided lua config file
+        this->extractConfigInfo();
 
         std::string dpiFuncFileContent = "";
         std::vector<PortInfo> portVecAll; // Used when distributeDPI is FALSE
@@ -353,8 +359,10 @@ end
             } else {
                 dpiTickFuncParamVec.insert(dpiTickFuncParamVec.end(), rewriter_1->dpiTickFuncParamVec.begin(), rewriter_1->dpiTickFuncParamVec.end());
                 dpiTickFuncBodyVec.insert(dpiTickFuncBodyVec.end(), rewriter_1->dpiTickFuncBodyVec.begin(), rewriter_1->dpiTickFuncBodyVec.end());
-                portVecAll.insert(portVecAll.end(), rewriter_1->portVecAll.begin(), rewriter_1->portVecAll.end());
             }
+
+            // Collect all valid signals
+            portVecAll.insert(portVecAll.end(), rewriter_1->portVecAll.begin(), rewriter_1->portVecAll.end());
 
             if (rewriter->instSize == 0 && isTopModule) {
                 ASSERT(rewriter_1->instSize == 0, moduleName, rewriter->instSize, rewriter_1->instSize);
@@ -363,7 +371,11 @@ end
 
             for (int i = 0; i < rewriter_1->instSize; i++) {
                 for (auto &p : rewriter_1->portVec) {
-                    auto uniqueHandleId      = p.handleId + (i << 24);
+                    // Make sure every signal has a unique handleId
+                    // We should mix the instance index with the handleId to avoid value collision
+                    auto uniqueHandleId = p.handleId + (i << 24);
+
+                    // e.g. path.to.module.signalName ==> hierPathName: path_to_module p.name: signalName
                     std::string hierPathName = "";
                     if (isTopModule) {
                         hierPathName = moduleName;
@@ -376,13 +388,9 @@ end
                     }
 
                     handleByNameVec.push_back(fmt::format("\t\t{{ \"{}_{}\", {} }}", hierPathName, p.name, uniqueHandleId));
-
                     getTypeStrVec.push_back(fmt::format("\t\t{{ {}, \"{}\" /* signalName: {}_{} */ }}", uniqueHandleId, p.typeStr, hierPathName, p.name));
-
                     getBitWidthVec.push_back(fmt::format("\t\t{{ {}, {} /* signalName: {}_{} */ }}", uniqueHandleId, p.bitWidth, hierPathName, p.name));
-
                     getValue32Vec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET }}", uniqueHandleId, hierPathName, p.name));
-
                     if (p.bitWidth > 32) {
                         getValueVecVec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET_VEC }}", uniqueHandleId, hierPathName, p.name));
                     }
@@ -396,15 +404,23 @@ end
             delete rewriter_1;
         }
 
-        if (!distributeDPI) {
-            int idx = 0;
-            for (auto &p : portVecAll) {
-                if (!quiet) {
-                    fmt::println("[{}] handleId:<{}> hierPathName:<{}> signalName:<{}> typeStr:<{}> bitWidth:<{}>", idx, p.handleId, p.hierPathName, p.name, p.typeStr, p.bitWidth);
-                }
-                idx++;
+        // Print all valid signals
+        int idx = 0;
+        std::vector<std::string> portHierPathVec;
+        for (auto &p : portVecAll) {
+            idx++;
+
+            if (!quiet) {
+                fmt::println("[{}] handleId:<{}> hierPath:<{}> signalName:<{}> typeStr:<{}> bitWidth:<{}>", idx, p.handleId, p.hierPathNameDot, p.name, p.typeStr, p.bitWidth);
             }
 
+            portHierPathVec.emplace_back(p.hierPathNameDot + "." + p.name);
+        }
+        metaInfoJson["exportedSignals"] = portHierPathVec;
+
+        // Insert dpi tick function into the top-level module(if distributeDPI is FALSE).
+        // If distributeDPI is TRUE, the dpi tick function is inserted into each module which owns the signals that need to be exported.
+        if (!distributeDPI) {
             auto rewriter = new DPIExporterRewriter_1(tree, topModuleName, topClock, portVecAll);
             auto newTree  = rewriter->transform(tree);
             ASSERT(rewriter->findTopModule, "Cannot find top module", topModuleName);
@@ -417,6 +433,7 @@ end
             fflush(stdout);
         }
 
+        // Generate the target C++ file
         json j;
         j["topModuleName"]      = topModuleName;
         j["distributeDPI"]      = distributeDPI ? 1 : 0;
@@ -552,6 +569,7 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
         }
 
         {
+            // The syntaxtree of the input rtl files has been changed, so we need to regenerate the new rtl files.
             fmt::println("[dpi_exporter] start generating new rtl files, outdir: {}", outdir);
             fflush(stdout);
 
