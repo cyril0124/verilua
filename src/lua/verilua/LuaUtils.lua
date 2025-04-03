@@ -27,6 +27,7 @@ local bit_lshift = bit.lshift
 local math_floor = math.floor
 local ffi_istype = ffi.istype
 local math_random = math.random
+local table_insert = table.insert
 local table_concat = table.concat
 local setmetatable = setmetatable
 
@@ -429,7 +430,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
     local num_blocks = math_ceil(width / 64)
     
     -- Initialize the value as a table of zeros (each element represents a 64-bit block)
-    local v = {}
+    local v = table_new(num_blocks, 0)
     for i = 1, num_blocks do
         v[i] = 0ULL
     end
@@ -577,12 +578,13 @@ function utils.urandom64_range(min, max)
 end
 
 function utils.str_group_by(str, nr_group)
-    local result = {}
+    local group_size = math_ceil(#str / nr_group)
+    local result = table_new(group_size, 0)
     for i = 1, #str, nr_group do
         local chunk = str:sub(i, i + nr_group - 1)
-        table.insert(result, chunk)
+        table_insert(result, chunk)
     end
-    return result
+    return result, group_size
 end
 
 function utils.str_sep(str, step, separator)
@@ -649,6 +651,23 @@ function utils.expand_hex_str(value_hex_str, bitwidth)
     local len = #value_hex_str
     local target_len = utils.cover_with_n(bitwidth, 4)
     return string.rep("0", target_len - len) .. value_hex_str
+end
+
+local hex_to_bin_map = {
+    ["0"] = "0000", ["1"] = "0001", ["2"] = "0010", ["3"] = "0011",
+    ["4"] = "0100", ["5"] = "0101", ["6"] = "0110", ["7"] = "0111",
+    ["8"] = "1000", ["9"] = "1001", ["A"] = "1010", ["B"] = "1011",
+    ["C"] = "1100", ["D"] = "1101", ["E"] = "1110", ["F"] = "1111",
+    ["a"] = "1010", ["b"] = "1011", ["c"] = "1100", ["d"] = "1101",
+    ["e"] = "1110", ["f"] = "1111"
+}
+function utils.hex_to_bin(hex_str)
+    local bin_parts = table_new(#hex_str, 0)
+    for i = 1, #hex_str do
+        local nibble = hex_str:sub(i, i)
+        bin_parts[i] = (hex_to_bin_map[nibble] or error("Invalid hex character: " .. nibble))
+    end
+    return table_concat(bin_parts)
 end
 
 return utils

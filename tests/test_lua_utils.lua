@@ -335,4 +335,26 @@ describe("LuaUtils test", function ()
             expect.equal(result, expected)
         end
     end)
+
+    it("should work properly for hex_to_bin()", function ()
+        local tests = {
+            {"0", "0000"},
+            {"F", "1111"},
+            {"A", "1010"},
+            {"a", "1010"},
+            {"1F", "00011111"},
+            {"FF", "11111111"},
+            {"1234", "0001001000110100"},
+            {"ABCD", "1010101111001101"},
+            {"abcd", "1010101111001101"},
+            {"1a2b3c", "000110100010101100111100"},
+        }
+
+        for _, test in ipairs(tests) do
+            local hex_str = test[1]
+            local expected = test[2]
+            local result = utils.hex_to_bin(hex_str)
+            expect.equal(result, expected)
+        end
+    end)
 end)
