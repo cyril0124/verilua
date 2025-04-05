@@ -288,6 +288,8 @@ do
     end
 
     setenv_from_lua("LUA_PATH", _G.package.path)
+
+    os.setenv = setenv_from_lua
 end
 
 -- 
