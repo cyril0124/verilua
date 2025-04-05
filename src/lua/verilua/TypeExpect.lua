@@ -2,7 +2,7 @@ local inspect = require "inspect"
 
 local type = type
 local error = error
-local ipairs = ipairs
+local pairs = pairs
 local assert = assert
 local tostring = tostring
 
@@ -194,7 +194,7 @@ function texpect.expect_abdl(value, name, params)
         -- Here we need to check for signal width of the elements of AliasBundle
         if value.__type == "AliasBundle" then
             if type(params) == "table" then
-                for _, sig_info in ipairs(params) do
+                for _, sig_info in pairs(params) do
                     if type(sig_info) == "table" then
                         if sig_info.name == nil then
                             error(f("[expect_abdl] params item must have `name` field"), 0)
