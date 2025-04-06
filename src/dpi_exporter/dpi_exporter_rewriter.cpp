@@ -55,11 +55,11 @@ import "DPI-C" function void dpi_exporter_tick(
 {}    
 );
 
-always @(posedge {}.{}) begin
+always @({} {}.{}) begin
     dpi_exporter_tick({});
 end
 )",
-                                                       dpiTickFuncDeclParam, topModuleName, clock, dpiTickFuncParam)));
+                                                       dpiTickFuncDeclParam, sampleEdge, topModuleName, clock, dpiTickFuncParam)));
         findTopModule = true;
     }
 }
@@ -144,11 +144,11 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
 {}
     );
 
-    always @(posedge {}) begin
+    always @({} {}) begin
         {}({});
     end
 )",
-                                           hierPath, dpiTickFuncName, sv_dpiTickDeclParam, clock, dpiTickFuncName, sv_dpiTickFuncParam);
+                                           hierPath, dpiTickFuncName, sv_dpiTickDeclParam, sampleEdge, clock, dpiTickFuncName, sv_dpiTickFuncParam);
                 if (!isTopModule) {
                     sv_dpiBlock += "end\n";
                 }

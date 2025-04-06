@@ -10,12 +10,13 @@ class DPIExporterRewriter_1 : public slang::syntax::SyntaxRewriter<DPIExporterRe
 
     std::string topModuleName;
     std::string clock;
+    std::string sampleEdge;
 
   public:
     std::vector<PortInfo> portVec;
     bool findTopModule = false;
 
-    DPIExporterRewriter_1(std::shared_ptr<SyntaxTree> &tree, std::string topModuleName, std::string clock, std::vector<PortInfo> portVec) : tree(tree), topModuleName(topModuleName), clock(clock), portVec(portVec), model(compilation) { compilation.addSyntaxTree(tree); }
+    DPIExporterRewriter_1(std::shared_ptr<SyntaxTree> &tree, std::string topModuleName, std::string clock, std::string sampleEdge, std::vector<PortInfo> portVec) : tree(tree), topModuleName(topModuleName), clock(clock), sampleEdge(sampleEdge), portVec(portVec), model(compilation) { compilation.addSyntaxTree(tree); }
 
     void handle(ModuleDeclarationSyntax &syntax);
 };
@@ -30,6 +31,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
     DPIExporterInfo info;
     std::string moduleName;
     std::string clock;
+    std::string sampleEdge;
 
   public:
     std::vector<std::string> hierPathVec;
@@ -48,7 +50,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
     bool distributeDPI    = false;
     bool quiet            = false;
 
-    DPIExporterRewriter(std::shared_ptr<SyntaxTree> &tree, DPIExporterInfo info, bool distributeDPI, bool writeGenStatment = false, int instSize = 0, bool quiet = false) : tree(tree), info(info), distributeDPI(distributeDPI), writeGenStatment(writeGenStatment), instSize(instSize), quiet(quiet), model(compilation) {
+    DPIExporterRewriter(std::shared_ptr<SyntaxTree> &tree, DPIExporterInfo info, std::string sampleEdge, bool distributeDPI, bool writeGenStatment = false, int instSize = 0, bool quiet = false) : tree(tree), info(info), sampleEdge(sampleEdge), distributeDPI(distributeDPI), writeGenStatment(writeGenStatment), instSize(instSize), quiet(quiet), model(compilation) {
         compilation.addSyntaxTree(tree);
         moduleName = info.moduleName;
         clock      = info.clock;

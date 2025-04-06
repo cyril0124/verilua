@@ -16,6 +16,7 @@ class DPIExporter {
     std::optional<std::string> _workdir;
     std::optional<std::string> _dpiFile;
     std::optional<std::string> _topClock;
+    std::optional<std::string> _sampleEdge;
     std::optional<bool> _distributeDPI;
     std::optional<bool> _quiet;
     std::optional<bool> nocache;
@@ -27,6 +28,7 @@ class DPIExporter {
     std::string dpiFilePath;
     std::string topModuleName;
     std::string topClock;
+    std::string sampleEdge;
     std::string cmdLineStr;
     bool distributeDPI;
     bool quiet;
@@ -180,6 +182,7 @@ end
         driver.cmdLine.add("--df,--dpi-file", _dpiFile, "name of the generated DPI file", "<file name>");
         driver.cmdLine.add("--tc,--top-clock", _topClock, "clock signal of the top-level module", "<name>");
         driver.cmdLine.add("--dd,--distribute-dpi", _distributeDPI, "distribute DPI functions");
+        driver.cmdLine.add("--se,--sample-edge", _sampleEdge, "sample edge of the clock signal");
         driver.cmdLine.add("-q,--quiet", _quiet, "quiet mode, print only necessary info");
         driver.cmdLine.add("--nc,--no-cache", nocache, "do not use cache files");
 
@@ -216,6 +219,7 @@ end
         outdir           = fs::absolute(_outdir.value_or(DEFAULT_OUTPUT_DIR)).string();
         workdir          = fs::absolute(_workdir.value_or(DEFAULT_WORK_DIR)).string();
         topClock         = _topClock.value_or("clock");
+        sampleEdge       = _sampleEdge.value_or("negedge");
         distributeDPI    = _distributeDPI.value_or(false);
         quiet            = _quiet.value_or(false);
         metaInfoFilePath = workdir + "/dpi_exporter.meta.json";
@@ -228,6 +232,8 @@ end
             }
             topModuleName = driver.options.topModules[0];
         }
+
+        ASSERT(sampleEdge == "posedge" || sampleEdge == "negedge", "Invalid sample edge '{}', should be either 'posedge' or 'negedge'", sampleEdge);
 
         std::string optString = "";
 #ifdef NO_STD_COPY
@@ -323,7 +329,7 @@ end
         for (auto info : dpiExporterInfoVec) {
             auto moduleName = info.moduleName;
             fmt::println("---------------- [dpi_exporter] start processing module:<{}> ----------------", moduleName);
-            auto rewriter = new DPIExporterRewriter(tree, info, distributeDPI, false, 0, quiet);
+            auto rewriter = new DPIExporterRewriter(tree, info, sampleEdge, distributeDPI, false, 0, quiet);
             auto newTree  = rewriter->transform(tree);
 
             auto isTopModule = false;
@@ -342,7 +348,7 @@ end
                 fflush(stdout);
             }
 
-            auto rewriter_1         = new DPIExporterRewriter(tree, info, distributeDPI, true, rewriter->instSize, quiet);
+            auto rewriter_1         = new DPIExporterRewriter(tree, info, sampleEdge, distributeDPI, true, rewriter->instSize, quiet);
             rewriter_1->hierPathVec = rewriter->hierPathVec;
             rewriter_1->portVec     = rewriter->portVec;
             auto newTree_1          = rewriter_1->transform(newTree);
@@ -425,7 +431,7 @@ end
         // Insert dpi tick function into the top-level module(if distributeDPI is FALSE).
         // If distributeDPI is TRUE, the dpi tick function is inserted into each module which owns the signals that need to be exported.
         if (!distributeDPI) {
-            auto rewriter = new DPIExporterRewriter_1(tree, topModuleName, topClock, portVecAll);
+            auto rewriter = new DPIExporterRewriter_1(tree, topModuleName, topClock, sampleEdge, portVecAll);
             auto newTree  = rewriter->transform(tree);
             ASSERT(rewriter->findTopModule, "Cannot find top module", topModuleName);
 
@@ -589,8 +595,8 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
         }
 
         // Save the command line arguments and files into json file
-        metaInfoJson["cmdLine"]  = cmdLineStr;
-        metaInfoJson["filelist"] = files;
+        metaInfoJson["cmdLine"]       = cmdLineStr;
+        metaInfoJson["filelist"]      = files;
         metaInfoJson["topModuleName"] = topModuleName;
 
         // Write meta info into a json file, which can be used next time to check if the output is up to date
