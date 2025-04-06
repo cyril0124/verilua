@@ -34,6 +34,7 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
   public:
     std::vector<std::string> hierPathVec;
     std::vector<std::string> hierPathNameVec;
+    std::vector<std::string> hierPathNameDotVec;
     std::vector<PortInfo> portVec;
 
     std::vector<PortInfo> portVecAll;

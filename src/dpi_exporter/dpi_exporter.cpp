@@ -376,25 +376,29 @@ end
                     auto uniqueHandleId = p.handleId + (i << 24);
 
                     // e.g. path.to.module.signalName ==> hierPathName: path_to_module p.name: signalName
-                    std::string hierPathName = "";
+                    std::string hierPathName    = "";
+                    std::string hierPathNameDot = "";
                     if (isTopModule) {
-                        hierPathName = moduleName;
+                        hierPathName    = moduleName;
+                        hierPathNameDot = moduleName;
                     } else {
-                        hierPathName = rewriter_1->hierPathNameVec[i];
+                        hierPathName    = rewriter_1->hierPathNameVec[i];
+                        hierPathNameDot = rewriter_1->hierPathNameDotVec[i];
                     }
 
                     if (!handleSet.insert(uniqueHandleId).second) {
                         PANIC("Duplicated handle id: {}", uniqueHandleId);
                     }
 
-                    handleByNameVec.push_back(fmt::format("\t\t{{ \"{}_{}\", {} }}", hierPathName, p.name, uniqueHandleId));
-                    getTypeStrVec.push_back(fmt::format("\t\t{{ {}, \"{}\" /* signalName: {}_{} */ }}", uniqueHandleId, p.typeStr, hierPathName, p.name));
-                    getBitWidthVec.push_back(fmt::format("\t\t{{ {}, {} /* signalName: {}_{} */ }}", uniqueHandleId, p.bitWidth, hierPathName, p.name));
-                    getValue32Vec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET }}", uniqueHandleId, hierPathName, p.name));
+                    std::string extraInfo = fmt::format("/* signalName: {}.{} instId: {} */", hierPathNameDot, p.name, i);
+                    handleByNameVec.push_back(fmt::format("\t\t{{ \"{}_{}\", 0x{:x} }} {}", hierPathName, p.name, uniqueHandleId, extraInfo));
+                    getTypeStrVec.push_back(fmt::format("\t\t{{ 0x{:x}, \"{}\" }} {}", uniqueHandleId, p.typeStr, extraInfo));
+                    getBitWidthVec.push_back(fmt::format("\t\t{{ 0x{:x}, {} }} {}", uniqueHandleId, p.bitWidth, extraInfo));
+                    getValue32Vec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_GET }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
                     if (p.bitWidth > 32) {
-                        getValueVecVec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET_VEC }}", uniqueHandleId, hierPathName, p.name));
+                        getValueVecVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_GET_VEC }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
                     }
-                    getValueHexStrVec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_{}_GET_HEX_STR }}", uniqueHandleId, hierPathName, p.name));
+                    getValueHexStrVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_GET_HEX_STR }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
                 }
             }
             dpiFuncFileContent += rewriter_1->dpiFuncFileContent;
@@ -587,6 +591,7 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
         // Save the command line arguments and files into json file
         metaInfoJson["cmdLine"]  = cmdLineStr;
         metaInfoJson["filelist"] = files;
+        metaInfoJson["topModuleName"] = topModuleName;
 
         // Write meta info into a json file, which can be used next time to check if the output is up to date
         std::ofstream o(metaInfoFilePath);

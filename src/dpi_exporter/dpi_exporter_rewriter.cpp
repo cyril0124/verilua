@@ -100,10 +100,12 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
             dpiTickFuncDeclParam = fmt::to_string(fmt::join(dpiTickDeclParamVec, ", "));
 
             ASSERT(hierPathNameVec.size() == 0);
+            ASSERT(hierPathNameDotVec.size() == 0);
             for (int i = 0; i < hierPathVec.size(); i++) {
                 std::string hierPathName = hierPathVec[i];
                 std::replace(hierPathName.begin(), hierPathName.end(), '.', '_');
                 hierPathNameVec.emplace_back(hierPathName);
+                hierPathNameDotVec.emplace_back(hierPathVec[i]);
             }
 
             bool isTopModule = instSize == 0;
