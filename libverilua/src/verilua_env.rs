@@ -406,10 +406,7 @@ macro_rules! gen_verilua_step {
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn $name() {
             let env = get_verilua_env();
-            assert!(
-                env.initialized,
-                concat!($msg, " called before verilua_init()")
-            );
+            assert!(env.initialized, concat!($msg, " called before verilua_init()"));
 
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
@@ -435,29 +432,22 @@ macro_rules! gen_verilua_step_safe {
             }
 
             if HAS_ERROR.with(|has_error| unsafe { *has_error.get() }) {
-                println!(
-                    concat!("[", stringify!($name), "] `has_error` is `true`! Program should be terminated! Nothing will be done in `Verilua`...")
-                );
+                let env = get_verilua_env();
+                env.finalize();
+
+                log::warn!(concat!("[", stringify!($name), "] `has_error` is `true`! Program should be terminated! Nothing will be done in `Verilua`..."));
                 return;
             }
 
             let env = get_verilua_env();
-            assert!(
-                env.initialized,
-                concat!("[", stringify!($name), "] ", $msg, " called before verilua_init()")
-            );
+            assert!(env.initialized, concat!("[", stringify!($name), "] ", $msg, " called before verilua_init()"));
 
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
 
             if let Err(e) = env.$field.as_ref().unwrap().call::<()>(()) {
-                HAS_ERROR.with(|has_error| unsafe {
-                    *has_error.get() = true;
-                });
-                println!(
-                    concat!("[", stringify!($name), "] Error calling ", stringify!($field), ": {}"),
-                    e
-                );
+                HAS_ERROR.with(|has_error| unsafe { *has_error.get() = true; });
+                println!(concat!("[", stringify!($name), "] Error calling ", stringify!($field), ": {}"), e);
             };
 
             #[cfg(feature = "acc_time")]
