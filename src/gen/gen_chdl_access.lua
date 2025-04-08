@@ -86,7 +86,6 @@ local function chdl_init()
                 end
 
                 chdl.get64 = function (this)
-                    
                     if _G.IS_SINGLE then
                         return this:get()
                     else

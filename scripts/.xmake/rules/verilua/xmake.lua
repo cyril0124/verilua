@@ -206,10 +206,13 @@ rule("verilua")
             end
 
             local verilator_opt = "-O3" -- Enables slow optimizations for the code Verilator itself generates. -O3 may improve simulation performance at the cost of compile time.
+            local verilator_x_assign = "--x-assign unique"
             for _, flag in ipairs(target:values("verilator.flags")) do
-                if flag == "-O0" then
+                local _flag = flag:trim() 
+                if _flag == "-O0" then
                     verilator_opt = "-O0"
-                    break
+                elseif _flag:startswith("--x-assign") and not _flag:endswith("--x-assign") then
+                    verilator_x_assign = flag
                 end
             end
 
@@ -222,11 +225,10 @@ rule("verilua")
                 "--vpi",
                 "--cc",
                 "--exe",
-                -- "--build", -- Verilator will call make itself. This is we don’t need to manually call make as a separate step.
                 "--MMD",
                 "--no-timing",
                 "-Mdir", sim_build_dir,
-                "--x-assign unique",
+                verilator_x_assign,
                 verilator_opt,
                 "-j 0", -- Verilate using use as many CPU threads as the machine has.
                 "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
@@ -319,11 +321,9 @@ rule("verilua")
                 target:add("waveform_file", waveform_file)
             end
         end
-        
-        local flags = target:values(sim .. ".flags")
-        if flags then
-            table.join2(argv, flags)
-        end
+
+        table.join2(argv, target:values(sim .. ".flags"))
+        cprint("${✅} [verilua-xmake] [%s] `%s.flags` is ${green underline}%s${reset}", target:name(), sim, table.concat(target:values(sim .. ".flags"), " "))
 
         -- Add extra includedirs and link flags
         target:add("includedirs", 
