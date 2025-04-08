@@ -227,6 +227,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
             .unwrap()
             .call::<()>({{caller_params}})
         {
+            env.finalize();
             panic!("{}", e);
         }
 

@@ -58,6 +58,7 @@ unsafe extern "C" fn edge_callback_chunk_1(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>(user_data.task_id_vec[0])
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -91,7 +92,7 @@ unsafe extern "C" fn edge_callback_chunk_1(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[1] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[1] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -177,6 +178,7 @@ unsafe extern "C" fn edge_callback_chunk_2(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -210,7 +212,7 @@ unsafe extern "C" fn edge_callback_chunk_2(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[2] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[2] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -296,6 +298,7 @@ unsafe extern "C" fn edge_callback_chunk_3(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -329,7 +332,7 @@ unsafe extern "C" fn edge_callback_chunk_3(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[3] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[3] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -415,6 +418,7 @@ unsafe extern "C" fn edge_callback_chunk_4(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -448,7 +452,7 @@ unsafe extern "C" fn edge_callback_chunk_4(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[4] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[4] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -534,6 +538,7 @@ unsafe extern "C" fn edge_callback_chunk_5(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -567,7 +572,7 @@ unsafe extern "C" fn edge_callback_chunk_5(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[5] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[5] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -653,6 +658,7 @@ unsafe extern "C" fn edge_callback_chunk_6(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -686,7 +692,7 @@ unsafe extern "C" fn edge_callback_chunk_6(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[6] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[6] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -772,6 +778,7 @@ unsafe extern "C" fn edge_callback_chunk_7(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -805,7 +812,7 @@ unsafe extern "C" fn edge_callback_chunk_7(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[7] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[7] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -891,6 +898,7 @@ unsafe extern "C" fn edge_callback_chunk_8(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -924,7 +932,7 @@ unsafe extern "C" fn edge_callback_chunk_8(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[8] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[8] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1010,6 +1018,7 @@ unsafe extern "C" fn edge_callback_chunk_9(cb_data: *mut t_cb_data) -> PLI_INT32
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1043,7 +1052,7 @@ unsafe extern "C" fn edge_callback_chunk_9(cb_data: *mut t_cb_data) -> PLI_INT32
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[9] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[9] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1129,6 +1138,7 @@ unsafe extern "C" fn edge_callback_chunk_10(cb_data: *mut t_cb_data) -> PLI_INT3
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1162,7 +1172,7 @@ unsafe extern "C" fn edge_callback_chunk_10(cb_data: *mut t_cb_data) -> PLI_INT3
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[10] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[10] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1248,6 +1258,7 @@ unsafe extern "C" fn edge_callback_chunk_11(cb_data: *mut t_cb_data) -> PLI_INT3
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1281,7 +1292,7 @@ unsafe extern "C" fn edge_callback_chunk_11(cb_data: *mut t_cb_data) -> PLI_INT3
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[11] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[11] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1367,6 +1378,7 @@ unsafe extern "C" fn edge_callback_chunk_12(cb_data: *mut t_cb_data) -> PLI_INT3
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1400,7 +1412,7 @@ unsafe extern "C" fn edge_callback_chunk_12(cb_data: *mut t_cb_data) -> PLI_INT3
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[12] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[12] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1486,6 +1498,7 @@ unsafe extern "C" fn edge_callback_chunk_13(cb_data: *mut t_cb_data) -> PLI_INT3
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1519,7 +1532,7 @@ unsafe extern "C" fn edge_callback_chunk_13(cb_data: *mut t_cb_data) -> PLI_INT3
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[13] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[13] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1605,6 +1618,7 @@ unsafe extern "C" fn edge_callback_chunk_14(cb_data: *mut t_cb_data) -> PLI_INT3
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12],user_data.task_id_vec[13]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1638,7 +1652,7 @@ unsafe extern "C" fn edge_callback_chunk_14(cb_data: *mut t_cb_data) -> PLI_INT3
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[14] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[14] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1724,6 +1738,7 @@ unsafe extern "C" fn edge_callback_chunk_15(cb_data: *mut t_cb_data) -> PLI_INT3
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12],user_data.task_id_vec[13],user_data.task_id_vec[14]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1757,7 +1772,7 @@ unsafe extern "C" fn edge_callback_chunk_15(cb_data: *mut t_cb_data) -> PLI_INT3
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[15] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[15] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
@@ -1843,6 +1858,7 @@ unsafe extern "C" fn edge_callback_chunk_16(cb_data: *mut t_cb_data) -> PLI_INT3
             .unwrap()
             .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12],user_data.task_id_vec[13],user_data.task_id_vec[14],user_data.task_id_vec[15]))
         {
+            env.finalize();
             panic!("{}", e);
         }
 
@@ -1876,7 +1892,7 @@ unsafe extern "C" fn edge_callback_chunk_16(cb_data: *mut t_cb_data) -> PLI_INT3
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[16] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[16] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
