@@ -310,8 +310,6 @@ function cfg:post_config()
     cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
     cfg.vpi_learn       = cfg:get_or_else("vpi_learn", false)
     cfg.prj_dir         = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
-    cfg.top_name        = cfg:get_or_else("top_name", "") -- Used by dummy_vpi
-    cfg.dpi_top         = cfg:get_or_else("dpi_top", "") -- Used by dummy_vpi
 
     -- Setup seed, <SEED> set by environment variable has higher priority
     cfg.seed = cfg:get_or_else("seed", 1234)
