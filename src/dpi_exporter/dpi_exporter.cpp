@@ -186,6 +186,36 @@ end
         driver.cmdLine.add("-q,--quiet", _quiet, "quiet mode, print only necessary info");
         driver.cmdLine.add("--nc,--no-cache", nocache, "do not use cache files");
 
+        // Include paths (override default include paths of slang)
+        driver.cmdLine.add(
+            "-I,--include-directory,+incdir",
+            [this](std::string_view value) {
+                if (auto ec = this->driver.sourceManager.addUserDirectories(value)) {
+                    fmt::println("include directory '{}': {}", value, ec.message());
+                }
+
+                // Append the include directory into the default source manager which will be used by `slang_common::rebuildSyntaxTree()`.
+                // Without this, the include directories will not be considered when building the syntax tree.
+                SyntaxTree::getDefaultSourceManager().addUserDirectories(value);
+
+                return "";
+            },
+            "Additional include search paths", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
+
+        driver.cmdLine.add(
+            "--isystem",
+            [this](std::string_view value) {
+                if (auto ec = this->driver.sourceManager.addSystemDirectories(value)) {
+                    fmt::println("system include directory '{}': {}", value, ec.message());
+                }
+
+                // The same as above, but for the default source manager
+                SyntaxTree::getDefaultSourceManager().addSystemDirectories(value);
+
+                return "";
+            },
+            "Additional system include search paths", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
+
         driver.cmdLine.setPositional(
             [this](std::string_view value) {
                 if (!this->driver.options.excludeExts.empty()) {
