@@ -239,7 +239,9 @@ int main(int argc, const char *argv[]) {
     }
 
     ASSERT(clockSignalHasMatch, "Clock signal not match", clockSignalName);
-    ASSERT(resetSignalHasMatch, "Reset signal not match", resetSignalName);
+    if (!resetSignalHasMatch) {
+        fmt::println("[testbench_gen] Warning: Reset signal not match!");
+    }
 
     { // Generate tbtop file
         auto tbtopFileContent = R"(
@@ -294,17 +296,36 @@ module {{tbtopName}}(
 // -----------------------------------------   
 `ifndef SIM_VERILATOR
 reg {{clockSignalName}};
-reg {{resetSignalName}};
+{% if resetSignalName == "" %}// no reset signal found!{% else %}reg {{resetSignalName}};{% endif %}
 
 initial begin
     {{clockSignalName}} = 0;
-    {{resetSignalName}} = 1;
+    {% if resetSignalName == "" %}// no reset signal found!{% else %}{{resetSignalName}} = 1;{% endif %}
 end
 
 always #{{clockPeriod}} {{clockSignalName}} = ~{{clockSignalName}};
 `endif // SIM_VERILATOR
 
-{{clockAndResetAlias}}
+{% if clockSignalName != "clock" and clockSignalName != "" %}
+`ifdef SIM_VERILATOR
+wire {{clockSignalName}};
+assign {{clockSignalName}} = clock;
+`else // SIM_VERILATOR
+wire clock;
+assign clock = {{clockSignalName}};
+`endif // SIM_VERILATOR
+{% endif %}
+
+{% if resetSignalName != "reset" and resetSignalName != "" %}
+`ifdef SIM_VERILATOR
+wire {{resetSignalName}};
+assign {{resetSignalName}} = reset;
+`else // SIM_VERILATOR
+wire reset;
+assign reset = {{resetSignalName}};
+`endif // SIM_VERILATOR
+{% endif %}
+
 
 reg [63:0] cycles; // A timestamp counter for simulation, start from 0 and never reset
 
@@ -578,7 +599,7 @@ end
 // -----------------------------------------
 Others u_others(
   .clock({{clockSignalName}}),
-  .reset({{resetSignalName}})
+  .reset({% if resetSignalName == "" %}0{% else %}{{resetSignalName}}{% endif %})
 );
 
 
@@ -668,30 +689,6 @@ endmodule
         ASSERT(signalConnect.length() > 2, "No signals to connect");
         signalConnect.erase(signalConnect.length() - 2);
 
-        if (clockSignalName != "clock") {
-            clockAndResetAlias = fmt::format(R"(`ifdef SIM_VERILATOR
-wire {};
-assign {} = clock;
-`else // SIM_VERILATOR
-wire clock;
-assign clock = {};
-`endif // SIM_VERILATOR
-)",
-                                             clockSignalName, clockSignalName, clockSignalName);
-        }
-
-        if (resetSignalName != "reset") {
-            clockAndResetAlias = fmt::format(R"(`ifdef SIM_VERILATOR
-wire {};
-assign {} = reset;
-`else // SIM_VERILATOR
-wire reset;
-assign reset = {};
-`endif // SIM_VERILATOR
-)",
-                                             resetSignalName, resetSignalName, resetSignalName);
-        }
-
         json tbtopData;
         tbtopData["tbtopName"]                  = tbtopName;
         tbtopData["topName"]                    = topName;
@@ -699,7 +696,6 @@ assign reset = {};
         tbtopData["clockPeriod"]                = period;
         tbtopData["clockSignalName"]            = clockSignalName;
         tbtopData["resetSignalName"]            = resetSignalName;
-        tbtopData["clockAndResetAlias"]         = clockAndResetAlias;
         tbtopData["signalDecl"]                 = signalDecl;
         tbtopData["regInitialize"]              = regInitialize;
         tbtopData["signalConnect"]              = signalConnect;
