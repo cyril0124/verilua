@@ -612,8 +612,9 @@ extern "C" GetValueHexStrFunc dpi_exporter_alloc_get_value_hex_str(int64_t handl
     }
 }
 
-extern "C" std::string dpi_exporter_get_top_name() {
-    return std::string("{{topModuleName}}");
+extern "C" char *dpi_exporter_get_top_name() {
+    static char top_name[] = "{{topModuleName}}";
+    return top_name;
 }
 
 ## if distributeDPI == 0

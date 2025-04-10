@@ -70,7 +70,7 @@ using GetValueHexStrFunc = std::function<void(char *)>;
 extern "C" {
 #endif
 
-std::string dpi_exporter_get_top_name();
+char *dpi_exporter_get_top_name();
 int64_t dpi_exporter_handle_by_name(std::string_view name);
 std::string dpi_exporter_get_type_str(int64_t handle);
 uint32_t dpi_exporter_get_bitwidth(int64_t handle);
@@ -304,7 +304,7 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
         }
     }();
 
-    static std::string topModuleName = []() { return dpi_exporter_get_top_name(); }();
+    static std::string topModuleName = []() { return std::string(dpi_exporter_get_top_name()); }();
 
     std::string nameString(name);
     if (topName != "" && topModuleName != "") {
