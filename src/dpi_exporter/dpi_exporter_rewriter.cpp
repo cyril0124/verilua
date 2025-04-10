@@ -50,16 +50,24 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
             PANIC("Cannot find clock signal", topModuleName, clock);
         }
 
-        insertAtBack(syntax.members, parse(fmt::format(R"(
+        json j;
+        j["dpiTickFuncDeclParam"] = dpiTickFuncDeclParam;
+        j["dpiTickFuncParam"]     = dpiTickFuncParam;
+        j["sampleEdge"]           = sampleEdge;
+        j["topModuleName"]        = topModuleName;
+        j["clock"]                = clock;
+
+        // TODO: if syntax.members is NULL?
+        insertAtBack(syntax.members, parse(inja::render(R"(
 import "DPI-C" function void dpi_exporter_tick(
-{}    
+{{dpiTickFuncDeclParam}}    
 );
 
-always @({} {}.{}) begin
-    dpi_exporter_tick({});
+always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
+    dpi_exporter_tick({{dpiTickFuncParam}});
 end
 )",
-                                                       dpiTickFuncDeclParam, sampleEdge, topModuleName, clock, dpiTickFuncParam)));
+                                                        j)));
         findTopModule = true;
     }
 }
@@ -138,17 +146,28 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                 if (!isTopModule) {
                     sv_dpiBlock += fmt::format("if(instId == {}) begin\n", instId);
                 }
-                sv_dpiBlock += fmt::format(R"(
-    // hierPath: {}
-    import "DPI-C" function void {}(
-{}
+
+                {
+                    json j;
+                    j["hierPath"]            = hierPath;
+                    j["dpiTickFuncName"]     = dpiTickFuncName;
+                    j["sv_dpiTickDeclParam"] = sv_dpiTickDeclParam;
+                    j["sv_dpiTickFuncParam"] = sv_dpiTickFuncParam;
+                    j["sampleEdge"]          = sampleEdge;
+                    j["clock"]               = clock;
+                    sv_dpiBlock += inja::render(R"(
+    // hierPath: {{hierPath}}
+    import "DPI-C" function void {{dpiTickFuncName}}(
+{{sv_dpiTickDeclParam}}
     );
 
-    always @({} {}) begin
-        {}({});
+    always @({{sampleEdge}} {{clock}}) begin
+        {{dpiTickFuncName}}({{sv_dpiTickFuncParam}});
     end
 )",
-                                           hierPath, dpiTickFuncName, sv_dpiTickDeclParam, sampleEdge, clock, dpiTickFuncName, sv_dpiTickFuncParam);
+                                                j);
+                }
+
                 if (!isTopModule) {
                     sv_dpiBlock += "end\n";
                 }
@@ -227,6 +246,7 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                     auto beatSize   = coverWith32(p.bitWidth);
                     auto signalName = fmt::format("__{}_{}", hierPathName, p.name);
 
+                    // Generate reader functions
                     if (beatSize == 1) {
                         dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
 extern "C" uint32_t {}_{}_GET() {{
