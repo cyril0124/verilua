@@ -105,9 +105,12 @@ local function wave_vpi_main_common()
         add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
     end
 
-    add_links("luajit-5.1")
-    add_linkdirs(lua_dir .. "/lib")
-    add_rpathdirs(lua_dir .. "/lib")
+    add_linkgroups("luajit-5.1", {static = true, whole = true})
+    add_linkdirs(lua_dir.. "/lib")
+
+    add_links("luajit_pro_helper")
+    add_linkdirs(prj_dir .. "/luajit-pro/target/release")
+    add_rpathdirs(prj_dir .. "/luajit-pro/target/release")
 
     add_links("fmt", "mimalloc")
     add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
