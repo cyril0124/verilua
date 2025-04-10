@@ -147,9 +147,8 @@ pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
     unsafe { vpi_free_object(handle) };
 }
 
-unsafe extern "C" fn read_write_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
-    let env = get_verilua_env();
-
+#[inline(always)]
+fn apply_pending_put_values(env: &mut VeriluaEnv) {
     env.hdl_put_value.iter_mut().for_each(|complex_handle_raw| {
         let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
@@ -203,9 +202,13 @@ unsafe extern "C" fn read_write_synch_callback(cb_data: *mut t_cb_data) -> PLI_I
     });
 
     env.hdl_put_value.clear();
+}
+
+unsafe extern "C" fn read_write_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
+    let env = get_verilua_env();
+    apply_pending_put_values(env);
 
     do_register_next_sim_time_callback();
-
     0
 }
 
