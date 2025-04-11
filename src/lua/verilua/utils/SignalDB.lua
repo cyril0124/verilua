@@ -83,6 +83,10 @@ function SignalDB:init(params)
             local file = io.open(rtl_filelist, "r")
             if file then
                 for rtl_file in file:lines() do
+                    if not path.isfile(rtl_file) then
+                        assert(false, "[SignalDB] can not find `" .. rtl_file .. "`")
+                    end
+
                     if path.getmtime(rtl_file) > path.getmtime(self.target_file) then
                         regen = true
                         break
