@@ -573,8 +573,9 @@ target("test")
     set_kind("phony")
     on_run(function (target)
         local old_env = os.getenvs()
-        
+
         local simulators = {}
+        local has_vcs = false
 
         if try { function () return os.iorun("which vvp") end } then
             table.insert(simulators, "iverilog")
@@ -583,13 +584,14 @@ target("test")
             table.insert(simulators, "verilator")
         end
         if try { function () return os.iorun("which vcs") end } then
+            has_vcs = true
             table.insert(simulators, "vcs")
         end
 
         assert(#simulators > 0, "No simulators found!")
 
         do
-            os.cd(prj_dir .. "/examples/tutorial_example")
+            os.cd(path.join(prj_dir, "examples", "tutorial_example"))
 
             for _, sim in ipairs(simulators) do
                 os.setenv("SIM", sim)
@@ -606,7 +608,7 @@ target("test")
 
         do
             os.setenvs(old_env)
-            os.cd(prj_dir .. "/examples/WAL")
+            os.cd(path.join(prj_dir, "examples", "WAL"))
             os.setenv("SIM", "iverilog")
             os.exec("rm build -rf")
             os.exec("xmake build -v -P . gen_wave")
@@ -614,10 +616,61 @@ target("test")
             os.exec("xmake build -v -P . sim_wave")
             os.exec("xmake run -v -P . sim_wave")
         end
-        
+
         do
             os.setenvs(old_env)
-            os.cd(prj_dir .. "/tests/wave_vpi_padding_issue")
+            os.cd(path.join(prj_dir, "examples", "HSE"))
+            os.tryrm("csrc")
+            os.tryrm("simv*")
+            os.tryrm("sim_build*")
+            os.execv(os.shell(), {"run_verilator.sh"})
+            os.execv(os.shell(), {"run_verilator_p.sh"})
+
+            if has_vcs then
+                os.execv(os.shell(), {"run_vcs.sh"})
+            end
+        end
+
+        do
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "examples", "HSE_dummy_vpi"))
+            os.tryrm("csrc")
+            os.tryrm("simv*")
+            os.tryrm("sim_build*")
+            os.execv(os.shell(), {"run_verilator.sh"})
+            os.execv(os.shell(), {"run_verilator_dpi.sh"})
+
+            if has_vcs then
+                os.execv(os.shell(), {"run_vcs.sh"})
+                os.execv(os.shell(), {"run_vcs_dpi.sh"})
+            end
+        end
+
+        do
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "examples", "HSE_virtual_rtl"))
+            os.tryrm("sim_build_dpi")
+            os.execv(os.shell(), {"run_verilator_dpi.sh"})
+
+            if has_vcs then
+                os.tryrm("csrc")
+                os.tryrm("simv_dpi")
+                os.tryrm("simv_dpi.daidir")
+                os.execv(os.shell(), {"run_vcs_dpi.sh"})
+            end
+        end
+
+        do
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "examples", "simple_ut_env"))
+            os.tryrm("build")
+            os.exec("xmake build -P . test_counter")
+            os.exec("xmake run -v -P . test_counter")
+        end
+
+        do
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests", "wave_vpi_padding_issue"))
             os.exec("rm build -rf")
             os.exec("xmake build -v -P . test")
             os.exec("xmake run -v -P . test")
@@ -627,17 +680,17 @@ target("test")
 
         do
             os.setenvs(old_env)
-            os.cd(prj_dir .. "/tests/test_bitvec_signal")
+            os.cd(path.join(prj_dir, "tests", "test_bitvec_signal"))
             os.exec("xmake run -v -P . test_all")
         end
 
         do
             os.setenvs(old_env)
-            os.cd(prj_dir .. "/tests/test_edge")
+            os.cd(path.join(prj_dir, "tests", "test_edge"))
 
             for _, sim in ipairs(simulators) do
                 os.setenv("SIM", sim)
-                os.exec("rm build -rf")
+                os.tryrm("build")
                 os.exec("xmake build -v -P .")
                 if sim == "vcs" then
                     -- ignore error

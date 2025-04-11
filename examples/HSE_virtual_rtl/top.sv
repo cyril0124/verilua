@@ -39,7 +39,7 @@ always @(posedge clock) begin
 end
 
 empty u_empty(
-    // .clock(clock),
+    .clock(clock),
     .cycles(cycles),
     .accumulator(accumulator),
     .valid(acc_valid),
@@ -61,7 +61,7 @@ final verilua_final();
 endmodule
 
 module empty(
-    // input wire clock, // TODO: if not clock?
+    input wire clock, // TODO: if not clock?
     input wire [63:0] cycles,
     input wire [31:0] accumulator,
     output reg valid,
