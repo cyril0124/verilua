@@ -66,6 +66,10 @@ using GetValue32Func     = std::function<uint32_t()>;
 using GetValueVecFunc    = std::function<void(uint32_t *)>;
 using GetValueHexStrFunc = std::function<void(char *)>;
 
+using SetValue32Func     = std::function<void(uint32_t)>;
+using SetValueVecFunc    = std::function<void(uint32_t *)>;
+using SetValueHexStrFunc = std::function<void(char *)>;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,9 +79,14 @@ int64_t dpi_exporter_handle_by_name(std::string_view name);
 std::string dpi_exporter_get_type_str(int64_t handle);
 uint32_t dpi_exporter_get_bitwidth(int64_t handle);
 uint32_t dpi_exporter_get_value32(int64_t handle);
+
 GetValue32Func dpi_exporter_alloc_get_value32(int64_t handle);
 GetValueVecFunc dpi_exporter_alloc_get_value_vec(int64_t handle);
 GetValueHexStrFunc dpi_exporter_alloc_get_value_hex_str(int64_t handle);
+
+SetValue32Func dpi_exporter_alloc_set_value32(int64_t handle);
+SetValueVecFunc dpi_exporter_alloc_set_value_vec(int64_t handle);
+SetValueHexStrFunc dpi_exporter_alloc_set_value_hex_str(int64_t handle);
 
 #ifdef __cplusplus
 }
@@ -87,6 +96,8 @@ typedef char PLI_BYTE8;
 typedef int PLI_INT32;
 typedef unsigned int PLI_UINT32;
 typedef PLI_UINT32 *vpiHandle;
+
+#define vpiNoDelay 1
 
 typedef struct t_vpi_time {
     PLI_INT32 type;       /* [vpiScaledRealTime, vpiSimTime,
@@ -153,10 +164,15 @@ class ComplexHandle {
     int64_t handle;
     uint32_t bitwidth;
     uint32_t beatSize;
+    bool isWritable = false;
 
     GetValue32Func getValue32;
     GetValueVecFunc getValueVec;
     GetValueHexStrFunc getValueHexStr;
+
+    SetValue32Func setValue32;
+    SetValueVecFunc setValueVec;
+    SetValueHexStrFunc setValueHexStr;
 
     ComplexHandle(std::string name, int64_t handle) : handle(handle), name(name) {
         this->bitwidth = dpi_exporter_get_bitwidth(handle);
@@ -165,6 +181,13 @@ class ComplexHandle {
         this->getValue32     = dpi_exporter_alloc_get_value32(handle);
         this->getValueVec    = dpi_exporter_alloc_get_value_vec(handle);
         this->getValueHexStr = dpi_exporter_alloc_get_value_hex_str(handle);
+
+        this->setValue32 = dpi_exporter_alloc_set_value32(handle);
+        if (this->setValue32 != nullptr) {
+            this->isWritable     = true;
+            this->setValueVec    = dpi_exporter_alloc_set_value_vec(handle);
+            this->setValueHexStr = dpi_exporter_alloc_set_value_hex_str(handle);
+        }
 
         if (this->bitwidth <= 32) {
             FATAL(this->getValueVec == nullptr);
@@ -199,7 +222,26 @@ extern "C" {
 
 vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 indx) { FATAL(0, "`vpi_handle_by_index` not implemented\n"); }
 
-vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) { FATAL(0, "`vpi_put_value` not implemented\n"); }
+vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
+    auto complexHandle = reinterpret_cast<ComplexHandlePtr>(object);
+    FATAL(complexHandle->isWritable, "Cannot write to read-only signal! name: %s\n", complexHandle->name.data());
+    FATAL(flags == vpiNoDelay, "flags: %d is not supported", flags);
+
+    switch (value_p->format) {
+    case vpiVectorVal:
+        if (complexHandle->beatSize == 1) {
+            complexHandle->setValue32(value_p->value.vector[0].aval);
+        } else {
+            FATAL(0, "TODO: \n");
+        }
+        break;
+    default:
+        FATAL(0, "`vpi_put_value` not implemented, format: %d\n", value_p->format);
+        break;
+    }
+
+    return nullptr;
+}
 
 vpiHandle vpi_scan(vpiHandle iterator) { FATAL(0, "`vpi_scan` not implemented\n"); }
 

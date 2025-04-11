@@ -148,7 +148,7 @@ pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
 }
 
 #[inline(always)]
-fn apply_pending_put_values(env: &mut VeriluaEnv) {
+pub fn apply_pending_put_values(env: &mut VeriluaEnv) {
     env.hdl_put_value.iter_mut().for_each(|complex_handle_raw| {
         let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 

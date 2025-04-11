@@ -406,7 +406,10 @@ macro_rules! gen_verilua_step {
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn $name() {
             let env = get_verilua_env();
-            assert!(env.initialized, concat!($msg, " called before verilua_init()"));
+            assert!(
+                env.initialized,
+                concat!($msg, " called before verilua_init()")
+            );
 
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
@@ -419,6 +422,8 @@ macro_rules! gen_verilua_step {
             {
                 env.lua_time += s.elapsed();
             }
+
+            vpi_callback::apply_pending_put_values(env);
         }
     };
 }
@@ -454,6 +459,8 @@ macro_rules! gen_verilua_step_safe {
             {
                 env.lua_time += s.elapsed();
             }
+
+            vpi_callback::apply_pending_put_values(env);
         }
     };
 }

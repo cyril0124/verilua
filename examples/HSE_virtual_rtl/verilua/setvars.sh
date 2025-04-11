@@ -1,0 +1,1 @@
+export VERILUA_CFG="$(pwd)/cfg.lua"

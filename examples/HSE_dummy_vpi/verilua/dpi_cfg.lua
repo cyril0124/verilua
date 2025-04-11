@@ -6,11 +6,11 @@ dpi_exporter_config = {
     {
         module = "Top",
         clock = "clock",
-        signal = {"clock", "count.*"}
+        signals = {"clock", "count.*"}
     },
-    
+
     {
         module = "Sub",
-        signal = { "value.*", "signal" },
+        signals = { "value.*", "signal" },
     },
 }

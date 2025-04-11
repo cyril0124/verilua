@@ -20,9 +20,9 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
         std::vector<std::string> dpiTickFuncParamVec;
         for (auto &p : portVec) {
             if (p.bitWidth == 1) {
-                dpiTickDeclParamVec.push_back(fmt::format("\tinput bit {}_{}", p.hierPathName, p.name));
+                dpiTickDeclParamVec.push_back(fmt::format("\t{} bit {}_{}", p.writable ? "output" : "input", p.hierPathName, p.name));
             } else {
-                dpiTickDeclParamVec.push_back(fmt::format("\tinput bit [{}:0] {}_{}", p.bitWidth - 1, p.hierPathName, p.name));
+                dpiTickDeclParamVec.push_back(fmt::format("\t{} bit [{}:0] {}_{}", p.writable ? "output" : "input", p.bitWidth - 1, p.hierPathName, p.name));
             }
 
             dpiTickFuncParamVec.push_back(fmt::format("{}.{}", p.hierPathNameDot, p.name));
@@ -89,17 +89,25 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
             for (int i = 0; i < portVec.size(); i++) {
                 auto &p = portVec[i];
                 if (p.bitWidth == 1) {
-                    sv_dpiTickDeclParamVec.push_back(fmt::format("\t\tinput bit {}", p.name, p.name));
+                    sv_dpiTickDeclParamVec.push_back(fmt::format("\t\t{} bit {}", p.writable ? "output" : "input", p.name));
                 } else {
-                    sv_dpiTickDeclParamVec.push_back(fmt::format("\t\tinput bit [{}:0] {}", p.bitWidth - 1, p.name));
+                    sv_dpiTickDeclParamVec.push_back(fmt::format("\t\t{} bit [{}:0] {}", p.writable ? "output" : "input", p.bitWidth - 1, p.name));
                 }
 
                 sv_dpiTickFuncParamVec.push_back(fmt::format("{}", p.name));
 
                 if (p.bitWidth == 1) {
-                    dpiTickDeclParamVec.push_back(fmt::format("const uint8_t {}", p.name));
+                    if (p.writable) {
+                        dpiTickDeclParamVec.push_back(fmt::format("uint8_t* {}", p.name));
+                    } else {
+                        dpiTickDeclParamVec.push_back(fmt::format("const uint8_t {}", p.name));
+                    }
                 } else {
-                    dpiTickDeclParamVec.push_back(fmt::format("const uint32_t *{}", p.name));
+                    if (p.writable) {
+                        dpiTickDeclParamVec.push_back(fmt::format("uint32_t *{}", p.name));
+                    } else {
+                        dpiTickDeclParamVec.push_back(fmt::format("const uint32_t *{}", p.name));
+                    }
                 }
             }
 
@@ -148,6 +156,7 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                 }
 
                 {
+                    // Tick dpic function used when distributeDPI == TRUE
                     json j;
                     j["hierPath"]            = hierPath;
                     j["dpiTickFuncName"]     = dpiTickFuncName;
@@ -189,48 +198,94 @@ void DPIExporterRewriter::handle(ModuleDeclarationSyntax &syntax) {
                     if (beatSize == 1) {
                         if (p.bitWidth == 1) {
                             dpiSignalDeclVec.push_back(fmt::format("uint8_t __{}_{}; // bits: {}, handleId: {}", hierPathName, p.name, p.bitWidth, p.handleId));
-                            dpiTickDDFuncBodyVec.push_back(fmt::format("\t__{}_{} = {};", hierPathName, p.name, p.name));
+                            if (p.writable) {
+                                dpiTickDDFuncBodyVec.push_back(fmt::format("\t*{} = __{}_{};", p.name, hierPathName, p.name));
+                            } else {
+                                dpiTickDDFuncBodyVec.push_back(fmt::format("\t__{}_{} = {};", hierPathName, p.name, p.name));
+                            }
                         } else {
                             // dpiFuncFileContent += fmt::format("uint32_t __{}_{}; // bits: {}, handleId: {}\n", hierPathName, p.name, p.bitWidth, p.handleId);
                             dpiSignalDeclVec.push_back(fmt::format("uint32_t __{}_{}; // bits: {}, handleId: {}", hierPathName, p.name, p.bitWidth, p.handleId));
-                            dpiTickDDFuncBodyVec.push_back(fmt::format("\t__{}_{} = *{};", hierPathName, p.name, p.name));
+                            if (p.writable) {
+                                dpiTickDDFuncBodyVec.push_back(fmt::format("\t*{} = __{}_{};", p.name, hierPathName, p.name));
+
+                            } else {
+                                dpiTickDDFuncBodyVec.push_back(fmt::format("\t__{}_{} = *{};", hierPathName, p.name, p.name));
+                            }
                         }
                     } else {
                         dpiSignalDeclVec.push_back(fmt::format("uint32_t __{}_{}[{}]; // bits: {}, handleId: {}", hierPathName, p.name, beatSize, p.bitWidth, p.handleId));
 #ifdef NO_STD_COPY
                         // No std::copy
-                        for (int k = 0; k < beatSize; k++) {
-                            dpiTickDDFuncBodyVec.push_back(fmt::format("\t{}[{}] = {}[{}];", signalName, k, p.name, k))
+                        if (p.writable) {
+                            for (int k = 0; k < beatSize; k++) {
+                                dpiTickDDFuncBodyVec.push_back(fmt::format("\t{}[{}] = {}[{}];", p.name, k, signalName, k));
+                            }
+                        } else {
+                            for (int k = 0; k < beatSize; k++) {
+                                dpiTickDDFuncBodyVec.push_back(fmt::format("\t{}[{}] = {}[{}];", signalName, k, p.name, k));
+                            }
                         }
 #else
                         // With std::copy
-                        dpiTickDDFuncBodyVec.push_back(fmt::format("\tstd::copy({0}, {0} + {1}, {2});", p.name, beatSize, signalName));
+                        if (p.writable) {
+                            dpiTickDDFuncBodyVec.push_back(fmt::format("\tstd::copy({2}, {2} + {1}, {0});", p.name, beatSize, signalName));
+                        } else {
+                            dpiTickDDFuncBodyVec.push_back(fmt::format("\tstd::copy({0}, {0} + {1}, {2});", p.name, beatSize, signalName));
+                        }
 #endif // NO_STD_COPY
                     }
 
                     if (!distributeDPI) {
                         if (p.bitWidth == 1) {
                             // dpiTickFuncParamVec is uesd outside the rewriter class
-                            dpiTickFuncParamVec.push_back(fmt::format("const uint8_t {}_{}", hierPathName, p.name));
+                            if (p.writable) {
+                                dpiTickFuncParamVec.push_back(fmt::format("uint8_t* {}_{}", hierPathName, p.name));
+                            } else {
+                                dpiTickFuncParamVec.push_back(fmt::format("const uint8_t {}_{}", hierPathName, p.name));
+                            }
                         } else {
-                            dpiTickFuncParamVec.push_back(fmt::format("const uint32_t *{}_{}", hierPathName, p.name));
+                            if (p.writable) {
+                                dpiTickFuncParamVec.push_back(fmt::format("uint32_t *{}_{}", hierPathName, p.name));
+                            } else {
+                                dpiTickFuncParamVec.push_back(fmt::format("const uint32_t *{}_{}", hierPathName, p.name));
+                            }
                         }
 
                         if (beatSize == 1) {
                             if (p.bitWidth == 1) {
-                                dpiTickFuncBodyVec.push_back(fmt::format("\t{} = {}_{};", signalName, hierPathName, p.name));
+                                if (p.writable) {
+                                    dpiTickFuncBodyVec.push_back(fmt::format("\t*{}_{} = {};", hierPathName, p.name, signalName));
+                                } else {
+                                    dpiTickFuncBodyVec.push_back(fmt::format("\t{} = {}_{};", signalName, hierPathName, p.name));
+                                }
                             } else {
-                                dpiTickFuncBodyVec.push_back(fmt::format("\t{} = *{}_{};", signalName, hierPathName, p.name));
+                                if (p.writable) {
+                                    dpiTickFuncBodyVec.push_back(fmt::format("\t*{}_{} = {};", hierPathName, p.name, signalName));
+                                } else {
+                                    dpiTickFuncBodyVec.push_back(fmt::format("\t{} = *{}_{};", signalName, hierPathName, p.name));
+                                }
                             }
                         } else {
 #ifdef NO_STD_COPY
                             // No std::copy
-                            for (int k = 0; k < beatSize; k++) {
-                                dpiTickFuncBodyVec.push_back(fmt::format("\t{}[{}] = {}_{}[{}];", signalName, k, hierPathName, p.name, k));
+                            if (p.writable) {
+                                for (int k = 0; k < beatSize; k++) {
+                                    dpiTickFuncBodyVec.push_back(fmt::format("\t{}_{}[{}] = {}[{}];", hierPathName, p.name, k, signalName, k));
+                                }
+                            } else {
+                                for (int k = 0; k < beatSize; k++) {
+                                    dpiTickFuncBodyVec.push_back(fmt::format("\t{}[{}] = {}_{}[{}];", signalName, k, hierPathName, p.name, k));
+                                }
                             }
+
 #else
                             // With std::copy
-                            dpiTickFuncBodyVec.push_back(fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, {3});", hierPathName, p.name, beatSize, signalName));
+                            if (p.writable) {
+                                dpiTickFuncBodyVec.push_back(fmt::format("\tstd::copy({3}, {3} + {2}, {0}_{1});", hierPathName, p.name, beatSize, signalName));
+                            } else {
+                                dpiTickFuncBodyVec.push_back(fmt::format("\tstd::copy({0}_{1}, {0}_{1} + {2}, {3});", hierPathName, p.name, beatSize, signalName));
+                            }
 #endif // NO_STD_COPY
                         }
                     }
@@ -348,6 +403,26 @@ extern "C" void {}_{}_GET_HEX_STR(char *hexStr) {{
                                                                               dpiFuncNamePrefix, p.name, tmp, coverWith4(p.bitWidth)));
                         }
                     }
+
+                    // Generate writer functions
+                    if (p.writable) {
+                        if (beatSize == 1) {
+                            dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
+extern "C" void {}_{}_SET(uint32_t value) {{
+    {} = value;
+}})",
+                                                                              dpiFuncNamePrefix, p.name, signalName));
+                        } else { // beatSize > 1
+                            dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
+extern "C" void {}_{}_SET(uint32_t value) {{
+    {}[0] = value;
+    for (int i = 1; i < {}; i++) {{
+        {}[i] = 0;
+    }}
+}})",
+                                                                              dpiFuncNamePrefix, p.name, signalName, beatSize, signalName));
+                        }
+                    }
                 }
 
                 json j;
@@ -376,8 +451,10 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
             }
             sv_genStatement += "\nendgenerate\n";
 
+            // Insert `VERILUA_DPI_EXPORTER_xxx_GET_xxx` and `VERILUA_DPI_EXPORTER_xxx_SET_xxx` functions
             dpiFuncFileContent += fmt::to_string(fmt::join(dpiSignalBlockVec, "\n"));
             if (distributeDPI) {
+                // Insert `VERILUA_DPI_EXPORTER_xxx_TICK` functions when distributeDPI == TRUE
                 dpiFuncFileContent += fmt::to_string(fmt::join(dpiTickFuncVec, "\n"));
             }
             dpiFuncFileContent += "\n";
@@ -409,18 +486,9 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
                     }
 
                     // TODO: Check port type
-                    if (checkValidSignal(portName)) {
-                        portVec.emplace_back(PortInfo{.name = portName, .direction = std::string(direction), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet", .hierPathName = "", .hierPathNameDot = ""}); // TODO: typeStr
-                        if (!quiet) {
-                            fmt::println("[DPIExporterRewriter] [{}VALID{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth, globalHandleIdx);
-                            fflush(stdout);
-                        }
+                    auto portInfo = PortInfo{.name = portName, .direction = std::string(direction), .bitWidth = bitWidth, .handleId = globalHandleIdx, .writable = false, .typeStr = "vpiNet", .hierPathName = "", .hierPathNameDot = ""};
+                    if (appendPortVec("PORT", portInfo)) {
                         globalHandleIdx++;
-                    } else {
-                        if (!quiet) {
-                            fmt::println("[DPIExporterRewriter] [{}IGNORED{}] [PORT] moudleName:<{}> portName:<{}> direction:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, portName, direction, bitWidth);
-                            fflush(stdout);
-                        }
                     }
                 }
             } else {
@@ -433,18 +501,9 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
                     auto bitWidth = net.getType().getBitWidth();
 
                     // TODO: Check net type
-                    if (checkValidSignal(netName)) {
-                        portVec.emplace_back(PortInfo{.name = netName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiNet", .hierPathName = "", .hierPathNameDot = ""});
-                        if (!quiet) {
-                            fmt::println("[DPIExporterRewriter] [{}VALID{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, netName, bitWidth, globalHandleIdx);
-                            fflush(stdout);
-                        }
+                    auto portInfo = PortInfo{.name = netName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .writable = false, .typeStr = "vpiNet", .hierPathName = "", .hierPathNameDot = ""};
+                    if (appendPortVec("NET", portInfo)) {
                         globalHandleIdx++;
-                    } else {
-                        if (!quiet) {
-                            fmt::println("[DPIExporterRewriter] [{}IGNORED{}] [NET] moudleName:<{}> netName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, netName, bitWidth);
-                            fflush(stdout);
-                        }
                     }
 
                     hasAnyNet = true;
@@ -456,24 +515,58 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
                     auto bitWidth = var.getType().getBitWidth();
 
                     // TODO: Check var type
-                    if (checkValidSignal(varName)) {
-                        portVec.emplace_back(PortInfo{.name = varName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .typeStr = "vpiReg", .hierPathName = "", .hierPathNameDot = ""});
-                        if (!quiet) {
-                            fmt::println("[DPIExporterRewriter] [{}VALID{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, moduleName, varName, bitWidth, globalHandleIdx);
-                            fflush(stdout);
-                        }
+                    auto portInfo = PortInfo{.name = varName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .writable = false, .typeStr = "vpiReg", .hierPathName = "", .hierPathNameDot = ""};
+                    if (appendPortVec("VAR", portInfo)) {
                         globalHandleIdx++;
-                    } else {
-                        if (!quiet) {
-                            fmt::println("[DPIExporterRewriter] [{}IGNORED{}] [VAR] moudleName:<{}> varName:<{}> bitWidth:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, moduleName, varName, bitWidth);
-                            fflush(stdout);
+                    }
+
+                    hasAnyVar = true;
+                }
+
+                ASSERT(hasAnyNet || hasAnyVar, "No `net` or `var` found in module", moduleName, info);
+            }
+
+            if (info.writableSignalPatternVec.size() > 0) {
+                // Only variable symbol are supported to be writable
+                bool hasAnyVar = false;
+                auto varIter   = instSym->body.membersOfType<VariableSymbol>();
+                for (const auto &var : varIter) {
+                    auto varName  = std::string(var.name);
+                    auto bitWidth = var.getType().getBitWidth();
+
+                    // TODO: Check var type
+                    bool duplicateSiangl = false;
+                    // Check if the mathed signal is duplicate in the portVec
+                    for (auto &port : portVec) {
+                        if (port.name == varName && checkValidSignal(varName, info.writableSignalPatternVec)) {
+                            ASSERT(port.typeStr == "vpiReg", "Writable signal should be vpiReg type!", port);
+                            ASSERT(port.bitWidth == bitWidth, "Writable signal should have the same bit width!", port);
+
+                            port.writable   = true;
+                            duplicateSiangl = true;
+                            hasAnyVar       = true;
+
+                            if (!quiet) {
+                                fmt::println("[DPIExporterRewriter] [{}UPDATE{}] [WR_VAR] moudleName:<{}> signalName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET, moduleName, port.name, port.bitWidth, port.handleId);
+                                fflush(stdout);
+                            }
+
+                            break;
+                        }
+                    }
+
+                    if (!duplicateSiangl) {
+                        // Add writable variable signal that is not already in portVec
+                        auto portInfo = PortInfo{.name = varName, .direction = std::string("Unknown"), .bitWidth = bitWidth, .handleId = globalHandleIdx, .writable = true, .typeStr = "vpiReg", .hierPathName = "", .hierPathNameDot = ""};
+                        if (appendPortVec("WR_VAR", portInfo)) {
+                            globalHandleIdx++;
                         }
                     }
 
                     hasAnyVar = true;
                 }
 
-                ASSERT(hasAnyNet || hasAnyVar, "No net or var found in module", moduleName, info);
+                ASSERT(hasAnyVar, "No `var` found in module", moduleName, info);
             }
 
             // Try find clock from instance body

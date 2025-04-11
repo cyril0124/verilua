@@ -39,6 +39,7 @@
 
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
@@ -190,6 +191,7 @@ using PortInfo = struct {
     std::string direction;
     bitwidth_t bitWidth;
     uint64_t handleId;
+    bool writable;
     std::string typeStr;
     std::string hierPathName;
     std::string hierPathNameDot;
@@ -199,6 +201,7 @@ using DPIExporterInfo = struct {
     std::string moduleName;
     std::string clock;
     std::vector<std::string> signalPatternVec;
+    std::vector<std::string> writableSignalPatternVec;
     std::vector<std::string> disableSignalPatternVec;
     bool isTopModule;
 };

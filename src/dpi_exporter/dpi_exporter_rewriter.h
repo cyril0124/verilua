@@ -56,8 +56,8 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
         clock      = info.clock;
     }
 
-    bool _checkValidSignal(std::string signal) {
-        for (const auto &pattern : info.signalPatternVec) {
+    bool _checkValidSignal(std::string signal, std::vector<std::string> &signalPatternVec) {
+        for (const auto &pattern : signalPatternVec) {
             std::regex regexPattern(pattern);
 
             if (std::regex_match(signal, regexPattern)) {
@@ -80,16 +80,39 @@ class DPIExporterRewriter : public slang::syntax::SyntaxRewriter<DPIExporterRewr
         return false;
     }
 
-    bool checkValidSignal(std::string signal) {
-        if (info.signalPatternVec.size() == 0) {
-            return !_checkInvalidSignal(signal);
-        }
-
+    bool checkValidSignal(std::string signal, std::vector<std::string> &signalPatternVec) {
         if (_checkInvalidSignal(signal)) {
             return false;
         }
 
-        return _checkValidSignal(signal);
+        if (signalPatternVec.empty()) {
+            return true;
+        } else {
+            return _checkValidSignal(signal, signalPatternVec);
+        }
+    }
+
+    bool appendPortVec(std::string_view type, PortInfo &portInfo) {
+        ASSERT(type == "PORT" || type == "NET" || type == "VAR" || type == "WR_VAR", type, portInfo);
+
+        auto &signalPatternVec = type == "WR_VAR" ? info.writableSignalPatternVec : info.signalPatternVec;
+
+        if (checkValidSignal(portInfo.name, signalPatternVec)) {
+            portVec.emplace_back(portInfo);
+
+            if (!quiet) {
+                fmt::println("[DPIExporterRewriter] [{}VALID{}] [{}] moudleName:<{}> signalName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, type, moduleName, portInfo.name, portInfo.bitWidth, portInfo.handleId);
+                fflush(stdout);
+            }
+
+            return true;
+        } else {
+            if (!quiet) {
+                fmt::println("[DPIExporterRewriter] [{}IGNORED{}] [{}] moudleName:<{}> signalName:<{}> bitWidth:<{}> handleId:<{}>", ANSI_COLOR_RED, ANSI_COLOR_RESET, type, moduleName, portInfo.name, portInfo.bitWidth, portInfo.handleId);
+                fflush(stdout);
+            }
+            return false;
+        }
     }
 
     void handle(ModuleDeclarationSyntax &syntax);

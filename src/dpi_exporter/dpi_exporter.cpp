@@ -125,6 +125,14 @@ for i, tbl in ipairs(dpi_exporter_config) do
         end
     end
 
+    if tbl.writable_signals == nil then
+        tbl.writable_signals = {{}}
+    else
+        for i, v in ipairs(tbl.writable_signals) do
+            assert(type(v) == "string", "item of the `writable_signals` table must be string")
+        end
+    end
+
     if tbl.disable_signal == nil then
         tbl.disable_signal = {{}}
     else
@@ -153,6 +161,16 @@ end
                 }
             }
 
+            std::vector<std::string> writableSignalPatternVec;
+            for (const auto &strEntry : (sol::table)item["writable_signals"]) {
+                const auto &str = strEntry.second;
+                if (str.is<std::string>()) {
+                    writableSignalPatternVec.push_back(str.as<std::string>());
+                } else {
+                    PANIC("Unexpected type");
+                }
+            }
+
             std::vector<std::string> disableSignalPatternVec;
             for (const auto &strEntry : (sol::table)item["disable_signal"]) {
                 const auto &str = strEntry.second;
@@ -167,7 +185,7 @@ end
                 fmt::println("[dpi_exporter] {}WARNING{}: no signal pattern found for module: {}!", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, moduleName);
             }
 
-            dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec, disableSignalPatternVec, isTopModule});
+            dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec, writableSignalPatternVec, disableSignalPatternVec, isTopModule});
         }
         ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
     }
@@ -380,9 +398,14 @@ end
         std::vector<std::string> handleByNameVec;
         std::vector<std::string> getTypeStrVec;
         std::vector<std::string> getBitWidthVec;
+
         std::vector<std::string> getValue32Vec;
         std::vector<std::string> getValueVecVec;
         std::vector<std::string> getValueHexStrVec;
+
+        std::vector<std::string> setValue32Vec;
+        std::vector<std::string> setValueVecVec;
+        std::vector<std::string> setValueHexStrVec;
 
         std::vector<std::string> dpiTickFuncParamVec;
         std::vector<std::string> dpiTickFuncBodyVec;
@@ -461,11 +484,21 @@ end
                     handleByNameVec.push_back(fmt::format("\t\t{{ \"{}_{}\", 0x{:x} }} {}", hierPathName, p.name, uniqueHandleId, extraInfo));
                     getTypeStrVec.push_back(fmt::format("\t\t{{ 0x{:x}, \"{}\" }} {}", uniqueHandleId, p.typeStr, extraInfo));
                     getBitWidthVec.push_back(fmt::format("\t\t{{ 0x{:x}, {} }} {}", uniqueHandleId, p.bitWidth, extraInfo));
+
                     getValue32Vec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_GET }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
                     if (p.bitWidth > 32) {
                         getValueVecVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_GET_VEC }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
                     }
                     getValueHexStrVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_GET_HEX_STR }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
+
+                    if (p.writable) {
+                        setValue32Vec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
+                        // TODO:
+                        // if (p.bitWidth > 32) {
+                        //     setValueVecVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET_VEC }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
+                        // }
+                        // setValueHexStrVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET_HEX_STR }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
+                    }
                 }
             }
             dpiFuncFileContent += rewriter_1->dpiFuncFileContent;
@@ -516,6 +549,9 @@ end
         j["getValue32"]         = fmt::to_string(fmt::join(getValue32Vec, ",\n"));
         j["getValueVec"]        = fmt::to_string(fmt::join(getValueVecVec, ",\n"));
         j["getValueHexStr"]     = fmt::to_string(fmt::join(getValueHexStrVec, ",\n"));
+        j["setValue32"]         = fmt::to_string(fmt::join(setValue32Vec, ",\n"));
+        j["setValueVec"]        = fmt::to_string(fmt::join(setValueVecVec, ",\n"));
+        j["setValueHexStr"]     = fmt::to_string(fmt::join(setValueHexStrVec, ",\n"));
         j["dpiTickFuncParam"]   = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));
         j["dpiTickFuncBody"]    = fmt::to_string(fmt::join(dpiTickFuncBodyVec, "\n"));
 
@@ -536,6 +572,10 @@ end
 using GetValue32Func = std::function<uint32_t ()>;
 using GetValueVecFunc = std::function<void (uint32_t *)>;
 using GetValueHexStrFunc = std::function<void (char*)>;
+
+using SetValue32Func = std::function<void (uint32_t)>;
+using SetValueVecFunc = std::function<void (uint32_t *)>;
+using SetValueHexStrFunc = std::function<void (char*)>;
 
 {{dpiFuncFileContent}}
 
@@ -607,6 +647,45 @@ extern "C" GetValueVecFunc dpi_exporter_alloc_get_value_vec(int64_t handle) {
 extern "C" GetValueHexStrFunc dpi_exporter_alloc_get_value_hex_str(int64_t handle) {
     static std::unordered_map<int64_t, GetValueHexStrFunc> handle_to_func = {
 {{getValueHexStr}}
+    };
+
+    auto it = handle_to_func.find(handle);
+    if (it!= handle_to_func.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
+}
+
+extern "C" SetValue32Func dpi_exporter_alloc_set_value32(int64_t handle) {
+    static std::unordered_map<int64_t, SetValue32Func> handle_to_func = {
+{{setValue32}}
+    };
+
+    auto it = handle_to_func.find(handle);
+    if (it!= handle_to_func.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
+}
+
+extern "C" SetValueVecFunc dpi_exporter_alloc_set_value_vec(int64_t handle) {
+    static std::unordered_map<int64_t, SetValueVecFunc> handle_to_func = {
+{{setValueVec}}
+    };
+
+    auto it = handle_to_func.find(handle);
+    if (it!= handle_to_func.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
+}
+
+extern "C" SetValueHexStrFunc dpi_exporter_alloc_set_value_hex_str(int64_t handle) {
+    static std::unordered_map<int64_t, SetValueHexStrFunc> handle_to_func = {
+{{setValueHexStr}}
     };
 
     auto it = handle_to_func.find(handle);

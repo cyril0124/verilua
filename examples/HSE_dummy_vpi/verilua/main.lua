@@ -12,7 +12,7 @@ fork {
             lua_hexStr = value:get_hex_str()
             lua_hexStr2 = value2:get_hex_str()
             lua_hexStr3 = value3:get_hex_str()
-            print(v, lua_hexStr, lua_hexStr2, lua_hexStr3)
+            print("[" .. i .. "]", v, lua_hexStr, lua_hexStr2, lua_hexStr3)
         end)
 
         sim.finish()
