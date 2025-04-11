@@ -58,6 +58,7 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
         j["clock"]                = clock;
 
         // TODO: if syntax.members is NULL?
+        // Insert the following dpic tick function into top module
         insertAtBack(syntax.members, parse(inja::render(R"(
 import "DPI-C" function void dpi_exporter_tick(
 {{dpiTickFuncDeclParam}}    
@@ -569,26 +570,29 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
                 ASSERT(hasAnyVar, "No `var` found in module", moduleName, info);
             }
 
-            // Try find clock from instance body
-            if (!foundClock) {
-                auto clkSym = instSym->body.find(clock);
-                if (clkSym != nullptr) {
-                    auto bitWidth = 0;
-                    if (clkSym->kind == SymbolKind::Variable) {
-                        auto varSym = &clkSym->as<VariableSymbol>();
-                        bitWidth    = varSym->getType().getBitWidth();
-                    } else if (clkSym->kind == SymbolKind::Net) {
-                        auto netSym = &clkSym->as<NetSymbol>();
-                        bitWidth    = netSym->getType().getBitWidth();
-                    } else {
-                        PANIC("Unsupported clock type", toString(clkSym->kind));
+            if (distributeDPI) {
+                // Try find clock from instance body
+                // Every instance should have a clock signal specified by the configuration file
+                if (!foundClock) {
+                    auto clkSym = instSym->body.find(clock);
+                    if (clkSym != nullptr) {
+                        auto bitWidth = 0;
+                        if (clkSym->kind == SymbolKind::Variable) {
+                            auto varSym = &clkSym->as<VariableSymbol>();
+                            bitWidth    = varSym->getType().getBitWidth();
+                        } else if (clkSym->kind == SymbolKind::Net) {
+                            auto netSym = &clkSym->as<NetSymbol>();
+                            bitWidth    = netSym->getType().getBitWidth();
+                        } else {
+                            PANIC("Unsupported clock type", toString(clkSym->kind));
+                        }
+                        ASSERT(bitWidth == 1, "Unsupported clock bitwidth", bitWidth);
+                        foundClock = true;
                     }
-                    ASSERT(bitWidth == 1, "Unsupported clock bitwidth", bitWidth);
-                    foundClock = true;
                 }
-            }
 
-            ASSERT(foundClock, "Clock signal not found!", moduleName, clock);
+                ASSERT(foundClock, "Clock signal not found!", moduleName, clock);
+            }
 
             if (!info.isTopModule && distributeDPI) {
                 if (syntax.header->parameters == nullptr) {

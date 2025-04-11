@@ -145,48 +145,55 @@ end
                                configFile));
 
         // Extract config info from the provided lua file
-        for (const auto &entry : (sol::table)lua["dpi_exporter_config"]) {
-            sol::table item        = entry.second;
+        sol::table config = lua["dpi_exporter_config"];
+        config.for_each([&](sol::object key, sol::object value) {
+            if (key.is<std::string>()) {
+                std::string keyStr = key.as<std::string>();
+                if (keyStr == "clock") {
+                    ASSERT(value.is<std::string>(), "`clock` must be a signal string");
+                    topClock = value.as<std::string>(); // Overwrite the `topClock`
+                } else {
+                    PANIC(fmt::format("Unknown key: {} value: {}", keyStr, value.as<std::string>()));
+                }
+                return;
+            }
+
+            // Skip if the value is not a table (just in case)
+            if (!value.is<sol::table>()) {
+                PANIC("Value is not a table", key.as<std::string>());
+            }
+
+            sol::table item        = value.as<sol::table>();
             std::string moduleName = getLuaTableItemOrFailed(item, "module").as<std::string>();
-            std::string clock      = item["clock"].get_or(std::string("clock"));
+            std::string clock      = item["clock"].get_or(std::string(DEFAULT_CLOCK_NAME));
             bool isTopModule       = item["is_top_module"].get_or(std::string("false")) == "true";
 
-            std::vector<std::string> signalPatternVec;
-            for (const auto &strEntry : (sol::table)item["signals"]) {
-                const auto &str = strEntry.second;
-                if (str.is<std::string>()) {
-                    signalPatternVec.push_back(str.as<std::string>());
-                } else {
-                    PANIC("Unexpected type");
+            // Helper lambda to extract string vectors from a table field
+            auto extractStringVector = [](sol::table tbl, const char *field) {
+                std::vector<std::string> vec;
+                sol::optional<sol::table> fieldTable = tbl[field];
+                if (fieldTable) {
+                    fieldTable->for_each([&](sol::object, sol::object str) {
+                        if (str.is<std::string>()) {
+                            vec.push_back(str.as<std::string>());
+                        } else {
+                            PANIC("Unexpected type in " + std::string(field));
+                        }
+                    });
                 }
-            }
+                return vec;
+            };
 
-            std::vector<std::string> writableSignalPatternVec;
-            for (const auto &strEntry : (sol::table)item["writable_signals"]) {
-                const auto &str = strEntry.second;
-                if (str.is<std::string>()) {
-                    writableSignalPatternVec.push_back(str.as<std::string>());
-                } else {
-                    PANIC("Unexpected type");
-                }
-            }
-
-            std::vector<std::string> disableSignalPatternVec;
-            for (const auto &strEntry : (sol::table)item["disable_signal"]) {
-                const auto &str = strEntry.second;
-                if (str.is<std::string>()) {
-                    disableSignalPatternVec.push_back(str.as<std::string>());
-                } else {
-                    PANIC("Unexpected type");
-                }
-            }
+            std::vector<std::string> signalPatternVec         = extractStringVector(item, "signals");
+            std::vector<std::string> writableSignalPatternVec = extractStringVector(item, "writable_signals");
+            std::vector<std::string> disableSignalPatternVec  = extractStringVector(item, "disable_signal");
 
             if (signalPatternVec.empty()) {
                 fmt::println("[dpi_exporter] {}WARNING{}: no signal pattern found for module: {}!", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET, moduleName);
             }
 
             dpiExporterInfoVec.emplace_back(DPIExporterInfo{moduleName, clock, signalPatternVec, writableSignalPatternVec, disableSignalPatternVec, isTopModule});
-        }
+        });
         ASSERT(dpiExporterInfoVec.size() > 0, "dpi_exporter_config is empty", configFile);
     }
 
@@ -268,7 +275,7 @@ end
         configFile       = fs::absolute(_configFile.value()).string();
         outdir           = fs::absolute(_outdir.value_or(DEFAULT_OUTPUT_DIR)).string();
         workdir          = fs::absolute(_workdir.value_or(DEFAULT_WORK_DIR)).string();
-        topClock         = _topClock.value_or("clock");
+        topClock         = _topClock.value_or(DEFAULT_CLOCK_NAME);
         sampleEdge       = _sampleEdge.value_or("negedge");
         distributeDPI    = _distributeDPI.value_or(false);
         quiet            = _quiet.value_or(false);
