@@ -45,12 +45,13 @@ ffi.cdef[[
 
 local initialize_trace = function (trace_file_path)
     assert(trace_file_path ~= nil)
-    if cfg.simulator == "vcs" then
+    local simulator = cfg.simulator
+    if simulator == "vcs" then
         set_dpi_scope()
         ffi.C.simulation_initializeTrace(ffi.cast("char *", trace_file_path))
-    elseif cfg.simulator == "verilator" then
+    elseif simulator == "verilator" then
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
-    elseif cfg.simulator == "iverilog" then
+    elseif simulator == "iverilog" then
         _G.await_time(0) -- waitting for simulation start
         
         local traceFilePath = trace_file_path or "dump.vcd"
@@ -72,16 +73,17 @@ local initialize_trace = function (trace_file_path)
     end
 end
 
-local enable_trace = function ()    
-    if cfg.simulator == "vcs" then
+local enable_trace = function ()
+    local simulator = cfg.simulator
+    if simulator == "vcs" then
         set_dpi_scope()
         ffi.C.simulation_enableTrace()
-    elseif cfg.simulator == "verilator" then
+    elseif simulator == "verilator" then
         ffi.C.verilator_simulation_enableTrace()
-    elseif cfg.simulator == "iverilog" then
+    elseif simulator == "iverilog" then
         dut.simulation_enableTrace = 1
         dut.simulation_enableTrace_latch = 0
-    elseif cfg.simulator == "wave_vpi" then
+    elseif simulator == "wave_vpi" then
         assert(false, "[enable_trace] not support for wave_vpi now")
     else
         assert(false, "Unknown simulator => " .. cfg.simulator)
