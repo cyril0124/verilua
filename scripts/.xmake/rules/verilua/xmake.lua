@@ -322,8 +322,9 @@ rule("verilua")
             end
         end
 
-        table.join2(argv, target:values(sim .. ".flags"))
-        cprint("${✅} [verilua-xmake] [%s] `%s.flags` is ${green underline}%s${reset}", target:name(), sim, table.concat(target:values(sim .. ".flags"), " "))
+        local sim_flags = target:values(sim .. ".flags") or {}
+        cprint("${✅} [verilua-xmake] [%s] `%s.flags` is ${green underline}%s${reset}", target:name(), sim, table.concat(sim_flags, " "))
+        table.join2(argv, sim_flags)
 
         -- Add extra includedirs and link flags
         target:add("includedirs", 
