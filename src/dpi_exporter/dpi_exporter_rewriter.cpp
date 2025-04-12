@@ -413,15 +413,71 @@ extern "C" void {}_{}_SET(uint32_t value) {{
     {} = value;
 }})",
                                                                               dpiFuncNamePrefix, p.name, signalName));
+                            dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
+extern "C" void {}_{}_SET64(uint64_t value) {{
+    {} = (uint32_t)value;
+}})",
+                                                                              dpiFuncNamePrefix, p.name, signalName));
+                            dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
+extern "C" void {}_{}_SET_HEX_STR(char *hexStr) {{
+    uint32_t value = 0;
+    for (int i = 0; hexStr[i] != '\0' && i < 7; ++i) {{
+        char c = hexStr[i];
+        value <<= 4;
+        if (c >= '0' && c <= '9') {{
+            value |= (c - '0');
+        }} else if (c >= 'a' && c <= 'f') {{
+            value |= (c - 'a' + 10);
+        }} else if (c >= 'A' && c <= 'F') {{
+            value |= (c - 'A' + 10);
+        }}
+    }}
+    {} = value;
+}})",
+                                                                              dpiFuncNamePrefix, p.name, signalName));
+
                         } else { // beatSize > 1
                             dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
-extern "C" void {}_{}_SET(uint32_t value) {{
-    {}[0] = value;
-    for (int i = 1; i < {}; i++) {{
-        {}[i] = 0;
+extern "C" void {0}_{1}_SET(uint32_t value) {{
+    {2}[0] = value;
+    for (int i = 1; i < {3}; i++) {{
+        {2}[i] = 0;
     }}
 }})",
-                                                                              dpiFuncNamePrefix, p.name, signalName, beatSize, signalName));
+                                                                              dpiFuncNamePrefix, p.name, signalName, beatSize));
+                            dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
+extern "C" void {0}_{1}_SET64(uint64_t value) {{
+    {2}[0] = value & 0xFFFFFFFF;
+    {2}[1] = (uint32_t)(value >> 32);
+    for (int i = 2; i < {3}; i++) {{
+        {2}[i] = 0;
+    }}
+}})",
+                                                                              dpiFuncNamePrefix, p.name, signalName, beatSize));
+                            dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
+extern "C" void {0}_{1}_SET_VEC(uint32_t *values) {{
+    std::copy(values, values + {3}, {2});
+}})",
+                                                                              dpiFuncNamePrefix, p.name, signalName, beatSize));
+                            dpiSignalAccessFunctionsVec.push_back(fmt::format(R"(
+extern "C" void {0}_{1}_SET_HEX_STR(char *hexStr) {{
+    for (int j = 0; j < {3}; j++) {{
+        uint32_t value = 0;
+        for (int i = j * 8; hexStr[i] != '\0' && i < 8 + j * 8; ++i) {{
+            char c = hexStr[i];
+            value <<= 4;
+            if (c >= '0' && c <= '9') {{
+                value |= (c - '0');
+            }} else if (c >= 'a' && c <= 'f') {{
+                value |= (c - 'a' + 10);
+            }} else if (c >= 'A' && c <= 'F') {{
+                value |= (c - 'A' + 10);
+            }}
+        }}
+        {2}[{3} - 1 - j] = value;
+    }}
+}})",
+                                                                              dpiFuncNamePrefix, p.name, signalName, beatSize));
                         }
                     }
                 }
@@ -474,7 +530,7 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
             auto foundClock = false;
 
             // If no signal pattern is set, check all ports
-            if (info.signalPatternVec.size() == 0) {
+            if (info.signalPatternVec.empty() && info.writableSignalPatternVec.empty()) {
                 for (auto p : instSym->body.getPortList()) {
                     auto &pp      = p->as<PortSymbol>();
                     auto portName = std::string(pp.name);
@@ -540,7 +596,7 @@ extern "C" void {{dpiTickFuncName}}({{dpiTickFuncDeclParam}}) {
                     // Check if the mathed signal is duplicate in the portVec
                     for (auto &port : portVec) {
                         if (port.name == varName && checkValidSignal(varName, info.writableSignalPatternVec)) {
-                            ASSERT(port.typeStr == "vpiReg", "Writable signal should be vpiReg type!", port);
+                            ASSERT(port.typeStr == "vpiReg", "Writable signal should be vpiReg type!", port.name);
                             ASSERT(port.bitWidth == bitWidth, "Writable signal should have the same bit width!", port);
 
                             port.writable   = true;

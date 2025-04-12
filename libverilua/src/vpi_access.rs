@@ -467,7 +467,7 @@ macro_rules! gen_set_force_value {
                 let vectors = &mut complex_handle.put_value_vectors;
                 vectors[1].aval = (value >> 32) as _;
                 vectors[1].bval = 0;
-                vectors[0].aval = ((value << 32) >> 32) as _;
+                vectors[0].aval = (value & 0xFFFFFFFF) as _;
                 vectors[0].bval = 0;
 
                 complex_handle.put_value_flag = $flag;

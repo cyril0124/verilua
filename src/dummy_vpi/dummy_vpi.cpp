@@ -158,12 +158,15 @@ class MemoryAllocator {
     std::vector<void *> allocatedMemory;
 };
 
+MemoryAllocator memAllocator;
+
 class ComplexHandle {
   public:
     std::string name;
     int64_t handle;
     uint32_t bitwidth;
     uint32_t beatSize;
+    uint32_t *valueVec;
     bool isWritable = false;
 
     GetValue32Func getValue32;
@@ -187,6 +190,7 @@ class ComplexHandle {
             this->isWritable     = true;
             this->setValueVec    = dpi_exporter_alloc_set_value_vec(handle);
             this->setValueHexStr = dpi_exporter_alloc_set_value_hex_str(handle);
+            this->valueVec       = memAllocator.allocate<uint32_t>(this->beatSize);
         }
 
         if (this->bitwidth <= 32) {
@@ -198,9 +202,7 @@ class ComplexHandle {
 };
 
 typedef ComplexHandle *ComplexHandlePtr;
-
 std::unique_ptr<s_cb_data> endOfSimulationCb = NULL;
-MemoryAllocator memAllocator;
 
 inline std::string replace(std::string input, std::string toReplace, std::string replacement, bool errorIfNotFound = true) {
     std::string result = std::string(input);
@@ -229,11 +231,25 @@ vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p
 
     switch (value_p->format) {
     case vpiVectorVal:
-        if (complexHandle->beatSize == 1) {
+        switch (complexHandle->beatSize) {
+        case 1:
             complexHandle->setValue32(value_p->value.vector[0].aval);
-        } else {
-            FATAL(0, "TODO: \n");
+            break;
+        case 2:
+            complexHandle->valueVec[0] = value_p->value.vector[0].aval;
+            complexHandle->valueVec[1] = value_p->value.vector[1].aval;
+            complexHandle->setValueVec(complexHandle->valueVec);
+            break;
+        default:
+            for (int i = 0; i < complexHandle->beatSize; i++) {
+                complexHandle->valueVec[i] = value_p->value.vector[i].aval;
+            }
+            complexHandle->setValueVec(complexHandle->valueVec);
+            break;
         }
+        break;
+    case vpiHexStrVal:
+        complexHandle->setValueHexStr(value_p->value.str);
         break;
     default:
         FATAL(0, "`vpi_put_value` not implemented, format: %d\n", value_p->format);

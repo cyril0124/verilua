@@ -411,6 +411,7 @@ end
         std::vector<std::string> getValueHexStrVec;
 
         std::vector<std::string> setValue32Vec;
+        std::vector<std::string> setValue64Vec;
         std::vector<std::string> setValueVecVec;
         std::vector<std::string> setValueHexStrVec;
 
@@ -500,11 +501,10 @@ end
 
                     if (p.writable) {
                         setValue32Vec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
-                        // TODO:
-                        // if (p.bitWidth > 32) {
-                        //     setValueVecVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET_VEC }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
-                        // }
-                        // setValueHexStrVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET_HEX_STR }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
+                        if (p.bitWidth > 32) {
+                            setValueVecVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET_VEC }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
+                        }
+                        setValueHexStrVec.push_back(fmt::format("\t\t{{ 0x{:x}, VERILUA_DPI_EXPORTER_{}_{}_SET_HEX_STR }} {}", uniqueHandleId, hierPathName, p.name, extraInfo));
                     }
                 }
             }
@@ -557,6 +557,7 @@ end
         j["getValueVec"]        = fmt::to_string(fmt::join(getValueVecVec, ",\n"));
         j["getValueHexStr"]     = fmt::to_string(fmt::join(getValueHexStrVec, ",\n"));
         j["setValue32"]         = fmt::to_string(fmt::join(setValue32Vec, ",\n"));
+        j["setValue64"]         = fmt::to_string(fmt::join(setValue64Vec, ",\n"));
         j["setValueVec"]        = fmt::to_string(fmt::join(setValueVecVec, ",\n"));
         j["setValueHexStr"]     = fmt::to_string(fmt::join(setValueHexStrVec, ",\n"));
         j["dpiTickFuncParam"]   = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));

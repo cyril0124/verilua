@@ -51,3 +51,29 @@ fork {
         sim.finish();
     end
 }
+
+fork {
+    drv_empty2_module = function ()
+        local u_empty2 = dut.u_empty2
+        local clock = dut.clock:chdl()
+        local value64 = u_empty2.value64:chdl()
+        local value128 = u_empty2.value128:chdl()
+
+        clock:posedge(2)
+            value64:set_hex_str("effffffff3ffffff")
+            value128:set_hex_str("effffffff4ffffffeffffffff3ffffff")
+        clock:posedge()
+            value64:expect_hex_str("effffffff3ffffff")
+            value128:expect_hex_str("effffffff4ffffffeffffffff3ffffff")
+        clock:posedge()
+            value64:set(0x11fffffff3f2ffffULL, true)
+        clock:posedge()
+            value64:expect_hex_str("11fffffff3f2ffff")
+        clock:posedge()
+            value64:set({0x123, 0x456})
+            value128:set({0x123, 0x456, 0x789, 0xABC})
+        clock:posedge()
+            value64:expect_hex_str("0000045600000123")
+            value128:expect_hex_str("00000abc000007890000045600000123")
+    end
+}

@@ -21,5 +21,12 @@ dpi_exporter_config = {
             "valid",
             "value"
         }
+    },
+
+    {
+        module = "empty2",
+        writable_signals = {
+            "value.*"
+        }
     }
 }

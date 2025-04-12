@@ -46,6 +46,18 @@ empty u_empty(
     .value(acc_value)
 );
 
+
+wire [31:0] value32;
+wire [63:0] value64;
+wire [127:0] value128;
+
+empty2 u_empty2(
+    .clock(clock),
+    .value32(value32),
+    .value64(value64),
+    .value128(value128)
+);
+
 import "DPI-C" function void verilua_init();
 import "DPI-C" function void verilua_final();
 import "DPI-C" function void verilua_main_step_safe();
@@ -61,11 +73,24 @@ final verilua_final();
 endmodule
 
 module empty(
-    input wire clock, // TODO: if not clock?
+    input wire clock,
     input wire [63:0] cycles,
     input wire [31:0] accumulator,
     output reg valid,
     output reg [31:0] value
+);
+
+// The real logic is not implemented here.
+// See `main.lua` for the real logic. It is all implemented in Lua script using HSE with dummy-vpi support.
+reg tmp;
+
+endmodule
+
+module empty2(
+    input wire clock,
+    output reg [31:0] value32,
+    output reg [63:0] value64,
+    output reg [127:0] value128
 );
 
 // The real logic is not implemented here.
