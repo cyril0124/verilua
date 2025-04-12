@@ -701,6 +701,12 @@ target("test")
             end
         end
 
+        do
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests"))
+            os.exec("xmake run -P . test_all")
+        end
+
         cprint([[${green}
   _____         _____ _____ 
  |  __ \ /\    / ____/ ____|
