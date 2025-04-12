@@ -22,7 +22,7 @@ function IDPool:_init(params, shuffle)
     local _shuffle = false
     if type(params) == "table" then
         _shuffle = params.shuffle or false
-        
+
         self.pool_size = assert(params.size, "[IDPool] size is required")
 
         self.start_value = params.start_value or 0
@@ -36,7 +36,7 @@ function IDPool:_init(params, shuffle)
 
     self.pool = table_new(self.pool_size, 0)
     self.size = self.pool_size
-    
+
     local index = 1
     for i = self.end_value, self.start_value, -1 do
         self.pool[index] = i
@@ -73,6 +73,10 @@ end
 
 function IDPool:is_full()
     return self.size == 0
+end
+
+function IDPool:is_empty()
+    return self.size == self.pool_size
 end
 
 function IDPool:pool_size()
