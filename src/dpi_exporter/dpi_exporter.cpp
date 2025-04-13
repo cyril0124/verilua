@@ -21,7 +21,6 @@ class DPIExporter {
     std::optional<bool> _quiet;
     std::optional<bool> nocache;
     std::optional<bool> showHelp;
-    std::optional<bool> fixBug; // TODO: consider remove this after bug is fixed in slang
 
     std::string configFile;
     std::string outdir;
@@ -211,7 +210,6 @@ end
         driver.cmdLine.add("--se,--sample-edge", _sampleEdge, "sample edge of the clock signal");
         driver.cmdLine.add("-q,--quiet", _quiet, "quiet mode, print only necessary info");
         driver.cmdLine.add("--nc,--no-cache", nocache, "do not use cache files");
-        driver.cmdLine.add("--fb,--fix-bug", fixBug, "temporary fix a bug introduced in slang 8.0, will be removed in future");
 
         // Include paths (override default include paths of slang)
         driver.cmdLine.add(
@@ -340,37 +338,8 @@ end
             }
 
             auto f = fs::absolute(backupFile(file, workdir)).string();
-            tmpFiles.push_back(f);
-        }
-
-        if (fixBug.value_or(false)) {
-            std::vector<std::string> fixCmdVec;
-            for (const auto &f : tmpFiles) {
-                // fixCmdVec.emplace_back(fmt::format("sed -i 's/^[[:space:]]*`include .*/& `define _ 0/' {}", f));
-                fixCmdVec.emplace_back(fmt::format(R"(sed -i '/^[[:space:]]*`include .*/a \`define _ 0 `define _ 0\n`define _ 0 `define _ 0' {})", f));
-            }
-            std::string fixCmd = fmt::to_string(fmt::join(fixCmdVec, "\n"));
-
-            // Write the fix cmd into a shell file
-            std::ofstream fixScript(workdir + "/fix_include.sh");
-            fixScript << "#!/bin/bash\n";
-            fixScript << fixCmd << "\n";
-            fixScript.close();
-
-            // Execute the fix script
-            std::string cmd = "if command -v parallel >/dev/null 2>&1; then ";
-            cmd += "bash " + workdir + "/fix_include.sh | parallel -j 50; ";
-            cmd += "else bash " + workdir + "/fix_include.sh; fi";
-            if (system(cmd.c_str()) != 0) {
-                fmt::println("[dpi_exporter] Failed to execute fix script");
-                return;
-            } else {
-                fmt::println("[dpi_exporter] Executed fix script");
-            }
-        }
-
-        for (const auto &f : tmpFiles) {
             driver.sourceLoader.addFiles(f);
+            tmpFiles.push_back(f);
         }
 
         ASSERT(driver.processOptions());
