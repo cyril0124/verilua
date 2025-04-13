@@ -8,6 +8,7 @@ use std::ffi::CString;
 use crate::{
     verilua_env::{
         ComplexHandle, ComplexHandleRaw, EdgeCallbackID, TaskID, VeriluaEnv, get_verilua_env,
+        get_verilua_env_no_init,
     },
     vpi_access::complex_handle_by_name,
 };
@@ -61,7 +62,7 @@ include!("./gen/gen_register_callback_func.rs");
 pub unsafe extern "C" fn vpiml_register_start_callback() {
     log::debug!("vpiml_register_start_callback");
 
-    let env = get_verilua_env();
+    let env = get_verilua_env_no_init();
     if env.has_start_cb {
         return;
     } else {
@@ -93,7 +94,7 @@ unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 pub unsafe extern "C" fn vpiml_register_final_callback() {
     log::debug!("vpiml_register_final_callback");
 
-    let env: &mut verilua_env::VeriluaEnv = get_verilua_env();
+    let env = get_verilua_env_no_init();
     if env.has_final_cb {
         return;
     } else {
@@ -237,7 +238,7 @@ fn do_register_next_sim_time_callback() {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_next_sim_time_callback() {
-    let env: &mut verilua_env::VeriluaEnv = get_verilua_env();
+    let env = get_verilua_env_no_init();
     if env.has_next_sim_time_cb {
         return;
     } else {

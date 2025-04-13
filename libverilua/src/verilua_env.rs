@@ -19,7 +19,25 @@ pub fn get_verilua_env() -> &'static mut VeriluaEnv {
             Some(ref mut env_cell) => &mut *env_cell.get(),
             None => {
                 VERILUA_ENV = Some(UnsafeCell::new(VeriluaEnv::default()));
+
+                // In some case where user does not call `verilua_init()`, we call it here.
+                // Initialize verilua_env here can ensure the thread safety of `get_verilua_env()`.
+                get_verilua_env().initialize();
+
                 get_verilua_env()
+            }
+        }
+    }
+}
+
+#[inline(always)]
+pub fn get_verilua_env_no_init() -> &'static mut VeriluaEnv {
+    unsafe {
+        match VERILUA_ENV {
+            Some(ref mut env_cell) => &mut *env_cell.get(),
+            None => {
+                VERILUA_ENV = Some(UnsafeCell::new(VeriluaEnv::default()));
+                get_verilua_env_no_init()
             }
         }
     }
@@ -393,6 +411,9 @@ impl VeriluaEnv {
 // ----------------------------------------------------------------------------------------------------------
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn verilua_init() {
+    // Notice:
+    //      Make sure that we call `verilua_init()` / `verilua_final()` / `verilua_main_step()` / `verilua_main_step_safe()` ... in the same thread! Or it will cause some issues in multithread environment(e.g. Verilator).
+    //      As an alternative solution, you can always call `verilua_main_step()` / `verilua_main_step_safe()` without calling `verilua_init()` in advance. In this case, the `verilua_init()` will be called automatically and maintain thread safety.
     get_verilua_env().initialize();
 }
 
