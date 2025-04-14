@@ -40,6 +40,7 @@ verilator = []
 iverilog = []
 iverilog_vpi_mod = []
 vcs = []
+vcs_dpi = []
 wave_vpi = []
 
 debug = []

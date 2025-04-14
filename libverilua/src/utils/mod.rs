@@ -160,7 +160,7 @@ pub extern "C" fn get_simulator_auto() -> *const std::ffi::c_char {
         if string.contains("libverilua_verilator.so") {
             *cached_result = Some("verilator".to_string());
             return CString::new("verilator").unwrap().into_raw();
-        } else if string.contains("libverilua_vcs.so") {
+        } else if string.contains("libverilua_vcs.so") || string.contains("libverilua_vcs_dpi.so") {
             *cached_result = Some("vcs".to_string());
             return CString::new("vcs").unwrap().into_raw();
         } else if string.contains("liverilua_iverilog.so") {

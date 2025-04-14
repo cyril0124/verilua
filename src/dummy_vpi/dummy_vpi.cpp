@@ -10,6 +10,17 @@
 #include <string>
 #include <vector>
 
+#ifdef DUMMY_VPI_USE_WRAPPER
+// The reason for appending `__wrap_` prefix to the function name is that in some case the origin `vpi_*` 
+// functions are used by the simulator itself even we do not use any vpi functionality. So we need to wrap 
+// the `vpi_*` functions to avoid the conflict.
+// (e.g. In vcs simulator, when we enable fsdb waveform dump, the `vpi_*` functions get called by fsdb library to dump waveform.)
+// For example, if we use `vpi_get` function, we need to wrap it to `__wrap_vpi_get`.
+#define DEFINE_VPI_FUNC(func) __wrap_##func
+#else
+#define DEFINE_VPI_FUNC(func) func
+#endif
+
 #define VPI_GET_MAX_BUFFER_SIZE 1024 * 2
 #define VPI_GET_MAX_VEC_VALS 256
 
@@ -222,9 +233,9 @@ inline std::string replace(std::string input, std::string toReplace, std::string
 extern "C" {
 #endif
 
-vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 indx) { FATAL(0, "`vpi_handle_by_index` not implemented\n"); }
+vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_index)(vpiHandle object, PLI_INT32 indx) { FATAL(0, "`vpi_handle_by_index` not implemented\n"); }
 
-vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
+vpiHandle DEFINE_VPI_FUNC(vpi_put_value)(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
     auto complexHandle = reinterpret_cast<ComplexHandlePtr>(object);
     FATAL(complexHandle->isWritable, "Cannot write to read-only signal! name: %s\n", complexHandle->name.data());
     FATAL(flags == vpiNoDelay, "flags: %d is not supported", flags);
@@ -259,9 +270,9 @@ vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p
     return nullptr;
 }
 
-vpiHandle vpi_scan(vpiHandle iterator) { FATAL(0, "`vpi_scan` not implemented\n"); }
+vpiHandle DEFINE_VPI_FUNC(vpi_scan)(vpiHandle iterator) { FATAL(0, "`vpi_scan` not implemented\n"); }
 
-PLI_INT32 vpi_control(PLI_INT32 operation, ...) {
+PLI_INT32 DEFINE_VPI_FUNC(vpi_control)(PLI_INT32 operation, ...) {
     switch (operation) {
     case vpiStop:
     case vpiFinish:
@@ -280,7 +291,7 @@ PLI_INT32 vpi_control(PLI_INT32 operation, ...) {
     return 0;
 }
 
-vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
+vpiHandle DEFINE_VPI_FUNC(vpi_register_cb)(p_cb_data cb_data_p) {
     if (cb_data_p->reason == cbStartOfSimulation) {
         WARN("get %s callback, which will be ignored!\n", cb_data_p->reason == cbStartOfSimulation ? "cbStartOfSimulation" : "cbEndOfSimulation");
         return nullptr;
@@ -288,14 +299,14 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
         WARN("get cbNextSimTime callback, which will be ignored!\n");
         return nullptr;
     } else if (cb_data_p->reason == cbEndOfSimulation) {
-        FATAL(endOfSimulationCb == nullptr, "get cbEndOfSimulation callback, but endOfSimulationCb is nullptr!\n");
+        FATAL(endOfSimulationCb == nullptr, "get cbEndOfSimulation callback, but endOfSimulationCb is not a nullptr!\n");
         endOfSimulationCb = std::make_unique<s_cb_data>(*cb_data_p);
         return nullptr;
     }
     FATAL(0, "`vpi_register_cb` not implemented, reason: %d\n", cb_data_p->reason);
 }
 
-void vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
+void DEFINE_VPI_FUNC(vpi_get_value)(vpiHandle expr, p_vpi_value value_p) {
     static char buffer[VPI_GET_MAX_BUFFER_SIZE] = {0};
     static s_vpi_vecval vpiValueVecs[VPI_GET_MAX_VEC_VALS];
     static uint32_t vecVals[VPI_GET_MAX_VEC_VALS];
@@ -328,7 +339,7 @@ void vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
     }
 }
 
-PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle object) {
+PLI_BYTE8 *DEFINE_VPI_FUNC(vpi_get_str)(PLI_INT32 property, vpiHandle object) {
     FATAL(property == vpiType, "unsupported property: %d\n", property);
 
     auto handle = reinterpret_cast<ComplexHandlePtr>(object)->handle;
@@ -338,21 +349,21 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle object) {
     return (PLI_BYTE8 *)(memAllocator.allocate<std::string>(str)->c_str());
 }
 
-PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle object) {
+PLI_INT32 DEFINE_VPI_FUNC(vpi_get)(PLI_INT32 property, vpiHandle object) {
     FATAL(property == vpiSize, "unsupported property: %d\n", property);
 
     auto complexHandle = reinterpret_cast<ComplexHandlePtr>(object);
     return complexHandle->bitwidth;
 }
 
-PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) { FATAL(0, "`vpi_remove_cb` not implemented\n"); }
+PLI_INT32 DEFINE_VPI_FUNC(vpi_remove_cb)(vpiHandle cb_obj) { FATAL(0, "`vpi_remove_cb` not implemented\n"); }
 
-PLI_INT32 vpi_free_object(vpiHandle object) {
+PLI_INT32 DEFINE_VPI_FUNC(vpi_free_object)(vpiHandle object) {
     // Nothing to free
     return 0;
 }
 
-vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
+vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_name)(PLI_BYTE8 *name, vpiHandle scope) {
     static std::string topName = []() {
         auto envVar = std::getenv("DUT_TOP");
         if (envVar == nullptr) {
@@ -378,7 +389,7 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     return reinterpret_cast<vpiHandle>(hdl);
 }
 
-vpiHandle vpi_iterate(PLI_INT32 type, vpiHandle refHandle) { FATAL(0, "`vpi_iterate` not implemented\n"); }
+vpiHandle DEFINE_VPI_FUNC(vpi_iterate)(PLI_INT32 type, vpiHandle refHandle) { FATAL(0, "`vpi_iterate` not implemented\n"); }
 
 #ifdef __cplusplus
 }
