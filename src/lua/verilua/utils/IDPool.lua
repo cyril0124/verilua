@@ -71,19 +71,26 @@ function IDPool:release(id)
     self.pool[self.size] = id
 end
 
+-- Check if the pool is full (all IDs are available)
 function IDPool:is_full()
     return self.size == 0
 end
 
+-- Check if the pool is empty(all IDs are allocated, none left in pool)
 function IDPool:is_empty()
     return self.size == self.pool_size
 end
 
-function IDPool:pool_size()
+function IDPool:used_count()
     return self.pool_size - self.size
 end
 
+function IDPool:free_count()
+    return self.size
+end
+
 function IDPool:__len()
+    -- equivalent to self.pool_size
     return #self.pool
 end
 
