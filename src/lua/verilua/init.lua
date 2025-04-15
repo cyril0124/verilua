@@ -31,6 +31,18 @@ _G.pp      = _G.dbg -- Alias for dbg
 _G.dump    = _G.pp -- Alias for dbg
 _G.printf  = function (s, ...) io.write(f(s, ...)) end
 
+-- Convert to hex for pretty printing
+local convert_to_hex = function(item, path)
+    if path[#path] ~= inspect.KEY and (type(item) == "number" or ffi.istype("uint64_t", item)) then
+        return bit.tohex(item)
+    end
+    return item
+end
+
+_G.pph = function (...)
+    print(inspect(..., {process = convert_to_hex}))
+end
+
 -- 
 -- #define vpiBinStrVal          1
 -- #define vpiOctStrVal          2
