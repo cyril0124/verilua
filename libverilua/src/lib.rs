@@ -22,7 +22,7 @@ extern "C" fn init_env_logger() {
     env_logger::init();
 }
 
-#[cfg(not(feature = "vcs_dpi"))]
+#[cfg(not(feature = "dpi"))]
 #[unsafe(no_mangle)]
 pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 4] = [
     Some(vpi_callback::vpiml_register_next_sim_time_callback),
@@ -33,7 +33,7 @@ pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 4] = [
 
 // In some cases you may need to call this function manually since the simulation environment may not call it automatically(e.g. Verilator).
 // While in most cases you don't need to call this function manually.
-#[cfg(not(feature = "vcs_dpi"))]
+#[cfg(not(feature = "dpi"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn vlog_startup_routines_bootstrap() {
     for f in vlog_startup_routines.iter().flatten() {

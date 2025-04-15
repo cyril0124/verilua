@@ -36,11 +36,11 @@ path = "src/lib.rs"
 required-features = ["verilua_prebuild_bin"]
 
 [features]
+dpi = []
 verilator = []
 iverilog = []
 iverilog_vpi_mod = []
 vcs = []
-vcs_dpi = []
 wave_vpi = []
 
 debug = []

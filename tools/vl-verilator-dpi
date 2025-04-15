@@ -24,16 +24,17 @@ else:
 
 liblua_path = luapath + "/lib"
 assert libpath != None, "[vl-verilator-dpi] cannot find VERILUA_HOME!"
-assert os.path.exists(libpath + "/libverilua_verilator.so"), "[vl-verilator-dpi] cannot find libverilua_verilator.so in " + libpath
+assert os.path.exists(libpath + "/libverilua_verilator_dpi.so"), "[vl-verilator-dpi] cannot find libverilua_verilator_dpi.so in " + libpath
 
 CFLAGS = ""
 LDFLAGS = ""
 
+CFLAGS += "-DDUMMY_VPI_USE_WRAPPER"
 CFLAGS += f"-I{luapath}/include -I{luapath}/include/luajit-2.1 "
 CFLAGS += f"-I{verilua_path}/src/include "
 CFLAGS += f"-I{verilua_path}/vcpkg/installed/x64-linux/include "
 
-LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -lverilua_verilator "
+LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -lverilua_verilator_dpi "
 LDFLAGS += f"-Wl,-rpath,{liblua_path} -L{liblua_path} -Wl,--no-as-needed -lluajit-5.1 "
 LDFLAGS_1 = f"-L{verilua_path}/vcpkg/installed/x64-linux/lib -Wl,--no-as-needed "
 
