@@ -1184,11 +1184,6 @@ do
         
         elseif cmd == "showTasks" then
             scheduler:list_tasks()
-        elseif cmd == "test" then
-            return function (str)
-                print(str)
-                assert(false, "Only for test...")
-            end
         else
             local available_cmds = {
                 "appendTasks",
@@ -1218,6 +1213,22 @@ do
         end
     end
     -- TODO: join?
+
+    _G.initial = function (task_table)
+        assert(type(task_table) == "table")
+        for k, func in pairs(task_table) do
+            assert(type(func) == "function")
+            vl.append_start_callback(func)
+        end
+    end
+
+    _G.final = function (task_table)
+        assert(type(task_table) == "table")
+        for k, func in pairs(task_table) do
+            assert(type(func) == "function")
+            vl.append_finish_callback(func)
+        end
+    end
 end
 
 if os.getenv("VL_PREBUILD") == "1" then

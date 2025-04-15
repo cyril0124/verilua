@@ -273,11 +273,19 @@ total_time: 0.85 s / 852.91 ms
 
 Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。
 
-- 通过 `#!lua verilua "startTask" { ... }` 创建 Start Task；
+- 通过 `#!lua initial { ... }` / `#!lua verilua "startTask" { ... }` 创建 Start Task；
 
     Start Task 可以由多个函数组成。
 
     ```lua linenums="1"
+    initial {
+        function ()
+            print("Simulation started!")
+        end,
+        -- Other tasks...
+    }
+
+    -- or
     verilua "startTask" {
         function ()
             print("Simulation started!")
@@ -286,11 +294,19 @@ Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，
     }
     ```
 
-- 通过 `#!lua verilua "finishTask" { ... }` 创建 Finish Task。
+- 通过 `#!lua final { ... }` / `#!lua verilua "finishTask" { ... }` 创建 Finish Task。
 
     Finish Task 可以由多个函数组成。
 
     ```lua linenums="1"
+    final {
+        function ()
+            print("Simulation finished!")
+        end,
+        -- Other tasks...
+    }
+
+    -- or
     verilua "finishTask" {
         function ()
             print("Simulation finished!")
