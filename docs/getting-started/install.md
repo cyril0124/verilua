@@ -55,3 +55,8 @@ xmake run test
 ```
 
 ## 常见安装问题（TODO：）
+
+
+## 推荐的 Lua 开发插件
+
+推荐使用[lua-language-server](https://github.com/LuaLS/lua-language-server)作为 Lua 的开发插件，可以获得更好的代码补全、跳转、类型标注的功能。
