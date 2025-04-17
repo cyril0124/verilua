@@ -2,9 +2,10 @@ local vpiml = require "vpiml"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
 local texpect = require "TypeExpect"
+local table_new = require "table.new"
+local table_clear = require "table.clear"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
-local print = print
 local assert = assert
 local rawset = rawset
 local ipairs = ipairs
@@ -13,7 +14,6 @@ local table_concat = table.concat
 local table_insert = table.insert
 
 local verilua_debug = _G.verilua_debug
-local HexStr = _G.HexStr
 
 local Bundle = class()
 
@@ -129,58 +129,115 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         end
     end
 
+    -- Used for saving dump parts
+    self.__dump_parts = table_new(#self.signals_table, 0)
+
     if self.is_decoupled then 
         self.dump_str = function (this)
-            local s = ""
+            local parts = this.__dump_parts
+            table_clear(parts)
 
             if this.name ~= "Unknown" then
-                s = s .. f("[%s] ", this.name)
+                table_insert(parts, f("[%s]", this.name))
             end
-            
-            s = s .. "| valid: " .. this.valid:get()
+
+            table_insert(parts, "valid: " .. this.valid:get())
 
             if this.ready ~= nil then
-                s = s .. "| ready: " .. this.ready:get()
+                table_insert(parts, "ready: " .. this.ready:get())
             end
 
             for i, signal in ipairs(this.signals_table) do
                 if signal ~= "valid" and signal ~= "ready" then
-                    s = s .. f(" | %s: 0x%s", signal, this.bits[signal]:get_str(HexStr))
+                    table_insert(parts, f("%s: 0x%s", signal, this.bits[signal]:get_hex_str()))
                 end
             end
 
-            return s
+            return table_concat(parts, " | ")
+        end
+
+        self.format_dump_str = function (this, format_func)
+            local parts = this.__dump_parts
+            table_clear(parts)
+
+            if this.name ~= "Unknown" then
+                table_insert(parts, f("[%s]", this.name))
+            end
+
+            table_insert(parts, format_func(this.valid, "valid") or ("valid: " .. this.valid:get()))
+
+            if this.ready ~= nil then
+                table_insert(parts, format_func(this.ready, "ready") or ("ready: " .. this.ready:get()))
+            end
+
+            for i, signal in ipairs(this.signals_table) do
+                if signal ~= "valid" and signal ~= "ready" then
+                    table_insert(parts, format_func(this.bits[signal], signal) or f("%s: 0x%s", signal, this.bits[signal]:get_hex_str()))
+                end
+            end
+
+            return table_concat(parts, " | ")
         end
     else
         self.dump_str = function (this)
-            local s = ""
+            local parts = this.__dump_parts
+            table_clear(parts)
 
             if this.name ~= "Unknown" then
-                s = s .. f("[%s] ", this.name)
+                table_insert(parts, f("[%s] ", this.name))
             end
 
             if this.valid ~= nil then
-                s = s .. "| valid: " .. this.valid:get()
+                table_insert(parts, "valid: " .. this.valid:get())
             end
 
             if this.ready ~= nil then
-                s = s .. "| ready: " .. this.ready:get()
+                table_insert(parts, "ready: " .. this.ready:get())
             end
 
             for i, signal in ipairs(this.signals_table) do
                 if signal ~= "valid" and signal ~= "ready" then
-                    s = s .. f(" | %s: 0x%s", signal, this[signal]:get_str(HexStr))
+                    table_insert(parts, f("%s: 0x%s", signal, this[signal]:get_hex_str()))
                 end
             end
 
-            return s
+            return table_concat(parts, " | ")
+        end
+
+        self.format_dump_str = function (this, format_func)
+            local parts = this.__dump_parts
+            table_clear(parts)
+
+            if this.name ~= "Unknown" then
+                table_insert(parts, f("[%s] ", this.name))
+            end
+
+            if this.valid ~= nil then
+                table_insert(parts, format_func(this.valid, "valid") or ("valid: " .. this.valid:get()))
+            end
+
+            if this.ready ~= nil then
+                table_insert(parts, format_func(this.ready, "ready") or ("ready: " .. this.ready:get()))
+            end
+
+            for i, signal in ipairs(this.signals_table) do
+                if signal ~= "valid" and signal ~= "ready" then
+                    table_insert(parts, format_func(this[signal], signal) or f("%s: 0x%s", signal, this[signal]:get_hex_str()))
+                end
+            end
+
+            return table_concat(parts, " | ")
         end
     end
 
     self.dump = function (this)
         print(this:dump_str())
     end
-    
+
+    ---@param format_func fun(chdl, name: string): string
+    self.format_dump = function (this, format_func)
+       print(this:format_dump_str(format_func))
+    end
 end
 
 function Bundle:__tostring()

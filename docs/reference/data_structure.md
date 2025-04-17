@@ -899,7 +899,7 @@ local bdl = ([[ valid | ready
 
     !!! warning  "只有 is_decoupled 为 `true` 的 `Bundle` 才有这个方法"
 
-2.  `#!lua <bdl>:get_all()`
+2. `#!lua <bdl>:get_all()`
 
     获得所有的信号，并以 Lua table 的形式返回，例如：
     ```lua
@@ -911,7 +911,7 @@ local bdl = ([[ valid | ready
 
     !!! warning  "只有 is_decoupled 为 `false` 的 `Bundle` 才有这个方法"
 
-3.  `#!lua <bdl>:set_all(values_tbl)`
+3. `#!lua <bdl>:set_all(values_tbl)`
 
     设置所有的信号，并以 Lua table 的形式返回，例如：
     ```lua
@@ -921,16 +921,39 @@ local bdl = ([[ valid | ready
 
     !!! warning  "只有 is_decoupled 为 `false` 的 `Bundle` 才有这个方法"
 
-4.  `#!lua <bdl>:dump()`
+4. `#!lua <bdl>:dump()`
 
     将 `Bundle` 中所有的信号当前的数值输出到控制台，可以用于查看信号的值，打印的内容如下所示：
     ```shell title="Terminal"
     [name of bundle] | valid: 0x1 | ready: 0x1 | opcode: 0x123 | data: 0x456
     ```
 
-5.  `#!lua <bdl>:dump_str()`
+5. `#!lua <bdl>:dump_str()`
 
     会将原本`#!lua <bdl>:dump()` 的输出的内容作为一个返回值进行返回，因此 `#!lua <bdl>:dump()` 也等价于 `#!lua print(<bdl>:dump_str())`。
+
+6. `#!lua <bdl>:format_dump(format_func)`
+
+    将 `Bundle` 中的所有信号的当前的数值输出到控制台，可以接收一个可选的 `format_func`，类型为 `fun(chdl, name: string): string`， 这个函数会在输出每个信号的值之前被调用，如果用户在 `format_func` 中返回一个非 `nil` 的 string，那么就会替换原有的值进行输出，例如：
+    ```lua
+    local bdl = ("valid | value0 | value1 | other"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = false, name = "name of bundle"}
+    
+    bdl:format_dump(function(chdl, name)
+        if chdl.width == 1 and name:contains(value) then
+            return name .. " is " .. chdl:get_hex_str()
+        end
+    end)
+    ```
+    
+    上述代码的输出结果如下所示：
+    ```shell title="Terminal"
+    [name of bundle] | valid: 0x1 | value0 is 0x1 | value1 is 0x0 | other: 0x0
+    ```
+
+    可以看到，只有 `value0` 和 `value1` 被替换了，而 `other` 没有被替换。
+
+7. `#!lua <bdl>:format_dump_str(format_func)`
+    会将原本 `#!lua <bdl>:format_dump()` 的输出的内容作为一个返回值进行返回，因此 `#!lua <bdl>:format_dump()` 也等价于 `#!lua print(<bdl>:format_dump_str())`。
 
 ## AliasBundle
 
@@ -1021,9 +1044,32 @@ local abdl = ([[
     [name of alias bundle] | origin_signal_name -> alias_name: 0x1 | origin_signal_name_1 -> alias_name_1: 0x123
     ```
 
-2.  `#!lua <abdl>:dump_str()`
+2. `#!lua <abdl>:dump_str()`
 
     会将原本`#!lua <abdl>:dump()` 的输出的内容作为一个返回值进行返回，因此 `#!lua <abdl>:dump()` 也等价于 `#!lua print(<abdl>:dump_str())`。
+
+3. `#!lua <abdl>:format_dump(format_func)`
+
+    将 `Bundle` 中的所有信号的当前的数值输出到控制台，可以接收一个可选的 `format_func`，类型为 `fun(chdl, name: string, alias_name: string): string`， 这个函数会在输出每个信号的值之前被调用，如果用户在 `format_func` 中返回一个非 `nil` 的 string，那么就会替换原有的值进行输出，例如：
+    ```lua
+    local abdl = ("valid | value0 -> v0 | value1 -> v1 | other -> o"):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of abdl"}
+    
+    abdl:format_dump(function(chdl, name, alias_name)
+        if chdl.width == 1 and name:contains(value) then
+            return name .. " is " .. chdl:get_hex_str() .. " with alias name: " .. alias_name
+        end
+    end)
+    ```
+    
+    上述代码的输出结果如下所示：
+    ```shell title="Terminal"
+    [name of abdl] | valid: 0x1 | value0 is 0x1 with alias name: v0 | value1 is 0x0 with alias name: v1 | other -> o: 0x0
+    ```
+
+    可以看到，只有 `value0` 和 `value1` 被替换了，而 `other` 没有被替换。
+
+4. `#!lua <abdl>:format_dump_str(format_func)`
+    会将原本 `#!lua <abdl>:format_dump()` 的输出的内容作为一个返回值进行返回，因此 `#!lua <abdl>:format_dump()` 也等价于 `#!lua print(<abdl>:format_dump_str())`。
 
 ## ProxyTableHandle
 

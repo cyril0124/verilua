@@ -3,16 +3,17 @@ local vpiml = require "vpiml"
 local tablex = require "pl.tablex"
 local class = require "pl.class"
 local texpect = require "TypeExpect"
+local table_new = require "table.new"
+local table_clear = require "table.clear"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local type = type
-local print = print
 local rawset = rawset
 local assert = assert
 local f = string.format
+local table_insert = table.insert
 local table_concat = table.concat
 
-local HexStr = _G.HexStr
 local verilua_debug = _G.verilua_debug
 
 local AliasBundle = class()
@@ -80,7 +81,8 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name, optional_si
     verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. table_concat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
 
     -- Construct CallableHDL bundle
-    for i = 1, #self.signals_tbl do
+    local num_signals = #self.signals_tbl
+    for i = 1, num_signals do
         local alias_name = self.alias_tbl[i]
         local real_name = self.signals_tbl[i]
         local fullpath = hierachy .. "." .. prefix .. real_name
@@ -96,34 +98,78 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name, optional_si
         end
     end
 
+    -- Used for saving dump parts
+    self.__dump_parts = table_new(num_signals, 0)
+
     self.dump_str = function (this)
-        local s = ""
+        local parts = this.__dump_parts
+        table_clear(parts)
 
         if this.name ~= "Unknown" then
-            s = s .. f("[%s] ", this.name)
+            table_insert(parts, f("[%s]", this.name))
         end
-    
+
         if this.valid ~= nil then
-            s = s .. "| valid: " .. this.valid:get()
+            table_insert(parts, "valid: " .. this.valid:get())
         end
 
         if this.ready ~= nil then
-            s = s .. "| ready: " .. this.ready:get()
+            table_insert(parts, "ready: " .. this.ready:get())
         end
 
         for i = 1, #self.signals_tbl do
             local alias_name = self.alias_tbl[i]
             local real_name = self.signals_tbl[i]
             if real_name ~= "valid" and real_name ~= "ready" then
-                s = s .. f(" | %s: 0x%s", real_name .. " -> " .. alias_name, this[alias_name]:get_str(HexStr))
+                table_insert(parts, f("%s -> %s: 0x%s",
+                    real_name,
+                    alias_name,
+                    this[alias_name]:get_hex_str()
+                ))
             end
         end
 
-        return s
+        return table_concat(parts, " | ")
+    end
+
+    self.format_dump_str = function (this, format_func)
+        local parts = this.__dump_parts
+        table_clear(parts)
+
+        if this.name ~= "Unknown" then
+            table_insert(parts, f("[%s]", this.name))
+        end
+
+        if this.valid ~= nil then
+            table_insert(parts, format_func(this.valid, "valid", "valid") or ("valid: " .. this.valid:get()))
+        end
+
+        if this.ready ~= nil then
+            table_insert(parts, format_func(this.ready, "ready", "ready") or ("ready: " .. this.ready:get()))
+        end
+
+        for i = 1, #self.signals_tbl do
+            local alias_name = self.alias_tbl[i]
+            local real_name = self.signals_tbl[i]
+            if real_name ~= "valid" and real_name ~= "ready" then
+                table_insert(parts, format_func(this[alias_name], real_name, alias_name) or f("%s -> %s: 0x%s",
+                    real_name,
+                    alias_name,
+                    this[alias_name]:get_hex_str()
+                ))
+            end
+        end
+
+        return table_concat(parts, " | ")
     end
 
     self.dump = function (this)
         print(this:dump_str())
+    end
+
+    ---@param format_func fun(chdl, name: string, alias_name: string): string
+    self.format_dump = function (this, format_func)
+        print(this:format_dump_str(format_func))
     end
 end
 
