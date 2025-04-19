@@ -1,11 +1,9 @@
 .metals/
 .vscode/
-luajit2.1/
 */.nfs*
 .nfs*
 tmp/
 shared/
-scripts/rt_plot/*.out
 build/
 test/
 /.xmake
