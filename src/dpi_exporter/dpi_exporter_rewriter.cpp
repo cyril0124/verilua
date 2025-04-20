@@ -69,7 +69,7 @@ always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
 end
 )",
                                                         j)));
-        findTopModule = true;
+        findModule = true;
     }
 }
 

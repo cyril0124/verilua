@@ -16,7 +16,7 @@ class DPIExporterRewriter_1 : public slang::syntax::SyntaxRewriter<DPIExporterRe
 
   public:
     std::vector<PortInfo> portVec;
-    bool findTopModule = false;
+    bool findModule = false;
 
     DPIExporterRewriter_1(std::shared_ptr<SyntaxTree> &tree, std::string topModuleName, std::string clock, std::string sampleEdge, std::vector<PortInfo> portVec) : tree(tree), topModuleName(topModuleName), clock(clock), sampleEdge(sampleEdge), portVec(portVec), model(compilation) { compilation.addSyntaxTree(tree); }
 

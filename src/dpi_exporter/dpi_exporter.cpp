@@ -17,6 +17,7 @@ class DPIExporter {
     std::optional<std::string> _dpiFile;
     std::optional<std::string> _topClock;
     std::optional<std::string> _sampleEdge;
+    std::optional<std::string> insertModuleName;
     std::optional<bool> _distributeDPI;
     std::optional<bool> _quiet;
     std::optional<bool> nocache;
@@ -210,6 +211,7 @@ end
         driver.cmdLine.add("--se,--sample-edge", _sampleEdge, "sample edge of the clock signal");
         driver.cmdLine.add("-q,--quiet", _quiet, "quiet mode, print only necessary info");
         driver.cmdLine.add("--nc,--no-cache", nocache, "do not use cache files");
+        driver.cmdLine.add("--im,--insert-module-name", insertModuleName, "module namne of the DPI function(available when distributeDPI is FALSE)", "<name>"); // ! make sure tha the inserted module has only one instance
 
         // Include paths (override default include paths of slang)
         driver.cmdLine.add(
@@ -280,6 +282,10 @@ end
         metaInfoFilePath = workdir + "/dpi_exporter.meta.json";
         dpiFilePath      = outdir + "/" + _dpiFile.value_or(DEFAULT_DPI_FILE_NAME);
         fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n\tdistributeDPI: {}\n\tquiet: {}\n", configFile, _dpiFile.value_or(DEFAULT_DPI_FILE_NAME), outdir, workdir, distributeDPI, quiet);
+
+        if (distributeDPI) {
+            ASSERT(insertModuleName->empty(), "`insertModuleName` should be empty when `distributeDPI` is TRUE");
+        }
 
         if (!driver.options.topModules.empty()) {
             if (driver.options.topModules.size() > 1) {
@@ -501,9 +507,10 @@ end
         // Insert dpi tick function into the top-level module(if distributeDPI is FALSE).
         // If distributeDPI is TRUE, the dpi tick function is inserted into each module which owns the signals that need to be exported.
         if (!distributeDPI) {
-            auto rewriter = new DPIExporterRewriter_1(tree, topModuleName, topClock, sampleEdge, portVecAll);
-            auto newTree  = rewriter->transform(tree);
-            ASSERT(rewriter->findTopModule, "Cannot find top module", topModuleName);
+            auto _insertModuleName = insertModuleName.value_or(topModuleName);
+            auto rewriter          = new DPIExporterRewriter_1(tree, _insertModuleName, topClock, sampleEdge, portVecAll);
+            auto newTree           = rewriter->transform(tree);
+            ASSERT(rewriter->findModule, "Cannot find the target module!", _insertModuleName);
 
             // Update syntax tree
             fmt::println("[dpi_exporter] start rebuilding syntax tree");
@@ -723,9 +730,10 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
         }
 
         // Save the command line arguments and files into json file
-        metaInfoJson["cmdLine"]       = cmdLineStr;
-        metaInfoJson["filelist"]      = files;
-        metaInfoJson["topModuleName"] = topModuleName;
+        metaInfoJson["cmdLine"]          = cmdLineStr;
+        metaInfoJson["filelist"]         = files;
+        metaInfoJson["topModuleName"]    = topModuleName;
+        metaInfoJson["insertModuleName"] = insertModuleName.value_or(topModuleName);
 
         // Write meta info into a json file, which can be used next time to check if the output is up to date
         std::ofstream o(metaInfoFilePath);
