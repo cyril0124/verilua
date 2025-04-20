@@ -157,7 +157,7 @@ pub extern "C" fn get_simulator_auto() -> *const std::ffi::c_char {
     // TODO: Optimize, read only the needed sections
     for string in elf.libraries {
         log::debug!("[get_simulator_auto] Found library: {string}");
-        if string.contains("libverilua_verilator.so") {
+        if string.contains("libverilua_verilator.so") || string.contains("libverilua_verilator_dpi.so") {
             *cached_result = Some("verilator".to_string());
             return CString::new("verilator").unwrap().into_raw();
         } else if string.contains("libverilua_vcs.so") || string.contains("libverilua_vcs_dpi.so") {
