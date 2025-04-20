@@ -14,8 +14,9 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
         }
         ASSERT(firstMember != nullptr, "TODO:");
 
-        std::string dpiTickFuncDeclParam = "";
-        std::string dpiTickFuncParam     = "";
+        std::string dpiTickFuncDeclParam   = "";
+        std::string dpiTickFuncDeclParam_1 = "";
+        std::string dpiTickFuncParam       = "";
         std::vector<std::string> dpiTickDeclParamVec;
         std::vector<std::string> dpiTickFuncParamVec;
         for (auto &p : portVec) {
@@ -28,8 +29,9 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
             dpiTickFuncParamVec.push_back(fmt::format("{}.{}", p.hierPathNameDot, p.name));
         }
 
-        dpiTickFuncDeclParam = fmt::to_string(fmt::join(dpiTickDeclParamVec, ",\n"));
-        dpiTickFuncParam     = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));
+        dpiTickFuncDeclParam   = fmt::to_string(fmt::join(dpiTickDeclParamVec, ",\n"));
+        dpiTickFuncDeclParam_1 = fmt::to_string(fmt::join(dpiTickDeclParamVec, ", "));
+        dpiTickFuncParam       = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));
 
         // Check clock signal
         auto instSym = model.syntaxToInstanceSymbol(syntax);
@@ -51,11 +53,12 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
         }
 
         json j;
-        j["dpiTickFuncDeclParam"] = dpiTickFuncDeclParam;
-        j["dpiTickFuncParam"]     = dpiTickFuncParam;
-        j["sampleEdge"]           = sampleEdge;
-        j["topModuleName"]        = topModuleName;
-        j["clock"]                = clock;
+        j["dpiTickFuncDeclParam"]   = dpiTickFuncDeclParam;
+        j["dpiTickFuncDeclParam_1"] = dpiTickFuncDeclParam_1;
+        j["dpiTickFuncParam"]       = dpiTickFuncParam;
+        j["sampleEdge"]             = sampleEdge;
+        j["topModuleName"]          = topModuleName;
+        j["clock"]                  = clock;
 
         // TODO: if syntax.members is NULL?
         // Insert the following dpic tick function into top module
@@ -64,9 +67,16 @@ import "DPI-C" function void dpi_exporter_tick(
 {{dpiTickFuncDeclParam}}    
 );
 
+`define DECL_DPI_EXPORTER_TICK import "DPI-C" function void dpi_exporter_tick({{dpiTickFuncDeclParam_1}});
+`define CALL_DPI_EXPORTER_TICK dpi_exporter_tick({{dpiTickFuncParam}});
+
+// If this macro is defined, the DPI tick function will be called manually in other places. 
+// Users can use with `DECL_DPI_EXPORTER_TICK` and `CALL_DPI_EXPORTER_TICK` to call the DPI tick function manually.
+`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
-    dpi_exporter_tick({{dpiTickFuncParam}});
+    `CALL_DPI_EXPORTER_TICK
 end
+`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
 )",
                                                         j)));
         findModule = true;
