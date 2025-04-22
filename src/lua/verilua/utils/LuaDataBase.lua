@@ -9,7 +9,6 @@ local texpect = require "TypeExpect"
 local table_new = require "table.new"
 local subst = require 'pl.template'.substitute
 
-local type = type
 local load = load
 local print = print
 local pairs = pairs
@@ -19,9 +18,7 @@ local assert = assert
 local ipairs = ipairs
 local f = string.format
 local table_insert = table.insert
-local table_unpack = table.unpack
 
-local verilua = _G.verilua
 local verilua_debug = _G.verilua_debug
 
 ffi.cdef[[
@@ -29,7 +26,40 @@ ffi.cdef[[
     pid_t getpid(void);
 ]]
 
+---@class LuaDataBase.params
+---@field table_name string
+---@field elements table<string>
+---@field path string
+---@field file_name string
+---@field save_cnt_max? number
+---@field verbose? boolean
+---@field size_limit? number
 
+---@class LuaDataBase
+---@overload fun(params: LuaDataBase.params): LuaDataBase
+---@field size_limit number
+---@field file_count number
+---@field path_name string
+---@field file_name string
+---@field table_name string
+---@field fullpath_name string
+---@field available_files table<string>
+---@field entries table<string, string>
+---@field create_db_cmd string
+---@field stmt any
+---@field finished boolean
+---@field verbose boolean
+---@field __type string
+---@field elements table<string>
+---@field pid number
+---@field prepare_cmd string
+---@field save_cnt_max number
+---@field save_cnt number
+---@field cache table
+---@field _log fun(self: LuaDataBase, ...)
+---@field create_db fun(self: LuaDataBase)
+---@field save  fun(self: LuaDataBase, ...)
+---@field commit fun(self: LuaDataBase,...)
 local LuaDataBase = class()
 
 -- 
@@ -51,22 +81,28 @@ local LuaDataBase = class()
 -- 
 --      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the same order and same number as the elements in the table
 -- 
-function LuaDataBase:_init(init_tbl)
-    texpect.expect_table(init_tbl, "init_tbl")
 
-    local save_cnt_max = init_tbl.save_cnt_max or 10000
-    local verbose      = init_tbl.verbose or false
-    local table_name   = init_tbl.table_name
-    local elements     = init_tbl.elements
-    local file_name    = init_tbl.file_name
-    local path_name    = init_tbl.path
-    local size_limit   = init_tbl.size_limit -- Size in bytes
+---@param self LuaDataBase
+---@param params LuaDataBase.params
+function LuaDataBase:_init(params)
+    texpect.expect_table(params, "init_tbl")
+
+    local save_cnt_max = params.save_cnt_max or 10000
+    local verbose      = params.verbose or false
+    local table_name   = params.table_name
+    local elements     = params.elements
+    local file_name    = params.file_name
+    local path_name    = params.path
+    local size_limit   = params.size_limit -- Size in bytes
 
     texpect.expect_string(table_name, "table_name")
     texpect.expect_table(elements, "elements")
     texpect.expect_string(file_name, "file_name")
 
-    self.size_limit = size_limit
+    -- ---@cast self LuaDataBase
+    -- local self = self
+
+    self.size_limit1 = size_limit
     self.file_count = 0
 
     self.path_name = path_name
@@ -131,7 +167,7 @@ function LuaDataBase:_init(init_tbl)
     end
     self.prepare_cmd = subst("INSERT INTO $(table_name) ($(entry_names)) VALUES ($(entry_values))", { table_name = table_name, entry_names = table.concat(entry_names, ", "), entry_values = table.concat(tmp_table, ", ") })
 
-    verilua_debug(f("[LuaDataBase] file_name: " .. file_name .. " prepare_cmd: " .. self.prepare_cmd))
+    verilua_debug(f("[LuaDataBase] table_name: %s file_name: %s prepare_cmd: %s", table_name, file_name, self.prepare_cmd))
 
     -- Pre-allocate memory
     self.save_cnt_max = save_cnt_max
@@ -246,7 +282,7 @@ function LuaDataBase:_init(init_tbl)
     self.save = load(save_func_str)()
     self.commit = load(commit_func_str)()
 
-    verilua "appendFinishTasks" {
+    final {
         function ()
             -- Mark as finished
             self.finished = true
@@ -299,7 +335,7 @@ end
 
 function LuaDataBase:clean_up()
     local path = require "pl.path"
-    printf("[LuaDataBase] [%s => %s] clean up...\n", self.fullpath_name, path.abspath(self.fullpath_name))
+    printf("[LuaDataBase] [%s] [%s => %s] clean up...\n", self.table_name, self.fullpath_name, path.abspath(self.fullpath_name))
 
     self:commit()
 end
