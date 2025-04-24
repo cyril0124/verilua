@@ -27,6 +27,7 @@ local table_clear = require "table.clear"
 
 local f = string.format
 local random = math.random
+local table_remove = table.remove
 local table_insert = table.insert
 local coro_yield = coroutine.yield
 local coro_resume = coroutine.resume
@@ -79,6 +80,7 @@ local record SchedulerClass
     task_fired_status_map: {TaskID: boolean}
     task_execution_count_map:  {TaskID: integer}
     pending_removal_tasks: {TaskID}
+    user_removal_tasks: {TaskID}
     posedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
     negedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
 
@@ -101,6 +103,7 @@ local record SchedulerClass
     _register_callback: function(SchedulerClass, TaskID, TaskCallbackType, string, integer)
 
     -- Public
+    remove_task: function(SchedulerClass, TaskID)
     check_task_exists: function(SchedulerClass, TaskID): boolean
     append_task: function(SchedulerClass, TaskID, string, CoroutineTaskBody, boolean): TaskID -- Append/Register a new task
     wakeup_task: function(SchedulerClass, TaskID) -- Wakeup an registered task
@@ -147,6 +150,7 @@ function Scheduler:_init()
     self.task_fired_status_map = {} -- Used to check if a task has been fired
     self.task_execution_count_map = {}
     self.pending_removal_tasks = {}
+    self.user_removal_tasks = {}
 
     if _G.EDGE_STEP then
         self.posedge_tasks = {}
@@ -203,6 +207,16 @@ function Scheduler:_remove_task(id: TaskID)
         elseif self.negedge_tasks[id] then
             self.negedge_tasks[id] = nil
         end
+    end
+end
+
+function Scheduler:remove_task(id: TaskID)
+    if not self.task_name_map_archived[id] then
+        assert(false, "[Scheduler] Invalid task id! task_id: " .. id)
+    end
+
+    if self.task_name_map_running[id] then
+        table_insert(self.user_removal_tasks, id)
     end
 end
 
@@ -401,6 +415,17 @@ function Scheduler:schedule_task(id: TaskID)
         end
     end
     table_clear(self.pending_removal_tasks)
+
+    for i, remove_id in ipairs(self.user_removal_tasks) do
+		if remove_id == id then
+			table_remove(self.user_removal_tasks, i)
+			self.user_removal_tasks[remove_id] = nil
+			self.task_name_map_running[remove_id] = nil
+			self.task_execution_count_map[remove_id] = 0
+			self.task_fired_status_map[remove_id] = false
+			return
+		end
+	end
 
     local task_cnt: integer = self.task_execution_count_map[id]
     self.task_execution_count_map[id] = task_cnt + 1

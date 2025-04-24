@@ -26,6 +26,7 @@ local SchedulerMode = _G.SchedulerMode
 --- @field private task_fired_status_map table<TaskID, boolean> Map of task IDs to their fired status
 --- @field private task_execution_count_map table<TaskID, integer> Map of task IDs to their execution count
 --- @field private pending_removal_tasks table<TaskID> List of task IDs pending removal
+--- @field private user_removal_tasks table<TaskID> List of user specified task IDs to be removed
 --- @field private posedge_tasks table<TaskID, boolean>|nil Available only when EDGE_STEP is enabled)
 --- @field private negedge_tasks table<TaskID, boolean>|nil Available only when EDGE_STEP is enabled)
 --- @field private event_task_id_list_map table<EventID, table<TaskID, any>> Map of event IDs to lists of task IDs
@@ -38,6 +39,7 @@ local SchedulerMode = _G.SchedulerMode
 --- @field private _alloc_function_task_id fun(self: LuaScheduler): TaskID Allocates a new function task ID
 --- @field private _remove_task fun(self: LuaScheduler, task_id: TaskID) Removes a task by ID
 --- @field private _register_callback fun(self: LuaScheduler, task_id: TaskID, callback_type: TaskCallbackType, str_value: string, integer_value: integer) Registers a callback for a task
+--- @field remove_task fun(self: LuaScheduler, task_id: TaskID) Removes a task by ID
 --- @field check_task_exists fun(self: LuaScheduler, task_id: TaskID): boolean Checks if a task exists
 --- @field append_task fun(self: LuaScheduler, task_id: TaskID|nil, task_name: string, task_body: CoroutineTaskBody, start_now: boolean): TaskID Appends or registers a new task
 --- @field wakeup_task fun(self: LuaScheduler, task_id: TaskID) Wakes up a registered task

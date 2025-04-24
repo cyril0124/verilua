@@ -269,6 +269,9 @@ total_time: 0.85 s / 852.91 ms
     end
     ```
 
+3. `#!lua scheduler:remove_task(<task_id>)`
+    移除一个任务（可以是正在运行的任务），这个任务必须是之前已经被注册过的任务，如果任务之前没有注册过，那么调用的时候会抛出一个错误。
+
 ## Start Task 和 Finish Task
 
 Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。
