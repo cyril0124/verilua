@@ -341,7 +341,7 @@ local function chdl_array_init()
         keep_line()
         local function gen_getter_func()
             output([[
-                chdl_array.get_index = function (this, index)
+                chdl_array.get_index = function (this, index, force_multi_beat)
                     if _G.IS_SINGLE then
                         local chosen_hdl = this.array_hdls[index + 1]
                         return vpiml.vpiml_get_value(chosen_hdl)
