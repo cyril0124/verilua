@@ -24,18 +24,17 @@ local SequenceElementType = {
     And = 2,
 }
 
----
----@class SequenceElement
+
+---@class (exact) SequenceElement
 ---@field typ SequenceElementType
 ---@field value string
----
----@class SequenceElementList
----@field append fun(self, element: SequenceElement)
----
 
----
----@class Sequence
+---@class (exact) SequenceElementList
+---@field append fun(self, element: SequenceElement)
+
+---@class (exact) Sequence
 ---@overload fun(name: string): Sequence
+---@field __type string
 ---@field name string
 ---@field log_name string
 ---@field values table<string, any>
@@ -53,7 +52,6 @@ local SequenceElementType = {
 ---@field with_raw fun(self, str: string): self
 ---@field with_port_list fun(self, port_list_tbl: table<string>): self
 ---@field with_expr fun(self, chdl_signal: any): self
----
 local Sequence = class()
 
 function Sequence:_init(name)

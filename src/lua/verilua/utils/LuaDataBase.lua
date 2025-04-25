@@ -26,7 +26,7 @@ ffi.cdef[[
     pid_t getpid(void);
 ]]
 
----@class LuaDataBase.params
+---@class (exact) LuaDataBase.params
 ---@field table_name string
 ---@field elements table<string>
 ---@field path string
@@ -35,9 +35,10 @@ ffi.cdef[[
 ---@field verbose? boolean
 ---@field size_limit? number
 
----@class LuaDataBase
+---@class (exact) LuaDataBase
 ---@overload fun(params: LuaDataBase.params): LuaDataBase
----@field size_limit number
+---@field db any
+---@field size_limit? number
 ---@field file_count number
 ---@field path_name string
 ---@field file_name string
@@ -102,7 +103,7 @@ function LuaDataBase:_init(params)
     -- ---@cast self LuaDataBase
     -- local self = self
 
-    self.size_limit1 = size_limit
+    self.size_limit = size_limit
     self.file_count = 0
 
     self.path_name = path_name

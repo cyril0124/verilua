@@ -6,12 +6,12 @@ local type = type
 local assert = assert
 local f = string.format
 
----@class IDPool.params
+---@class (exact) IDPool.params
 ---@field size number
 ---@field start_value? number
 ---@field shuffle? boolean
 
----@class IDPool
+---@class (exact) IDPool
 ---@overload fun(pool_size_or_params: number|IDPool.params, shuffle?: boolean): IDPool
 ---@field pool_size number
 ---@field start_value number

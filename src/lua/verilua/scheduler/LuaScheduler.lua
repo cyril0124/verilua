@@ -8,14 +8,14 @@ local SchedulerMode = _G.SchedulerMode
 ---@alias CoroutineYieldInfo [integer, string, integer]
 ---@alias CoroutineTaskBody fun()
 
----@class EventHandle
+---@class (exact) EventHandle
 ---@field _scheduler LuaScheduler
 ---@field name string
 ---@field event_id EventID
 ---@field wait fun(self: EventHandle)
 ---@field send fun(self: EventHandle)
 
---- @class LuaScheduler
+--- @class (exact) LuaScheduler
 --- @field private task_count integer Number of tasks
 --- @field private task_function_map table<TaskID, FunctionTaskBody> Map of task IDs to function task bodies
 --- @field private task_yield_info_map table<TaskID, CoroutineYieldInfo> Map of task IDs to coroutine yield info

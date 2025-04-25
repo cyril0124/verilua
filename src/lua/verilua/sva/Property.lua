@@ -13,9 +13,9 @@ local f = string.format
 local global_values = {}
 local tmp_global_values_key = {}
 
----
----@class Property
+---@class (exact) Property
 ---@overload fun(name: string): Property
+---@field __type string
 ---@field name string
 ---@field log_name string
 ---@field values table<string, any>
@@ -28,7 +28,6 @@ local tmp_global_values_key = {}
 ---@field compiled_property string
 ---@field _log fun(self, ...: any)
 ---@field compile fun(self): self
----
 local Property = class()
 
 function Property:_init(name)
