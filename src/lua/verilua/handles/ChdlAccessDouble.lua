@@ -313,7 +313,7 @@ local function chdl_array_init()
 		this.hdl = this.array_hdls[idx + 1]
 		return this
 	end
-	chdl_array.get_index = function(this, index)
+	chdl_array.get_index = function(this, index, force_multi_beat)
 		do
 			local chosen_hdl = this.array_hdls[index + 1]
 			if force_multi_beat then
