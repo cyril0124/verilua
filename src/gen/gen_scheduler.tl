@@ -309,9 +309,11 @@ function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTas
 
     self.task_count = self.task_count + 1
 
-    if _G.NORMAL and start_now then
-        self.task_fired_status_map[task_id] = true
-        self:schedule_task(task_id)
+    if (_G.NORMAL or _G.EDGE_STEP) then
+        if start_now then
+            self.task_fired_status_map[task_id] = true
+            self:schedule_task(task_id)
+        end
     end
 
     return task_id

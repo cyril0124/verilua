@@ -175,6 +175,12 @@ function Scheduler:append_task(id, name, task_body, start_now)
 	self.task_execution_count_map[task_id] = 0
 
 	self.task_count = self.task_count + 1
+	do
+		if start_now then
+			self.task_fired_status_map[task_id] = true
+			self:schedule_task(task_id)
+		end
+	end
 
 	return task_id
 end
