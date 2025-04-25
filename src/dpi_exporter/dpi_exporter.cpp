@@ -24,6 +24,7 @@ class DPIExporter {
     std::optional<bool> showHelp;
 
     std::string configFile;
+    std::string configFileContent;
     std::string outdir;
     std::string workdir;
     std::string dpiFilePath;
@@ -91,6 +92,11 @@ class DPIExporter {
 
         if (metaInfoJson["filelist"].get<std::vector<std::string>>() != files) {
             fmt::println("[dpi_exporter] filelist changed, regenerating...");
+            return true;
+        }
+
+        if (metaInfoJson["configFileContent"] != configFileContent) {
+            fmt::println("[dpi_exporter] config file changed, regenerating...");
             return true;
         }
 
@@ -282,6 +288,19 @@ end
         metaInfoFilePath = workdir + "/dpi_exporter.meta.json";
         dpiFilePath      = outdir + "/" + _dpiFile.value_or(DEFAULT_DPI_FILE_NAME);
         fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n\tdistributeDPI: {}\n\tquiet: {}\n", configFile, _dpiFile.value_or(DEFAULT_DPI_FILE_NAME), outdir, workdir, distributeDPI, quiet);
+
+        configFileContent = [&]() {
+            std::ifstream configFileStream(configFile);
+            if (!configFileStream.is_open()) {
+                PANIC("Failed to open config file: {}", configFile);
+            }
+            std::stringstream buffer;
+            buffer << configFileStream.rdbuf();
+            std::string content = buffer.str();
+            // Replace newlines with spaces
+            std::replace(content.begin(), content.end(), '\n', ' ');
+            return content;
+        }();
 
         if (distributeDPI) {
             ASSERT(insertModuleName->empty(), "`insertModuleName` should be empty when `distributeDPI` is TRUE");
@@ -730,10 +749,11 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
         }
 
         // Save the command line arguments and files into json file
-        metaInfoJson["cmdLine"]          = cmdLineStr;
-        metaInfoJson["filelist"]         = files;
-        metaInfoJson["topModuleName"]    = topModuleName;
-        metaInfoJson["insertModuleName"] = insertModuleName.value_or(topModuleName);
+        metaInfoJson["cmdLine"]           = cmdLineStr;
+        metaInfoJson["filelist"]          = files;
+        metaInfoJson["topModuleName"]     = topModuleName;
+        metaInfoJson["insertModuleName"]  = insertModuleName.value_or(topModuleName);
+        metaInfoJson["configFileContent"] = configFileContent;
 
         // Write meta info into a json file, which can be used next time to check if the output is up to date
         std::ofstream o(metaInfoFilePath);
