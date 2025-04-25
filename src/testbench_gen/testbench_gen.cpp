@@ -595,12 +595,16 @@ initial begin
             $dumpfile({dump_file, ".vcd"});
             $dumpvars(0, {{tbtopName}});
         end else if ($test$plusargs("dump_fsdb")) begin
-            $display("[INFO] @%0t [%s:%d] enable dump_fsdb ", $time, `__FILE__, `__LINE__);
+            `ifndef VCS_DUMP_VCD
+                $display("[INFO] @%0t [%s:%d] enable dump_fsdb ", $time, `__FILE__, `__LINE__);
 
-            repeat(dump_start_cycle) @(posedge {{clockSignalName}});
-            $display("[INFO] @%0t [%s:%d] start dump_fsdb at cycle => %d... ", $time, `__FILE__, `__LINE__, dump_start_cycle);
-            $fsdbDumpfile({dump_file, ".fsdb"});
-            $fsdbDumpvars(0, {{tbtopName}});
+                repeat(dump_start_cycle) @(posedge {{clockSignalName}});
+                $display("[INFO] @%0t [%s:%d] start dump_fsdb at cycle => %d... ", $time, `__FILE__, `__LINE__, dump_start_cycle);
+                $fsdbDumpfile({dump_file, ".fsdb"});
+                $fsdbDumpvars(0, {{tbtopName}});
+            `else // VCS_DUMP_VCD
+                $error("VCS_DUMP_VCD is defined, but dump_fsdb is requested. Please check your configuration.");
+            `endif // VCS_DUMP_VCD
         end else begin
             $display("[ERROR] @%0t [%s:%d] neither dump_vcd or dump_fsdb are not pass in", $time, `__FILE__, `__LINE__);
             $fatal;
