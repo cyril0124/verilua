@@ -63,9 +63,16 @@ end
 --      assert(false, path)
 -- 
 
-return {
+---@class (exact) SymbolHelper
+---@field get_executable_name fun(): string
+---@field get_self_cmdline fun(): string
+---@field get_global_symbol_addr fun(symbol_name: string): integer
+---@field ffi_cast fun(type_str: ffi.ct*, value: string|integer|ffi.cdata*): ffi.cdata*
+local SymbolHelper = {
     get_executable_name = get_executable_name,
     get_self_cmdline = get_self_cmdline,
     get_global_symbol_addr = get_global_symbol_addr,
     ffi_cast = ffi_cast,
 }
+
+return SymbolHelper

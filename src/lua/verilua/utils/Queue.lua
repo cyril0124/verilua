@@ -4,42 +4,56 @@ if not success then
     isempty = function(t) return next(t) == nil end
 end
 
+---@alias Queue.data any
+
+---@class (exact) Queue
+---@field private data table<Queue.data>
+---@field private first_ptr integer
+---@field private last_ptr integer
+---@field push fun(self: Queue, value: Queue.data)
+---@field pop fun(self: Queue): Queue.data
+---@field query_first_ptr fun(self: Queue): Queue.data
+---@field front fun(self: Queue): Queue.data
+---@field last fun(self: Queue): Queue.data
+---@field is_empty fun(self: Queue): boolean
+---@field size fun(self: Queue): integer
+---@operator len: integer
 local Queue = class()
 
 function Queue:_init()
     self.data = {}
-    self.first = 1
-    self.last = 0
+    self.first_ptr = 1
+    self.last_ptr = 0
 end
 
 function Queue:push(value)
-    local last = self.last + 1
-    self.last = last
+    local last = self.last_ptr + 1
+    self.last_ptr = last
     self.data[last] = value
 end
 
 function Queue:pop()
-    local first = self.first
-    if first > self.last then error("queue is empty") end
-    local value = self.data[first]
-    self.data[first] = nil        -- to allow garbage collection
-    self.first = first + 1
+    local first_ptr = self.first_ptr
+    if first_ptr > self.last_ptr then error("queue is empty") end
+    local value = self.data[first_ptr]
+    self.data[first_ptr] = nil        -- to allow garbage collection
+    self.first_ptr = first_ptr + 1
     return value
 end
 
-function Queue:query_first()
-    return self.data[self.first]
+function Queue:query_first_ptr()
+    return self.data[self.first_ptr]
 end
 
 function Queue:front()
-    return self.data[self.first]
+    return self.data[self.first_ptr]
 end
 
 function Queue:last()
-    if self.last == 0 then
+    if self.last_ptr == 0 then
         return nil
     else
-        return self.data[self.last]
+        return self.data[self.last_ptr]
     end
 end
 
@@ -48,11 +62,11 @@ function Queue:is_empty()
 end
 
 function Queue:size()
-    return self.last - self.first + 1
+    return self.last_ptr - self.first_ptr + 1
 end
 
 function Queue:__len()
-    return self.last - self.first + 1
+    return self.last_ptr - self.first_ptr + 1
 end
 
 return Queue

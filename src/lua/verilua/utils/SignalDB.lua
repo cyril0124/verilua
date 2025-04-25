@@ -12,10 +12,54 @@ local table_insert = table.insert
 
 local cfg = _G.cfg
 
-local is_prebuild = os.getenv("VL_PREBUILD")
+local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 
+---@alias SignalInfo.signal_name string
+---@alias SignalInfo.bitwidth number
+---@alias SignalInfo.vpi_type string
+---@alias SignalInfo [SignalInfo.signal_name, SignalInfo.bitwidth, SignalInfo.vpi_type] 
+
+---@alias SignalDB.data.hier_path string
+
+---@class (exact) SignalDB.data
+---@field [SignalDB.data.hier_path] SignalDB.data
+---@field [integer] SignalInfo
+
+---@class (exact) SignalDB.auto_bundle.params
+---@field name? string
+---@field filter? fun(SignalInfo.signal_name, SignalInfo.bitwidth): boolean
+---@field matches? string
+---@field startswith? string
+---@field endswith? string
+---@field prefix? string
+
+---@class (exact) SignalDB
+---@field private db_data table
+---@field private top string?
+---@field private check_file string?
+---@field private target_file string
+---@field private is_prebuild boolean?
+---@field private rtl_filelist string
+---@field private extra_signal_db_gen_args string
+---@field private initialized boolean
+---@field private regenerate boolean
+---@field init fun(self: SignalDB, params?: table): SignalDB
+---@field set_extra_args fun(self: SignalDB, args_str: string): SignalDB
+---@field add_extra_args fun(self: SignalDB, args_str: string): SignalDB
+---@field set_regenerate fun(self: SignalDB, regenerate: boolean): SignalDB
+---@field set_target_file fun(self: SignalDB, file_path: string): SignalDB
+---@field set_rtl_filelist fun(self: SignalDB, file_path: string): SignalDB
+---@field private load_db fun(self: SignalDB, file_path: string)
+---@field private generate_db fun(self: SignalDB, args_str: string)
+---@field get_db_data fun(self: SignalDB): SignalDB.data
+---@field get_top_module fun(self: SignalDB): string
+---@field get_signal_info fun(self: SignalDB, hier_path: SignalDB.data.hier_path): SignalInfo?
+---@field find_all fun(self: SignalDB, str: string): table<string>
+---@field find_hier fun(self: SignalDB, str: string): table<string>
+---@field find_signal fun(self: SignalDB, str: string): table<string>
+---@field auto_bundle fun(self: SignalDB, hier_path: string, params: SignalDB.auto_bundle.params): any -- TODO: Bundle type
 local SignalDB = {
-    db_data = nil,
+    db_data = {},
     top = os.getenv("DUT_TOP"),
     check_file = nil,
     target_file = "./signal_db.ldb",
@@ -146,7 +190,7 @@ function SignalDB:load_db(file_path)
     if file then
         local data = file:read("*a")
         file:close()
-        self.db_data = sb.decode(data)
+        self.db_data = sb.decode(data) --[[@as table]]
     else
         error("[SignalDB] [load_db] Failed to open `" .. file_path .. "`")
     end
@@ -199,7 +243,8 @@ function SignalDB:get_signal_info(hier_path)
     for i, v in ipairs(hier_vec) do
         if i == end_idx then
             -- @signal_info = { <signal_name>, <bitwidth>, <vpi_type> }
-            for i, signal_info in ipairs(curr) do
+            for _, signal_info in ipairs(curr) do
+                ---@cast signal_info SignalInfo
                 if signal_info[1] == v then
                     return signal_info
                 end
@@ -213,6 +258,10 @@ function SignalDB:get_signal_info(hier_path)
     return nil
 end
 
+---@param hiers SignalDB.data
+---@param ret table<string>
+---@param path string
+---@param str string
 local function _find_all(hiers, ret, path, str)
     for k, v in pairs(hiers) do
         local k_type = type(k)
@@ -234,6 +283,10 @@ local function _find_all(hiers, ret, path, str)
     end
 end
 
+---@param hiers SignalDB.data
+---@param ret table<string>
+---@param path string
+---@param str string
 local function _find_hier(hiers, ret, path, str)
     for k, v in pairs(hiers) do
         local k_type = type(k)
@@ -249,6 +302,10 @@ local function _find_hier(hiers, ret, path, str)
     end
 end
 
+---@param hiers SignalDB.data
+---@param ret table<string>
+---@param path string
+---@param str string
 local function _find_signal(hiers, ret, path, str)
     for k, v in pairs(hiers) do
         local k_type = type(k)
@@ -293,6 +350,10 @@ function SignalDB:find_signal(str)
     return ret
 end
 
+local function default_filter(signal_name, signal_bitwidth)
+    return true
+end
+
 function SignalDB:auto_bundle(hier_path, params)
     local signals = {}
 
@@ -307,6 +368,7 @@ function SignalDB:auto_bundle(hier_path, params)
     )
 
     -- Extract hierarchy vector
+    ---@type table<number, string>
     local hier_vec = stringx.split(hier_path, ".")
 
     -- Initialize signal_db
@@ -318,34 +380,49 @@ function SignalDB:auto_bundle(hier_path, params)
     end
     assert(curr ~= nil, "[auto_bundle] No such hierarchy! => " .. hier_path)
 
+    ---@cast curr SignalDB.data
+
+    local filter = params.filter or default_filter
+
     -- Remove hash part from the signal_db table
     for i = 1, #curr do
-        local signal_info = curr[i] -- { <signal_name>, <bitwidth>, <vpi_type> }
+        ---@type SignalInfo
+        local signal_info = curr[i]
         local signal_name = signal_info[1]
         local signal_bitwidth = signal_info[2]
 
-        if params.filter then
-            if params.filter(signal_name, signal_bitwidth) then
-                table_insert(signals, signal_name)
-            end
-        elseif params.matches then
+        if params.matches then
             if signal_name:match(params.matches) then
-                table_insert(signals, signal_name)
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
             end
         elseif params.startswith and params.endswith then
             if stringx.startswith(signal_name, params.startswith) and stringx.endswith(signal_name, params.endswith) then
-                table_insert(signals, signal_name)
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
             end
         elseif params.prefix then
             if stringx.startswith(signal_name, params.prefix) then
-                table_insert(signals, signal_name:sub(#params.prefix + 1))
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name:sub(#params.prefix + 1))
+                end
             end
         elseif params.startswith then
             if stringx.startswith(signal_name, params.startswith) then
-                table_insert(signals, signal_name)
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
             end
         elseif params.endswith then
             if stringx.endswith(signal_name, params.endswith) then
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
+            end
+        elseif params.filter then
+            if filter(signal_name, signal_bitwidth) then
                 table_insert(signals, signal_name)
             end
         end
