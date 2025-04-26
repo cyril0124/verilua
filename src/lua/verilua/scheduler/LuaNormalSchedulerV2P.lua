@@ -20,6 +20,7 @@ local os = _tl_compat and _tl_compat.os or os
 local pairs = _tl_compat and _tl_compat.pairs or pairs
 local string = _tl_compat and _tl_compat.string or string
 local table = _tl_compat and _tl_compat.table or table
+local type = type
 
 local math = require("math")
 local debug = require("debug")
@@ -441,7 +442,7 @@ function Scheduler:new_event_hdl(name, user_event_id)
 			event_id = random(SCHEDULER_MIN_EVENT_ID, SCHEDULER_MAX_EVENT_ID)
 		end
 	else
-		assert(math.type(user_event_id) == "integer")
+		assert(type(user_event_id) == "number" and user_event_id == math.floor(user_event_id), "user_event_id must be an integer")
 	end
 
 	self.event_name_map[event_id] = name

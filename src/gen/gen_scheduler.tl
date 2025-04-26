@@ -664,7 +664,7 @@ function Scheduler:new_event_hdl(name: string, user_event_id: EventID): EventHan
             event_id = random(SCHEDULER_MIN_EVENT_ID, SCHEDULER_MAX_EVENT_ID)
         end
     else
-        assert(user_event_id is integer)
+        assert(type(user_event_id) == "number" and user_event_id == math.floor(user_event_id), "user_event_id must be an integer")
     end
 
     self.event_name_map[event_id] = name
