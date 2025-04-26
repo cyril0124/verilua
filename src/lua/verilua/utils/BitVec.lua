@@ -20,6 +20,40 @@ local string_rep = string.rep
 local setmetatable = setmetatable
 local to_hex_str = utils.to_hex_str
 
+---@class (exact) SubBitVec
+---@field __type string
+---@field _s number
+---@field _e number
+---@field set fun(self: SubBitVec, v: number|uint64_t)
+---@field set_hex_str fun(self: SubBitVec, hex_str: string)
+---@field set_vec fun(self: SubBitVec, v: table<number>)
+---@field get fun(self: SubBitVec): uint64_t
+---@field get_hex_str fun(self: SubBitVec): string
+---@field get_vec fun(self: SubBitVec): table<number>
+---@field dump_str fun(self: SubBitVec): string
+---@field dump fun(self: SubBitVec)
+
+---@class (exact) BitVec
+---@field __type string
+---@field _call_cache table<string, SubBitVec>
+---@field u32_vec table<number>
+---@field bit_width number
+---@field beat_size number
+---@field _update_u32_vec fun(self: BitVec, data: table<number>)
+---@field update_value fun(self: BitVec, data: table<number>)
+---@field get_bitfield fun(self: BitVec, s: number, e: number): uint64_t
+---@field get_bitfield_hex_str fun(self: BitVec, s: number, e: number): string
+---@field get_bitfield_vec fun(self: BitVec, s: number, e: number): table<number>
+---@field set_bitfield fun(self: BitVec, s: number, e: number, v: number|uint64_t)
+---@field set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: string)
+---@field set_bitfield_vec fun(self: BitVec, s: number, e: number, v: table<number>)
+---@field _set_bitfield fun(self: BitVec, s: number, e: number, v: number|uint64_t): BitVec
+---@field _set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: string): BitVec
+---@field _set_bitfield_vec fun(self: BitVec, s: number, e: number, v: table<number>): BitVec
+---@field dump_str fun(self: BitVec): string
+---@field dump fun(self: BitVec)
+---@field to_hex_str fun(self: BitVec): string
+---@overload fun(s: number, e: number): SubBitVec
 local BitVec = class()
 
 local function hex_str_to_u32_vec(hex_str)
@@ -52,6 +86,7 @@ function BitVec:_init(data, bit_width)
     local auto_bit_width
 
     self.__type = "BitVec"
+    self._call_cache = {}
 
     if typ == "table" then
         auto_bit_width = #data * 32
@@ -103,7 +138,7 @@ function BitVec:_init(data, bit_width)
 
             self.bit_width = bit_width
         else
-            self.u32_vec = table_new(tonumber(data[0]), 0)
+            self.u32_vec = table_new(tonumber(data[0]) --[[@as number]], 0)
             for i  = 1, data_len do
                 self.u32_vec[i] = data[i]
             end
@@ -250,7 +285,7 @@ function BitVec:get_bitfield(s, e)
         end
     end
 
-    return value
+    return value --[[@as uint64_t]]
 end
 
 function BitVec:get_bitfield_hex_str(s, e)
@@ -258,16 +293,16 @@ function BitVec:get_bitfield_hex_str(s, e)
     
     local result = ""
     if beat_size == 1 then
-        result = bit_tohex(tonumber(self:get_bitfield(s, e)))
+        result = bit_tohex(tonumber(self:get_bitfield(s, e)) --[[@as number]])
     else
         local ss = s
         local ee = s + 31
         for i = 1, beat_size - 1 do
-            result = bit_tohex(tonumber(self:get_bitfield(ss, ee))) .. result
+            result = bit_tohex(tonumber(self:get_bitfield(ss, ee)) --[[@as number]]) .. result
             ss = ee + 1
             ee = ee + 32
         end
-        result = bit_tohex(tonumber(self:get_bitfield(ss, e))) .. result
+        result = bit_tohex(tonumber(self:get_bitfield(ss, e)) --[[@as number]]) .. result
     end
 
     return result
@@ -380,7 +415,7 @@ function BitVec:set_bitfield_vec(s, e, u32_vec)
             end
             local vmask = bit_lshift(1ULL, e - ss + 1) - 1
             local masked_v = bit_band(u32_vec[beat_size], vmask)
-            self:set_bitfield(ss, e, masked_v)
+            self:set_bitfield(ss, e, masked_v --[[@as uint64_t]])
         end
     end
 end
@@ -400,12 +435,12 @@ function BitVec:_set_bitfield_vec(s, e, u32_vec)
     return self
 end
 
-function BitVec:dump_str(reverse)
-    return to_hex_str(self.u32_vec, reverse)
+function BitVec:dump_str()
+    return to_hex_str(self.u32_vec)
 end
 
-function BitVec:dump(reverse)
-    print(self:dump_str(reverse))
+function BitVec:dump()
+    print(self:dump_str())
 end
 
 function BitVec:__tostring()
@@ -510,13 +545,12 @@ local subbitvec_shared_mt = {
 }
 
 function BitVec:__call(s, e)
-    if not self._call_cache then
-        self._call_cache = {}
-    end
-
+    ---@type string
     local key = s .. "_" .. e
+
     if not self._call_cache[key] then
-        self._call_cache[key] = setmetatable({
+        ---@type SubBitVec
+        local sub_bit_vec = setmetatable({
             __type = "SubBitVec",
             _s = s,
             _e = e,
@@ -553,6 +587,8 @@ function BitVec:__call(s, e)
                 print(self:dump_str())
             end
         }, subbitvec_shared_mt)
+
+        self._call_cache[key] = sub_bit_vec
     end
     return self._call_cache[key]
 end

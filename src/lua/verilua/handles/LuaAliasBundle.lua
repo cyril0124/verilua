@@ -16,6 +16,21 @@ local table_concat = table.concat
 
 local verilua_debug = _G.verilua_debug
 
+---@class (exact) AliasBundle
+---@field __type string
+---@field prefix string
+---@field hierarchy string
+---@field name string
+---@field signals_tbl table<string>
+---@field alias_tbl table<string>
+---@field __dump_parts table<string>
+---@field valid CallableHDL
+---@field ready CallableHDL
+---@field dump_str fun(self: AliasBundle): string
+---@field format_dump_str fun(self: AliasBundle, format_func: fun(chdl: CallableHDL, name: string, alias_name: string): string): string
+---@field dump fun(self: AliasBundle)
+---@field format_dump fun(self: AliasBundle, format_func: fun(chdl: CallableHDL, name: string, alias_name: string): string)
+---@field [string] CallableHDL
 local AliasBundle = class()
 
 -- 
@@ -27,8 +42,8 @@ local AliasBundle = class()
 -- }
 -- 
 -- @prefix   :
--- @hierachy :
---      signal_name => <hierachy>.<prefix>_<org_name>
+-- @hierarchy :
+--      signal_name => <hierarchy>.<prefix>_<org_name>
 -- @name: bundle name
 -- 
 -- 
@@ -46,15 +61,15 @@ local AliasBundle = class()
 --      local value = abdl.alias_name:get()
 --      abdl.alias_name_1:set(123)
 -- 
-function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name, optional_signals)
+function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_signals)
     texpect.expect_table(alias_signal_tbl, "alias_signal_tbl")
     texpect.expect_table(alias_signal_tbl[1], "alias_signal_tbl[1]")
     texpect.expect_string(prefix, "prefix")
-    texpect.expect_string(hierachy, "hierachy")
+    texpect.expect_string(hierarchy, "hierarchy")
 
     self.__type = "AliasBundle"
     self.prefix = prefix
-    self.hierachy = hierachy
+    self.hierarchy = hierarchy
     self.name = name or "Unknown"
 
     self.signals_tbl = fun.totable(fun.map(function (x)
@@ -78,14 +93,14 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierachy, name, optional_si
         end
     end, alias_signal_tbl))
 
-    verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. table_concat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
+    verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. table_concat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierarchy: ", hierarchy)
 
     -- Construct CallableHDL bundle
     local num_signals = #self.signals_tbl
     for i = 1, num_signals do
         local alias_name = self.alias_tbl[i]
         local real_name = self.signals_tbl[i]
-        local fullpath = hierachy .. "." .. prefix .. real_name
+        local fullpath = hierarchy .. "." .. prefix .. real_name
 
         if not tablex.find(optional_signals, alias_name) then
             rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))

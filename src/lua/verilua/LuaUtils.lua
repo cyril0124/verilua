@@ -34,11 +34,9 @@ local setmetatable = setmetatable
 local utils = {}
 local this = utils
 
---
 ---@param t table The table to be serialized
----@param conn string|char The connector for the serialization, defaults to "_"
+---@param conn string The connector for the serialization, defaults to "_"
 ---@return string The serialized string
---
 function utils.serialize(t, conn)
     local serialized = t
     local conn = conn or "_"
@@ -49,10 +47,8 @@ function utils.serialize(t, conn)
     return table_concat(serialized, conn)
 end
 
---
----@param tab table The table to be reversed
----@return table The reversed table
---
+---@param tab table<any> The table to be reversed
+---@return table<any> The reversed table
 function utils.reverse_table(tab)
     local size = #tab
     local new_tab = table_new(size, 0)
@@ -64,10 +60,6 @@ function utils.reverse_table(tab)
     return new_tab
 end
 
---
----@param t number|cdata|table The value to be converted to hexadecimal string
----@return string The hexadecimal string, MSB <=> LSB
---
 do
     local function get_result(t_len, t, separator)
         local t_copy = table_new(t_len, 0)
@@ -83,6 +75,9 @@ do
         return table_concat(t_copy, separator)
     end
 
+    ---@param t number|ffi.cdata*|table The value to be converted to hexadecimal string
+    ---@param separator? string The separator for the hexadecimal string, defaults to ""
+    ---@return string -- The hexadecimal string, MSB <=> LSB
     function utils.to_hex_str(t, separator)
         local separator = separator or ""
         local result = ""
@@ -116,10 +111,8 @@ do
     end
 end
 
---
 ---@param n number The value to calculate the logarithm base 2
 ---@return number The ceiling of the logarithm base 2
---
 function utils.log2Ceil(n)
     if n < 1 then
         return 0
@@ -130,32 +123,26 @@ function utils.log2Ceil(n)
     end
 end
 
---
 ---@param begin number The start bit
 ---@param endd number The end bit
 ---@param val number The value to be processed
 ---@return number The processed value
---
 function utils.bitfield32(begin, endd, val)
     local mask = bit_lshift(1ULL, endd - begin + 1) - 1
-    return tonumber(bit.band(bit_rshift(val + 0ULL, begin), mask))
+    return tonumber(bit.band(bit_rshift(val + 0ULL, begin), mask)) --[[@as number]]
 end
 
---
 ---@param begin number The start bit
 ---@param endd number The end bit
 ---@param val number The value to be processed
 ---@return number The processed value
---
 function utils.bitfield64(begin, endd, val)
     return bit_rshift( bit_lshift(val + 0ULL, 64 - endd - 1), begin + 64- endd - 1 )
 end
 
---
 ---@param hi number The higher 32 bits
 ---@param lo number The lower 32 bits
 ---@return number The combined 64-bit value
---
 function utils.to64bit(hi, lo)
     return bit_lshift(hi, 32) + lo
 end
@@ -165,7 +152,6 @@ end
 --
 ---@param hex_table number|table The value or table to be converted to hexadecimal
 ---@return string The hexadecimal string
---
 function utils.to_hex(hex_table)
     local ret = ""
     if type(hex_table) == "table" then
@@ -178,17 +164,13 @@ function utils.to_hex(hex_table)
     return ret
 end
 
---
 ---@param hex_table number|table The value or table to be printed as hexadecimal
---
 function utils.print_hex(hex_table)
     io.write(this.to_hex(hex_table).."\n")
 end
 
---
 ---@param num number The number to be converted to binary string
 ---@return string The binary string
---
 function utils.num_to_binstr(num)
     local num = tonumber(num)
     if num == 0 then return "0" end
@@ -201,11 +183,9 @@ function utils.num_to_binstr(num)
     return binstr
 end
 
---
 ---@param progress number The progress, ranges from (0, 1)
 ---@param length number The length of the progress bar
 ---@return string The string representation of the progress bar
---
 function utils.get_progress_bar(progress, length)
     -- https://cn.piliapp.com/symbol/
     local completed = math_floor(progress * length)
@@ -214,10 +194,8 @@ function utils.get_progress_bar(progress, length)
     return progressBar
 end
 
---
 ---@param progress number The progress, ranges from (0, 1)
 ---@param length number The length of the progress bar
---
 function utils.print_progress_bar(progress, length)
     print(utils.get_progress_bar(progress, length))
 end
@@ -234,13 +212,14 @@ end
 ---@param t table The enumeration table
 ---@param v number The value to be searched
 ---@return string The found key name, or throws an error if not found
---
 function utils.enum_search(t, v)
     for name, value in pairs(t) do
         if value == v then
             return name
         end
     end
+
+    ---@diagnostic disable-next-line: missing-return
     assert(false, "Key no found: " .. v .. " in " .. t.name)
 end
 
@@ -267,7 +246,6 @@ end
 -- 
 ---@param enum_table table The enumeration table to be defined
 ---@return table The defined enumeration table
---
 function utils.enum_define(enum_table)
     assert(type(enum_table) == "table")
     
@@ -323,25 +301,25 @@ end
 --   local str = utils.get_datetime_str()
 --         str == "20240124_2301" 
 -- 
---
----@return string The string representation of the current date and time in the format <Year><Month><Day>_<Hour><Minute>
---
+---@return string|osdate The string representation of the current date and time in the format <Year><Month><Day>_<Hour><Minute>
 function utils.get_datetime_str()
     local datetime = os.date("%Y%m%d_%H%M")
     return datetime
 end
 
---
 ---@param filename string The file name to be read
 ---@return string The content of the file
---
 function utils.read_file_str(filename)
     local file = io.open(path.abspath(filename), "r") 
     if not file then
         assert(false, "cannot open " .. path.abspath(filename))
     end
+    ---@diagnostic disable-next-line: need-check-nil
     local content = file:read("*a")
+
+    ---@diagnostic disable-next-line: need-check-nil
     file:close()
+
     return content
 end
 
@@ -378,14 +356,11 @@ local function hex_to_bin(hex)
     return bin
 end
 
-
---
 ---@param str string The input string (binary starts with "0b", hexadecimal starts with "0x", decimal has no prefix)
 ---@param s number The start bit
 ---@param e number The end bit
 ---@param width number The width of the input string (optional)
 ---@return string The binary string
---
 function utils.bitfield_str(str, s, e, width)
     local prefix = str:sub(1, 2)
     local bin_str
@@ -397,7 +372,7 @@ function utils.bitfield_str(str, s, e, width)
     else
         bin_str = dec_to_bin(str:gsub(" ", ""):gsub("_", ""))
     end
-    
+
     -- Ensure the binary string meets the desired width by padding with leading zeros
     if width and width > #bin_str then
         bin_str = string.rep("0", width - #bin_str) .. bin_str
@@ -412,11 +387,9 @@ function utils.bitfield_str(str, s, e, width)
     return ret == "" and "0" or ret
 end
 
---
----@param bitpat_tbl table The bit pattern table
+---@param bitpat_tbl table<number, {s: number, e: number, v: number|uint64_t}> The bit pattern table
 ---@param width number The width of the bit pattern (optional)
 ---@return string The hexadecimal string
---
 function utils.bitpat_to_hexstr(bitpat_tbl, width)
     assert(type(bitpat_tbl) == "table", "bitpat_tbl must be a table")
     assert(type(bitpat_tbl[1]) == "table", "bitpat_tbl must contain tables")
@@ -428,7 +401,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
 
     -- Calculate the number of 64-bit blocks required to handle the specified width
     local num_blocks = math_ceil(width / 64)
-    
+
     -- Initialize the value as a table of zeros (each element represents a 64-bit block)
     local v = table_new(num_blocks, 0)
     for i = 1, num_blocks do
@@ -470,7 +443,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
             else
                 mask = bit_lshift(1ULL, num_bits) - 1
             end
-            local shifted_value = bit_lshift(bit.band(bitpat.v, mask), start_pos)
+            local shifted_value = bit_lshift(bit.band(bitpat.v --[[@as number]], mask), start_pos)
             v[start_block] = bit.bor(v[start_block], shifted_value)
         else
             -- The bit pattern spans across multiple blocks
@@ -479,11 +452,11 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
 
             -- Lower part in the start block
             local lower_mask = bit_lshift(1ULL, lower_bits) - 1
-            local lower_value = bit.band(bitpat.v, lower_mask)
+            local lower_value = bit.band(bitpat.v --[[@as number]], lower_mask)
             v[start_block] = bit.bor(v[start_block], bit_lshift(lower_value, start_pos))
 
             -- Upper part in the end block
-            local upper_value = bit_rshift(bitpat.v, lower_bits)
+            local upper_value = bit_rshift(bitpat.v --[[@as number]], lower_bits)
             v[end_block] = bit.bor(v[end_block], upper_value)
         end
     end
@@ -497,18 +470,14 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
     return hexstr
 end
 
--- 
 ---@param uint_value number The unsigned integer value to be converted to one-hot encoding
 ---@return number The one-hot encoded value
---
 function utils.uint_to_onehot(uint_value)
     return bit_lshift(1, uint_value) + 0ULL
 end
 
--- 
----@param t table The table to be shuffled
+---@param t table<any> The table to be shuffled
 ---@return table The shuffled table
---
 function utils.shuffle(t)
     local n = #t
     local k = 0
@@ -527,22 +496,20 @@ do
         -- remove prefix and leading zeros and convert to lower case
         return hex:lower():gsub("^0x0*", "0x")
     end
-    
+
     local function normalize_bin(bin)
         -- remove prefix and leading zeros
         return bin:gsub("^0b0*", "0b")
     end
-    
+
     local function normalize_dec(decimal)
         -- remove leading zeros
         return decimal:gsub("^0*", "")
     end
 
-    --
     ---@param str1 string The first string to be compared
     ---@param str2 string The second string to be compared
     ---@return boolean Whether the two strings are equal
-    --
     -- ! NOTICE: prefix is required, e.g. "0x" for hex, "0b" for binary, "" for decimal
     function utils.compare_value_str(str1, str2)
         if str1:sub(1, 2) == "0x" and str2:sub(1, 2) == "0x" then
@@ -558,10 +525,14 @@ do
     end
 end
 
+---@return uint64_t
 function utils.urandom64()
-    return math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
+    return (math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)) --[[@as uint64_t]]
 end
 
+---@param min number|uint64_t
+---@param max number|uint64_t
+---@return uint64_t
 function utils.urandom64_range(min, max)
     local random_value = math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
 
@@ -571,12 +542,15 @@ function utils.urandom64_range(min, max)
     else
         range = max - min + 1ULL
     end
-    
+
     local result = min + (random_value % (range))
-    
-    return result
+
+    return result --[[@as uint64_t]]
 end
 
+---@param str string
+---@param nr_group number
+---@return table<string>, number
 function utils.str_group_by(str, nr_group)
     local group_size = math_ceil(#str / nr_group)
     local result = table_new(group_size, 0)
@@ -587,6 +561,10 @@ function utils.str_group_by(str, nr_group)
     return result, group_size
 end
 
+---@param str string
+---@param step number
+---@param separator string
+---@return string
 function utils.str_sep(str, step, separator)
     local result = ""
     local separator = separator or " "
@@ -599,47 +577,60 @@ function utils.str_sep(str, step, separator)
     return result
 end
 
+---@param n number
+---@return uint64_t
 function utils.bitmask(n)
     assert(n <= 64, "n must be less than or equal to 64")
     if n == 64 then
-        return 0xFFFFFFFFFFFFFFFFULL
+        return (0xFFFFFFFFFFFFFFFFULL) --[[@as uint64_t]]
     else
-        return bit_lshift(1ULL, n) - 1ULL
+        return (bit_lshift(1ULL, n) - 1ULL) --[[@as uint64_t]]
     end
 end
 
+---@param value number
+---@param start number
+---@param length number
+---@return uint64_t
 function utils.reset_bits(value, start, length)
     assert(start < 64)
     assert(length <= 64)
-    local mask = bit_lshift(utils.bitmask(length), start)
-    return bit_band(value, bit_bnot(mask))
+    local mask = bit_lshift(utils.bitmask(length) --[[@as number]], start)
+    return bit_band(value, bit_bnot(mask)) --[[@as uint64_t]]
 end
 
+---@param value number
+---@param n number
+---@return number
 function utils.cover_with_n(value, n)
     return math_ceil(value / n)
 end
 
+---@param bitwidth number
+---@return uint64_t
 function utils.shuffle_bits(bitwidth)
     assert(bitwidth <= 64, "bitwidth must be less than or equal to 64")
     if bitwidth <= 32 then
-        return math_random(0, tonumber(utils.bitmask(bitwidth)))
+        return math_random(0, tonumber(utils.bitmask(bitwidth)) --[[@as number]]) --[[@as uint64_t]]
     else
         return utils.urandom64_range(0, utils.bitmask(bitwidth))
     end
 end
 
+---@param bitwidth number
+---@return string
 function utils.shuffle_bits_hex_str(bitwidth)
     if bitwidth <= 32 then
-        return bit_tohex(utils.shuffle_bits(bitwidth))
+        return bit_tohex(utils.shuffle_bits(bitwidth) --[[@as number]])
     else
         local u32_chunk = utils.cover_with_n(bitwidth, 32)
         local result = ""
         local total_bits = bitwidth
         for i = 1, u32_chunk do
             if total_bits >= 32 then
-                result = bit_tohex(utils.shuffle_bits(32)) .. result
+                result = bit_tohex(utils.shuffle_bits(32) --[[@as number]]) .. result
             else
-                result = bit_tohex(utils.shuffle_bits(total_bits)) .. result
+                result = bit_tohex(utils.shuffle_bits(total_bits) --[[@as number]]) .. result
             end
             total_bits = total_bits - 32
         end
@@ -647,6 +638,9 @@ function utils.shuffle_bits_hex_str(bitwidth)
     end
 end
 
+---@param value_hex_str string
+---@param bitwidth number
+---@return string
 function utils.expand_hex_str(value_hex_str, bitwidth)
     local len = #value_hex_str
     local target_len = utils.cover_with_n(bitwidth, 4)
@@ -661,6 +655,8 @@ local hex_to_bin_map = {
     ["a"] = "1010", ["b"] = "1011", ["c"] = "1100", ["d"] = "1101",
     ["e"] = "1110", ["f"] = "1111"
 }
+---@param hex_str string
+---@return string
 function utils.hex_to_bin(hex_str)
     local bin_parts = table_new(#hex_str, 0)
     for i = 1, #hex_str do

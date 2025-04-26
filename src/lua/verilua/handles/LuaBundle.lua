@@ -15,18 +15,36 @@ local table_insert = table.insert
 
 local verilua_debug = _G.verilua_debug
 
+---@class (exact) Bundle
+---@field __type string
+---@field signals_table table<string>
+---@field prefix string
+---@field hierarchy string
+---@field name string
+---@field is_decoupled boolean
+---@field bits table<string, CallableHDL>
+---@field valid CallableHDL
+---@field ready CallableHDL
+---@field fire fun(self: Bundle): boolean
+---@field get_all fun(self: Bundle): table<number|MultiBeatData>
+---@field set_all fun(self: Bundle, values_tbl: table<number|MultiBeatData>)
+---@field private __dump_parts table<string>
+---@field dump_str fun(self: Bundle): string
+---@field format_dump_str fun(self: Bundle, format_func: fun(chdl: CallableHDL, name: string): string): string
+---@field dump fun(self: Bundle)
+---@field format_dump fun(self: Bundle, format_func: fun(chdl: CallableHDL, name: string): string)
+---@field [string] CallableHDL
 local Bundle = class()
 
-
-function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optional_signals)
+function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, optional_signals)
     texpect.expect_table(signals_table, "signals_table")
     texpect.expect_string(prefix, "prefix")
-    texpect.expect_string(hierachy, "hierachy")
+    texpect.expect_string(hierarchy, "hierarchy")
     
     self.__type = "Bundle"
     self.signals_table = signals_table
     self.prefix = prefix
-    self.hierachy = hierachy
+    self.hierarchy = hierarchy
     self.name = name or "Unknown"
     self.is_decoupled = is_decoupled or false
 
@@ -42,14 +60,14 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         assert(prefix ~= nil, "prefix is required for decoupled bundle!")
     end
 
-    verilua_debug("New Bundle => ", "name: " .. self.name, "signals: {" .. table_concat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierachy: ", hierachy)
-    
+    verilua_debug("New Bundle => ", "name: " .. self.name, "signals: {" .. table_concat(signals_table, ", ") .. "}", "prefix: " .. prefix, "hierarchy: ", hierarchy)
+
     if is_decoupled == true then
         self.bits = {}
 
         for _, signal in ipairs(signals_table) do
             if signal == "valid" or signal == "ready" then
-                local fullpath = hierachy .. "." .. prefix .. signal
+                local fullpath = hierarchy .. "." .. prefix .. signal
 
                 if not tablex.find(optional_signals, signal) then
                     rawset(self, signal, CallableHDL(fullpath, signal))
@@ -61,7 +79,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
                     end
                 end
             else
-                local fullpath = hierachy .. "." .. prefix .. "bits_" ..  signal
+                local fullpath = hierarchy .. "." .. prefix .. "bits_" ..  signal
                 if not tablex.find(optional_signals, signal) then
                     rawset(self.bits, signal, CallableHDL(fullpath, signal))
                 else
@@ -79,9 +97,9 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         for _, signal in ipairs(signals_table) do
             local fullpath
             if prefix ~= nil then
-                fullpath = hierachy .. "." .. prefix .. signal
+                fullpath = hierarchy .. "." .. prefix .. signal
             else
-                fullpath = hierachy .. "." .. signal
+                fullpath = hierarchy .. "." .. signal
             end
 
             rawset(self, signal, CallableHDL(fullpath, signal))
@@ -91,6 +109,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
 
     if self.valid == nil then
         self.fire = function (this)
+            ---@diagnostic disable-next-line: missing-return
             assert(false, "[" .. self.name .. "] has not valid filed in this bundle!")
         end
     else
@@ -121,6 +140,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
         end
     else
         self.get_all = function (this)
+            ---@diagnostic disable-next-line: missing-return
             assert(false, "TODO: is_decoupled")
         end
 
@@ -241,7 +261,7 @@ function Bundle:_init(signals_table, prefix, hierachy, name, is_decoupled, optio
 end
 
 function Bundle:__tostring()
-    return f("<[Bundle] name: %s, signals: {%s}, hierachy: %s>", self.name, table_concat(self.signals_table, ", "), self.hierachy)
+    return f("<[Bundle] name: %s, signals: {%s}, hierarchy: %s>", self.name, table_concat(self.signals_table, ", "), self.hierarchy)
 end
 
 return Bundle

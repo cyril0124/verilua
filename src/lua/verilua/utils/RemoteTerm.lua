@@ -29,7 +29,7 @@ function RemoteTerm:reconnect()
     local success = false
     local retry_cnt = 0
     while not success and retry_cnt < self.retry_max do
-        client, msg = socket.connect(self.domain, self.port)
+        local client, msg = socket.connect(self.domain, self.port)
 
         if client then
             self.client = client

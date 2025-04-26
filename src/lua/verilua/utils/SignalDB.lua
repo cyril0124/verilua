@@ -57,7 +57,7 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field find_all fun(self: SignalDB, str: string): table<string>
 ---@field find_hier fun(self: SignalDB, str: string): table<string>
 ---@field find_signal fun(self: SignalDB, str: string): table<string>
----@field auto_bundle fun(self: SignalDB, hier_path: string, params: SignalDB.auto_bundle.params): any -- TODO: Bundle type
+---@field auto_bundle fun(self: SignalDB, hier_path: string, params: SignalDB.auto_bundle.params): Bundle
 local SignalDB = {
     db_data = {},
     top = os.getenv("DUT_TOP"),
