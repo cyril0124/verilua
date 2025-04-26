@@ -256,6 +256,7 @@ if os.getenv("VL_DEBUGGER") == "1" then
     _G.verilua_debug("VL_DEBUGGER is 1")
     _G.bp = function() 
         require("LuaPanda").start("localhost", 8818)
+        ---@diagnostic disable-next-line: undefined-global
         local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP()
     end
 end
@@ -300,6 +301,9 @@ do
     end
 
     setenv_from_lua("LUA_PATH", _G.package.path)
+
+    ---@class oslib
+    ---@field setenv fun(name: string, value: string)
 
     os.setenv = setenv_from_lua
 end
@@ -346,6 +350,8 @@ end
 -- 
 -- Table extension
 -- 
+---@class tablelib
+---@field join fun(...): table
 table.join = function (...)
     local result = {}
     for _, t in ipairs({...}) do
@@ -424,6 +430,19 @@ local utils = require "verilua.LuaUtils"
 
 local stringx = require "pl.stringx"
 do
+---@class string.abdl.params
+---@field hier string
+---@field prefix string
+---@field name string
+---@field [string] string|number
+
+---@class string.abdl
+---@field abdl fun(str: string, params_table: string.abdl.params): AliasBundle
+
+---@class string.auto_bundle
+---@field auto_bundle fun(str: string, params_table: SignalDB.auto_bundle.params): Bundle
+
+---@class stringlib: string.abdl, string.auto_bundle
 
 ----------------------------------------------------------------------
 -- Basic string extension, for enhancing string operation
@@ -739,7 +758,7 @@ do
         for i = 1, max_limit do
             condition_meet = func(i)
             assert(condition_meet ~= nil and type(condition_meet) == "boolean")
-            
+
             if not condition_meet then
                 _G.await_negedge(this)
             else
@@ -787,7 +806,10 @@ do
     --      ]]):abdl {hier ="hier", prefix = "prefix_", p = "hello", b = 123}
     --      local value = abdl.val_123:get()     -- real signal is <hier.prefix_hello_value>
     -- 
-    getmetatable('').__index.abdl = function (str, params_table)
+    string.abdl = function (str, params_table)
+        ---@cast str string
+        ---@cast params_table string.abdl.params
+
         local signals_table = stringx.split(str, "|")
         local will_remove_idx = {}
 
@@ -842,7 +864,7 @@ do
 
         local hier = params_table.hier
         local hier_type = type(params_table.hier)
-        
+
         assert(hier ~= nil, "[abdl] hierachy is not set! please set by `hier` field ")
         assert(hier_type == "string", "[abdl] invalid hierarchy type => " .. hier_type)
 
@@ -880,7 +902,7 @@ do
     --          return width == 32 and name:endswith("_value")
     --      end }
     -- 
-    getmetatable('').__index.auto_bundle = function (str, params_table)
+    string.auto_bundle = function (str, params_table)
         return require("SignalDB"):auto_bundle(str, params_table)
     end
 
@@ -1246,6 +1268,7 @@ end
 if os.getenv("VL_PREBUILD") == "1" then
     require "verilua.utils.PrebuildHelper"
 else
+    ---@diagnostic disable-next-line: duplicate-set-field
     _G.prebuild = function ()
         -- do nothing
     end
@@ -1274,4 +1297,6 @@ _G.urandom_range = function (min, max)
 end
 
 _G.sim = require "LuaSimulator"
+
+---@type ProxyTableHandle
 _G.dut = (require "LuaDut").create_proxy(cfg.top)

@@ -1,6 +1,4 @@
 local vpiml = require "vpiml"
-local utils = require "LuaUtils"
-local stringx = require "pl.stringx"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local BeatWidth = 32
@@ -19,15 +17,64 @@ local DecStr = _G.DecStr
 local await_posedge = _G.await_posedge
 local await_negedge = _G.await_negedge
 
-local compare_value_str = utils.compare_value_str
-
 local set_force_enable = false
 local force_path_table = {}
 
+---@class ProxyTableHandle
+---@field __type string
+---@field set fun(self: ProxyTableHandle, v: number)
+---@field set_imm fun(self: ProxyTableHandle, v: number)
+---@field set_shuffled fun(self: ProxyTableHandle)
+---@field set_force fun(self: ProxyTableHandle, v: number)
+---@field set_release fun(self: ProxyTableHandle)
+---@field force_all fun(self: ProxyTableHandle)
+---@field release_all fun(self: ProxyTableHandle)
+---@field force_region fun(self: ProxyTableHandle, code_func: fun())
+---@field get fun(self: ProxyTableHandle): number
+---@field get_str fun(self: ProxyTableHandle, fmt: number): string
+---@field get_hex_str fun(self: ProxyTableHandle): string
+---@field set_str fun(self: ProxyTableHandle, str: string)
+---@field set_hex_str fun(self: ProxyTableHandle, str: string)
+---@field set_force_str fun(self: ProxyTableHandle, str: string)
+---@field posedge fun(self: ProxyTableHandle, v: number, func: fun(c: number))
+---@field negedge fun(self: ProxyTableHandle, v: number, func: fun(c: number))
+---@field posedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
+---@field negedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
+---@field hdl fun(self: ProxyTableHandle): VpiHandle
+---@field chdl fun(self: ProxyTableHandle): CallableHDL
+---@field name fun(self: ProxyTableHandle): string
+---@field get_width fun(self: ProxyTableHandle): number
+---@field dump_str fun(self: ProxyTableHandle): string
+---@field dump fun(self: ProxyTableHandle)
+---@field expect fun(self: ProxyTableHandle, value: number)
+---@field expect_not fun(self: ProxyTableHandle, value: number)
+---@field expect_hex_str fun(self: ProxyTableHandle, hex_value_str: string)
+---@field expect_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
+---@field expect_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
+---@field expect_not_hex_str fun(self: ProxyTableHandle, hex_value_str: string)
+---@field expect_not_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
+---@field expect_not_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
+---@field _if fun(self: ProxyTableHandle, condition: fun(): boolean): ProxyTableHandle
+---@field is fun(self: ProxyTableHandle, value: number): boolean
+---@field is_not fun(self: ProxyTableHandle, value: number): boolean
+---@field is_hex_str fun(self: ProxyTableHandle, hex_value_str: string): boolean
+---@field is_bin_str fun(self: ProxyTableHandle, bin_value_str: string): boolean
+---@field is_dec_str fun(self: ProxyTableHandle, dec_value_str: string): boolean
+---@field tostring fun(self: ProxyTableHandle): string
+---@field with_prefix fun(self: ProxyTableHandle, prefix_str: string): ProxyTableHandle
+---@field auto_bundle fun(self, params: SignalDB.auto_bundle.params): Bundle
+---@overload fun(self: ProxyTableHandle, v: string): number|string|VpiHandle
+---@field [string] ProxyTableHandle
+
+---@param path string
+---@param use_prefix? boolean
+---@return ProxyTableHandle
 local function create_proxy(path, use_prefix)
     local local_path = path
     local use_prefix = use_prefix or false
-    return setmetatable({
+
+    ---@type ProxyTableHandle
+    local mt = setmetatable({
         __type = "ProxyTableHandle",
         get_local_path = function (this) return local_path end,
 
@@ -290,7 +337,7 @@ local function create_proxy(path, use_prefix)
             for i = 1, max_limit do
                 condition_meet = func(i)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
-                
+
                 if not condition_meet then
                     await_negedge(local_path)
                 else
@@ -369,7 +416,7 @@ local function create_proxy(path, use_prefix)
             if beat_num > 2 then
                 assert(false, "`dut.<path>:expect(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. beat_num)    
             end
-            
+
             if t:get() ~= value then
                 assert(false, f("[%s] expect => %d, but got => %d", local_path, value, t:get()))
             end
@@ -383,7 +430,7 @@ local function create_proxy(path, use_prefix)
             if beat_num > 2 then
                 assert(false, "`dut.<path>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. beat_num)    
             end
-            
+
             if t:get() == value then
                 assert(false, f("[%s] expect not => %d, but got => %d", local_path, value, t:get()))
             end
@@ -403,14 +450,14 @@ local function create_proxy(path, use_prefix)
                 assert(false, f("[%s] expect => %s, but got => %s", local_path, right, left))
             end
         end,
-    
+
         expect_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
             if this:get_str(BinStr):gsub("^0*", "") ~= bin_value_str:gsub("^0*") then
                 assert(false, f("[%s] expect => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
-    
+
         expect_dec_str = function(this, dec_value_str)
             assert(type(dec_value_str) == "string")
             if this:get_str(DecStr):gsub("^0*", "") ~= dec_value_str:gsub("^0*", "") then
@@ -424,14 +471,14 @@ local function create_proxy(path, use_prefix)
                 assert(false, f("[%s] expect not => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
             end
         end,
-    
+
         expect_not_bin_str = function(this, bin_value_str)
             assert(type(bin_value_str) == "string")
             if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*") then
                 assert(false, f("[%s] expect not => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
             end
         end,
-    
+
         expect_not_dec_str = function(this, dec_value_str)
             assert(type(dec_value_str) == "string")
             if this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "") then
@@ -599,6 +646,8 @@ local function create_proxy(path, use_prefix)
             return local_path
         end
     })
+
+    return mt
 end
 
 

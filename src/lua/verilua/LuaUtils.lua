@@ -244,11 +244,12 @@ end
 --            RUNNING = 3,
 --      }
 -- 
----@param enum_table table The enumeration table to be defined
----@return table The defined enumeration table
+---@generic T: table
+---@param enum_table T The enumeration table to be defined
+---@return T The defined enumeration table
 function utils.enum_define(enum_table)
     assert(type(enum_table) == "table")
-    
+
     if enum_table.name == nil then
         enum_table.name = "Undefined"
     end
