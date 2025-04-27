@@ -36,8 +36,8 @@ local force_path_table = {}
 ---@field set_str fun(self: ProxyTableHandle, str: string)
 ---@field set_hex_str fun(self: ProxyTableHandle, str: string)
 ---@field set_force_str fun(self: ProxyTableHandle, str: string)
----@field posedge fun(self: ProxyTableHandle, v: number, func: fun(c: number))
----@field negedge fun(self: ProxyTableHandle, v: number, func: fun(c: number))
+---@field posedge fun(self: ProxyTableHandle, v?: number, func?: fun(c: number))
+---@field negedge fun(self: ProxyTableHandle, v?: number, func?: fun(c: number))
 ---@field posedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
 ---@field negedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
 ---@field hdl fun(self: ProxyTableHandle): VpiHandle
@@ -261,7 +261,6 @@ local function create_proxy(path, use_prefix)
             local _v_type = type(_v)
 
             assert(_v_type == "number")
-            assert(_v >= 1)
 
             local do_func = false
             if func ~= nil then

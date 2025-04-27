@@ -53,17 +53,17 @@ local initialize_trace = function (trace_file_path)
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
     elseif simulator == "iverilog" then
         _G.await_time(0) -- waitting for simulation start
-        
+
         local traceFilePath = trace_file_path or "dump.vcd"
         local file, err = io.open("iverilog_trace_name.txt", "w")
-    
+
         if not file then
             assert(false, "Failed to open file: " .. err)
         end
-    
+
         file:write(traceFilePath .. "\n")
         file:close()
-    
+
         dut.simulation_initializeTrace = 1
         dut.simulation_initializeTrace_latch = 0
     elseif cfg.simulator == "wave_vpi" then
@@ -112,7 +112,7 @@ end
 local dump_wave = function (trace_file_path)
     local _trace_file_path = trace_file_path or "test.vcd"
     local trace_path = path.abspath(path.dirname(_trace_file_path))
-    
+
     if not path.exists(trace_path) then
         path.mkdir(trace_path)
     end
@@ -121,6 +121,7 @@ local dump_wave = function (trace_file_path)
     enable_trace()
 end
 
+---@enum SimCtrl
 local SimCtrl = {
     STOP = 66,
     FINISH = 67,
@@ -171,7 +172,18 @@ local iterate_vpi_type = function (module_name, type)
     ffi.C.vpiml_iterate_vpi_type(module_name, type)
 end
 
-return {
+---@class (exact) LuaSimulator
+---@field SimCtrl table<string, number>
+---@field initialize_trace fun(trace_file_path: string)
+---@field enable_trace fun()
+---@field disable_trace fun()
+---@field dump_wave fun(trace_file_path?: string)
+---@field simulator_control fun(sim_crtl: SimCtrl)
+---@field finish fun()
+---@field get_mode fun(): number
+---@field print_hierarchy fun(max_level?: number)
+---@field iterate_vpi_type fun(module_name: string, type: number)
+local LuaSimulator = {
     initialize_trace  = initialize_trace,
     enable_trace      = enable_trace,
     disable_trace     = disable_trace,
@@ -183,3 +195,5 @@ return {
     print_hierarchy   = print_hierarchy,
     iterate_vpi_type  = iterate_vpi_type
 }
+
+return LuaSimulator

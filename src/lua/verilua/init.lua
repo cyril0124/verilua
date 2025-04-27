@@ -430,19 +430,49 @@ local utils = require "verilua.LuaUtils"
 
 local stringx = require "pl.stringx"
 do
----@class string.abdl.params
+
+---@class (exact) string.abdl.params
 ---@field hier string
 ---@field prefix string
 ---@field name string
 ---@field [string] string|number
 
----@class string.abdl
----@field abdl fun(str: string, params_table: string.abdl.params): AliasBundle
+---@class (exact) string.bdl.params
+---@field hier string
+---@field prefix? string
+---@field is_decoupled? boolean
+---@field name? string
+---@field optional_signals? table<string>
 
----@class string.auto_bundle
+---@class (exact) string.tcc_compile.sym_ptr_tbl
+---@field sym string
+---@field ptr string
+
+---@class string.ext
+---@field render fun(template: string, vars: table): string
+---@field strip fun(str: string, suffix: string): string
+---@field join fun(str: string, list: table): string
+---@field number fun(str: string): number
+---@field contains fun(str: string, target: string): boolean
+---@field hdl fun(str: string): VpiHandle
+---@field chdl fun(str: string, hdl?: VpiHandle): CallableHDL
+---@field bundle fun(str: string, params: table): Bundle
+---@field set fun(str: string, value: number)
+---@field set_force fun(str: string, value: number)
+---@field set_release fun(str: string)
+---@field get fun(str: string): number
+---@field posedge fun(str: string)
+---@field negedge fun(str: string)
+---@field posedge_until fun(str: string, max_limit?: number, fun?: fun(i: number)): boolean
+---@field negedge_until fun(str: string, max_limit?: number, fun?: fun(i: number)): boolean
+---@field bdl fun(str: string, params: string.bdl.params): Bundle
+---@field abdl fun(str: string, params_table: string.bdl.params): AliasBundle
+---@field ehdl fun(this: string, event_id_integer: integer): EventHandle
 ---@field auto_bundle fun(str: string, params_table: SignalDB.auto_bundle.params): Bundle
+---@field tcc_compile fun(str: string, sym_ptr_tbls: table<string.tcc_compile.sym_ptr_tbl>): table<any>
+---@field enum_define fun(name: string, enum_table: table<any>): table<any>
 
----@class stringlib: string.abdl, string.auto_bundle
+---@class stringlib: string.ext
 
 ----------------------------------------------------------------------
 -- Basic string extension, for enhancing string operation
@@ -453,7 +483,7 @@ do
     --      local rendered_template = template:render({name = "Bob"})
     --      assert(rendered_template == "Hello Bob!")
     -- 
-    getmetatable('').__index.render = function(template, vars)
+    string.render = function(template, vars)
         assert(type(template) == "string", "[render] template must be a `string`")
         assert(type(vars) == "table", "[render] vars must be a `table`")
         return (template:gsub("{{(.-)}}", function(key)
@@ -466,20 +496,10 @@ do
 
     -- 
     -- Example:
-    --      ("hello world!"):print()
-    --      ("hello {{name}}"):render({name = "Bob"}):print()
-    --      ("hello %d"):format(123):print()
-    -- 
-    getmetatable('').__index.print = function(str)
-        io.write(str .. "\n")
-    end
-
-    -- 
-    -- Example:
     --      assert(("hello.lua"):strip(".lua") == "hello")
     --      assert(("hello"):strip(".lua") == "hello")
     -- 
-    getmetatable('').__index.strip = function(str, suffix)
+    string.strip = function(str, suffix)
         assert(type(suffix) == "string", "suffix must be a string")
         if str:sub(-#suffix) == suffix then
             return str:sub(1, -#suffix - 1)
@@ -494,7 +514,7 @@ do
     --      ("-"):join {1, 2, 3}    ==>  "1-2-3"
     --      ("-"):join {1, 2, 3, "str"} ==> "1-2-3-str"
     -- 
-    getmetatable('').__index.join = function(str, list)
+    string.join = function(str, list)
         return stringx.join(str, list)
     end
 
@@ -506,7 +526,7 @@ do
     --      local hex_str = "0x11"
     --      hex_str:number()     ==> 17
     -- 
-    getmetatable('').__index.number = function(str)
+    string.number = function(str)
         if str:sub(1, 2) == "0b" then
             -- binary transform
             return tonumber(str:sub(3), 2)
@@ -514,7 +534,7 @@ do
             -- hex transform
             return tonumber(str:sub(3), 16)
         else
-            return tonumber(str)
+            return tonumber(str) --[[@as number]]
         end
     end
     
@@ -523,7 +543,7 @@ do
     --      ("hello world"):contains("hello") ==> true
     --      ("hello world"):contains("hell")  ==> false
     -- 
-    getmetatable('').__index.contains = function(str, target)
+    string.contains = function(str, target)
         local startIdx, _ = str:find(target)
         if startIdx then
             return true
@@ -545,7 +565,7 @@ do
     --  
     --      local hdl = ("tb_top.clock"):hdl()
     -- 
-    getmetatable('').__index.hdl = function(str)
+    string.hdl = function(str)
         local hdl = vpiml.vpiml_handle_by_name_safe(str)
 
         if hdl == -1 then
@@ -562,7 +582,7 @@ do
     --      print("value of cycles is " .. cycles_chdl:get())
     --      cycles_chdl:set(123)
     -- 
-    getmetatable('').__index.chdl = function(str, hdl)
+    string.chdl = function(str, hdl)
         return CallableHDL(str, "", hdl)
     end
 
@@ -662,8 +682,8 @@ do
 
         return Bundle(_signals_table, prefix, hier, name, is_decoupled, optional_signals)
     end
-    getmetatable('').__index.bundle = process_bundle
-    getmetatable('').__index.bdl = process_bundle
+    string.bundle = process_bundle
+    string.bdl = process_bundle
 
     -- 
     -- Example:
@@ -672,7 +692,7 @@ do
     --      cycles_str:set("0x123")
     --      cycles_str:set("0b111")
     -- 
-    getmetatable('').__index.set = function (str, value)
+    string.set = function (str, value)
         vpiml.vpiml_set_value_by_name(str, tonumber(value))
     end
 
@@ -683,10 +703,10 @@ do
     --      ...
     --      cycles_str:set_release()  -- release handle
     -- 
-    getmetatable('').__index.set_force = function (str, value)
+    string.set_force = function (str, value)
         vpiml.vpiml_force_value_by_name(str, tonumber(value))
     end
-    getmetatable('').__index.set_release = function (str)
+    string.set_release = function (str)
         vpiml.vpiml_release_value_by_name(str)
     end
 
@@ -696,8 +716,8 @@ do
     --      local value_of_cycles = cycles_str:get()
     --      local value_of_cycles = ("tb_top.cycles"):get()
     -- 
-    getmetatable('').__index.get = function (str)
-        return tonumber(vpiml.vpiml_get_value_by_name(str))
+    string.get = function (str)
+        return tonumber(vpiml.vpiml_get_value_by_name(str)) --[[@as number]]
     end
     
     -- 
@@ -706,10 +726,10 @@ do
     --      str:posedge()
     -- 
     -- 
-    getmetatable('').__index.posedge = function (str)
+    string.posedge = function (str)
         _G.await_posedge(str)
     end
-    getmetatable('').__index.negedge = function (str)
+    string.negedge = function (str)
         _G.await_negedge(str)
     end
 
@@ -724,7 +744,7 @@ do
     --          return dut.cycles() >= 100
     --      end)
     -- 
-    getmetatable('').__index.posedge_until = function (this, max_limit, func)
+    string.posedge_until = function (this, max_limit, func)
         assert(max_limit ~= nil)
         assert(type(max_limit) == "number")
         assert(max_limit >= 1)
@@ -746,7 +766,7 @@ do
 
         return condition_meet
     end
-    getmetatable('').__index.negedge_until = function (this, max_limit, func)
+    string.negedge_until = function (this, max_limit, func)
         assert(max_limit ~= nil)
         assert(type(max_limit) == "number")
         assert(max_limit >= 1)
@@ -779,7 +799,7 @@ do
     -- 
     local scheduler = require "verilua.scheduler.LuaScheduler"
     assert(scheduler ~= nil)
-    getmetatable('').__index.ehdl = function (this, event_id_integer)
+    string.ehdl = function (this, event_id_integer)
         return scheduler:get_event_hdl(this, event_id_integer)
     end
 
@@ -1037,8 +1057,7 @@ do
     --     lib.hello()
     --     assert(lib.get_count() == 1)
     -- 
-    
-    getmetatable('').__index.tcc_compile = function(str, sym_ptr_tbls)
+    string.tcc_compile = function(str, sym_ptr_tbls)
         local tcc = require "TccWrapper"
         local state = tcc.new()
         assert(state:set_output_type(tcc.OUTPUT.MEMORY))
@@ -1077,7 +1096,7 @@ do
         end
 
         assert(count > 0, f("\n[tcc_compile] Did not find any symbols! Please specify symbol_name or symbol_ptr_pattern in tcc code by a custom C comment: \"// $sym<SymbolName> $ptr<SymbolPtrPattern>\"! Or you could specify this info by the input table \"<string>:tcc_compile({{sym = <symbol_name>, ptr = <symbol_ptr_pattern>}, <other...>})\"\nThe tcc code is:\n%s", str))
-        
+
         return lib
     end
 
@@ -1094,10 +1113,10 @@ do
     --    assert(enum(1) == "A")
     --    assert(enum(2) == "B")
     --
-    getmetatable('').__index.enum_define = function (str, enum_table)
+    string.enum_define = function (str, enum_table)
         local enum_table = enum_table
         assert(type(enum_table) == "table")
-        
+
         enum_table.name = str
 
         return utils.enum_define(enum_table)
@@ -1110,6 +1129,15 @@ assert(scheduler ~= nil)
 local vl = require "Verilua"
 local unnamed_task_count = 0
 do
+    ---@class TaskName: string
+    ---@alias TaskFunction fun()
+
+    ---@class _G
+    ---@field verilua fun(cmd: string): fun(tbl: table)
+    ---@field fork fun(task_table: table<TaskName|number, TaskFunction>)
+    ---@field initial fun(task_table: table<TaskName|number, TaskFunction>)
+    ---@field final fun(task_table: table<TaskName|number, TaskFunction>)
+
     local enable_verilua_debug = _G.enable_verilua_debug
     local verilua_debug = _G.verilua_debug
 
@@ -1117,7 +1145,7 @@ do
         if enable_verilua_debug then
             verilua_debug(f("[verilua/%s]", cmd), "execute => " .. cmd)
         end
-        
+
         -- 
         -- Example
         --      verilua "appendTasks" {
@@ -1147,7 +1175,7 @@ do
                         name = ("unnamed_task_%d"):format(unnamed_task_count)
                         unnamed_task_count = unnamed_task_count + 1   
                     end
-                    
+
                     if enable_verilua_debug then
                         verilua_debug(f("[verilua/%s]", cmd), "get task name => ", name)
                     end
@@ -1155,7 +1183,7 @@ do
                     scheduler:append_task(nil, name, func, true) -- (<task_id>, <task_name>, <task_func>, <start_now>)
                 end
             end
-        
+
         -- 
         -- Example:
         --      verilua "finishTask" { function ()
@@ -1176,7 +1204,7 @@ do
                 local func = task_table[1]
                 vl.register_finish_callback(func)
             end
-        
+
         -- 
         -- Example:
         --      verilua "startTask" { function ()
@@ -1197,7 +1225,7 @@ do
                 local func = task_table[1]
                 vl.register_start_callback(func)
             end
-        
+
         elseif cmd == "appendFinishTasks" then
             return function (task_table)
                 assert(type(task_table) == "table")
@@ -1215,7 +1243,7 @@ do
                     vl.append_start_callback(func)
                 end
             end
-        
+
         elseif cmd == "showTasks" then
             scheduler:list_tasks()
         else
@@ -1228,6 +1256,7 @@ do
                 "showTasks",
             }
             assert(false, "Unknown cmd => " .. cmd .. ", available cmds: " .. _G.inspect(available_cmds))
+            ---@diagnostic disable-next-line: missing-return
         end
     end
 
