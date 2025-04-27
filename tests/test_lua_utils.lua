@@ -357,4 +357,251 @@ describe("LuaUtils test", function ()
             expect.equal(result, expected)
         end
     end)
+
+    it("should work properly for matrix_call()", function ()
+        local matrix_call = utils.matrix_call
+
+        local inspect = require "inspect"
+        local pp = function (...)
+            print(inspect(...))
+        end
+
+        -- Create a table to track execution order
+        local execution_order = {}
+
+        -- Helper function to verify execution order
+        local function verify_order(actual, expected, test_name)
+            local passed = true
+            if #actual ~= #expected then
+                print("TEST FAILED: " .. test_name .. " - Expected " .. #expected .. " executions, got " .. #actual)
+                passed = false
+            else
+                for i = 1, #expected do
+                    if actual[i] ~= expected[i] then
+                        print("TEST FAILED: " .. test_name .. " - At position " .. i .. ", expected '" .. expected[i] .. "', got '" .. actual[i] .. "'")
+                        passed = false
+                        break
+                    end
+                end
+            end
+
+            if passed then
+                print("TEST PASSED: " .. test_name)
+            end
+
+            -- Clear execution order for next test
+            for i = #execution_order, 1, -1 do
+                table.remove(execution_order, i)
+            end
+
+            assert(passed, "Test failed: " .. test_name)
+        end
+
+        -- Test case 1: Basic 2D matrix test
+        local function test_2d_matrix()
+            print("\n=== Testing 2D Matrix ===")
+
+            local expected_order = { "F1S1", "F1S2", "F1S1", "F2S2", "F2S1", "F1S2", "F2S1", "F2S2" }
+
+            matrix_call {
+                {
+                    function() table.insert(execution_order, "F1S1") end,
+                    function() table.insert(execution_order, "F2S1") end,
+                },
+                {
+                    function() table.insert(execution_order, "F1S2") end,
+                    function() table.insert(execution_order, "F2S2") end,
+                }
+            }
+
+            -- Verify results
+            verify_order(execution_order, expected_order, "2D Matrix Test")
+            print("2D Matrix test passed!")
+        end
+
+        -- Test case 2: 3D matrix test
+        local function test_3d_matrix()
+            print("\n=== Testing 3D Matrix ===")
+
+            local expected_order = {
+                "A1B1C1", "A1B2C1", "A1B1C2",
+                "A1B1C1", "A1B2C1", "A2B1C2",
+                "A1B1C1", "A1B2C1", "A1B2C2",
+                "A1B1C1", "A1B2C1", "A2B2C2",
+                "A1B1C1", "A2B2C1", "A1B1C2",
+                "A1B1C1", "A2B2C1", "A2B1C2",
+                "A1B1C1", "A2B2C1", "A1B2C2",
+                "A1B1C1", "A2B2C1", "A2B2C2",
+                "A2B1C1", "A1B2C1", "A1B1C2",
+                "A2B1C1", "A1B2C1", "A2B1C2",
+                "A2B1C1", "A1B2C1", "A1B2C2",
+                "A2B1C1", "A1B2C1", "A2B2C2",
+                "A2B1C1", "A2B2C1", "A1B1C2",
+                "A2B1C1", "A2B2C1", "A2B1C2",
+                "A2B1C1", "A2B2C1", "A1B2C2",
+                "A2B1C1", "A2B2C1", "A2B2C2"
+            }
+
+            matrix_call {
+                {
+                    function() table.insert(execution_order, "A1B1C1") end,
+                    function() table.insert(execution_order, "A2B1C1") end,
+                },
+                {
+                    function() table.insert(execution_order, "A1B2C1") end,
+                    function() table.insert(execution_order, "A2B2C1") end,
+                },
+                {
+                    function() table.insert(execution_order, "A1B1C2") end,
+                    function() table.insert(execution_order, "A2B1C2") end,
+                    function() table.insert(execution_order, "A1B2C2") end,
+                    function() table.insert(execution_order, "A2B2C2") end,
+                }
+            }
+
+            -- Verify results
+            verify_order(execution_order, expected_order, "3D Matrix Test")
+            print("3D Matrix test passed!")
+        end
+
+        -- Test case 3: Empty dimension test
+        local function test_empty_dimension()
+            print("\n=== Testing Empty Dimension ===")
+
+            -- This should not execute any functions since one dimension is empty
+            matrix_call {
+                {
+                    function() table.insert(execution_order, "A1") end,
+                    function() table.insert(execution_order, "A2") end,
+                },
+                {
+                    -- Empty dimension
+                },
+                {
+                    function() table.insert(execution_order, "C1") end,
+                }
+            }
+
+            -- Verify results
+            assert(#execution_order == 0, "Expected 0 executions, got " .. #execution_order)
+            print("Empty dimension test passed!")
+        end
+
+        -- Test case 4: Single dimension test
+        local function test_single_dimension()
+            print("\n=== Testing Single Dimension ===")
+
+            local expected_order = {"A1", "A2", "A3"}
+
+            matrix_call {
+                {
+                    function() table.insert(execution_order, "A1") end,
+                    function() table.insert(execution_order, "A2") end,
+                    function() table.insert(execution_order, "A3") end,
+                }
+            }
+
+            -- Verify results
+            verify_order(execution_order, expected_order, "Single Dimension Test")
+            print("Single dimension test passed!")
+        end
+
+        local function test_sequential_functions()
+            print("Starting sequential function test")
+
+            local expected_order = {}
+
+            -- Create test functions that record their execution
+            local function func_a() 
+                print("Executing func_a")
+                table.insert(execution_order, "a")
+            end
+
+            local function func_b() 
+                print("Executing func_b")
+                table.insert(execution_order, "b")
+            end
+
+            local function func_c() 
+                print("Executing func_c")
+                table.insert(execution_order, "c")
+            end
+
+            local function func_d() 
+                print("Executing func_d")
+                table.insert(execution_order, "d")
+            end
+
+            local function func_e() 
+                print("Executing func_e")
+                table.insert(execution_order, "e")
+            end
+
+            local function func_f() 
+                print("Executing func_f")
+                table.insert(execution_order, "f")
+            end
+
+            -- Test case 1: Basic sequential execution
+            print("\nTest case 1: Basic sequential execution")
+            expected_order = {"a", "b", "d", "a", "b", "e", "f", "c", "d", "c", "e", "f"}
+            matrix_call {
+                {
+                    { func_a, func_b }, -- These two functions will execute sequentially
+                    func_c
+                },
+                {
+                    func_d,
+                    { func_e, func_f } -- These two functions will execute sequentially
+                }
+            }
+            verify_order(execution_order, expected_order, "Basic sequential execution")
+
+            -- Test case 2: Nested sequential execution
+            print("\nTest case 2: Nested sequential execution")
+            expected_order = {"a", "b", "c", "d", "e", "f"}
+            matrix_call {
+                {
+                    { func_a, func_b, func_c }, -- These three functions will execute sequentially
+                },
+                {
+                    { func_d, func_e, func_f }, -- These three functions will execute sequentially
+                }
+            }
+            verify_order(execution_order, expected_order, "Nested sequential execution")
+
+            -- Test case 3: Mixed single functions and sequential functions
+            print("\nTest case 3: Mixed single functions and sequential functions")
+            expected_order = {"a", "d", "e", "a", "d", "f", "b", "c", "d", "e", "b", "c", "d", "f"}
+            matrix_call {
+                {
+                    func_a,
+                    { func_b, func_c }
+                },
+                {
+                    func_d
+                },
+                {
+                    func_e,
+                    func_f
+                }
+            }
+            verify_order(execution_order, expected_order, "Mixed single functions and sequential functions")
+
+            print("Sequential function test completed successfully")
+        end
+
+        -- Run all tests
+        local function test()
+            test_2d_matrix()
+            test_3d_matrix()
+            test_empty_dimension()
+            test_single_dimension()
+            test_sequential_functions()
+
+            print("\nAll matrix_call tests passed successfully!")
+        end
+
+        test()
+    end)
 end)

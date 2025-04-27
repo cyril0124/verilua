@@ -667,4 +667,77 @@ function utils.hex_to_bin(hex_str)
     return table_concat(bin_parts)
 end
 
+-- Example usage:
+-- matrix_call {
+--     {
+--         function() print("First dimension, option 1") end,
+--         function() print("First dimension, option 2") end,
+--     },
+--     {
+--         function() print("Second dimension, option 1") end,
+--         function() print("Second dimension, option 2") end,
+--     }
+-- }
+-- This will generate all combinations and execute them:
+-- First dimension, option 1 -> Second dimension, option 1
+-- First dimension, option 1 -> Second dimension, option 2
+-- First dimension, option 2 -> Second dimension, option 1
+-- First dimension, option 2 -> Second dimension, option 2
+
+---@class matrix_call.seq_funcs: { [number]: function }
+---@class matrix_call.func_blocks: { [number]: function | matrix_call.seq_funcs }
+---@class matrix_call.params: { [number]: matrix_call.func_blocks }
+
+---@param func_table matrix_call.params
+function utils.matrix_call(func_table)
+    local dimensions = #func_table
+    local max_indices = {}
+
+    -- Initialize index arrays and maximum index arrays
+    for i = 1, dimensions do
+        max_indices[i] = #func_table[i]
+    end
+
+    -- Recursive function to generate all combinations
+    local function generate_combinations(current_dim, combination)
+        if current_dim > dimensions then
+            -- Execute the current combination of functions
+            for i = 1, #combination do
+                local dim = combination[i][1]
+                local idx = combination[i][2]
+                local func_or_funcs = func_table[dim][idx]
+
+                -- Check if it's a table of functions to execute sequentially
+                if type(func_or_funcs) == "table" then
+                    for _, func in ipairs(func_or_funcs) do
+                        if type(func) == "function" then
+                            func()
+                        end
+                    end
+                -- Or a single function
+                elseif type(func_or_funcs) == "function" then
+                    func_or_funcs()
+                end
+            end
+            return
+        end
+
+        -- For each function in the current dimension
+        for i = 1, max_indices[current_dim] do
+            -- Create a new combination by copying the current one
+            local new_combination = {}
+            for j = 1, #combination do
+                new_combination[j] = combination[j]
+            end
+            -- Add the current dimension and index to the combination
+            new_combination[#new_combination + 1] = {current_dim, i}
+            -- Recursively process the next dimension
+            generate_combinations(current_dim + 1, new_combination)
+        end
+    end
+
+    -- Start generating combinations from the first dimension
+    generate_combinations(1, {})
+end
+
 return utils
