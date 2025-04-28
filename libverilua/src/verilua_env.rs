@@ -55,7 +55,7 @@ pub struct ComplexHandle {
     pub beat_num: usize,
 
     pub put_value_format: u32,
-    pub put_value_flag: u32,
+    pub put_value_flag: Option<u32>,
     pub put_value_integer: u32,
     pub put_value_str: String,
     pub put_value_vectors: smallvec::SmallVec<[t_vpi_vecval; MAX_VECTOR_SIZE]>,
@@ -88,7 +88,7 @@ impl ComplexHandle {
                 width,
                 beat_num,
                 put_value_format: 0,
-                put_value_flag: 0,
+                put_value_flag: None,
                 put_value_integer: 0,
                 put_value_str: String::new(),
                 put_value_vectors: smallvec::smallvec![t_vpi_vecval {
@@ -109,7 +109,7 @@ impl ComplexHandle {
                 width,
                 beat_num,
                 put_value_format: 0,
-                put_value_flag: 0,
+                put_value_flag: None,
                 put_value_integer: 0,
                 put_value_str: String::new(),
                 put_value_vectors: smallvec::smallvec![t_vpi_vecval {
@@ -133,6 +133,46 @@ impl ComplexHandle {
     #[inline(always)]
     pub fn get_name(&self) -> String {
         unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() }
+    }
+
+    #[inline(always)]
+    pub fn try_put_value(&mut self, flag: &u32, format: &u32) -> bool {
+        match self.put_value_flag {
+            Some(curr_flag) => {
+                if curr_flag == vpiForceFlag {
+                    // vpiForceFlag has higher priority than other flags
+                    false
+                } else {
+                    self.put_value_flag = Some(*flag);
+                    self.put_value_format = *format;
+
+                    // Remove old flag
+                    let mut target_idx = None;
+                    get_verilua_env().hdl_put_value.iter().enumerate().for_each(
+                        |(idx, complex_handle_raw)| {
+                            let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
+                            if complex_handle.vpi_handle == self.vpi_handle {
+                                target_idx = Some(idx);
+                            }
+                        },
+                    );
+                    assert!(
+                        target_idx.is_some(),
+                        "Duplicate flag, but not found in hdl_put_value, curr_flag: {}, new_flag: {}",
+                        curr_flag,
+                        *flag
+                    );
+                    get_verilua_env().hdl_put_value.remove(target_idx.unwrap());
+
+                    true
+                }
+            }
+            None => {
+                self.put_value_flag = Some(*flag);
+                self.put_value_format = *format;
+                true
+            }
+        }
     }
 }
 

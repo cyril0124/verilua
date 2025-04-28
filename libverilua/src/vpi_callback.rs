@@ -197,7 +197,7 @@ pub fn apply_pending_put_values(env: &mut VeriluaEnv) {
                 complex_handle.vpi_handle,
                 &mut v as *mut _,
                 std::ptr::null_mut(),
-                complex_handle.put_value_flag as _,
+                complex_handle.put_value_flag.take().unwrap() as _,
             )
         };
     });
