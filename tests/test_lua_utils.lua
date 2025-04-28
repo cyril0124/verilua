@@ -591,6 +591,40 @@ describe("LuaUtils test", function ()
             print("Sequential function test completed successfully")
         end
 
+        local function test_func_with_args()
+            execution_order = {}
+
+            local function func_a(a, b, c)
+                assert(a == 1 and b == 2 and c == 3)
+                table.insert(execution_order, "a")
+            end
+            local function func_b(str)
+                assert(str == "hello")
+                table.insert(execution_order, "b")
+            end
+            local function func_c(x, y)
+                assert(x == true and y == false)
+                table.insert(execution_order, "c")
+            end
+            local function func_d(tbl)
+                assert(type(tbl) == "table" and tbl.a == 1)
+                table.insert(execution_order, "d")
+            end
+
+            matrix_call {
+                {
+                    {func = func_a, args = {1, 2, 3}},
+                    {func = func_b, args = {"hello"}}
+                },
+                {
+                    {func = func_c, args = {true, false}},
+                    {func = func_d, args = {{a = 1}}}
+                }
+            }
+
+            expect.equal(table.concat(execution_order, " "), "a c a d b c b d")
+        end
+
         -- Run all tests
         local function test()
             test_2d_matrix()
@@ -598,6 +632,7 @@ describe("LuaUtils test", function ()
             test_empty_dimension()
             test_single_dimension()
             test_sequential_functions()
+            test_func_with_args()
 
             print("\nAll matrix_call tests passed successfully!")
         end

@@ -668,24 +668,52 @@ function utils.hex_to_bin(hex_str)
 end
 
 -- Example usage:
--- matrix_call {
---     {
---         function() print("First dimension, option 1") end,
---         function() print("First dimension, option 2") end,
---     },
---     {
---         function() print("Second dimension, option 1") end,
---         function() print("Second dimension, option 2") end,
+-- 1. Basic matrix call (2D):
+--     matrix_call {
+--         {
+--             function() print("First dimension, option 1") end,
+--             function() print("First dimension, option 2") end,
+--         },
+--         {
+--             function() print("Second dimension, option 1") end,
+--             function() print("Second dimension, option 2") end,
+--         }
 --     }
--- }
--- This will generate all combinations and execute them:
--- First dimension, option 1 -> Second dimension, option 1
--- First dimension, option 1 -> Second dimension, option 2
--- First dimension, option 2 -> Second dimension, option 1
--- First dimension, option 2 -> Second dimension, option 2
+--     This will generate all combinations and execute them:
+--     First dimension, option 1 -> Second dimension, option 1
+--     First dimension, option 1 -> Second dimension, option 2
+--     First dimension, option 2 -> Second dimension, option 1
+--     First dimension, option 2 -> Second dimension, option 2
+-- 
+-- 2. Sequential functions (seq_funcs):
+--      matrix_call {
+--          {
+--              {function() io.write("a") end, function() io.write(" b\n") end}
+--          },
+--          {
+--              function() print("c") end
+--          }
+--      }
+-- 
+--      Output:
+--      a b
+--      c
+-- 
+-- 3. Single function with arguments (single_func_with_args):
+--         matrix_call {
+--             {
+--                 {func = function(a, b) print("Sum:", a + b) end, args = {2, 3}},
+--                 {func = function(a, b) print("Product:", a * b) end, args = {2, 3}},
+--             }
+--         }
+--         Output:
+--         Sum: 5
+--         Product: 6
 
+---@class matrix_call.single_func: function
 ---@class matrix_call.seq_funcs: { [number]: function }
----@class matrix_call.func_blocks: { [number]: function | matrix_call.seq_funcs }
+---@class matrix_call.single_func_with_args: { func: function, args: table }
+---@class matrix_call.func_blocks: { [number]: matrix_call.single_func | matrix_call.seq_funcs | matrix_call.single_func_with_args }
 ---@class matrix_call.params: { [number]: matrix_call.func_blocks }
 
 ---@param func_table matrix_call.params
@@ -709,9 +737,15 @@ function utils.matrix_call(func_table)
 
                 -- Check if it's a table of functions to execute sequentially
                 if type(func_or_funcs) == "table" then
-                    for _, func in ipairs(func_or_funcs) do
-                        if type(func) == "function" then
-                            func()
+                    if #func_or_funcs == 0 then
+                       local func = func_or_funcs.func
+                       local args = func_or_funcs.args
+                       func(table.unpack(args))
+                    else
+                        for _, func in ipairs(func_or_funcs) do
+                            if type(func) == "function" then
+                                func()
+                            end
                         end
                     end
                 -- Or a single function
