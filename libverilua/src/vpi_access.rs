@@ -401,9 +401,10 @@ macro_rules! gen_set_force_value {
                 }
 
                 let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                if complex_handle.try_put_value(&$flag, &vpiVectorVal) {
+                let env = get_verilua_env();
+                if complex_handle.try_put_value(env, &$flag, &vpiVectorVal) {
                     complex_handle.put_value_vectors[0].aval = value as _;
-                    get_verilua_env().hdl_put_value.push(complex_handle_raw);
+                    env.hdl_put_value.push(complex_handle_raw);
                 }
             }
 
@@ -464,13 +465,14 @@ macro_rules! gen_set_force_value {
                 }
 
                 let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                if complex_handle.try_put_value(&$flag, &vpiVectorVal) {
+                let env = get_verilua_env();
+                if complex_handle.try_put_value(env, &$flag, &vpiVectorVal) {
                     let vectors = &mut complex_handle.put_value_vectors;
                     vectors[1].aval = (value >> 32) as _;
                     vectors[1].bval = 0;
                     vectors[0].aval = (value & 0xFFFFFFFF) as _;
                     vectors[0].bval = 0;
-                    get_verilua_env().hdl_put_value.push(complex_handle_raw);
+                    env.hdl_put_value.push(complex_handle_raw);
                 }
             }
 
@@ -523,7 +525,8 @@ macro_rules! gen_set_force_value {
                 }
 
                 let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                if complex_handle.try_put_value(&$flag, &vpiVectorVal) {
+                let env = get_verilua_env();
+                if complex_handle.try_put_value(env, &$flag, &vpiVectorVal) {
                     let vectors = &mut complex_handle.put_value_vectors;
                     for vector in vectors.iter_mut().take(complex_handle.beat_num as usize) {
                         vector.aval = 0;
@@ -533,7 +536,7 @@ macro_rules! gen_set_force_value {
                     vectors[1].aval = (value >> 32) as _;
                     vectors[0].aval = ((value << 32) >> 32) as _;
 
-                    get_verilua_env().hdl_put_value.push(complex_handle_raw);
+                    env.hdl_put_value.push(complex_handle_raw);
                 }
             }
 
@@ -577,14 +580,15 @@ macro_rules! gen_set_force_value {
                 }
 
                 let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                if complex_handle.try_put_value(&$flag, &vpiVectorVal) {
+                let env = get_verilua_env();
+                if complex_handle.try_put_value(env, &$flag, &vpiVectorVal) {
                     let vectors = &mut complex_handle.put_value_vectors;
                     for (i, vector) in vectors.iter_mut().enumerate().take(complex_handle.beat_num as usize) {
                         vector.aval = unsafe { *value.add(i) } as _;
                         vector.bval = 0;
                     }
 
-                    get_verilua_env().hdl_put_value.push(complex_handle_raw);
+                    env.hdl_put_value.push(complex_handle_raw);
                 }
             }
 
@@ -634,12 +638,13 @@ macro_rules! gen_set_force_value_multi_beat {
                 }
 
                 let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                if complex_handle.try_put_value(&$flag, &vpiVectorVal) {
+                let env = get_verilua_env();
+                if complex_handle.try_put_value(env, &$flag, &vpiVectorVal) {
                     paste::paste! {
                         $( complex_handle.put_value_vectors[$i].aval = [<v $i>] as _ );*
                     }
 
-                    get_verilua_env().hdl_put_value.push(complex_handle_raw);
+                    env.hdl_put_value.push(complex_handle_raw);
                 }
             }
 
@@ -713,9 +718,10 @@ macro_rules! gen_set_force_value_str {
                     (value_str, vpiDecStrVal)
                 };
 
-                if complex_handle.try_put_value(&$flag, &format as _) {
+                let env = get_verilua_env();
+                if complex_handle.try_put_value(env, &$flag, &format as _) {
                     complex_handle.put_value_str = unsafe { CStr::from_ptr(final_value_str).to_str().unwrap().to_string() };
-                    get_verilua_env().hdl_put_value.push(complex_handle_raw);
+                    env.hdl_put_value.push(complex_handle_raw);
                 }
             }
 
@@ -778,11 +784,11 @@ macro_rules! gen_set_value_str {
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_set_value_ $type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                 let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-
-                if complex_handle.try_put_value(&vpiNoDelay, &$format as _) {
+                let env = get_verilua_env();
+                if complex_handle.try_put_value(env, &vpiNoDelay, &$format as _) {
                     complex_handle.put_value_str =
                         unsafe { CStr::from_ptr(value_str).to_str().unwrap().to_string() };
-                    get_verilua_env().hdl_put_value.push(complex_handle_raw);
+                    env.hdl_put_value.push(complex_handle_raw);
                 }
             }
 
@@ -826,7 +832,8 @@ pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRa
         //      Best to pass its current value to the sim when releasing
         unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-        if complex_handle.try_put_value(&vpiReleaseFlag, &(v.format as u32)) {
+        let env = get_verilua_env();
+        if complex_handle.try_put_value(env, &vpiReleaseFlag, &(v.format as u32)) {
             complex_handle.put_value_integer = unsafe { v.value.integer } as _;
             for i in 0..complex_handle.beat_num {
                 complex_handle.put_value_vectors[i].aval =
@@ -835,7 +842,7 @@ pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRa
                     unsafe { v.value.vector.add(i as _).read().bval } as _;
             }
 
-            get_verilua_env().hdl_put_value.push(complex_handle_raw);
+            env.hdl_put_value.push(complex_handle_raw);
         }
     }
 }

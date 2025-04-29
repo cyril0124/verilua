@@ -136,7 +136,7 @@ impl ComplexHandle {
     }
 
     #[inline(always)]
-    pub fn try_put_value(&mut self, flag: &u32, format: &u32) -> bool {
+    pub fn try_put_value(&mut self, env: &mut VeriluaEnv, flag: &u32, format: &u32) -> bool {
         match self.put_value_flag {
             Some(curr_flag) => {
                 if curr_flag == vpiForceFlag {
@@ -147,22 +147,19 @@ impl ComplexHandle {
                     self.put_value_format = *format;
 
                     // Remove old flag
-                    let mut target_idx = None;
-                    get_verilua_env().hdl_put_value.iter().enumerate().for_each(
-                        |(idx, complex_handle_raw)| {
-                            let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
-                            if complex_handle.vpi_handle == self.vpi_handle {
-                                target_idx = Some(idx);
-                            }
-                        },
-                    );
+                    let target_idx = env.hdl_put_value.iter().position(|complex_handle_raw| {
+                        let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
+                        complex_handle.vpi_handle == self.vpi_handle
+                    });
+
                     assert!(
                         target_idx.is_some(),
                         "Duplicate flag, but not found in hdl_put_value, curr_flag: {}, new_flag: {}",
                         curr_flag,
                         *flag
                     );
-                    get_verilua_env().hdl_put_value.remove(target_idx.unwrap());
+                    env.hdl_put_value
+                        .remove(unsafe { target_idx.unwrap_unchecked() });
 
                     true
                 }
