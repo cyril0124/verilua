@@ -190,7 +190,7 @@ function utils.get_progress_bar(progress, length)
     -- https://cn.piliapp.com/symbol/
     local completed = math_floor(progress * length)
     local remaining = length - completed
-    local progressBar = "┃" .. string.rep("█", completed) .. "▉" .. string.rep(" ", remaining) .. "┃"
+    local progressBar = "┃" .. string.rep("█", completed) .. "▉" .. string.rep("▒", remaining) .. "┃"
     return progressBar
 end
 
