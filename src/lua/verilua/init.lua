@@ -26,6 +26,9 @@ local getmetatable = getmetatable
 require "strict"
 
 _G.inspect = require "inspect"
+
+--- Print any object using `inspect.lua`
+---@type fun(...: any)
 _G.dbg     = function (...) print(inspect(...)) end
 _G.pp      = _G.dbg -- Alias for dbg
 _G.dump    = _G.pp -- Alias for dbg
@@ -39,6 +42,8 @@ local convert_to_hex = function(item, path)
     return item
 end
 
+--- Print any object using `inspect.lua` with hex conversion on `number` and `uint64_t`
+---@type fun(...: any)
 _G.pph = function (...)
     print(inspect(..., {process = convert_to_hex}))
 end
@@ -378,14 +383,45 @@ do
     local debug_traceback = debug.traceback
     local xpcall = xpcall
 
+    ---@type fun(block: table<function>): table<function>
     _G.catch = function (block)
         return {catch = block[1]}
     end
 
+    ---@type fun(block: table<function>): table<function>
     _G.finally = function (block)
         return {finally = block[1]}
     end
 
+    --- Example:
+    --- ```lua
+    ---     try
+    ---     {
+    ---         -- try code block
+    ---         function ()
+    ---             error("error message")
+    ---         end,
+    ---
+    ---         -- catch code block
+    ---         catch
+    ---         {
+    ---             -- After an exception occurs, it is executed
+    ---             function (errors)
+    ---                 print(errors)
+    ---             end
+    ---         },
+    ---
+    ---         -- finally block
+    ---         finally
+    ---         {
+    ---             -- Finally will be executed here
+    ---             function (ok, errors)
+    ---                 -- If there is an exception in try{}, ok is true, errors is the error message, otherwise it is false, and error is the return value in try
+    ---             end
+    ---         }
+    ---     }
+    --- ```
+    ---@type fun(block: table<function>): ...
     _G.try = function (block)
 
         -- get the try function
@@ -409,7 +445,7 @@ do
         if funcs and funcs.finally then
             funcs.finally(ok, table_unpack(results, 2, results.n))
         end
-    
+
         if ok then
             return table_unpack(results, 2, results.n)
         end

@@ -14,8 +14,37 @@ local tonumber = tonumber
 local tostring = tostring
 local setmetatable = setmetatable
 
+---@class LuaSimConfig
+---@field script string
+---@field mode number
+---@field top string Top module name of the DUT
+---@field srcs table<string>
+---@field deps table<string>
+---@field is_hse boolean
+---@field period number
+---@field unit string
+---@field luapanda_debug boolean
+---@field vpi_learn boolean
+---@field prj_dir string
+---@field seed number
+---@field colors AnsiColors
+---@field get_or_else fun(self: LuaSimConfig, cfg_str: string, default: any): any
+---@field get_or_else_log fun(self: LuaSimConfig, cfg_str: string, default: any, log_str: string): any
+---@field dump_str fun(self: LuaSimConfig): string
+---@field dump fun(self: LuaSimConfig)
+---@field [string] any This represents any other fields that may be added to the configuration table
 local cfg = {}
 
+---@class AnsiColors
+---@field reset string
+---@field black string
+---@field red string
+---@field green string
+---@field yellow string
+---@field blue string
+---@field magenta string
+---@field cyan string
+---@field white string
 local colors = {
     reset   = "\27[0m",
     black   = "\27[30m",
@@ -271,6 +300,7 @@ function cfg:post_config()
 
     if cfg.mode ~= nil then
         if type(cfg.mode) == "string" then
+            ---@diagnostic disable-next-line: undefined-field
             local mode_str = cfg.mode:upper()
             if mode_str == "N" or mode_str == "NORMAL" then
                 cfg.mode = cfg.SchedulerMode.NORMAL
@@ -288,6 +318,7 @@ function cfg:post_config()
             assert(cfg.mode == cfg.SchedulerMode.NORMAL or cfg.mode == cfg.SchedulerMode.STEP or cfg.mode == cfg.SchedulerMode.DOMINANT, "Invalid SchedulerMode: " .. cfg.mode)
         end
     else
+        ---@diagnostic disable-next-line: assign-type-mismatch
         cfg.mode = "nil"
     end
 
@@ -317,7 +348,7 @@ function cfg:post_config()
     if env_seed then
         assert(env_seed:match("^%d+$") ~= nil, "[LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!")
         _G.verilua_debug(f("Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d", tostring(cfg.seed), env_seed))
-        cfg.seed = tonumber(env_seed)
+        cfg.seed = tonumber(env_seed) --[[@as number]]
     end
 
     type_check(cfg.is_hse, "cfg.is_hse", "boolean")
