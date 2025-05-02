@@ -272,10 +272,10 @@ end
                 // Parse filelist
                 std::vector<std::string> fileList = parseFileList(file);
                 for (const auto &listedFile : fileList) {
-                    driver.addFiles(listedFile);
+                    driver.addFile(listedFile);
                 }
             } else {
-                driver.addFiles(file);
+                driver.addFile(file);
             }
         }
 
