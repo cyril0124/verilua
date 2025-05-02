@@ -206,7 +206,7 @@ target("testbench_gen")
 
     add_files(
         src_dir .. "/testbench_gen/*.cpp",
-        extern_dir .. "/slang-common/*.cc"
+        extern_dir .. "/slang-common/*.cpp"
     )
 
     add_defines("SLANG_BOOST_SINGLE_HEADER")
@@ -243,7 +243,7 @@ target("dpi_exporter")
 
     add_files(
         src_dir .. "/dpi_exporter/*.cpp",
-        extern_dir .. "/slang-common/*.cc"
+        extern_dir .. "/slang-common/*.cpp"
     )
 
     add_defines("SLANG_BOOST_SINGLE_HEADER")
@@ -289,7 +289,7 @@ local function signal_db_gen_common(is_static)
 
     add_files(
         src_dir .. "/signal_db_gen/signal_db_gen.cpp",
-        extern_dir .. "/slang-common/*.cc"
+        extern_dir .. "/slang-common/*.cpp"
     )
 
     add_defines("SLANG_BOOST_SINGLE_HEADER")

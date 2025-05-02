@@ -50,24 +50,6 @@
         }                                                                                                                                                                                                                                                                                                                                                                                                      \
     } while (0)
 
-#define INSERT_BEFORE_FILE_HEAD(filePath, str)                                                                                                                                                                                                                                                                                                                                                                 \
-    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
-        std::ifstream inFile(filePath);                                                                                                                                                                                                                                                                                                                                                                        \
-        std::stringstream buffer;                                                                                                                                                                                                                                                                                                                                                                              \
-        buffer << "\n" << str << "\n" << inFile.rdbuf();                                                                                                                                                                                                                                                                                                                                                       \
-        inFile.close();                                                                                                                                                                                                                                                                                                                                                                                        \
-        std::ofstream outFile(filePath);                                                                                                                                                                                                                                                                                                                                                                       \
-        outFile << buffer.rdbuf();                                                                                                                                                                                                                                                                                                                                                                             \
-        outFile.close();                                                                                                                                                                                                                                                                                                                                                                                       \
-    } while (0)
-
-#define INSERT_AFTER_FILE_END(filePath, str)                                                                                                                                                                                                                                                                                                                                                                   \
-    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
-        std::ofstream outFile(filePath, std::ios::app);                                                                                                                                                                                                                                                                                                                                                        \
-        outFile << "\n" << str;                                                                                                                                                                                                                                                                                                                                                                                \
-        outFile.close();                                                                                                                                                                                                                                                                                                                                                                                       \
-    } while (0)
-
 inline std::vector<std::string> parseFileList(const std::string &filePath) {
     std::vector<std::string> files;
     std::ifstream infile(filePath);
@@ -80,92 +62,6 @@ inline std::vector<std::string> parseFileList(const std::string &filePath) {
     }
 
     return files;
-}
-
-inline void generateNewFile(const std::string &content, const std::string &newPath) {
-    std::istringstream stream(content);
-    std::string line;
-    std::string currentFile;
-    std::ofstream outFile;
-    std::vector<std::string> buffer;
-
-    if (!newPath.empty()) {
-        if (!std::filesystem::exists(newPath)) {
-            std::filesystem::create_directories(newPath);
-        }
-    }
-
-    auto flushBuffer = [&]() {
-        if (!buffer.empty() && outFile.is_open()) {
-            for (const auto &l : buffer) {
-                outFile << l << '\n';
-            }
-            buffer.clear();
-        }
-    };
-
-    while (std::getline(stream, line)) {
-        if (line.find("//BEGIN:") == 0) {
-            flushBuffer();
-            currentFile = line.substr(8);
-
-            std::filesystem::path path = currentFile;
-            if (!newPath.empty()) {
-                currentFile = newPath + "/" + path.filename().string();
-            }
-
-            outFile.open(currentFile, std::ios::out | std::ios::trunc);
-            if (!outFile.is_open()) {
-                std::cerr << "Failed to open file: " << currentFile << std::endl;
-                ASSERT(false);
-            }
-        } else if (line.find("//END:") == 0) {
-            flushBuffer();
-            if (outFile.is_open()) {
-                outFile.close();
-            }
-        } else {
-            if (outFile.is_open()) {
-                buffer.push_back(line);
-                if (buffer.size() >= 10000) {
-                    flushBuffer();
-                }
-            }
-        }
-    }
-
-    flushBuffer();
-    if (outFile.is_open()) {
-        outFile.close();
-    }
-}
-
-inline bool isFileNewer(const std::string &file1, const std::string &file2) {
-    try {
-        auto time1 = std::filesystem::last_write_time(file1);
-        auto time2 = std::filesystem::last_write_time(file2);
-
-        return time1 > time2;
-    } catch (const std::filesystem::filesystem_error &e) {
-        std::cerr << "[isFileNewer] Error: " << e.what() << std::endl;
-        return false;
-    }
-}
-
-inline std::string backupFile(std::string_view inputFile, std::string workdir) {
-    std::filesystem::path _workdir(workdir);
-    std::filesystem::path path(inputFile);
-    std::string targetFile = std::string(workdir) + "/" + path.filename().string() + ".bak";
-
-    if (std::filesystem::exists(targetFile)) {
-        std::filesystem::remove(targetFile);
-    }
-    std::filesystem::copy_file(inputFile, targetFile.c_str());
-
-    INSERT_BEFORE_FILE_HEAD(targetFile, fmt::format("//BEGIN:{}", inputFile));
-    INSERT_AFTER_FILE_END(targetFile, fmt::format("//END:{}", inputFile));
-
-    return targetFile;
 }
 
 inline sol::object getLuaTableItemOrFailed(sol::table &table, const std::string &key) {

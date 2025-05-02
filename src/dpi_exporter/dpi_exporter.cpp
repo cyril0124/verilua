@@ -6,7 +6,7 @@ namespace fs = std::filesystem;
 
 class DPIExporter {
   private:
-    slang::driver::Driver driver;
+    slang_common::Driver driver;
 
     std::vector<std::string> files;
     std::vector<std::string> tmpFiles;
@@ -36,8 +36,6 @@ class DPIExporter {
     bool quiet;
 
     std::vector<DPIExporterInfo> dpiExporterInfoVec;
-
-    int totalFileCount;
 
     json metaInfoJson;
     std::string metaInfoFilePath;
@@ -84,7 +82,7 @@ class DPIExporter {
         }
 
         for (const auto &file : files) {
-            if (isFileNewer(file, _dpiFilePath)) {
+            if (slang_common::file_manage::isFileNewer(file, _dpiFilePath)) {
                 fmt::println("[dpi_exporter] `{}` is newer than `{}`, regenerating...", file, _dpiFilePath);
                 return true;
             }
@@ -204,7 +202,7 @@ end
     }
 
   public:
-    DPIExporter() {
+    DPIExporter() : driver("dpi_exporter") {
         driver.addStandardArgs();
 
         driver.cmdLine.add("--fl,--filelist", _files, "input file or filelist", "<file/filelist>");
@@ -218,61 +216,10 @@ end
         driver.cmdLine.add("-q,--quiet", _quiet, "quiet mode, print only necessary info");
         driver.cmdLine.add("--nc,--no-cache", nocache, "do not use cache files");
         driver.cmdLine.add("--im,--insert-module-name", insertModuleName, "module namne of the DPI function(available when distributeDPI is FALSE)", "<name>"); // ! make sure tha the inserted module has only one instance
-
-        // Include paths (override default include paths of slang)
-        driver.cmdLine.add(
-            "-I,--include-directory,+incdir",
-            [this](std::string_view value) {
-                if (auto ec = this->driver.sourceManager.addUserDirectories(value)) {
-                    fmt::println("include directory '{}': {}", value, ec.message());
-                }
-
-                // Append the include directory into the default source manager which will be used by `slang_common::rebuildSyntaxTree()`.
-                // Without this, the include directories will not be considered when building the syntax tree.
-                SyntaxTree::getDefaultSourceManager().addUserDirectories(value);
-
-                return "";
-            },
-            "Additional include search paths", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
-
-        driver.cmdLine.add(
-            "--isystem",
-            [this](std::string_view value) {
-                if (auto ec = this->driver.sourceManager.addSystemDirectories(value)) {
-                    fmt::println("system include directory '{}': {}", value, ec.message());
-                }
-
-                // The same as above, but for the default source manager
-                SyntaxTree::getDefaultSourceManager().addSystemDirectories(value);
-
-                return "";
-            },
-            "Additional system include search paths", "<dir-pattern>[,...]", CommandLineFlags::CommaList);
-
-        driver.cmdLine.setPositional(
-            [this](std::string_view value) {
-                if (!this->driver.options.excludeExts.empty()) {
-                    if (size_t extIndex = value.find_last_of('.'); extIndex != std::string_view::npos) {
-                        if (driver.options.excludeExts.count(std::string(value.substr(extIndex + 1))))
-                            return "";
-                    }
-                }
-
-                this->_files.push_back(std::string(value));
-                return "";
-            },
-            "files", {}, true);
-
-        driver.cmdLine.add("-h,--help", showHelp, "Display available options");
     }
 
     int parseCommandLine(int argc, char **argv) {
         ASSERT(driver.parseCommandLine(argc, argv));
-
-        if (showHelp) {
-            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
-            return 0;
-        }
 
         if (_configFile->empty()) {
             PANIC("No config file specified! please use -c/--config <lua file>");
@@ -288,6 +235,8 @@ end
         metaInfoFilePath = workdir + "/dpi_exporter.meta.json";
         dpiFilePath      = outdir + "/" + _dpiFile.value_or(DEFAULT_DPI_FILE_NAME);
         fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n\tdistributeDPI: {}\n\tquiet: {}\n", configFile, _dpiFile.value_or(DEFAULT_DPI_FILE_NAME), outdir, workdir, distributeDPI, quiet);
+
+        driver.setVerbose(!quiet);
 
         configFileContent = [&]() {
             std::ifstream configFileStream(configFile);
@@ -306,12 +255,7 @@ end
             ASSERT(insertModuleName->empty(), "`insertModuleName` should be empty when `distributeDPI` is TRUE");
         }
 
-        if (!driver.options.topModules.empty()) {
-            if (driver.options.topModules.size() > 1) {
-                PANIC("Multiple top-level modules specified!", driver.options.topModules);
-            }
-            topModuleName = driver.options.topModules[0];
-        }
+        topModuleName = driver.tryGetTopModuleName().value_or("");
 
         ASSERT(sampleEdge == "posedge" || sampleEdge == "negedge", "Invalid sample edge '{}', should be either 'posedge' or 'negedge'", sampleEdge);
 
@@ -328,12 +272,10 @@ end
                 // Parse filelist
                 std::vector<std::string> fileList = parseFileList(file);
                 for (const auto &listedFile : fileList) {
-                    files.push_back(listedFile);
-                    totalFileCount++;
+                    driver.addFiles(listedFile);
                 }
             } else {
-                files.push_back(file);
-                totalFileCount++;
+                driver.addFiles(file);
             }
         }
 
@@ -353,35 +295,19 @@ end
             return;
         }
 
-        size_t fileCount = 0;
-        for (const auto &file : files) {
-            fileCount++;
-
-            if (!quiet) {
-                fmt::println("[dpi_exporter] [{}/{}] get file: {}", fileCount, totalFileCount, file);
-                fflush(stdout);
-            }
-
-            auto f = fs::absolute(backupFile(file, workdir)).string();
-            driver.sourceLoader.addFiles(f);
-            tmpFiles.push_back(f);
-        }
+        driver.loadAllSources([this](std::string_view file) -> std::string {
+            auto f = fs::absolute(slang_common::file_manage::backupFile(file, this->workdir)).string();
+            this->tmpFiles.push_back(f);
+            return f;
+        });
 
         ASSERT(driver.processOptions());
-        driver.options.singleUnit = true;
-
         ASSERT(driver.parseAllSources());
         ASSERT(driver.reportParseDiags());
-        ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
 
-        auto compilation    = driver.createCompilation();
-        bool compileSuccess = driver.reportCompilation(*compilation, false);
-        ASSERT(compileSuccess);
+        std::shared_ptr<SyntaxTree> tree = driver.getSingleSyntaxTree();
 
-        // Get syntax tree
-        ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
-        std::shared_ptr<SyntaxTree> tree = driver.syntaxTrees[0];
-
+        auto compilation = driver.createAndReportCompilation(false);
         if (topModuleName == "") {
             topModuleName = compilation->getRoot().topInstances[0]->name;
             fmt::println("[dpi_exporter] `--top` is not set, use `{}` as top module name", topModuleName);
@@ -429,7 +355,9 @@ end
                 // Update syntax tree
                 fmt::println("[dpi_exporter] [0] start rebuilding syntax tree");
                 fflush(stdout);
-                tree = slang_common::rebuildSyntaxTree(*newTree, !quiet);
+
+                tree = slang_common::rebuildSyntaxTree(*newTree, !quiet, driver.getEmptySourceManager());
+
                 fmt::println("[dpi_exporter] [0] done rebuilding syntax tree");
                 fflush(stdout);
             }
@@ -444,7 +372,7 @@ end
                 fmt::println("[dpi_exporter] [1] start rebuilding syntax tree");
                 fflush(stdout);
 
-                tree = slang_common::rebuildSyntaxTree(*newTree_1, !quiet);
+                tree = slang_common::rebuildSyntaxTree(*newTree_1, !quiet, driver.getEmptySourceManager());
 
                 fmt::println("[dpi_exporter] [1] done rebuilding syntax tree");
                 fflush(stdout);
@@ -534,7 +462,9 @@ end
             // Update syntax tree
             fmt::println("[dpi_exporter] start rebuilding syntax tree");
             fflush(stdout);
-            tree = slang_common::rebuildSyntaxTree(*newTree, !quiet);
+
+            tree = slang_common::rebuildSyntaxTree(*newTree, !quiet, driver.getEmptySourceManager());
+
             fmt::println("[dpi_exporter] done rebuilding syntax tree");
             fflush(stdout);
         }
@@ -737,7 +667,7 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
             fmt::println("[dpi_exporter] start generating new rtl files, outdir: {}", outdir);
             fflush(stdout);
 
-            generateNewFile(SyntaxPrinter::printFile(*tree), outdir);
+            slang_common::file_manage::generateNewFile(SyntaxPrinter::printFile(*tree), outdir);
 
             fmt::println("[dpi_exporter] finish generating new rtl files, outdir: {}", outdir);
             fflush(stdout);
@@ -750,7 +680,7 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
 
         // Save the command line arguments and files into json file
         metaInfoJson["cmdLine"]           = cmdLineStr;
-        metaInfoJson["filelist"]          = files;
+        metaInfoJson["filelist"]          = driver.getFiles();
         metaInfoJson["topModuleName"]     = topModuleName;
         metaInfoJson["insertModuleName"]  = insertModuleName.value_or(topModuleName);
         metaInfoJson["configFileContent"] = configFileContent;
