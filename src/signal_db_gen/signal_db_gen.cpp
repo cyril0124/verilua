@@ -239,15 +239,6 @@ class WrappedDriver {
             return 0;
         }
 
-        std::string topModuleName = "";
-
-        if (!driver.options.topModules.empty()) {
-            if (driver.options.topModules.size() > 1) {
-                PANIC("Multiple top-level modules specified!", driver.options.topModules);
-            }
-            topModuleName = driver.options.topModules[0];
-        }
-
         size_t fileCount = 0;
         for (auto buffer : driver.sourceLoader.loadSources()) {
             fileCount++;
