@@ -110,7 +110,10 @@ class DPIExporter {
         lua.open_libraries(sol::lib::io);
         lua.script_file(configFile);
         lua.script(fmt::format(R"(
-assert(dpi_exporter_config ~= nil, "[dpi_exporter] dpi_exporter_config is nil in the config file => {}");
+if not _G.dpi_exporter_config then
+    _G.dpi_exporter_config = _G.DPI_EXPORTER_CONFIG
+end
+assert(dpi_exporter_config ~= nil, "[dpi_exporter] \"dpi_exporter_config\" or \"DPI_EXPORTER_CONFIG\" is nil in the config file => {}");
 for i, tbl in ipairs(dpi_exporter_config) do
     for k, v in pairs(tbl) do
         local typ = type(v)
