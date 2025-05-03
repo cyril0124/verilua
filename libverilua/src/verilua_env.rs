@@ -1,5 +1,6 @@
 // use std::collections::VecDeque;
 use std::cell::UnsafeCell;
+use std::ffi::CString;
 use std::fmt::{self, Debug};
 use std::time::{Duration, Instant};
 
@@ -432,12 +433,73 @@ impl VeriluaEnv {
 
         println!("{}", table);
 
-        self.hdl_cache
-            .iter()
-            .enumerate()
-            .for_each(|(idx, (_, complex_handle))| {
-                log::trace!("[{idx}] {:?}", ComplexHandle::from_raw(complex_handle));
+        if log::log_enabled!(log::Level::Trace) {
+            self.hdl_cache
+                .iter()
+                .enumerate()
+                .for_each(|(idx, (_, complex_handle))| {
+                    log::trace!("[{idx}] {:?}", ComplexHandle::from_raw(complex_handle));
+                });
+        }
+    }
+
+    #[inline(always)]
+    pub fn apply_pending_put_values(&mut self) {
+        self.hdl_put_value
+            .iter_mut()
+            .for_each(|complex_handle_raw| {
+                let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
+
+                let mut v = match complex_handle.put_value_format {
+                    vpiIntVal => s_vpi_value {
+                        format: vpiIntVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            integer: complex_handle.put_value_integer as _,
+                        },
+                    },
+                    vpiVectorVal => s_vpi_value {
+                        format: vpiVectorVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            vector: complex_handle.put_value_vectors.as_mut_ptr(),
+                        },
+                    },
+                    vpiHexStrVal | vpiDecStrVal | vpiOctStrVal | vpiBinStrVal => s_vpi_value {
+                        format: complex_handle.put_value_format as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            str_: CString::new(complex_handle.put_value_str.as_str())
+                                .unwrap()
+                                .into_raw() as _,
+                        },
+                    },
+                    vpiSuppressVal => s_vpi_value {
+                        format: vpiSuppressVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            integer: complex_handle.put_value_integer as _,
+                        },
+                    },
+                    vpiScalarVal => s_vpi_value {
+                        format: vpiScalarVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            scalar: complex_handle.put_value_integer as _,
+                        },
+                    },
+                    _ => panic!(
+                        "Unsupported value format: {}",
+                        complex_handle.put_value_format
+                    ),
+                };
+
+                unsafe {
+                    vpi_put_value(
+                        complex_handle.vpi_handle,
+                        &mut v as *mut _,
+                        std::ptr::null_mut(),
+                        complex_handle.put_value_flag.take().unwrap() as _,
+                    )
+                };
             });
+
+        self.hdl_put_value.clear();
     }
 }
 
@@ -481,7 +543,7 @@ macro_rules! gen_verilua_step {
                 env.lua_time += s.elapsed();
             }
 
-            vpi_callback::apply_pending_put_values(env);
+            env.apply_pending_put_values();
         }
     };
 }
@@ -518,7 +580,7 @@ macro_rules! gen_verilua_step_safe {
                 env.lua_time += s.elapsed();
             }
 
-            vpi_callback::apply_pending_put_values(env);
+            env.apply_pending_put_values();
         }
     };
 }
