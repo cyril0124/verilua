@@ -709,11 +709,25 @@ end
 --         Output:
 --         Sum: 5
 --         Product: 6
+-- 
+-- 4. Single function with multiple arguments (single_func_with_muti_args):
+--         matrix_call {
+--             {
+--                 {func = function(a, b) print("Sum:", a + b) end, multi_args = {{2, 3}, {4, 5}}},
+--                 {func = function(a, b) print("Product:", a * b) end, multi_args = {{2, 3}, {4, 5}}},
+--             }
+--         }
+--         Output:
+--         Sum: 5
+--         Sum: 9
+--         Product: 6
+--         Product: 20
 
 ---@class matrix_call.single_func: function
 ---@class matrix_call.seq_funcs: { [number]: function }
----@class matrix_call.single_func_with_args: { func: function, args: table }
----@class matrix_call.func_blocks: { [number]: matrix_call.single_func | matrix_call.seq_funcs | matrix_call.single_func_with_args }
+---@class matrix_call.single_func_with_args: { func: function, args: table, before?: function, after?: function }
+---@class matrix_call.single_func_with_muti_args: { func: function, multi_args: table<table>, before?: function, after?: function }
+---@class matrix_call.func_blocks: { [number]: matrix_call.single_func | matrix_call.seq_funcs | matrix_call.single_func_with_args | matrix_call.single_func_with_muti_args }
 ---@class matrix_call.params: { [number]: matrix_call.func_blocks }
 
 ---@param func_table matrix_call.params
@@ -738,9 +752,33 @@ function utils.matrix_call(func_table)
                 -- Check if it's a table of functions to execute sequentially
                 if type(func_or_funcs) == "table" then
                     if #func_or_funcs == 0 then
-                       local func = func_or_funcs.func
-                       local args = func_or_funcs.args
-                       func(table.unpack(args))
+                        local func = func_or_funcs.func
+                        local args = func_or_funcs.args
+                        local multi_args = func_or_funcs.multi_args
+                        if args then
+                            if type(func_or_funcs.before) == "function" then
+                                func_or_funcs.before()
+                            end
+                            func(table.unpack(args))
+                            if type(func_or_funcs.after) == "function" then
+                                func_or_funcs.after()
+                            end
+                        elseif multi_args then
+                            assert(type(multi_args) == "table")
+                            assert(type(multi_args[1]) == "table")
+                            local total_args = #multi_args
+                            for j = 1, total_args do
+                                if type(func_or_funcs.before) == "function" then
+                                    func_or_funcs.before()
+                                end
+                                func(table.unpack(multi_args[j]))
+                                if type(func_or_funcs.after) == "function" then
+                                    func_or_funcs.after()
+                                end
+                            end
+                        else
+                            assert(false, "Invalid function call, `args` or `multi_args` must be provided")
+                        end
                     else
                         for _, func in ipairs(func_or_funcs) do
                             if type(func) == "function" then
