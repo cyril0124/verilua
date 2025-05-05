@@ -127,7 +127,7 @@ local gen_callback_policy = function (num)
                     }
                 };
 
-                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
                     // TODO: Check ?
                     // panic!("duplicate edge callback id => {}", edge_cb_id);
                 };
@@ -273,14 +273,14 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
                 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap()) };
+                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
                 env.edge_cb_idpool.release_id(user_data.callback_id);
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap()) };
+            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
             env.edge_cb_idpool.release_id(user_data.callback_id);
         }
     }
@@ -317,6 +317,7 @@ local gen_verilua_env_struct = function (num)
     end
 
     return ([[
+#[repr(C)]
 #[derive(Debug)]
 pub struct VeriluaEnv {
     pub hdl_cache: HashMap<String, ComplexHandleRaw>,
@@ -342,7 +343,7 @@ pub struct VeriluaEnv {
     {{lua_sim_event_chunk}}
 
     pub edge_cb_idpool: IDPool,
-    pub edge_cb_hdl_map: HashMap<EdgeCallbackID, vpiHandle>,
+    pub edge_cb_hdl_map: HashMap<EdgeCallbackID, u64>,
 
     pub resolve_x_as_zero: bool,
     pub start_time: Instant,

@@ -380,7 +380,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
 
                 if remove_cb {
                     unsafe {
-                        vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap())
+                        vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _)
                     };
                     env.edge_cb_idpool.release_id(user_data.callback_id);
                 }
@@ -388,11 +388,15 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
 
             #[cfg(not(feature = "merge_cb"))]
             {
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap()) };
+                unsafe {
+                    vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _)
+                };
                 env.edge_cb_idpool.release_id(user_data.callback_id);
             }
         } else {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap()) };
+            unsafe {
+                vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _)
+            };
             env.edge_cb_idpool.release_id(user_data.callback_id);
         }
     }
@@ -489,7 +493,7 @@ macro_rules! gen_vpiml_register_edge_callback {
                             &edge_cb_id
                         );
 
-                        if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                        if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
                             // TODO: Check ?
                             // panic!("duplicate edge callback id => {}", edge_cb_id);
                         };

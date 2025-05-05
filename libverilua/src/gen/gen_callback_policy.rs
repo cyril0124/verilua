@@ -30,7 +30,7 @@
                     }
                 };
 
-                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
                     // TODO: Check ?
                     // panic!("duplicate edge callback id => {}", edge_cb_id);
                 };
@@ -71,7 +71,7 @@
                     }
                 };
 
-                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
                     // TODO: Check ?
                     // panic!("duplicate edge callback id => {}", edge_cb_id);
                 };
@@ -112,7 +112,7 @@
                     }
                 };
 
-                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
                     // TODO: Check ?
                     // panic!("duplicate edge callback id => {}", edge_cb_id);
                 };

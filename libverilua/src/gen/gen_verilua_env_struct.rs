@@ -1,3 +1,4 @@
+#[repr(C)]
 #[derive(Debug)]
 pub struct VeriluaEnv {
     pub hdl_cache: HashMap<String, ComplexHandleRaw>,
@@ -55,7 +56,7 @@ pub struct VeriluaEnv {
         
 
     pub edge_cb_idpool: IDPool,
-    pub edge_cb_hdl_map: HashMap<EdgeCallbackID, vpiHandle>,
+    pub edge_cb_hdl_map: HashMap<EdgeCallbackID, u64>,
 
     pub resolve_x_as_zero: bool,
     pub start_time: Instant,
