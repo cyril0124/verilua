@@ -261,7 +261,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
 
             if !any_task_finished {
                 #[cfg(feature = "debug")]
-                log::trace!("chunk_task[{{i}}] any_task_finished {:?}", user_data.task_id_vec);
+                // log::trace!("chunk_task[{{i}}] any_task_finished {:?}", user_data.task_id_vec);
                 
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
