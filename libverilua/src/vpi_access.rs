@@ -1,12 +1,12 @@
 #![allow(non_upper_case_globals)]
+use libc::{c_char, c_longlong};
 use std::cell::UnsafeCell;
+use std::ffi::CStr;
 
-use super::*;
-
-use verilua_env::{ComplexHandle, ComplexHandleRaw, get_verilua_env};
-use vpi_user::*;
-
-const MAX_VECTOR_SIZE: usize = 32;
+use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
+use crate::utils;
+use crate::verilua_env::get_verilua_env;
+use crate::vpi_user::*;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_get_top_module() -> *const libc::c_char {

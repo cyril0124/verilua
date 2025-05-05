@@ -1,18 +1,15 @@
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
-#![allow(unused_variables)]
-
+#![allow(dead_code, non_camel_case_types, unused_variables)]
+use hashbrown::{HashMap, HashSet};
+use libc::c_char;
 use std::cell::Cell;
 
-use crate::{
-    verilua_env::{
-        ComplexHandle, ComplexHandleRaw, EdgeCallbackID, TaskID, VeriluaEnv, get_verilua_env,
-        get_verilua_env_no_init,
-    },
-    vpi_access::complex_handle_by_name,
-};
+use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
+use crate::verilua_env::{self, VeriluaEnv, get_verilua_env, get_verilua_env_no_init};
+use crate::vpi_access::complex_handle_by_name;
+use crate::vpi_user::*;
 
-use super::*;
+use crate::EdgeCallbackID;
+use crate::TaskID;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]

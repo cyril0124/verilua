@@ -1,5 +1,5 @@
 #![allow(non_upper_case_globals)]
-
+mod complex_handle;
 mod utils;
 mod verilator_helper;
 mod verilua_env;
@@ -7,11 +7,8 @@ mod vpi_access;
 mod vpi_callback;
 mod vpi_user;
 
-use hashbrown::{HashMap, HashSet};
-use libc::{c_char, c_longlong};
-use mlua::prelude::*;
-use std::ffi::CStr;
-use vpi_user::*;
+pub type TaskID = u32;
+pub type EdgeCallbackID = u32;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;

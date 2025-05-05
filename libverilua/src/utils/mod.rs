@@ -1,14 +1,13 @@
 use goblin::elf::{Elf, Sym};
 use hashbrown::HashMap;
+use lazy_static::*;
 use libc::{PATH_MAX, c_char, readlink};
 use once_cell::sync::OnceCell;
 use std::ffi::{CStr, CString};
 use std::io::Read;
 use std::{fs::File, sync::Mutex};
 
-use super::vpi_user::*;
-
-use lazy_static::*;
+use crate::vpi_user::*;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn get_executable_name() -> *const libc::c_char {
