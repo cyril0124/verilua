@@ -91,9 +91,9 @@ local function create_proxy(path, use_prefix)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_value_by_name(local_path, tonumber(v))
+                vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
             else
-                vpiml.vpiml_set_value_by_name(local_path, tonumber(v))
+                vpiml.vpiml_set_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
             end
         end,
 
@@ -101,9 +101,9 @@ local function create_proxy(path, use_prefix)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_imm_value_by_name(local_path, tonumber(v))
+                vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
             else
-                vpiml.vpiml_set_imm_value_by_name(local_path, tonumber(v))
+                vpiml.vpiml_set_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
             end
         end,
 
@@ -114,7 +114,7 @@ local function create_proxy(path, use_prefix)
         --      dut.path.to.signal:set_shuffled()
         -- 
         set_shuffled = function (t)
-            vpiml.vpiml_set_shuffled_by_name(local_path)
+            vpiml.vpiml_set_shuffled(vpiml.vpiml_handle_by_name(local_path))
         end,
 
         -- 
@@ -133,10 +133,10 @@ local function create_proxy(path, use_prefix)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
-            vpiml.vpiml_force_value_by_name(local_path, tonumber(v))
+            vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
         end,
         set_release = function (t)
-            vpiml.vpiml_release_value_by_name(local_path)
+            vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(local_path))
         end,
 
         -- 
@@ -157,7 +157,7 @@ local function create_proxy(path, use_prefix)
             set_force_enable = false
 
             for i, path in ipairs(force_path_table) do
-                vpiml.vpiml_release_value_by_name(path)
+                vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(path))
             end
         end,
 
@@ -183,7 +183,7 @@ local function create_proxy(path, use_prefix)
         --      local value = dut.cycles:get()
         -- 
         get = function (t)
-            return tonumber(vpiml.vpiml_get_value_by_name(local_path))
+            return tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(local_path)))
         end,
 
         -- 
@@ -222,9 +222,9 @@ local function create_proxy(path, use_prefix)
         set_str = function(t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_value_str_by_name(local_path, str)
+                vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(str))
             else
-                vpiml.vpiml_set_value_str_by_name(local_path, str)
+                vpiml.vpiml_set_value(vpiml.vpiml_handle_by_name(local_path), tonumber(str))
             end
         end,
 
@@ -236,14 +236,14 @@ local function create_proxy(path, use_prefix)
         set_hex_str = function (t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_value_str_by_name(local_path, "0x" .. str)
+                vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), "0x" .. str)
             else
-                vpiml.vpiml_set_value_str_by_name(local_path, "0x" .. str)
+                vpiml.vpiml_set_value_str(vpiml.vpiml_handle_by_name(local_path), "0x" .. str)
             end
         end,
 
         set_force_str = function(t, str)
-            vpiml.vpiml_force_value_str_by_name(local_path, str)
+            vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), str)
         end,
 
         -- 
@@ -619,7 +619,7 @@ local function create_proxy(path, use_prefix)
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
-            vpiml.vpiml_set_imm_value_by_name(fullpath, v)
+            vpiml.vpiml_set_imm_value(vpiml.vpiml_handle_by_name(fullpath), v)
         end,
 
         -- 
@@ -628,9 +628,9 @@ local function create_proxy(path, use_prefix)
         __call = function(t, v)
             local data_type = v or "integer"
             if data_type == "integer" then
-                return tonumber(vpiml.vpiml_get_value_by_name(local_path))
+                return tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(local_path)))
             elseif data_type == "hex" then
-                local val = vpiml.vpiml_get_value_by_name(local_path)
+                local val = tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(local_path)))
                 return f("0x%x", val)
             elseif data_type == "name" then
                 return local_path

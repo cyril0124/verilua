@@ -5,7 +5,6 @@ use std::cell::Cell;
 
 use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
 use crate::verilua_env::{self, VeriluaEnv, get_verilua_env, get_verilua_env_no_init};
-use crate::vpi_access::complex_handle_by_name;
 use crate::vpi_user::*;
 
 use crate::EdgeCallbackID;
@@ -86,11 +85,8 @@ unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     0
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_register_final_callback() {
-    log::debug!("vpiml_register_final_callback");
-
-    let env = get_verilua_env_no_init();
+#[inline(always)]
+fn do_register_final_callback(env: &mut VeriluaEnv) {
     if env.has_final_cb {
         return;
     } else {
@@ -109,6 +105,24 @@ pub unsafe extern "C" fn vpiml_register_final_callback() {
 
     let handle = unsafe { vpi_register_cb(&mut cb_data) };
     unsafe { vpi_free_object(handle) };
+}
+
+#[cfg(feature = "dpi")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_register_final_callback(env: *mut libc::c_void) {
+    log::debug!("vpiml_register_final_callback(dpi)");
+
+    let env = VeriluaEnv::from_void_ptr(env);
+    do_register_final_callback(env);
+}
+
+#[cfg(not(feature = "dpi"))]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_register_final_callback() {
+    log::debug!("vpiml_register_final_callback");
+
+    let env = get_verilua_env_no_init();
+    do_register_final_callback(env);
 }
 
 unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
@@ -377,7 +391,11 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
 
                 if remove_cb {
                     unsafe {
-                        vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _)
+                        vpi_remove_cb(
+                            *env.edge_cb_hdl_map
+                                .get(&user_data.callback_id)
+                                .unwrap_unchecked() as _,
+                        )
                     };
                     env.edge_cb_idpool.release_id(user_data.callback_id);
                 }
@@ -386,13 +404,21 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
             #[cfg(not(feature = "merge_cb"))]
             {
                 unsafe {
-                    vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _)
+                    vpi_remove_cb(
+                        *env.edge_cb_hdl_map
+                            .get(&user_data.callback_id)
+                            .unwrap_unchecked() as _,
+                    )
                 };
                 env.edge_cb_idpool.release_id(user_data.callback_id);
             }
         } else {
             unsafe {
-                vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _)
+                vpi_remove_cb(
+                    *env.edge_cb_hdl_map
+                        .get(&user_data.callback_id)
+                        .unwrap_unchecked() as _,
+                )
             };
             env.edge_cb_idpool.release_id(user_data.callback_id);
         }
@@ -400,8 +426,17 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
     0
 }
 
+struct TaskIDWithEnv {
+    env: *mut libc::c_void,
+    task_id: TaskID,
+}
+
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_register_time_callback(time: u64, task_id: TaskID) {
+pub unsafe extern "C" fn vpiml_register_time_callback(
+    env: *mut libc::c_void,
+    time: u64,
+    task_id: TaskID,
+) {
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,
         high: (time >> 32) as _,
@@ -414,7 +449,7 @@ pub unsafe extern "C" fn vpiml_register_time_callback(time: u64, task_id: TaskID
         cb_rtn: Some(time_callback_handler),
         time: &mut t,
         obj: std::ptr::null_mut(),
-        user_data: Box::into_raw(Box::new(task_id)) as *mut _,
+        user_data: Box::into_raw(Box::new(TaskIDWithEnv { env, task_id })) as *mut _,
         value: std::ptr::null_mut(),
         index: 0,
     };
@@ -423,9 +458,9 @@ pub unsafe extern "C" fn vpiml_register_time_callback(time: u64, task_id: TaskID
 }
 
 unsafe extern "C" fn time_callback_handler(cb_data: *mut t_cb_data) -> PLI_INT32 {
-    // let task_id = *Box::from_raw((*cb_data).user_data as *mut TaskID);
-    let task_id = unsafe { *((*cb_data).user_data as *const TaskID) };
-    let env = get_verilua_env();
+    let task_id_with_env = unsafe { Box::from_raw((*cb_data).user_data as *mut TaskIDWithEnv) };
+    let task_id = task_id_with_env.task_id;
+    let env = VeriluaEnv::from_void_ptr(task_id_with_env.env);
 
     #[cfg(feature = "acc_time")]
     let s = std::time::Instant::now();
@@ -443,9 +478,7 @@ unsafe extern "C" fn time_callback_handler(cb_data: *mut t_cb_data) -> PLI_INT32
 
 macro_rules! gen_vpiml_register_edge_callback {
     ($(($edge_type:ident, $edge_type_enum:ty)),*) => {
-        // Generate the callback function for the edge type:
-        //  1. vpiml_register_<edge_type>_callback_hdl
-        //  2. vpiml_register_<edge_type>_callback
+        // Generate the callback function for the edge type: vpiml_register_<edge_type>_callback_hdl
         $(
             paste::paste! {
                 #[inline(always)]
@@ -498,13 +531,7 @@ macro_rules! gen_vpiml_register_edge_callback {
                 }
 
                 #[unsafe(no_mangle)]
-                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_hdl>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
-                    unsafe { [<vpiml_register_ $edge_type _callback_common>](complex_handle_raw, task_id) };
-                }
-
-                #[unsafe(no_mangle)]
-                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback>](path: *mut c_char, task_id: TaskID) {
-                    let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
+                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
                     unsafe { [<vpiml_register_ $edge_type _callback_common>](complex_handle_raw, task_id) };
                 }
             }
@@ -587,21 +614,12 @@ unsafe extern "C" fn edge_callback_always(cb_data: *mut t_cb_data) -> PLI_INT32 
 }
 
 macro_rules! gen_vpiml_register_edge_callback_always {
-    // Generate the callback function for the edge type:
-    //  1. vpiml_register_<edge_type>_callback_hdl_always
-    //  2. vpiml_register_<edge_type>_callback_always
+    // Generate the callback function for the edge type: vpiml_register_<edge_type>_callback_always
     ($(($edge_type:ident, $edge_type_enum:ty)),*) => {
         $(
             paste::paste! {
                 #[unsafe(no_mangle)]
-                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_hdl_always>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
-                    let env = get_verilua_env();
-                    unsafe { do_register_edge_callback_always(&complex_handle_raw, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
-                }
-
-                #[unsafe(no_mangle)]
-                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_always>](path: *mut c_char, task_id: TaskID) {
-                    let complex_handle_raw = unsafe { complex_handle_by_name(path, std::ptr::null_mut()) };
+                pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_always>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
                     let env = get_verilua_env();
                     unsafe { do_register_edge_callback_always(&complex_handle_raw, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
                 }

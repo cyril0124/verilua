@@ -223,17 +223,17 @@ end
 function Scheduler:_register_callback(id: TaskID, cb_type: TaskCallbackType, str_value: string, integer_value: integer)
     if _G.NORMAL then
         if cb_type == PosedgeHDL then
-            vpiml.vpiml_register_posedge_callback_hdl(integer_value, id)
+            vpiml.vpiml_register_posedge_callback(integer_value, id)
         elseif cb_type == Posedge then
-            vpiml.vpiml_register_posedge_callback(str_value, id)
+			vpiml.vpiml_register_posedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
         elseif cb_type == PosedgeAlwaysHDL then
-            vpiml.vpiml_register_posedge_callback_hdl_always(integer_value, id)
+            vpiml.vpiml_register_posedge_callback_always(integer_value, id)
         elseif cb_type == NegedgeHDL then
-            vpiml.vpiml_register_negedge_callback_hdl(integer_value, id)
+            vpiml.vpiml_register_negedge_callback(integer_value, id)
         elseif cb_type == Negedge then
-            vpiml.vpiml_register_negedge_callback(str_value, id)
+			vpiml.vpiml_register_negedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
         elseif cb_type == NegedgeAlwaysHDL then
-            vpiml.vpiml_register_negedge_callback_hdl_always(integer_value, id)
+            vpiml.vpiml_register_negedge_callback_always(integer_value, id)
         elseif cb_type == Timer then
             vpiml.vpiml_register_time_callback(integer_value, id)
         elseif cb_type == Event then

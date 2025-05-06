@@ -729,7 +729,7 @@ do
     --      cycles_str:set("0b111")
     -- 
     string.set = function (str, value)
-        vpiml.vpiml_set_value_by_name(str, tonumber(value))
+        vpiml.vpiml_set_value(vpiml.vpiml_handle_by_name(str), tonumber(value))
     end
 
     -- 
@@ -740,10 +740,10 @@ do
     --      cycles_str:set_release()  -- release handle
     -- 
     string.set_force = function (str, value)
-        vpiml.vpiml_force_value_by_name(str, tonumber(value))
+        vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(str), tonumber(value))
     end
     string.set_release = function (str)
-        vpiml.vpiml_release_value_by_name(str)
+        vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(str))
     end
 
     -- 
@@ -753,7 +753,7 @@ do
     --      local value_of_cycles = ("tb_top.cycles"):get()
     -- 
     string.get = function (str)
-        return tonumber(vpiml.vpiml_get_value_by_name(str)) --[[@as number]]
+        return tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(str))) --[[@as number]]
     end
     
     -- 
@@ -1365,3 +1365,6 @@ _G.sim = require "LuaSimulator"
 
 ---@type ProxyTableHandle
 _G.dut = (require "LuaDut").create_proxy(cfg.top)
+
+---@class _G
+---@field GLOBAL_VERILUA_ENV lightuserdata

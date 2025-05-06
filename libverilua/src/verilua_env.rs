@@ -105,6 +105,22 @@ impl Drop for VeriluaEnv {
 }
 
 impl VeriluaEnv {
+    #[inline(always)]
+    pub fn from_void_ptr(ptr: *mut libc::c_void) -> &'static mut Self {
+        unsafe { &mut *(ptr as *mut Self) }
+    }
+
+    #[inline(always)]
+    pub fn from_complex_handle_raw(complex_handle_raw: ComplexHandleRaw) -> &'static mut Self {
+        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+        unsafe { VeriluaEnv::from_void_ptr(complex_handle.env) }
+    }
+
+    #[inline(always)]
+    pub fn as_void_ptr(&mut self) -> *mut libc::c_void {
+        self as *mut _ as *mut libc::c_void
+    }
+
     pub fn initialize(&mut self) {
         log::debug!("VeriluaEnv::initialize() start",);
 
@@ -115,7 +131,15 @@ impl VeriluaEnv {
         }
 
         if !self.has_final_cb {
-            unsafe { vpi_callback::vpiml_register_final_callback() };
+            #[cfg(feature = "dpi")]
+            unsafe {
+                vpi_callback::vpiml_register_final_callback(self.as_void_ptr())
+            };
+
+            #[cfg(not(feature = "dpi"))]
+            unsafe {
+                vpi_callback::vpiml_register_final_callback()
+            };
         }
 
         if !self.has_next_sim_time_cb {
@@ -130,6 +154,12 @@ impl VeriluaEnv {
             self.resolve_x_as_zero =
                 std::env::var("VL_RESOLVE_X_AS_ZERO").map_or(true, |v| v == "1" || v == "true");
         }
+
+        // Make `verilua_env available in lua
+        self.lua.globals().set(
+            "GLOBAL_VERILUA_ENV",
+            mlua::Value::LightUserData(mlua::LightUserData(self.as_void_ptr())),
+        );
 
         let init_file = verilua_home + "/src/lua/verilua/init.lua";
         if let Err(e) = lua_dofile.call::<()>(init_file) {

@@ -36,7 +36,7 @@ path = "src/lib.rs"
 required-features = ["verilua_prebuild_bin"]
 
 [features]
-dpi = []
+dpi = ["mlua/send"]
 verilator = []
 iverilog = []
 iverilog_vpi_mod = []
