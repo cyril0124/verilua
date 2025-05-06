@@ -359,7 +359,7 @@ end
                 fmt::println("[dpi_exporter] [0] start rebuilding syntax tree");
                 fflush(stdout);
 
-                tree = slang_common::rebuildSyntaxTree(*newTree, !quiet, driver.getEmptySourceManager());
+                tree = driver.rebuildSyntaxTree(*newTree, !quiet);
 
                 fmt::println("[dpi_exporter] [0] done rebuilding syntax tree");
                 fflush(stdout);
@@ -375,7 +375,7 @@ end
                 fmt::println("[dpi_exporter] [1] start rebuilding syntax tree");
                 fflush(stdout);
 
-                tree = slang_common::rebuildSyntaxTree(*newTree_1, !quiet, driver.getEmptySourceManager());
+                tree = driver.rebuildSyntaxTree(*newTree_1, !quiet);
 
                 fmt::println("[dpi_exporter] [1] done rebuilding syntax tree");
                 fflush(stdout);
@@ -466,7 +466,7 @@ end
             fmt::println("[dpi_exporter] start rebuilding syntax tree");
             fflush(stdout);
 
-            tree = slang_common::rebuildSyntaxTree(*newTree, !quiet, driver.getEmptySourceManager());
+            tree = driver.rebuildSyntaxTree(*newTree, !quiet);
 
             fmt::println("[dpi_exporter] done rebuilding syntax tree");
             fflush(stdout);
