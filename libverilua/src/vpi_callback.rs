@@ -261,7 +261,7 @@ unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT3
                     )
                 };
 
-                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl) {
+                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
                     // TODO: Check ?
                     // panic!("duplicate edge callback id => {}", edge_cb_id);
                 };

@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
 use crate::vpi_access;
-use crate::vpi_callback;
+use crate::vpi_callback::{self, CallbackInfo};
 use crate::vpi_user::*;
 use crate::{EdgeCallbackID, TaskID};
 

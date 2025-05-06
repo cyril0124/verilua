@@ -1,3 +1,5 @@
+use mlua::prelude::*;
+use crate::vpi_user::*;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn vpi_free_object(obj: vpiHandle) {}
