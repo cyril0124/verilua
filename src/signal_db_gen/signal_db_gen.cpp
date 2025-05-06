@@ -1,4 +1,4 @@
-#include "fmt/base.h"
+#include "fmt/core.h"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
@@ -13,15 +13,33 @@
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#define DEFAULT_OUTPUT_FILE "./signal_db.ldb"
+
 using namespace slang;
 using namespace slang::ast;
 
+using json = nlohmann::json;
+
 namespace fs = std::filesystem;
+
+bool isFileNewer(const std::string &file1, const std::string &file2) {
+    try {
+        auto time1 = std::filesystem::last_write_time(file1);
+        auto time2 = std::filesystem::last_write_time(file2);
+
+        return time1 > time2;
+    } catch (const std::filesystem::filesystem_error &e) {
+        std::cerr << "[isFileNewer] Error: " << e.what() << std::endl;
+        return false;
+    }
+}
 
 std::vector<std::string> splitString(std::string_view input, char delimiter) {
     std::vector<std::string> tokens;
@@ -159,6 +177,14 @@ class WrappedDriver {
     std::optional<bool> verbose;
     std::optional<std::string> outfile;
     std::optional<std::string> signalDBFile;
+    std::optional<bool> nocache;
+
+    std::string cmdLineStr;
+    std::string outputDir;
+    std::vector<std::string> files;
+
+    json metaInfoJson;
+    std::string metaInfoFilePath;
 
     WrappedDriver() {
         start = std::chrono::high_resolution_clock::now();
@@ -177,6 +203,7 @@ class WrappedDriver {
         driver.cmdLine.add("--it,--ignore-trivial-signals", ignoreTrivialSignals, "Ignore trivial signals");
         driver.cmdLine.add("--iu,--ignore-underscore-signals", ignoreUnderscoreSignals, "Ignore underscore signals");
         driver.cmdLine.add("--vb,--verbose", verbose, "Verbose mode");
+        driver.cmdLine.add("--nc,--no-cache", nocache, "No cache");
     }
 
     int parseCmdLine(int argc, char **argv) {
@@ -184,6 +211,17 @@ class WrappedDriver {
 
         if (showHelp) {
             std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
+            return 0;
+        }
+
+        // Get command line into string
+        cmdLineStr.clear();
+        for (int i = 0; i < argc; i++) {
+            cmdLineStr += argv[i];
+            cmdLineStr += " ";
+        }
+
+        if (!checkForRegenerate()) {
             return 0;
         }
 
@@ -195,6 +233,12 @@ class WrappedDriver {
 
         if (showHelp) {
             std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
+            return 0;
+        }
+
+        cmdLineStr = std::string(argList);
+
+        if (!checkForRegenerate()) {
             return 0;
         }
 
@@ -213,7 +257,7 @@ class WrappedDriver {
             PANIC("[signal_db_gen] Failed to call lua function `insert_signal_db", err.what());
         }
 
-        auto ret2 = lua["encode_signal_db"](outfile.value_or("signal_db.ldb"));
+        auto ret2 = lua["encode_signal_db"](outfile.value_or(DEFAULT_OUTPUT_FILE));
         if (!ret2.valid()) {
             sol::error err = ret2;
             PANIC("[signal_db_gen] Failed to call lua function `encode_signal_db", err.what());
@@ -222,11 +266,87 @@ class WrappedDriver {
         auto end      = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         fmt::println("[signal_db_gen] Time taken: {} ms", duration.count());
+
+        metaInfoJson["outfile"]  = outfile.value_or(DEFAULT_OUTPUT_FILE);
+        metaInfoJson["cmdLine"]  = cmdLineStr;
+        metaInfoJson["filelist"] = files;
+
+        // Write meta info into a json file, which can be used next time to check if the output is up to date
+        std::ofstream o(metaInfoFilePath);
+        o << metaInfoJson.dump(4) << std::endl;
+        o.close();
     }
 
   private:
     bool alreadyParsed = false;
     std::chrono::high_resolution_clock::time_point start;
+
+    bool checkForRegenerate() {
+        outputDir        = std::filesystem::path(outfile.value_or(DEFAULT_OUTPUT_FILE)).parent_path();
+        metaInfoFilePath = outputDir + "/signal_db_gen.meta.json";
+
+        // Get files
+        for (auto buffer : driver.sourceLoader.loadSources()) {
+            auto fullpathName = driver.sourceManager.getFullPath(buffer.id);
+            files.push_back(fullpathName.string());
+        }
+
+        if (nocache.value_or(false)) {
+            fmt::println("[signal_db_gen] `--no-cache` is set, regenerating...");
+            return true;
+        }
+
+        if (!std::filesystem::exists(outputDir)) {
+            std::filesystem::create_directories(outputDir);
+            fmt::println("[signal_db_gen] output dir not found, creating and regenerating...");
+            return true;
+        }
+
+        if (!std::filesystem::exists(metaInfoFilePath)) {
+            fmt::println("[signal_db_gen] meta info file not found, regenerating...");
+            return true;
+        }
+
+        if (!std::filesystem::exists(outfile.value_or(DEFAULT_OUTPUT_FILE))) {
+            fmt::println("[signal_db_gen] output file not found, regenerating...");
+            return true;
+        }
+
+        std::ifstream metaInfoFile(metaInfoFilePath);
+        if (!metaInfoFile.is_open()) {
+            fmt::println("[signal_db_gen] failed to open meta info file, regenerating...");
+            return true;
+        } else {
+            metaInfoJson = json::parse(metaInfoFile);
+            metaInfoFile.close();
+        }
+
+        std::string _outfile = metaInfoJson["outfile"];
+        if (_outfile != outfile.value_or(DEFAULT_OUTPUT_FILE)) {
+            fmt::println("[signal_db_gen] outfile changed, regenerating...");
+            return true;
+        }
+
+        if (metaInfoJson["cmdLine"] != cmdLineStr) {
+            fmt::println("[signal_db_gen] cmdLine changed, regenerating...");
+            return true;
+        }
+
+        for (const auto &file : files) {
+            if (isFileNewer(file, outfile.value_or(DEFAULT_OUTPUT_FILE))) {
+                fmt::println("[signal_db_gen] `{}` is newer than `{}`, regenerating...", file, outfile.value_or(DEFAULT_OUTPUT_FILE));
+                return true;
+            }
+        }
+
+        if (metaInfoJson["filelist"].get<std::vector<std::string>>() != files) {
+            fmt::println("[signal_db_gen] filelist changed, regenerating...");
+            return true;
+        }
+
+        fmt::println("[signal_db_gen] up to date, skipping...");
+        return false;
+    }
 
     int doParseCmdLine() {
         if (signalDBFile.has_value()) {
