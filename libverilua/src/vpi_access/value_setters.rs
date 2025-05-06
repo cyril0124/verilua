@@ -213,19 +213,19 @@ impl_gen_set_force_value!(force, vpiForceFlag);
 // IMPL set/force value str
 // ------------------------------------------------------------------
 macro_rules! impl_gen_set_value_str {
-    ($type:ident, $format:ident) => {
+    ($set_type: ident, $str_type:ident, $flag:ident, $format:ident) => {
         paste::paste! {
             impl VeriluaEnv {
-                pub fn [<vpiml_set_value_ $type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
+                pub fn [<vpiml_ $set_type _value_ $str_type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &vpiNoDelay, &$format as _) {
+                    if complex_handle.try_put_value(self, &$flag, &$format as _) {
                         complex_handle.put_value_str =
                             unsafe { CStr::from_ptr(value_str).to_str().unwrap().to_string() };
                         self.hdl_put_value.push(complex_handle_raw);
                     }
                 }
 
-                pub fn [<vpiml_set_imm_value_ $type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
+                pub fn [<vpiml_ $set_type _imm_value_ $str_type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
                     let mut v = s_vpi_value {
                         format: $format as _,
@@ -237,7 +237,7 @@ macro_rules! impl_gen_set_value_str {
                             complex_handle.vpi_handle,
                             &mut v,
                             std::ptr::null_mut(),
-                            vpiNoDelay as _,
+                            $flag as _,
                         )
                     };
                 }
@@ -245,9 +245,12 @@ macro_rules! impl_gen_set_value_str {
         }
     };
 }
-impl_gen_set_value_str!(hex, vpiHexStrVal);
-impl_gen_set_value_str!(bin, vpiBinStrVal);
-impl_gen_set_value_str!(dec, vpiDecStrVal);
+impl_gen_set_value_str!(set, hex, vpiNoDelay, vpiHexStrVal);
+impl_gen_set_value_str!(set, bin, vpiNoDelay, vpiBinStrVal);
+impl_gen_set_value_str!(set, dec, vpiNoDelay, vpiDecStrVal);
+impl_gen_set_value_str!(force, hex, vpiForceFlag, vpiHexStrVal);
+impl_gen_set_value_str!(force, bin, vpiForceFlag, vpiBinStrVal);
+impl_gen_set_value_str!(force, dec, vpiForceFlag, vpiDecStrVal);
 
 // ------------------------------------------------------------------
 // IMPL set/force value multi beat
@@ -559,25 +562,28 @@ gen_set_force_value!(force, vpiForceFlag);
 // set/force value bin/dec/hex str
 // ------------------------------------------------------------------
 macro_rules! gen_set_value_str {
-    ($type:ident, $format:ident) => {
+    ($set_type:ident, $str_type:ident, $flag:ident, $format:ident) => {
         paste::paste! {
             #[unsafe(no_mangle)]
-            pub unsafe extern "C" fn [<vpiml_set_value_ $type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
+            pub unsafe extern "C" fn [<vpiml_ $set_type _value_ $str_type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
-                env.[<vpiml_set_value_ $type _str>](complex_handle_raw, value_str);
+                env.[<vpiml_ $set_type _value_ $str_type _str>](complex_handle_raw, value_str);
             }
 
             #[unsafe(no_mangle)]
-            pub unsafe extern "C" fn [<vpiml_set_imm_value_ $type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
+            pub unsafe extern "C" fn [<vpiml_ $set_type _imm_value_ $str_type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
-                env.[<vpiml_set_imm_value_ $type _str>](complex_handle_raw, value_str);
+                env.[<vpiml_ $set_type _imm_value_ $str_type _str>](complex_handle_raw, value_str);
             }
         }
     };
 }
-gen_set_value_str!(hex, vpiHexStrVal);
-gen_set_value_str!(bin, vpiBinStrVal);
-gen_set_value_str!(dec, vpiDecStrVal);
+gen_set_value_str!(set, hex, vpiNoDelay, vpiHexStrVal);
+gen_set_value_str!(set, bin, vpiNoDelay, vpiBinStrVal);
+gen_set_value_str!(set, dec, vpiNoDelay, vpiDecStrVal);
+gen_set_value_str!(force, hex, vpiForceFlag, vpiHexStrVal);
+gen_set_value_str!(force, bin, vpiForceFlag, vpiBinStrVal);
+gen_set_value_str!(force, dec, vpiForceFlag, vpiDecStrVal);
 
 // ------------------------------------------------------------------
 // GEN set/force value multi beat
