@@ -45,7 +45,7 @@ local post_init_mt = setmetatable({
     end
 }, {})
 
----@class VpiHandle: integer
+---@class ComplexHandleRaw: integer
 
 ---@class uint32_t: ffi.cdata*
 ---@class uint64_t: ffi.cdata*
@@ -59,11 +59,11 @@ local post_init_mt = setmetatable({
 ---@field name string
 ---@field always_fired boolean
 ---@field width number
----@field hdl VpiHandle
+---@field hdl ComplexHandleRaw
 ---@field hdl_type string
 ---@field is_array boolean
 ---@field array_size number
----@field array_hdls table<number, VpiHandle>
+---@field array_hdls table<number, ComplexHandleRaw>
 ---@field array_bitvecs table<number, BitVec>
 ---@field beat_num number
 ---@field is_multi_beat boolean

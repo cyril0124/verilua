@@ -41,7 +41,7 @@ local force_path_table = {}
 ---@field negedge fun(self: ProxyTableHandle, v?: number, func?: fun(c: number))
 ---@field posedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
 ---@field negedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
----@field hdl fun(self: ProxyTableHandle): VpiHandle
+---@field hdl fun(self: ProxyTableHandle): ComplexHandleRaw
 ---@field chdl fun(self: ProxyTableHandle): CallableHDL
 ---@field name fun(self: ProxyTableHandle): string
 ---@field get_width fun(self: ProxyTableHandle): number
@@ -64,7 +64,7 @@ local force_path_table = {}
 ---@field tostring fun(self: ProxyTableHandle): string
 ---@field with_prefix fun(self: ProxyTableHandle, prefix_str: string): ProxyTableHandle
 ---@field auto_bundle fun(self, params: SignalDB.auto_bundle.params): Bundle
----@overload fun(self: ProxyTableHandle, v: string): number|string|VpiHandle
+---@overload fun(self: ProxyTableHandle, v: string): number|string|ComplexHandleRaw
 ---@field [string] ProxyTableHandle
 
 ---@param path string

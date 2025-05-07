@@ -490,8 +490,8 @@ do
 ---@field join fun(str: string, list: table): string
 ---@field number fun(str: string): number
 ---@field contains fun(str: string, target: string): boolean
----@field hdl fun(str: string): VpiHandle
----@field chdl fun(str: string, hdl?: VpiHandle): CallableHDL
+---@field hdl fun(str: string): ComplexHandleRaw
+---@field chdl fun(str: string, hdl?: ComplexHandleRaw): CallableHDL
 ---@field bundle fun(str: string, params: table): Bundle
 ---@field set fun(str: string, value: number)
 ---@field set_force fun(str: string, value: number)
