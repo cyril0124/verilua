@@ -52,6 +52,7 @@ local SequenceElementType = {
 ---@field with_raw fun(self, str: string): self
 ---@field with_port_list fun(self, port_list_tbl: table<string>): self
 ---@field with_expr fun(self, chdl_signal: any): self
+---@operator mod(table): Sequence
 local Sequence = class()
 
 function Sequence:_init(name)
@@ -122,7 +123,7 @@ end
 
 function Sequence:with_values(values_table)
     texpect.expect_table(values_table, "values_table")
-    
+
     for k, v in pairs(values_table) do
         assert(not self.values[k], "[Sequence] with_values: value already exists: " .. k)
         self.values[k] = v
@@ -134,7 +135,7 @@ end
 -- Global version of `with_values` where the values are available in the global scope
 function Sequence:with_global_values(values_table)
     texpect.expect_table(values_table, "values_table")
-    
+
     for k, v in pairs(values_table) do
         assert(not global_values[k], "[Sequence] with_global_values: value already exists: " .. k)
         global_values[k] = v

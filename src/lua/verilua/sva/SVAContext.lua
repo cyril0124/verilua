@@ -7,7 +7,16 @@ local tostring = tostring
 local setmetatable = setmetatable
 local table_insert = table.insert
 
----@class SVAContext
+---@class (exact) SVAContext
+---@field unique_stmt_name_vec table<string, boolean>
+---@field sequence_map Sequence[]`
+---@field property_map Property[]
+---@field content_vec string[]
+---@field add_sequence fun(self: SVAContext, sequence: Sequence): SVAContext
+---@field add_property fun(self: SVAContext, property: Property): SVAContext
+---@field cover fun(self: SVAContext, cover_name: string, sequence_or_property_or_name: string | Sequence | Property): SVAContext
+---@field add fun(self: SVAContext, ...: Sequence | Property): SVAContext
+---@field generate fun(self: SVAContext): string
 local SVAContext = {
     unique_stmt_name_vec = {},
     sequence_map = {},
@@ -40,7 +49,7 @@ function SVAContext:add_sequence(sequence)
     assert(sequence.__type == "Sequence", "[SVAContext] input value is not a `Sequence`")
 
     self.sequence_map[sequence.name] = sequence
-    
+
     return self
 end
 
@@ -61,8 +70,10 @@ function SVAContext:add(...)
         if t == "table" then
             assert(other.__type == "Sequence" or other.__type == "Property", "[SVAContext] `__concat` error: input value is not a `Sequence` or `Property`")
             if other.__type == "Sequence" then
+                ---@cast other Sequence
                 self:add_sequence(other)
             elseif other.__type == "Property" then
+                ---@cast other Property
                 self:add_property(other)
             end
         else
@@ -83,7 +94,7 @@ function SVAContext:cover(cover_name, sequence_or_property_or_name)
         pp({unique_stmt_name_vec = self.unique_stmt_name_vec})
         assert(false, "[SVAContext] cover error: cover_name must be unique")
     end
-    self.unique_stmt_name_vec[cover_name] = { type = "cover" }
+    self.unique_stmt_name_vec[cover_name] = true
 
     local sequence_or_property
     local t = type(sequence_or_property_or_name)
@@ -101,6 +112,7 @@ function SVAContext:cover(cover_name, sequence_or_property_or_name)
             if sequence then
                 sequence_or_property = sequence
             else
+                ---@cast sequence_or_property_or_name Sequence
                 self:add_sequence(sequence_or_property_or_name)
                 sequence_or_property = sequence_or_property_or_name
             end
@@ -109,6 +121,7 @@ function SVAContext:cover(cover_name, sequence_or_property_or_name)
             if property then
                 sequence_or_property = property
             else
+                ---@cast sequence_or_property_or_name Property
                 self:add_property(sequence_or_property_or_name)
                 sequence_or_property = sequence_or_property_or_name
             end

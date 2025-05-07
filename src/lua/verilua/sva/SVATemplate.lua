@@ -53,7 +53,7 @@ local function parseDollarParen(pieces, chunk, exec_pat, newline)
         -- Origin
         -- 
         -- append(pieces, APPENDER .. format("__tostring(%s or '');", executed))
-        
+
         -- 
         -- Modified
         -- 
@@ -209,7 +209,7 @@ function template.compile(str, opts)
     -- 
     -- Origin
     -- 
-    local env = { __tostring = tostring }
+    -- local env = { __tostring = tostring }
 
     -- 
     -- Modified

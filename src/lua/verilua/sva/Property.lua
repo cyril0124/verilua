@@ -28,6 +28,7 @@ local tmp_global_values_key = {}
 ---@field compiled_property string
 ---@field _log fun(self, ...: any)
 ---@field compile fun(self): self
+---@operator mod(table): Property
 local Property = class()
 
 function Property:_init(name)
@@ -68,7 +69,7 @@ end
 
 function Property:with_values(values_table)
     texpect.expect_table(values_table, "values_table")
-    
+
     for k, v in pairs(values_table) do
         assert(not self.values[k], "[Property] with_values: value already exists: " .. k)
         self.values[k] = v
@@ -80,7 +81,7 @@ end
 -- Global version of `with_values` where the values are available in the global scope
 function Property:with_global_values(values_table)
     texpect.expect_table(values_table, "values_table")
-    
+
     for k, v in pairs(values_table) do
         assert(not global_values[k], "[Property] with_global_values: value already exists: " .. k)
         global_values[k] = v
@@ -149,7 +150,7 @@ function Property:compile()
         common.expand_locals(locals)
 
         local raw_property = common.render_sva_template(self.raw_property, locals, self.values, global_values)
-        
+
         local port_list_str = ""
         if #self.port_list > 0 then
             port_list_str = table.concat(self.port_list, ", ")
