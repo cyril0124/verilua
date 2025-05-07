@@ -110,6 +110,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
             set_values("key", "value1", "value2")
             ```
+        - 也可以参考 xmake 文档中[此处](https://xmake.io/#/zh-cn/manual/specification)的说明。 
 
 3. `#!lua set_values("<sim>.flags", <flags used in compilation>)` / ``#!lua add_values("<sim>.flags", "<flags used in compilation>")``
     
