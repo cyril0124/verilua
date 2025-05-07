@@ -25,6 +25,7 @@ local force_path_table = {}
 ---@field set fun(self: ProxyTableHandle, v: number)
 ---@field set_imm fun(self: ProxyTableHandle, v: number)
 ---@field set_shuffled fun(self: ProxyTableHandle)
+---@field set_freeze fun(self: ProxyTableHandle)
 ---@field set_force fun(self: ProxyTableHandle, v: number)
 ---@field set_release fun(self: ProxyTableHandle)
 ---@field force_all fun(self: ProxyTableHandle)
@@ -115,6 +116,9 @@ local function create_proxy(path, use_prefix)
         -- 
         set_shuffled = function (t)
             vpiml.vpiml_set_shuffled(vpiml.vpiml_handle_by_name(local_path))
+        end,
+        set_freeze = function (t)
+            vpiml.vpiml_set_freeze(vpiml.vpiml_handle_by_name(local_path))
         end,
 
         -- 

@@ -426,6 +426,10 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     立即赋值版本的 `set_release`，除了立即赋值的属性之外，其他和 `set_release` 一样。
 
+25. `#!lua <chdl>:set_freeze()`
+    
+    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `#!lua <chdl>:set_release()` 来取消冻结。
+
 
 #### debug 相关
 
@@ -1321,6 +1325,9 @@ local abdl = ([[
 
     需要注意的是这种方式赋值只能赋值 32 bit 的数值，并且是立即赋值的类型。
 
+28. `#!lua <dut>:set_freeze()`
+    
+    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `#!lua <dut>:set_release()` 来取消冻结。
 
 ### ProxyTableHandle 的使用
 

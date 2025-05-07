@@ -392,7 +392,7 @@ impl_gen_set_force_value_str!(set, vpiNoDelay);
 impl_gen_set_force_value_str!(force, vpiForceFlag);
 
 // ------------------------------------------------------------------
-// IMPL release/shuffle value
+// IMPL release/shuffle/freeze value
 // ------------------------------------------------------------------
 impl VeriluaEnv {
     pub fn vpiml_release_value(&mut self, complex_handle_raw: ComplexHandleRaw) {
@@ -492,6 +492,18 @@ impl VeriluaEnv {
                 self.vpiml_set_imm_value_multi(complex_handle_raw, value.as_ptr());
             }
         }
+    }
+
+    pub fn vpiml_set_freeze(&mut self, complex_handle_raw: ComplexHandleRaw) {
+        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+        let value_str = self.vpiml_get_value_hex_str(complex_handle_raw);
+        self.vpiml_force_value_hex_str(complex_handle_raw, value_str as _);
+    }
+
+    pub fn vpiml_set_imm_freeze(&mut self, complex_handle_raw: ComplexHandleRaw) {
+        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+        let value_str = self.vpiml_get_value_hex_str(complex_handle_raw);
+        self.vpiml_force_imm_value_hex_str(complex_handle_raw, value_str as _);
     }
 }
 
@@ -644,7 +656,7 @@ gen_set_force_value_str!(set, vpiNoDelay);
 gen_set_force_value_str!(force, vpiForceFlag);
 
 // ------------------------------------------------------------------
-// GEN release/shuffle value
+// GEN release/shuffle/freeze value
 // ------------------------------------------------------------------
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRaw) {
@@ -668,4 +680,16 @@ pub unsafe extern "C" fn vpiml_set_shuffled(complex_handle_raw: ComplexHandleRaw
 pub unsafe extern "C" fn vpiml_set_imm_shuffled(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
     env.vpiml_set_imm_shuffled(complex_handle_raw);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_set_freeze(complex_handle_raw: ComplexHandleRaw) {
+    let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.vpiml_set_freeze(complex_handle_raw);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_set_imm_freeze(complex_handle_raw: ComplexHandleRaw) {
+    let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.vpiml_set_imm_freeze(complex_handle_raw);
 }

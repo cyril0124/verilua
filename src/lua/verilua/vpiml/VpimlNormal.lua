@@ -97,8 +97,10 @@ ffi.cdef[[
     void vpiml_set_imm_value_dec_str(long long handle, const char *str);
 
     void vpiml_set_shuffled(long long handle);
+    void vpiml_set_freeze(long long handle);
 
     void vpiml_set_imm_shuffled(long long handle);
+    void vpiml_set_imm_freeze(long long handle);
 ]]
 
 return {
@@ -188,4 +190,8 @@ return {
     vpiml_set_value_dec_str = C.vpiml_set_value_dec_str,
 
     vpiml_set_shuffled = C.vpiml_set_shuffled,
+    vpiml_set_freeze = C.vpiml_set_freeze,
+
+    vpiml_set_imm_shuffled = C.vpiml_set_imm_shuffled,
+    vpiml_set_imm_freeze = C.vpiml_set_imm_freeze,
 }

@@ -113,11 +113,13 @@ local post_init_mt = setmetatable({
 ---@field set_bin_str fun(self: CallableHDL, str: string)
 ---@field set_dec_str fun(self: CallableHDL, str: string)
 ---@field set_shuffled fun(self: CallableHDL)
+---@field set_freeze fun(self: CallableHDL)
 ---@field set_imm_str fun(self: CallableHDL, str: string)
 ---@field set_imm_hex_str fun(self: CallableHDL, str: string)
 ---@field set_imm_bin_str fun(self: CallableHDL, str: string)
 ---@field set_imm_dec_str fun(self: CallableHDL, str: string)
 ---@field set_imm_shuffled fun(self: CallableHDL)
+---@field set_imm_freeze fun(self: CallableHDL)
 ---
 ---@field get_index_str fun(self: CallableHDL, index: number, fmt: number): string
 ---@field get_index_hex_str fun(self: CallableHDL, index: number): string
@@ -256,6 +258,10 @@ function CallableHDL:_init(fullpath, name, hdl)
         vpiml.vpiml_set_shuffled(this.hdl)
     end
 
+    self.set_freeze = function (this)
+        vpiml.vpiml_set_freeze(this.hdl)
+    end
+
     self.set_imm_str = function (this, str)
         vpiml.vpiml_set_imm_value_str(this.hdl, str)
     end
@@ -274,6 +280,10 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.set_imm_shuffled = function (this)
         vpiml.vpiml_set_imm_shuffled(this.hdl)
+    end
+
+    self.set_imm_freeze = function (this)
+        vpiml.vpiml_set_imm_freeze(this.hdl)
     end
 
     if self.is_array then
