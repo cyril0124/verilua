@@ -41,6 +41,19 @@ bool isFileNewer(const std::string &file1, const std::string &file2) {
     }
 }
 
+std::string get_current_time_as_string() {
+    auto now = std::chrono::system_clock::now();
+
+    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+
+    std::tm now_tm = *std::localtime(&now_time_t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S");
+
+    return oss.str();
+}
+
 std::vector<std::string> splitString(std::string_view input, char delimiter) {
     std::vector<std::string> tokens;
 
@@ -267,9 +280,10 @@ class WrappedDriver {
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         fmt::println("[signal_db_gen] Time taken: {} ms", duration.count());
 
-        metaInfoJson["outfile"]  = outfile.value_or(DEFAULT_OUTPUT_FILE);
-        metaInfoJson["cmdLine"]  = cmdLineStr;
-        metaInfoJson["filelist"] = files;
+        metaInfoJson["outfile"]   = outfile.value_or(DEFAULT_OUTPUT_FILE);
+        metaInfoJson["cmdLine"]   = cmdLineStr;
+        metaInfoJson["filelist"]  = files;
+        metaInfoJson["buildTime"] = get_current_time_as_string();
 
         // Write meta info into a json file, which can be used next time to check if the output is up to date
         std::ofstream o(metaInfoFilePath);
