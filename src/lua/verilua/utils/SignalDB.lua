@@ -65,7 +65,7 @@ local SignalDB = {
     target_file = "./signal_db.ldb",
     is_prebuild = is_prebuild,
     rtl_filelist = is_prebuild and assert(os.getenv("VL_PREBUILD_FILELIST"), "[SignalDB] `VL_PREBUILD_FILELIST` is not set when `VL_PREBUILD` is true!") or "dut_file.f",
-    extra_signal_db_gen_args = "",
+    extra_signal_db_gen_args = os.getenv("VL_PREBUILD_SARGS") or "",
     initialized = false,
     regenerate = false,
 }
@@ -92,9 +92,7 @@ local function get_check_file()
 end
 
 function SignalDB:init(params)
-    local regen = self.regenerate
-
-    if self.initialized and not regen then
+    if self.initialized and not self.regenerate then
         return self
     end
 
@@ -107,45 +105,18 @@ function SignalDB:init(params)
     if not self.is_prebuild then
         self.check_file = self.check_file or get_check_file()
         local dir, _ = path.splitpath(self.check_file)
-        if path.isfile(dir .. "/../" .. rtl_filelist) then
-            rtl_filelist = dir .. "/../" .. rtl_filelist
+        if path.isfile(rtl_filelist) then
+            -- do nothing
         elseif path.isfile("./" .. rtl_filelist) then
             rtl_filelist = "./" .. rtl_filelist
-        elseif path.isfile(rtl_filelist) then
-            -- do nothing
+        elseif path.isfile(dir .. "/../" .. rtl_filelist) then
+            rtl_filelist = dir .. "/../" .. rtl_filelist
         else
             error("[SignalDB] can not find `" .. rtl_filelist .. "`")
         end
     end
 
-    if not regen then
-        if not path.isfile(self.target_file) then
-            regen = true
-        else
-            -- Read `rtl_filelist` to get the rtl files and check if any of them is newer than `self.target_file`
-            -- If so, regenerate the SignalDB
-            local file = io.open(rtl_filelist, "r")
-            if file then
-                for rtl_file in file:lines() do
-                    if not path.isfile(rtl_file) then
-                        assert(false, "[SignalDB] can not find `" .. rtl_file .. "`")
-                    end
-
-                    if path.getmtime(rtl_file) > path.getmtime(self.target_file) then
-                        regen = true
-                        break
-                    end
-                end
-                file:close()
-            else
-                assert(false, "[SignalDB] can not find `" .. self.rtl_filelist .. "`")
-            end
-        end
-    end
-
-    if regen then
-        self:generate_db(f("-q --it --iu -f %s -o %s", rtl_filelist, self.target_file))
-    end
+    self:generate_db(f("-q --it --iu -f %s -o %s %s", rtl_filelist, self.target_file, self.regenerate and "--no-cache" or ""))
 
     self:load_db(self.target_file)
 
@@ -228,7 +199,7 @@ end
 
 function SignalDB:get_top_module()
     assert(self.initialized, "[SignalDB] SignalDB is not initialized! please call `SignalDB:init()` first!")
-    
+
     local top_module, _ =  next(self:get_db_data())
     assert(top_module, "[SignalDB] No top module found!")
 
