@@ -1,4 +1,3 @@
-local fun = require "fun"
 local vpiml = require "vpiml"
 local tablex = require "pl.tablex"
 local class = require "pl.class"
@@ -72,26 +71,27 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
     self.hierarchy = hierarchy
     self.name = name or "Unknown"
 
-    self.signals_tbl = fun.totable(fun.map(function (x)
+    self.signals_tbl = table_new(#alias_signal_tbl, 0)
+    for _, x in ipairs(alias_signal_tbl) do
         assert(x[1] ~= nil)
         assert(type(x[1]) == "string")
 
-        return x[1]
-    end, alias_signal_tbl))
+        table_insert(self.signals_tbl, x[1])
+    end
 
     if optional_signals then
         texpect.expect_table(optional_signals, "optional_signals")
     end
     local optional_signals = optional_signals or {} -- optional signals are allowed to be empty
 
-    self.alias_tbl = fun.totable(fun.map(function (x)
+    self.alias_tbl = table_new(#alias_signal_tbl, 0)
+    for _, x in ipairs(alias_signal_tbl) do
         if x[2] == nil then
-            -- No alias name, use real name
-            return x[1]
+            table_insert(self.alias_tbl, x[1])
         else
-            return x[2]
+            table_insert(self.alias_tbl, x[2])
         end
-    end, alias_signal_tbl))
+    end
 
     verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. table_concat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierarchy: ", hierarchy)
 
