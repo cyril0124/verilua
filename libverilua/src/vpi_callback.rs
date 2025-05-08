@@ -135,7 +135,7 @@ unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 #[inline(always)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
-    log::debug!("vpiml_register_read_write_synch_callback()");
+    // log::debug!("vpiml_register_read_write_synch_callback()");
 
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,

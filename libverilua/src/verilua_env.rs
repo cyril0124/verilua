@@ -11,6 +11,8 @@ use crate::vpi_callback::{self, CallbackInfo};
 use crate::vpi_user::*;
 use crate::{EdgeCallbackID, TaskID};
 
+// Both `get_verilua_env()` and `get_verilua_env_no_init()` share the same `VERILUA_ENV`.
+// `get_verilua_env()` will initialize the `VERILUA_ENV` if it is not initialized.
 static mut VERILUA_ENV: Option<UnsafeCell<VeriluaEnv>> = None;
 
 #[inline(always)]
@@ -45,7 +47,6 @@ pub fn get_verilua_env_no_init() -> &'static mut VeriluaEnv {
 }
 
 pub struct IDPool {
-    // allocated_ids: HashSet<EdgeCallbackID>,
     available_ids: HashSet<EdgeCallbackID>,
 }
 
@@ -59,11 +60,11 @@ impl IDPool {
     pub fn new(size: u64) -> Self {
         let available_ids = (0..size as EdgeCallbackID).collect::<HashSet<EdgeCallbackID>>();
         IDPool {
-            // allocated_ids: HashSet::new(),
             available_ids,
         }
     }
 
+    #[inline(always)]
     pub fn alloc_id(&mut self) -> EdgeCallbackID {
         if self.available_ids.is_empty() {
             panic!("No more IDs available");
@@ -71,17 +72,12 @@ impl IDPool {
 
         let id = *self.available_ids.iter().next().unwrap();
         self.available_ids.remove(&id);
-        // self.allocated_ids.insert(id);
 
         id
     }
 
+    #[inline(always)]
     pub fn release_id(&mut self, id: EdgeCallbackID) {
-        // TODO: Safe Check
-        // if !self.allocated_ids.remove(&id) {
-        //     panic!("Invalid ID: {}", id);
-        // }
-
         self.available_ids.insert(id);
     }
 }
