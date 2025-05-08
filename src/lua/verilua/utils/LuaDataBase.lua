@@ -224,9 +224,6 @@ function LuaDataBase:_init(params)
     local lfs = require "lfs"
 
     local func = function(this)
-        if this.save_cnt == 1 then
-            return
-        end
 
         -- This is used when `LightSSS` is enabled.
         -- If the pid of each LuaDataBase instance is different, then the database will not be committed
