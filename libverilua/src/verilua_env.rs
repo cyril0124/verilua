@@ -59,18 +59,16 @@ impl Debug for IDPool {
 impl IDPool {
     pub fn new(size: u64) -> Self {
         let available_ids = (0..size as EdgeCallbackID).collect::<HashSet<EdgeCallbackID>>();
-        IDPool {
-            available_ids,
-        }
+        IDPool { available_ids }
     }
 
     #[inline(always)]
     pub fn alloc_id(&mut self) -> EdgeCallbackID {
-        if self.available_ids.is_empty() {
-            panic!("No more IDs available");
-        }
-
-        let id = *self.available_ids.iter().next().unwrap();
+        let id = *self
+            .available_ids
+            .iter()
+            .next()
+            .expect("No more IDs available");
         self.available_ids.remove(&id);
 
         id
@@ -78,7 +76,12 @@ impl IDPool {
 
     #[inline(always)]
     pub fn release_id(&mut self, id: EdgeCallbackID) {
-        self.available_ids.insert(id);
+        assert_eq!(
+            self.available_ids.insert(id),
+            true,
+            "id {} is already available",
+            id
+        );
     }
 }
 
