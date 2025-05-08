@@ -95,7 +95,7 @@ end
 
 function Scheduler:_alloc_coroutine_task_id()
 	local id = random(SCHEDULER_TASK_ID_MIN_COROUTINE, SCHEDULER_TASK_ID_MAX_COROUTINE)
-	while self:check_task_exists(id) do
+	while self.task_name_map_archived[id] ~= nil do
 		id = random(SCHEDULER_TASK_ID_MIN_COROUTINE, SCHEDULER_TASK_ID_MAX_COROUTINE)
 	end
 	return id
@@ -103,7 +103,7 @@ end
 
 function Scheduler:_alloc_function_task_id()
 	local id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
-	while self:check_task_exists(id) do
+	while self.task_name_map_archived[id] ~= nil do
 		id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
 	end
 	return id
