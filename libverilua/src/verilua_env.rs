@@ -372,6 +372,15 @@ impl VeriluaEnv {
     }
 }
 
+// This is a ensurance mechanism to make sure the finalize function is called when the program
+// is exiting cause in some cases the finalize function may not be called successfully.
+#[cfg(all(not(feature = "dpi"), feature = "vcs"))]
+#[static_init::destructor(0)]
+extern "C" fn automatically_finalize_verilua_env() {
+    log::trace!("automatically_finalize_verilua_env");
+    get_verilua_env().finalize();
+}
+
 // ----------------------------------------------------------------------------------------------------------
 //  Export functions for embeding Verilua inside other simulation environments
 //  Make sure to use verilua_init() at the beginning of the simulation and use verilua_final() at the end of the simulation.
