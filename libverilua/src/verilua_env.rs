@@ -373,11 +373,14 @@ impl VeriluaEnv {
 
 // This is a ensurance mechanism to make sure the finalize function is called when the program
 // is exiting cause in some cases the finalize function may not be called successfully.
-#[cfg(all(not(feature = "dpi"), feature = "vcs"))]
 #[static_init::destructor(0)]
 extern "C" fn automatically_finalize_verilua_env() {
     log::trace!("automatically_finalize_verilua_env");
-    get_verilua_env().finalize();
+    let env = get_verilua_env();
+    if env.initialized && !env.finalized {
+        log::trace!("VeriluaEnv::finalize() called automatically");
+        env.finalize();
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------
