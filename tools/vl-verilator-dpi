@@ -29,7 +29,6 @@ assert os.path.exists(libpath + "/libverilua_verilator_dpi.so"), "[vl-verilator-
 CFLAGS = ""
 LDFLAGS = ""
 
-CFLAGS += "-DDUMMY_VPI_USE_WRAPPER"
 CFLAGS += f"-I{luapath}/include -I{luapath}/include/luajit-2.1 "
 CFLAGS += f"-I{verilua_path}/src/include "
 CFLAGS += f"-I{verilua_path}/vcpkg/installed/x64-linux/include "

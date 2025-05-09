@@ -32,7 +32,6 @@ vcs = os.getenv("VCS_HOME") + "/bin/vcs"
 cmd_list = [vcs] + [
     "+define+VERILUA",
     
-    "-CFLAGS", '\"-DDUMMY_VPI_USE_WRAPPER\"',
     "-CFLAGS", f'\"-I{verilua_path}/src/include\"',
     "-LDFLAGS", f'\"-Wl,-rpath,{liblua_path}\"',
     

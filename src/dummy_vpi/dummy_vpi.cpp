@@ -10,15 +10,15 @@
 #include <string>
 #include <vector>
 
-#ifdef DUMMY_VPI_USE_WRAPPER
+#ifdef DUMMY_VPI_NOT_USE_WRAPPER
+#define DEFINE_VPI_FUNC(func) func
+#else
 // The reason for appending `__wrap_` prefix to the function name is that in some case the origin `vpi_*` 
 // functions are used by the simulator itself even we do not use any vpi functionality. So we need to wrap 
 // the `vpi_*` functions to avoid the conflict.
 // (e.g. In vcs simulator, when we enable fsdb waveform dump, the `vpi_*` functions get called by fsdb library to dump waveform.)
 // For example, if we use `vpi_get` function, we need to wrap it to `__wrap_vpi_get`.
 #define DEFINE_VPI_FUNC(func) __wrap_##func
-#else
-#define DEFINE_VPI_FUNC(func) func
 #endif
 
 #define VPI_GET_MAX_BUFFER_SIZE 1024 * 2
