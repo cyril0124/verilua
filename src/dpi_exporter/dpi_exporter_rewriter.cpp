@@ -7,13 +7,6 @@ uint64_t globalHandleIdx = 0; // Each signal has its own handle value(integer) a
 
 void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
     if (syntax.header->name.rawText() == topModuleName) {
-        MemberSyntax *firstMember = nullptr;
-        for (auto m : syntax.members) {
-            firstMember = m;
-            break;
-        }
-        ASSERT(firstMember != nullptr, "TODO:");
-
         std::string dpiTickFuncDeclParam   = "";
         std::string dpiTickFuncDeclParam_1 = "";
         std::string dpiTickFuncParam       = "";
@@ -60,7 +53,6 @@ void DPIExporterRewriter_1::handle(ModuleDeclarationSyntax &syntax) {
         j["topModuleName"]          = topModuleName;
         j["clock"]                  = clock;
 
-        // TODO: if syntax.members is NULL?
         // Insert the following dpic tick function into top module
         insertAtBack(syntax.members, parse(inja::render(R"(
 import "DPI-C" function void dpi_exporter_tick(

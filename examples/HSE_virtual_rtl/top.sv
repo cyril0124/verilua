@@ -82,7 +82,6 @@ module empty(
 
 // The real logic is not implemented here.
 // See `main.lua` for the real logic. It is all implemented in Lua script using HSE with dummy-vpi support.
-reg tmp;
 
 endmodule
 
@@ -95,6 +94,5 @@ module empty2(
 
 // The real logic is not implemented here.
 // See `main.lua` for the real logic. It is all implemented in Lua script using HSE with dummy-vpi support.
-reg tmp;
 
 endmodule
