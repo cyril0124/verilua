@@ -300,7 +300,7 @@ vpiHandle DEFINE_VPI_FUNC(vpi_register_cb)(p_cb_data cb_data_p) {
         return nullptr;
     } else if (cb_data_p->reason == cbEndOfSimulation) {
         FATAL(endOfSimulationCb == nullptr, "get cbEndOfSimulation callback, but endOfSimulationCb is not a nullptr!\n");
-        endOfSimulationCb = std::make_unique<s_cb_data>(*cb_data_p);
+        endOfSimulationCb.reset(new s_cb_data(*cb_data_p));
         return nullptr;
     }
     FATAL(0, "`vpi_register_cb` not implemented, reason: %d\n", cb_data_p->reason);
