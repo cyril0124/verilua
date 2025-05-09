@@ -642,8 +642,19 @@ extern "C" char *dpi_exporter_get_meta_info_file_path() {
 }
 
 ## if distributeDPI == 0
+
+// Call verilua_main_step_safe() in dpi_exporter_tick() if `DPI_EXP_CALL_VERILUA_ENV_STEP` macro is defined.
+// Only available when `distributeDPI` is 0.
+#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+extern "C" void verilua_main_step_safe();
+#endif // DPI_EXP_CALL_VERILUA_ENV_STEP
+
 extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
 {{dpiTickFuncBody}}
+
+#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+    verilua_main_step_safe();
+#endif // DPI_EXP_CALL_VERILUA_ENV_STEP
 }
 ## endif
         )",
