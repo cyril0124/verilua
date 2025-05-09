@@ -86,7 +86,7 @@ extern "C" {
 #endif
 
 char *dpi_exporter_get_top_name();
-int64_t dpi_exporter_handle_by_name(std::string_view name);
+int64_t dpi_exporter_handle_by_name(std::string name);
 std::string dpi_exporter_get_type_str(int64_t handle);
 uint32_t dpi_exporter_get_bitwidth(int64_t handle);
 uint32_t dpi_exporter_get_value32(int64_t handle);

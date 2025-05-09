@@ -500,7 +500,6 @@ end
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <algorithm>
 #include <functional>
@@ -515,8 +514,8 @@ using SetValueHexStrFunc = std::function<void (char*)>;
 
 {{dpiFuncFileContent}}
 
-extern "C" int64_t dpi_exporter_handle_by_name(std::string_view name) {
-    static std::unordered_map<std::string_view, int64_t> name_to_handle = {
+extern "C" int64_t dpi_exporter_handle_by_name(std::string name) {
+    static std::unordered_map<std::string, int64_t> name_to_handle = {
 {{handleByName}}
     };
 
@@ -529,7 +528,7 @@ extern "C" int64_t dpi_exporter_handle_by_name(std::string_view name) {
 }
 
 extern "C" std::string dpi_exporter_get_type_str(int64_t handle) {
-    static std::unordered_map<int64_t, std::string_view> handle_to_type_str = {
+    static std::unordered_map<int64_t, std::string> handle_to_type_str = {
 {{getTypeStr}}
     };
 
