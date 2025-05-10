@@ -1,7 +1,5 @@
 #include "dpi_exporter.h"
 
-#define DEFAULT_CLOCK_NAME "clock"
-
 // Used when distributeDPI is FALSE
 class DPIExporterRewriter_1 : public slang::syntax::SyntaxRewriter<DPIExporterRewriter_1> {
   private:
