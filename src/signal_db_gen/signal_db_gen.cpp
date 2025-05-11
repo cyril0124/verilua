@@ -12,6 +12,7 @@
 #include "sol/sol.hpp"
 #include <chrono>
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -82,9 +83,32 @@ class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
     std::vector<size_t> bitWidthVec;
     std::vector<std::string> typeStrVec;
 
-    SignalGetter(bool ignoreTrivialSignals = true, bool ignoreUnderscoreSignals = true, bool verbose = false) : ignoreTrivialSignals(ignoreTrivialSignals), ignoreUnderscoreSignals(ignoreUnderscoreSignals), verbose(verbose) {}
+    SignalGetter(std::vector<std::string> enableModules, std::vector<std::string> disableModules, bool ignoreTrivialSignals = true, bool ignoreUnderscoreSignals = true, bool verbose = false) : enableModules(enableModules), disableModules(disableModules), ignoreTrivialSignals(ignoreTrivialSignals), ignoreUnderscoreSignals(ignoreUnderscoreSignals), verbose(verbose) {}
 
     void handle(const InstanceBodySymbol &ast) {
+        auto moduleName = ast.getDefinition().name;
+        if (verbose) {
+            fmt::println("[SignalGetter] handle module {}", moduleName);
+            fflush(stdout);
+        }
+
+        if (!enableModules.empty() && std::find(enableModules.begin(), enableModules.end(), moduleName) == enableModules.end()) {
+            if (verbose) {
+                fmt::println("[SignalGetter] [whitelist] skip module {}", moduleName);
+                fflush(stdout);
+            }
+            visitDefault(ast);
+            return;
+        }
+        if (!disableModules.empty() && std::find(disableModules.begin(), disableModules.end(), moduleName) != disableModules.end()) {
+            if (verbose) {
+                fmt::println("[SignalGetter] [blacklist] skip module {}", moduleName);
+                fflush(stdout);
+            }
+            visitDefault(ast);
+            return;
+        }
+
         auto varIter = ast.membersOfType<VariableSymbol>();
         for (const auto &var : varIter) {
             std::string hierPath;
@@ -120,6 +144,8 @@ class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
     }
 
   private:
+    std::vector<std::string> enableModules;
+    std::vector<std::string> disableModules;
     bool verbose                 = false;
     bool ignoreTrivialSignals    = true;
     bool ignoreUnderscoreSignals = true;
@@ -191,6 +217,8 @@ class WrappedDriver {
     std::optional<std::string> outfile;
     std::optional<std::string> signalDBFile;
     std::optional<bool> nocache;
+    std::vector<std::string> enableModules;
+    std::vector<std::string> disableModules;
 
     std::string cmdLineStr;
     std::string outputDir;
@@ -217,6 +245,8 @@ class WrappedDriver {
         driver.cmdLine.add("--iu,--ignore-underscore-signals", ignoreUnderscoreSignals, "Ignore underscore signals");
         driver.cmdLine.add("--vb,--verbose", verbose, "Verbose mode");
         driver.cmdLine.add("--nc,--no-cache", nocache, "No cache");
+        driver.cmdLine.add("--em,--enable-module", enableModules, "Enable modules(whitelist)", "<module>");
+        driver.cmdLine.add("--dm,--disable-module", disableModules, "Disable modules(blacklist)", "<module>");
     }
 
     int parseCmdLine(int argc, char **argv) {
@@ -232,6 +262,11 @@ class WrappedDriver {
         for (int i = 0; i < argc; i++) {
             cmdLineStr += argv[i];
             cmdLineStr += " ";
+        }
+
+        // Can only have one of `--em` and `--dm`
+        if (!enableModules.empty() && !disableModules.empty()) {
+            PANIC("Can only have one of --em(--enable-modules) and --dm(--disable-modules)");
         }
 
         if (!checkForRegenerate()) {
@@ -261,7 +296,7 @@ class WrappedDriver {
     void generateSignalDB() {
         ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
 
-        SignalGetter getter(ignoreTrivialSignals.value_or(false), ignoreUnderscoreSignals.value_or(false), verbose.value_or(false));
+        SignalGetter getter(enableModules, disableModules, ignoreTrivialSignals.value_or(false), ignoreUnderscoreSignals.value_or(false), verbose.value_or(false));
         this->getCompilelation()->getRoot().visit(getter);
 
         auto ret = lua["insert_signal_db"](getter.hierPathVec.size(), getter.hierPathVec, getter.bitWidthVec, getter.typeStrVec);
@@ -385,11 +420,8 @@ class WrappedDriver {
         }
 
         ASSERT(driver.processOptions());
-        driver.options.singleUnit = true;
-
         ASSERT(driver.parseAllSources());
         ASSERT(driver.reportParseDiags());
-        ASSERT(driver.syntaxTrees.size() == 1, "Only one SyntaxTree is expected", driver.syntaxTrees.size());
 
         alreadyParsed = true;
 

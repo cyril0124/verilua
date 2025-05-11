@@ -50,6 +50,8 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field set_target_file fun(self: SignalDB, file_path: string): SignalDB
 ---@field set_rtl_filelist fun(self: SignalDB, file_path: string): SignalDB
 ---@field try_load_db fun(self: SignalDB): SignalDB
+---@field set_enable_modules fun(self: SignalDB, modules: string[]): SignalDB
+---@field set_disable_modules fun(self: SignalDB, modules: string[]): SignalDB
 ---@field private load_db fun(self: SignalDB, file_path: string)
 ---@field private generate_db fun(self: SignalDB, args_str: string)
 ---@field get_db_data fun(self: SignalDB): SignalDB.data
@@ -154,6 +156,24 @@ function SignalDB:try_load_db()
     if path.isfile(self.target_file) then
         self:load_db(self.target_file)
         self.initialized = true
+    end
+    return self
+end
+
+function SignalDB:set_enable_modules(modules)
+    texcpect.expect_table(modules, "modules")
+    texcpect.expect_string(modules[1], "modules[1]")
+    for _, module in ipairs(modules) do
+        self.extra_signal_db_gen_args = self.extra_signal_db_gen_args .. " --enable-module " .. module
+    end
+    return self
+end
+
+function SignalDB:set_disable_modules(modules)
+    texcpect.expect_table(modules, "modules")
+    texcpect.expect_string(modules[1], "modules[1]")
+    for _, module in ipairs(modules) do
+        self.extra_signal_db_gen_args = self.extra_signal_db_gen_args .. " --disable-module " .. module
     end
     return self
 end
