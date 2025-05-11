@@ -54,6 +54,7 @@ local post_init_mt = setmetatable({
 ---@class MultiBeatData: {[0]: MultiBeatData.size, [number]: uint32_t}
 
 ---@class (exact) CallableHDL
+---@overload fun(fullpath: string, name: string, hdl?: ComplexHandleRaw): CallableHDL
 ---@field __type string
 ---@field fullpath string
 ---@field name string
@@ -69,6 +70,7 @@ local post_init_mt = setmetatable({
 ---@field is_multi_beat boolean
 ---@field cached_value any
 ---@field c_results ffi.cdata*
+---@field value any Used for assign value based on value type
 ---
 ---@field get fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
 ---@field get64 fun(self: CallableHDL): uint64_t
