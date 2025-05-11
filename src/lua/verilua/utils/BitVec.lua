@@ -53,8 +53,11 @@ local to_hex_str = utils.to_hex_str
 ---@field dump_str fun(self: BitVec): string
 ---@field dump fun(self: BitVec)
 ---@field to_hex_str fun(self: BitVec): string
----@overload fun(s: number, e: number): SubBitVec
+---@overload fun(data: table<number>|ffi.cdata*|number|string, bit_width?: number): BitVecInst
 local BitVec = class()
+
+---@class (exact) BitVecInst: BitVec
+---@overload fun(s: number, e: number): SubBitVec
 
 local function hex_str_to_u32_vec(hex_str)
     local hex_length = #hex_str
