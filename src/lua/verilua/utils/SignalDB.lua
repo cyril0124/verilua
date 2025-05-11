@@ -49,6 +49,7 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field set_regenerate fun(self: SignalDB, regenerate: boolean): SignalDB
 ---@field set_target_file fun(self: SignalDB, file_path: string): SignalDB
 ---@field set_rtl_filelist fun(self: SignalDB, file_path: string): SignalDB
+---@field try_load_db fun(self: SignalDB): SignalDB
 ---@field private load_db fun(self: SignalDB, file_path: string)
 ---@field private generate_db fun(self: SignalDB, args_str: string)
 ---@field get_db_data fun(self: SignalDB): SignalDB.data
@@ -146,6 +147,14 @@ end
 function SignalDB:set_target_file(file_path)
     texcpect.expect_string(file_path, "file_path")
     self.target_file = file_path
+    return self
+end
+
+function SignalDB:try_load_db()
+    if path.isfile(self.target_file) then
+        self:load_db(self.target_file)
+        self.initialized = true
+    end
     return self
 end
 
