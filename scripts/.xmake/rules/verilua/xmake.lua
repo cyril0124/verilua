@@ -405,6 +405,15 @@ rule("verilua")
             end
         end
 
+        -- User defined `before_build`, the reason for this is that we want the generated files(tb_top.sv, others.sv) to be added to the target files
+        -- so that we could use them in `before_build` for further processing and at this time we own the complete rtl files.
+        local user_before_build  = target:values("before_build")
+        if user_before_build then
+            local t = type(user_before_build)
+            assert(t == "function", f("[on_build] before_build should be a `function`, but got `%s`", t))
+            user_before_build(target)
+        end
+
         local has_which_cmd = try { function () return os.iorun("which which") end }
         if not has_which_cmd then
             cprint("${❌} [verilua-xmake] [%s] ${color.error underline}which${reset color.error} command not found!${reset clear}", target:name())
