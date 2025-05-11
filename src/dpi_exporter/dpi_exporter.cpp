@@ -289,7 +289,7 @@ end
 
         // Get DPIExporterInfoVec from the provided lua config file
         auto conciseSignalPatternVec = this->extractConfigInfo();
-        ASSERT(!conciseSignalPatternVec.empty());
+        ASSERT(!conciseSignalPatternVec.empty(), "No signal pattern found in the config file");
 
         // Get SignalGroupVec from the provided conciseSignalPatternVec
         std::vector<SignalGroup> signalGroupVec;
