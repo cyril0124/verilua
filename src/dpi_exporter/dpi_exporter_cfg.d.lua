@@ -1,12 +1,15 @@
+---@diagnostic disable: lowercase-global
+
 ---@class regex_pattern: string A string that represents a regular expression pattern used for signal matching
 
----@class (exact) dpi_exporter_config.module_cfg
----@field module string The name of the module
----@field is_top_module? boolean Whether this module is the top-level module (optional)
----@field signals? table<regex_pattern> Patterns for signals to export (optional)
----@field writable_signals? table<regex_pattern> Patterns for writable signals (optional)
----@field disable_signal? table<regex_pattern> Patterns for signals to disable (optional)
+---@class (exact) concise_signal_pattern
+---@field name? string
+---@field clock? string
+---@field module string
+---@field signals? regex_pattern
+---@field writable_signals? regex_pattern
+---@field disable_signals? regex_pattern
+---@field sensitive_signals? regex_pattern
 
----@class (exact) dpi_exporter_config
----@field clock? string Name of the clock signal
----@field [number] dpi_exporter_config.module_cfg Configuration for a specific module in the DPI exporter
+---@param params concise_signal_pattern
+function add_pattern(params) end

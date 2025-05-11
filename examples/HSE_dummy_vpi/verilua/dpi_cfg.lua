@@ -1,16 +1,14 @@
-dpi_exporter_config = {
-    {
-        module = "Another",
-    },
+add_pattern {
+    module = "Another",
+    signals = ".*",
+}
 
-    {
-        module = "Top",
-        clock = "clock",
-        signals = {"clock", "count.*"}
-    },
+add_pattern {
+    module = "Top",
+    signals = "(clock|count.*)",
+}
 
-    {
-        module = "Sub",
-        signals = { "value.*", "signal" },
-    },
+add_pattern {
+    module = "Sub",
+    signals = "(value.*|signal)",
 }

@@ -243,6 +243,7 @@ target("dpi_exporter")
 
     add_files(
         src_dir .. "/dpi_exporter/*.cpp",
+        src_dir .. "/dpi_exporter/src/*.cpp",
         extern_dir .. "/slang-common/*.cpp"
     )
 
@@ -250,6 +251,7 @@ target("dpi_exporter")
 
     add_includedirs(
         src_dir .. "/dpi_exporter",
+        src_dir .. "/dpi_exporter/include",
         extern_dir .. "/slang-common",
         lua_dir .. "/include/luajit-2.1",
         libs_dir .. "/include"

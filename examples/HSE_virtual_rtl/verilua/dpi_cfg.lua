@@ -1,32 +1,21 @@
-dpi_exporter_config = {
-    {
-        module = "top",
-        signals = {
-            "clock",
-            "cycles",
-            "accumulator",
-            "acc_valid",
-            "acc_value"
-        }
-    },
+add_pattern {
+    signals = ".*",
+    module = "top"
+}
 
-    {
-        module = "empty",
-        signals = {
-            "clock",
-            "cycles",
-            "accumulator"
-        },
-        writable_signals = {
-            "valid",
-            "value"
-        }
-    },
+add_pattern {
+    signals = ".*",
+    writable_signals = "value",
+    module = "empty",
+}
 
-    {
-        module = "empty2",
-        writable_signals = {
-            "value.*"
-        }
-    }
+add_pattern {
+    writable_signals = "valid",
+    module = "empty",
+}
+
+add_pattern {
+    signals = ".*",
+    writable_signals = "value.*",
+    module = "empty2",
 }
