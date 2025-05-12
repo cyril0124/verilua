@@ -96,7 +96,7 @@
     * `#!lua local clock = dut.clock:chdl()` 用于创建一个 Verilua 的 `CallableHDL` 对象（也叫 `chdl`），这个对象用于管理 `tb_top.clock` 这个信号（`dut` 默认代表的 Testbench 顶层是 `tb_top`，也可以进行修改，但是不建议这么做）。
         - `CallableHDL` 其内部包括了多种信息，包括信号位宽、hierarchy path 等。
         - 还包括了各种用于控制信号的方法，例如：`<chdl>:set(<value>)` 用于设置信号的值，`<chdl>:get()` 用于获取信号的值，`<chdl>:posedge()` 用于等待信号上升沿，等等。
-        - 使用 `CallableHDL` 对象对信号进行操作的性能比使用 `dut` 进行操作时的性能更高（底层实现的差异所导致的，`dut` 主要用于临时访问信号，不建议在性能要求较高的场景大量使用 `chdl`）。
+        - 使用 `CallableHDL` 对象对信号进行操作的性能比使用 `dut` 进行操作时的性能更高（底层实现的差异所导致的，`dut` 主要用于临时访问信号，不建议在性能要求较高的场景大量使用 `dut`）。
 
     * `#!lua dut.value:dump()` 用于将信号的值（主要是以 Hex String 的形式）输出到控制台，可以用于查看信号的值，所有的信号相关的操作方式都有这个方法，包括上面提到的 `CallableHDL`。打印的内容如下所示：
         ```shell title="Terminal"
