@@ -5,12 +5,20 @@ local assert = assert
 local random = math.random
 local randomseed = math.randomseed
 
-local CyclicdRandom = class()
+---@class (exact) CyclicRandom
+---@field gen_idx number
+---@field size number
+---@field values table<number, number>
+---@field shuffle fun(self: CyclicRandom, seed: number)
+---@field gen fun(self: CyclicRandom, seed?: number): number
+local CyclicRandom = class()
 
-function CyclicdRandom:_init(start_value, end_value)
+---@param start_value number
+---@param end_value number
+function CyclicRandom:_init(start_value, end_value)
     texpect.expect_number(start_value, "start_value")
     texpect.expect_number(end_value, "end_value")
-    
+
     assert(end_value > start_value)
 
     self.gen_idx = 1
@@ -26,7 +34,7 @@ function CyclicdRandom:_init(start_value, end_value)
     self:shuffle(0)
 end
 
-function CyclicdRandom:shuffle(seed)
+function CyclicRandom:shuffle(seed)
     randomseed(seed)
     local n = #self.values
     while n >= 2 do
@@ -36,16 +44,16 @@ function CyclicdRandom:shuffle(seed)
     end
 end
 
-function CyclicdRandom:gen(seed)
+function CyclicRandom:gen(seed)
     if self.gen_idx > self.size then
         local _seed = seed or 0
         self:shuffle(_seed)
         self.gen_idx = 1
     end
-    
+
     local value = self.values[self.gen_idx]
     self.gen_idx = self.gen_idx + 1
     return value
 end
 
-return CyclicdRandom
+return CyclicRandom

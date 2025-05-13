@@ -5,8 +5,15 @@ local assert = assert
 local ipairs = ipairs
 local random = math.random
 
+---@class (exact) WeightedRandom.weighted_random_table: {[1]: number, start: integer, end: integer}
+
+---@class (exact) WeightedRandom
+---@overload fun(weighted_random_table: WeightedRandom.weighted_random_table[]): WeightedRandom
+---@field private weighted_random_table WeightedRandom.weighted_random_table[]
+---@field gen fun(self: WeightedRandom): number
 local WeightedRandom = class()
 
+---@param weighted_random_table WeightedRandom.weighted_random_table[]
 function WeightedRandom:_init(weighted_random_table)
     texpect.expect_table(weighted_random_table, "weighted_random_table")
 
