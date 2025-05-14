@@ -248,7 +248,7 @@ end
 if cfg.simulator == "vcs" then
     ffi.cdef[[
         int vcs_get_mode(void);
-        void *svGetScopeFromName(char *str);
+        void *svGetScopeFromName(const char *str);
         void svSetScope(void *scope);
     ]]
 end
@@ -320,7 +320,7 @@ do
     if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
         if not cfg.is_hse then
             if cfg.simulator == "vcs" then
-                ffi.C.svSetScope(ffi.C.svGetScopeFromName(ffi.cast("char *", cfg.top)))
+                ffi.C.svSetScope(ffi.C.svGetScopeFromName(cfg.top))
 
                 local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
                 if not success then
