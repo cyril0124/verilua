@@ -342,35 +342,6 @@ inline uint64_t getUniqueHandleId() {
     return handleId++;
 }
 
-inline std::vector<std::string> getHierPaths(slang::ast::Compilation &compilation, std::string moduleName) {
-    struct HierPathGetter : public slang::ast::ASTVisitor<HierPathGetter, false, false> {
-        std::string moduleName;
-        std::vector<std::string> hierPaths;
-        HierPathGetter(std::string moduleName) : moduleName(moduleName) {}
-
-        void handle(const InstanceSymbol &inst) {
-            auto _moduleName = inst.getDefinition().name;
-
-            if (_moduleName == moduleName) {
-                // Hierarchical path may come from multiple instances
-                std::string hierPath = "";
-                inst.getHierarchicalPath(hierPath);
-                hierPaths.emplace_back(hierPath);
-            } else {
-                visitDefault(inst);
-            }
-        }
-    };
-
-    HierPathGetter visitor(moduleName);
-    compilation.getRoot().visit(visitor);
-    return visitor.hierPaths;
-}
-
-inline std::vector<std::string> getHierPaths(slang::ast::Compilation *compilation, std::string moduleName) { return getHierPaths(*compilation, moduleName); }
-
-inline std::vector<std::string> getHierPaths(slang::ast::Compilation *compilation, std::string_view moduleName) { return getHierPaths(*compilation, std::string(moduleName)); }
-
 inline bool checkUniqueSignal(std::string signal) {
     static std::unordered_set<std::string> signalSet;
 

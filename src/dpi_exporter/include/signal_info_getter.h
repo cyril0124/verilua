@@ -27,7 +27,7 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
             auto def  = compilation->getDefinition(compilation->getRoot(), syntax);
             auto inst = &InstanceSymbol::createDefault(*compilation, *def);
 
-            hierPaths = getHierPaths(compilation, moduleName);
+            hierPaths = slang_common::getHierPaths(compilation, moduleName);
             if (hierPaths.empty()) {
                 hierPaths.push_back(moduleName);
                 ASSERT(isTopModule, "TODO: hierPaths.empty() and !isTopModule", moduleName);
