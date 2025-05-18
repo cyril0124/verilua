@@ -69,6 +69,7 @@ local post_init_mt = setmetatable({
 ---@field beat_num number
 ---@field is_multi_beat boolean
 ---@field cached_value any
+---@field reset_set_cached fun(self: CallableHDL) Reset the cached value to `nil`
 ---@field c_results ffi.cdata*
 ---@field value any Used for assign value based on value type
 ---
@@ -198,6 +199,9 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
     self.cached_value = nil
+    self.reset_set_cached = function (this)
+        this.cached_value = nil
+    end
 
     self.c_results = ffi_new("uint32_t[?]", self.beat_num + 1) -- create a new array to store the result
                                                                -- c_results[0] is the lenght of the beat data since a normal lua table use 1 as the first index of array while ffi cdata still use 0
