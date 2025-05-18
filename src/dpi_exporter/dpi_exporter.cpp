@@ -209,7 +209,7 @@ end
         sampleEdge       = _sampleEdge.value_or(DEFAULT_SAMPLE_EDGE);
         distributeDPI    = _distributeDPI.value_or(false);
         quiet            = _quiet.value_or(false);
-        metaInfoFilePath = workdir + "/dpi_exporter.meta.json";
+        metaInfoFilePath = outdir + "/dpi_exporter.meta.json";
         dpiFilePath      = outdir + "/" + _dpiFile.value_or(DEFAULT_DPI_FILE_NAME);
         fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n\tdistributeDPI: {}\n\tquiet: {}\n", configFile, _dpiFile.value_or(DEFAULT_DPI_FILE_NAME), outdir, workdir, distributeDPI, quiet);
 
