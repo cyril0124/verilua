@@ -237,7 +237,6 @@ function Scheduler:schedule_task(id)
 	for i, remove_id in ipairs(self.user_removal_tasks) do
 		if remove_id == id then
 			table_remove(self.user_removal_tasks, i)
-			self.user_removal_tasks[remove_id] = nil
 			self.task_name_map_running[remove_id] = nil
 			self.task_execution_count_map[remove_id] = 0
 			self.task_fired_status_map[remove_id] = false
