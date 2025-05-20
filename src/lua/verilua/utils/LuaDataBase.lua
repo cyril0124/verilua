@@ -28,37 +28,37 @@ ffi.cdef[[
 
 ---@class (exact) LuaDataBase.params
 ---@field table_name string
----@field elements table<string>
+---@field elements string[]
 ---@field path string
 ---@field file_name string
----@field save_cnt_max? number
----@field verbose? boolean
----@field size_limit? number
+---@field save_cnt_max? number Default: 10000
+---@field verbose? boolean Default: false
+---@field size_limit? number Default: nil
 
 ---@class (exact) LuaDataBase
 ---@overload fun(params: LuaDataBase.params): LuaDataBase
----@field db any
----@field size_limit? number
----@field file_count number
----@field path_name string
----@field file_name string
----@field table_name string
----@field fullpath_name string
----@field available_files table<string>
----@field entries table<string, string>
----@field create_db_cmd string
----@field stmt any
----@field finished boolean
----@field verbose boolean
----@field __type string
----@field elements table<string>
----@field pid number
----@field prepare_cmd string
----@field save_cnt_max number
----@field save_cnt number
----@field cache table
----@field _log fun(self: LuaDataBase, ...)
----@field create_db fun(self: LuaDataBase)
+---@field private db any
+---@field private size_limit? number
+---@field private file_count number
+---@field private path_name string
+---@field private file_name string
+---@field private table_name string
+---@field private fullpath_name string
+---@field private available_files table<string>
+---@field private entries table<string, string>
+---@field private create_db_cmd string
+---@field private stmt any
+---@field private finished boolean
+---@field private verbose boolean
+---@field private __type string
+---@field private elements table<string>
+---@field private pid number
+---@field private prepare_cmd string
+---@field private save_cnt_max number
+---@field private save_cnt number
+---@field private cache table
+---@field private _log fun(self: LuaDataBase, ...)
+---@field private create_db fun(self: LuaDataBase)
 ---@field save  fun(self: LuaDataBase, ...)
 ---@field commit fun(self: LuaDataBase,...)
 local LuaDataBase = class()

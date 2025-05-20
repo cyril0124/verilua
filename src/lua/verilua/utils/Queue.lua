@@ -13,7 +13,7 @@ end
 ---@field push fun(self: Queue, value: Queue.data)
 ---@field pop fun(self: Queue): Queue.data
 ---@field query_first_ptr fun(self: Queue): Queue.data
----@field front fun(self: Queue): Queue.data
+---@field front fun(self: Queue): Queue.data Alias of query_first_ptr
 ---@field last fun(self: Queue): Queue.data
 ---@field is_empty fun(self: Queue): boolean
 ---@field size fun(self: Queue): integer
