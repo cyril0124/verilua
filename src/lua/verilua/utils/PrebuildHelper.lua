@@ -2,6 +2,7 @@
 local unnamed_task_count = 0
 local prebuild_tasks = {}
 
+---@diagnostic disable-next-line: duplicate-set-field
 _G.prebuild = function (task_table)
     assert(type(task_table) == "table")
 

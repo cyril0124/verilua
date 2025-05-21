@@ -106,6 +106,7 @@ function LuaDataBase:_init(params)
     self.size_limit = size_limit
     self.file_count = 0
 
+    self.table_name = table_name
     self.path_name = path_name
     self.file_name = file_name
     self.fullpath_name = ""

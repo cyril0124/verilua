@@ -308,7 +308,7 @@ do
     setenv_from_lua("LUA_PATH", _G.package.path)
 
     ---@class oslib
-    ---@field setenv fun(name: string, value: string)
+    ---@field setenv fun(name: string, value: string|number)
 
     os.setenv = setenv_from_lua
 end
