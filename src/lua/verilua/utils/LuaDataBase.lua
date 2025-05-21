@@ -50,8 +50,8 @@ ffi.cdef[[
 ---@field private stmt any
 ---@field private finished boolean
 ---@field private verbose boolean
----@field private __type string
----@field private elements table<string>
+---@field __type string
+---@field elements table<string>
 ---@field private pid number
 ---@field private prepare_cmd string
 ---@field private save_cnt_max number

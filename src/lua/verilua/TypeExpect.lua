@@ -12,6 +12,8 @@ local error = function (...) print("\n[TypeExpect] " .. debug.traceback()) error
 
 local texpect = {}
 
+---@param value string
+---@param name string
 function texpect.expect_string(value, name)
 	if type(value) ~= "string" then
 		error(
@@ -21,6 +23,8 @@ function texpect.expect_string(value, name)
 	end
 end
 
+---@param value number
+---@param name string
 function texpect.expect_number(value, name)
 	if type(value) ~= "number" then
 		error(
@@ -30,6 +34,8 @@ function texpect.expect_number(value, name)
 	end
 end
 
+---@param value boolean
+---@param name string
 function texpect.expect_boolean(value, name)
 	if type(value) ~= "boolean" then
 		error(
@@ -39,6 +45,8 @@ function texpect.expect_boolean(value, name)
 	end
 end
 
+---@param value table
+---@param name string
 function texpect.expect_table(value, name)
 	if type(value) ~= "table" then
 		error(
@@ -48,6 +56,8 @@ function texpect.expect_table(value, name)
 	end
 end
 
+---@param value function
+---@param name string
 function texpect.expect_function(value, name)
 	if type(value) ~= "function" then
 		error(
@@ -57,6 +67,8 @@ function texpect.expect_function(value, name)
 	end
 end
 
+---@param value thread
+---@param name string
 function texpect.expect_thread(value, name)
 	if type(value) ~= "thread" then
 		error(
@@ -66,6 +78,8 @@ function texpect.expect_thread(value, name)
 	end
 end
 
+---@param value userdata
+---@param name string
 function texpect.expect_userdata(value, name)
 	if type(value) ~= "userdata" then
 		error(
@@ -75,6 +89,8 @@ function texpect.expect_userdata(value, name)
 	end
 end
 
+---@param value ffi.cdata*
+---@param name string
 function texpect.expect_struct(value, name)
 	if type(value) ~= "cdata" then
 		error(
@@ -84,6 +100,10 @@ function texpect.expect_struct(value, name)
 	end
 end
 
+---@param value CallableHDL
+---@param name string
+---@param width_or_width_min number?
+---@param width_max number?
 function texpect.expect_chdl(value, name, width_or_width_min, width_max)
     if type(value) ~= "table" then
         error(
@@ -118,6 +138,8 @@ function texpect.expect_chdl(value, name, width_or_width_min, width_max)
     end
 end
 
+---@param value Bundle
+---@param name string
 function texpect.expect_bdl(value, name)
     if type(value) ~= "table" then
         error(
@@ -166,6 +188,15 @@ Throws:
   does not match the corresponding signal in `value`.
 
 --]]
+---@class (exact) texpect.expect_abdl.params
+---@field name string
+---@field width? number
+---@field width_min? number
+---@field width_max? number
+
+---@param value AliasBundle
+---@param name string
+---@param params string[]|texpect.expect_abdl.params[]
 function texpect.expect_abdl(value, name, params)
     if type(value) ~= "table" then
         error(
@@ -204,7 +235,7 @@ function texpect.expect_abdl(value, name, params)
                         _G.debug_level = 5 -- Temporary set debug level
                         texpect.expect_chdl(sig, sig_info.name) -- Each element of AliasBundle must be a CallableHDL
                         _G.debug_level = _G.default_debug_level
-                        
+
                         if sig_info.width then
                             if sig.width ~= sig_info.width then
                                 error(f("[expect_abdl] signal `%s`'s width is %d, but expected %d", sig_info.name, sig:get_width(), sig_info.width), 0)
@@ -236,6 +267,9 @@ function texpect.expect_abdl(value, name, params)
     end
 end
 
+---@param value LuaDataBase
+---@param name string
+---@param elements_table string[]
 function texpect.expect_database(value, name, elements_table)
     if type(value) ~= "table" then
         error(
