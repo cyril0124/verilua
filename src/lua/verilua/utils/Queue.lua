@@ -17,6 +17,7 @@ end
 ---@field last fun(self: Queue): Queue.data
 ---@field is_empty fun(self: Queue): boolean
 ---@field size fun(self: Queue): integer
+---@field reset fun(self: Queue)
 ---@operator len: integer
 local Queue = class()
 
@@ -63,6 +64,12 @@ end
 
 function Queue:size()
     return self.last_ptr - self.first_ptr + 1
+end
+
+function Queue:reset()
+    self.data = {}
+    self.first_ptr = 1
+    self.last_ptr = 0
 end
 
 function Queue:__len()
