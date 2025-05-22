@@ -151,7 +151,25 @@ return cfg
         io.writefile(cfg_file, cfg_file_str)
     end
 
+    -- Used for loading some common settings in verilua
     target:add("cfg_file", cfg_file)
+
+    local _instrumentation = target:values("instrumentation")
+    if _instrumentation then
+        local t = type(_instrumentation)
+        assert(t == "function", f("[before_build_or_run] `instrumentation` should be a `function` with a return value of `InstrumentationConfig[]`, but got `%s`", t))
+
+        ---@type InstrumentationConfig[]
+        local instrumentation = _instrumentation()
+        assert(type(instrumentation) == "table", f("[before_build_or_run] return value of `instrumentation` function should be a `table` of `InstrumentationConfig[]`, but got `%s`", type(instrumentation)))
+
+        for _, inst in ipairs(instrumentation) do
+            if inst.type == "cov_exporter" then
+                -- Used by `CoverageGetter.lua`
+                target:add("runenvs", "VL_COV_EXPORTER_META_FILE", build_dir .. "/.cov_exporter/cov_exporter.meta.json")
+            end
+        end
+    end
 
     if sim == "wave_vpi" then
         local get_waveform = false
@@ -235,6 +253,7 @@ rule("verilua")
                 "--timescale-override", "1ns/1ns",
                 "+define+SIM_VERILATOR",
                 f("-CFLAGS \"-std=c++20 %s\"", verilua_extra_cflags),
+                [[-LDFLAGS "-u coverageCtrl -u getCoverageCount -u getCoverage -u getCondCoverage"]], -- Reserve symbols for coverage(cov_exporter)
                 "-LDFLAGS \"-flto " .. verilua_extra_ldflags .. "\"",
                 "--top", tb_top
             )
@@ -414,6 +433,86 @@ rule("verilua")
             user_before_build(target)
         end
 
+        ---@alias InstrumentationType "cov_exporter"
+
+        ---@class CovExporterConfig: {module: string, disable_signal?: string, clock?: string, recursive?: boolean}
+
+        ---@class InstrumentationConfig
+        ---@field type InstrumentationType
+        ---@field config CovExporterConfig
+        ---@field extra_args string[] Extra arguments for the instrumentation tool
+
+        local _instrumentation = target:values("instrumentation")
+        if _instrumentation then
+            local t = type(_instrumentation)
+            assert(t == "function", f("[on_build] `instrumentation` should be a `function` with a return value of `InstrumentationConfig[]`, but got `%s`", t))
+
+            ---@type InstrumentationConfig[]
+            local instrumentation = _instrumentation()
+            assert(type(instrumentation) == "table", f("[on_build] return value of `instrumentation` function should be a `table` of `InstrumentationConfig[]`, but got `%s`", type(instrumentation)))
+
+            local gen_filelist = function ()
+                local vfiles = {}
+                local sourcefiles = target:sourcefiles()
+                for _, sourcefile in ipairs(sourcefiles) do
+                    local ext = path.extension(sourcefile)
+                    if ext == ".v" or ext == ".sv" or ext == ".svh" then
+                        table.insert(vfiles, path.absolute(sourcefile))
+                    end
+                end
+
+                local filelist = path.join(build_dir, "instrumentation.f")
+                io.writefile(filelist, table.concat(vfiles, "\n"))
+                return filelist
+            end
+
+            local replace_sourcefiles = function (newpath)
+                local sourcefiles = target:sourcefiles()
+                for i, sourcefile in ipairs(sourcefiles) do
+                    local ext = path.extension(sourcefile)
+                    if ext == ".v" or ext == ".sv" or ext == ".svh" then
+                        local filename = path.filename(sourcefile)
+                        local newfile = path.join(newpath, filename)
+                        sourcefiles[i] = newfile
+                    end
+                end
+            end
+
+            for _, inst in ipairs(instrumentation) do
+                if inst.type == "cov_exporter" then
+                    local cmd = "cov_exporter -q -f " .. gen_filelist() .. " --top " .. tb_top .. " +define+SYNTHESIS "
+                    local etype = type(inst.extra_args)
+                    if etype == "table" then
+                        cmd = cmd .. table.concat(inst.extra_args, " ")
+                    elseif etype == "string" then
+                        -- Replace '\n' with ' '
+                        cmd = cmd .. inst.extra_args:gsub("\n", " ")
+                    end
+                    cmd = cmd .. " --outdir " .. build_dir .. "/.cov_exporter" .. " --workdir " .. build_dir .. "/.cov_exporter"
+
+                    local config = inst.config
+                    for _, module_cfg in ipairs(config) do
+                        assert(type(module_cfg.module) == "string", f("[on_build] `module` should be a `string`, but got `%s`", type(module_cfg.module)))
+                        cmd = cmd .. " --module " .. module_cfg.module
+                        if module_cfg.disable_signal then
+                            cmd = cmd .. " --disable-signal-pattern \"" .. module_cfg.module .. ":" .. module_cfg.disable_signal .. "\""
+                        end
+                        if module_cfg.clock then
+                            cmd = cmd .. " --clock-signal \"" .. module_cfg.module .. ":" .. module_cfg.clock .. "\""
+                        end
+                        if module_cfg.recursive then
+                            cmd = cmd .. " --recursive-module " .. module_cfg.module
+                        end
+                    end
+
+                    os.vrun(cmd)
+                    replace_sourcefiles(build_dir .. "/.cov_exporter")
+                else
+                    assert(false, f("[on_build] Unknown instrumentation type: %s", inst.type))
+                end
+            end
+        end
+
         local has_which_cmd = try { function () return os.iorun("which which") end }
         if not has_which_cmd then
             cprint("${❌} [verilua-xmake] [%s] ${color.error underline}which${reset color.error} command not found!${reset clear}", target:name())
@@ -525,7 +624,7 @@ rule("verilua")
             io.writefile(build_dir .."/sim_file.f", table.concat(filelist_sim, '\n'))
 
             -- Run the build command to generate target binary
-            os.vrun(buildcmd .. " " .. table.concat(argv, " ")) -- , {envs = {LD_LIBRARY_PATH = "/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib:/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64"}})
+            os.vrun(buildcmd .. " " .. table.concat(argv, " "))
             if sim == "verilator" then
                 local user_opt_slow = target:values("verilator.opt_slow")
                 local user_opt_fast = target:values("verilator.opt_fast")

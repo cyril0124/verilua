@@ -1,4 +1,4 @@
----@diagnostic disable: undefined-global
+---@diagnostic disable
 
 local prj_dir    = os.curdir()
 local src_dir    = prj_dir .. "/src"
@@ -281,6 +281,33 @@ target("dpi_exporter")
         print("---------------------------------------------------------- ")
     end)
 
+target("cov_exporter")
+    set_kind("binary")
+    add_ldflags("-static")
+
+    set_languages("c++20")
+    
+    add_files(
+        prj_dir .. "/src/cov_exporter/*.cpp",
+        prj_dir .. "/extern/slang-common/*.cpp"
+    )
+
+    add_defines("SLANG_BOOST_SINGLE_HEADER")
+    
+    add_includedirs(
+        prj_dir .. "/src/cov_exporter/include",
+        prj_dir .. "/extern/slang-common",
+        libs_dir .. "/include"
+    )
+
+    add_links("svlang", "fmt", "mimalloc")
+    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
+    add_linkdirs(libs_dir.. "/lib")
+    add_rpathdirs(libs_dir.. "/lib")
+
+    after_build(function (target)
+        os.run("cp " .. target:targetfile() .. " " .. prj_dir .. "/tools")
+    end)
 
 local function signal_db_gen_common(is_static)
     if is_mode("debug") then
@@ -516,6 +543,7 @@ target("setup_verilua")
         execute("xmake run -y -v build_libverilua")
         execute("xmake build -y -v testbench_gen")
         execute("xmake build -y -v dpi_exporter")
+        execute("xmake build -y -v cov_exporter")
         execute("xmake build -y -v signal_db_gen")
         execute("xmake build -y -v libsignal_db_gen")
         execute("xmake build -y -v wave_vpi_main")
