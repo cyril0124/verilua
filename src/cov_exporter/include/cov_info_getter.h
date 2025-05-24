@@ -74,26 +74,40 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                     continue;
                 }
 
-                // Remove literal equal net:
-                //      e.g. wire a = 1'b1;
                 struct IntegerVectorVisitor : public slang::syntax::SyntaxVisitor<IntegerVectorVisitor> {
-                    bool maybeLiteralEqual = false;
+                    bool maybeLiteralEqual    = false;
+                    bool maybeIdentifierEqual = false;
+
+                    // Remove literal equal net:
+                    //      e.g. wire a = 1'b1;
                     void handle(const slang::syntax::IntegerVectorExpressionSyntax &syntax) {
                         if (syntax.parent->kind == slang::syntax::SyntaxKind::EqualsValueClause) {
-                            // fmt::println("\t\tIntegerVectorExpressionSyntax: {}", syntax.toString());
                             maybeLiteralEqual = true;
+                        }
+                    }
+
+                    // Remove identifier name equal net:
+                    //      e.g.
+                    //          wire b;
+                    //          wire a = b;
+                    void handle(const slang::syntax::IdentifierNameSyntax &syntax) {
+                        if (syntax.parent->kind == slang::syntax::SyntaxKind::EqualsValueClause) {
+                            maybeIdentifierEqual = true;
                         }
                     }
                 };
 
                 auto v = IntegerVectorVisitor();
                 net.getSyntax()->visit(v);
-                if (v.maybeLiteralEqual) {
-                    bool isLiteralEqualNet = true;
+                if (v.maybeLiteralEqual || v.maybeIdentifierEqual) {
+                    bool isLiteralEqualNet    = true;
+                    bool isIdentifierEqualNet = true;
 
                     if (conAssignSet.count(std::string(net.name))) {
-                        isLiteralEqualNet = false;
+                        isLiteralEqualNet    = false;
+                        isIdentifierEqualNet = false;
                     } else {
+                        // If the NetSymbol has been assigned by continuous assign after the net is defined, it is not a literal equal net.
                         auto conAssignSymIten = inst->body.membersOfType<slang::ast::ContinuousAssignSymbol>();
                         if (!conAssignSetInit) {
                             for (const auto &conAssignSym : conAssignSymIten) {
@@ -131,15 +145,22 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                             auto identName  = identifier->identifier.rawText();
 
                             if (identName == net.name) {
-                                isLiteralEqualNet = false;
+                                isLiteralEqualNet    = false;
+                                isIdentifierEqualNet = false;
                                 break;
                             }
                         }
                     }
 
-                    if (isLiteralEqualNet) {
+                    if (v.maybeLiteralEqual && isLiteralEqualNet) {
                         INFO_PRINT("\t\t[LiteralEqualNet] {}", net.name);
                         coverageInfo.statistic.literalEqualNetVec.emplace_back(net.name);
+                        continue;
+                    }
+
+                    if (v.maybeIdentifierEqual && isIdentifierEqualNet) {
+                        INFO_PRINT("\t\t[IdentifierEqualNet] {}", net.name);
+                        coverageInfo.statistic.identifierEqualNetVec.emplace_back(net.name);
                         continue;
                     }
                 }

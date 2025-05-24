@@ -218,12 +218,17 @@ export "DPI-C" function resetCoverage;
 /*
 literalEqualNet:
     {}
+*/
+/*
+identifierEqualNet:
+    {}
 */)",
                 coverageInfo.statistic.netCount,
                 coverageInfo.statistic.varCount,
                 coverageInfo.statistic.binExprCount,
                 coverageInfo.statistic.duplicateNetCount,
-                fmt::to_string(fmt::join(coverageInfo.statistic.literalEqualNetVec, "\n    "))
+                fmt::to_string(fmt::join(coverageInfo.statistic.literalEqualNetVec, "\n    ")),
+                fmt::to_string(fmt::join(coverageInfo.statistic.identifierEqualNetVec, "\n    "))
             ));
             // clang-format on
 

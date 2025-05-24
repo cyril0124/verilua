@@ -75,6 +75,7 @@ struct CoverageInfo {
         uint64_t duplicateNetCount;
         uint64_t binExprCount;
         std::vector<std::string> literalEqualNetVec;
+        std::vector<std::string> identifierEqualNetVec;
     } statistic;
 };
 
