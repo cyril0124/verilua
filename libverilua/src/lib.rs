@@ -10,7 +10,7 @@ mod vpi_user;
 pub type TaskID = u32;
 pub type EdgeCallbackID = u32;
 
-#[cfg(not(feature = "verilua_prebuild_bin"))]
+#[cfg(all(not(feature = "verilua_prebuild_bin"), not(feature = "dpi")))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
