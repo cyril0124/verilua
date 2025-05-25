@@ -34,6 +34,7 @@ local to_hex_str = utils.to_hex_str
 ---@field dump fun(self: SubBitVec)
 
 ---@class (exact) BitVec
+---@overload fun(data: table<number>|ffi.cdata*|number|string, bit_width?: number): BitVecInst
 ---@field __type string
 ---@field _call_cache table<string, SubBitVec>
 ---@field u32_vec table<number>
@@ -53,7 +54,8 @@ local to_hex_str = utils.to_hex_str
 ---@field dump_str fun(self: BitVec): string
 ---@field dump fun(self: BitVec)
 ---@field to_hex_str fun(self: BitVec): string
----@overload fun(data: table<number>|ffi.cdata*|number|string, bit_width?: number): BitVecInst
+---@field tonumber fun(self: BitVec): number
+---@field tonumber64 fun(self: BitVec): number
 local BitVec = class()
 
 ---@class (exact) BitVecInst: BitVec
@@ -151,7 +153,7 @@ function BitVec:_init(data, bit_width)
         auto_bit_width = 32
         if bit_width then
             local beat_size = math_floor(math_floor(bit_width + 31) / 32)
-            
+
             self.u32_vec = table_new(beat_size, 0)
             self.u32_vec[1] = data
             for i = 2, beat_size do
@@ -197,6 +199,20 @@ function BitVec:_init(data, bit_width)
             for i = 1, t.beat_size do
                 t.u32_vec[i] = data[i]
             end
+        end
+    end
+
+    self.tonumber = function (this)
+        return tonumber(this.u32_vec[1]) --[[@as number]]
+    end
+
+    if self.beat_size > 1 then
+        self.tonumber64 = function (this)
+            return bit_lshift(this.u32_vec[2] + 0ULL, 32) + this.u32_vec[1]
+        end
+    else
+        self.tonumber64 = function (this)
+            return this.u32_vec[1] + 0ULL
         end
     end
 end
@@ -293,7 +309,7 @@ end
 
 function BitVec:get_bitfield_hex_str(s, e)
     local beat_size = math_floor((e - s) / 32) + 1
-    
+
     local result = ""
     if beat_size == 1 then
         result = bit_tohex(tonumber(self:get_bitfield(s, e)) --[[@as number]])
@@ -581,7 +597,7 @@ function BitVec:__call(s, e)
             get_vec = function (t)
                 return self:get_bitfield_vec(t._s, t._e)
             end,
-            
+
             dump_str = function (t)
                 return self:get_bitfield_hex_str(t._s, t._e)
             end,
