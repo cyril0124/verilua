@@ -463,6 +463,7 @@ local CoverGroup = require "verilua.coverage.CoverGroup"
 local CoverPoint = require "verilua.coverage.CoverPoint"
 local AccurateCoverPoint = require "verilua.coverage.AccurateCoverPoint"
 local utils = require "verilua.LuaUtils"
+local BitVec = require "verilua.utils.BitVec"
 
 local stringx = require "pl.stringx"
 do
@@ -507,6 +508,8 @@ do
 ---@field auto_bundle fun(str: string, params_table: SignalDB.auto_bundle.params): Bundle
 ---@field tcc_compile fun(str: string, sym_ptr_tbls: string.tcc_compile.sym_ptr_tbl[]): table<any>
 ---@field enum_define fun(name: string, enum_table: table<any>): table<any>
+---@field bv fun(init_hex_str: string, bitwidth?: number): BitVec
+---@field bit_vec fun(init_hex_str: string, bitwidth?: number): BitVec
 
 ---@class stringlib: string.ext
 
@@ -1157,6 +1160,21 @@ do
 
         return utils.enum_define(enum_table)
     end
+
+    -- 
+    -- Example:
+    --    local bv = ("dead"):bv(32)
+    --    assert(bv:get_bitfield(0, 31) == 0xdead)
+    --    assert(bv:get_bitfield_hex_str(0, 31) == "0000dead")
+    -- 
+    --    local bv2 = ("beef"):bv()
+    --    assert(bv2:get_bitfield(0, 31) == 0xbeef)
+    --    assert(bv2:get_bitfield_hex_str(0, 31) == "0000beef")
+    -- 
+    string.bv = function (init_hex_str, bitwidth)
+        return BitVec(init_hex_str, bitwidth)
+    end
+    string.bit_vec = string.bv -- Alias of `string.bv`
 end
 
 local scheduler = require "verilua.scheduler.LuaScheduler"
