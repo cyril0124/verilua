@@ -9,7 +9,6 @@ local table_new = require "table.new"
 local type = type
 local next = next
 local pairs = pairs
-local print = print
 local error = error
 local string = string
 local ipairs = ipairs
@@ -733,6 +732,8 @@ end
 ---@param func_table matrix_call.params
 function utils.matrix_call(func_table)
     local dimensions = #func_table
+
+    ---@type table<number, number>
     local max_indices = {}
 
     -- Initialize index arrays and maximum index arrays
@@ -740,55 +741,92 @@ function utils.matrix_call(func_table)
         max_indices[i] = #func_table[i]
     end
 
+    ---@alias matrix_call.func_block_type
+    ---| "single_func"
+    ---| "seq_funcs"
+    ---| "single_func_with_args"
+    ---| "single_func_with_muti_args"
+
+    ---@type table<number, table<number, matrix_call.func_block_type>>
+    local func_table_meta = {}
+    for i = 1, dimensions do
+        for j = 1, max_indices[i] do
+            if not func_table_meta[i] then
+                func_table_meta[i] = {}
+            end
+
+            local entry = func_table[i][j]
+            local typ = type(entry)
+
+            if typ == "table" then
+                if #entry == 0 then
+                    if entry.args then
+                        assert(type(entry.args) == "table")
+                        func_table_meta[i][j] = "single_func_with_args"
+                    elseif entry.multi_args then
+                        assert(type(entry.multi_args) == "table")
+                        assert(type(entry.multi_args[1]) == "table")
+                        func_table_meta[i][j] = "single_func_with_muti_args"
+                    else
+                        assert(false, f("func_table[%d][%d] must have `args` or `multi_args` field", i, j))
+                    end
+                else
+                    for k = 1, #entry do
+                        assert(type(entry[k]) == "function", f("func_table[%d][%d][%d] must be a function, but %s", i, j, k, type(entry[k])))
+                    end
+                    func_table_meta[i][j] = "seq_funcs"
+                end
+            elseif typ == "function" then
+                func_table_meta[i][j] = "single_func"
+            else
+                assert(false, f("func_table[%d][%d] must be a function or a table", i, j))
+            end
+        end
+    end
+
+    ---@class matrix_call.current_dim: number
+    ---@alias matrix_call.dim_and_idx { [1]: matrix_call.current_dim, [2]: number }
+    ---@alias matrix_call.combination { [number]: matrix_call.dim_and_idx }
+
     -- Recursive function to generate all combinations
+    ---@param current_dim matrix_call.current_dim
+    ---@param combination matrix_call.combination
     local function generate_combinations(current_dim, combination)
         if current_dim > dimensions then
+
             -- Execute the current combination of functions
             for i = 1, #combination do
                 local dim = combination[i][1]
                 local idx = combination[i][2]
+                local func_type = func_table_meta[dim][idx]
                 local func_or_funcs = func_table[dim][idx]
 
-                -- Check if it's a table of functions to execute sequentially
-                if type(func_or_funcs) == "table" then
-                    if #func_or_funcs == 0 then
-                        local func = func_or_funcs.func
-                        local args = func_or_funcs.args
-                        local multi_args = func_or_funcs.multi_args
-                        if args then
-                            if type(func_or_funcs.before) == "function" then
-                                func_or_funcs.before()
-                            end
-                            func(table.unpack(args))
-                            if type(func_or_funcs.after) == "function" then
-                                func_or_funcs.after()
-                            end
-                        elseif multi_args then
-                            assert(type(multi_args) == "table")
-                            assert(type(multi_args[1]) == "table")
-                            local total_args = #multi_args
-                            for j = 1, total_args do
-                                if type(func_or_funcs.before) == "function" then
-                                    func_or_funcs.before()
-                                end
-                                func(table.unpack(multi_args[j]))
-                                if type(func_or_funcs.after) == "function" then
-                                    func_or_funcs.after()
-                                end
-                            end
-                        else
-                            assert(false, "Invalid function call, `args` or `multi_args` must be provided")
+                if func_type == "single_func" then
+                    func_or_funcs()
+                elseif func_type == "seq_funcs" then
+                    for j = 1, #func_or_funcs do
+                        func_or_funcs[j]()
+                    end
+                elseif func_type == "single_func_with_args" then
+                    if func_or_funcs.before and type(func_or_funcs.before) == "function" then
+                        func_or_funcs.before()
+                    end
+                    func_or_funcs.func(table.unpack(func_or_funcs.args))
+                    if func_or_funcs.after and type(func_or_funcs.after) == "function" then
+                        func_or_funcs.after()
+                    end
+                elseif func_type == "single_func_with_muti_args" then
+                    for j = 1, #func_or_funcs.multi_args do
+                        if func_or_funcs.before and type(func_or_funcs.before) == "function" then
+                            func_or_funcs.before()
                         end
-                    else
-                        for _, func in ipairs(func_or_funcs) do
-                            if type(func) == "function" then
-                                func()
-                            end
+                        func_or_funcs.func(table.unpack(func_or_funcs.multi_args[j]))
+                        if func_or_funcs.after and type(func_or_funcs.after) == "function" then
+                            func_or_funcs.after()
                         end
                     end
-                -- Or a single function
-                elseif type(func_or_funcs) == "function" then
-                    func_or_funcs()
+                else
+                    assert(false, f("func_table_meta[%d][%d] must be a function or a table", dim, idx))
                 end
             end
             return
@@ -797,12 +835,17 @@ function utils.matrix_call(func_table)
         -- For each function in the current dimension
         for i = 1, max_indices[current_dim] do
             -- Create a new combination by copying the current one
-            local new_combination = {}
+            ---@type matrix_call.combination
+            local new_combination = table_new(#combination + 1, 0)
             for j = 1, #combination do
                 new_combination[j] = combination[j]
             end
+
             -- Add the current dimension and index to the combination
-            new_combination[#new_combination + 1] = {current_dim, i}
+            ---@type matrix_call.dim_and_idx
+            local dim_and_idx = {current_dim, i}
+            new_combination[#new_combination + 1] = dim_and_idx
+
             -- Recursively process the next dimension
             generate_combinations(current_dim + 1, new_combination)
         end
