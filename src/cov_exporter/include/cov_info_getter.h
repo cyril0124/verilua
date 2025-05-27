@@ -17,8 +17,8 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
     CoverageInfoGetter(ModuleOption moduleOption, std::vector<std::string> globalDisableSignalPatterns, slang::ast::Compilation *compilation) : moduleOption(moduleOption), globalDisableSignalPatterns(globalDisableSignalPatterns), compilation(compilation) {
         coverageInfo.moduleName = moduleOption.moduleName;
         coverageInfo.clockName  = moduleOption.clockName;
-        coverageInfo.netVec.clear();
-        coverageInfo.varVec.clear();
+        coverageInfo.netMap.clear();
+        coverageInfo.varMap.clear();
         coverageInfo.binExprVec.clear();
         coverageInfo.statistic.netCount          = 0;
         coverageInfo.statistic.varCount          = 0;
@@ -167,7 +167,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
 
                 // TODO: wire a = b & c | d; ??
 
-                coverageInfo.netVec.emplace_back(net.name);
+                coverageInfo.netMap.emplace(net.name, SignalInfo{std::string(toString(net.getType().kind)), std::string(net.getType().toString())});
             }
 
             count = 0;
@@ -194,7 +194,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                     continue;
                 }
 
-                coverageInfo.varVec.emplace_back(var.name);
+                coverageInfo.varMap.emplace(var.name, SignalInfo{std::string(toString(var.getType().kind)), std::string(var.getType().toString())});
             }
 
             // TODO: Optimize some simple expr? (e.g. assign a = c & d;)
@@ -216,12 +216,12 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                         auto leftName      = leftExpr.symbol.name;
                         auto rightName     = rightExpr.symbol.name;
 
-                        // Remove duplicate signal from `coverageInfo.netVec`
-                        auto it = std::find(coverageInfo.netVec.begin(), coverageInfo.netVec.end(), leftName);
-                        if (it != coverageInfo.netVec.end()) {
+                        // Remove duplicate signal from `coverageInfo.netMap`
+                        auto it = coverageInfo.netMap.find(std::string(leftName));
+                        if (it != coverageInfo.netMap.end()) {
                             auto &count = coverageInfo.statistic.duplicateNetCount;
                             INFO_PRINT("\t[AssignAliasSignal] [No.{}] Remove duplicate net signal: `{}`, left: `{}`, right: `{}`, expr: `assign {}`", count, leftName, leftName, rightName, assignExprStr);
-                            coverageInfo.netVec.erase(it);
+                            coverageInfo.netMap.erase(it);
                             count++;
                         }
                     }
@@ -306,8 +306,8 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                 // extractConditionCombinations(condStmtVisitor.condInfoVec);
             }
 
-            coverageInfo.statistic.netCount     = coverageInfo.netVec.size();
-            coverageInfo.statistic.varCount     = coverageInfo.varVec.size();
+            coverageInfo.statistic.netCount     = coverageInfo.netMap.size();
+            coverageInfo.statistic.varCount     = coverageInfo.varMap.size();
             coverageInfo.statistic.binExprCount = coverageInfo.binExprVec.size();
         } else {
             visitDefault(syntax);

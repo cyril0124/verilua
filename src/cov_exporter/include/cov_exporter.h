@@ -60,12 +60,27 @@ bool checkDisableSignal(std::vector<std::string> &disablePatterns, std::string_v
     return false;
 }
 
+inline std::string replaceString(std::string str, const char *pattern, const char *replacement) {
+    size_t pos = str.find(pattern);
+    if (pos != std::string::npos) {
+        return str.replace(pos, std::string(pattern).length(), replacement);
+    }
+    return str;
+};
+
+inline std::string replaceString(std::string str, std::string pattern, std::string replacement) { return replaceString(str, pattern.c_str(), replacement.c_str()); };
+
+struct SignalInfo {
+    std::string type;
+    std::string typeStr;
+};
+
 struct CoverageInfo {
     std::string moduleName;
     std::string clockName;
     std::vector<std::string> hierPaths;
-    std::vector<std::string> netVec;
-    std::vector<std::string> varVec;
+    std::unordered_map<std::string, SignalInfo> netMap;
+    std::unordered_map<std::string, SignalInfo> varMap;
     std::vector<std::string> binExprVec;
     std::set<std::string> subModuleSet;
 
