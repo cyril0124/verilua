@@ -135,6 +135,9 @@ local SCHEDULER_TASK_MAX_COUNT = 100000
 local SCHEDULER_MIN_EVENT_ID = 0
 local SCHEDULER_MAX_EVENT_ID = 999
 
+local SCHEDULER_ALLOC_TASK_ID_MAX_CNT = 99999
+local SCHEDULER_ALLOC_EVENT_ID_MAX_CNT = 999
+
 function Scheduler:_init()
     self.task_count = 0
 
@@ -183,16 +186,26 @@ end
 
 function Scheduler:_alloc_coroutine_task_id(): TaskID
     local id = random(SCHEDULER_TASK_ID_MIN_COROUTINE, SCHEDULER_TASK_ID_MAX_COROUTINE)
+    local cnt = 0
     while self.task_name_map_archived[id] ~= nil do
         id = random(SCHEDULER_TASK_ID_MIN_COROUTINE, SCHEDULER_TASK_ID_MAX_COROUTINE)
+        cnt = cnt + 1
+        if cnt >= SCHEDULER_ALLOC_TASK_ID_MAX_CNT then
+            assert(false, "[Scheduler] Failed to allocate coroutine task id! too many attempts, maybe there are no available task id")
+        end
     end
     return id
 end
 
 function Scheduler:_alloc_function_task_id(): TaskID
     local id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
+    local cnt = 0
     while self.task_name_map_archived[id] ~= nil do
         id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
+        cnt = cnt + 1
+        if cnt >= SCHEDULER_ALLOC_TASK_ID_MAX_CNT then
+            assert(false, "[Scheduler] Failed to allocate function task id! too many attempts, maybe there are no available task id")
+        end
     end
     return id
 end
@@ -658,9 +671,14 @@ function Scheduler:new_event_hdl(name: string, user_event_id: EventID): EventHan
 
     local event_id = user_event_id
     if not event_id then
-        event_id = random(SCHEDULER_MIN_EVENT_ID, SCHEDULER_MAX_EVENT_ID) 
+        event_id = random(SCHEDULER_MIN_EVENT_ID, SCHEDULER_MAX_EVENT_ID)
+        local cnt = 0
         while self.event_name_map[event_id] do
             event_id = random(SCHEDULER_MIN_EVENT_ID, SCHEDULER_MAX_EVENT_ID)
+            cnt = cnt + 1
+            if cnt >= SCHEDULER_ALLOC_EVENT_ID_MAX_CNT then
+                assert(false, "[Scheduler] Failed to allocate event id! too many attempts, maybe there are no available event id")
+            end
         end
     else
         assert(type(user_event_id) == "number" and user_event_id == math.floor(user_event_id), "user_event_id must be an integer")
