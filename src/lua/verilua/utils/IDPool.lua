@@ -13,30 +13,32 @@ local f = string.format
 
 ---@class (exact) IDPool
 ---@overload fun(pool_size_or_params: number|IDPool.params, shuffle?: boolean): IDPool
----@field pool_size number
----@field start_value number
----@field end_value number
----@field pool table<number>
----@field size number
+---@field private pool_size number
+---@field private start_value number
+---@field private end_value number
+---@field private shuffle boolean
+---@field private pool number[]
+---@field private size number
 ---@field alloc fun(self: IDPool): number
 ---@field release fun(self: IDPool, id: number)
 ---@field is_full fun(self: IDPool): boolean Check if the pool is full (all IDs are available)
 ---@field is_empty fun(self: IDPool): boolean Check if the pool is empty(all IDs are allocated, none left in pool)
 ---@field used_count fun(self: IDPool): number
 ---@field free_count fun(self: IDPool): number
+---@field reset fun(self: IDPool)
 ---@operator len: number
 local IDPool = class()
 
--- 
+--
 -- Example:
 --      local idpool = IDPool(100)
 --      local id = idpool:alloc()
 --      idpool:release(id)
--- 
+--
 --      local idpool = IDPool { start_value = 10, size = 100 }
 --      local id = idpool:alloc()
 --      idpool:release(id)
--- 
+--
 
 ---@param params number|IDPool.params
 ---@param shuffle boolean?
@@ -70,6 +72,7 @@ function IDPool:_init(params, shuffle)
         index = index + 1
     end
 
+    self.shuffle = _shuffle
     if _shuffle then
         utils.shuffle(self.pool)
     end
@@ -85,7 +88,9 @@ end
 
 function IDPool:release(id)
     if id < self.start_value or id > self.end_value then
-        assert(false, f("[IDPool] id is out of range: %d, start_value => %d, end_value => %d", id, self.start_value, self.end_value))
+        assert(false,
+            f("[IDPool] id is out of range: %d, start_value => %d, end_value => %d", id, self.start_value, self
+            .end_value))
     end
 
     for i = 1, self.size do
@@ -114,6 +119,21 @@ end
 
 function IDPool:free_count()
     return self.size
+end
+
+function IDPool:reset()
+    self.size = self.pool_size
+    self.pool = table_new(self.pool_size, 0)
+
+    local index = 1
+    for i = self.end_value, self.start_value, -1 do
+        self.pool[index] = i
+        index = index + 1
+    end
+
+    if self.shuffle then
+        utils.shuffle(self.pool)
+    end
 end
 
 function IDPool:__len()
