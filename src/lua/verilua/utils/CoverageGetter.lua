@@ -104,7 +104,7 @@ end
 ---@field setDpiScope fun(hier: string)
 ---@field enable_coverage fun(self: CoverageGetter, hier_or_module: string, recursive?: boolean)
 ---@field disable_coverage fun(self: CoverageGetter, hier_or_module: string, recursive?: boolean)
----@field get_coverage fun(self: CoverageGetter, hier: string, recursive?: boolean): number
+---@field get_coverage fun(self: CoverageGetter, hier_or_module: string, recursive?: boolean): number
 ---@field get_cond_coverage fun(self: CoverageGetter, hier: string, recursive?: boolean): number
 ---@field show_coverage fun(self: CoverageGetter, hier_or_module: string, length?: number, recursive?: boolean)
 ---@field show_cond_coverage fun(self: CoverageGetter, hier_or_module: string, length?: number, recursive?: boolean)
@@ -210,12 +210,31 @@ function CoverageGetter:disable_coverage(hier_or_module, recursive)
     end
 end
 
----@param hier string Hierarchical path of the target module
+---@param hier_or_module string Hierarchical path of the target module or module name
+---@param recursive boolean? Whether to get coverage recursively
 ---@return number Coverage value(0.0 ~ 1.0)
-function CoverageGetter:get_coverage(hier, recursive)
+function CoverageGetter:get_coverage(hier_or_module, recursive)
     if recursive then
         if not self.cov_meta_info then
             self:read_cov_meta_info()
+        end
+
+        local hier
+        if hier_or_module:find("%.") then
+            hier = hier_or_module
+        else
+            local module_info = self.cov_meta_info.exportedModules[hier_or_module]
+            assert(module_info, "[CoverageGetter] Failed to get module info from module name: " .. hier_or_module)
+
+            local hier_paths = module_info.hierPaths
+            if #hier_paths ~= 1 then
+                assert(false,
+                    f(
+                        "[CoverageGetter] Failed to get hier path from module name: %s, multiple hier paths found: { %s } maybe you should use hier path instead",
+                        hier_or_module, table.concat(hier_paths, ", ")))
+            end
+
+            hier = hier_paths[1]
         end
 
         local module_name = self.cov_meta_info.hierPathToModuleName[hier]
