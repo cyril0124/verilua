@@ -6,9 +6,10 @@ local random = math.random
 local randomseed = math.randomseed
 
 ---@class (exact) CyclicRandom
----@field gen_idx number
----@field size number
----@field values table<number, number>
+---@overload fun(start_value: number, end_value: number): CyclicRandom
+---@field private gen_idx number
+---@field private size number
+---@field private values table<number, number>
 ---@field shuffle fun(self: CyclicRandom, seed: number)
 ---@field gen fun(self: CyclicRandom, seed?: number): number
 local CyclicRandom = class()
@@ -38,9 +39,9 @@ function CyclicRandom:shuffle(seed)
     randomseed(seed)
     local n = #self.values
     while n >= 2 do
-      local k = random(n)
-      self.values[n], self.values[k] = self.values[k], self.values[n]
-      n = n - 1
+        local k = random(n)
+        self.values[n], self.values[k] = self.values[k], self.values[n]
+        n = n - 1
     end
 end
 

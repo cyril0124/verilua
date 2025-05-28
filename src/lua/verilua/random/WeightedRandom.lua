@@ -23,7 +23,7 @@ function WeightedRandom:_init(weighted_random_table)
         local _start  = value[2]
         local _end    = value[3]
 
-        total_weight = total_weight + _weight
+        total_weight  = total_weight + _weight
         assert(_end > _start)
     end
     assert(total_weight == 100)
@@ -51,4 +51,3 @@ function WeightedRandom:gen()
 end
 
 return WeightedRandom
-

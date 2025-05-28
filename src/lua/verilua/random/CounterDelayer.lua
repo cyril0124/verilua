@@ -7,10 +7,10 @@ local random = math.random
 
 ---@class (exact) CounterDelayer
 ---@overload fun(min_delay: number, max_delay: number): CounterDelayer
----@field min_delay number
----@field max_delay number
+---@field private min_delay number
+---@field private max_delay number
 ---@field private cnt number
----@field fire fun(self: CounterDelayer): boolean
+---@field fire fun(self: CounterDelayer): boolean Check if it is time to fire, return `true` if it is time to fire
 local CounterDelayer = class()
 
 ---@param min_delay number
