@@ -198,7 +198,7 @@ end
     int parseCommandLine(int argc, char **argv) {
         ASSERT(driver.parseCommandLine(argc, argv));
 
-        if (_configFile->empty()) {
+        if (!_configFile.has_value()) {
             PANIC("No config file specified! please use -c/--config <lua file>");
         }
 
