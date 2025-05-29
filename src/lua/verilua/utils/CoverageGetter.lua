@@ -314,7 +314,7 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
         -- Since every module has its own `getCoverage` or `getCondCoverage`, you should
         -- set the DPI scope to the module you want to get the coverage to prevent naming
         -- ambiguity.
-        self.setDpiScope(hier)
+        self.setDpiScope(hier_or_module)
         self.getCoverage(self.coverage_value)
         return tonumber(self.coverage_value[0]) --[[@as number]]
     end
