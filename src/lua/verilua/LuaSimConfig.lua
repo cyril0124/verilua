@@ -81,13 +81,13 @@ cfg.SchedulerMode = setmetatable({
 local function get_debug_info(level)
     local _level = level or 2 -- Level 2 because we're inside a function
     local info
-    
+
     -- Get valid debug info. If not found(i.e. info.currentline == -1), then try to get the debug info from the previous level.
     repeat
         info = debug.getinfo(_level, "nSl")
         _level = _level - 1
     until info.currentline ~= -1
-    
+
     local file = info.short_src -- info.source
     local line = info.currentline
     local func = info.name or "<anonymous>"
@@ -164,22 +164,22 @@ function cfg:config_error(cond, ...)
 end
 
 function cfg:get_or_else(cfg_str, default)
-    local cfg = rawget(self, cfg_str)
-    if cfg == nil then
+    local _cfg = rawget(self, cfg_str)
+    if _cfg == nil then
         self:config_warn(f("[cfg:get_or_else] `cfg.%s` is `nil`! use default config => `%s`", cfg_str, tostring(default)))
         return default
     end
-    return cfg
+    return _cfg
 end
 
 function cfg:get_or_else_log(cfg_str, default, log_str)
-    local cfg = rawget(self, cfg_str)
-    if cfg == nil then
-        local log_str = log_str or ""
-        self:config_warn(f("[cfg:get_or_else] %s `cfg.%s` is `nil`! use default config => `%s`", log_str, cfg_str, tostring(default)))
+    local _cfg = rawget(self, cfg_str)
+    if _cfg == nil then
+        local _log_str = log_str or ""
+        self:config_warn(f("[cfg:get_or_else] %s `cfg.%s` is `nil`! use default config => `%s`", _log_str, cfg_str, tostring(default)))
         return default
     end
-    return cfg
+    return _cfg
 end
 
 -- Dumps the content of the configuration table as a string.

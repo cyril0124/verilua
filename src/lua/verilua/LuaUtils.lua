@@ -31,7 +31,6 @@ local table_concat = table.concat
 local setmetatable = setmetatable
 
 local utils = {}
-local this = utils
 
 ---@param t table The table to be serialized
 ---@param conn string The connector for the serialization, defaults to "_"
@@ -165,7 +164,7 @@ end
 
 ---@param hex_table number|table The value or table to be printed as hexadecimal
 function utils.print_hex(hex_table)
-    io.write(this.to_hex(hex_table).."\n")
+    io.write(utils.to_hex(hex_table).."\n")
 end
 
 ---@param num number The number to be converted to binary string
@@ -387,7 +386,12 @@ function utils.bitfield_str(str, s, e, width)
     return ret == "" and "0" or ret
 end
 
----@param bitpat_tbl table<number, {s: number, e: number, v: number|uint64_t}> The bit pattern table
+---@class (exact) bitpat_to_hexstr.BitPattern
+---@field s number
+---@field e number
+---@field v number|uint64_t
+
+---@param bitpat_tbl bitpat_to_hexstr.BitPattern[] The bit pattern table
 ---@param width number The width of the bit pattern (optional)
 ---@return string The hexadecimal string
 function utils.bitpat_to_hexstr(bitpat_tbl, width)
@@ -664,6 +668,75 @@ function utils.hex_to_bin(hex_str)
         bin_parts[i] = (hex_to_bin_map[nibble] or error("Invalid hex character: " .. nibble))
     end
     return table_concat(bin_parts)
+end
+
+local truth_values = {
+    ["true"] = true,
+    ["True"] = true,
+    ["TRUE"] = true,
+    ["1"] = true,
+    ["ENABLE"] = true,
+    ["ON"] = true,
+    ["enable"] = true,
+    ["on"] = true,
+}
+local false_values = {
+    ["false"] = true,
+    ["False"] = true,
+    ["FALSE"] = true,
+    ["0"] = true,
+    ["DISABLE"] = true,
+    ["OFF"] = true,
+    ["disable"] = true,
+    ["off"] = true,
+}
+---@param key string Environment variable name
+---@param value_type "string" | "boolean" | "number"
+---@param default string|number|boolean Default value if the environment variable is not set
+---@return string|number|boolean The value of the environment variable or the default value
+function utils.get_env_or_else(key, value_type, default)
+	assert(type(key) == "string")
+	local v = os.getenv(key)
+	if v == nil then
+        local default_type = type(default)
+        if default_type == "nil" then
+            assert(false, "[utils.get_env_or_else] default value must be provided")
+        end
+
+        if value_type == "string" then
+            assert(default_type == "string", "[utils.get_env_or_else] default value must be `string`" .. " not `" .. default_type ..  "` since value_type is `string`")
+        elseif value_type == "boolean" then
+            assert(default_type == "boolean", "[utils.get_env_or_else] default value must be `boolean`" .. " not `" .. default_type ..  "` since value_type is `boolean`")
+        elseif value_type == "number" then
+            assert(default_type == "number", "[utils.get_env_or_else] default value must be `number`" .. " not `" .. default_type ..  "` since value_type is `number`")
+        end
+
+		print("[utils.get_env_or_else] warning: " .. key .. " is not set, use default value: " .. tostring(default))
+		return default --[[@as string|number|boolean]]
+	end
+
+	local value = nil
+	if value_type == "string" then
+		value = v
+	elseif value_type == "boolean" then
+		if truth_values[v] then
+			value = true
+		elseif false_values[v] then
+			value = false
+		else
+			assert(false, "[utils.get_env_or_else] unknown value type! " .. key .. " => " .. v)
+		end
+	elseif value_type == "number" then
+		local number_v = tonumber(v)
+		assert(number_v ~= nil, "[utils.get_env_or_else] invald number value! " .. key .. " => " .. v)
+		value = number_v
+	else
+		assert(false, "[utils.get_env_or_else] unknown value type")
+	end
+
+	assert(value ~= nil)
+	print("[utils.get_env_or_else] info: " .. key .. " => " .. tostring(value))
+	return value --[[@as string|number|boolean]]
 end
 
 -- Example usage:
