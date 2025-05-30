@@ -106,7 +106,8 @@ end
                 auto info = pair.second;
                 ASSERT(info.type == "PackedArrayType" || info.type == "ScalarType", "TODO: Other type", info.type, info.typeStr);
 
-                std::string lastRegType = replaceString(info.typeStr, "logic", "bit");
+                std::string _lastRegType = replaceString(info.typeStr, "logic", "bit");
+                std::string lastRegType  = replaceString(_lastRegType, "reg", "bit");
 
                 cntDecls.emplace_back(fmt::format("int _{}__COV_CNT = 0;", var));
                 lastDecls.emplace_back(fmt::format("{} _{}__LAST;", lastRegType, var));
