@@ -357,6 +357,7 @@ end
 -- 
 ---@class tablelib
 ---@field join fun(...): table
+---@field contains fun(t: table, v: any): boolean
 table.join = function (...)
     local result = {}
     for _, t in ipairs({...}) do
@@ -370,6 +371,12 @@ table.join = function (...)
         end
     end
     return result
+end
+table.contains = function (t, v)
+    for _, _v in ipairs(t) do
+        if _v == v then return true end
+    end
+    return false
 end
 
 -- 
