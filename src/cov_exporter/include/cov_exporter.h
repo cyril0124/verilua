@@ -73,6 +73,7 @@ inline std::string replaceString(std::string str, std::string pattern, std::stri
 struct SignalInfo {
     std::string type;
     std::string typeStr;
+    size_t line;
 };
 
 struct CoverageInfo {
@@ -81,7 +82,7 @@ struct CoverageInfo {
     std::vector<std::string> hierPaths;
     std::unordered_map<std::string, SignalInfo> netMap;
     std::unordered_map<std::string, SignalInfo> varMap;
-    std::vector<std::string> binExprVec;
+    std::unordered_map<std::string, SignalInfo> binExprMap;
     std::set<std::string> subModuleSet;
 
     struct Statistic {

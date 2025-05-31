@@ -19,7 +19,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
         coverageInfo.clockName  = moduleOption.clockName;
         coverageInfo.netMap.clear();
         coverageInfo.varMap.clear();
-        coverageInfo.binExprVec.clear();
+        coverageInfo.binExprMap.clear();
         coverageInfo.statistic.netCount          = 0;
         coverageInfo.statistic.varCount          = 0;
         coverageInfo.statistic.duplicateNetCount = 0;
@@ -49,7 +49,8 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
 
             auto netIter = inst->body.membersOfType<slang::ast::NetSymbol>();
             for (const auto &net : netIter) {
-                INFO_PRINT("\t[{}] NetSymbol: {} {}", count++, net.name, moduleOption.disablePatterns.size());
+                auto line = compilation->getSourceManager()->getLineNumber(net.location) - 2;
+                INFO_PRINT("\t[{}] NetSymbol: {}, line: {}, type: <{}, {}>", count++, net.name, line, toString(net.getType().kind), net.getType().toString());
 
                 if (!findClockSignal && net.name == moduleOption.clockName) {
                     findClockSignal = true;
@@ -165,16 +166,17 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                     }
                 }
 
-                // TODO: wire a = b & c | d; ??
+                // TODO: wire a = c | d; ??
 
-                coverageInfo.netMap.emplace(net.name, SignalInfo{std::string(toString(net.getType().kind)), std::string(net.getType().toString())});
+                coverageInfo.netMap.emplace(net.name, SignalInfo{std::string(toString(net.getType().kind)), std::string(net.getType().toString()), line});
             }
 
             count = 0;
 
             auto varIter = inst->body.membersOfType<slang::ast::VariableSymbol>();
             for (const auto &var : varIter) {
-                INFO_PRINT("\t[{}] VariableSymbol: {}", count++, var.name);
+                auto line = compilation->getSourceManager()->getLineNumber(var.location) - 2;
+                INFO_PRINT("\t[{}] VariableSymbol: {}, line: {}, type: <{}, {}>", count++, var.name, line, toString(var.getType().kind), var.getType().toString());
 
                 if (!findClockSignal && var.name == moduleOption.clockName) {
                     findClockSignal = true;
@@ -194,7 +196,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                     continue;
                 }
 
-                coverageInfo.varMap.emplace(var.name, SignalInfo{std::string(toString(var.getType().kind)), std::string(var.getType().toString())});
+                coverageInfo.varMap.emplace(var.name, SignalInfo{std::string(toString(var.getType().kind)), std::string(var.getType().toString()), line});
             }
 
             // TODO: Optimize some simple expr? (e.g. assign a = c & d;)
@@ -236,11 +238,12 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                 struct CondStmtVisitior : public slang::ast::ASTVisitor<CondStmtVisitior, true, true> {
                     int depth = 0;
                     int &count;
+                    slang::ast::Compilation *compilation;
                     std::vector<CondInfo> condInfoVec;
-                    std::vector<std::string> &binExprVec;
+                    std::unordered_map<std::string, SignalInfo> &binExprMap;
                     std::unordered_set<std::string> &binExprSet;
 
-                    CondStmtVisitior(int &count, std::vector<std::string> &binExprVec, std::unordered_set<std::string> &binExprSet) : count(count), binExprVec(binExprVec), binExprSet(binExprSet) {}
+                    CondStmtVisitior(int &count, slang::ast::Compilation *compilation, std::unordered_map<std::string, SignalInfo> &binExprMap, std::unordered_set<std::string> &binExprSet) : count(count), compilation(compilation), binExprMap(binExprMap), binExprSet(binExprSet) {}
 
                     void handle(const slang::ast::ConditionalStatement &cond) {
                         depth++;
@@ -249,7 +252,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                         auto &c    = cond.conditions[0];
                         auto ckind = c.expr->kind;
                         if (ckind == slang::ast::ExpressionKind::BinaryOp || ckind == slang::ast::ExpressionKind::NamedValue || ckind == slang::ast::ExpressionKind::UnaryOp || ckind == slang::ast::ExpressionKind::ElementSelect) {
-                            // TODO: NamedValue is a signal name, and it is not a binary expression, so we can reuse netVec or varVec
+                            // TODO: NamedValue is a signal name, and it is not a binary expression, so we can reuse netMap or varMap
 
                             cond.visitExprs(makeVisitor([&](auto &, const slang::ast::Expression &expr) {
                                 if (expr.kind != slang::ast::ExpressionKind::BinaryOp && expr.kind != slang::ast::ExpressionKind::NamedValue) {
@@ -280,9 +283,11 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                                     type = "elseif";
                                 }
 
+                                auto line = compilation->getSourceManager()->getLineNumber(expr.sourceRange.start()) - 2;
+                                INFO_PRINT("\t[{}] {}-Expression: {}, line: {}", count, toString(expr.kind), s, line);
+
                                 condInfoVec.emplace_back(depth, type, s);
-                                binExprVec.emplace_back(s);
-                                INFO_PRINT("\t[{}] {}-Expression: {}", count++, toString(expr.kind), s);
+                                binExprMap.emplace(s, SignalInfo{"", "", line});
                             }));
                         } else if (ckind == slang::ast::ExpressionKind::IntegerLiteral) {
                             // do nothing
@@ -294,7 +299,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                         depth--;
                     }
                 };
-                CondStmtVisitior condStmtVisitor(count, coverageInfo.binExprVec, binExprSet);
+                CondStmtVisitior condStmtVisitor(count, compilation, coverageInfo.binExprMap, binExprSet);
                 proc.visit(condStmtVisitor);
 
                 // TODO: Binary expression path finder
@@ -308,7 +313,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
 
             coverageInfo.statistic.netCount     = coverageInfo.netMap.size();
             coverageInfo.statistic.varCount     = coverageInfo.varMap.size();
-            coverageInfo.statistic.binExprCount = coverageInfo.binExprVec.size();
+            coverageInfo.statistic.binExprCount = coverageInfo.binExprMap.size();
         } else {
             visitDefault(syntax);
         }

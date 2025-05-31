@@ -22,6 +22,7 @@ struct CoverageInfoWritter : public slang::syntax::SyntaxRewriter<CoverageInfoWr
             std::vector<std::string> infoVec = {"\n\n`ifndef NO_COVERAGE", "bit _COV_EN = 1;"};
             std::vector<std::string> allCoverSignalVec;
             std::vector<std::string> allBinExprCntSignalVec;
+            std::vector<size_t> allBinExprLineVec;
 
             auto beforeInsertInfo = [&]() {
                 cntDecls.clear();
@@ -119,7 +120,10 @@ end
             insertInfo();
 
             beforeInsertInfo();
-            for (const auto &binExpr : coverageInfo.binExprVec) {
+            for (const auto &pair : coverageInfo.binExprMap) {
+                auto &binExpr = pair.first;
+                auto &info    = pair.second;
+
                 auto binExprUniqueId = getUniqueBinExprId();
                 auto cntSignal       = fmt::format("_{}__COV_BIN_EXPR_CNT", binExprUniqueId);
 
@@ -130,6 +134,7 @@ end
                 tgtSignals.emplace_back(std::to_string(binExprUniqueId));
                 allCoverSignalVec.emplace_back(cntSignal);
                 allBinExprCntSignalVec.emplace_back(cntSignal);
+                allBinExprLineVec.emplace_back(info.line);
                 binExprUniqueId++;
             }
             insertInfoForBinExpr();
@@ -214,7 +219,7 @@ export "DPI-C" function getCondCoverage;
 )",
                 fmt::to_string(fmt::join(coverageInfo.hierPaths, "\n    ")),
                 wrappedBinExprCntVec.size() == 0 ? "1" : fmt::to_string(fmt::join(wrappedBinExprCntVec, " + ")),
-                coverageInfo.binExprVec.size() == 0 ? "1" : fmt::to_string(coverageInfo.binExprVec.size())
+                coverageInfo.binExprMap.size() == 0 ? "1" : fmt::to_string(coverageInfo.binExprMap.size())
             ));
             // clang-format on
 
@@ -234,8 +239,51 @@ export "DPI-C" function resetCoverage;
             ));
             // clang-format on
 
+            struct CovEntry {
+                int line;
+                std::string display_str;
+            };
+            std::vector<CovEntry> covEntries;
+            for (const auto &pair : coverageInfo.netMap) {
+                const auto &net  = pair.first;
+                const auto &info = pair.second;
+                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Net`\\t%s\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, net)});
+            }
+            for (const auto &pair : coverageInfo.varMap) {
+                const auto &var  = pair.first;
+                const auto &info = pair.second;
+                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Var`\\t%s\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, var)});
+            }
+            for (int i = 0; i < allBinExprLineVec.size(); i++) {
+                covEntries.emplace_back(CovEntry{allBinExprLineVec[i], fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`BinExpr`\\t%s\", _{2}__COV_BIN_EXPR_CNT, _{2}__COV_BIN_EXPR_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, allBinExprLineVec[i], tgtSignals[i])});
+            }
+            // Sort by linenumber
+            std::sort(covEntries.begin(), covEntries.end(), [](const CovEntry &a, const CovEntry &b) { return a.line < b.line; });
+            std::vector<std::string> showCovVec;
+            for (const auto &entry : covEntries) {
+                showCovVec.emplace_back(entry.display_str);
+            }
+
+            // clang-format off
+            infoVec.push_back(fmt::format(R"(
+function void showCoverageCount();
+$display("// ----------------------------------------");
+$display("// Show Coverage Count[{}]");
+$display("// ----------------------------------------");
+$display("| Module | Line | Count | SignalType | Status |");
+{}
+$display("| Module | Line | Count | SignalType | Status |");
+$display("");
+endfunction
+
+export "DPI-C" function showCoverageCount;
+)",
+                coverageInfo.moduleName,
+                fmt::to_string(fmt::join(showCovVec, "\n"))
+            ));
+            // clang-format on
+
             // TODO: Get IO coverage, consider full toggle?
-            // TODO: Other coverage info functions(e.g. show covered, show missed, which line is covered)
 
             // clang-format off
             infoVec.push_back(fmt::format(R"(
