@@ -928,4 +928,63 @@ function utils.matrix_call(func_table)
     generate_combinations(1, {})
 end
 
+--- Execute a function after a specified number of calls
+---@param count number The number of calls to wait before executing the function
+---@param func fun(): any? The function to execute
+---@param options? { _repeat?: boolean, times?: number } If `options._repeat` is `true`, the function will be executed after every `count` calls
+---@return fun(): any?
+function utils.execute_after(count, func, options)
+    local _count = 0
+    local _target_count = count
+
+    local _finish = false
+
+    local _repeat = options and options._repeat or false
+
+    local _times = options and options.times or nil
+    local _times_count = 0
+
+    if _repeat then
+        return function ()
+            _count = _count + 1
+            if _count >= _target_count then
+                _count = 0
+                return func()
+            end
+        end
+    elseif _times then
+        return function ()
+            if _finish then
+                return
+            end
+
+            _count = _count + 1
+
+            if _count >= _target_count then
+                _count = 0
+
+                _times_count = _times_count + 1
+                if _times_count >= _times then
+                    _finish = true
+                end
+
+                return func()
+            end
+        end
+    else
+        return function ()
+            if _finish then
+                return
+            end
+
+            _count = _count + 1
+
+            if _count >= _target_count then
+                _finish = true
+                return func()
+            end
+        end
+    end
+end
+
 return utils
