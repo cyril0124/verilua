@@ -511,7 +511,7 @@ do
 ---@field negedge_until fun(str: string, max_limit?: number, fun?: fun(i: number)): boolean
 ---@field bdl fun(str: string, params: string.bdl.params): Bundle
 ---@field abdl fun(str: string, params_table: string.bdl.params): AliasBundle
----@field ehdl fun(this: string, event_id_integer: integer): EventHandle
+---@field ehdl fun(this: string, event_id_integer?: integer): EventHandle
 ---@field auto_bundle fun(str: string, params_table: SignalDB.auto_bundle.params): Bundle
 ---@field tcc_compile fun(str: string, sym_ptr_tbls: string.tcc_compile.sym_ptr_tbl[]): table<any>
 ---@field enum_define fun(name: string, enum_table: table<any>): table<any>

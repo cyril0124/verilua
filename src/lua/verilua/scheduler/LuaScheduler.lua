@@ -51,8 +51,8 @@ local SchedulerMode = _G.SchedulerMode
 --- @field schedule_posedge_tasks fun(self: LuaScheduler)|nil Schedules positive edge tasks (available only when EDGE_STEP is enabled)
 --- @field schedule_negedge_tasks fun(self: LuaScheduler)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
 --- @field list_tasks fun(self: LuaScheduler) Lists all tasks
---- @field new_event_hdl fun(self: LuaScheduler, event_name: string, user_event_id: EventID): EventHandle Creates a new event handle
---- @field get_event_hdl fun(self: LuaScheduler, event_name: string, user_event_id: EventID): EventHandle Alias for new_event_hdl
+--- @field new_event_hdl fun(self: LuaScheduler, event_name: string, user_event_id?: EventID): EventHandle Creates a new event handle
+--- @field get_event_hdl fun(self: LuaScheduler, event_name: string, user_event_id?: EventID): EventHandle Alias for new_event_hdl
 --- @field send_event fun(self: LuaScheduler, event_id: EventID) Sends an event
 
 local scheduler
