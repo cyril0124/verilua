@@ -47,6 +47,16 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                     auto handleId            = getUniqueHandleId();
                     auto isWritable          = cpattern.checkWritableSignal(net.name);
                     auto isUnique            = checkUniqueSignal(hierPathFull);
+                    auto isSensitive         = cpattern.checkSensitiveSignal(net.name);
+                    auto signalInfo          = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiNet", bitWidth, handleId, isWritable);
+
+                    if (isSensitive && isUnique) {
+                        ASSERT(bitWidth == 1, "TODO: bitWidth != 1", hierPathFull);
+                        signalGroup.sensitiveSignalInfoVec.push_back(signalInfo);
+                        if (!Config::getInstance().quietEnabled) {
+                            fmt::println("\t<NET_SENSITIVE>: name: {}, width: {}, hierPath: {}, modulePath: {}, signalName: {}, handleId: {}, isWritable: {}", net.name, bitWidth, hierPathFull, hierPathPair.first, hierPathPair.second, handleId, isWritable);
+                        }
+                    }
 
                     ASSERT(!isWritable, "NET should not be mark as writable", hierPathFull);
 
@@ -55,7 +65,6 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                             fmt::println("\t<NET>: name: {}, width: {}, hierPath: {}, modulePath: {}, signalName: {}, handleId: {}, isWritable: {}", net.name, bitWidth, hierPathFull, hierPathPair.first, hierPathPair.second, handleId, isWritable);
                         }
 
-                        auto signalInfo = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiNet", bitWidth, handleId, isWritable);
                         signalGroup.signalInfoVec.push_back(signalInfo);
                     } else {
                         if (!Config::getInstance().quietEnabled) {
@@ -80,13 +89,22 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                     auto isWritable          = cpattern.checkWritableSignal(var.name);
                     auto isUnique            = checkUniqueSignal(hierPathFull);
                     auto writableNotUnique   = !isUnique && isWritable;
+                    auto isSensitive         = cpattern.checkSensitiveSignal(var.name);
+                    auto signalInfo          = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiReg", bitWidth, handleId, isWritable);
+
+                    if (isSensitive && isUnique) {
+                        ASSERT(bitWidth == 1, "TODO: bitWidth != 1", hierPathFull);
+                        signalGroup.sensitiveSignalInfoVec.push_back(signalInfo);
+                        if (!Config::getInstance().quietEnabled) {
+                            fmt::println("\t<VAR_SENSITIVE>: name: {}, width: {}, hierPath: {}, modulePath: {}, signalName: {}, handleId: {}, isWritable: {}", var.name, bitWidth, hierPathFull, hierPathPair.first, hierPathPair.second, handleId, isWritable);
+                        }
+                    }
 
                     if (isUnique || writableNotUnique) {
                         if (!Config::getInstance().quietEnabled) {
                             fmt::println("\t<VAR>: name: {}, width: {}, hierPath: {}, modulePath: {}, signalName: {}, handleId: {}, isWritable: {}", var.name, bitWidth, hierPathFull, hierPathPair.first, hierPathPair.second, handleId, isWritable);
                         }
 
-                        auto signalInfo = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiReg", bitWidth, handleId, isWritable);
                         signalGroup.signalInfoVec.push_back(signalInfo);
 
                         if (writableNotUnique) {

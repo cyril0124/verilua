@@ -135,6 +135,21 @@ struct ConciseSignalPattern {
 
         return false;
     }
+
+    bool checkSensitiveSignal(std::string_view signal) { return checkSensitiveSignal(std::string(signal)); }
+
+    bool checkSensitiveSignal(std::string signal) {
+        if (sensitiveSignals.empty()) {
+            return false;
+        }
+
+        std::regex signalPattern(sensitiveSignals);
+        if (std::regex_match(signal, signalPattern)) {
+            return true;
+        }
+
+        return false;
+    }
 };
 
 struct SignalInfo {
@@ -165,6 +180,7 @@ struct SignalGroup {
     std::string moduleName;
     ConciseSignalPattern cpattern;
     std::vector<SignalInfo> signalInfoVec;
+    std::vector<SignalInfo> sensitiveSignalInfoVec;
 };
 
 inline uint64_t getUniqueHandleId() {

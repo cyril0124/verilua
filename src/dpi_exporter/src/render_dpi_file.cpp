@@ -169,6 +169,9 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
     verilua_main_step_safe();
 #endif // DPI_EXP_CALL_VERILUA_ENV_STEP
 }
+
+{{sDpiTickFuncContent}}
+
 ## endif
 )";
 }
@@ -189,6 +192,17 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string 
     std::vector<std::string> dpiSignalBlockVec;
     std::vector<std::string> dpiTickFuncParamVec;
     std::vector<std::string> dpiTickFuncBodyVec;
+
+    std::unordered_map<std::string, std::vector<std::string>> sDpiTickFuncParamMap;
+    std::unordered_map<std::string, std::vector<std::string>> sDpiTickFuncBodyMap;
+
+    for (auto &sg : signalGroupVec) {
+        if (sg.sensitiveSignalInfoVec.empty()) {
+            continue;
+        }
+        sDpiTickFuncParamMap[sg.name] = {};
+        sDpiTickFuncBodyMap[sg.name]  = {};
+    }
 
     for (auto &sg : signalGroupVec) {
         for (auto &s : sg.signalInfoVec) {
@@ -211,40 +225,48 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string 
                 setValueHexStrVec.push_back(fmt::format("\t\t{{ {}, VERILUA_DPI_EXPORTER_{}_SET_HEX_STR }} {}", s.handleId, s.hierPathName, extraInfo));
             }
 
-            if (s.bitWidth == 1) {
-                if (s.isWritable) {
-                    dpiTickFuncParamVec.push_back(fmt::format("uint8_t *{}", s.hierPathName));
-                } else {
-                    dpiTickFuncParamVec.push_back(fmt::format("const uint8_t {}", s.hierPathName));
-                }
-            } else {
-                if (s.isWritable) {
-                    dpiTickFuncParamVec.push_back(fmt::format("uint32_t *{}", s.hierPathName));
-                } else {
-                    dpiTickFuncParamVec.push_back(fmt::format("const uint32_t *{}", s.hierPathName));
-                }
-            }
-
-            if (s.beatSize == 1) {
+            static auto insertInfo = [](std::vector<std::string> &paramVec, std::vector<std::string> &bodyVec, SignalInfo &s) {
                 if (s.bitWidth == 1) {
                     if (s.isWritable) {
-                        dpiTickFuncBodyVec.push_back(fmt::format("\t*{} = __{};", s.hierPathName, s.hierPathName));
+                        paramVec.push_back(fmt::format("uint8_t *{}", s.hierPathName));
                     } else {
-                        dpiTickFuncBodyVec.push_back(fmt::format("\t__{} = {};", s.hierPathName, s.hierPathName));
+                        paramVec.push_back(fmt::format("const uint8_t {}", s.hierPathName));
                     }
                 } else {
                     if (s.isWritable) {
-                        dpiTickFuncBodyVec.push_back(fmt::format("\t*{} = __{};", s.hierPathName, s.hierPathName));
+                        paramVec.push_back(fmt::format("uint32_t *{}", s.hierPathName));
                     } else {
-                        dpiTickFuncBodyVec.push_back(fmt::format("\t__{} = *{};", s.hierPathName, s.hierPathName));
+                        paramVec.push_back(fmt::format("const uint32_t *{}", s.hierPathName));
                     }
                 }
-            } else {
-                if (s.isWritable) {
-                    dpiTickFuncBodyVec.push_back(fmt::format("\tstd::copy(__{0}, __{0} + {1}, {0});", s.hierPathName, s.beatSize));
+
+                if (s.beatSize == 1) {
+                    if (s.bitWidth == 1) {
+                        if (s.isWritable) {
+                            bodyVec.push_back(fmt::format("\t*{} = __{};", s.hierPathName, s.hierPathName));
+                        } else {
+                            bodyVec.push_back(fmt::format("\t__{} = {};", s.hierPathName, s.hierPathName));
+                        }
+                    } else {
+                        if (s.isWritable) {
+                            bodyVec.push_back(fmt::format("\t*{} = __{};", s.hierPathName, s.hierPathName));
+                        } else {
+                            bodyVec.push_back(fmt::format("\t__{} = *{};", s.hierPathName, s.hierPathName));
+                        }
+                    }
                 } else {
-                    dpiTickFuncBodyVec.push_back(fmt::format("\tstd::copy({0}, {0} + {1}, __{0});", s.hierPathName, s.beatSize));
+                    if (s.isWritable) {
+                        bodyVec.push_back(fmt::format("\tstd::copy(__{0}, __{0} + {1}, {0});", s.hierPathName, s.beatSize));
+                    } else {
+                        bodyVec.push_back(fmt::format("\tstd::copy({0}, {0} + {1}, __{0});", s.hierPathName, s.beatSize));
+                    }
                 }
+            };
+
+            if (sg.sensitiveSignalInfoVec.empty()) {
+                insertInfo(dpiTickFuncParamVec, dpiTickFuncBodyVec, s);
+            } else {
+                insertInfo(sDpiTickFuncParamMap[sg.name], sDpiTickFuncBodyMap[sg.name], s);
             }
         }
 
@@ -461,6 +483,17 @@ extern "C" void VERILUA_DPI_EXPORTER_{0}_SET_HEX_STR(char *hexStr) {{
     j["setValueHexStr"]     = fmt::to_string(fmt::join(setValueHexStrVec, ",\n"));
     j["dpiTickFuncParam"]   = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));
     j["dpiTickFuncBody"]    = fmt::to_string(fmt::join(dpiTickFuncBodyVec, "\n"));
+
+    std::string sDpiTickFuncContent = "";
+    for (auto &pair : sDpiTickFuncParamMap) {
+        sDpiTickFuncContent += fmt::format(R"(
+extern "C" void dpi_exporter_tick_{0}({1}) {{
+{2}
+}}
+)",
+                                           pair.first, fmt::to_string(fmt::join(pair.second, ", ")), fmt::to_string(fmt::join(sDpiTickFuncBodyMap[pair.first], "\n")));
+    }
+    j["sDpiTickFuncContent"] = sDpiTickFuncContent;
 
     return inja::render(getDpiFileTemplate(), j);
 }

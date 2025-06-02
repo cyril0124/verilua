@@ -157,7 +157,7 @@ end
             std::string signals          = patternData["signals"].get<std::string>();
             std::string writableSignals  = patternData["writable_signals"].get<std::string>();
             std::string disableSignals   = patternData["disable_signals"].get<std::string>();
-            std::string sensitiveSignals = patternData["sensitive_signals"].get<std::string>(); // TODO:
+            std::string sensitiveSignals = patternData["sensitive_signals"].get<std::string>();
 
             if (!quiet) {
                 fmt::println("[dpi_exporter] get pattern:");
@@ -315,9 +315,26 @@ end
         }
         fmt::println("");
 
+        std::vector<SignalGroup> mergedSignalGroupVec;
+        mergedSignalGroupVec.emplace_back(SignalGroup{
+            .name                   = "DEFAULT",
+            .moduleName             = "",
+            .cpattern               = "",
+            .signalInfoVec          = {},
+            .sensitiveSignalInfoVec = {},
+        });
+
+        for (auto &sg : signalGroupVec) {
+            if (sg.sensitiveSignalInfoVec.empty()) {
+                mergedSignalGroupVec.at(0).signalInfoVec.insert(mergedSignalGroupVec.at(0).signalInfoVec.end(), sg.signalInfoVec.begin(), sg.signalInfoVec.end());
+            } else {
+                mergedSignalGroupVec.emplace_back(sg);
+            }
+        }
+
         // Rewrite the syntax tree(insert `dpi_exporter_tick` function into the top module)
         if (!distributeDPI) {
-            auto rewriter = ExporterRewriter(insertModuleName.value_or(topModuleName), sampleEdge, topModuleName, topClock, signalGroupVec);
+            auto rewriter = ExporterRewriter(insertModuleName.value_or(topModuleName), sampleEdge, topModuleName, topClock, mergedSignalGroupVec);
             auto newTree  = rewriter.transform(tree);
 
             fmt::println("[dpi_exporter] start rebuilding syntax tree");
@@ -331,7 +348,7 @@ end
             ASSERT(false, "TODO: distributeDPI is not supported yet!");
         }
 
-        std::string dpiFileContent = renderDpiFile(signalGroupVec, topModuleName, distributeDPI, metaInfoFilePath);
+        std::string dpiFileContent = renderDpiFile(mergedSignalGroupVec, topModuleName, distributeDPI, metaInfoFilePath);
 
         {
             fmt::println("[dpi_exporter] start generating dpi file, outdir: {}, dpiFilePath: {}", outdir, dpiFilePath);
