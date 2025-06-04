@@ -419,9 +419,14 @@ target("install_luajit")
 
         os.addenvs({PATH = luajit_dir .. "/bin"})
 
-        execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
+        -- execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
+        -- execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
+        -- os.cd("luarocks-" .. luarocks_version)
+
+        -- TODO: luarocks with LuaJIT failed due to this issue: https://github.com/luarocks/luarocks/issues/1797, consider change to other version of luarocks after this issue is fixed.
+        execute("wget -P %s -O luarocks-%s.tar.gz https://github.com/luarocks/luarocks/archive/418d2ab.tar.gz", luajit_pro_dir, luarocks_version)
         execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
-        os.cd("luarocks-" .. luarocks_version)
+        os.cd("luarocks-418d2ab34891b130cc317df32f65f978640febcf")
 
         execute("make clean")
         execute("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
@@ -489,7 +494,8 @@ target("install_lua_modules")
             "penlight",
             "luasocket",
             "lsqlite3",
-            "linenoise", 
+            "linenoise",
+            "argparse", -- Used by teal-language
         }
 
         os.addenvs({PATH = luajit_dir .. "/bin"})
