@@ -17,6 +17,7 @@ export LUA_LIB_NAME=luajit-5.1
 export LUA_LINK=shared
 
 export LUA_PATH="\
+./?.lua;\
 $VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?.lua;\
 $VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?/init.lua;\
 $VERILUA_HOME/luajit-pro/luajit2.1/share/luajit-2.1/?.lua;\
