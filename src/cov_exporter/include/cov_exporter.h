@@ -74,6 +74,7 @@ struct SignalInfo {
     std::string type;
     std::string typeStr;
     size_t line;
+    std::string file;
 };
 
 struct CoverageInfo {

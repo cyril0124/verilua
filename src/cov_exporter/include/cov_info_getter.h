@@ -49,8 +49,10 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
 
             auto netIter = inst->body.membersOfType<slang::ast::NetSymbol>();
             for (const auto &net : netIter) {
-                auto line = compilation->getSourceManager()->getLineNumber(net.location) - 2;
-                INFO_PRINT("\t[{}] NetSymbol: {}, line: {}, type: <{}, {}>", count++, net.name, line, toString(net.getType().kind), net.getType().toString());
+                auto line              = compilation->getSourceManager()->getLineNumber(net.location) - 2;
+                auto fileWithBakSuffix = std::filesystem::absolute(compilation->getSourceManager()->getFileName(net.location)).string();
+                auto file              = fileWithBakSuffix.substr(0, fileWithBakSuffix.size() - 4); // Remove `.bak` suffix
+                INFO_PRINT("\t[{}] NetSymbol: {}, type: <{}, {}>, source: {}:{}", count++, net.name, toString(net.getType().kind), net.getType().toString(), file, line);
 
                 if (!findClockSignal && net.name == moduleOption.clockName) {
                     findClockSignal = true;
@@ -168,15 +170,17 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
 
                 // TODO: wire a = c | d; ??
 
-                coverageInfo.netMap.emplace(net.name, SignalInfo{std::string(toString(net.getType().kind)), std::string(net.getType().toString()), line});
+                coverageInfo.netMap.emplace(net.name, SignalInfo{std::string(toString(net.getType().kind)), std::string(net.getType().toString()), line, file});
             }
 
             count = 0;
 
             auto varIter = inst->body.membersOfType<slang::ast::VariableSymbol>();
             for (const auto &var : varIter) {
-                auto line = compilation->getSourceManager()->getLineNumber(var.location) - 2;
-                INFO_PRINT("\t[{}] VariableSymbol: {}, line: {}, type: <{}, {}>", count++, var.name, line, toString(var.getType().kind), var.getType().toString());
+                auto line              = compilation->getSourceManager()->getLineNumber(var.location) - 2;
+                auto fileWithBakSuffix = std::filesystem::absolute(compilation->getSourceManager()->getFileName(var.location)).string();
+                auto file              = fileWithBakSuffix.substr(0, fileWithBakSuffix.size() - 4); // Remove `.bak` suffix
+                INFO_PRINT("\t[{}] VariableSymbol: {}, type: <{}, {}>, source: {}:{}", count++, var.name, toString(var.getType().kind), var.getType().toString(), file, line);
 
                 if (!findClockSignal && var.name == moduleOption.clockName) {
                     findClockSignal = true;
@@ -196,7 +200,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                     continue;
                 }
 
-                coverageInfo.varMap.emplace(var.name, SignalInfo{std::string(toString(var.getType().kind)), std::string(var.getType().toString()), line});
+                coverageInfo.varMap.emplace(var.name, SignalInfo{std::string(toString(var.getType().kind)), std::string(var.getType().toString()), line, file});
             }
 
             // TODO: Optimize some simple expr? (e.g. assign a = c & d;)
@@ -283,11 +287,13 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                                     type = "elseif";
                                 }
 
-                                auto line = compilation->getSourceManager()->getLineNumber(expr.sourceRange.start()) - 2;
-                                INFO_PRINT("\t[{}] {}-Expression: {}, line: {}", count, toString(expr.kind), s, line);
+                                auto line              = compilation->getSourceManager()->getLineNumber(expr.sourceRange.start()) - 2;
+                                auto fileWithBakSuffix = std::filesystem::absolute(compilation->getSourceManager()->getFileName(expr.sourceRange.start())).string();
+                                auto file              = fileWithBakSuffix.substr(0, fileWithBakSuffix.size() - 4); // Remove `.bak` suffix
+                                INFO_PRINT("\t[{}] {}-Expression: {}, source: {}:{}", count, toString(expr.kind), s, file, line);
 
                                 condInfoVec.emplace_back(depth, type, s);
-                                binExprMap.emplace(s, SignalInfo{"", "", line});
+                                binExprMap.emplace(s, SignalInfo{"", "", line, file});
                             }));
                         } else if (ckind == slang::ast::ExpressionKind::IntegerLiteral) {
                             // do nothing

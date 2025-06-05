@@ -23,6 +23,7 @@ struct CoverageInfoWritter : public slang::syntax::SyntaxRewriter<CoverageInfoWr
             std::vector<std::string> allCoverSignalVec;
             std::vector<std::string> allBinExprCntSignalVec;
             std::vector<size_t> allBinExprLineVec;
+            std::vector<std::string> allBinExprFileVec;
 
             auto beforeInsertInfo = [&]() {
                 cntDecls.clear();
@@ -135,6 +136,7 @@ end
                 allCoverSignalVec.emplace_back(cntSignal);
                 allBinExprCntSignalVec.emplace_back(cntSignal);
                 allBinExprLineVec.emplace_back(info.line);
+                allBinExprFileVec.emplace_back(info.file);
                 binExprUniqueId++;
             }
             insertInfoForBinExpr();
@@ -247,15 +249,15 @@ export "DPI-C" function resetCoverage;
             for (const auto &pair : coverageInfo.netMap) {
                 const auto &net  = pair.first;
                 const auto &info = pair.second;
-                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Net`\\t%s\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, net)});
+                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Net`\\t%s\t{3}:{1}\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, net, info.file)});
             }
             for (const auto &pair : coverageInfo.varMap) {
                 const auto &var  = pair.first;
                 const auto &info = pair.second;
-                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Var`\\t%s\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, var)});
+                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Var`\\t%s\t{3}:{1}\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, var, info.file)});
             }
             for (int i = 0; i < allBinExprLineVec.size(); i++) {
-                covEntries.emplace_back(CovEntry{allBinExprLineVec[i], fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`BinExpr`\\t%s\", _{2}__COV_BIN_EXPR_CNT, _{2}__COV_BIN_EXPR_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, allBinExprLineVec[i], tgtSignals[i])});
+                covEntries.emplace_back(CovEntry{allBinExprLineVec[i], fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`BinExpr`\\t%s\t{3}:{1}\", _{2}__COV_BIN_EXPR_CNT, _{2}__COV_BIN_EXPR_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, allBinExprLineVec[i], tgtSignals[i], allBinExprFileVec[i])});
             }
             // Sort by linenumber
             std::sort(covEntries.begin(), covEntries.end(), [](const CovEntry &a, const CovEntry &b) { return a.line < b.line; });
@@ -270,9 +272,9 @@ function void showCoverageCount();
 $display("// ----------------------------------------");
 $display("// Show Coverage Count[{}]");
 $display("// ----------------------------------------");
-$display("| Module | Line | Count | SignalType | Status |");
+$display("| Module | Line | Count | SignalType | Status | Source |");
 {}
-$display("| Module | Line | Count | SignalType | Status |");
+$display("| Module | Line | Count | SignalType | Status | Source |");
 $display("");
 endfunction
 
