@@ -1,6 +1,7 @@
 local SymbolHelper
 local ffi = require "ffi"
 local utils = require "LuaUtils"
+local table_new = require "table.new"
 
 local C = ffi.C
 local f = string.format
@@ -117,6 +118,7 @@ end
 ---@field get_total_bin_expr_count fun(self: CoverageGetter, hier: string): number
 ---@field reset_coverage fun(self: CoverageGetter, hier_or_module: string, recursive?: boolean)
 ---@field show_coverage_count fun(self: CoverageGetter, hier: string)
+---@field module_name_to_hiers fun(self: CoverageGetter, module_name: string): string[]
 local CoverageGetter = {
     coverage_value = ffi.new("double[1]"),
     total_count = ffi.new("int[1]"),
@@ -521,6 +523,26 @@ end
 function CoverageGetter:show_coverage_count(hier)
     self.setDpiScope(hier)
     self.showCoverageCount()
+end
+
+---@param module_name string Module name
+---@return string[] Hierarchical paths of the target module
+function CoverageGetter:module_name_to_hiers(module_name)
+    if not self.cov_meta_info then
+        self:read_cov_meta_info()
+    end
+
+    local _hierPaths = self.cov_meta_info.exportedModules[module_name].hierPaths
+    if not _hierPaths then
+        assert(false, "[CoverageGetter] Failed to get hier paths from module name: " .. module_name)
+    end
+
+    local hierPaths = table_new(#_hierPaths, 0)
+    for i = 1, #_hierPaths do
+        hierPaths[i] = _hierPaths[i]
+    end
+
+    return hierPaths
 end
 
 return CoverageGetter
