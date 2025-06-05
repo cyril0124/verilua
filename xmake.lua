@@ -406,34 +406,41 @@ target("install_luajit")
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
         local luarocks_version = "3.11.1"
 
+        -- Remove existing luajit-pro directory
         execute("rm -rf " .. luajit_pro_dir)
-
         execute("git clone https://github.com/cyril0124/luajit-pro.git " .. luajit_pro_dir)
 
-        -- build luajit_pro_helper
+        -- Build luajit_pro_helper
         os.cd(luajit_pro_dir)
         execute("cargo build --release")
 
+        -- Build luajit
         execute("bash init.sh")
         os.trycp(luajit_dir .. "/bin/luajit", luajit_dir .. "/bin/lua")
 
+        -- Add luajit to PATH
         os.addenvs({PATH = luajit_dir .. "/bin"})
 
-        -- execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
-        -- execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
-        -- os.cd("luarocks-" .. luarocks_version)
+        -- Build luarocks
+        do
+            os.cd(build_dir)
 
-        -- TODO: luarocks with LuaJIT failed due to this issue: https://github.com/luarocks/luarocks/issues/1797, consider change to other version of luarocks after this issue is fixed.
-        execute("wget -P %s -O luarocks-%s.tar.gz https://github.com/luarocks/luarocks/archive/418d2ab.tar.gz", luajit_pro_dir, luarocks_version)
-        execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
-        os.cd("luarocks-418d2ab34891b130cc317df32f65f978640febcf")
+            -- execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
+            -- execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
+            -- os.cd("luarocks-" .. luarocks_version)
 
-        execute("make clean")
-        execute("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
-        execute("make")
-        execute("make install")
+            -- TODO: luarocks with LuaJIT failed due to this issue: https://github.com/luarocks/luarocks/issues/1797, consider change to other version of luarocks after this issue is fixed.
+            execute("wget -P %s -O luarocks-%s.tar.gz https://github.com/luarocks/luarocks/archive/418d2ab.tar.gz", luajit_pro_dir, luarocks_version)
+            execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
+            os.cd("luarocks-418d2ab34891b130cc317df32f65f978640febcf")
 
-        -- build luajit_pro_helper
+            execute("make clean")
+            execute("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
+            execute("make")
+            execute("make install")
+        end
+
+        -- Rebuild luajit_pro_helper
         os.cd(luajit_pro_dir)
         execute("cargo build --release")
 
