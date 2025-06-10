@@ -313,8 +313,9 @@ function Scheduler:schedule_negedge_tasks()
 end
 
 function Scheduler:list_tasks()
-	print("[scheduler list tasks]:")
-	print("-------------------------------------------------------------")
+	print("╔══════════════════════════════════════════════════════════════════════")
+	print("║ [Scheduler] List Tasks:")
+	print("╠══════════════════════════════════════════════════════════════════════")
 
 	local max_name_str_len = 0
 	for _, name in pairs(self.task_name_map_running) do
@@ -326,10 +327,10 @@ function Scheduler:list_tasks()
 
 	local idx = 0
 	for id, name in pairs(self.task_name_map_running) do
-		print(f("[%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id, self.task_execution_count_map[id]))
+		print(f("║ [%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id, self.task_execution_count_map[id]))
 		idx = idx + 1
 	end
-	print("-------------------------------------------------------------")
+	print("╚══════════════════════════════════════════════════════════════════════")
 	print()
 end
 

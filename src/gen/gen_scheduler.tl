@@ -554,8 +554,9 @@ function Scheduler:schedule_negedge_tasks()
 end
 
 function Scheduler:list_tasks()
-    print("[scheduler list tasks]:")
-    print("-------------------------------------------------------------")
+	print("╔══════════════════════════════════════════════════════════════════════")
+	print("║ [Scheduler] List Tasks:")
+	print("╠══════════════════════════════════════════════════════════════════════")
     if _G.ACC_TIME then
         local total_time: number = 0
         local max_key_str_len: integer = 0
@@ -600,7 +601,7 @@ function Scheduler:list_tasks()
         for _, key in ipairs(sorted_keys) do
             local time = self.acc_time_table[key]
             local percent = time / total_time * 100
-            local s = f("[%" .. max_key_str_len .. "s]   %5.2f ms   percent: %5.2f%%", key, time * 1000, percent)
+            local s = f("║ [%" .. max_key_str_len .. "s]   %5.2f ms   percent: %5.2f%%", key, time * 1000, percent)
             local len = #s
             table_insert(print_str_vec, s)
 
@@ -626,8 +627,8 @@ function Scheduler:list_tasks()
             idx = idx + 1
         end
         
-        print(f("total_time: %.2f s / %.2f ms", total_time, total_time * 1000))
-        print("-------------------------------------------------------------")
+        print(f("║ total_time: %.2f s / %.2f ms", total_time, total_time * 1000))
+        print("╠══════════════════════════════════════════════════════════════════════")
     end
 
     local max_name_str_len: integer = 0
@@ -640,10 +641,10 @@ function Scheduler:list_tasks()
 
     local idx = 0
     for id, name in pairs(self.task_name_map_running) do
-        print(f("[%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id, self.task_execution_count_map[id]))
+        print(f("║ [%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id, self.task_execution_count_map[id]))
         idx = idx + 1
     end
-    print("-------------------------------------------------------------")
+	print("╚══════════════════════════════════════════════════════════════════════")
     print()
 end
 

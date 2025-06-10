@@ -111,8 +111,7 @@ _G.enable_verilua_debug = enable_verilua_debug
 if enable_verilua_debug == true then
     _G.verilua_debug = function (...)
         io.write("\27[31m") -- RED
-        print(_G.debug_str("[VERILUA DEBUG]", ...))
-        io.write("\27[0m") -- RESET
+        print(_G.debug_str("[VERILUA DEBUG]", ...), "\27[0m")
         io.flush()
     end
 else
@@ -122,22 +121,19 @@ end
 
 _G.verilua_info = function (...)
     io.write("\27[36m") -- CYAN
-    print("[VERILUA INFO]", ...)
-    io.write("\27[0m") -- RESET
+    print("[VERILUA INFO]", ..., "\27[0m")
 end
 
 _G.verilua_warning = function (...)
     io.write("\27[33m") -- YELLOW
-    print("[VERILUA WARNING]", ...)
-    io.write("\27[0m") -- RESET
+    print("[VERILUA WARNING]", ..., "\27[0m")
     io.flush()
 end
 
 _G.verilua_error = function (...)
     local error_print = function(...)
         io.write("\27[31m") -- RED
-        print("[VERILUA ERROR]", ...)
-        io.write("\27[0m") -- RESET
+        print("[VERILUA ERROR]", ..., "\27[0m")
         io.flush()
     end
     assert(false, error_print(...))
@@ -160,8 +156,7 @@ ____   ____                .__ .__
                 \/                               \/ 
 ]]
     io.write("\27[36m") -- CYAN
-    print(hello)
-    io.write("\27[0m") -- RESET
+    print(hello, "\27[0m")
     io.flush()
 end
 
