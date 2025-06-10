@@ -404,7 +404,7 @@ target("install_luajit")
         local curr_dir = os.workingdir()
         local luajit_pro_dir = curr_dir .. "/luajit-pro"
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
-        local luarocks_version = "3.11.1"
+        local luarocks_version = "3.12.0"
 
         -- Remove existing luajit-pro directory
         execute("rm -rf " .. luajit_pro_dir)
@@ -425,14 +425,9 @@ target("install_luajit")
         do
             os.cd(build_dir)
 
-            -- execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
-            -- execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
-            -- os.cd("luarocks-" .. luarocks_version)
-
-            -- TODO: luarocks with LuaJIT failed due to this issue: https://github.com/luarocks/luarocks/issues/1797, consider change to other version of luarocks after this issue is fixed.
-            execute("wget -P %s -O luarocks-%s.tar.gz https://github.com/luarocks/luarocks/archive/418d2ab.tar.gz", luajit_pro_dir, luarocks_version)
+            execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
             execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
-            os.cd("luarocks-418d2ab34891b130cc317df32f65f978640febcf")
+            os.cd("luarocks-" .. luarocks_version)
 
             execute("make clean")
             execute("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
