@@ -117,7 +117,7 @@ end
 ---@field get_total_count fun(self: CoverageGetter, hier: string): number
 ---@field get_total_bin_expr_count fun(self: CoverageGetter, hier: string): number
 ---@field reset_coverage fun(self: CoverageGetter, hier_or_module: string, recursive?: boolean)
----@field show_coverage_count fun(self: CoverageGetter, hier: string)
+---@field show_coverage_count fun(self: CoverageGetter, hier_or_module: string)
 ---@field module_name_to_hiers fun(self: CoverageGetter, module_name: string): string[]
 local CoverageGetter = {
     coverage_value = ffi.new("double[1]"),
@@ -519,10 +519,28 @@ function CoverageGetter:reset_coverage(hier_or_module, recursive)
     end
 end
 
----@param hier string Hierarchical path of the target module
-function CoverageGetter:show_coverage_count(hier)
-    self.setDpiScope(hier)
-    self.showCoverageCount()
+---@param hier_or_module string Hierarchical path of the target module or module name
+function CoverageGetter:show_coverage_count(hier_or_module)
+    if hier_or_module:find("%.") then
+        -- Is hier path, because it contains "."
+        self.setDpiScope(hier_or_module)
+        self.showCoverageCount()
+    else
+        -- Is module name
+        if not self.cov_meta_info then
+            self:read_cov_meta_info()
+        end
+
+        local hier_paths = self.cov_meta_info.exportedModules[hier_or_module].hierPaths
+        if not hier_paths then
+            assert(false, "[CoverageGetter] Failed to get hier paths from module name: " .. hier_or_module)
+        end
+
+        for _, hier_path in ipairs(hier_paths) do
+            self.setDpiScope(hier_path)
+            self.showCoverageCount()
+        end
+    end
 end
 
 ---@param module_name string Module name
