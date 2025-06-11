@@ -56,9 +56,6 @@ local Scheduler = class()
 local SCHEDULER_TASK_ID_MIN_COROUTINE = 0
 local SCHEDULER_TASK_ID_MAX_COROUTINE = 99999
 
-local SCHEDULER_TASK_ID_MIN_FUNCTION = 100000
-local SCHEDULER_TASK_ID_MAX_FUNCTION = 199999
-
 local SCHEDULER_TASK_MAX_COUNT = 100000
 local SCHEDULER_MIN_EVENT_ID = 0
 local SCHEDULER_MAX_EVENT_ID = 999
@@ -104,19 +101,6 @@ function Scheduler:_alloc_coroutine_task_id()
 		cnt = cnt + 1
 		if cnt >= SCHEDULER_ALLOC_TASK_ID_MAX_CNT then
 			assert(false, "[Scheduler] Failed to allocate coroutine task id! too many attempts, maybe there are no available task id")
-		end
-	end
-	return id
-end
-
-function Scheduler:_alloc_function_task_id()
-	local id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
-	local cnt = 0
-	while self.task_name_map_archived[id] ~= nil do
-		id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
-		cnt = cnt + 1
-		if cnt >= SCHEDULER_ALLOC_TASK_ID_MAX_CNT then
-			assert(false, "[Scheduler] Failed to allocate function task id! too many attempts, maybe there are no available task id")
 		end
 	end
 	return id
@@ -252,17 +236,13 @@ function Scheduler:schedule_task(id)
 	local task_cnt = self.task_execution_count_map[id]
 	self.task_execution_count_map[id] = task_cnt + 1
 
-	local ok, cb_type_or_err, str_value, integer_value
-	do
-		ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id])
+	local ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id])
+	if not ok then
+		print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id], cb_type_or_err)))
+		io.flush()
 
-		if not ok then
-			print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id], cb_type_or_err)))
-			io.flush()
-
-			_G.verilua_get_error = true
-			assert(false)
-		end
+		_G.verilua_get_error = true
+		assert(false)
 	end
 
 	if cb_type_or_err == nil or cb_type_or_err == EarlyExit then

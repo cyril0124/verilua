@@ -1,4 +1,4 @@
---[[luajit-pro, teal, pretty, {NORMAL = 1, STEP = 0, EDGE_STEP = 0, ACC_TIME = 0, ENABLE_FUNC_TASK = 0, SAFETY = 0, VERBOSE = 0}]]
+--[[luajit-pro, teal, pretty, {NORMAL = 1, STEP = 0, EDGE_STEP = 0, ACC_TIME = 0, SAFETY = 0, VERBOSE = 0}]]
 
 if _G.NORMAL and _G.STEP and _G.EDGE_STEP then
     assert(false, "Should not have both NORMAL, STEP and EDGE_STEP")
@@ -72,8 +72,6 @@ end
 local record SchedulerClass
     -- Class member variables
     task_count: integer
-    task_function_map: {TaskID: FunctionTaskBody} -- only for `function` task
-    task_yield_info_map: {TaskID: CoroutineYieldInfo} -- only for `function` task
     task_coroutine_map: {TaskID: thread} -- only for `coroutine` task
     task_body_map: {TaskID: CoroutineTaskBody}
     task_name_map_running: {TaskID: string} -- This map holds all the running task names
@@ -99,7 +97,6 @@ local record SchedulerClass
     -- Private
     _is_coroutine_task: function(SchedulerClass, TaskID): boolean
     _alloc_coroutine_task_id: function(SchedulerClass): TaskID
-    _alloc_function_task_id: function(SchedulerClass): TaskID
     _remove_task: function(SchedulerClass, TaskID)
     _register_callback: function(SchedulerClass, TaskID, TaskCallbackType, string, integer)
 
@@ -128,10 +125,6 @@ local Scheduler: SchedulerClass = class()
 local SCHEDULER_TASK_ID_MIN_COROUTINE = 0
 local SCHEDULER_TASK_ID_MAX_COROUTINE = 99999
 
--- TaskID from 100000 to 199999 is reserved for function task
-local SCHEDULER_TASK_ID_MIN_FUNCTION = 100000
-local SCHEDULER_TASK_ID_MAX_FUNCTION = 199999
-
 local SCHEDULER_TASK_MAX_COUNT = 100000
 local SCHEDULER_MIN_EVENT_ID = 0
 local SCHEDULER_MAX_EVENT_ID = 999
@@ -141,11 +134,6 @@ local SCHEDULER_ALLOC_EVENT_ID_MAX_CNT = 999
 
 function Scheduler:_init()
     self.task_count = 0
-
-    if _G.ENABLE_FUNC_TASK then
-        self.task_function_map = {}
-        self.task_yield_info_map = {}
-    end
 
     self.task_coroutine_map = {}
     self.task_body_map = {}
@@ -193,19 +181,6 @@ function Scheduler:_alloc_coroutine_task_id(): TaskID
         cnt = cnt + 1
         if cnt >= SCHEDULER_ALLOC_TASK_ID_MAX_CNT then
             assert(false, "[Scheduler] Failed to allocate coroutine task id! too many attempts, maybe there are no available task id")
-        end
-    end
-    return id
-end
-
-function Scheduler:_alloc_function_task_id(): TaskID
-    local id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
-    local cnt = 0
-    while self.task_name_map_archived[id] ~= nil do
-        id = random(SCHEDULER_TASK_ID_MIN_FUNCTION, SCHEDULER_TASK_ID_MAX_FUNCTION)
-        cnt = cnt + 1
-        if cnt >= SCHEDULER_ALLOC_TASK_ID_MAX_CNT then
-            assert(false, "[Scheduler] Failed to allocate function task id! too many attempts, maybe there are no available task id")
         end
     end
     return id
@@ -365,59 +340,6 @@ function Scheduler:try_wakeup_task(id: TaskID)
     end
 end
 
-if _G.ENABLE_FUNC_TASK then
-    function Scheduler:append_function_task(id: TaskID, name: string, task_body: FunctionTaskBody, yield_task: CoroutineTaskBody, start_now: boolean): TaskID
-        if _G.NORMAL then
-            assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Normal Scheduler] Too many tasks!")
-        elseif _G.STEP then
-            assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Step Scheduler] Too many tasks!")
-        else
-            assert(false, "Unsupported scheduler type!")
-        end
-
-        if _G.SAFETY then
-            safety_assert(id is TaskID or id is nil, "[Scheduler] append_function_task: `Task ID` must be a number! but got " .. type(id) .. "!")
-            safety_assert(name is string, "[Scheduler] append_function_task: `Task name` must be a string! but got " .. type(name) .. "!")
-            safety_assert(task_body is FunctionTaskBody, "[Scheduler] append_function_task: `Task body` must be a function! but got " .. type(task_body) .. "!")
-            safety_assert(yield_task is CoroutineTaskBody, "[Scheduler] append_function_task: `yield_task` must be a function! but got " .. type(yield_task) .. "!")
-            safety_assert(start_now is boolean or start_now is nil, "[Scheduler] append_function_task: `start_now` must be a boolean! but got " .. type(start_now) .. "!")
-        end
-
-        local task_id: TaskID = id
-        if id then
-            if self:_is_coroutine_task(id) then
-                assert(false, "[Scheduler] Invalid function task id!")
-            end
-
-            if self:check_task_exists(id) then
-                local task_name = self.task_name_map_running[id]
-                assert(false, "[Scheduler] Task already exists! task_id: " .. id .. ", task_name: " .. task_name )
-            end
-        else
-            task_id = self:_alloc_function_task_id()
-        end
-
-        self.task_name_map_running[task_id] = name
-        self.task_fired_status_map[task_id] = false
-        self.task_function_map[task_id] = task_body
-        self.task_execution_count_map[task_id] = 0
-
-        local ok, yield_type, str_value, integer_value: boolean, integer, string, integer = coro_resume(coro_create(yield_task as function)) as (boolean, integer, string, integer)
-        assert(ok, "[Scheduler] append_function_task: failed to resume `yield_task`: " .. name)
-
-        self.task_yield_info_map[task_id] = {yield_type, str_value, integer_value}
-
-        self.task_count = self.task_count + 1
-
-        if _G.NORMAL and start_now then
-            self.task_fired_status_map[task_id] = true
-            self:schedule_task(task_id)
-        end
-
-        return task_id
-    end
-end
-
 function Scheduler:schedule_task(id: TaskID)
     for _, remove_id in ipairs(self.pending_removal_tasks) do
         self.task_name_map_running[remove_id] = nil
@@ -450,40 +372,13 @@ function Scheduler:schedule_task(id: TaskID)
         s = os_clock()
     end
 
-    local ok, cb_type_or_err, str_value, integer_value: boolean, TaskCallbackType, string, integer
-    if _G.ENABLE_FUNC_TASK then
-        if self:_is_coroutine_task(id) then
-            ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id]) as (boolean, TaskCallbackType, string, integer)
+    local ok, cb_type_or_err, str_value, integer_value: boolean, TaskCallbackType, string, integer  = coro_resume(self.task_coroutine_map[id]) as (boolean, TaskCallbackType, string, integer)
+    if not ok then
+        print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
+        io.flush()
 
-            if not ok then
-                print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
-                io.flush()
-
-                _G.verilua_get_error = true
-                assert(false)
-            end
-        else
-            local delete_task = self.task_function_map[id]()
-            
-            if delete_task == true then
-                cb_type_or_err = nil
-            else
-                local yield_info = self.task_yield_info_map[id]
-                cb_type_or_err = yield_info[1]
-                str_value = yield_info[2]
-                integer_value = yield_info[3]
-            end
-        end
-    else
-        ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id]) as (boolean, TaskCallbackType, string, integer)
-
-        if not ok then
-            print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
-            io.flush()
-
-            _G.verilua_get_error = true
-            assert(false)
-        end
+        _G.verilua_get_error = true
+        assert(false)
     end
 
     if cb_type_or_err == nil or cb_type_or_err == EarlyExit then
