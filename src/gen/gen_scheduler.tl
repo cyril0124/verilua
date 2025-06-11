@@ -64,6 +64,7 @@ local record EventHandle
     _scheduler: SchedulerClass
     name: string
     event_id: EventID
+    has_pending_wait: function(EventHandle): boolean
     wait: function(EventHandle)
     send: function(EventHandle)
 end
@@ -692,6 +693,7 @@ function Scheduler:new_event_hdl(name: string, user_event_id: EventID): EventHan
         _scheduler = self,
         name = name,
         event_id = event_id,
+        has_pending_wait = function (this: EventHandle): boolean return #self.event_task_id_list_map[this.event_id] > 0 end,
         wait = function (this: EventHandle) coro_yield(Event, "", this.event_id) end,
         send = function (this: EventHandle) this._scheduler:send_event(this.event_id) end
     }

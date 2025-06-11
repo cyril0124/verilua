@@ -12,6 +12,7 @@ local SchedulerMode = _G.SchedulerMode
 ---@field _scheduler LuaScheduler
 ---@field name string
 ---@field event_id EventID
+---@field has_pending_wait fun(self: EventHandle): boolean Check if there are pending tasks waiting for this event
 ---@field wait fun(self: EventHandle)
 ---@field send fun(self: EventHandle)
 

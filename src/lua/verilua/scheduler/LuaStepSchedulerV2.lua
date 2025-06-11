@@ -326,6 +326,9 @@ function Scheduler:new_event_hdl(name, user_event_id)
 		_scheduler = self,
 		name = name,
 		event_id = event_id,
+		has_pending_wait = function(this)
+			return #self.event_task_id_list_map[this.event_id] > 0
+		end,
 		wait = function(this)
 			coro_yield(Event, "", this.event_id)
 		end,
