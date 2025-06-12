@@ -1331,7 +1331,89 @@ do
             scheduler:append_task(nil, name, func, true) -- (<task_id>, <task_name>, <task_func>, <start_now>)
         end
     end
-    -- TODO: join?
+
+    ---@param one_task_table table<TaskName|number, TaskFunction>
+    ---@return EventHandle
+    _G.jfork = function (one_task_table)
+        local ehdl
+        local cnt = 0
+        assert(type(one_task_table) == "table")
+        for name, func in pairs(one_task_table) do
+            cnt = cnt + 1
+            assert(cnt == 1, "jfork only supports one task")
+
+            if type(name) == "number" then
+                name = ("unnamed_fork_task_%d"):format(unnamed_task_count)
+                unnamed_task_count = unnamed_task_count + 1
+            end
+
+            if enable_verilua_debug then
+                verilua_debug("[jfork] get task name => ", name)
+            end
+
+            ehdl = (name .. "__jfork_ehdl"):ehdl()
+            ehdl.__type = "EventHandleForJFork"
+            scheduler:append_task(nil, name, function()
+                func()
+                if ehdl:has_pending_wait() then
+                    ehdl:send()
+                else
+                    verilua_debug("[jfork] ehdl has no pending wait, task_name: " .. name)
+                end
+                ehdl:remove()
+            end, true) -- (<task_id>, <task_name>, <task_func>, <start_now>)
+        end
+        return ehdl
+    end
+
+    -- Join multiple `jfork` tasks(wait until all tasks finished)
+    -- This function will block current task until all `jfork` tasks finished
+    ---@param ehdl_tbl EventHandle|EventHandle[]
+    _G.join = function (ehdl_tbl)
+        assert(type(ehdl_tbl) == "table")
+        if ehdl_tbl.event_id then
+            ---@cast ehdl_tbl EventHandle
+            ehdl_tbl:wait()
+        else
+            ---@cast ehdl_tbl EventHandle[]
+            local expect_finished_cnt = 0
+            local already_finished_cnt = 0
+            local finished_ehdl_vec = {}
+            for _, ehdl in ipairs(ehdl_tbl) do
+                local e_type = type(ehdl)
+                if not(e_type == "table" and ehdl.__type == "EventHandleForJFork") then
+                    assert(false, "`join` only supports EventHandle created by `jfork`, got " .. e_type)
+                end
+
+                finished_ehdl_vec[ehdl.event_id] = false
+                table.insert(scheduler.event_task_id_list_map[ehdl.event_id], assert(scheduler.curr_task_id))
+                if not scheduler.event_name_map[ehdl.event_id] then
+                    already_finished_cnt = already_finished_cnt + 1
+                end
+            end
+            expect_finished_cnt = #ehdl_tbl
+
+            -- Update expect_finished_cnt
+            expect_finished_cnt = expect_finished_cnt - already_finished_cnt
+
+            local finished_cnt = 0
+            while true do
+                -- If all ehdl are already finished, return
+                if finished_cnt == expect_finished_cnt then
+                    break
+                end
+
+                ---@diagnostic disable-next-line: undefined-global
+                await_noop()
+
+                finished_cnt = finished_cnt + 1
+
+                local curr_wakeup_event_id = assert(scheduler.curr_wakeup_event_id)
+                assert(not finished_ehdl_vec[curr_wakeup_event_id])
+                finished_ehdl_vec[curr_wakeup_event_id] = true
+            end
+        end
+    end
 
     _G.initial = function (task_table)
         assert(type(task_table) == "table")

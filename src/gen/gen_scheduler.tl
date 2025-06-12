@@ -61,12 +61,14 @@ local type FunctionTaskBody = function(): boolean | nil
 local type CoroutineYieldInfo = {integer, string, integer}
 
 local record EventHandle
+    __type: string
     _scheduler: SchedulerClass
     name: string
     event_id: EventID
     has_pending_wait: function(EventHandle): boolean
     wait: function(EventHandle)
     send: function(EventHandle)
+    remove: function(EventHandle)
 end
 
 local record SchedulerClass
@@ -82,11 +84,13 @@ local record SchedulerClass
     user_removal_tasks: {TaskID}
     posedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
     negedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
+    curr_task_id: TaskID
 
     event_task_id_list_map: {EventID: {TaskID}}
     event_name_map: {EventID: string}
     has_wakeup_event: boolean
     pending_wakeup_event: {EventID}
+    curr_wakeup_event_id: EventID
 
     acc_time_table: {string: number}
 
@@ -372,7 +376,10 @@ function Scheduler:schedule_task(id: TaskID)
         s = os_clock()
     end
 
+    local old_curr_task_id = self.curr_task_id
+    self.curr_task_id = id
     local ok, cb_type_or_err, str_value, integer_value: boolean, TaskCallbackType, string, integer  = coro_resume(self.task_coroutine_map[id]) as (boolean, TaskCallbackType, string, integer)
+    self.curr_task_id = old_curr_task_id
     if not ok then
         print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
         io.flush()
@@ -401,10 +408,12 @@ function Scheduler:schedule_task(id: TaskID)
     if self.has_wakeup_event then
         self.has_wakeup_event = false
         for _, event_id in ipairs(self.pending_wakeup_event) do
+            self.curr_wakeup_event_id = event_id
             local wakeup_task_id_list = self.event_task_id_list_map[event_id]
             for _, wakeup_task_id in ipairs(wakeup_task_id_list) do
                 self:schedule_task(wakeup_task_id)
             end
+            self.curr_wakeup_event_id = nil
             table_clear(self.event_task_id_list_map[event_id])
         end
         table_clear(self.pending_wakeup_event)
@@ -585,12 +594,16 @@ function Scheduler:new_event_hdl(name: string, user_event_id: EventID): EventHan
     self.event_task_id_list_map[event_id] = {} -- task id comes from register_callback => (cb_type == Event)
 
     return {
+        __type = "EventHandle",
         _scheduler = self,
         name = name,
         event_id = event_id,
         has_pending_wait = function (this: EventHandle): boolean return #self.event_task_id_list_map[this.event_id] > 0 end,
         wait = function (this: EventHandle) coro_yield(Event, "", this.event_id) end,
-        send = function (this: EventHandle) this._scheduler:send_event(this.event_id) end
+        send = function (this: EventHandle) this._scheduler:send_event(this.event_id) end,
+        remove = function (this: EventHandle)
+            this._scheduler.event_name_map[this.event_id] = nil
+        end
     }
 end
 

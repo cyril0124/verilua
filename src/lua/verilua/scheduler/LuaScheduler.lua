@@ -9,12 +9,14 @@ local SchedulerMode = _G.SchedulerMode
 ---@alias CoroutineTaskBody fun()
 
 ---@class (exact) EventHandle
+---@field __type "EventHandle" | "EventHandleForJFork"
 ---@field _scheduler LuaScheduler
 ---@field name string
 ---@field event_id EventID
 ---@field has_pending_wait fun(self: EventHandle): boolean Check if there are pending tasks waiting for this event
 ---@field wait fun(self: EventHandle)
 ---@field send fun(self: EventHandle)
+---@field remove fun(self: EventHandle) Mark this EventHandle as removed
 
 --- @class (exact) LuaScheduler
 --- @field private task_count integer Number of tasks
@@ -30,8 +32,8 @@ local SchedulerMode = _G.SchedulerMode
 --- @field private user_removal_tasks table<TaskID> List of user specified task IDs to be removed
 --- @field private posedge_tasks table<TaskID, boolean>|nil Available only when EDGE_STEP is enabled)
 --- @field private negedge_tasks table<TaskID, boolean>|nil Available only when EDGE_STEP is enabled)
---- @field private event_task_id_list_map table<EventID, table<TaskID, any>> Map of event IDs to lists of task IDs
---- @field private event_name_map table<EventID, string> Map of event IDs to event names
+--- @field event_task_id_list_map table<EventID, TaskID[]> Map of event IDs to lists of task IDs
+--- @field event_name_map table<EventID, string> Map of event IDs to event names
 --- @field private has_wakeup_event boolean Indicates if there is a wakeup event
 --- @field private pending_wakeup_event table<EventID, any> List of pending wakeup event IDs
 --- @field private acc_time_table table<string, number> Accumulated time table
@@ -40,6 +42,8 @@ local SchedulerMode = _G.SchedulerMode
 --- @field private _alloc_function_task_id fun(self: LuaScheduler): TaskID Allocates a new function task ID
 --- @field private _remove_task fun(self: LuaScheduler, task_id: TaskID) Removes a task by ID
 --- @field private _register_callback fun(self: LuaScheduler, task_id: TaskID, callback_type: TaskCallbackType, str_value: string, integer_value: integer) Registers a callback for a task
+--- @field curr_task_id TaskID Current task ID
+--- @field curr_wakeup_event_id EventID Current wakeup event ID
 --- @field remove_task fun(self: LuaScheduler, task_id: TaskID) Removes a task by ID
 --- @field check_task_exists fun(self: LuaScheduler, task_id: TaskID): boolean Checks if a task exists
 --- @field append_task fun(self: LuaScheduler, task_id: TaskID|nil, task_name: string, task_body: CoroutineTaskBody, start_now: boolean): TaskID Appends or registers a new task

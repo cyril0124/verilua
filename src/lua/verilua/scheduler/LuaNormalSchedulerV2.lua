@@ -238,7 +238,10 @@ function Scheduler:schedule_task(id)
 	local task_cnt = self.task_execution_count_map[id]
 	self.task_execution_count_map[id] = task_cnt + 1
 
+	local old_curr_task_id = self.curr_task_id
+	self.curr_task_id = id
 	local ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id])
+	self.curr_task_id = old_curr_task_id
 	if not ok then
 		print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id], cb_type_or_err)))
 		io.flush()
@@ -256,10 +259,12 @@ function Scheduler:schedule_task(id)
 	if self.has_wakeup_event then
 		self.has_wakeup_event = false
 		for _, event_id in ipairs(self.pending_wakeup_event) do
+			self.curr_wakeup_event_id = event_id
 			local wakeup_task_id_list = self.event_task_id_list_map[event_id]
 			for _, wakeup_task_id in ipairs(wakeup_task_id_list) do
 				self:schedule_task(wakeup_task_id)
 			end
+			self.curr_wakeup_event_id = nil
 			table_clear(self.event_task_id_list_map[event_id])
 		end
 		table_clear(self.pending_wakeup_event)
@@ -341,6 +346,7 @@ function Scheduler:new_event_hdl(name, user_event_id)
 	self.event_task_id_list_map[event_id] = {}
 
 	return {
+		__type = "EventHandle",
 		_scheduler = self,
 		name = name,
 		event_id = event_id,
@@ -352,6 +358,9 @@ function Scheduler:new_event_hdl(name, user_event_id)
 		end,
 		send = function(this)
 			this._scheduler:send_event(this.event_id)
+		end,
+		remove = function(this)
+			this._scheduler.event_name_map[this.event_id] = nil
 		end,
 	}
 end

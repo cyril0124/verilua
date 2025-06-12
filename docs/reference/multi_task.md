@@ -54,6 +54,48 @@ fork {
 
 这里的每一个 function 在 Verilua 的底层中都被用于创建一个个的 coroutine 从而允许 Verilua 的 Scheduler 进行调度。
 
+## 等待任务执行完成
+
+Verilua 提供了 `join` 函数来等待一个或多个任务执行完成，需要配合 `jfork` 函数来使用。
+
+`jfork` 函数用于创建一个任务（注意，只能是一个），并返回一个专门给 `join` 使用的 `EventHandle`, 使用方式和 `fork` 类似：
+```lua linenums="1"
+local ehdl = jfork {
+    function ()
+        print("jfork task 1")
+        -- ...
+    end
+}
+
+local ehdl = jfork {
+    task_name = function ()
+        print("jfork task 2")
+        -- ...
+    end
+}
+```
+
+使用 `join` 可以等待一个或多个 `jfork` 创建的 `EventHandle` 所代表的任务执行完成，例如：
+```lua linenums="1"
+local ehdl = jfork {
+    function ()
+        -- ...
+    end
+}
+join(ehdl)
+
+local ehdl = jfork {
+    function ()
+        -- ...
+    end
+}
+local ehdl2 = jfork {
+    function ()
+        -- ...
+    end
+}
+join({ ehdl, ehdl2 }) -- or join { ehdl, ehdl2 }
+```
 
 ## 注册任务回调
 Verilua 的 task 中支持 `posedge`、`negedge`、`edge`、`time` 仿真行为控制机制，能够满足大部分的硬件仿真交互场景。
