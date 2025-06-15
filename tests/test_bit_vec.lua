@@ -381,5 +381,8 @@ describe("BitVec test", function ()
 
         bitvec:update_value("112233")
         expect.equal(bitvec:dump_str(), "000000000000000000112233")
+
+        bitvec:update_value(0x1234000056780000ULL)
+        expect.equal(bitvec:dump_str(), "000000001234000056780000")
     end)
 end)

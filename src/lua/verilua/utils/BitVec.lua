@@ -33,6 +33,8 @@ local to_hex_str = utils.to_hex_str
 ---@field dump_str fun(self: SubBitVec): string
 ---@field dump fun(self: SubBitVec)
 
+---@alias BitVec.HexStr string
+
 ---@class (exact) BitVec
 ---@overload fun(data: table<number>|ffi.cdata*|number|string, bit_width?: number): BitVecInst
 ---@field __type string
@@ -40,20 +42,20 @@ local to_hex_str = utils.to_hex_str
 ---@field u32_vec table<number>
 ---@field bit_width number
 ---@field beat_size number
----@field _update_u32_vec fun(self: BitVec, data: table<number>)
----@field update_value fun(self: BitVec, data: table<number>)
+---@field _update_u32_vec fun(self: BitVec, data: number[])
+---@field update_value fun(self: BitVec, data: number[]|number|uint64_t|BitVec.HexStr)
 ---@field get_bitfield fun(self: BitVec, s: number, e: number): uint64_t
 ---@field get_bitfield_hex_str fun(self: BitVec, s: number, e: number): string
 ---@field get_bitfield_vec fun(self: BitVec, s: number, e: number): table<number>
 ---@field set_bitfield fun(self: BitVec, s: number, e: number, v: number|uint64_t)
----@field set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: string)
+---@field set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: BitVec.HexStr)
 ---@field set_bitfield_vec fun(self: BitVec, s: number, e: number, v: table<number>)
 ---@field _set_bitfield fun(self: BitVec, s: number, e: number, v: number|uint64_t): BitVec
----@field _set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: string): BitVec
+---@field _set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: BitVec.HexStr): BitVec
 ---@field _set_bitfield_vec fun(self: BitVec, s: number, e: number, v: table<number>): BitVec
 ---@field dump_str fun(self: BitVec): string
 ---@field dump fun(self: BitVec)
----@field to_hex_str fun(self: BitVec): string
+---@field to_hex_str fun(self: BitVec): BitVec.HexStr
 ---@field tonumber fun(self: BitVec): number
 ---@field tonumber64 fun(self: BitVec): number
 local BitVec = class()
@@ -224,6 +226,11 @@ function BitVec:update_value(data)
         local data_len = #data
         local beat_size = #self.u32_vec
 
+        local t = type(data[1])
+        if t ~= "number" then
+            assert(false, "Unsupported type: " .. t)
+        end
+
         for i = 1, data_len do
             self.u32_vec[i] = data[i]
         end
@@ -232,7 +239,21 @@ function BitVec:update_value(data)
             self.u32_vec[i] = 0
         end
     elseif typ == "cdata" then
-        assert(false, "TODO: cdata")
+        if ffi.istype("uint64_t", data) then
+            local beat_size = #self.u32_vec
+
+            self.u32_vec[1] = tonumber(bit_band(data, 0x00000000FFFFFFFFULL))
+
+            if beat_size > 1 then
+                self.u32_vec[2] = tonumber(bit_rshift(data, 32))
+
+                for i = 3, beat_size do
+                    self.u32_vec[i] = 0
+                end
+            end
+        else
+            assert(false, "Unsupported type: " .. typ .. ", cdata must be uint64_t")
+        end
     elseif typ == "number" then
         local beat_size = #self.u32_vec
 
