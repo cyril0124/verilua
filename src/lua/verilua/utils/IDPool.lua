@@ -27,7 +27,7 @@ local f = string.format
 ---@field free_count fun(self: IDPool): number
 ---@field reset fun(self: IDPool)
 ---@operator len: number
-local IDPool = class()
+local IDPool = class() --[[@as IDPool]]
 
 --
 -- Example:

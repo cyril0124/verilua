@@ -4,6 +4,7 @@ local table_new = require "table.new"
 local table_clear = require "table.clear"
 
 local assert = assert
+local math_random = math.random
 
 ---@alias StaticQueue.success 0
 ---@alias StaticQueue.failed 1
@@ -61,7 +62,6 @@ function StaticQueue:pop()
     local first_ptr = self.first_ptr
     if self.count == 0 then assert(false, "queue is empty") end
     local value = self.data[first_ptr]
-    self.data[first_ptr] = nil -- to allow garbage collection
     self.first_ptr = (self.first_ptr % self._size) + 1
     self.count = self.count - 1
     return value
@@ -98,12 +98,21 @@ function StaticQueue:__len()
     return self.count
 end
 
-local utils
 function StaticQueue:shuffle()
-    if not utils then
-        utils = require "LuaUtils"
+    if self.count <= 1 then return end
+
+    local size = self._size
+    local data = self.data
+    local first_ptr = self.first_ptr
+
+    for i = self.count, 2, -1 do
+        local j = math_random(1, i)
+
+        local real_i = ((first_ptr + i - 2) % size) + 1
+        local real_j = ((first_ptr + j - 2) % size) + 1
+
+        data[real_i], data[real_j] = data[real_j], data[real_i]
     end
-    utils.shuffle(self.data)
 end
 
 local function format_as_hex(value, path)
