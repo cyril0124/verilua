@@ -1,52 +1,78 @@
 local class = require "pl.class"
 local inspect = require "inspect"
-local tinsert = table.insert
+local table_new = require "table.new"
+local table_clear = require "table.clear"
+
 local assert = assert
 
-local StaticQueue = class()
+---@alias StaticQueue.success 0
+---@alias StaticQueue.failed 1
+---@alias StaticQueue.data any
+
+---@class (exact) StaticQueue
+---@overload fun(size: integer, name?: string): StaticQueue
+---@field private name string
+---@field private first_ptr integer
+---@field private last_ptr integer
+---@field private _size integer
+---@field private count integer
+---@field private data table
+---@field push fun(self: StaticQueue, value: StaticQueue.data): StaticQueue.success|StaticQueue.failed
+---@field pop fun(self: StaticQueue): StaticQueue.data
+---@field query_first fun(self: StaticQueue): StaticQueue.data
+---@field front fun(self: StaticQueue): StaticQueue.data Alias of query_first
+---@field last fun(self: StaticQueue): StaticQueue.data
+---@field is_empty fun(self: StaticQueue): boolean
+---@field is_full fun(self: StaticQueue): boolean
+---@field size fun(self: StaticQueue): integer
+---@field reset fun(self: StaticQueue)
+---@field shuffle fun(self: StaticQueue)
+---@field list_data fun(self: StaticQueue)
+---@operator len: integer
+local StaticQueue = class() --[[@as StaticQueue]]
 
 function StaticQueue:_init(size, name)
     self.name = name or "Unknown_StaticQueue"
-    self.first = 1
-    self.last = 0
-    self.size = size
+    self.first_ptr = 1
+    self.last_ptr = 0
+    self._size = size
     self.count = 0
 
-    self.data = {}
-    for i = 1, size do
-        tinsert(self.data, nil)
-    end
+    self.data = table_new(size, 0)
 end
 
--- 
+--
 -- return
 --   0: success
 --   1: full
--- 
+--
 function StaticQueue:push(value)
     -- assert(self.count < self.size, "full!")
-    if self.count >= self.size then return 1 end
-    
-    local last = (self.last % self.size) + 1
-    self.last = last
+    if self.count >= self._size then return 1 end
+
+    local last_ptr = (self.last_ptr % self._size) + 1
+    self.last_ptr = last_ptr
     self.count = self.count + 1
-    self.data[last] = value
+    self.data[last_ptr] = value
     return 0
 end
 
-
 function StaticQueue:pop()
-    local first = self.first
+    local first_ptr = self.first_ptr
     if self.count == 0 then assert(false, "queue is empty") end
-    local value = self.data[first]
-    self.data[first] = nil        -- to allow garbage collection
-    self.first = (self.first % self.size) + 1
+    local value = self.data[first_ptr]
+    self.data[first_ptr] = nil -- to allow garbage collection
+    self.first_ptr = (self.first_ptr % self._size) + 1
     self.count = self.count - 1
     return value
 end
 
 function StaticQueue:query_first()
-    return self.data[self.first]
+    return self.data[self.first_ptr]
+end
+
+function StaticQueue:front()
+    return self.data[self.first_ptr]
 end
 
 function StaticQueue:is_empty()
@@ -54,7 +80,30 @@ function StaticQueue:is_empty()
 end
 
 function StaticQueue:is_full()
-    return self.count >= self.size
+    return self.count >= self._size
+end
+
+function StaticQueue:size()
+    return self.count
+end
+
+function StaticQueue:reset()
+    table_clear(self.data)
+    self.first_ptr = 1
+    self.last_ptr = 0
+    self.count = 0
+end
+
+function StaticQueue:__len()
+    return self.count
+end
+
+local utils
+function StaticQueue:shuffle()
+    if not utils then
+        utils = require "LuaUtils"
+    end
+    utils.shuffle(self.data)
 end
 
 local function format_as_hex(value, path)
@@ -71,11 +120,11 @@ end
 
 function StaticQueue:list_data()
     print(self.name .. " list_data:")
-    print("first: " .. self.first)
-    print("last: " .. self.last)
+    print("first_ptr: " .. self.first_ptr)
+    print("last_ptr: " .. self.last_ptr)
     print("count: " .. self.count)
     print("data:")
-    print(inspect(self.data, {process = format_as_hex}))
+    print(inspect(self.data, { process = format_as_hex }))
     print()
 end
 

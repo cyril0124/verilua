@@ -7,6 +7,7 @@ end
 ---@alias Queue.data any
 
 ---@class (exact) Queue
+---@overload fun(): Queue
 ---@field private data table<Queue.data>
 ---@field private first_ptr integer
 ---@field private last_ptr integer
@@ -19,7 +20,7 @@ end
 ---@field size fun(self: Queue): integer
 ---@field reset fun(self: Queue)
 ---@operator len: integer
-local Queue = class()
+local Queue = class() --[[@as Queue]]
 
 function Queue:_init()
     self.data = {}
