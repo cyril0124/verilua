@@ -19,7 +19,7 @@ local SchedulerMode = _G.SchedulerMode
 ---@field remove fun(self: EventHandle) Mark this EventHandle as removed
 
 --- @class (exact) LuaScheduler
---- @field private task_count integer Number of tasks
+--- @field private running_task_count integer Number of running tasks
 --- @field private task_function_map table<TaskID, FunctionTaskBody> Map of task IDs to function task bodies
 --- @field private task_yield_info_map table<TaskID, CoroutineYieldInfo> Map of task IDs to coroutine yield info
 --- @field private task_coroutine_map table<TaskID, thread> Map of task IDs to coroutine threads

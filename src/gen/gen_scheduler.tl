@@ -73,7 +73,7 @@ end
 
 local record SchedulerClass
     -- Class member variables
-    task_count: integer
+    running_task_count: integer
     task_coroutine_map: {TaskID: thread} -- only for `coroutine` task
     task_body_map: {TaskID: CoroutineTaskBody}
     task_name_map_running: {TaskID: string} -- This map holds all the running task names
@@ -127,17 +127,17 @@ local Scheduler: SchedulerClass = class()
 
 -- TaskID from 0 to 99999 is reserved for coroutine task
 local SCHEDULER_TASK_ID_MIN_COROUTINE = 0
-local SCHEDULER_TASK_ID_MAX_COROUTINE = 99999
+local SCHEDULER_TASK_ID_MAX_COROUTINE = 0xFFFFFFF
 
-local SCHEDULER_TASK_MAX_COUNT = 100000
+local SCHEDULER_MAX_RUNNING_TASK_COUNT = 100000
 local SCHEDULER_MIN_EVENT_ID = 0
-local SCHEDULER_MAX_EVENT_ID = 999
+local SCHEDULER_MAX_EVENT_ID = 0xFFFFFFF
 
-local SCHEDULER_ALLOC_TASK_ID_MAX_CNT = 99999
-local SCHEDULER_ALLOC_EVENT_ID_MAX_CNT = 999
+local SCHEDULER_ALLOC_TASK_ID_MAX_CNT = 0xFFFFFFF
+local SCHEDULER_ALLOC_EVENT_ID_MAX_CNT = 0xFFFFFFF
 
 function Scheduler:_init()
-    self.task_count = 0
+    self.running_task_count = 0
 
     self.task_coroutine_map = {}
     self.task_body_map = {}
@@ -191,7 +191,7 @@ function Scheduler:_alloc_coroutine_task_id(): TaskID
 end
 
 function Scheduler:_remove_task(id: TaskID)
-    self.task_count = self.task_count - 1
+    self.running_task_count = self.running_task_count - 1
     table_insert(self.pending_removal_tasks, id)
 
     if _G.EDGE_STEP then
@@ -267,9 +267,9 @@ end
 -- Used for creating a new coroutine task
 function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTaskBody, start_now: boolean): TaskID
     if _G.NORMAL then
-        assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Normal Scheduler] Too many tasks!")
+        assert(self.running_task_count <= SCHEDULER_MAX_RUNNING_TASK_COUNT, "[Normal Scheduler] Too many tasks!")
     elseif _G.STEP or _G.EDGE_STEP then
-        assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Step Scheduler] Too many tasks!")
+        assert(self.running_task_count <= SCHEDULER_MAX_RUNNING_TASK_COUNT, "[Step Scheduler] Too many tasks!")
     end
 
     if _G.SAFETY then
@@ -300,7 +300,7 @@ function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTas
     self.task_body_map[task_id] = task_body
     self.task_execution_count_map[task_id] = 0
 
-    self.task_count = self.task_count + 1
+    self.running_task_count = self.running_task_count + 1
 
     if (_G.NORMAL or _G.EDGE_STEP) then
         if start_now then

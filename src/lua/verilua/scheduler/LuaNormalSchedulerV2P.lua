@@ -59,17 +59,17 @@ local NOOP = 44
 local Scheduler = class()
 
 local SCHEDULER_TASK_ID_MIN_COROUTINE = 0
-local SCHEDULER_TASK_ID_MAX_COROUTINE = 99999
+local SCHEDULER_TASK_ID_MAX_COROUTINE = 0xFFFFFFF
 
-local SCHEDULER_TASK_MAX_COUNT = 100000
+local SCHEDULER_MAX_RUNNING_TASK_COUNT = 100000
 local SCHEDULER_MIN_EVENT_ID = 0
-local SCHEDULER_MAX_EVENT_ID = 999
+local SCHEDULER_MAX_EVENT_ID = 0xFFFFFFF
 
-local SCHEDULER_ALLOC_TASK_ID_MAX_CNT = 99999
-local SCHEDULER_ALLOC_EVENT_ID_MAX_CNT = 999
+local SCHEDULER_ALLOC_TASK_ID_MAX_CNT = 0xFFFFFFF
+local SCHEDULER_ALLOC_EVENT_ID_MAX_CNT = 0xFFFFFFF
 
 function Scheduler:_init()
-	self.task_count = 0
+	self.running_task_count = 0
 
 	self.task_coroutine_map = {}
 	self.task_body_map = {}
@@ -118,7 +118,7 @@ function Scheduler:_alloc_coroutine_task_id()
 end
 
 function Scheduler:_remove_task(id)
-	self.task_count = self.task_count - 1
+	self.running_task_count = self.running_task_count - 1
 	table_insert(self.pending_removal_tasks, id)
 	do
 		if self.posedge_tasks[id] then
@@ -169,7 +169,7 @@ end
 
 function Scheduler:append_task(id, name, task_body, start_now)
 	do
-		assert(self.task_count <= SCHEDULER_TASK_MAX_COUNT, "[Normal Scheduler] Too many tasks!")
+		assert(self.running_task_count <= SCHEDULER_MAX_RUNNING_TASK_COUNT, "[Normal Scheduler] Too many tasks!")
 	end
 
 	local task_id = id
@@ -193,7 +193,7 @@ function Scheduler:append_task(id, name, task_body, start_now)
 	self.task_body_map[task_id] = task_body
 	self.task_execution_count_map[task_id] = 0
 
-	self.task_count = self.task_count + 1
+	self.running_task_count = self.running_task_count + 1
 	do
 		if start_now then
 			self.task_fired_status_map[task_id] = true
