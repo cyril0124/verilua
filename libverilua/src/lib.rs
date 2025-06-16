@@ -14,10 +14,10 @@ pub type EdgeCallbackID = u32;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+#[cfg(feature = "debug")]
 #[static_init::constructor(0)]
 extern "C" fn init_env_logger() {
-    #[cfg(feature = "debug")]
-    env_logger::init();
+    env_logger::try_init();
 }
 
 #[cfg(not(feature = "dpi"))]
