@@ -175,13 +175,16 @@ target("wave_vpi_main_fsdb")
         wave_vpi_main_common()
 
         local verdi_home = os.getenv("VERDI_HOME")
-        -- print("[wave_vpi_main_fsdb] verdi_home is " .. verdi_home)
         add_includedirs(verdi_home .. "/share/FsdbReader")
         add_linkdirs(verdi_home .. "/share/FsdbReader/LINUX64")
         add_rpathdirs(verdi_home .. "/share/FsdbReader/LINUX64")
         add_links("nffr", "nsys", "z")
 
         add_defines("USE_FSDB")
+
+        before_build(function (target)
+            print("[wave_vpi_main_fsdb] verdi_home: " .. verdi_home)
+        end)
     else
         set_kind("phony")
         on_build(function(target)

@@ -837,7 +837,7 @@ verdi -f filelist.f -sv -nologo $@]])
                 end
             end
 
-            print("[%s] wave_vpi_main: %s", target:name(), wave_vpi_main)
+            cprint("${✅} [verilua-xmake] [%s] wave_vpi_main is ${green underline}%s${reset}", target:name(), wave_vpi_main)
 
             local run_flags = {"--wave-file", waveform_file}
             local _run_flags = target:values("wave_vpi.run_flags")
@@ -853,6 +853,6 @@ verdi -f filelist.f -sv -nologo $@]])
 
             os.exec(table.concat(run_prefix, " ") .. " " .. wave_vpi_main .. " " .. table.concat(run_flags, " "))
         else
-            raise("TODO: [on_run] unknown simulaotr => " .. sim)
+            raise("TODO: [on_run] unknown simulator => " .. sim)
         end
     end) -- on_run
