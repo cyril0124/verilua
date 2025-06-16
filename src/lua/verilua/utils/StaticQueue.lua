@@ -26,6 +26,8 @@ local math_random = math.random
 ---@field is_empty fun(self: StaticQueue): boolean
 ---@field is_full fun(self: StaticQueue): boolean
 ---@field size fun(self: StaticQueue): integer
+---@field used_count fun(self: StaticQueue): integer
+---@field free_count fun(self: StaticQueue): integer
 ---@field reset fun(self: StaticQueue)
 ---@field shuffle fun(self: StaticQueue)
 ---@field list_data fun(self: StaticQueue)
@@ -85,6 +87,14 @@ end
 
 function StaticQueue:size()
     return self.count
+end
+
+function StaticQueue:used_count()
+    return self.count
+end
+
+function StaticQueue:free_count()
+    return self._size - self.count
 end
 
 function StaticQueue:reset()
