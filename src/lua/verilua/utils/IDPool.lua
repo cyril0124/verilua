@@ -12,7 +12,8 @@ local f = string.format
 ---@field shuffle? boolean
 
 ---@class (exact) IDPool
----@overload fun(pool_size_or_params: number|IDPool.params, shuffle?: boolean): IDPool
+---@overload fun(params: IDPool.params): IDPool
+---@overload fun(pool_size_or_params: number, shuffle?: boolean): IDPool
 ---@field private pool_size number
 ---@field private start_value number
 ---@field private end_value number

@@ -495,7 +495,7 @@ do
 ---@field contains fun(str: string, target: string): boolean
 ---@field hdl fun(str: string): ComplexHandleRaw
 ---@field chdl fun(str: string, hdl?: ComplexHandleRaw): CallableHDL
----@field bundle fun(str: string, params: table): Bundle
+---@field bundle fun(str: string, params: string.bdl.params): Bundle
 ---@field set fun(str: string, value: number)
 ---@field set_force fun(str: string, value: number)
 ---@field set_release fun(str: string)
