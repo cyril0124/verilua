@@ -841,6 +841,7 @@ do
     local scheduler = require "verilua.scheduler.LuaScheduler"
     assert(scheduler ~= nil)
     string.ehdl = function (this, event_id_integer)
+        ---@diagnostic disable-next-line: invisible
         return scheduler:get_event_hdl(this, event_id_integer)
     end
 
@@ -1386,7 +1387,9 @@ do
                 end
 
                 finished_ehdl_vec[ehdl.event_id] = false
+                ---@diagnostic disable-next-line: invisible
                 table.insert(scheduler.event_task_id_list_map[ehdl.event_id], assert(scheduler.curr_task_id))
+
                 if not scheduler.event_name_map[ehdl.event_id] then
                     already_finished_cnt = already_finished_cnt + 1
                 end
@@ -1408,6 +1411,7 @@ do
 
                 finished_cnt = finished_cnt + 1
 
+                ---@diagnostic disable-next-line: invisible
                 local curr_wakeup_event_id = assert(scheduler.curr_wakeup_event_id)
                 assert(not finished_ehdl_vec[curr_wakeup_event_id])
                 finished_ehdl_vec[curr_wakeup_event_id] = true

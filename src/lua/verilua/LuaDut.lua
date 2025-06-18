@@ -21,7 +21,7 @@ local set_force_enable = false
 local force_path_table = {}
 
 ---@class ProxyTableHandle
----@field __type string
+---@field __type "ProxyTableHandle"
 ---@field set fun(self: ProxyTableHandle, v: number)
 ---@field set_imm fun(self: ProxyTableHandle, v: number)
 ---@field set_shuffled fun(self: ProxyTableHandle)
@@ -64,7 +64,7 @@ local force_path_table = {}
 ---@field tostring fun(self: ProxyTableHandle): string
 ---@field with_prefix fun(self: ProxyTableHandle, prefix_str: string): ProxyTableHandle
 ---@field auto_bundle fun(self, params: SignalDB.auto_bundle.params): Bundle
----@overload fun(self: ProxyTableHandle, v: string): number|string|ComplexHandleRaw
+---@overload fun(self: ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): number|string|ComplexHandleRaw `__call` metamethod
 ---@field [string] ProxyTableHandle
 
 ---@param path string

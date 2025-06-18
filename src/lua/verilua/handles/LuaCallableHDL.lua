@@ -131,8 +131,8 @@ local post_init_mt = setmetatable({
 ---@field set_index_bin_str fun(self: CallableHDL, index: number, str: string)
 ---@field set_index_dec_str fun(self: CallableHDL, index: number, str: string)
 ---
----@field posedge fun(self: CallableHDL, cycles?: number, action_func?: function)
----@field negedge fun(self: CallableHDL, cycles?: number, action_func?: function)
+---@field posedge fun(self: CallableHDL, cycles?: number, action_func?: fun(count: number))
+---@field negedge fun(self: CallableHDL, cycles?: number, action_func?: fun(count: number))
 ---@field always_posedge fun(self: CallableHDL)
 ---@field posedge_until fun(self: CallableHDL, max_limit: number, func: fun(count: number)): boolean
 ---@field negedge_until fun(self: CallableHDL, max_limit: number, func: fun(count: number)): boolean

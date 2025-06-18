@@ -33,7 +33,7 @@ local setmetatable = setmetatable
 local utils = {}
 
 ---@param t table The table to be serialized
----@param conn string The connector for the serialization, defaults to "_"
+---@param conn? string The connector for the serialization, defaults to "_"
 ---@return string The serialized string
 function utils.serialize(t, conn)
     local serialized = t
