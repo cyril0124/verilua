@@ -3,6 +3,7 @@ local inspect = require "inspect"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
 
+local f = string.format
 local assert = assert
 local math_random = math.random
 
@@ -125,26 +126,28 @@ function StaticQueue:shuffle()
     end
 end
 
-local function format_as_hex(value, path)
-    if type(value) == "number" then
-        return string.format("0x%X", value)
-    elseif type(value) == "cdata" then
-        if tonumber(value) == nil then
-            return value
-        end
-        return string.format("0x%X", value)
-    end
-    return value
-end
-
 function StaticQueue:list_data()
-    print(self.name .. " list_data:")
-    print("first_ptr: " .. self.first_ptr)
-    print("last_ptr: " .. self.last_ptr)
-    print("count: " .. self.count)
-    print("data:")
-    print(inspect(self.data, { process = format_as_hex }))
-    print()
+    print("╔══════════════════════════════════════════════════════════════════════")
+    print(f("║ [%s] List Data:", self.name))
+    print("╠══════════════════════════════════════════════════════════════════════")
+    print(f("║ first_ptr: %d, last_ptr: %d, count: %d", self.first_ptr, self.last_ptr, self.count))
+    print("╟──────────────────────────────────────────────────────────────────────")
+
+    if self.count == 0 then
+        print("║ No data")
+    else
+        local size = self._size
+        local data = self.data
+        local index = self.first_ptr
+        local displayed_count = 0
+
+        while displayed_count < self.count do
+            print("║ [" .. displayed_count .. "]", data[index])
+            index = (index % size) + 1
+            displayed_count = displayed_count + 1
+        end
+    end
+    print("╚══════════════════════════════════════════════════════════════════════\n")
 end
 
 return StaticQueue
