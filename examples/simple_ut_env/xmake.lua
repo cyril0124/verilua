@@ -1,6 +1,10 @@
 target("test_counter")
     add_rules("verilua")
-    add_toolchains("@verilator")
+    if os.getenv("SIM") == "vcs" then
+        add_toolchains("@vcs")
+    else
+        add_toolchains("@verilator")
+    end
 
     add_files("env.lua")
     add_files("Counter.v")
