@@ -233,9 +233,11 @@ do
 
     -- High performance implementation of `os.clock()` using LuaJIT FFI
     local CLOCK_MONOTONIC = 1
+    local t = ffi.new("timespec[1]")
+    local C = ffi.C
+    os._clock = os.clock
     os.clock = function()
-        local t = ffi.new("timespec[1]")
-        ffi.C.clock_gettime(CLOCK_MONOTONIC, t)
+        C.clock_gettime(CLOCK_MONOTONIC, t)
         return tonumber(t[0].sec) + tonumber(t[0].nsec) * 1e-9
     end
 end
