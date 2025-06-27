@@ -11,9 +11,10 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
     std::string topModuleName;
     std::string clock;
     std::vector<SignalGroup> signalGroupVec;
+    slang::ast::Compilation *compilation;
     bool findModule = false;
 
-    ExporterRewriter(std::string insertModuleName, std::string sampleEdge, std::string topModuleName, std::string clock, std::vector<SignalGroup> signalGroupVec) : insertModuleName(insertModuleName), sampleEdge(sampleEdge), topModuleName(topModuleName), clock(clock), signalGroupVec(signalGroupVec) {};
+    ExporterRewriter(slang::ast::Compilation *compilation, std::string insertModuleName, std::string sampleEdge, std::string topModuleName, std::string clock, std::vector<SignalGroup> signalGroupVec) : compilation(compilation), insertModuleName(insertModuleName), sampleEdge(sampleEdge), topModuleName(topModuleName), clock(clock), signalGroupVec(signalGroupVec){};
 
     void handle(const ModuleDeclarationSyntax &syntax) {
         if (this->insertModuleName == syntax.header->name.rawText()) {
@@ -113,6 +114,28 @@ end
 `endif // MANUALLY_CALL_DPI_EXPORTER_TICK
 )",
                                      j);
+
+            // Make sure clock signal is exist in the inserted module
+            auto def      = compilation->getDefinition(compilation->getRoot(), syntax);
+            auto inst     = &InstanceSymbol::createDefault(*compilation, *def);
+            bool hasClock = false;
+            auto netIter  = inst->body.membersOfType<slang::ast::NetSymbol>();
+            for (const auto &net : netIter) {
+                if (net.name == clock) {
+                    hasClock = true;
+                    break;
+                }
+            }
+            if (!hasClock) {
+                auto varIter = inst->body.membersOfType<slang::ast::VariableSymbol>();
+                for (const auto &var : varIter) {
+                    if (var.name == clock) {
+                        hasClock = true;
+                        break;
+                    }
+                }
+            }
+            ASSERT(hasClock, "Clock signal not found in inserted module, please make sure the clock signal is exist in the module.", clock, topModuleName);
 
             // Insert the following dpic tick function into top module
             insertAtBack(syntax.members, parse(code));

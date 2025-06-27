@@ -334,7 +334,7 @@ end
 
         // Rewrite the syntax tree(insert `dpi_exporter_tick` function into the top module)
         if (!distributeDPI) {
-            auto rewriter = ExporterRewriter(insertModuleName.value_or(topModuleName), sampleEdge, topModuleName, topClock, mergedSignalGroupVec);
+            auto rewriter = ExporterRewriter(compilation.get(), insertModuleName.value_or(topModuleName), sampleEdge, topModuleName, topClock, mergedSignalGroupVec);
             auto newTree  = rewriter.transform(tree);
 
             fmt::println("[dpi_exporter] start rebuilding syntax tree");
