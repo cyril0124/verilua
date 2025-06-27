@@ -177,6 +177,8 @@ struct SignalInfo {
     std::string getHierPathName() {
         std::string hierPathName = hierPath;
         std::replace(hierPathName.begin(), hierPathName.end(), '.', '_');
+        std::replace(hierPathName.begin(), hierPathName.end(), '[', '_');
+        std::replace(hierPathName.begin(), hierPathName.end(), ']', '_');
         return hierPathName;
     }
 };
