@@ -55,7 +55,13 @@ inline std::vector<std::string> parseFileList(const std::string &filePath) {
 
     while (std::getline(infile, line)) {
         if (!line.empty()) {
-            files.push_back(line);
+            if(line.ends_with(".f")) {
+                // If the line ends with `.f`, treat it as a file list and parse it
+                auto fileList = parseFileList(line);
+                files.insert(files.end(), fileList.begin(), fileList.end());
+            } else {
+                files.push_back(line);
+            }
         }
     }
 
