@@ -380,6 +380,8 @@ vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_name)(PLI_BYTE8 *name, vpiHandle scope) 
         nameString = replace(nameString, topName, topModuleName);
     }
     std::replace(nameString.begin(), nameString.end(), '.', '_');
+    std::replace(nameString.begin(), nameString.end(), '[', '_');
+    std::replace(nameString.begin(), nameString.end(), ']', '_');
 
     auto _hdl = dpi_exporter_handle_by_name(nameString);
     FATAL(_hdl != -1, "Cannot find handle => name: %s, org_name: %s, topName:<%s> topModuleName:<%s>\n", nameString.c_str(), name, topName.c_str(), topModuleName.c_str());
