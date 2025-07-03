@@ -20,6 +20,7 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
         if (this->insertModuleName == syntax.header->name.rawText()) {
             fmt::println("[dpi_exporter] ExporterRewriter insertModuleName: {}", syntax.header->name.rawText());
 
+            // Deal with normal signal groups
             std::vector<std::string> dpiTickFuncDeclParamVec;
             std::vector<std::string> dpiTickFuncDeclParam1Vec;
             std::vector<std::string> dpiTickFuncParamVec;
@@ -37,11 +38,12 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                     paramVec.push_back(fmt::format("{}", s.hierPath));
                 }
 
-                dpiTickFuncDeclParamVec.emplace_back(fmt::to_string(fmt::join(declParamVec, ",\n")));
-                dpiTickFuncDeclParam1Vec.emplace_back(fmt::to_string(fmt::join(declParamVec, ", ")));
-                dpiTickFuncParamVec.emplace_back(fmt::to_string(fmt::join(paramVec, ", ")));
+                dpiTickFuncDeclParamVec.emplace_back(joinStrVec(declParamVec, ",\n"));
+                dpiTickFuncDeclParam1Vec.emplace_back(joinStrVec(declParamVec, ", "));
+                dpiTickFuncParamVec.emplace_back(joinStrVec(paramVec, ", "));
             }
 
+            // Deal with sensitive signal groups
             std::string sDpiTickFuncDecl   = "";
             std::string sDpiTickFuncDecl_1 = "";
             std::string sCallDpiTickFunc   = "";
@@ -53,6 +55,13 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                 std::vector<std::string> sSignalsLastRegVec = {};
                 for (auto &s : signalGroupVec[i].sensitiveSignalInfoVec) {
                     sSignals += fmt::format("\t{}\n", s.hierPathName);
+
+                    //
+                    // e.g.
+                    //      SenstiveSignals => valid, valid1, valid2
+                    //      sSignalsCond => (valid ^ valid__LAST) || (valid1 ^ valid1__LAST) || (valid2 ^ valid2__LAST) || valid || valid1 || valid2
+                    //
+                    // TODO: for senstive signals with bitWidth > 1
                     sSignalsCond += fmt::format("({} ^ {}) ||", s.hierPath, s.hierPathName + "__LAST");
                     sSignalsCondExtra += fmt::format("{} ||", s.hierPath);
                     sSignalsLastRegAssign += fmt::format("{}__LAST <= {}; ", s.hierPathName, s.hierPath);
@@ -79,8 +88,8 @@ import "DPI-C" function void dpi_exporter_tick_{1}(
 );
 `endif // MANUALLY_CALL_DPI_EXPORTER_TICK
 )",
-                                                sSignals, name, dpiTickFuncDeclParamVec[i], fmt::to_string(fmt::join(sSignalsLastRegVec, "\n")));
-                sDpiTickFuncDecl_1 += fmt::format("{0} import \"DPI-C\" function void dpi_exporter_tick_{1}({2}); ", fmt::to_string(fmt::join(sSignalsLastRegVec, " ")), name, dpiTickFuncDeclParam1Vec[i]);
+                                                sSignals, name, dpiTickFuncDeclParamVec[i], joinStrVec(sSignalsLastRegVec, "\n"));
+                sDpiTickFuncDecl_1 += fmt::format("{0} import \"DPI-C\" function void dpi_exporter_tick_{1}({2}); ", joinStrVec(sSignalsLastRegVec, " "), name, dpiTickFuncDeclParam1Vec[i]);
                 sCallDpiTickFunc += fmt::format("if({0}) dpi_exporter_tick_{1}({2}); {3}", sSignalsCond, name, dpiTickFuncParamVec[i], sSignalsLastRegAssign);
             }
 

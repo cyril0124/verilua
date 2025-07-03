@@ -55,7 +55,7 @@ inline std::vector<std::string> parseFileList(const std::string &filePath) {
 
     while (std::getline(infile, line)) {
         if (!line.empty()) {
-            if(line.ends_with(".f")) {
+            if (line.ends_with(".f")) {
                 // If the line ends with `.f`, treat it as a file list and parse it
                 auto fileList = parseFileList(line);
                 files.insert(files.end(), fileList.begin(), fileList.end());
@@ -94,6 +94,8 @@ inline std::pair<std::string, std::string> spiltHierPath(const std::string &hier
     auto signalName = hierPath.substr(dotPos + 1);
     return std::make_pair(modulePath, signalName);
 }
+
+inline std::string joinStrVec(const std::vector<std::string> &vec, const std::string &delimiter) { return fmt::to_string(fmt::join(vec, delimiter)); }
 
 struct ConciseSignalPattern {
     std::string name;

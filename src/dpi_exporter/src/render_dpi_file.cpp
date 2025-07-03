@@ -196,6 +196,7 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string 
     std::unordered_map<std::string, std::vector<std::string>> sDpiTickFuncParamMap;
     std::unordered_map<std::string, std::vector<std::string>> sDpiTickFuncBodyMap;
 
+    // Reserve space for the vectors.
     for (auto &sg : signalGroupVec) {
         if (sg.sensitiveSignalInfoVec.empty()) {
             continue;
@@ -205,6 +206,8 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string 
     }
 
     for (auto &sg : signalGroupVec) {
+        auto hasSensitiveSignals = !sg.sensitiveSignalInfoVec.empty();
+
         for (auto &s : sg.signalInfoVec) {
             std::string extraInfo = fmt::format("/* hierPath: {} bitWidth: {} handleId: {} */", s.hierPath, s.bitWidth, s.handleId);
             handleByNameVec.push_back(fmt::format("\t\t{{ \"{}\", {} }} {}", s.hierPathName, s.handleId, extraInfo));
@@ -263,9 +266,11 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string 
                 }
             };
 
-            if (sg.sensitiveSignalInfoVec.empty()) {
+            if (!hasSensitiveSignals) {
+                // If the signal group has no sensitive signals, we can directly insert the signal info into default DPI tick function.
                 insertInfo(dpiTickFuncParamVec, dpiTickFuncBodyVec, s);
             } else {
+                // If the signal group has sensitive signals, we insert the signal info into the corresponding DPI tick function.
                 insertInfo(sDpiTickFuncParamMap[sg.name], sDpiTickFuncBodyMap[sg.name], s);
             }
         }
@@ -454,7 +459,7 @@ extern "C" void VERILUA_DPI_EXPORTER_{0}_SET_HEX_STR(char *hexStr) {{
         json j;
         j["signalGroupName"]          = sg.name;
         j["dpiSignalDecl"]            = dpiSignalDecl;
-        j["dpiSignalAccessFunctions"] = fmt::to_string(fmt::join(dpiSignalAccessFunctionsVec, "\n"));
+        j["dpiSignalAccessFunctions"] = joinStrVec(dpiSignalAccessFunctionsVec, "\n");
         dpiSignalBlockVec.push_back(inja::render(R"(
 // ------------------------------------------------------
 // Signal group: {{signalGroupName}}
@@ -470,28 +475,31 @@ extern "C" void VERILUA_DPI_EXPORTER_{0}_SET_HEX_STR(char *hexStr) {{
     json j;
     j["topModuleName"]      = topModuleName;
     j["distributeDPI"]      = distributeDPI ? 1 : 0;
-    j["dpiFuncFileContent"] = fmt::to_string(fmt::join(dpiSignalBlockVec, "\n")); // dpiFuncFileContent;
+    j["dpiFuncFileContent"] = joinStrVec(dpiSignalBlockVec, "\n"); // dpiFuncFileContent;
     j["metaInfoFilePath"]   = metaInfoFilePath;
-    j["handleByName"]       = fmt::to_string(fmt::join(handleByNameVec, ",\n"));
-    j["getTypeStr"]         = fmt::to_string(fmt::join(getTypeStrVec, ",\n"));
-    j["getBitWidth"]        = fmt::to_string(fmt::join(getBitWidthVec, ",\n"));
-    j["getValue32"]         = fmt::to_string(fmt::join(getValue32Vec, ",\n"));
-    j["getValueVec"]        = fmt::to_string(fmt::join(getValueVecVec, ",\n"));
-    j["getValueHexStr"]     = fmt::to_string(fmt::join(getValueHexStrVec, ",\n"));
-    j["setValue32"]         = fmt::to_string(fmt::join(setValue32Vec, ",\n"));
-    j["setValueVec"]        = fmt::to_string(fmt::join(setValueVecVec, ",\n"));
-    j["setValueHexStr"]     = fmt::to_string(fmt::join(setValueHexStrVec, ",\n"));
-    j["dpiTickFuncParam"]   = fmt::to_string(fmt::join(dpiTickFuncParamVec, ", "));
-    j["dpiTickFuncBody"]    = fmt::to_string(fmt::join(dpiTickFuncBodyVec, "\n"));
+    j["handleByName"]       = joinStrVec(handleByNameVec, ",\n");
+    j["getTypeStr"]         = joinStrVec(getTypeStrVec, ",\n");
+    j["getBitWidth"]        = joinStrVec(getBitWidthVec, ",\n");
+    j["getValue32"]         = joinStrVec(getValue32Vec, ",\n");
+    j["getValueVec"]        = joinStrVec(getValueVecVec, ",\n");
+    j["getValueHexStr"]     = joinStrVec(getValueHexStrVec, ",\n");
+    j["setValue32"]         = joinStrVec(setValue32Vec, ",\n");
+    j["setValueVec"]        = joinStrVec(setValueVecVec, ",\n");
+    j["setValueHexStr"]     = joinStrVec(setValueHexStrVec, ",\n");
+    j["dpiTickFuncParam"]   = joinStrVec(dpiTickFuncParamVec, ", ");
+    j["dpiTickFuncBody"]    = joinStrVec(dpiTickFuncBodyVec, "\n");
 
     std::string sDpiTickFuncContent = "";
     for (auto &pair : sDpiTickFuncParamMap) {
+        auto sgName        = pair.first;
+        auto &funcParamVec = pair.second;
+
         sDpiTickFuncContent += fmt::format(R"(
 extern "C" void dpi_exporter_tick_{0}({1}) {{
 {2}
 }}
 )",
-                                           pair.first, fmt::to_string(fmt::join(pair.second, ", ")), fmt::to_string(fmt::join(sDpiTickFuncBodyMap[pair.first], "\n")));
+                                           sgName, joinStrVec(funcParamVec, ", "), joinStrVec(sDpiTickFuncBodyMap[sgName], "\n"));
     }
     j["sDpiTickFuncContent"] = sDpiTickFuncContent;
 
