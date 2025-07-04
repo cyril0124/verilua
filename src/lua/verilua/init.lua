@@ -489,14 +489,25 @@ do
 ---@field sym string
 ---@field ptr string
 
+---@class string.fake_chdl.overload_func_tbl
+---@field get? fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
+---@field get64? fun(self: CallableHDL): uint64_t
+---@field set? fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field set_force? fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field set_imm? fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field get_hex_str? fun(self: CallableHDL): string
+---@field is? fun(self: CallableHDL, value: number|ffi.cdata*): boolean
+---@field is_not? fun(self: CallableHDL, value: number|ffi.cdata*): boolean
+
 ---@class string.ext
 ---@field render fun(template: string, vars: table): string
 ---@field strip fun(str: string, suffix: string): string
 ---@field join fun(str: string, list: table): string
 ---@field number fun(str: string): number
 ---@field contains fun(str: string, target: string): boolean
----@field hdl fun(str: string): ComplexHandleRaw
----@field chdl fun(str: string, hdl?: ComplexHandleRaw): CallableHDL
+---@field hdl fun(hierpath: string): ComplexHandleRaw
+---@field chdl fun(hierpath: string, hdl?: ComplexHandleRaw): CallableHDL
+---@field fake_chdl fun(hierpath: string, overload_func_tbl: string.fake_chdl.overload_func_tbl): CallableHDL
 ---@field bundle fun(str: string, params: string.bdl.params): Bundle
 ---@field set fun(str: string, value: number)
 ---@field set_force fun(str: string, value: number)
@@ -601,7 +612,7 @@ do
 -- accessing internal hardware signals
 ----------------------------------------------------------------------
     -- 
-    -- get vpi handle using native stirng metatable
+    -- Get vpi handle using native stirng metatable
     -- Example: 
     --      local hdl_path = "tb_top.cycles"
     --      local hdl = hdl_path:hdl()
@@ -619,14 +630,44 @@ do
     end
 
     -- 
-    -- get CallableHDL using native stirng metatable
+    -- Get CallableHDL using native stirng metatable
     -- Example:
     --      local cycles_chdl = ("tb_top.cycles"):chdl()
     --      print("value of cycles is " .. cycles_chdl:get())
     --      cycles_chdl:set(123)
     -- 
-    string.chdl = function(str, hdl)
-        return CallableHDL(str, "", hdl)
+    string.chdl = function(hierpath, hdl)
+        return CallableHDL(hierpath, "", hdl)
+    end
+
+    -- 
+    -- Create a fake CallableHDL as a placeholder for maintaining compatibility
+    -- Example:
+    --      local cycles_chdl = ("tb_top.cycles"):fake_chdl({
+    --          get = function() return 0 end,
+    --          set = function(val) end
+    --      })
+    -- 
+    string.fake_chdl = function (hierpath, overload_func_tbl)
+        ---@type CallableHDL
+        ---@diagnostic disable-next-line: missing-fields
+        local chdl = {
+            __type = "CallableHDL",
+            name = "fake_chdl__" .. hierpath,
+            fullpath = hierpath,
+        }
+
+        for k, v in pairs(overload_func_tbl) do
+            chdl[k] = v
+        end
+
+        setmetatable(chdl, {
+            __index = function(self, key)
+                assert(false, f("[fake_chdl] Cannot access key: %s, key no found!", key))
+            end,
+        })
+
+        return chdl
     end
 
     local function to_normal_table(org_tbl)
