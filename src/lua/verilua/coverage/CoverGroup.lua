@@ -16,7 +16,7 @@ local verilua_debug = _G.verilua_debug
 local CoverGroup = class()
 
 function CoverGroup:_init(name)
-    texpect.expect_string(name)
+    texpect.expect_string(name, "CoverGroup.name")
 
     self.name = name
     self.__type = "CoverGroup"
@@ -60,6 +60,7 @@ function CoverGroup:save(_filename)
     printf("[CoverGroup] Save coverage group: `%s` into `%s`, cover point type is `%s`\n", self.name, filename, self.cover_point_type)
 
     local file = io.open(filename, 'w')
+    assert(file, f("[CoverGroup] Failed to open file `%s` for writing", filename))
     file:write("{\n")
     file:write("\t\"date\": " .. "\"" .. os.date() .. "\"" .. ",\n")
     file:write("\t\"simulator\": " .. "\"" .. cfg.simulator .. "\"" .. ",\n")

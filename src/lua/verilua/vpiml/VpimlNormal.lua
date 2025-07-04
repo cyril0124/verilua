@@ -115,8 +115,11 @@ return {
     vpiml_register_negedge_callback_always = C.vpiml_register_negedge_callback_always,
 
     vpiml_handle_by_name = function (name) return C.vpiml_handle_by_name(env, name) end,
-    vpiml_handle_by_name_safe = function (name) return C.vpiml_handle_by_name_safe(env, name) end,
     vpiml_handle_by_index = function (hdl, idx) return C.vpiml_handle_by_index(env, hdl, idx) end,
+
+    -- Safe version of `vpiml_handle_by_name`, can be used to check if a handle exists without throwing an error.
+    -- Returns `-1` if the handle does not exist.
+    vpiml_handle_by_name_safe = function (name) return C.vpiml_handle_by_name_safe(env, name) end,
 
     vpiml_get_hdl_type = C.vpiml_get_hdl_type,
     vpiml_get_signal_width = C.vpiml_get_signal_width,

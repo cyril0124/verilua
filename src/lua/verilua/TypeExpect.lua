@@ -120,16 +120,16 @@ function texpect.expect_chdl(value, name, width_or_width_min, width_max)
 
         if value.__type == "CallableHDL" then
             if width_or_width_min ~= nil and width_max == nil then
-                if value.width ~= width_or_width_min then
+                if value:get_width() ~= width_or_width_min then
                     error(
-                        f("[expect_chdl] Expected argument `%s` to be a `%s` value with width %d, but received a `%s` value with width %d instead", name, "CallableHDL", width_or_width_min, type(value), value.width),
+                        f("[expect_chdl] Expected argument `%s` to be a `%s` value with width %d, but received a `%s` value with width %d instead", name, "CallableHDL", width_or_width_min, type(value), value:get_width()),
                         0
                     )
                 end
             elseif width_or_width_min ~= nil and width_max ~= nil then
-                if value.width < width_or_width_min or value.width > width_max then
+                if value:get_width() < width_or_width_min or value:get_width() > width_max then
                     error(
-                        f("[expect_chdl] Expected argument `%s` to be a `%s` value with width >= %d and <= %d, but received a `%s` value with width %d instead", name, "CallableHDL", width_or_width_min, width_max, type(value), value.width),
+                        f("[expect_chdl] Expected argument `%s` to be a `%s` value with width >= %d and <= %d, but received a `%s` value with width %d instead", name, "CallableHDL", width_or_width_min, width_max, type(value), value:get_width()),
                         0
                     )
                 end
@@ -237,20 +237,20 @@ function texpect.expect_abdl(value, name, params)
                         _G.debug_level = _G.default_debug_level
 
                         if sig_info.width then
-                            if sig.width ~= sig_info.width then
+                            if sig:get_width() ~= sig_info.width then
                                 error(f("[expect_abdl] signal `%s`'s width is %d, but expected %d", sig_info.name, sig:get_width(), sig_info.width), 0)
                             end
                         elseif sig_info.width_min and sig_info.width_max then
-                            local width = sig.width
+                            local width = sig:get_width()
                             if not(width >= sig_info.width_min and width <= sig_info.width_max) then
                                 error(f("[expect_abdl] signal `%s`'s width is %d, but expected in range [%d, %d]", sig_info.name, width, sig_info.width_min, sig_info.width_max), 0)
                             end
                         elseif sig_info.width_min then
-                            if sig.width < sig_info.width_min then
+                            if sig:get_width() < sig_info.width_min then
                                 error(f("[expect_abdl] signal `%s`'s width is %d, but expected >= %d", sig_info.name, sig:get_width(), sig_info.width_min), 0)
                             end
                         elseif sig_info.width_max then
-                            if sig.width > sig_info.width_max then
+                            if sig:get_width() > sig_info.width_max then
                                 error(f("[expect_abdl] signal `%s`'s width is %d, but expected <= %d", sig_info.name, sig:get_width(), sig_info.width_max), 0)
                             end
                         end

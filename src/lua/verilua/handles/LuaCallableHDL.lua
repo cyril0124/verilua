@@ -58,20 +58,20 @@ local post_init_mt = setmetatable({
 ---@field __type string
 ---@field fullpath string
 ---@field name string
----@field always_fired boolean
----@field width number
----@field hdl ComplexHandleRaw
----@field hdl_type string
----@field is_array boolean
----@field array_size number
----@field array_hdls table<number, ComplexHandleRaw>
----@field array_bitvecs table<number, BitVec>
----@field beat_num number
----@field is_multi_beat boolean
----@field cached_value any
+---@field private always_fired boolean
+---@field private width number
+---@field private hdl ComplexHandleRaw
+---@field private hdl_type string
+---@field private is_array boolean
+---@field private array_size number
+---@field private array_hdls table<number, ComplexHandleRaw>
+---@field private array_bitvecs table<number, BitVec>
+---@field private beat_num number
+---@field private is_multi_beat boolean
+---@field private cached_value any
 ---@field reset_set_cached fun(self: CallableHDL) Reset the cached value to `nil`
----@field c_results ffi.cdata*
----@field value any Used for assign value based on value type
+---@field private c_results ffi.cdata*
+---@field private value any Used for assign value based on value type
 ---
 ---@field get fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
 ---@field get64 fun(self: CallableHDL): uint64_t

@@ -33,7 +33,7 @@ ffi.cdef[[
 ---@field file_name string
 ---@field save_cnt_max? number Default: 10000
 ---@field verbose? boolean Default: false
----@field size_limit? number Default: nil
+---@field size_limit? number Default: nil, in bytes
 
 ---@class (exact) LuaDataBase
 ---@overload fun(params: LuaDataBase.params): LuaDataBase
