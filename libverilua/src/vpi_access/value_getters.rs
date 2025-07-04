@@ -5,21 +5,13 @@ impl VeriluaEnv {
     pub fn vpiml_get_value(&mut self, complex_handle_raw: ComplexHandleRaw) -> u32 {
         let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
         let mut v = s_vpi_value {
-            format: vpiVectorVal as _,
+            format: vpiIntVal as _,
             value: t_vpi_value__bindgen_ty_1 { integer: 0 },
         };
 
         unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-        if cfg!(not(feature = "iverilog")) {
-            unsafe { v.value.vector.read().aval as _ }
-        } else {
-            if self.resolve_x_as_zero && unsafe { v.value.vector.read().bval } != 0 {
-                0 as _
-            } else {
-                unsafe { v.value.vector.read().aval as _ }
-            }
-        }
+        unsafe { v.value.integer as _ }
     }
 
     pub fn vpiml_get_value64(&mut self, complex_handle_raw: ComplexHandleRaw) -> u64 {
