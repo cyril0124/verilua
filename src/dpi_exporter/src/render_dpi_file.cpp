@@ -16,6 +16,7 @@ inline static const char *getDpiFileTemplate() {
 #include <unordered_map>
 #include <algorithm>
 #include <functional>
+#include <cassert>
 
 using GetValue32Func = std::function<uint32_t ()>;
 using GetValueVecFunc = std::function<void (uint32_t *)>;
@@ -154,12 +155,16 @@ extern "C" char *dpi_exporter_get_meta_info_file_path() {
     return meta_info_file_path;
 }
 
-## if distributeDPI == 0
+{% if distributeDPI == 0 %}
 
 // Call verilua_main_step_safe() in dpi_exporter_tick() if `DPI_EXP_CALL_VERILUA_ENV_STEP` macro is defined.
 // Only available when `distributeDPI` is 0.
 #ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
 extern "C" void verilua_main_step_safe();
+
+{% if hasSensitiveSignals == 1 %}
+bool hasSignalChanged = false; // Used for sensitive signals to indicate if there is a change in all sensitive signals.
+{% endif %}
 #endif // DPI_EXP_CALL_VERILUA_ENV_STEP
 
 extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
@@ -167,16 +172,22 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
 
 #ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
     verilua_main_step_safe();
+{% if hasSensitiveSignals == 1 %}
+    hasSignalChanged = false;
+{% endif %}
 #endif // DPI_EXP_CALL_VERILUA_ENV_STEP
 }
 
 {{sDpiTickFuncContent}}
 
-## endif
+{{sDpiTriggerFuncContent}}
+
+{% endif %} {# `if distributeDPI == 0` #}
 )";
 }
 
 std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string topModuleName, bool distributeDPI, std::string metaInfoFilePath) {
+    bool hasSensitiveSignals = false;
     std::vector<std::string> handleByNameVec;
     std::vector<std::string> getTypeStrVec;
     std::vector<std::string> getBitWidthVec;
@@ -203,6 +214,7 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string 
         }
         sDpiTickFuncParamMap[sg.name] = {};
         sDpiTickFuncBodyMap[sg.name]  = {};
+        hasSensitiveSignals           = true;
     }
 
     for (auto &sg : signalGroupVec) {
@@ -497,11 +509,38 @@ extern "C" void VERILUA_DPI_EXPORTER_{0}_SET_HEX_STR(char *hexStr) {{
         sDpiTickFuncContent += fmt::format(R"(
 extern "C" void dpi_exporter_tick_{0}({1}) {{
 {2}
+
+#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+    hasSignalChanged = true;
+#endif
 }}
 )",
                                            sgName, joinStrVec(funcParamVec, ", "), joinStrVec(sDpiTickFuncBodyMap[sgName], "\n"));
     }
     j["sDpiTickFuncContent"] = sDpiTickFuncContent;
+
+    json jj;
+    std::string sDpiTriggerFuncContent = "";
+    jj["hasSensitiveSignals"]          = hasSensitiveSignals ? 1 : 0;
+    sDpiTriggerFuncContent             = inja::render(R"(
+// When sensitive signal groups are updated(i.e. dpi_exporter_tick_<SenstiveGroupName>), this function can be used to check whether any signal has changed.
+// Normally used for optimizing the performance of obtaining signal values by reducing unnecessary signal value sampling actions.
+extern "C" bool dpi_exporter_sensitive_trigger() {
+#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+{% if hasSensitiveSignals == 1 %}
+    return hasSignalChanged;
+{% else %}
+    assert(0 && "dpi_exporter_sensitive_trigger() should not be called when hasSensitiveSignals is FALSE");
+{% endif %}
+#else
+    assert(0 && "dpi_exporter_sensitive_trigger() should not be called when cflags macro DPI_EXP_CALL_VERILUA_ENV_STEP is not defined");
+#endif
+}
+)",
+                                                      jj);
+
+    j["hasSensitiveSignals"]    = hasSensitiveSignals ? 1 : 0;
+    j["sDpiTriggerFuncContent"] = sDpiTriggerFuncContent;
 
     return inja::render(getDpiFileTemplate(), j);
 }

@@ -2,7 +2,6 @@ local ffi = require "ffi"
 local math = require "math"
 local vpiml = require "vpiml"
 local debug = require "debug"
-local BitVec = require "BitVec"
 local utils = require "LuaUtils"
 local class = require "pl.class"
 local texpect = require "TypeExpect"
@@ -18,9 +17,7 @@ local f = string.format
 local tonumber = tonumber
 local bit_tohex = bit.tohex
 local setmetatable = setmetatable
-local table_insert = table.insert
 
-local C = ffi.C
 local ffi_new = ffi.new
 local ffi_string = ffi.string
 
@@ -33,7 +30,7 @@ local await_negedge_hdl = _G.await_negedge_hdl
 local always_await_posedge_hdl = _G.always_await_posedge_hdl
 local await_noop = _G.await_noop
 
-local compare_value_str = utils.compare_value_str
+local DpiExporter
 
 local post_init_mt = setmetatable({
     _post_init = function(obj)
@@ -154,6 +151,14 @@ local post_init_mt = setmetatable({
 ---@field is_bin_str fun(self: CallableHDL, bin_value_str: string): boolean
 ---@field is_dec_str fun(self: CallableHDL, dec_value_str: string): boolean
 ---@field _if fun(self: CallableHDL, condition_func: fun(): boolean): CallableHDL
+---
+---@field private __vpi_get function
+---@field private __dpi_get function
+---@field private __dpi_get64 function
+---@field private __dpi_get_vec function
+---@field private __vpi_get_hex_str function
+---@field private __dpi_get_hex_str function
+---@field private hex_buffer ffi.cdata*
 local CallableHDL = class(post_init_mt)
 
 function CallableHDL:_init(fullpath, name, hdl)
@@ -321,6 +326,61 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.set_index_dec_str = function (this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
             vpiml.vpiml_set_value_dec_str(chosen_hdl, str)
+        end
+    end
+
+    if not DpiExporter and cfg.enable_dpi_exporter then
+        DpiExporter = require "DpiExporter"
+    end
+
+    -- Check if DPI exporter is enabled
+    if cfg.enable_dpi_exporter then
+        local is_exported = DpiExporter:is_exported(self.fullpath)
+        if is_exported then
+            print(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
+
+            -- Assign new `get`
+            if self.width <= 32 then
+                self.__vpi_get = self.get
+                self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
+                self.get = function (this)
+                    return this.__dpi_get()
+                end
+            else
+                self.__vpi_get = self.get
+                self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
+                self.__dpi_get64 = DpiExporter:fetch_get64_value_func(self.fullpath)
+                self.__dpi_get_vec = DpiExporter:fetch_get_vec_value_func(self.fullpath)
+                if self.width <= 64 then
+                    self.get = function (this, force_multi_beat)
+                        if force_multi_beat then
+                            this.__dpi_get_vec(this.c_results)
+                            return this.c_results
+                        else
+                            return this.__dpi_get64()
+                        end
+                    end
+                else
+                    self.get = function (this)
+                        this.__dpi_get_vec(this.c_results)
+                        return this.c_results
+                    end
+                end
+
+                self.get64 = function (this)
+                    return this.__dpi_get64()
+                end
+            end
+
+            -- TODO: has some problem with PLDM
+            -- Assign new `get_hex_str`
+            -- self.__vpi_get_hex_str = self.get_hex_str
+            -- self.__dpi_get_hex_str = DpiExporter:fetch_get_hex_str_value_func(self.fullpath)
+            -- self.hex_buffer = ffi.new("char[?]", utils.cover_with_n(self.width, 4))
+            -- self.get_hex_str = function (this)
+            --     this.__dpi_get_hex_str(this.hex_buffer)
+            --     return ffi_string(this.hex_buffer)
+            -- end
         end
     end
 

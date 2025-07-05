@@ -168,10 +168,11 @@ struct SignalInfo {
     bitwidth_t bitWidth;
     uint64_t handleId;
     bool isWritable;
+    bool isSensitive;
 
     std::string hierPathName;
     size_t beatSize;
-    SignalInfo(std::string hierPath, std::string modulePath, std::string signalName, std::string vpiTypeStr, bitwidth_t bitWidth, uint64_t handleId, bool isWritable) : hierPath(hierPath), modulePath(modulePath), signalName(signalName), vpiTypeStr(vpiTypeStr), bitWidth(bitWidth), handleId(handleId), isWritable(isWritable) {
+    SignalInfo(std::string hierPath, std::string modulePath, std::string signalName, std::string vpiTypeStr, bitwidth_t bitWidth, uint64_t handleId, bool isWritable, bool isSensitive) : hierPath(hierPath), modulePath(modulePath), signalName(signalName), vpiTypeStr(vpiTypeStr), bitWidth(bitWidth), handleId(handleId), isWritable(isWritable), isSensitive(isSensitive) {
         hierPathName = getHierPathName();
         beatSize     = coverWith32(bitWidth);
     }

@@ -28,6 +28,12 @@ local setmetatable = setmetatable
 ---@field prj_dir string
 ---@field seed number
 ---@field colors AnsiColors
+---@field enable_dpi_exporter boolean Enable dpi_exporter optimization. The value getter function 
+---                                   will bypass vpiml and obtain the value from underlying DPI-C 
+---                                   functions. Increase the performance of the value getter functions.
+---                                   i.e. 
+---                                         (origin) <chdl>:get() --> [vpiml]vpi_get_value() --> [dummy_vpi]complexHandle.getValue32() --> VERILUA_DPI_EXPORTER_xxx_GET() --> RTL Signals
+---                                         (opt)    <chdl>:get() --> VERILUA_DPI_EXPORTER_xxx_GET() --> RTL Signals
 ---@field get_or_else fun(self: LuaSimConfig, cfg_str: string, default: any): any
 ---@field get_or_else_log fun(self: LuaSimConfig, cfg_str: string, default: any, log_str: string): any
 ---@field dump_str fun(self: LuaSimConfig): string
@@ -341,6 +347,11 @@ function cfg:post_config()
     cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
     cfg.vpi_learn       = cfg:get_or_else("vpi_learn", false)
     cfg.prj_dir         = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
+
+    -- This flag is enabled by calling:
+    --      local DpiExporter = require "DpiExporter"
+    --      DpiExporter:init(<meta_info_file or nil>) -- cfg.enable_dpi_exporter will be set at the end of this function
+    cfg.enable_dpi_exporter = false
 
     -- Setup seed, <SEED> set by environment variable has higher priority
     cfg.seed = cfg:get_or_else("seed", 1234)

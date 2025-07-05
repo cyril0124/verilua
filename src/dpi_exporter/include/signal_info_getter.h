@@ -48,10 +48,11 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                     auto isWritable          = cpattern.checkWritableSignal(net.name);
                     auto isUnique            = checkUniqueSignal(hierPathFull);
                     auto isSensitive         = cpattern.checkSensitiveSignal(net.name);
-                    auto signalInfo          = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiNet", bitWidth, handleId, isWritable);
+                    auto signalInfo          = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiNet", bitWidth, handleId, isWritable, isSensitive);
 
                     if (isSensitive && isUnique) {
                         ASSERT(bitWidth == 1, "TODO: bitWidth != 1", hierPathFull);
+                        // The sensitive signal will also be added to signalInfoVec
                         signalGroup.sensitiveSignalInfoVec.push_back(signalInfo);
                         if (!Config::getInstance().quietEnabled) {
                             fmt::println("\t<NET_SENSITIVE>: name: {}, width: {}, hierPath: {}, modulePath: {}, signalName: {}, handleId: {}, isWritable: {}", net.name, bitWidth, hierPathFull, hierPathPair.first, hierPathPair.second, handleId, isWritable);
@@ -90,7 +91,7 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                     auto isUnique            = checkUniqueSignal(hierPathFull);
                     auto writableNotUnique   = !isUnique && isWritable;
                     auto isSensitive         = cpattern.checkSensitiveSignal(var.name);
-                    auto signalInfo          = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiReg", bitWidth, handleId, isWritable);
+                    auto signalInfo          = SignalInfo(hierPathFull, hierPathPair.first, hierPathPair.second, "vpiReg", bitWidth, handleId, isWritable, isSensitive);
 
                     if (isSensitive && isUnique) {
                         ASSERT(bitWidth == 1, "TODO: bitWidth != 1", hierPathFull);
