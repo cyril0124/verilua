@@ -426,8 +426,6 @@ target("install_luajit")
 
         -- Build luarocks
         do
-            os.cd(build_dir)
-
             execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
             execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
             os.cd("luarocks-" .. luarocks_version)
