@@ -407,7 +407,7 @@ target("install_luajit")
         local curr_dir = os.workingdir()
         local luajit_pro_dir = curr_dir .. "/luajit-pro"
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
-        local luarocks_version = "3.12.0"
+        local luarocks_version = "3.12.2"
 
         -- Remove existing luajit-pro directory
         execute("rm -rf " .. luajit_pro_dir)
