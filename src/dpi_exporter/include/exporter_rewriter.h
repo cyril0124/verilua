@@ -18,6 +18,9 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
 
     void handle(const ModuleDeclarationSyntax &syntax) {
         if (this->insertModuleName == syntax.header->name.rawText()) {
+            auto pldmGfifoDpi           = Config::getInstance().pldmGfifoDpi;
+            std::string pldmGfifoDpiStr = "";
+
             fmt::println("[dpi_exporter] ExporterRewriter insertModuleName: {}", syntax.header->name.rawText());
 
             // Deal with normal signal groups
@@ -91,6 +94,15 @@ import "DPI-C" function void dpi_exporter_tick_{1}(
                                                 sSignals, name, dpiTickFuncDeclParamVec[i], joinStrVec(sSignalsLastRegVec, "\n"));
                 sDpiTickFuncDecl_1 += fmt::format("{0} import \"DPI-C\" function void dpi_exporter_tick_{1}({2}); ", joinStrVec(sSignalsLastRegVec, " "), name, dpiTickFuncDeclParam1Vec[i]);
                 sCallDpiTickFunc += fmt::format("if({0}) dpi_exporter_tick_{1}({2}); {3}", sSignalsCond, name, dpiTickFuncParamVec[i], sSignalsLastRegAssign);
+
+                if (pldmGfifoDpi) {
+                    pldmGfifoDpiStr += fmt::format("initial $ixc_ctrl(\"gfifo\", \"dpi_exporter_tick_{}\");\n", name);
+                }
+            }
+
+            if (pldmGfifoDpi) {
+                pldmGfifoDpiStr += "initial $ixc_ctrl(\"gfifo\", \"dpi_exporter_tick\");\n";
+                pldmGfifoDpiStr = std::string("`ifdef PALLADIUM\n") + pldmGfifoDpiStr + "`endif // PALLADIUM\n";
             }
 
             json j;
@@ -103,6 +115,7 @@ import "DPI-C" function void dpi_exporter_tick_{1}(
             j["sampleEdge"]             = sampleEdge;
             j["topModuleName"]          = topModuleName;
             j["clock"]                  = clock;
+            j["pldmGfifoDpiStr"]        = pldmGfifoDpiStr;
 
             auto code = inja::render(R"(
 import "DPI-C" function void dpi_exporter_tick(
@@ -121,6 +134,8 @@ always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
 `CALL_DPI_EXPORTER_TICK
 end
 `endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+
+{{pldmGfifoDpiStr}}
 )",
                                      j);
 

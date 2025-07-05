@@ -5,6 +5,7 @@
 class Config {
   public:
     bool quietEnabled{false};
+    bool pldmGfifoDpi{false};
     std::string topModuleName;
     std::string sampleEdge;
 

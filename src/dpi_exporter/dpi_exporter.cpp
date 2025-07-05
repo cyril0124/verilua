@@ -6,6 +6,9 @@
 using json   = nlohmann::json;
 namespace fs = std::filesystem;
 
+// TODO: Writable signal should ne use sensitive signal
+// TODO: Support both posedge and negedge(LuaEdgeStepScheduler)
+
 class DPIExporter {
   private:
     slang_common::Driver driver;
@@ -22,6 +25,7 @@ class DPIExporter {
     std::optional<std::string> insertModuleName;
     std::optional<bool> _distributeDPI;
     std::optional<bool> _quiet;
+    std::optional<bool> pldmGfifoDpi;
     std::optional<bool> nocache;
     std::optional<bool> showHelp;
 
@@ -193,6 +197,7 @@ end
         driver.cmdLine.add("-q,--quiet", _quiet, "quiet mode, print only necessary info");
         driver.cmdLine.add("--nc,--no-cache", nocache, "do not use cache files");
         driver.cmdLine.add("--im,--insert-module-name", insertModuleName, "module namne of the DPI function(available when distributeDPI is FALSE)", "<name>"); // ! make sure tha the inserted module has only one instance
+        driver.cmdLine.add("--pgd,--pldm-gfifo-dpi", pldmGfifoDpi, "Mark the generated DPI functions as pldm gfifo functions(pldm => Cadence Palladium Emulation Platform)");
     }
 
     int parseCommandLine(int argc, char **argv) {
@@ -286,6 +291,7 @@ end
         Config::getInstance().quietEnabled  = quiet;
         Config::getInstance().topModuleName = topModuleName;
         Config::getInstance().sampleEdge    = sampleEdge;
+        Config::getInstance().pldmGfifoDpi  = pldmGfifoDpi.value_or(false);
 
         // Get DPIExporterInfoVec from the provided lua config file
         auto conciseSignalPatternVec = this->extractConfigInfo();
