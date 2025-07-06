@@ -987,4 +987,16 @@ function utils.execute_after(count, func, options)
     end
 end
 
+---@param code string 
+---@param env? table 
+function utils.loadcode(code, env)
+    local ret = loadstring(code) --[[@as function]]
+    if not ret then
+    assert(false, "[utils.loadcode] loadstring failed, code:\n" .. code)
+    end
+
+    if env then setfenv(ret, env) end
+    return ret()
+end
+
 return utils

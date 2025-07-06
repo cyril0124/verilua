@@ -287,6 +287,11 @@ function texpect.expect_database(value, name, elements_table)
         if value.__type == "LuaDataBase" then
             assert(type(elements_table) == "table", "[expect_database] elements_table must be a table")
 
+            -- Remove trivial space
+            for _, s in ipairs(elements_table) do
+                s:gsub(" ", "")
+            end
+
             local expect = inspect(elements_table)
             local got = inspect(value.elements)
             if got ~= expect then

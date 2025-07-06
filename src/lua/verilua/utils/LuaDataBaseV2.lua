@@ -5,10 +5,13 @@ local lfs = require "lfs"
 local path = require "pl.path"
 local class = require "pl.class"
 local utils = require "LuaUtils"
-local sqlite3 = require "lsqlite3"
 local texpect = require "TypeExpect"
 local table_new = require "table.new"
 local subst = require("pl.template").substitute
+
+local sqlite3
+local sqlite3_clib
+local SQLITE3
 
 local print = print
 local pairs = pairs
@@ -16,7 +19,6 @@ local string = string
 local assert = assert
 local ipairs = ipairs
 local f = string.format
-local sqlite3_OK = sqlite3.OK
 local table_insert = table.insert
 
 local verilua_debug = _G.verilua_debug
@@ -26,33 +28,50 @@ ffi.cdef [[
     pid_t getpid(void);
 ]]
 
+local function bind_values(stmt, ...)
+    local n = select("#", ...)
+    for i = 1, n do
+        local v = select(i, ...)
+        local t = type(v)
+        if t == "number" then
+            stmt:bind_int(i, v)
+        elseif t == "string" then
+            stmt:bind_text(i, v)
+        else
+            assert(false, "[LuaDataBaseV2.bind_values_safe] Unsupported data type: " .. t)
+        end
+    end
+end
 
----@alias LuaDataBase.elements.type "integer" | "text" | "INTEGER" | "TEXT"
+---@alias LuaDataBaseV2.elements.type "integer" | "text" | "INTEGER" | "TEXT"
 
----@class LuaDataBase.elements.entry
+---@class LuaDataBaseV2.elements.entry
 ---@field name string
----@field type LuaDataBase.elements.type
+---@field type LuaDataBaseV2.elements.type
 
----@class LuaDataBase.pragmas
+---@class LuaDataBaseV2.pragmas
 ---@field journal_mode? "MEMORY" | "DELETE" | "TRUNCATE" | "PERSIST" | "WAL" | "OFF" Default: OFF
 ---@field synchronous? "OFF" | "FULL" | "NORMAL" Default: OFF
 ---@field locking_mode? "NORMAL" | "EXCLUSIVE" Default: EXCLUSIVE
 ---@field foreign_keys? "ON" | "OFF" Default: OFF
 ---@field cache_size? string Default: -1000000(1GB)
 
----@class (exact) LuaDataBase.params
+---@class (exact) LuaDataBaseV2.params
 ---@field table_name string
----@field elements string[] | LuaDataBase.elements.entry[]
+---@field elements string[] | LuaDataBaseV2.elements.entry[]
 ---@field path string
 ---@field file_name string
 ---@field save_cnt_max? number Default: 10000
 ---@field size_limit? number Default: nil, in bytes
 ---@field table_cnt_max? number Default: nil
 ---@field verbose? boolean Default: false
----@field pragmas? LuaDataBase.pragmas
+---@field no_check_bind_value? boolean Default: false, the caller is responsible for the data to be bound, good for performance
+---@field libsqlite3_name? string Default: sqlite3
+---@field libsqlite3_path? string Default: nil
+---@field pragmas? LuaDataBaseV2.pragmas
 
----@class (exact) LuaDataBase
----@overload fun(params: LuaDataBase.params): LuaDataBase
+---@class (exact) LuaDataBaseV2
+---@overload fun(params: LuaDataBaseV2.params): LuaDataBaseV2
 ---@field private db any
 ---@field private size_limit? number
 ---@field private file_count number
@@ -62,7 +81,7 @@ ffi.cdef [[
 ---@field private table_name_template string
 ---@field private fullpath_name string
 ---@field private available_files table<string>
----@field private entries LuaDataBase.elements.entry[]
+---@field private entries LuaDataBaseV2.elements.entry[]
 ---@field private stmt any
 ---@field private finished boolean
 ---@field private verbose boolean
@@ -74,22 +93,22 @@ ffi.cdef [[
 ---@field private prepare_cmd_template string
 ---@field private prepare_cmd string
 ---@field private pragma_cmd string
----@field private save_cnt_max number Call `<LuaDataBase>:commit()` when the `save_cnt` exceeds this value
+---@field private save_cnt_max number Call `<LuaDataBaseV2>:commit()` when the `save_cnt` exceeds this value
 ---@field private save_cnt number The count of data saved without calling commit
 ---@field private table_cnt_max? number Default: nil, the max count of table entries, once the table count exceeds this value, new table will be created
 ---@field private table_cnt number
 ---@field private table_idx number
 ---@field private cache table
----@field private _log fun(self: LuaDataBase, ...)
----@field private create_db fun(self: LuaDataBase)
----@field private create_table fun(self: LuaDataBase)
----@field save  fun(self: LuaDataBase, ...)
----@field commit fun(self: LuaDataBase,...)
-local LuaDataBase = class()
+---@field private _log fun(self: LuaDataBaseV2, ...)
+---@field private create_db fun(self: LuaDataBaseV2)
+---@field private create_table fun(self: LuaDataBaseV2)
+---@field save  fun(self: LuaDataBaseV2, ...)
+---@field commit fun(self: LuaDataBaseV2,...)
+local LuaDataBaseV2 = class()
 
 --
 -- Example:
---      local LuaDB = require "verilua.utils.LuaDataBase"
+--      local LuaDB = require "verilua.utils.LuaDataBaseV2"
 --      local db = LuaDB {
 --          table_name = "a_table",
 --          elements = {
@@ -122,20 +141,33 @@ local LuaDataBase = class()
 --      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the `same order` and same number as the elements in the table
 --
 
----@param self LuaDataBase
----@param params LuaDataBase.params
-function LuaDataBase:_init(params)
+---@param self LuaDataBaseV2
+---@param params LuaDataBaseV2.params
+function LuaDataBaseV2:_init(params)
     texpect.expect_table(params, "init_tbl")
 
-    local save_cnt_max  = params.save_cnt_max or 10000
-    local table_cnt_max = params.table_cnt_max
-    local verbose       = params.verbose or false
-    local table_name    = params.table_name
-    local elements      = params.elements
-    local file_name     = params.file_name
-    local path_name     = params.path
-    local size_limit    = params.size_limit -- Size in bytes
-    local pragmas       = params.pragmas or {} --[[@as LuaDataBase.pragmas]]
+    local save_cnt_max    = params.save_cnt_max or 10000
+    local table_cnt_max   = params.table_cnt_max
+    local verbose         = params.verbose or false
+    local table_name      = params.table_name
+    local elements        = params.elements
+    local file_name       = params.file_name
+    local path_name       = params.path
+    local size_limit      = params.size_limit -- Size in bytes
+    local pragmas         = params.pragmas or {} --[[@as LuaDataBaseV2.pragmas]]
+
+    local libsqlite3_name = params.libsqlite3_name or "sqlite3"
+    local libsqlite3_path = params.libsqlite3_path
+    do
+        sqlite3 = require("thirdparty_lib.sqlite3") {
+            name = libsqlite3_name,
+            path = libsqlite3_path,
+        }
+        sqlite3_clib = sqlite3.clib
+        SQLITE3 = sqlite3.const
+    end
+
+    local no_check_bind_value = params.no_check_bind_value
 
     texpect.expect_string(table_name, "table_name")
     texpect.expect_table(elements, "elements")
@@ -163,7 +195,7 @@ function LuaDataBase:_init(params)
     self.elements = {}
 
     -- This is used when `LightSSS` is enabled.
-    -- If the pid of each LuaDataBase instance is different, then the database will not be committed
+    -- If the pid of each LuaDataBaseV2 instance is different, then the database will not be committed
     self.pid = ffi.C.getpid()
 
     if path_name then
@@ -187,7 +219,7 @@ function LuaDataBase:_init(params)
         local key, data_type
         local t = type(kv_str)
         if t == "table" then
-            ---@cast kv_str LuaDataBase.elements.entry
+            ---@cast kv_str LuaDataBaseV2.elements.entry
             key = kv_str.name
             data_type = kv_str.type
         elseif t == "string" then
@@ -196,9 +228,9 @@ function LuaDataBase:_init(params)
 
             key, data_type = kv_str:match("([^%s=>]+)%s*=>%s*([^%s]+)")
             data_type = data_type:upper()
-            assert(data_type == "INTEGER" or data_type == "TEXT", "[LuaDataBase] Unsupported data type: " .. data_type)
+            assert(data_type == "INTEGER" or data_type == "TEXT", "[LuaDataBaseV2] Unsupported data type: " .. data_type)
         else
-            assert(t == "string", "[LuaDataBase] Unsupported type: " .. t)
+            assert(t == "string", "[LuaDataBaseV2] Unsupported type: " .. t)
         end
 
         if data_type == "INTEGER" then
@@ -276,7 +308,7 @@ function LuaDataBase:_init(params)
     end
 
     verilua_debug(f(
-        "[LuaDataBase] table_name: %s file_name: %s prepare_cmd: %s",
+        "[LuaDataBaseV2] table_name: %s file_name: %s prepare_cmd: %s",
         table_name,
         file_name,
         self.prepare_cmd
@@ -295,7 +327,7 @@ function LuaDataBase:_init(params)
     if attributes == nil then
         local success, message = lfs.mkdir(self.path_name .. "/")
         if not success then
-            assert(false, "[LuaDataBase] Cannot create folder: " .. self.path_name .. " err: " .. message)
+            assert(false, "[LuaDataBaseV2] Cannot create folder: " .. self.path_name .. " err: " .. message)
         end
     end
 
@@ -303,17 +335,17 @@ function LuaDataBase:_init(params)
             return function (self)
                 local code = self.db:exec(self.create_table_cmd)
                 if code ~= $(sqlite3_ok) then
-                    assert(false, "[LuaDataBase] SQLite3 error: " .. self.db:errmsg())
+                    assert(false, "[LuaDataBaseV2] SQLite3 error: " .. self.db:errmsg())
                 else
                     if self.table_cnt_max then
                         self.table_cnt = 0
                     end
 |> if enable_verilua_debug then
-                    verilua_debug("[LuaDataBase] cmd execute success! cmd => " .. self.create_table_cmd)
+                    verilua_debug("[LuaDataBaseV2] cmd execute success! cmd => " .. self.create_table_cmd)
 |> end
                 end
             end
-    ]], { _escape = "|>", enable_verilua_debug = _G.enable_verilua_debug, sqlite3_ok = sqlite3_OK }))
+    ]], { _escape = "|>", enable_verilua_debug = _G.enable_verilua_debug, sqlite3_ok = SQLITE3.OK }))
 
     -- Create database
     self:create_db()
@@ -325,6 +357,36 @@ function LuaDataBase:_init(params)
     for i = 1, narg do
         args_table[i] = "v" .. i
         commit_data_unpack_items[i] = "__cache_value[" .. i .. "]"
+    end
+
+    local bind_values_code
+    if no_check_bind_value then
+        local t = {}
+        for i, entry in ipairs(self.entries) do
+            if entry.type == "INTEGER" then
+                t[#t + 1] = subst([[
+                    local __cache_value__$(n) = __cache_value[$(i)]
+                    sqlite3_clib.sqlite3_bind_double(stmt, $(i), __cache_value__$(n)) ]],
+                    { i = i, n = entry.name }
+                )
+            elseif entry.type == "TEXT" then
+                t[#t + 1] = subst([[
+                    local __cache_value__$(n) = __cache_value[$(i)]
+                    sqlite3_clib.sqlite3_bind_text(stmt, $(i), __cache_value__$(n), #__cache_value__$(n), nil) ]],
+                    { i = i, n = entry.name }
+                )
+            else
+                assert(false, "[LuaDataBaseV2] Unsupported data type: " .. entry.type)
+            end
+        end
+        bind_values_code = table.concat(t, "\n\n")
+    else
+        bind_values_code = subst(
+            "bind_values(stmt, $(commit))",
+            {
+                commit = table.concat(commit_data_unpack_items, ", ")
+            }
+        )
     end
 
     --
@@ -357,7 +419,7 @@ function LuaDataBase:_init(params)
     local commit_func_code = subst([[
         return function(this)
             -- This is used when `LightSSS` is enabled.
-            -- If the pid of each LuaDataBase instance is different, then the database will not be committed
+            -- If the pid of each LuaDataBaseV2 instance is different, then the database will not be committed
             if ffi.C.getpid() ~= $(pid) then
                 this.save_cnt = 1
                 return
@@ -367,7 +429,10 @@ function LuaDataBase:_init(params)
 
             -- Notice: parametes passed into this function should hold the same order as the elements in the table
             this.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
-            local stmt = assert(this.db:prepare($(prepare)), "[commit] stmt is nil")
+            local code, stmt = this.db:prepare_v2($(prepare))
+            if code ~= $(sqlite3_ok) then
+                assert(false, "[LuaDataBaseV2] [commit] SQLite3 error: " .. this.db:errmsg())
+            end
 
             for cnt = 1, this.save_cnt do
                 local __cache_value = this.cache[cnt]
@@ -390,8 +455,8 @@ function LuaDataBase:_init(params)
     ]], {
         pid = self.pid,
         prepare = self.table_cnt_max and "this.prepare_cmd" or "\"" .. self.prepare_cmd .. "\"",
-        bind_values_code = "stmt:bind_values(" .. table.concat(commit_data_unpack_items, ", ") .. ")",
-        sqlite3_ok = sqlite3_OK,
+        bind_values_code = bind_values_code,
+        sqlite3_ok = SQLITE3.OK,
         verbose_print = self.verbose and "this:_log('commit!')" or "",
         size_limit_check = self.size_limit and subst([[
             if this.finished then
@@ -436,7 +501,9 @@ function LuaDataBase:_init(params)
             lfs = lfs,
             assert = assert,
             f = string.format,
+            bind_values = bind_values,
             lfs_attributes = lfs.attributes,
+            sqlite3_clib = sqlite3_clib,
             print = print
         }
     )
@@ -453,7 +520,7 @@ function LuaDataBase:_init(params)
                 -- Save available files
                 local avail_file = self.path_name .. "/" .. self.file_name .. ".available_files"
                 local file = io.open(avail_file, "w")
-                assert(file, "[LuaDataBase] Cannot open file: " .. avail_file)
+                assert(file, "[LuaDataBaseV2] Cannot open file: " .. avail_file)
                 file:write(table.concat(self.available_files, "\n"))
                 file:close()
             end
@@ -461,28 +528,28 @@ function LuaDataBase:_init(params)
     }
 end
 
-function LuaDataBase:_log(...)
-    print(f("[LuaDataBase] [%s]", self.file_name), ...)
+function LuaDataBaseV2:_log(...)
+    print(f("[LuaDataBaseV2] [%s]", self.file_name), ...)
     io.flush()
 end
 
-function LuaDataBase:create_db()
+function LuaDataBaseV2:create_db()
     -- Remove data base before create it
     local ret, err_msg = os.remove(self.fullpath_name)
     if ret then
-        verilua_debug(f("[LuaDataBase] Remove %s success!\n", self.fullpath_name))
+        verilua_debug(f("[LuaDataBaseV2] Remove %s success!\n", self.fullpath_name))
     else
-        verilua_debug(f("[LuaDataBase] Remove %s failed! => %s\n", self.fullpath_name, err_msg))
+        verilua_debug(f("[LuaDataBaseV2] Remove %s failed! => %s\n", self.fullpath_name, err_msg))
     end
 
     -- Open database
-    local db, code = sqlite3.open(self.fullpath_name)
-    if not db then
-        assert(false, f("[LuaDataBase] Cannot open %s => %s", self.fullpath_name, db:errmsg()))
+    local code, db = sqlite3.open(self.fullpath_name)
+    if code ~= SQLITE3.OK then
+        assert(false, f("[LuaDataBaseV2] Cannot open %s => %s", self.fullpath_name, db:errmsg()))
     end
     code = db:exec(self.pragma_cmd)
-    if code ~= sqlite3_OK then
-        assert(false, f("[LuaDataBase] Cannot set cache size %s => %s", self.fullpath_name, db:errmsg()))
+    if code ~= SQLITE3.OK then
+        assert(false, f("[LuaDataBaseV2] Cannot set cache size %s => %s", self.fullpath_name, db:errmsg()))
     end
 
     self.db = db
@@ -498,10 +565,10 @@ function LuaDataBase:create_db()
     self:create_table()
 end
 
-function LuaDataBase:clean_up()
+function LuaDataBaseV2:clean_up()
     local path = require "pl.path"
     print(f(
-        "[LuaDataBase] [%s] [%s => %s] clean up...\n",
+        "[LuaDataBaseV2] [%s] [%s => %s] clean up...\n",
         self.table_name,
         self.fullpath_name,
         path.abspath(self.fullpath_name)
@@ -510,4 +577,4 @@ function LuaDataBase:clean_up()
     self:commit()
 end
 
-return LuaDataBase
+return LuaDataBaseV2
