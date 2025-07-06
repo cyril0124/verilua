@@ -9,10 +9,8 @@ local texpect = require "TypeExpect"
 local table_new = require "table.new"
 local subst = require 'pl.template'.substitute
 
-local load = load
 local print = print
 local pairs = pairs
-local printf = printf
 local string = string
 local assert = assert
 local ipairs = ipairs
@@ -25,6 +23,18 @@ ffi.cdef[[
     typedef int pid_t;
     pid_t getpid(void);
 ]]
+
+---@param s string
+---@param env? table
+local function loadcode(s, env)
+    local ret = loadstring(s) --[[@as function]]
+    if not ret then
+    assert(false, "[loadcode] loadstring failed, code:\n" .. s)
+    end
+
+    if env then setfenv(ret, env) end
+    return ret()
+end
 
 ---@class (exact) LuaDataBase.params
 ---@field table_name string
@@ -200,11 +210,8 @@ function LuaDataBase:_init(params)
         commit_data_unpack_items[i] = "this.cache[i][" .. i .. "]"
     end
 
-    local save_func_str, _, _ = subst([[
-    local assert = assert
-    local table_insert = table.insert
-        
-    local func = function(this, $(args))
+    local save_func_code, _, _ = subst([[
+    return function(this, $(args))
         this.cache[this.save_cnt] = {$(args)}
         if this.save_cnt >= $(save_cnt_max) then
             this:commit()
@@ -212,19 +219,14 @@ function LuaDataBase:_init(params)
             this.save_cnt = this.save_cnt + 1
         end
     end
-
-    return func
     ]], {
         args = table.concat(args_table, ", "),
         save_cnt_max = self.save_cnt_max
     })
 
 
-    local commit_func_str, _, _ = subst([[
-    local assert = assert
-    local lfs = require "lfs"
-
-    local func = function(this)
+    local commit_func_code, _, _ = subst([[
+    return function(this)
 
         -- This is used when `LightSSS` is enabled.
         -- If the pid of each LuaDataBase instance is different, then the database will not be committed
@@ -252,7 +254,6 @@ function LuaDataBase:_init(params)
 
         $(size_limit_check)
     end
-    return func
     ]], {
         pid = self.pid, 
         prepare = self.prepare_cmd,
@@ -278,8 +279,8 @@ function LuaDataBase:_init(params)
     })
 
     -- try to remove `table.unpack` which cannot be jit compiled by LuaJIT
-    self.save = load(save_func_str)()
-    self.commit = load(commit_func_str)()
+    self.save = loadcode(save_func_code)
+    self.commit = loadcode(commit_func_code, { ffi = ffi, lfs = lfs, assert = assert})
 
     final {
         function ()
@@ -334,7 +335,7 @@ end
 
 function LuaDataBase:clean_up()
     local path = require "pl.path"
-    printf("[LuaDataBase] [%s] [%s => %s] clean up...\n", self.table_name, self.fullpath_name, path.abspath(self.fullpath_name))
+    print(f("[LuaDataBase] [%s] [%s => %s] clean up...\n", self.table_name, self.fullpath_name, path.abspath(self.fullpath_name)))
 
     self:commit()
 end
