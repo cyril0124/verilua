@@ -383,12 +383,23 @@ vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_name)(PLI_BYTE8 *name, vpiHandle scope) 
     std::replace(nameString.begin(), nameString.end(), '[', '_');
     std::replace(nameString.begin(), nameString.end(), ']', '_');
 
+#ifdef DUMMY_VPI_STRICT_HANDLE_BY_NAME
     auto _hdl = dpi_exporter_handle_by_name(nameString);
-    FATAL(_hdl != -1, "Cannot find handle => name: %s, org_name: %s, topName:<%s> topModuleName:<%s>\n", nameString.c_str(), name, topName.c_str(), topModuleName.c_str());
+    FATAL(_hdl != -1, "[dummy_vpi] vpi_handle_by_name: Cannot find handle => name: %s, org_name: %s, topName:<%s> topModuleName:<%s>\n", nameString.c_str(), name, topName.c_str(), topModuleName.c_str());
 
     ComplexHandlePtr hdl = memAllocator.allocate<ComplexHandle>(std::string(name), _hdl);
 
     return reinterpret_cast<vpiHandle>(hdl);
+#else
+    auto _hdl = dpi_exporter_handle_by_name(nameString);
+    if(_hdl == -1) {
+        WARN("[dummy_vpi] vpi_handle_by_name: Cannot find handle => name: %s, org_name: %s, topName:<%s> topModuleName:<%s>\n", nameString.c_str(), name, topName.c_str(), topModuleName.c_str());
+        return nullptr;
+    } else {
+        ComplexHandlePtr hdl = memAllocator.allocate<ComplexHandle>(std::string(name), _hdl);
+        return reinterpret_cast<vpiHandle>(hdl);
+    }
+#endif
 }
 
 vpiHandle DEFINE_VPI_FUNC(vpi_iterate)(PLI_INT32 type, vpiHandle refHandle) { FATAL(0, "`vpi_iterate` not implemented\n"); }
