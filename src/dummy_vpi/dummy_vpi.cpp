@@ -13,8 +13,8 @@
 #ifdef DUMMY_VPI_NOT_USE_WRAPPER
 #define DEFINE_VPI_FUNC(func) func
 #else
-// The reason for appending `__wrap_` prefix to the function name is that in some case the origin `vpi_*` 
-// functions are used by the simulator itself even we do not use any vpi functionality. So we need to wrap 
+// The reason for appending `__wrap_` prefix to the function name is that in some case the origin `vpi_*`
+// functions are used by the simulator itself even we do not use any vpi functionality. So we need to wrap
 // the `vpi_*` functions to avoid the conflict.
 // (e.g. In vcs simulator, when we enable fsdb waveform dump, the `vpi_*` functions get called by fsdb library to dump waveform.)
 // For example, if we use `vpi_get` function, we need to wrap it to `__wrap_vpi_get`.
@@ -341,6 +341,7 @@ void DEFINE_VPI_FUNC(vpi_get_value)(vpiHandle expr, p_vpi_value value_p) {
 
 PLI_BYTE8 *DEFINE_VPI_FUNC(vpi_get_str)(PLI_INT32 property, vpiHandle object) {
     FATAL(property == vpiType, "unsupported property: %d\n", property);
+    FATAL(object != nullptr, "[dummy_vpi] vpi_get_str: object is nullptr\n");
 
     auto handle = reinterpret_cast<ComplexHandlePtr>(object)->handle;
     auto str    = dpi_exporter_get_type_str(handle);
@@ -352,8 +353,13 @@ PLI_BYTE8 *DEFINE_VPI_FUNC(vpi_get_str)(PLI_INT32 property, vpiHandle object) {
 PLI_INT32 DEFINE_VPI_FUNC(vpi_get)(PLI_INT32 property, vpiHandle object) {
     FATAL(property == vpiSize, "unsupported property: %d\n", property);
 
-    auto complexHandle = reinterpret_cast<ComplexHandlePtr>(object);
-    return complexHandle->bitwidth;
+    if (object == nullptr) {
+        WARN("[dummy_vpi] vpi_get: get vpi_get, but object is nullptr! return 0\n");
+        return 0;
+    } else {
+        auto complexHandle = reinterpret_cast<ComplexHandlePtr>(object);
+        return complexHandle->bitwidth;
+    }
 }
 
 PLI_INT32 DEFINE_VPI_FUNC(vpi_remove_cb)(vpiHandle cb_obj) { FATAL(0, "`vpi_remove_cb` not implemented\n"); }
@@ -392,7 +398,7 @@ vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_name)(PLI_BYTE8 *name, vpiHandle scope) 
     return reinterpret_cast<vpiHandle>(hdl);
 #else
     auto _hdl = dpi_exporter_handle_by_name(nameString);
-    if(_hdl == -1) {
+    if (_hdl == -1) {
         WARN("[dummy_vpi] vpi_handle_by_name: Cannot find handle => name: %s, org_name: %s, topName:<%s> topModuleName:<%s>\n", nameString.c_str(), name, topName.c_str(), topModuleName.c_str());
         return nullptr;
     } else {
