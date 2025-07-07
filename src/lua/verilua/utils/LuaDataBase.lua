@@ -168,16 +168,16 @@ function LuaDataBase:_init(params)
 
     if path_name then
         self.path_name = path_name
-        self.file_name = path.basename(path_name .. "/" .. file_name)
+        self.file_name = path.basename(path.join(path_name, file_name))
     else
         self.path_name = path.dirname(file_name)
         self.file_name = path.basename(file_name)
     end
 
     if self.size_limit then
-        self.fullpath_name = self.path_name .. "/" .. self.file_count .. "__" .. self.file_name
+        self.fullpath_name = path.join(self.path_name, self.file_count .. "__" .. self.file_name)
     else
-        self.fullpath_name = self.path_name .. "/" .. self.file_name
+        self.fullpath_name = path.join(self.path_name, self.file_name)
     end
 
     local pre_alloc_entry = {}
@@ -303,7 +303,7 @@ function LuaDataBase:_init(params)
             return function (self)
                 local code = self.db:exec(self.create_table_cmd)
                 if code ~= $(sqlite3_ok) then
-                    assert(false, "[LuaDataBase] SQLite3 error: " .. self.db:errmsg())
+                    assert(false, string.format("[LuaDataBase] [%s] SQLite3 error: %s\n\tcmd: %s", self.fullpath_name, self.db:errmsg(), self.create_table_cmd))
                 else
                     if self.table_cnt_max then
                         self.table_cnt = 0
@@ -354,6 +354,7 @@ function LuaDataBase:_init(params)
         save_cnt_max = self.save_cnt_max
     })
 
+    local _perpare_cmd = self.table_cnt_max and "this.prepare_cmd" or "\"" .. self.prepare_cmd .. "\""
     local commit_func_code = subst([[
         return function(this)
             -- This is used when `LightSSS` is enabled.
@@ -362,8 +363,6 @@ function LuaDataBase:_init(params)
                 this.save_cnt = 1
                 return
             end
-
-            $(table_cnt_check)
 
             -- Notice: parametes passed into this function should hold the same order as the elements in the table
             this.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
@@ -374,6 +373,8 @@ function LuaDataBase:_init(params)
                 $(bind_values_code)
                 stmt:step()
                 stmt:reset()
+
+                $(table_cnt_check)
             end
 
             stmt:finalize()
@@ -384,12 +385,10 @@ function LuaDataBase:_init(params)
             $(verbose_print)
 
             $(size_limit_check)
-
-            $(table_cnt_acc)
         end
     ]], {
         pid = self.pid,
-        prepare = self.table_cnt_max and "this.prepare_cmd" or "\"" .. self.prepare_cmd .. "\"",
+        prepare = _perpare_cmd,
         bind_values_code = "stmt:bind_values(" .. table.concat(commit_data_unpack_items, ", ") .. ")",
         sqlite3_ok = sqlite3_OK,
         verbose_print = self.verbose and "this:_log('commit!')" or "",
@@ -406,13 +405,16 @@ function LuaDataBase:_init(params)
 
                 -- Create new database
                 this.file_count = this.file_count + 1
-                this.fullpath_name = this.path_name .. "/" .. this.file_count .. "__" .. this.file_name
+                this.fullpath_name = path_join(this.path_name, this.file_count .. "__" .. this.file_name)
                 this:create_db()
             end
         ]], { size_limit = self.size_limit }) or "",
         table_cnt_check = self.table_cnt_max and subst([[
-            local table_cnt = this.table_cnt
-            if table_cnt >= $(table_cnt_max) then
+            this.table_cnt = this.table_cnt + 1
+            if this.table_cnt >= $(table_cnt_max) then
+                stmt:finalize()
+                this.db:exec("COMMIT")
+
                 local table_idx = this.table_idx
                 local new_table_name = f(this.table_name_template, table_idx + 1)
 
@@ -421,10 +423,12 @@ function LuaDataBase:_init(params)
                 this:create_table()
 
                 this.table_idx = table_idx + 1
-                table_cnt = 0
+                this.table_cnt = 0
+
+                this.db:exec("BEGIN TRANSACTION")
+                stmt = assert(this.db:prepare($(prepare)), "[commit] stmt is nil")
             end
-        ]], { table_cnt_max = self.table_cnt_max }) or "",
-        table_cnt_acc = self.table_cnt_max and "this.table_cnt = table_cnt + " .. self.save_cnt_max or ""
+        ]], { table_cnt_max = self.table_cnt_max, prepare = _perpare_cmd }) or "",
     })
 
     -- try to remove `table.unpack` which cannot be jit compiled by LuaJIT
@@ -437,7 +441,8 @@ function LuaDataBase:_init(params)
             assert = assert,
             f = string.format,
             lfs_attributes = lfs.attributes,
-            print = print
+            print = print,
+            path_join = path.join
         }
     )
 
@@ -493,6 +498,10 @@ function LuaDataBase:create_db()
     if self.table_cnt_max then
         self.table_idx = 0
         self.table_cnt = 0
+
+        local new_table_name = f(self.table_name_template, 0)
+        self.create_table_cmd = f(self.create_table_cmd_template, new_table_name)
+        self.prepare_cmd = f(self.prepare_cmd_template, new_table_name)
     end
 
     self:create_table()
