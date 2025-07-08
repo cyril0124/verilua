@@ -19,7 +19,12 @@ impl VeriluaEnv {
                 log::debug!("[complex_handle_by_name] miss cache => {}", name_str);
 
                 let vpi_handle = unsafe { vpi_handle_by_name(name, scope) };
-                let width = unsafe { vpi_get(vpiSize as _, vpi_handle) };
+                let width = if vpi_handle.is_null() {
+                    log::debug!("[complex_handle_by_name] vpiHandle for `{}` is NULL! width => 0", name_str);
+                    0
+                } else {
+                    unsafe { vpi_get(vpiSize as _, vpi_handle) }
+                };
                 let mut chdl = ComplexHandle::new(vpi_handle, name, width as _);
                 chdl.env = self.as_void_ptr();
 
@@ -93,7 +98,7 @@ pub unsafe extern "C" fn vpiml_handle_by_name_safe(
     if (chdl.vpi_handle as vpiHandle).is_null() {
         #[cfg(feature = "debug")]
         log::debug!(
-            "[vpiml_handle_by_name_safe] get null handle => {}",
+            "[vpiml_handle_by_name_safe] get NULL vpiHandle => {}",
             unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() }
         );
 

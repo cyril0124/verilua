@@ -354,7 +354,7 @@ PLI_INT32 DEFINE_VPI_FUNC(vpi_get)(PLI_INT32 property, vpiHandle object) {
     FATAL(property == vpiSize, "unsupported property: %d\n", property);
 
     if (object == nullptr) {
-        WARN("[dummy_vpi] vpi_get: get vpi_get, but object is nullptr! return 0\n");
+        WARN("[dummy_vpi] vpi_get: get vpi_get, but `object`(vpiHandle) is nullptr! return 0\n");
         return 0;
     } else {
         auto complexHandle = reinterpret_cast<ComplexHandlePtr>(object);
