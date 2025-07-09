@@ -645,26 +645,28 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
-    self.is = function (this, value)
-        local typ = type(value)
-        assert(typ == "number" or typ == "cdata")
-        
-        if this.is_multi_beat and this.beat_num > 2 then
-            assert(false, "<CallableHDL>:is(value) can only be used for hdl with 1 or 2 beat")    
+    if self.is_multi_beat and self.beat_num > 2 then
+        self.is = function (this, value)
+            ---@diagnostic disable-next-line: missing-return
+            assert(false, "<CallableHDL>:is(value) can only be used for hdl with 1 or 2 beat")
         end
 
-        return this:get() == value
-    end
-
-    self.is_not = function (this, value)
-        local typ = type(value)
-        assert(typ == "number" or typ == "cdata")
-        
-        if this.is_multi_beat and this.beat_num > 2 then
-            assert(false, "<CallableHDL>:is_not(value) can only be used for hdl with 1 or 2 beat")    
+        self.is_not = function (this, value)
+            ---@diagnostic disable-next-line: missing-return
+            assert(false, "<CallableHDL>:is_not(value) can only be used for hdl with 1 or 2 beat")
+        end
+    else
+        self.is = function (this, value)
+            local typ = type(value)
+            assert(typ == "number" or typ == "cdata")
+            return this:get() == value
         end
 
-        return this:get() ~= value
+        self.is_not = function (this, value)
+            local typ = type(value)
+            assert(typ == "number" or typ == "cdata")
+            return this:get() ~= value
+        end
     end
 
     self.is_hex_str = function (this, hex_value_str)
