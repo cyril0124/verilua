@@ -30,7 +30,26 @@ fork {
     end,
 
     check_task = function ()
-        local expect_values = { 0, 15, 30, 45, 60, 60, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80 }
+        local expect_values = { 
+            0,  -- 1
+            15, -- 2
+            30, -- 3
+            45, -- 4
+            45, -- 5
+            45, -- 6
+            47, -- 7
+            49, -- 8
+            51, -- 9
+            53, -- 10
+            55, -- 11
+            57, -- 12
+            59, -- 13
+            61, -- 14
+            63, -- 15
+            65, -- 16
+            67, -- 17
+            69, -- 18
+         }
         while dut.cycles:is(0) do dut.clock:posedge() end
         while true do
             local cycles = dut.cycles:get()
