@@ -163,7 +163,7 @@ fork {
                 value128:dump()
 
             assert(value128 == v(0))
-            assert(value128 == v("0"))
+            assert(value128 == v("0")) -- TODO: It seems that there is a bug in verilator(v5.034) when directly retrieving dec string via vpiDecStrVal.
             assert(value128 == v("0x0"))
             assert(value128 == v("0b0"))
             assert(value128 == v(BitVec(0)))
