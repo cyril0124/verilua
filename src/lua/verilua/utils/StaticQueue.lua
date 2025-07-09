@@ -31,6 +31,7 @@ local math_random = math.random
 ---@field free_count fun(self: StaticQueue): integer
 ---@field reset fun(self: StaticQueue)
 ---@field shuffle fun(self: StaticQueue)
+---@field get_all_data fun(self: StaticQueue): StaticQueue.data[]
 ---@field list_data fun(self: StaticQueue)
 ---@operator len: integer
 local StaticQueue = class() --[[@as StaticQueue]]
@@ -126,6 +127,27 @@ function StaticQueue:shuffle()
     end
 end
 
+function StaticQueue:get_all_data()
+    local ret = {}
+    local count = self.count
+    if count ~= 0 then
+        local size = self._size
+        local data = self.data
+        local index = self.first_ptr
+        local displayed_count = 0
+
+        while displayed_count < count do
+            ret[#ret + 1] = data[index]
+            index = (index % size) + 1
+            displayed_count = displayed_count + 1
+        end
+
+        return ret
+    else
+        return ret
+    end
+end
+
 function StaticQueue:list_data()
     print("╔══════════════════════════════════════════════════════════════════════")
     print(f("║ [%s] List Data:", self.name))
@@ -133,20 +155,15 @@ function StaticQueue:list_data()
     print(f("║ first_ptr: %d, last_ptr: %d, count: %d", self.first_ptr, self.last_ptr, self.count))
     print("╟──────────────────────────────────────────────────────────────────────")
 
-    if self.count == 0 then
-        print("║ No data")
-    else
-        local size = self._size
-        local data = self.data
-        local index = self.first_ptr
-        local displayed_count = 0
-
-        while displayed_count < self.count do
-            print("║ [" .. displayed_count .. "]", data[index])
-            index = (index % size) + 1
-            displayed_count = displayed_count + 1
+    local datas = self:get_all_data()
+    if #datas ~= 0 then
+        for i, data in ipairs(datas) do
+            print("║ [" .. i .. "]", tostring(data))
         end
+    else
+        print("║ No data")
     end
+
     print("╚══════════════════════════════════════════════════════════════════════\n")
 end
 
