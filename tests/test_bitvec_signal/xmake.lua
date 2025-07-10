@@ -1,3 +1,5 @@
+---@diagnostic disable
+
 target("test_iverilog")
     add_rules("verilua")
     add_toolchains("@iverilog")

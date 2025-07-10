@@ -1,3 +1,5 @@
+---@diagnostic disable
+
 target("top")
     add_rules("verilua")
 

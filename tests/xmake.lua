@@ -1,3 +1,5 @@
+---@diagnostic disable
+
 target("test_all")
     set_kind("phony")
     add_files("./test_*.lua")

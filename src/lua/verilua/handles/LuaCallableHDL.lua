@@ -32,12 +32,16 @@ local await_noop = _G.await_noop
 
 local DpiExporter
 
+---@class CallableHDL.mt: CallableHDL
+---@field __value any
+---@field __verbose boolean
+---@field __stop_on_fail boolean
+local __chdl_mt
+
 local post_init_mt = setmetatable({
     _post_init = function(obj)
-        if _G.cfg:get_or_else("__chdl_mt", true) == true then
-            -- _G.cfg.__chdl_mt = getmetatable(obj)
-
-            _G.cfg.__chdl_mt = setmetatable({__value = 0, __verbose = false, __stop_on_fail = false}, getmetatable(obj))
+        if not __chdl_mt then
+            __chdl_mt = setmetatable({__value = 0, __verbose = false, __stop_on_fail = false}, getmetatable(obj))
         end
     end
 }, {})
@@ -68,7 +72,7 @@ local post_init_mt = setmetatable({
 ---@field private cached_value any
 ---@field reset_set_cached fun(self: CallableHDL) Reset the cached value to `nil`
 ---@field private c_results ffi.cdata*
----@field private value any Used for assign value based on value type
+---@field value any Used for assign value based on value type
 ---
 ---@field get fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
 ---@field get64 fun(self: CallableHDL): uint64_t
@@ -982,24 +986,24 @@ end
 _G.v = function (value)
     -- return setmetatable({__value = value, __verbose = false}, _G.cfg.__chdl_mt)
 
-    _G.cfg.__chdl_mt.__value = value
-    _G.cfg.__chdl_mt.__verbose = false
-    _G.cfg.__chdl_mt.__stop_on_fail = false
-    return _G.cfg.__chdl_mt
+    __chdl_mt.__value = value
+    __chdl_mt.__verbose = false
+    __chdl_mt.__stop_on_fail = false
+    return __chdl_mt
 end
 
 _G.vv = function (value)
-    _G.cfg.__chdl_mt.__value = value
-    _G.cfg.__chdl_mt.__verbose = true
-    _G.cfg.__chdl_mt.__stop_on_fail = false
-    return _G.cfg.__chdl_mt
+    __chdl_mt.__value = value
+    __chdl_mt.__verbose = true
+    __chdl_mt.__stop_on_fail = false
+    return __chdl_mt
 end
 
 _G.vs = function (value)
-    _G.cfg.__chdl_mt.__value = value
-    _G.cfg.__chdl_mt.__verbose = true
-    _G.cfg.__chdl_mt.__stop_on_fail = true
-    return _G.cfg.__chdl_mt
+    __chdl_mt.__value = value
+    __chdl_mt.__verbose = true
+    __chdl_mt.__stop_on_fail = true
+    return __chdl_mt
 end
 
 return CallableHDL

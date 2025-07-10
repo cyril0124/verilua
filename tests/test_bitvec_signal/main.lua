@@ -14,7 +14,7 @@ fork {
         clock:negedge(10)
         dut.reset = 0
 
-        expect.equal(value128.width, 128)
+        expect.equal(value128:get_width(), 128)
 
         local value_u32_vec = {0x123, 0x456, 0x789, 0xabc}
         clock:negedge()
@@ -95,7 +95,7 @@ fork {
         do
             clock:negedge()
                 value128:set_hex_str("000000000000000000000000")
-            
+
             clock:negedge()
                 value128:set_bitfield(64, 127, 0xdead)
             clock:negedge()
@@ -129,7 +129,7 @@ fork {
                 value128:expect_hex_str("7777777777777777")
 
             local bv = BitVec("0", 128)
-            
+
             clock:negedge()
                 value128.value = bv
             clock:negedge()
@@ -177,7 +177,7 @@ fork {
             assert(value128 ~= v(1ULL))
             assert(value128 == v(false))
             assert(value128 ~= v(true))
-            
+
             local t = value128:get()
             assert(value128 == v(t))
         end

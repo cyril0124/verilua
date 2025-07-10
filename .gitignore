@@ -15,6 +15,7 @@ result
 FsdbReader
 target/
 tools/dpi_exporter
+tools/cov_exporter
 tools/testbench_gen
 tools/signal_db_gen
 tools/wave_vpi_*

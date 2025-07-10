@@ -1,3 +1,5 @@
+---@diagnostic disable
+
 local sim = os.getenv("SIM") or "verilator"
 
 target("TestDesign")
