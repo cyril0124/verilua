@@ -3,7 +3,7 @@
 import os
 import sys
 import subprocess
-import base64
+import shutil
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -27,7 +27,11 @@ else:
 liblua_path = luapath + "/lib"
 assert os.path.exists(libpath + "/libverilua_vcs.so"), "[vl-vcs] cannot find libverilua_vcs.so in " + libpath
 
-vcs = os.getenv("VCS_HOME") + "/bin/vcs"
+vcs = shutil.which("vcs")
+if vcs == None and os.getenv("VCS_HOME") != None:
+    vcs = os.getenv("VCS_HOME") + "/bin/vcs"
+else:
+    assert vcs != None, "[vl-vcs] cannot find `vcs` in PATH or VCS_HOME"
 
 cmd_list = [vcs] + [
     "-debug_access+all",

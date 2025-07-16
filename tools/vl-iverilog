@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import shutil
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -26,7 +27,10 @@ liblua_path = luapath + "/lib"
 assert libpath != None, "[vl-iverilog] cannot find VERILUA_HOME!"
 assert os.path.exists(libpath + "/libverilua_iverilog.so"), "[vl-iverilog] cannot find libverilua_iverilog.so in " + libpath
 
-cmd_list = ["iverilog"] + ["-g2012"] + sys.argv[1:]
+iverilog = shutil.which("iverilog")
+assert iverilog != None, "[vl-iverilog] cannot find `iverilog` in PATH"
+
+cmd_list = [iverilog] + ["-g2012"] + sys.argv[1:]
 cmd = " ".join(cmd_list)
 
 print(f'''

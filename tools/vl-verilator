@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import shutil
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -33,7 +34,10 @@ LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -lverilua_veril
 LDFLAGS += f"-Wl,-rpath,{liblua_path} -L{liblua_path} -Wl,--no-as-needed -lluajit-5.1 "
 LDFLAGS_1 = f"-L{verilua_path}/vcpkg/installed/x64-linux/lib -Wl,--no-as-needed "
 
-cmd_list = ["verilator"] + [
+verilator = shutil.which("verilator")
+assert verilator != None, "[vl-verilator] cannot find `verilator` in PATH"
+
+cmd_list = [verilator] + [
     "--vpi",
     "--public-flat-rw",
     "+define+VERILUA",
