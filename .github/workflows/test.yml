@@ -1,0 +1,12 @@
+name: Test Verilua
+on:
+  push:
+    branches:
+      - test-ci
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Test Verilua..."
