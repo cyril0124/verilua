@@ -47,7 +47,7 @@ local SchedulerMode = _G.SchedulerMode
 ---@field private send_event fun(self: LuaScheduler, event_id: EventID) Sends an event
 ---@field remove_task fun(self: LuaScheduler, task_id: TaskID) Removes a task by ID
 ---@field check_task_exists fun(self: LuaScheduler, task_id: TaskID): boolean Checks if a task exists
----@field append_task fun(self: LuaScheduler, task_id: TaskID|nil, task_name: string, task_body: CoroutineTaskBody, start_now: boolean): TaskID Appends or registers a new task
+---@field append_task fun(self: LuaScheduler, task_id?: TaskID, task_name: string, task_body: CoroutineTaskBody, start_now?: boolean): TaskID Appends or registers a new task
 ---@field wakeup_task fun(self: LuaScheduler, task_id: TaskID) Wakes up a registered task
 ---@field try_wakeup_task fun(self: LuaScheduler, task_id: TaskID) Tries to wake up a registered task, does nothing if the task is still running
 ---@field schedule_task fun(self: LuaScheduler, task_id: TaskID) Schedules a specific task

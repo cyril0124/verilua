@@ -20,7 +20,10 @@ impl VeriluaEnv {
 
                 let vpi_handle = unsafe { vpi_handle_by_name(name, scope) };
                 let width = if vpi_handle.is_null() {
-                    log::debug!("[complex_handle_by_name] vpiHandle for `{}` is NULL! width => 0", name_str);
+                    log::debug!(
+                        "[complex_handle_by_name] vpiHandle for `{}` is NULL! width => 0",
+                        name_str
+                    );
                     0
                 } else {
                     unsafe { vpi_get(vpiSize as _, vpi_handle) }
