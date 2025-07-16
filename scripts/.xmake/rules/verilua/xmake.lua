@@ -791,6 +791,8 @@ verdi -f filelist.f -sv -nologo $@]])
             
             os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/V" .. tb_top .. " " .. table.concat(run_flags, " "))
         elseif sim == "iverilog" then
+            import("lib.detect.find_file")
+
             local run_flags = {"-M", verilua_libs_home, "-m", "libverilua_iverilog"}
             local _run_flags = target:values("iverilog.run_flags")
             if _run_flags then
@@ -803,8 +805,7 @@ verdi -f filelist.f -sv -nologo $@]])
                 table.join2(run_prefix, _run_prefix)
             end
 
-            local toolchain = assert(target:toolchain("iverilog"), "[on_run] iverilog not found!")
-            local vvp = assert(toolchain:config("vvp") or try{ function() return os.iorun("which vvp") end }, "[on_run] vvp not found!")
+            local vvp = assert(find_file("vvp", {"$(env PATH)"}), "[on_run] vvp not found!")
             os.exec(table.concat(run_prefix, " ") .. " " .. vvp .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
         elseif sim == "vcs" then
             local run_flags = {(function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)(), "+notimingcheck"}
@@ -821,15 +822,17 @@ verdi -f filelist.f -sv -nologo $@]])
             
             os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/simv " .. table.concat(run_flags, " "))
         elseif sim == "wave_vpi" then
+            import("lib.detect.find_file")
+
             local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
 
             local wave_vpi_main 
             do 
                 if waveform_file:endswith(".fsdb") then
-                    wave_vpi_main = try{ function() return os.iorun("which wave_vpi_main_fsdb") end }
+                    wave_vpi_main = find_file("wave_vpi_main_fsdb", {"$(env PATH)"})
                     assert(wave_vpi_main, "[on_run] wave_vpi_main_vcs is not defined!")
                 else
-                    wave_vpi_main = try{ function() return os.iorun("which wave_vpi_main") end }
+                    wave_vpi_main = find_file("wave_vpi_main", {"$(env PATH)"})
                     if not wave_vpi_main then
                         local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
                         wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")

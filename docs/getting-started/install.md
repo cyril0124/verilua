@@ -19,7 +19,7 @@
                 ```shell
                 git clone https://github.com/steveicarus/iverilog.git
                 cd iverilog
-                git checkout master
+                git checkout s20250103
                 sh autoconf.sh
                 ./configure
                 make

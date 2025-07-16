@@ -536,10 +536,10 @@ target("setup_verilua")
             local file = io.open(shell_rc, "a")
             if file then
                 file:print("")
-                file:print("# >>> verilua >>>")
+                file:print("# >>> verilua setup >>>")
                 file:print("export VERILUA_HOME=$(curdir)")
                 file:print("source $VERILUA_HOME/activate_verilua.sh")
-                file:print("# <<< verilua <<<")
+                file:print("# <<< verilua setup <<<")
                 file:close()
             end
         end
@@ -645,18 +645,20 @@ target("verilua-nix")
 target("test")
     set_kind("phony")
     on_run(function (target)
+        import("lib.detect.find_file")
+
         local old_env = os.getenvs()
 
         local simulators = {}
         local has_vcs = false
 
-        if try { function () return os.iorun("which vvp") end } then
+        if find_file("iverilog", {"$(env PATH)"}) then
             table.insert(simulators, "iverilog")
         end
-        if try { function () return os.iorun("which verilator") end } then
+        if find_file("verilator", {"$(env PATH)"}) then
             table.insert(simulators, "verilator")
         end
-        if try { function () return os.iorun("which vcs") end } then
+        if find_file("vcs", {"$(env PATH)"}) then
             has_vcs = true
             table.insert(simulators, "vcs")
         end
