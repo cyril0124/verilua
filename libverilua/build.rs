@@ -3,6 +3,7 @@ fn main() {
         println!("cargo:rustc-link-lib=static=vpi");
         println!("cargo:rustc-link-lib=static=veriuser");
 
+        println!("cargo:rustc-link-search=native=/usr/local/lib");
         if let Ok(iverilog_home) = std::env::var("IVERILOG_HOME") {
             println!("cargo:rustc-link-search=native={iverilog_home}/lib");
         }

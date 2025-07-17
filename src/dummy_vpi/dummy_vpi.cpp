@@ -59,17 +59,18 @@
         printf(__VA_ARGS__);                                                                                                                                                                                                                                                                                                                                                                                   \
     } while (0)
 
-#define FATAL(cond, ...)                                                                                                                                                                                                                                                                                                                                                                                       \
-    do {                                                                                                                                                                                                                                                                                                                                                                                                       \
-        if (!(cond)) {                                                                                                                                                                                                                                                                                                                                                                                         \
-            printf("\n");                                                                                                                                                                                                                                                                                                                                                                                      \
-            printf("[%s:%s:%d] [%sFATAL%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET);                                                                                                                                                                                                                                                                                             \
-            printf(__VA_ARGS__ __VA_OPT__(, ) "A fatal error occurred without a message.\n");                                                                                                                                                                                                                                                                                                                  \
-            fflush(stdout);                                                                                                                                                                                                                                                                                                                                                                                    \
-            fflush(stderr);                                                                                                                                                                                                                                                                                                                                                                                    \
-            abort();                                                                                                                                                                                                                                                                                                                                                                                           \
-        }                                                                                                                                                                                                                                                                                                                                                                                                      \
-    } while (0)
+#define FATAL(cond, fmt, ...) \
+    do { \
+        if (!(cond)) { \
+            printf("\n"); \
+            printf("[%s:%s:%d] [%sFATAL%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
+            printf(fmt __VA_OPT__(,) __VA_ARGS__); \
+            printf("\n"); \
+            fflush(stdout); \
+            fflush(stderr); \
+            abort(); \
+        } \
+    } while(0)
 
 inline uint32_t coverWith32(uint32_t size) { return (size + 31) / 32; }
 
@@ -188,7 +189,7 @@ class ComplexHandle {
     SetValueVecFunc setValueVec;
     SetValueHexStrFunc setValueHexStr;
 
-    ComplexHandle(std::string name, int64_t handle) : handle(handle), name(name) {
+    ComplexHandle(std::string name, int64_t handle) : name(name), handle(handle) {
         this->bitwidth = dpi_exporter_get_bitwidth(handle);
         FATAL(this->bitwidth > 0, "Cannot get bitwidth for %s\n", name.c_str());
 
@@ -205,7 +206,7 @@ class ComplexHandle {
         }
 
         if (this->bitwidth <= 32) {
-            FATAL(this->getValueVec == nullptr);
+            FATAL(this->getValueVec == nullptr, "Cannot get value vec for %s\n", name.c_str());
         }
 
         this->beatSize = coverWith32(this->bitwidth);

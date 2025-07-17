@@ -1,0 +1,115 @@
+name: Regression
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        # verilator-version: [ 'v5.028', 'v5.036' ]
+        iverilog-tag: [ 's20250103', 'master' ]
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libboost-all-dev
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: '2.9.9'
+
+      - name: Setup rust
+        uses: actions-rs/toolchain@v1
+        with:
+            profile: minimal
+            toolchain: stable
+            override: true
+
+      - name: Setup conan
+        uses: imesense/gha-setup-conan@v0.1
+        with:
+          version: '2.14.0'
+
+      - name: Create conan default profile
+        run: conan profile detect --force
+
+      - uses: veryl-lang/setup-verilator@v1
+        with:
+          version: 5.028
+
+      # - name: Setup Verilator
+      #   run: |
+      #     sudo apt-get install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev zlib1g zlib1g-dev
+      #     git clone https://github.com/verilator/verilator.git
+      #     cd verilator
+      #     git reset --hard ${{matrix.verilator-version}}
+      #     autoconf
+      #     ./configure
+      #     make -j $(nproc)
+      #     sudo make install
+
+      - name: Setup iverilog
+        run: |
+          sudo apt-get install -y --no-install-recommends g++ gperf flex bison make autoconf
+          git clone https://github.com/steveicarus/iverilog.git
+          cd iverilog
+          git reset --hard ${{matrix.iverilog-tag}}
+          bash ./autoconf.sh
+          bash ./configure
+          make -j $(nproc)
+          sudo make install
+
+      - name: Check cargo
+        run: cargo --version
+
+      - name: Check xmake
+        run: xmake --version
+
+      - name: Check conan
+        run: conan --version
+
+      - name: Check verilator
+        run: verilator --version
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      
+      - name: Install verilua
+        run: |
+          xmake install verilua
+
+      - name: Load env variables
+        run: |
+          ls -l
+
+          echo "VERILUA_HOME=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          export VERILUA_HOME=$GITHUB_WORKSPACE # Make this available to current shell
+          echo "VERILUA_HOME is: $VERILUA_HOME"
+
+          source ./activate_verilua.sh
+
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "LUA_PATH=$LUA_PATH" >> $GITHUB_ENV
+          echo "LUA_CPATH=$LUA_CPATH" >> $GITHUB_ENV
+          echo "CONFIG_TCCDIR=$CONFIG_TCCDIR" >> $GITHUB_ENV
+
+          echo "PATH is: $PATH"
+          echo "LD_LIBRARY_PATH is: $LD_LIBRARY_PATH"
+          echo "LUA_PATH is: $LUA_PATH"
+          echo "LUA_CPATH is: $LUA_CPATH"
+          echo "CONFIG_TCCDIR is: $CONFIG_TCCDIR"
+
+      - name: Test verilua
+        run: |
+          xmake run test

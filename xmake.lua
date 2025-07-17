@@ -18,9 +18,18 @@ local iverilog_features = "chunk_task merge_cb debug acc_time"
 local build_libverilua_wave_vpi_cmd = string.format([[cargo build --release --features "wave_vpi %s"]], wave_vpi_features)
 local build_iverilog_vpi_module_cmd = string.format([[cargo build --release --features "iverilog iverilog_vpi_mod %s"]], iverilog_features)
 
+local function setup_cargo_env(os)
+    -- Setup environment variables for cargo build
+    os.setenv("LUA_LIB", os.scriptdir() .. "/luajit-pro/luajit2.1/lib")
+    os.setenv("LUA_LIB_NAME", "luajit-5.1")
+    os.setenv("LUA_LINK", "shared")
+end
+
 local function build_lib_common(simulator)
     set_kind("phony")
     on_build(function (target)
+        setup_cargo_env(os)
+
         local vpi_funcs = {
             "vpi_put_value",
             "vpi_scan",
@@ -75,6 +84,8 @@ end
 target("build_libverilua")
     set_kind("phony")
     on_run(function (target)
+        import("lib.detect.find_file")
+
         print("--------------------- [Build libverilua] ---------------------- ")
         try { function () os.vrun("cargo clean") end }
         cprint("* Build ${green}libverilua_verilator${reset}")
@@ -85,13 +96,18 @@ target("build_libverilua")
             os.vrun("xmake build libverilua_vcs")
         cprint("* Build ${green}libverilua_vcs_dpi${reset}")
             os.vrun("xmake build libverilua_vcs_dpi")
-        cprint("* Build ${green}libverilua_iverilog${reset}")
-            os.vrun("xmake build libverilua_iverilog")
         cprint("* Build ${green}libverilua_wave_vpi${reset}")
             os.vrun("xmake build libverilua_wave_vpi")
-        cprint("* Build ${green}iverilog_vpi_module${reset}")
-            os.vrun(build_iverilog_vpi_module_cmd)
-            os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
+
+        if find_file("iverilog", {"$(env PATH)"}) then
+            setup_cargo_env(os)
+            cprint("* Build ${green}libverilua_iverilog${reset}")
+                os.vrun("xmake build libverilua_iverilog")
+            cprint("* Build ${green}iverilog_vpi_module${reset}")
+                os.vrun(build_iverilog_vpi_module_cmd)
+                os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
+        end
+
         print("---------------------------------------------------------- ")
     end)
 
@@ -106,6 +122,7 @@ local function wave_vpi_main_common()
     build_common()
 
     before_build(function (target)
+        setup_cargo_env(os)
         os.vrun(build_libverilua_wave_vpi_cmd)
     end)
 
@@ -195,6 +212,8 @@ target("wave_vpi_main_fsdb")
 target("iverilog_vpi_module")
     set_kind("phony")
     on_build(function (target)
+        setup_cargo_env(os)
+
         try { function () os.vrun("cargo clean") end }
         os.vrun(build_iverilog_vpi_module_cmd)
 
@@ -217,7 +236,8 @@ target("testbench_gen")
     add_includedirs(
         src_dir .. "/testbench_gen",
         extern_dir .. "/slang-common",
-        libs_dir .. "/include"
+        libs_dir .. "/include",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("svlang", "fmt", "mimalloc") -- order is important 
@@ -257,7 +277,8 @@ target("dpi_exporter")
         src_dir .. "/dpi_exporter/include",
         extern_dir .. "/slang-common",
         lua_dir .. "/include/luajit-2.1",
-        libs_dir .. "/include"
+        libs_dir .. "/include",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("luajit-5.1")
@@ -300,7 +321,8 @@ target("cov_exporter")
     add_includedirs(
         prj_dir .. "/src/cov_exporter/include",
         prj_dir .. "/extern/slang-common",
-        libs_dir .. "/include"
+        libs_dir .. "/include",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("svlang", "fmt", "mimalloc")
@@ -331,7 +353,8 @@ local function signal_db_gen_common(is_static)
         src_dir .. "/signal_db_gen",
         libs_dir .. "/include",
         extern_dir .. "/slang-common",
-        lua_dir .. "/include/luajit-2.1"
+        lua_dir .. "/include/luajit-2.1",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("svlang", "fmt", "mimalloc")
@@ -381,6 +404,7 @@ target("libsignal_db_gen")
 target("verilua_prebuild")
     set_kind("phony")
     on_build(function (target)
+        setup_cargo_env(os)
         os.exec("cargo build --release --features verilua_prebuild_bin")
     end)
 
@@ -524,10 +548,9 @@ target("setup_verilua")
     on_run(function (target)
         local execute = os.exec
         local shell_rc = os.getenv("HOME") .. "/." .. os.shell() .. "rc"
-        local content = io.readfile(shell_rc)
         local has_match = false
-        local lines = io.lines(shell_rc)
-        for line in lines do
+
+        for line in io.lines(shell_rc) do
             if line:match("^[^#]*export VERILUA_HOME=") then
                 has_match = true
             end
@@ -544,6 +567,8 @@ target("setup_verilua")
             end
         end
 
+        cprint("[setup_verilua] shell_rc: ${green underline}%s${reset}, has_match: %s", shell_rc, tostring(has_match))
+
         -- generate libwwave_vpi_wellen_impl
         os.cd("wave_vpi")
         execute("cargo build --release")
@@ -556,10 +581,15 @@ target("setup_verilua")
         execute("xmake build -y -v signal_db_gen")
         execute("xmake build -y -v libsignal_db_gen")
         execute("xmake build -y -v wave_vpi_main")
-        execute("xmake build -y -v wave_vpi_main_fsdb")
         execute("xmake build -y -v verilua_prebuild")
 
-        try { function () execute("xmake build -y -v iverilog_vpi_module") end }
+        import("lib.detect.find_file")
+        if find_file("verdi", {"$(env PATH)"}) and os.getenv("VERDI_HOME") then
+            execute("xmake build -y -v wave_vpi_main_fsdb")
+        end
+        if find_file("iverilog", {"$(env PATH)"}) then
+            execute("xmake build -y -v iverilog_vpi_module")
+        end
     end)
 
 target("apply_xmake_patch")
