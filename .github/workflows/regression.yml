@@ -1,11 +1,13 @@
-name: Test Verilua
+name: Regression
+
 on:
   push:
     branches:
-      - test-ci
+      - master
+  pull_request:
 
 jobs:
-  tests:
+  test:
     runs-on: ubuntu-latest
 
     strategy:
@@ -91,7 +93,7 @@ jobs:
           ls -l
 
           echo "VERILUA_HOME=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-          export VERILUA_HOME=$GITHUB_WORKSPACE
+          export VERILUA_HOME=$GITHUB_WORKSPACE # Make this available to current shell
           echo "VERILUA_HOME is: $VERILUA_HOME"
 
           source ./activate_verilua.sh
