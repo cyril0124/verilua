@@ -38,12 +38,12 @@
         printf(__VA_ARGS__); \
     } while(0)
 
-#define VL_FATAL(cond, ...) \
+#define VL_FATAL(cond, fmt, ...) \
     do { \
         if (!(cond)) { \
             printf("\n"); \
             printf("[%s:%s:%d] [%sFATAL%s] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET); \
-            printf(__VA_ARGS__ __VA_OPT__(,) "A fatal error occurred without a message.\n"); \
+            printf(fmt __VA_OPT__(,) __VA_ARGS__); \
             printf("\n"); \
             fflush(stdout); \
             fflush(stderr); \
@@ -363,7 +363,7 @@ void Emulator::stop_dump_wave() {
 int Emulator::normal_mode_main() {
     this->start_simulation();
 
-    while (!Verilated::gotFinish() | got_sigint | got_sigabrt) {
+    while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
         if (args.enable_fork) {
             lightsss_check_finish();
         }
@@ -424,7 +424,7 @@ int Emulator::normal_mode_main() {
 int Emulator::step_mode_main() {
     this->start_simulation();
 
-    while (!Verilated::gotFinish() | got_sigint | got_sigabrt) {
+    while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
         if (args.enable_fork) {
             lightsss_check_finish();
         }
@@ -462,7 +462,7 @@ int Emulator::timming_mode_main() {
     this->start_simulation();
 
     // TODO: not checked!
-    while (!Verilated::gotFinish() | got_sigint | got_sigabrt) {
+    while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
         if (args.enable_fork) {
             lightsss_check_finish();
         }
