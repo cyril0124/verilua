@@ -579,10 +579,15 @@ target("setup_verilua")
         execute("xmake build -y -v signal_db_gen")
         execute("xmake build -y -v libsignal_db_gen")
         execute("xmake build -y -v wave_vpi_main")
-        execute("xmake build -y -v wave_vpi_main_fsdb")
         execute("xmake build -y -v verilua_prebuild")
 
-        try { function () execute("xmake build -y -v iverilog_vpi_module") end }
+        import("lib.detect.find_file")
+        if find_file("verdi", {"$(env PATH)"}) and os.getenv("VERDI_HOME") then
+            execute("xmake build -y -v wave_vpi_main_fsdb")
+        end
+        if find_file("iverilog", {"$(env PATH)"}) then
+            execute("xmake build -y -v iverilog_vpi_module")
+        end
     end)
 
 target("apply_xmake_patch")
