@@ -234,7 +234,8 @@ target("testbench_gen")
     add_includedirs(
         src_dir .. "/testbench_gen",
         extern_dir .. "/slang-common",
-        libs_dir .. "/include"
+        libs_dir .. "/include",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("svlang", "fmt", "mimalloc") -- order is important 
@@ -274,7 +275,8 @@ target("dpi_exporter")
         src_dir .. "/dpi_exporter/include",
         extern_dir .. "/slang-common",
         lua_dir .. "/include/luajit-2.1",
-        libs_dir .. "/include"
+        libs_dir .. "/include",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("luajit-5.1")
@@ -317,7 +319,8 @@ target("cov_exporter")
     add_includedirs(
         prj_dir .. "/src/cov_exporter/include",
         prj_dir .. "/extern/slang-common",
-        libs_dir .. "/include"
+        libs_dir .. "/include",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("svlang", "fmt", "mimalloc")
@@ -348,7 +351,8 @@ local function signal_db_gen_common(is_static)
         src_dir .. "/signal_db_gen",
         libs_dir .. "/include",
         extern_dir .. "/slang-common",
-        lua_dir .. "/include/luajit-2.1"
+        lua_dir .. "/include/luajit-2.1",
+        extern_dir .. "/boost_unordered"
     )
 
     add_links("svlang", "fmt", "mimalloc")
