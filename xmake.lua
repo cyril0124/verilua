@@ -121,6 +121,7 @@ local function wave_vpi_main_common()
     build_common()
 
     before_build(function (target)
+        setup_cargo_env(os)
         os.vrun(build_libverilua_wave_vpi_cmd)
     end)
 
@@ -402,6 +403,7 @@ target("libsignal_db_gen")
 target("verilua_prebuild")
     set_kind("phony")
     on_build(function (target)
+        setup_cargo_env(os)
         os.exec("cargo build --release --features verilua_prebuild_bin")
     end)
 
