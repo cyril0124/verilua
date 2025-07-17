@@ -547,10 +547,9 @@ target("setup_verilua")
     on_run(function (target)
         local execute = os.exec
         local shell_rc = os.getenv("HOME") .. "/." .. os.shell() .. "rc"
-        local content = io.readfile(shell_rc)
         local has_match = false
-        local lines = io.lines(shell_rc)
-        for line in lines do
+
+        for line in io.lines(shell_rc) do
             if line:match("^[^#]*export VERILUA_HOME=") then
                 has_match = true
             end
@@ -566,6 +565,8 @@ target("setup_verilua")
                 file:close()
             end
         end
+
+        cprint("[setup_verilua] shell_rc: ${green underline}%s${reset}, has_match: %s", shell_rc, tostring(has_match))
 
         -- generate libwwave_vpi_wellen_impl
         os.cd("wave_vpi")
