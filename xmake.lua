@@ -84,6 +84,8 @@ end
 target("build_libverilua")
     set_kind("phony")
     on_run(function (target)
+        import("lib.detect.find_file")
+
         print("--------------------- [Build libverilua] ---------------------- ")
         try { function () os.vrun("cargo clean") end }
         cprint("* Build ${green}libverilua_verilator${reset}")
@@ -94,13 +96,17 @@ target("build_libverilua")
             os.vrun("xmake build libverilua_vcs")
         cprint("* Build ${green}libverilua_vcs_dpi${reset}")
             os.vrun("xmake build libverilua_vcs_dpi")
-        cprint("* Build ${green}libverilua_iverilog${reset}")
-            os.vrun("xmake build libverilua_iverilog")
         cprint("* Build ${green}libverilua_wave_vpi${reset}")
             os.vrun("xmake build libverilua_wave_vpi")
-        cprint("* Build ${green}iverilog_vpi_module${reset}")
-            os.vrun(build_iverilog_vpi_module_cmd)
-            os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
+
+        if find_file("iverilog", {"$(env PATH)"}) then
+            cprint("* Build ${green}libverilua_iverilog${reset}")
+                os.vrun("xmake build libverilua_iverilog")
+            cprint("* Build ${green}iverilog_vpi_module${reset}")
+                os.vrun(build_iverilog_vpi_module_cmd)
+                os.cp(prj_dir .. "/target/release/libverilua.so", shared_dir .. "/libverilua_iverilog.vpi")
+        end
+
         print("---------------------------------------------------------- ")
     end)
 
