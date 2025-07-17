@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        verilator-version: [ 'v5.028', 'v5.036' ]
+        # verilator-version: [ 'v5.028', 'v5.036' ]
         iverilog-tag: [ 's20250103', 'master' ]
 
     steps:
@@ -39,16 +39,20 @@ jobs:
       - name: Create conan default profile
         run: conan profile detect --force
 
-      - name: Setup Verilator
-        run: |
-          sudo apt-get install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev zlib1g zlib1g-dev
-          git clone https://github.com/verilator/verilator.git
-          cd verilator
-          git reset --hard ${{matrix.verilator-version}}
-          autoconf
-          ./configure
-          make -j $(nproc)
-          sudo make install
+      - uses: veryl-lang/setup-verilator@v1
+        with:
+          version: 5.028
+
+      # - name: Setup Verilator
+      #   run: |
+      #     sudo apt-get install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev zlib1g zlib1g-dev
+      #     git clone https://github.com/verilator/verilator.git
+      #     cd verilator
+      #     git reset --hard ${{matrix.verilator-version}}
+      #     autoconf
+      #     ./configure
+      #     make -j $(nproc)
+      #     sudo make install
 
       - name: Setup iverilog
         run: |
