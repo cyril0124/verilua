@@ -145,7 +145,7 @@ public:
             auto cycles = dut_ptr->cycles_o;
             if(cycles != 0) {
                 if (cycles == lightsss->get_end_cycles()) {
-                    VL_WARN("checkpoint has reached the main process abort point: %d\n", cycles);
+                    VL_WARN("checkpoint has reached the main process abort point: %ld\n", cycles);
                 }
                 if (cycles == lightsss->get_end_cycles() + STEP_FORWARD_CYCLES) {
                     return -1;
@@ -594,7 +594,7 @@ void Emulator::finalize(bool success = true) {
 #endif
     } else {
         if (args.enable_fork && !is_fork_child()) {
-            VL_WARN("\nlightsss wakeup_child at %d cycles\n", dut_ptr->cycles_o);
+            VL_WARN("\nlightsss wakeup_child at %ld cycles\n", dut_ptr->cycles_o);
             fflush(stdout);
 
             lightsss->wakeup_child(dut_ptr->cycles_o);
