@@ -100,6 +100,7 @@ target("build_libverilua")
             os.vrun("xmake build libverilua_wave_vpi")
 
         if find_file("iverilog", {"$(env PATH)"}) then
+            setup_cargo_env(os)
             cprint("* Build ${green}libverilua_iverilog${reset}")
                 os.vrun("xmake build libverilua_iverilog")
             cprint("* Build ${green}iverilog_vpi_module${reset}")
