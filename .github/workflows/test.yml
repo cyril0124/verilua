@@ -57,8 +57,9 @@ jobs:
       - name: Install verilua
         run: |
           xmake install verilua
-        
+
       - name: Test verilua
         run: |
-          xmake r test
+          source ~/.bashrc
+          xmake run test
 
