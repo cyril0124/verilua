@@ -25,10 +25,18 @@ target("test_all")
     set_kind("phony")
     on_run(function (target)
         try { function () os.exec("rm build -rf") end }
-        os.exec("xmake b -P . test_iverilog")
-        os.exec("xmake r -P . test_iverilog")
-        os.exec("xmake b -P . test_verilator")
-        os.exec("xmake r -P . test_verilator")
-        os.exec("xmake b -P . test_vcs")
-        os.exec("xmake r -P . test_vcs")
+
+        import("lib.detect.find_file")
+        if find_file("verilator", {"$(env PATH)"}) then
+            os.exec("xmake b -P . test_verilator")
+            os.exec("xmake r -P . test_verilator")
+        end
+        if find_file("iverilog", {"$(env PATH)"}) then
+            os.exec("xmake b -P . test_iverilog")
+            os.exec("xmake r -P . test_iverilog")
+        end
+        if find_file("vcs", {"$(env PATH)"}) then
+            os.exec("xmake b -P . test_vcs")
+            os.exec("xmake r -P . test_vcs")
+        end
     end)
