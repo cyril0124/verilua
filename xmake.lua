@@ -18,9 +18,18 @@ local iverilog_features = "chunk_task merge_cb debug acc_time"
 local build_libverilua_wave_vpi_cmd = string.format([[cargo build --release --features "wave_vpi %s"]], wave_vpi_features)
 local build_iverilog_vpi_module_cmd = string.format([[cargo build --release --features "iverilog iverilog_vpi_mod %s"]], iverilog_features)
 
+local function setup_cargo_env(os)
+    -- Setup environment variables for cargo build
+    os.setenv("LUA_LIB", os.scriptdir() .. "/luajit-pro/luajit2.1/lib")
+    os.setenv("LUA_LIB_NAME", "luajit-5.1")
+    os.setenv("LUA_LINK", "shared")
+end
+
 local function build_lib_common(simulator)
     set_kind("phony")
     on_build(function (target)
+        setup_cargo_env(os)
+
         local vpi_funcs = {
             "vpi_put_value",
             "vpi_scan",
@@ -195,6 +204,8 @@ target("wave_vpi_main_fsdb")
 target("iverilog_vpi_module")
     set_kind("phony")
     on_build(function (target)
+        setup_cargo_env(os)
+
         try { function () os.vrun("cargo clean") end }
         os.vrun(build_iverilog_vpi_module_cmd)
 
