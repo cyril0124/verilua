@@ -90,7 +90,8 @@ jobs:
         run: |
           ls -l
 
-          echo "VERILUA_HOME=$(pwd)" >> $GITHUB_ENV
+          echo "VERILUA_HOME=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          export VERILUA_HOME=$GITHUB_WORKSPACE
           echo "VERILUA_HOME is: $VERILUA_HOME"
 
           source ./activate_verilua.sh
@@ -110,4 +111,3 @@ jobs:
       - name: Test verilua
         run: |
           xmake run test
-
