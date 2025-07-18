@@ -12,9 +12,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ 'ubuntu-20.04', 'ubuntu-22.04', 'ubuntu-latest' ]
-        # verilator-version: [ 'v5.028', 'v5.036' ]
-        iverilog-tag: [ 's20250103', 'master' ]
+        os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
+        verilator-version: [ 'v5.016', 'v5.024', 'v5.026', 'v5.032', 'v5.038' ]
+        # iverilog-tag: [ 's20250103', 'master' ]
+        iverilog-tag: [ 's20250103' ]
 
     env:
       XMAKE_VERSION: '2.9.9'
@@ -38,20 +39,21 @@ jobs:
             toolchain: stable
             override: true
 
-      - uses: veryl-lang/setup-verilator@v1
-        with:
-          version: 5.028
+      # - name: Setup verilator
+      #   uses: veryl-lang/setup-verilator@v1
+      #   with:
+      #     version: ${{ matrix.verilator-version }}
 
-      # - name: Setup Verilator
-      #   run: |
-      #     sudo apt-get install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev zlib1g zlib1g-dev
-      #     git clone https://github.com/verilator/verilator.git
-      #     cd verilator
-      #     git reset --hard ${{matrix.verilator-version}}
-      #     autoconf
-      #     ./configure
-      #     make -j $(nproc)
-      #     sudo make install
+      - name: Setup Verilator
+        run: |
+          sudo apt-get install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev zlib1g zlib1g-dev
+          git clone https://github.com/verilator/verilator.git
+          cd verilator
+          git reset --hard ${{matrix.verilator-version}}
+          autoconf
+          ./configure
+          make -j $(nproc)
+          sudo make install
 
       - name: Setup iverilog
         run: |
