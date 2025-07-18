@@ -504,7 +504,18 @@ target("install_other_libs")
         end
 
         os.cd(prj_dir .. "/scripts/conan/slang")
-        os.exec(conan_cmd .. " create . --build=missing")
+        try {
+            function ()
+                os.exec(conan_cmd .. " create . --build=missing")
+            end,
+            catch
+            {
+                function (errors)
+                    os.exec(conan_cmd .. " profile detect --force")
+                    os.exec(conan_cmd .. " create . --build=missing")
+                end
+            }
+        }
 
         os.cd(prj_dir)
         os.exec(conan_cmd .. " install . --output-folder=%s --build=missing", libs_dir)
