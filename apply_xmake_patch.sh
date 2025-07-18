@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 curr_dir=$(pwd)
 mkdir -p ~/.xmake/rules/verilua
