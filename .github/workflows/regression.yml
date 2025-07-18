@@ -3,7 +3,7 @@ name: Regression
 on:
   push:
     branches:
-      - master
+      - test-ci-0718
   pull_request:
 
 jobs:
@@ -33,13 +33,13 @@ jobs:
             toolchain: stable
             override: true
 
-      - name: Setup conan
-        uses: imesense/gha-setup-conan@v0.1
-        with:
-          version: '2.14.0'
+      # - name: Setup conan
+      #   uses: imesense/gha-setup-conan@v0.1
+      #   with:
+      #     version: '2.14.0'
 
-      - name: Create conan default profile
-        run: conan profile detect --force
+      # - name: Create conan default profile
+      #   run: conan profile detect --force
 
       - uses: veryl-lang/setup-verilator@v1
         with:
@@ -67,17 +67,17 @@ jobs:
           make -j $(nproc)
           sudo make install
 
-      - name: Check cargo
-        run: cargo --version
+      # - name: Check cargo
+      #   run: cargo --version
 
-      - name: Check xmake
-        run: xmake --version
+      # - name: Check xmake
+      #   run: xmake --version
 
-      - name: Check conan
-        run: conan --version
+      # - name: Check conan
+      #   run: conan --version
 
-      - name: Check verilator
-        run: verilator --version
+      # - name: Check verilator
+      #   run: verilator --version
 
       - name: Checkout
         uses: actions/checkout@v4
