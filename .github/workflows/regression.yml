@@ -8,15 +8,20 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
+        os: [ 'ubuntu-20.04', 'ubuntu-22.04', 'ubuntu-latest' ]
         # verilator-version: [ 'v5.028', 'v5.036' ]
         iverilog-tag: [ 's20250103', 'master' ]
 
+    env:
+      XMAKE_VERSION: '2.9.9'
+
     steps:
       - name: Install dependencies
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt update
           sudo apt install -y libboost-all-dev
@@ -24,7 +29,7 @@ jobs:
       - name: Setup xmake
         uses: xmake-io/github-action-setup-xmake@v1
         with:
-          xmake-version: '2.9.9'
+          xmake-version: ${{ env.XMAKE_VERSION }}
 
       - name: Setup rust
         uses: actions-rs/toolchain@v1
@@ -32,14 +37,6 @@ jobs:
             profile: minimal
             toolchain: stable
             override: true
-
-      # - name: Setup conan
-      #   uses: imesense/gha-setup-conan@v0.1
-      #   with:
-      #     version: '2.14.0'
-
-      # - name: Create conan default profile
-      #   run: conan profile detect --force
 
       - uses: veryl-lang/setup-verilator@v1
         with:
@@ -66,18 +63,6 @@ jobs:
           bash ./configure
           make -j $(nproc)
           sudo make install
-
-      # - name: Check cargo
-      #   run: cargo --version
-
-      # - name: Check xmake
-      #   run: xmake --version
-
-      # - name: Check conan
-      #   run: conan --version
-
-      # - name: Check verilator
-      #   run: verilator --version
 
       - name: Checkout
         uses: actions/checkout@v4
