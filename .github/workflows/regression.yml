@@ -13,9 +13,8 @@ jobs:
     strategy:
       matrix:
         os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
-        verilator-version: [ 'v5.016', 'v5.024', 'v5.026', 'v5.032', 'v5.038' ]
-        # iverilog-tag: [ 's20250103', 'master' ]
-        iverilog-tag: [ 's20250103' ]
+        verilator-version: [ 'v5.016', 'v5.026', 'v5.032', 'v5.038' ]
+        iverilog-tag: [ 's20250103', 'master' ]
 
     env:
       XMAKE_VERSION: '2.9.9'
