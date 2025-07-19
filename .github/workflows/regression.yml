@@ -1,6 +1,7 @@
 name: Regression
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -96,6 +97,32 @@ jobs:
           echo "LUA_CPATH is: $LUA_CPATH"
           echo "CONFIG_TCCDIR is: $CONFIG_TCCDIR"
 
-      - name: Test verilua
+      - name: Test verilua (Basic test)
         run: |
           xmake run test
+
+      - name: Install mill
+        run: |
+          curl -L https://github.com/com-lihaoyi/mill/releases/download/0.11.2/0.11.2 > mill
+          chmod +x mill
+          sudo mv mill /usr/local/bin
+
+      - name: Check mill
+        run: |
+          which mill
+          mill --version
+
+      - name: Test verilua (NHL2)
+        run: |
+          git clone https://github.com/OpenXiangShan-Nanhu/NHL2.git
+
+          cd NHL2
+          echo "Current dir is: $(pwd)"
+          ls -l
+
+          export SIM=iverilog
+          xmake run -P . init
+          xmake build -P . Slice
+          xmake build -P . TestSlice
+          xmake run -P . TestSlice
+          
