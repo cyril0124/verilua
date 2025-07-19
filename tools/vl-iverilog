@@ -11,20 +11,14 @@ YELLOW = "\033[33m"
 BLUE = "\033[34m"
 RESET = "\033[0m"
 
-if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
-    luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
-else:
-    luapath = verilua_path + "/luajit-pro/luajit2.1"
-
 verilua_path = os.getenv("VERILUA_HOME")
+assert verilua_path != None, "[vl-iverilog] cannot find VERILUA_HOME!"
 
-if os.environ.get("VERILUA_USE_NIX") != None:
-    libpath = os.environ["VERILUA_LIBS_HOME"]
-else:
-    libpath = verilua_path + "/shared"
-
+luapath = verilua_path + "/luajit-pro/luajit2.1"
+libpath = verilua_path + "/shared"
 liblua_path = luapath + "/lib"
-assert libpath != None, "[vl-iverilog] cannot find VERILUA_HOME!"
+
+assert os.path.exists(liblua_path + "/libluajit-5.1.so"), "[vl-iverilog] cannot find liblua in " + liblua_path
 assert os.path.exists(libpath + "/libverilua_iverilog.so"), "[vl-iverilog] cannot find libverilua_iverilog.so in " + libpath
 
 iverilog = shutil.which("iverilog")

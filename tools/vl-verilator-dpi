@@ -13,18 +13,11 @@ RESET = "\033[0m"
 
 verilua_path = os.getenv("VERILUA_HOME")
 
-if os.environ.get("VERILUA_USE_NIX") != None:
-    libpath = os.environ["VERILUA_LIBS_HOME"]
-else:
-    libpath = verilua_path + "/shared"
-
-if os.environ.get("LUAJITPRO_HOME") != None and os.environ.get("VERILUA_USE_NIX") != None:
-    luapath = os.environ["LUAJITPRO_HOME"] # This path is set when you install verilua using `nix`
-else:
-    luapath = verilua_path + "/luajit-pro/luajit2.1"
-
+libpath = verilua_path + "/shared"
+luapath = verilua_path + "/luajit-pro/luajit2.1"
 liblua_path = luapath + "/lib"
-assert libpath != None, "[vl-verilator-dpi] cannot find VERILUA_HOME!"
+
+assert os.path.exists(liblua_path + "/libluajit-5.1.so"), "[vl-verilator-dpi] cannot find liblua in " + liblua_path
 assert os.path.exists(libpath + "/libverilua_verilator_dpi.so"), "[vl-verilator-dpi] cannot find libverilua_verilator_dpi.so in " + libpath
 
 CFLAGS = ""

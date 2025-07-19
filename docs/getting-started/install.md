@@ -28,15 +28,12 @@
 
     - Synopsys VCS
 
-## 安装步骤(不使用 nix)
+## 安装步骤
 ```shell
 xmake install verilua
 ```
 !!! warning "安装失败"
     如果安装过程失败了，那么可以重新执行上述命令，尝试再次安装。
-
-## 安装步骤(使用 nix)
-> TODO: WIP
 
 ## 测试安装是否成功
 使用 shell 打印出 `VERILUA_HOME` 这一环境变量，如果 `VERILUA_HOME` 指向了当前的 Verilua 工程目录，那么就说明安装成功了。

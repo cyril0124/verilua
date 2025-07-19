@@ -45,6 +45,4 @@ $VERILUA_HOME/extern/LuaPanda/Debugger/debugger_lib/?.so;\
 
 . "$VERILUA_HOME/extern/luajit_tcc/setvars.sh"
 
-unset VERILUA_USE_NIX
-
 export CONFIG_TCCDIR=$VERILUA_HOME/extern/luajit_tcc/tinycc/install

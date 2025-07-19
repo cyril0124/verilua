@@ -654,35 +654,6 @@ target("install_vcs_patch_lib")
         os.exec("xmake build -v -y libverilua_vcs")
     end)
 
-target("verilua-nix")
-    set_kind("phony")
-    on_install(function (target)
-        local execute = os.vrun
-        execute("git submodule update --init wave_vpi")
-        execute("git submodule update --init extern/slang-common")
-        execute("git submodule update --init extern/debugger.lua")
-        execute("git submodule update --init extern/LuaPanda")
-        execute("git submodule update --init extern/luafun")
-        execute("rm .xmake -rf")
-        execute("rm build -rf")
-        -- ! The vcs lib should be built with the local gcc toolchain.
-        execute("nix-shell --run \"\
-            unset XMAKE_GLOBALDIR \
-            xmake run -F xmake.lua -v -y install_vcs_patch_lib \
-        \"")
-        local verdi_home = os.getenv("VERDI_HOME")
-        if verdi_home then
-            local fsdb_reader_dir = prj_dir .. "/FsdbReader"
-            os.mkdir(fsdb_reader_dir)
-            os.trycp(verdi_home .. "/share/FsdbReader/ffrAPI.h", fsdb_reader_dir)
-            os.trycp(verdi_home .. "/share/FsdbReader/ffrKit.h", fsdb_reader_dir)
-            os.trycp(verdi_home .. "/share/FsdbReader/fsdbShr.h", fsdb_reader_dir)
-            os.trycp(verdi_home .. "/share/FsdbReader/LINUX64/libnffr.so", fsdb_reader_dir)
-            os.trycp(verdi_home .. "/share/FsdbReader/LINUX64/libnsys.so", fsdb_reader_dir)
-        end
-        execute("nix-env -f . -i")
-    end)
-
 target("test")
     set_kind("phony")
     on_run(function (target)
