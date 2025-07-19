@@ -3,7 +3,7 @@ name: Regression
 on:
   push:
     branches:
-      - test-ci-0718
+      - master
   pull_request:
 
 jobs:
