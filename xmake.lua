@@ -491,6 +491,12 @@ target("reinstall_luajit")
 target("install_other_libs")
     set_kind("phony")
     on_run(function (target)
+        -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
+        if os.getenv("CI_USE_CONAN_CACHE") then
+            print("[xmake.lua] [install_other_libs] Using cached conan libs...")
+            return
+        end
+
         local conan_cmd = "conan"
         local has_conan = try { function () return os.iorun("conan --version") end }
 

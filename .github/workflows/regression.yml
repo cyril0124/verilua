@@ -15,10 +15,14 @@ jobs:
       matrix:
         os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
         verilator-version: [ 'v5.016', 'v5.026', 'v5.032', 'v5.038' ]
-        iverilog-tag: [ 's20250103', 'master' ]
+        iverilog-tag: [ 's20250103' ]
+        # iverilog-tag: [ 's20250103', 'master' ]
 
     env:
       XMAKE_VERSION: '2.9.9'
+      VERILATOR_PATH: '/tmp/verilator-install'
+      IVERILOG_PATH: '/tmp/iverilog-install'
+      CONAN_LIBS_PATH: '/tmp/conan_installed'
 
     steps:
       - name: Install dependencies
@@ -27,10 +31,17 @@ jobs:
           sudo apt update
           sudo apt install -y libboost-all-dev
 
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
       - name: Setup xmake
         uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: ${{ env.XMAKE_VERSION }}
+          actions-cache-folder: '.xmake-cache'
+          actions-cache-key: ${{ matrix.os }}-xmake-${{ env.XMAKE_VERSION }}
 
       - name: Setup rust
         uses: actions-rs/toolchain@v1
@@ -39,41 +50,85 @@ jobs:
             toolchain: stable
             override: true
 
-      # - name: Setup verilator
-      #   uses: veryl-lang/setup-verilator@v1
-      #   with:
-      #     version: ${{ matrix.verilator-version }}
-
+      # -----------------------------------------------
+      # Cache verilator
+      # -----------------------------------------------
+      - name: Cache Verilator installation
+        id: cache-verilator
+        uses: actions/cache@v4
+        with:
+          path: /tmp/verilator-install
+          key: ${{ matrix.os }}-verilator-${{ matrix.verilator-version }}
       - name: Setup Verilator
+        if: steps.cache-verilator.outputs.cache-hit != 'true'
         run: |
           sudo apt-get install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev zlib1g zlib1g-dev
           git clone https://github.com/verilator/verilator.git
           cd verilator
-          git reset --hard ${{matrix.verilator-version}}
+          git reset --hard ${{ matrix.verilator-version }}
           autoconf
-          ./configure
+          ./configure --prefix=${{ env.VERILATOR_PATH }}
           make -j $(nproc)
-          sudo make install
+          make install
+      - name: Add Verilator to PATH
+        run: |
+          echo "PATH=${{ env.VERILATOR_PATH }}/bin:$PATH" >> $GITHUB_ENV
+          export PATH=${{ env.VERILATOR_PATH }}/bin:$PATH
+          which verilator
 
+      # -----------------------------------------------
+      # Cache iverilog
+      # -----------------------------------------------
+      - name: Cache Icarus Verilog installation
+        id: cache-iverilog
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.IVERILOG_PATH }}
+          key: ${{ matrix.os }}-iverilog-${{ matrix.iverilog-tag }}
       - name: Setup iverilog
+        if: steps.cache-iverilog.outputs.cache-hit != 'true'
         run: |
           sudo apt-get install -y --no-install-recommends g++ gperf flex bison make autoconf
           git clone https://github.com/steveicarus/iverilog.git
           cd iverilog
-          git reset --hard ${{matrix.iverilog-tag}}
+          git reset --hard ${{ matrix.iverilog-tag }}
           bash ./autoconf.sh
-          bash ./configure
+          bash ./configure --prefix=${{ env.IVERILOG_PATH }}
           make -j $(nproc)
-          sudo make install
+          make install
+      - name: Add Iverilog to PATH
+        run: |
+          echo "PATH=${{ env.IVERILOG_PATH }}/bin:$PATH" >> $GITHUB_ENV
+          export PATH=${{ env.IVERILOG_PATH }}/bin:$PATH
+          which iverilog
 
-      - name: Checkout
-        uses: actions/checkout@v4
+          # Used by verilua
+          echo "IVERILOG_HOME=${{ env.IVERILOG_PATH }}" >> $GITHUB_ENV
+
+      # -----------------------------------------------
+      # Cache conan libs
+      # -----------------------------------------------
+      - name: Cache conan libs
+        id: cache-conan-libs
+        uses: actions/cache@v4
         with:
-          submodules: 'true'
-      
+          path: ${{ env.CONAN_LIBS_PATH }}
+          key: ${{ matrix.os }}-conan-libs-${{ hashFiles('**/conanfile*')}}
+      - name: Check conan libs
+        if: steps.cache-conan-libs.outputs.cache-hit == 'true'
+        run: |
+          ls -l ${{ env.CONAN_LIBS_PATH }}
+          cp -r ${{ env.CONAN_LIBS_PATH }} .
+          echo "CI_USE_CONAN_CACHE=1" >> $GITHUB_ENV
+
       - name: Install verilua
         run: |
           xmake install verilua
+
+      - name: Update conan libs cache files
+        if: steps.cache-conan-libs.outputs.cache-hit != 'true'
+        run: |
+          cp -r ./conan_installed ${{ env.CONAN_LIBS_PATH }}
 
       - name: Load env variables
         run: |
@@ -106,9 +161,6 @@ jobs:
           curl -L https://github.com/com-lihaoyi/mill/releases/download/0.11.2/0.11.2 > mill
           chmod +x mill
           sudo mv mill /usr/local/bin
-
-      - name: Check mill
-        run: |
           which mill
           mill --version
 
