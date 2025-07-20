@@ -11,7 +11,7 @@
     - [iverilog](https://github.com/steveicarus/iverilog)
 
         !!! danger "iverilog 版本问题"
-            由于 iverilog 在 [v12_0 release 版本](https://github.com/steveicarus/iverilog/releases/tag/v12_0) 下存在 VPI 的 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会对 Verilua 的多任务调度功能造成影响。所以需要使用目前 iverilog 官方仓库下的 master 分支版本（或者叫 v13-devel 版本），这需要自行编译安装！
+            由于 iverilog 在 [v12_0 release 版本](https://github.com/steveicarus/iverilog/releases/tag/v12_0) 下存在 VPI 的 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会对 Verilua 的多任务调度功能造成影响。所以需要使用目前 iverilog 官方仓库下的 master 分支版本（或者叫 v13-devel 版本, 经过测试 `s20250103` 这个 tag 也可以用），这需要自行编译安装！
 
             安装完成后，需要设置环境变量 `IVERILOG_HOME` 指向刚刚安装的 iverilog 目录（包含 `bin` 和 `lib` 的目录）。
 
