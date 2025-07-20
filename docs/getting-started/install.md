@@ -7,7 +7,7 @@
 - 安装 [rust](https://www.rust-lang.org/tools/install)
 - 安装 python3.xx
 - 根据需求安装下列硬件仿真器
-    - [verilator](https://github.com/verilator/verilator)
+    - [verilator](https://github.com/verilator/verilator) >= 5.016
     - [iverilog](https://github.com/steveicarus/iverilog)
 
         !!! danger "iverilog 版本问题"
