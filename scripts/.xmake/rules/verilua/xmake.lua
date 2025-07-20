@@ -1,13 +1,10 @@
 ---@diagnostic disable
 
-local verilua_use_nix = os.getenv("VERILUA_USE_NIX") == "1" or false
+local f = string.format
 local verilua_home = os.getenv("VERILUA_HOME") or "" -- verilua source code home
-local verilua_tools_home = os.getenv("VERILUA_TOOLS_HOME") or (verilua_home .. "/tools")
-local verilua_libs_home = os.getenv("VERILUA_LIBS_HOME") or (verilua_home .. "/shared")
-local verilua_extra_cflags = os.getenv("VERILUA_EXTRA_CFLAGS") or ""
-local verilua_extra_ldflags = os.getenv("VERILUA_EXTRA_LDFLAGS") or ""
-local verilua_extra_vcs_ldflags = os.getenv("VERILUA_EXTRA_VCS_LDFLAGS") or ""
-local luajitpro_home = os.getenv("LUAJITPRO_HOME") or (verilua_home .. "/luajit-pro/luajit2.1")
+local verilua_tools_home = verilua_home .. "/tools"
+local verilua_libs_home = verilua_home .. "/shared"
+local luajitpro_home = verilua_home .. "/luajit-pro/luajit2.1"
 
 local function get_command_path(os, command)
     local command_path = os.iorun("which %s", command):gsub("[\r\n]", "")
@@ -15,9 +12,6 @@ local function get_command_path(os, command)
 end
 
 local function before_build_or_run(target)
-    local f = string.format
-    local no_copy_lua = os.getenv("NO_COPY_LUA") ~= nil -- do not copy the lua files into the build directory, this is helpful for thread safety.
-
     -- Check if any of the valid toolchains is set. If not, raise an error.
     local sim
     if target:toolchain("verilator") ~= nil then
@@ -234,9 +228,6 @@ rule("verilua")
                 end
             end
 
-            local debug_cflags = "" -- "-O0 -g" -- for debug, but slower
-            verilua_extra_cflags = debug_cflags .. " " ..  verilua_extra_cflags
-
             target:add(
                 "values",
                 "verilator.flags",
@@ -252,9 +243,9 @@ rule("verilua")
                 "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
                 "--timescale-override", "1ns/1ns",
                 "+define+SIM_VERILATOR",
-                f("-CFLAGS \"-std=c++20 %s\"", verilua_extra_cflags),
+                "-CFLAGS \"-std=c++20\"",
                 [[-LDFLAGS "-u coverageCtrl -u getCoverageCount -u getCoverage -u getCondCoverage"]], -- Reserve symbols for coverage(cov_exporter)
-                "-LDFLAGS \"-flto " .. verilua_extra_ldflags .. "\"",
+                "-LDFLAGS \"-flto\"",
                 "--top", tb_top
             )
 
@@ -309,10 +300,8 @@ rule("verilua")
 
                 custom_toolchain_str,
 
-                "-CFLAGS \"-Ofast -march=native -loop-unroll " .. verilua_extra_cflags .. "\"",
+                "-CFLAGS \"-Ofast -march=native -loop-unroll\"",
                 "-LDFLAGS \"-flto -Wl,--no-as-needed\"",
-                "-LDFLAGS \"" .. verilua_extra_vcs_ldflags .. "\"",
-                (verilua_extra_ldflags == "") and "" or "-LDFLAGS \"" .. verilua_extra_ldflags .. "\"",
                 f("-LDFLAGS \"-Wl,-rpath,%s\"", verilua_libs_home), -- for libverilua_vcs.so
                 f("-LDFLAGS \"-Wl,-rpath,%s/luajit-pro/luajit2.1/lib\"", verilua_home), -- for libluajit-5.1.so
                 f("-LDFLAGS \"-L%s/luajit-pro/luajit2.1/lib -lluajit-5.1 -lverilua_vcs\"", verilua_home),
@@ -353,11 +342,8 @@ rule("verilua")
         )
         target:add("links", "luajit-5.1")
         target:add("linkdirs", luajitpro_home .. "/lib", verilua_libs_home)
-        
-        if not verilua_use_nix then
-            target:add("linkdirs", verilua_home .. "/conan_installed/lib")
-            target:add("includedirs", verilua_home .. "/conan_installed/include")
-        end
+        target:add("linkdirs", verilua_home .. "/conan_installed/lib")
+        target:add("includedirs", verilua_home .. "/conan_installed/include")
 
         if sim == "verilator" then
             target:add("links", "verilua_verilator")
@@ -722,13 +708,6 @@ verdi -f filelist.f -sv -nologo $@]])
             os.cp(sim_build_dir .. "/simv.vvp", target:targetdir())
             os.cp(sim_build_dir .. "/simv.vvp", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "vcs" then
-            if verilua_use_nix then
-                -- Bug: undefined symbol: __tunable_is_initialized, version GLIBC_PRIVATE ==> patchelf --set-interpreter /nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64/ld-linux-x86-64.so.2 simv
-                local vl_patchelf_full_path = os.iorun("which vl-patchelf"):gsub("[\r\n]", "")
-                local ld_linux_so = os.iorun("vl-patchelf --print-interpreter %s", vl_patchelf_full_path):gsub("[\r\n]", "")
-                os.exec("vl-patchelf --set-interpreter %s %s", ld_linux_so, sim_build_dir .. "/simv") 
-            end
-
             os.cp(sim_build_dir .. "/simv", target:targetdir())
             os.cp(sim_build_dir .. "/simv", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "wave_vpi" then
