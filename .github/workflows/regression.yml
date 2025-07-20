@@ -6,11 +6,28 @@ on:
     branches:
       - master
   pull_request:
+    branches:
+      - master
 
 jobs:
+  changes:
+    name: Changes Detection
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      has_changes: ${{ steps.filter.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: .github/filters.yml
+
   test:
     runs-on: ${{ matrix.os }}
-
+    needs: changes
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
     strategy:
       matrix:
         os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
