@@ -65,7 +65,7 @@ int main(int argc, const char *argv[]) {
     ASSERT(driver.parseCommandLine(argc, argv));
 
     if (showHelp) {
-        std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("Testbench generator for verilua").c_str());
+        std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText(fmt::format("testbench_gen(verilua@{})", VERILUA_VERSION)).c_str());
         return 0;
     }
 

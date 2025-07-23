@@ -29,6 +29,10 @@
 #include <unordered_set>
 #include <vector>
 
+#ifndef VERILUA_VERSION
+#define VERILUA_VERSION "Unknown"
+#endif
+
 #define DEFAULT_OUTPUT_DIR ".dpi_exporter"
 #define DEFAULT_WORK_DIR ".dpi_exporter"
 #define DEFAULT_DPI_FILE_NAME "dpi_func.cpp"

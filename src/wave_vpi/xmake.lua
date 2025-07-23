@@ -65,6 +65,11 @@ local function wave_vpi_main_common()
     add_links("wave_vpi_wellen_impl")
     add_linkdirs(path.join(wavevpi_dir, "target", "release"))
 
+    before_build(function (target)
+        -- Add version info
+        target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
+    end)
+
     after_build(function (target)
         os.cp(target:targetfile(), path.join(prj_dir, "tools"))
     end)

@@ -46,6 +46,11 @@ local function signal_db_gen_common()
     add_links("luajit_pro_helper")
     add_linkdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
     add_rpathdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
+
+    before_build(function (target)
+        -- Add version info
+        target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
+    end)
 end
 
 

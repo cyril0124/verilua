@@ -183,7 +183,7 @@ end
     }
 
   public:
-    DPIExporter() : driver("dpi_exporter") {
+    DPIExporter() : driver(fmt::format("dpi_exporter(verilua@{})", VERILUA_VERSION)) {
         driver.addStandardArgs();
 
         driver.cmdLine.add("--fl,--filelist", _files, "input file or filelist", "<file/filelist>");

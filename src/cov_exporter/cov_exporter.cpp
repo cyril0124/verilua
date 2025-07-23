@@ -67,7 +67,7 @@ struct CovExporter {
 
     slang_common::Driver driver;
     CovExporter() {
-        driver.setName("cov_exporter");
+        driver.setName(fmt::format("cov_exporter(verilua@{})", VERILUA_VERSION));
         driver.addStandardArgs();
 
         driver.cmdLine.add("--ept,--err-print-tree", errPrintTree, "Print entire syntax tree if error occurs");

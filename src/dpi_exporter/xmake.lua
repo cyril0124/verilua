@@ -54,6 +54,11 @@ target("dpi_exporter")
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
+    before_build(function (target)
+        -- Add version info
+        target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
+    end)
+
     after_build(function (target)
         os.cp(target:targetfile(), path.join(prj_dir, "tools"))
     end)

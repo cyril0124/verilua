@@ -21,6 +21,10 @@
 #include <string_view>
 #include <vector>
 
+#ifndef VERILUA_VERSION
+#define VERILUA_VERSION "Unknown"
+#endif
+
 #define DEFAULT_OUTPUT_FILE "./signal_db.ldb"
 
 using namespace slang;
@@ -253,7 +257,7 @@ class WrappedDriver {
         ASSERT(driver.parseCommandLine(argc, argv));
 
         if (showHelp) {
-            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
+            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText(fmt::format("dpi_exporter(verilua@{})", VERILUA_VERSION).c_str()));
             return 0;
         }
 

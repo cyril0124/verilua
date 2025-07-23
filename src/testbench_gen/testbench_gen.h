@@ -25,6 +25,10 @@
 #include <string>
 #include <vector>
 
+#ifndef VERILUA_VERSION
+#define VERILUA_VERSION "Unknown"
+#endif
+
 inline std::vector<std::string> parseFileList(const std::string &filePath) {
     std::vector<std::string> files;
     std::ifstream infile(filePath);

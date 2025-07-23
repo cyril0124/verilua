@@ -8,6 +8,10 @@
 #include <argparse/argparse.hpp>
 #include <filesystem>
 
+#ifndef VERILUA_VERSION
+#define VERILUA_VERSION "Unknown"
+#endif
+
 int main(int argc, const char *argv[]) {
     lua_State *L = luaL_newstate(); // keep luajit symbols
     
@@ -22,13 +26,13 @@ int main(int argc, const char *argv[]) {
     });
 
 #ifdef USE_FSDB
-    argparse::ArgumentParser program("wave_vpi_main_fsdb");
+    argparse::ArgumentParser program("wave_vpi_main_fsdb", VERILUA_VERSION);
     program.add_argument("-w", "--wave-file")
         .default_value(std::string(""))
         .required()
         .help("input wave file for wave vpi(FSDB)");
 #else
-    argparse::ArgumentParser program("wave_vpi_main");
+    argparse::ArgumentParser program("wave_vpi_main", VERILUA_VERSION);
     program.add_argument("-w", "--wave-file")
         .default_value(std::string(""))
         .required()

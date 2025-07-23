@@ -17,6 +17,10 @@
 #include <unordered_set>
 #include <vector>
 
+#ifndef VERILUA_VERSION
+#define VERILUA_VERSION "Unknown"
+#endif
+
 #define DELETE_FILE(filePath)                                                                                                                                                                                                                                                                                                                                                                                  \
     do {                                                                                                                                                                                                                                                                                                                                                                                                       \
         if (std::filesystem::exists(filePath)) {                                                                                                                                                                                                                                                                                                                                                               \

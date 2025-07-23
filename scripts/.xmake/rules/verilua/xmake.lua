@@ -37,6 +37,27 @@ local function before_build_or_run(target)
     -- Check if VERILUA_HOME is set.
     assert(verilua_home ~= "", "[before_build_or_run] [%s] please set VERILUA_HOME", target:name())
 
+    -- Check verilua version
+    -- e.g. 
+    --      set_values("verilua.version_required", "1.0.0")
+    --      set_values("verilua.version_required", "> 1.0.0")
+    --      set_values("verilua.version_required", ">= 1.0.0")
+    --      set_values("verilua.version_required", "< 1.0.0")
+    --      set_values("verilua.version_required", "<= 1.0.0")
+    --      set_values("verilua.version_required", "1.0.x")
+    local version_required = target:values("verilua.version_required")
+    if version_required then
+        import("core.base.semver")
+        local curr_version = io.readfile(path.join(verilua_home, "VERSION"))
+        assert(
+            semver.satisfies(curr_version, version_required),
+            "[before_build_or_run] [%s] verilua version is satisfied, expected: %s, current version: %s",
+            target:name(),
+            version_required,
+            curr_version
+        )
+    end
+
     -- Generate build directory 
     local top = assert(target:values("cfg.top"), "[before_build_or_run] You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
     local build_dir_name = target:values("cfg.build_dir_name") or top
