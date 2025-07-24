@@ -1,6 +1,10 @@
+---@diagnostic disable
+
 target("test_counter")
     add_rules("verilua")
-    if os.getenv("SIM") == "vcs" then
+    if os.getenv("SIM") == "iverilog" then
+        add_toolchains("@iverilog")
+    elseif os.getenv("SIM") == "vcs" then
         add_toolchains("@vcs")
     else
         add_toolchains("@verilator")
