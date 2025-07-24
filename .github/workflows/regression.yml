@@ -151,24 +151,7 @@ jobs:
       - name: Load env variables
         run: |
           ls -l
-
-          echo "VERILUA_HOME=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-          export VERILUA_HOME=$GITHUB_WORKSPACE # Make this available to current shell
-          echo "VERILUA_HOME is: $VERILUA_HOME"
-
-          source ./activate_verilua.sh
-
-          echo "PATH=$PATH" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          echo "LUA_PATH=$LUA_PATH" >> $GITHUB_ENV
-          echo "LUA_CPATH=$LUA_CPATH" >> $GITHUB_ENV
-          echo "CONFIG_TCCDIR=$CONFIG_TCCDIR" >> $GITHUB_ENV
-
-          echo "PATH is: $PATH"
-          echo "LD_LIBRARY_PATH is: $LD_LIBRARY_PATH"
-          echo "LUA_PATH is: $LUA_PATH"
-          echo "LUA_CPATH is: $LUA_CPATH"
-          echo "CONFIG_TCCDIR is: $CONFIG_TCCDIR"
+          bash ./ci/load_verilua_env.sh $GITHUB_WORKSPACE
 
       - name: Test verilua (Basic test)
         run: |
