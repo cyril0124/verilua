@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -ex
+
 # Check if VERILUA_HOME is provided
 if [ -z "$1" ]; then
     echo -e "Error: VERILUA_HOME is not provided"
