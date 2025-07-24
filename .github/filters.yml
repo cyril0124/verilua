@@ -3,3 +3,6 @@ has_changes:
   - "!**/*.md"
   - "!LICENSE"
   - "!**/images/**"
+docs_has_changes:
+  - "docs/**"
+  - "mkdocs.yml"
