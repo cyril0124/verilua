@@ -113,9 +113,10 @@ function update_verilua() {
     mkdir -p $temp_dir
     cd $temp_dir
     rm -rf $temp_dir/verilua
-    git clone --depth 1 $remote_repo &> /dev/null
+    git clone $remote_repo &> /dev/null
     cd verilua
     latest_version=$(git describe --tags --abbrev=0 2>/dev/null)
+    git checkout $latest_version &> /dev/null
     latest_commit=$(git rev-parse HEAD)
     release_time=$(git show -s --format=%ci $latest_version)
     cd $curr_dir
@@ -163,8 +164,11 @@ function update_verilua() {
     unzip $temp_dir/dist/latest.zip -d $temp_dir/dist/verilua &> /dev/null
     echo -e "\t✅ Unzipped latest verilua to: ${GREEN}$temp_dir/dist/verilua${NC}"
 
-    mv $VERILUA_HOME $VERILUA_HOME.old
+    verilua_home_basename=$(basename $VERILUA_HOME)
+    verilua_home_dirname=$(dirname $VERILUA_HOME)
+    verilua_home_old="${verilua_home_dirname}/.${verilua_home_basename}.old"
+    mv $VERILUA_HOME $verilua_home_old
     cp -r $temp_dir/dist/verilua $VERILUA_HOME
-    echo -e "\t✅ Previous verilua home is: ${GREEN}$VERILUA_HOME.old${NC}"
+    echo -e "\t✅ Previous verilua home is: ${GREEN}$verilua_home_old${NC}"
     echo -e "\t✅ Successfully updated verilua to: ${GREEN}$latest_version($latest_commit)${NC}"
 }
