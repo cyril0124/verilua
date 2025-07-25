@@ -4,7 +4,7 @@
 
 #include <signal.h>
 #include <iostream>
-#include <boost/stacktrace.hpp>
+#include <cpptrace/cpptrace.hpp>
 #include <argparse/argparse.hpp>
 #include <filesystem>
 
@@ -16,12 +16,14 @@ int main(int argc, const char *argv[]) {
     lua_State *L = luaL_newstate(); // keep luajit symbols
     
     signal(SIGABRT, [](int sig) {
-        std::cerr << boost::stacktrace::stacktrace() << std::endl;
+        fmt::println("[wave_vpi_main] SIGABRT");
+        cpptrace::generate_trace().print(std::cerr, true); 
         exit(1);
     });
 
     signal(SIGSEGV, [](int sig) {
-        std::cerr << boost::stacktrace::stacktrace() << std::endl;
+        fmt::println("[wave_vpi_main] SIGSEGV");
+        cpptrace::generate_trace().print(std::cerr, true); 
         exit(1);
     });
 
