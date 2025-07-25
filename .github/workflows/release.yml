@@ -29,11 +29,6 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y libboost-all-dev
-
       - name: Setup xmake
         uses: xmake-io/github-action-setup-xmake@v1
         with:
