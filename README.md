@@ -32,10 +32,11 @@ If you see the following output, then the installation is successful:
 [test_verilua] Test verilua finished!
 ```
 
-## Update verilua
+### Update verilua
 To update the verilua to the latest version, you can run:
 ```bash
 update_verilua
 ```
-Notice: Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
-
+Notice: 
+- Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
+- `update_verilua` is only available if you have installed verilua from release.
