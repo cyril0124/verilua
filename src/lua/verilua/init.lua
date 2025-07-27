@@ -1376,10 +1376,34 @@ do
         end
     end
 
+    -- Joinable fork, it can be used with `join` to wait until all tasks finished
+    -- Example:
+    --      -- (1) Create a joinable fork
+    --      local ehdl = jfork {
+    --          some_task = function ()
+    --              -- body
+    --          end
+    --      }
+    --      join(ehdl) -- Wait here until the task finished
+    -- 
+    --      -- (2) Create multiple joinable forks
+    --      local ehdl1 = jfork {
+    --          some_task1 = function ()
+    --              -- body
+    --          end
+    --      }
+    --      local ehdl2 = jfork {
+    --          some_task2 = function ()
+    --              -- body
+    --          end
+    --      }
+    --      join(ehdl1, ehdl2) -- Wait here until both tasks finished
+    -- 
     ---@param one_task_table table<TaskName|number, TaskFunction>
-    ---@return EventHandle
+    ---@return EventHandle, TaskID
     _G.jfork = function (one_task_table)
         local ehdl
+        local task_id
         local cnt = 0
         assert(type(one_task_table) == "table")
         for name, func in pairs(one_task_table) do
@@ -1397,7 +1421,7 @@ do
 
             ehdl = (name .. "__jfork_ehdl"):ehdl()
             ehdl.__type = "EventHandleForJFork"
-            scheduler:append_task(nil, name, function()
+            task_id = scheduler:append_task(nil, name, function()
                 func()
                 if ehdl:has_pending_wait() then
                     ehdl:send()
@@ -1407,7 +1431,7 @@ do
                 ehdl:remove()
             end, true) -- (<task_id>, <task_name>, <task_func>, <start_now>)
         end
-        return ehdl
+        return ehdl, task_id
     end
 
     -- Join multiple `jfork` tasks(wait until all tasks finished)
