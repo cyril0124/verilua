@@ -1,3 +1,5 @@
+---@diagnostic disable: invisible
+
 local lester = require 'lester'
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
@@ -8,13 +10,13 @@ lester.parse_args()
 describe("StaticQueue test", function ()
     it("should work properly", function()
         local q = StaticQueue(4)
-        
+
         expect.truthy(q:is_empty())
         expect.fail(function () q:pop() end)
-        
+
         q:push(11)
         q:push(22)
-        
+
         expect.equal(q.count, 2)
 
         expect.equal(q:push(33), 0)

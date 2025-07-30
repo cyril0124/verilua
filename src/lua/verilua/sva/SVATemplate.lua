@@ -217,11 +217,17 @@ function template.compile(str, opts)
     local env = { __tostring = function (n, v)
         if type(v) == "table" then
             if v.__type == "CallableHDL" then
+                ---@cast v CallableHDL
                 return v.fullpath
             elseif v.__type == "ProxyTableHandle" then
+                ---@cast v ProxyTableHandle
                 return v:chdl().fullpath
             elseif v.__type == "Sequence" then
-                assert(false, "TODO: Sequence")
+                ---@cast v SVAContext.sequence
+                return v.name
+            elseif v.__type == "Property" then
+                ---@cast v SVAContext.property
+                return v.name
             end
         end
 
