@@ -52,6 +52,7 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field name? string
 ---@field filter? fun(SignalInfo.signal_name, SignalInfo.bitwidth): boolean
 ---@field matches? string
+---@field wildmatch? string
 ---@field startswith? string
 ---@field endswith? string
 ---@field prefix? string
@@ -91,8 +92,9 @@ local SignalDB = {
     target_file = "./signal_db.ldb",
     is_prebuild = is_prebuild,
     rtl_filelist = is_prebuild and
-    assert(os.getenv("VL_PREBUILD_FILELIST"), "[SignalDB] `VL_PREBUILD_FILELIST` is not set when `VL_PREBUILD` is true!") or
-    "dut_file.f",
+        assert(os.getenv("VL_PREBUILD_FILELIST"),
+            "[SignalDB] `VL_PREBUILD_FILELIST` is not set when `VL_PREBUILD` is true!") or
+        "dut_file.f",
     extra_signal_db_gen_args = os.getenv("VL_PREBUILD_SARGS") or "",
     initialized = false,
     regenerate = false,
@@ -285,15 +287,30 @@ function SignalDB:get_signal_info(hier_path)
     return nil
 end
 
----@param hiers SignalDB.data
----@param ret table<string>
----@param path string
+ffi.cdef [[
+    int wildmatch(const char *pattern, const char *str);
+]]
+
+---@param pattern string
 ---@param str string
+---@return boolean
+local function wildmatch(pattern, str)
+    if ffi.C.wildmatch(pattern, str) == 1 then
+        return true
+    else
+        return false
+    end
+end
+
+---@param hiers SignalDB.data
+---@param ret string[] result table
+---@param path string hierarchy path
+---@param str string wildcard string to match
 local function _find_all(hiers, ret, path, str)
     for k, v in pairs(hiers) do
         local k_type = type(k)
         if k_type == "string" then
-            if stringx.lfind(k, str) ~= nil then
+            if wildmatch(str, k) then
                 table_insert(ret, path .. "." .. k)
             end
 
@@ -303,7 +320,7 @@ local function _find_all(hiers, ret, path, str)
         elseif k_type == "number" then
             local signal_info = v
             local signal_name = signal_info[1]
-            if stringx.lfind(signal_name, str) ~= nil then
+            if wildmatch(str, signal_name) then
                 table_insert(ret, path .. "." .. signal_name)
             end
         end
@@ -311,14 +328,14 @@ local function _find_all(hiers, ret, path, str)
 end
 
 ---@param hiers SignalDB.data
----@param ret table<string>
----@param path string
----@param str string
+---@param ret string[] result table
+---@param path string hierarchy path
+---@param str string wildcard string to match
 local function _find_hier(hiers, ret, path, str)
     for k, v in pairs(hiers) do
         local k_type = type(k)
         if k_type == "string" then
-            if stringx.lfind(k, str) ~= nil then
+            if wildmatch(str, k) then
                 table_insert(ret, path .. "." .. k)
             end
 
@@ -330,9 +347,9 @@ local function _find_hier(hiers, ret, path, str)
 end
 
 ---@param hiers SignalDB.data
----@param ret table<string>
----@param path string
----@param str string
+---@param ret string[] result table
+---@param path string hierarchy path
+---@param str string wildcard string to match
 local function _find_signal(hiers, ret, path, str)
     for k, v in pairs(hiers) do
         local k_type = type(k)
@@ -343,7 +360,7 @@ local function _find_signal(hiers, ret, path, str)
         elseif k_type == "number" then
             local signal_info = v
             local signal_name = signal_info[1]
-            if stringx.lfind(signal_name, str) ~= nil then
+            if wildmatch(str, signal_name) then
                 table_insert(ret, path .. "." .. signal_name)
             end
         end
@@ -377,17 +394,21 @@ function SignalDB:find_signal(str)
     return ret
 end
 
+---@param signal_name string
+---@param signal_bitwidth number
 local function default_filter(signal_name, signal_bitwidth)
     return true
 end
 
 function SignalDB:auto_bundle(hier_path, params)
+    ---@type string[]
     local signals = {}
 
     -- Check parameters
     assert(
         type(params.filter) == "function" or
         type(params.matches) == "string" or
+        type(params.wildmatch) == "string" or
         type(params.startswith) == "string" or
         type(params.endswith) == "string" or
         type(params.prefix) == "string",
@@ -395,14 +416,14 @@ function SignalDB:auto_bundle(hier_path, params)
     )
 
     -- Extract hierarchy vector
-    ---@type table<number, string>
+    ---@type string[]
     local hier_vec = stringx.split(hier_path, ".")
 
     -- Initialize signal_db
     local curr = self:get_db_data()
 
     -- Extract hierarchy vector
-    for i, v in ipairs(hier_vec) do
+    for _, v in ipairs(hier_vec) do
         curr = curr[v]
     end
     assert(curr ~= nil, "[auto_bundle] No such hierarchy! => " .. hier_path)
@@ -422,6 +443,16 @@ function SignalDB:auto_bundle(hier_path, params)
             if signal_name:match(params.matches) then
                 if filter(signal_name, signal_bitwidth) then
                     table_insert(signals, signal_name)
+                end
+            end
+        elseif params.wildmatch then
+            if wildmatch(params.wildmatch, signal_name) then
+                if filter(signal_name, signal_bitwidth) then
+                    if params.prefix and stringx.startswith(signal_name, params.prefix) then
+                        table_insert(signals, signal_name:sub(#params.prefix + 1))
+                    else
+                        table_insert(signals, signal_name)
+                    end
                 end
             end
         elseif params.startswith and params.endswith then

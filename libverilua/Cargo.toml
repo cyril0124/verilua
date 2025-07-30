@@ -24,6 +24,7 @@ smallvec = "1.14.0"
 tabled = "0.18.0"
 clap = { version = "4.5.32", features = ["derive"] } # used in verilua_prebuild
 cpp = "0.5"
+wildmatch = "2.4.0"
 
 [lib]
 name = "verilua"

@@ -520,7 +520,7 @@ do
 ---@field bdl fun(str: string, params: string.bdl.params): Bundle
 ---@field abdl fun(str: string, params_table: string.bdl.params): AliasBundle
 ---@field ehdl fun(this: string, event_id_integer?: integer): EventHandle
----@field auto_bundle fun(str: string, params_table: SignalDB.auto_bundle.params): Bundle
+---@field auto_bundle fun(str: string, params: SignalDB.auto_bundle.params): Bundle
 ---@field tcc_compile fun(str: string, sym_ptr_tbls: string.tcc_compile.sym_ptr_tbl[]): table<any>
 ---@field enum_define fun(name: string, enum_table: table<any>): table<any>
 ---@field bv fun(init_hex_str: string, bitwidth?: number): BitVec
@@ -1003,12 +1003,25 @@ do
     --      local bdl = ("tb_top.path.to.mod"):auto_bundle { startswith = "io_in_" }
     --      local bdl = ("tb_top.path.to.mod"):auto_bundle { endswith = "_value" }
     --      local bdl = ("tb_top.path.to.mod"):auto_bundle { matches = "^io_" }
+    --      local bdl = ("tb_top.path.to.mod"):auto_bundle { wildmatch = "*_value_*" }
     --      local bdl = ("tb_top.path.to.mod"):auto_bundle { filter = function (name, width)
     --          return width == 32 and name:endswith("_value")
     --      end }
     -- 
-    string.auto_bundle = function (str, params_table)
-        return require("SignalDB"):auto_bundle(str, params_table)
+    -- Priority: 
+    --      filter > matches > wildmatch > startswith > prefix > endswith
+    -- Available combinations:
+    --      - matches + filter
+    --      - wildmatch + filter
+    --      - wildmatch + filter + prefix
+    --      - startswith + endswith
+    --      - startswith + endswith + filter
+    --      - prefix + filter
+    --      - startswith + filter
+    --      - endswith + filter
+    -- 
+    string.auto_bundle = function (str, params)
+        return require("SignalDB"):auto_bundle(str, params)
     end
 
 

@@ -189,3 +189,14 @@ pub unsafe extern "C" fn c_simulator_control(cmd: libc::c_longlong) {
 
     unsafe { vpi_control(cmd as i32) };
 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wildmatch(
+    pattern: *const libc::c_char,
+    string: *const libc::c_char,
+) -> libc::c_int {
+    let pattern = unsafe { CStr::from_ptr(pattern) };
+    let string = unsafe { CStr::from_ptr(string) };
+    wildmatch::WildMatch::new(pattern.to_str().unwrap()).matches(string.to_str().unwrap())
+        as libc::c_int
+}
