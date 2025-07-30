@@ -57,7 +57,7 @@ local initialize_trace = function(trace_file_path)
         local traceFilePath = trace_file_path or "dump.vcd"
         local file, err = io.open("iverilog_trace_name.txt", "w")
 
-        assert(file, "Failed to open file: " .. err)
+        assert(file, "Failed to open file: " .. tostring(err))
 
         file:write(traceFilePath .. "\n")
         file:close()
