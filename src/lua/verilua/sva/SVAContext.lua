@@ -1,3 +1,4 @@
+local stringx = require "pl.stringx"
 local template = require "SVATemplate"
 
 local type = type
@@ -58,6 +59,11 @@ setmetatable(SVAContext, {
         return content
     end
 })
+
+local function process_content(content)
+    -- Squash multiple spaces and newlines
+    return stringx.replace(content, "\n", ""):gsub("%s+", " ")
+end
 
 function SVAContext:generate()
     return tostring(self)
@@ -140,16 +146,16 @@ function SVAContext:add(typ)
             end
 
             local content = f("%s: cover %s (%s);", params.name, cov_type, ret)
-            self.content_vec[#self.content_vec + 1] = content
+            self.content_vec[#self.content_vec + 1] = process_content(content)
 
             return
         elseif typ == "assert" then
             local content = f("%s: assert property (%s);", params.name, ret)
-            self.content_vec[#self.content_vec + 1] = content
+            self.content_vec[#self.content_vec + 1] = process_content(content)
             return
         elseif typ == "property" then
             local content = f("property %s() %s; endproperty", params.name, ret)
-            self.property_vec[#self.property_vec + 1] = content
+            self.property_vec[#self.property_vec + 1] = process_content(content)
 
             ---@type SVAContext.property
             local property = {
@@ -160,7 +166,7 @@ function SVAContext:add(typ)
             return property
         elseif typ == "sequence" then
             local content = f("sequence %s() %s; endsequence", params.name, ret)
-            self.sequence_vec[#self.sequence_vec + 1] = content
+            self.sequence_vec[#self.sequence_vec + 1] = process_content(content)
 
             ---@type SVAContext.sequence
             local sequence = {

@@ -226,10 +226,7 @@ test: cover property (test + path.to.c1 + path.to.c2);
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property (    1
-    2
-    3
-);
+test: cover property ( 1 2 3);
 
 ]])
         ctx:clean()
@@ -249,8 +246,7 @@ test: cover property (    1
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property (    2
-);
+test: cover property ( 2);
 
 ]])
 
