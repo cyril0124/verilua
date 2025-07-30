@@ -16,19 +16,19 @@ local verilua_warning = _G.verilua_warning
 
 local set_dpi_scope
 if cfg.simulator == "vcs" then
-    ffi.cdef[[
+    ffi.cdef [[
         int vcs_get_mode(void);
 
         void *svGetScopeFromName(char *str);
         void svSetScope(void *scope);
     ]]
 
-    set_dpi_scope = function ()
+    set_dpi_scope = function()
         ffi.C.svSetScope(ffi.C.svGetScopeFromName(ffi.cast("char *", cfg.top)))
     end
 end
 
-ffi.cdef[[
+ffi.cdef [[
     void simulation_initializeTrace(char *traceFilePath);
     void simulation_enableTrace(void);
     void simulation_disableTrace(void);
@@ -43,7 +43,7 @@ ffi.cdef[[
     void vpiml_iterate_vpi_type(const char *module_name, int type);
 ]]
 
-local initialize_trace = function (trace_file_path)
+local initialize_trace = function(trace_file_path)
     assert(trace_file_path ~= nil)
     local simulator = cfg.simulator
     if simulator == "vcs" then
@@ -57,9 +57,7 @@ local initialize_trace = function (trace_file_path)
         local traceFilePath = trace_file_path or "dump.vcd"
         local file, err = io.open("iverilog_trace_name.txt", "w")
 
-        if not file then
-            assert(false, "Failed to open file: " .. err)
-        end
+        assert(file, "Failed to open file: " .. err)
 
         file:write(traceFilePath .. "\n")
         file:close()
@@ -73,7 +71,7 @@ local initialize_trace = function (trace_file_path)
     end
 end
 
-local enable_trace = function ()
+local enable_trace = function()
     local simulator = cfg.simulator
     if simulator == "vcs" then
         set_dpi_scope()
@@ -90,7 +88,7 @@ local enable_trace = function ()
     end
 end
 
-local disable_trace = function ()
+local disable_trace = function()
     if cfg.simulator == "vcs" then
         set_dpi_scope()
         ffi.C.simulation_disableTrace()
@@ -109,7 +107,7 @@ local disable_trace = function ()
     end
 end
 
-local dump_wave = function (trace_file_path)
+local dump_wave = function(trace_file_path)
     local _trace_file_path = trace_file_path or "test.vcd"
     local trace_path = path.abspath(path.dirname(_trace_file_path))
 
@@ -129,18 +127,18 @@ local SimCtrl = {
     SET_INTERATIVE_SCOPE = 69
 }
 
-local simulator_control = function (sim_crtl)
+local simulator_control = function(sim_crtl)
     ffi.C.c_simulator_control(sim_crtl)
 end
 
-local finish = function ()
+local finish = function()
     simulator_control(SimCtrl.FINISH)
 end
 
 local get_mode = function()
     if cfg.simulator == "vcs" then
         set_dpi_scope()
-        local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
+        local success, mode = pcall(function() return ffi.C.vcs_get_mode() end)
         if not success then
             mode = SchedulerMode.NORMAL
             verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
@@ -154,21 +152,22 @@ local get_mode = function()
 end
 
 local print_hierarchy_lib
-local print_hierarchy = function (max_level)
+local print_hierarchy = function(max_level)
     local max_level = max_level or 0
     if not print_hierarchy_lib then
         local VERILUA_HOME = assert(os.getenv("VERILUA_HOME"), "[LuaSimulator] VERILUA_HOME is not set")
-        print_hierarchy_lib = (utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c")):tcc_compile {
-            {
-                sym = "print_hierarchy",
-                ptr = "void (*)(unsigned int*, int)"
+        print_hierarchy_lib = (utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c"))
+            :tcc_compile {
+                {
+                    sym = "print_hierarchy",
+                    ptr = "void (*)(unsigned int*, int)"
+                }
             }
-        }
     end
     print_hierarchy_lib.print_hierarchy(ffi_new("unsigned int*", nil), max_level)
 end
 
-local iterate_vpi_type = function (module_name, type)
+local iterate_vpi_type = function(module_name, type)
     ffi.C.vpiml_iterate_vpi_type(module_name, type)
 end
 

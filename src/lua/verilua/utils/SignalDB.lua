@@ -16,12 +16,35 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 
 ---@alias SignalInfo.signal_name string
 ---@alias SignalInfo.bitwidth number
----@alias SignalInfo.vpi_type string
----@alias SignalInfo [SignalInfo.signal_name, SignalInfo.bitwidth, SignalInfo.vpi_type] 
+---@alias SignalInfo.vpi_type "vpiNet" | "vpiReg"
+
+---@class (exact) SignalInfo
+---@field [1] SignalInfo.signal_name
+---@field [2] SignalInfo.bitwidth
+---@field [3] SignalInfo.vpi_type
 
 ---@alias SignalDB.data.hier_path string
 
 ---@class (exact) SignalDB.data
+---
+--- Example:
+--- {
+---     ["top"] = {
+---         {"signal_1", 1, "vpiReg"},
+---         {"signal_2", 256, "vpiNet"},
+---         -- other signals
+---
+---         ["submodule"] = {
+---             {"sub_signal_1", 8, "vpiNet"},
+---             {"sub_signal_2", 1, "vpiReg"},
+---             -- other signals
+---
+---             -- other hierarchies
+---         },
+---         -- other hierarchies
+---     }
+--- }
+---
 ---@field [SignalDB.data.hier_path] SignalDB.data
 ---@field [integer] SignalInfo
 
@@ -57,9 +80,9 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field get_db_data fun(self: SignalDB): SignalDB.data
 ---@field get_top_module fun(self: SignalDB): string
 ---@field get_signal_info fun(self: SignalDB, hier_path: SignalDB.data.hier_path): SignalInfo?
----@field find_all fun(self: SignalDB, str: string): table<string>
----@field find_hier fun(self: SignalDB, str: string): table<string>
----@field find_signal fun(self: SignalDB, str: string): table<string>
+---@field find_all fun(self: SignalDB, str: string): string[]
+---@field find_hier fun(self: SignalDB, str: string): string[]
+---@field find_signal fun(self: SignalDB, str: string): string[]
 ---@field auto_bundle fun(self: SignalDB, hier_path: string, params: SignalDB.auto_bundle.params): Bundle
 local SignalDB = {
     db_data = {},
@@ -67,7 +90,9 @@ local SignalDB = {
     check_file = nil,
     target_file = "./signal_db.ldb",
     is_prebuild = is_prebuild,
-    rtl_filelist = is_prebuild and assert(os.getenv("VL_PREBUILD_FILELIST"), "[SignalDB] `VL_PREBUILD_FILELIST` is not set when `VL_PREBUILD` is true!") or "dut_file.f",
+    rtl_filelist = is_prebuild and
+    assert(os.getenv("VL_PREBUILD_FILELIST"), "[SignalDB] `VL_PREBUILD_FILELIST` is not set when `VL_PREBUILD` is true!") or
+    "dut_file.f",
     extra_signal_db_gen_args = os.getenv("VL_PREBUILD_SARGS") or "",
     initialized = false,
     regenerate = false,
@@ -119,7 +144,8 @@ function SignalDB:init(params)
         end
     end
 
-    self:generate_db(f("-q --it --iu -f %s -o %s %s", rtl_filelist, self.target_file, self.regenerate and "--no-cache" or ""))
+    self:generate_db(f("-q --it --iu -f %s -o %s %s", rtl_filelist, self.target_file,
+        self.regenerate and "--no-cache" or ""))
 
     self:load_db(self.target_file)
 
@@ -215,7 +241,7 @@ function SignalDB:generate_db(args_str)
 
     if not self.is_prebuild then
         local lib = ffi.load("signal_db_gen")
-        ffi.cdef[[
+        ffi.cdef [[
             void signal_db_gen_main(const char *argList);
         ]]
         print(f("[SignalDB] generate_db: %s", cmd))
@@ -229,13 +255,14 @@ end
 function SignalDB:get_top_module()
     assert(self.initialized, "[SignalDB] SignalDB is not initialized! please call `SignalDB:init()` first!")
 
-    local top_module, _ =  next(self:get_db_data())
+    local top_module, _ = next(self:get_db_data())
     assert(top_module, "[SignalDB] No top module found!")
 
     return top_module
 end
 
 function SignalDB:get_signal_info(hier_path)
+    ---@type string[]
     local hier_vec = stringx.split(hier_path, ".")
 
     local curr = self:get_db_data()
@@ -361,8 +388,8 @@ function SignalDB:auto_bundle(hier_path, params)
     assert(
         type(params.filter) == "function" or
         type(params.matches) == "string" or
-        type(params.startswith) == "string" or 
-        type(params.endswith) == "string" or 
+        type(params.startswith) == "string" or
+        type(params.endswith) == "string" or
         type(params.prefix) == "string",
         "[auto_bundle] One of the `startswith`, `endswith`, `prefix`, `matches` or `filter` should be valid!"
     )
@@ -443,6 +470,5 @@ function SignalDB:auto_bundle(hier_path, params)
         return Bundle(signals, "", hier_path, name, false, {})
     end
 end
-
 
 return SignalDB
