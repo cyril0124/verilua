@@ -1,6 +1,7 @@
 local ffi = require "ffi"
 local path = require "pl.path"
 local inspect = require "inspect"
+local tablex = require "pl.tablex"
 local stringx = require "pl.stringx"
 local texcpect = require "TypeExpect"
 
@@ -81,9 +82,9 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field get_db_data fun(self: SignalDB): SignalDB.data
 ---@field get_top_module fun(self: SignalDB): string
 ---@field get_signal_info fun(self: SignalDB, hier_path: SignalDB.data.hier_path): SignalInfo?
----@field find_all fun(self: SignalDB, str: string): string[]
----@field find_hier fun(self: SignalDB, str: string): string[]
----@field find_signal fun(self: SignalDB, str: string): string[]
+---@field find_all fun(self: SignalDB, pattern: string): string[]
+---@field find_hier fun(self: SignalDB, hier_pattern: string): string[]
+---@field find_signal fun(self: SignalDB, signal_pattern: string, hier_pattern?: string, full_info?: boolean): string[] | SignalInfo[]
 ---@field auto_bundle fun(self: SignalDB, hier_path: string, params: SignalDB.auto_bundle.params): Bundle
 local SignalDB = {
     db_data = {},
@@ -305,22 +306,22 @@ end
 ---@param hiers SignalDB.data
 ---@param ret string[] result table
 ---@param path string hierarchy path
----@param str string wildcard string to match
-local function _find_all(hiers, ret, path, str)
+---@param pattern string wildcard string to match
+local function _find_all(hiers, ret, path, pattern)
     for k, v in pairs(hiers) do
         local k_type = type(k)
         if k_type == "string" then
-            if wildmatch(str, k) then
+            if wildmatch(pattern, k) then
                 table_insert(ret, path .. "." .. k)
             end
 
             if type(v) == "table" then
-                _find_all(v, ret, path .. "." .. k, str)
+                _find_all(v, ret, path .. "." .. k, pattern)
             end
         elseif k_type == "number" then
             local signal_info = v
             local signal_name = signal_info[1]
-            if wildmatch(str, signal_name) then
+            if wildmatch(pattern, signal_name) then
                 table_insert(ret, path .. "." .. signal_name)
             end
         end
@@ -330,67 +331,86 @@ end
 ---@param hiers SignalDB.data
 ---@param ret string[] result table
 ---@param path string hierarchy path
----@param str string wildcard string to match
-local function _find_hier(hiers, ret, path, str)
+---@param hier_pattern string wildcard string to match
+local function _find_hier(hiers, ret, path, hier_pattern)
     for k, v in pairs(hiers) do
         local k_type = type(k)
         if k_type == "string" then
-            if wildmatch(str, k) then
+            if wildmatch(hier_pattern, k) then
                 table_insert(ret, path .. "." .. k)
             end
 
             if type(v) == "table" then
-                _find_hier(v, ret, path .. "." .. k, str)
+                _find_hier(v, ret, path .. "." .. k, hier_pattern)
             end
         end
     end
 end
 
 ---@param hiers SignalDB.data
----@param ret string[] result table
+---@param ret string[] | SignalInfo[] result table
 ---@param path string hierarchy path
----@param str string wildcard string to match
-local function _find_signal(hiers, ret, path, str)
+---@param signal_pattern string wildcard string to match
+---@param hier_pattern string? hierarchy wildcard string to match if not nil
+---@param full_info boolean? whether to return full signal info
+local function _find_signal(hiers, ret, path, signal_pattern, hier_pattern, full_info)
     for k, v in pairs(hiers) do
         local k_type = type(k)
         if k_type == "string" then
             if type(v) == "table" then
-                _find_signal(v, ret, path .. "." .. k, str)
+                _find_signal(v, ret, path .. "." .. k, signal_pattern, hier_pattern, full_info)
             end
         elseif k_type == "number" then
             local signal_info = v
             local signal_name = signal_info[1]
-            if wildmatch(str, signal_name) then
-                table_insert(ret, path .. "." .. signal_name)
+            if wildmatch(signal_pattern, signal_name) then
+                if hier_pattern then
+                    if wildmatch(hier_pattern, path) then
+                        if full_info then
+                            table_insert(ret, tablex.deepcopy(signal_info))
+                        else
+                            table_insert(ret, path .. "." .. signal_name)
+                        end
+                    end
+                else
+                    if full_info then
+                        table_insert(ret, tablex.deepcopy(signal_info))
+                    else
+                        table_insert(ret, path .. "." .. signal_name)
+                    end
+                end
             end
         end
     end
 end
 
-function SignalDB:find_all(str)
+function SignalDB:find_all(pattern)
     local curr = self:get_db_data()
     local top = self:get_top_module()
 
     local ret = {}
-    _find_all(assert(curr[top], "[SignalDB] No such top module! => " .. top), ret, top, str)
+    local hiers = assert(curr[top], "[SignalDB] No such top module! => " .. top)
+    _find_all(hiers, ret, top, pattern)
     return ret
 end
 
-function SignalDB:find_hier(str)
+function SignalDB:find_hier(hier_pattern)
     local curr = self:get_db_data()
     local top = self:get_top_module()
 
     local ret = {}
-    _find_hier(assert(curr[top], "[SignalDB] No such top module! => " .. top), ret, top, str)
+    local hiers = assert(curr[top], "[SignalDB] No such top module! => " .. top)
+    _find_hier(hiers, ret, top, hier_pattern)
     return ret
 end
 
-function SignalDB:find_signal(str)
+function SignalDB:find_signal(signal_pattern, hier_pattern, full_info)
     local curr = self:get_db_data()
     local top = self:get_top_module()
 
     local ret = {}
-    _find_signal(assert(curr[top], "[SignalDB] No such top module! => " .. top), ret, top, str)
+    local hiers = assert(curr[top], "[SignalDB] No such top module! => " .. top)
+    _find_signal(hiers, ret, top, signal_pattern, hier_pattern, full_info)
     return ret
 end
 
