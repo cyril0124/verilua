@@ -217,7 +217,7 @@ test: cover property (test + path.to.c1 + path.to.c2);
     it("has a built-in template engine", function()
         ctx:add "cover" {
             name = "test",
-            -- lines starting with # are Lua
+            -- lines starting with # are Lua code
             expr = [[
 # for i = 1, 3 do
     $(i)
@@ -234,7 +234,7 @@ test: cover property ( 1 2 3);
         -- Change `Lua` code identifier
         ctx:add "cover" {
             name = "test",
-            -- lines starting with # are Lua
+            -- lines starting with % are Lua code
             expr = [[
 % for i = 1, 3 do
 %   if i == 2 then
