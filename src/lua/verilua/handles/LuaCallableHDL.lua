@@ -338,6 +338,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     -- Check if DPI exporter is enabled
+    -- Notice: Call `DpiExporter:init()` before creating any `CallableHDL` if you want to access the signal by dpi_exporter API.
     if cfg.enable_dpi_exporter then
         local is_exported = DpiExporter:is_exported(self.fullpath)
         if is_exported then

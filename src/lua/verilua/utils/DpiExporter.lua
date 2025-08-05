@@ -104,7 +104,8 @@ function DpiExporter:init(meta_file)
     )
     self.initialized = true
 
-    -- Mark as enabled
+    -- Mark as enabled, used by `LuaCallableHDL.lua`
+    -- Notice: Call `DpiExporter:init()` before creating any `CallableHDL` if you want to access the signal by dpi_exporter API.
     cfg.enable_dpi_exporter = true
 
     return self
