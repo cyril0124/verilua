@@ -134,7 +134,8 @@ unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 
 #[inline(always)]
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
+pub unsafe extern "C" fn register_read_write_synch_callback_for_put_values() {
+    // `ReadWriteSynch` callback is used to settle value changes(e.g. put value or force value) in Verilua
     // log::debug!("vpiml_register_read_write_synch_callback()");
 
     let mut t = t_vpi_time {
@@ -146,7 +147,7 @@ pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
 
     let mut cb_data = s_cb_data {
         reason: cbReadWriteSynch as _,
-        cb_rtn: Some(read_write_synch_callback),
+        cb_rtn: Some(read_write_synch_callback_for_put_values),
         time: &mut t,
         obj: std::ptr::null_mut(),
         user_data: std::ptr::null_mut(),
@@ -158,8 +159,13 @@ pub unsafe extern "C" fn vpiml_register_read_write_synch_callback() {
     unsafe { vpi_free_object(handle) };
 }
 
-unsafe extern "C" fn read_write_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
-    let env = get_verilua_env();
+unsafe extern "C" fn read_write_synch_callback_for_put_values(
+    cb_data: *mut t_cb_data,
+) -> PLI_INT32 {
+    let env: &'static mut VeriluaEnv = get_verilua_env();
+
+    // Apply pending put values(or do value settles)
+    // Here all signal values are updated to HDL
     env.apply_pending_put_values();
 
     do_register_next_sim_time_callback();
@@ -168,6 +174,8 @@ unsafe extern "C" fn read_write_synch_callback(cb_data: *mut t_cb_data) -> PLI_I
 
 #[inline(always)]
 fn do_register_next_sim_time_callback() {
+    // `do_register_next_sim_time_callback` will be called in `read_write_synch_callback`
+    // since we do all value settles in the `ReadWriteSynch` callback
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,
         high: 0,
@@ -191,6 +199,8 @@ fn do_register_next_sim_time_callback() {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_next_sim_time_callback() {
+    // `vpiml_register_next_sim_time_callback` is expected to be called only once as a bootstrap step
+    // The simulator should execute this at the very beginning of simulation
     let env = get_verilua_env_no_init();
     if env.has_next_sim_time_cb {
         return;
@@ -284,7 +294,7 @@ unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT3
         unsafe { vpi_free_object(handle) };
     } else {
         // NextSimTime callback will be registered in ReadWriteSynch callback
-        unsafe { vpiml_register_read_write_synch_callback() };
+        unsafe { register_read_write_synch_callback_for_put_values() };
     }
 
     0
@@ -337,7 +347,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
     if new_value == expected_edge_value || expected_edge_value == EdgeValue::DontCare {
-        let env = get_verilua_env();
+        let env = VeriluaEnv::from_complex_handle_raw(user_data.complex_handle_raw);
 
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
@@ -483,7 +493,7 @@ macro_rules! gen_vpiml_register_edge_callback {
             paste::paste! {
                 #[inline(always)]
                 unsafe fn [<vpiml_register_ $edge_type _callback_common>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
-                    let env = get_verilua_env();
+                    let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
 
                     if cfg!(feature = "opt_cb_task") {
                         #[cfg(feature = "merge_cb")]
