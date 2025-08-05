@@ -354,24 +354,36 @@ target("test")
         end
 
         do
+            local test_dirs = {
+                path.join(prj_dir, "tests", "test_edge"),
+                path.join(prj_dir, "tests", "test_set_value"),
+                path.join(prj_dir, "tests", "test_bitvec_signal"),
+            }
             os.setenvs(old_env)
-            os.cd(path.join(prj_dir, "tests", "test_bitvec_signal"))
-            os.exec("xmake run -v -P . test_all")
-        end
+            for _, test_dir in ipairs(test_dirs) do
+                os.cd(test_dir)
+                for _, sim in ipairs(simulators) do
+                    cprint("")
+                    cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                    cprint("> sim: ${green underline}%s${reset}", sim)
+                    cprint("> test_dir: ${green underline}%s${reset}", test_dir)
+                    cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-        do
-            os.setenvs(old_env)
-            os.cd(path.join(prj_dir, "tests", "test_edge"))
+                    os.setenv("SIM", sim)
+                    os.tryrm("build")
+                    os.exec("xmake build -v -P .")
+                    -- if sim == "vcs" then
+                    --     -- ignore error
+                    --     try { function () os.exec("xmake run -v -P .") end }
+                    -- else
+                        os.exec("xmake run -v -P .")
+                    -- end
 
-            for _, sim in ipairs(simulators) do
-                os.setenv("SIM", sim)
-                os.tryrm("build")
-                os.exec("xmake build -v -P .")
-                if sim == "vcs" then
-                    -- ignore error
-                    try { function () os.exec("xmake run -v -P .") end }
-                else
-                    os.exec("xmake run -v -P .")
+                    cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+                    cprint("< sim: ${green underline}%s${reset}", sim)
+                    cprint("< test_dir: ${green underline}%s${reset}", test_dir)
+                    cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+                    cprint("")
                 end
             end
         end

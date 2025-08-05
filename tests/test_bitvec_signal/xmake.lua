@@ -1,57 +1,22 @@
 ---@diagnostic disable
 
-target("test_iverilog")
+target("test", function()
     add_rules("verilua")
-    on_config(function (target)
-        import("lib.detect.find_file")
-        if find_file("iverilog", {"$(env PATH)"}) then
+
+    on_config(function(target)
+        local sim = os.getenv("SIM") or "verilator"
+        if sim == "iverilog" then
             target:set("toolchains", "@iverilog")
-        end
-    end)
-    add_files("./Design.v")
-    set_values("cfg.top", "Design")
-    set_values("cfg.lua_main", "main.lua")
-
-target("test_vcs")
-    add_rules("verilua")
-    on_config(function (target)
-        import("lib.detect.find_file")
-        if find_file("vcs", {"$(env PATH)"}) then
+        elseif sim == "vcs" then
             target:set("toolchains", "@vcs")
-        end
-    end)
-    add_files("./Design.v")
-    set_values("cfg.top", "Design")
-    set_values("cfg.lua_main", "main.lua")
-
-target("test_verilator")
-    add_rules("verilua")
-    on_config(function (target)
-        import("lib.detect.find_file")
-        if find_file("verilator", {"$(env PATH)"}) then
+        elseif sim == "verilator" then
             target:set("toolchains", "@verilator")
+        else
+            raise("unknown simulator: %s", sim)
         end
     end)
+
     add_files("./Design.v")
     set_values("cfg.top", "Design")
     set_values("cfg.lua_main", "main.lua")
-
-target("test_all")
-    set_kind("phony")
-    on_run(function (target)
-        os.tryrm(path.join(os.scriptdir(), "build"))
-
-        import("lib.detect.find_file")
-        if find_file("verilator", {"$(env PATH)"}) then
-            os.exec("xmake b -P . test_verilator")
-            os.exec("xmake r -P . test_verilator")
-        end
-        if find_file("iverilog", {"$(env PATH)"}) then
-            os.exec("xmake b -P . test_iverilog")
-            os.exec("xmake r -P . test_iverilog")
-        end
-        if find_file("vcs", {"$(env PATH)"}) then
-            os.exec("xmake b -P . test_vcs")
-            os.exec("xmake r -P . test_vcs")
-        end
-    end)
+end)
