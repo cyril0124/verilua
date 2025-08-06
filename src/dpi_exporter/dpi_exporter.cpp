@@ -305,6 +305,7 @@ end
             auto getter      = SignalInfoGetter(cpattern, compilation.get(), isTopModule);
             tree->root().visit(getter);
 
+            // Avoid duplicate signals
             for (auto &hierPath : getter.shouldRemoveHierPaths) {
                 fmt::println("\t\tshouldRemove: {}", hierPath);
                 for (auto &sg : signalGroupVec) {
@@ -315,6 +316,10 @@ end
                         }
                     }
                 }
+            }
+
+            if (cpattern.sensitiveSignals != "") {
+                ASSERT(getter.gotSenstiveSignal, "No sensitive signal found in the signal group, senstive signal is chosen from `signals`, maybe you should adjust your `signals` value to include sensitive signals", cpattern.name, cpattern.signals, cpattern.sensitiveSignals);
             }
 
             signalGroupVec.push_back(getter.signalGroup);
@@ -331,6 +336,8 @@ end
         });
 
         for (auto &sg : signalGroupVec) {
+            // If the signal group has sensitive signals, it will be added to the mergedSignalGroupVec as a new group,
+            // otherwise, the signals in the signal group will be added to the DEFAULT group.
             if (sg.sensitiveSignalInfoVec.empty()) {
                 mergedSignalGroupVec.at(0).signalInfoVec.insert(mergedSignalGroupVec.at(0).signalInfoVec.end(), sg.signalInfoVec.begin(), sg.signalInfoVec.end());
             } else {
@@ -351,6 +358,7 @@ end
             fmt::println("[dpi_exporter] done rebuilding syntax tree");
             fflush(stdout);
         } else {
+            // `distributeDPI` means scatter the DPI functions into different modules
             ASSERT(false, "TODO: distributeDPI is not supported yet!");
         }
 
