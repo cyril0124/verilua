@@ -227,20 +227,26 @@ int main(int argc, const char *argv[]) {
             resetSignalHasMatch = true;
         }
 
-        if (clockSignalName == "" && (port.name == "clock" || port.name == "clock_i" || port.name == "clk" || port.name == "clk_i")) {
+        // If there are multiple clock signals, `clock` will be chosen as the matched clock signal.
+        if (clockSignalName != "clock" && (port.name == "clock" || port.name == "clock_i" || port.name == "clk" || port.name == "clk_i" || port.name == "i_clk")) {
             clockSignalHasMatch = true;
             clockSignalName     = port.name;
         }
 
-        if (resetSignalName == "" && (port.name == "reset" || port.name == "reset_i" || port.name == "rst" || port.name == "rst_i")) {
+        // If there are multiple reset signals, `reset` will be chosen as the matched reset signal.
+        if (resetSignalName != "reset" && (port.name == "reset" || port.name == "reset_i" || port.name == "rst" || port.name == "rst_i" || port.name == "i_rst")) {
             resetSignalHasMatch = true;
             resetSignalName     = port.name;
         }
     }
 
     ASSERT(clockSignalHasMatch, "Clock signal not match", clockSignalName);
+    fmt::println("[testbench_gen] clock signal: {}", clockSignalName);
+
     if (!resetSignalHasMatch) {
         fmt::println("[testbench_gen] Warning: Reset signal not match!");
+    } else {
+        fmt::println("[testbench_gen] reset signal: {}", resetSignalName);
     }
 
     { // Generate tbtop file
