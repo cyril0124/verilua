@@ -1,7 +1,7 @@
 ---@diagnostic disable
 
-local prj_dir    = os.curdir()
-local libs_dir   = path.join(prj_dir, "conan_installed")
+local prj_dir  = os.curdir()
+local libs_dir = path.join(prj_dir, "conan_installed")
 
 includes(path.join(prj_dir, "libverilua", "xmake.lua"))
 includes(path.join(prj_dir, "src", "cov_exporter", "xmake.lua"))
@@ -10,80 +10,83 @@ includes(path.join(prj_dir, "src", "signal_db_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "testbench_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "wave_vpi", "xmake.lua"))
 
-target("update_submodules")
+target("update_submodules", function()
     set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
-        execute("git submodule update --init --recursive")
+    on_run(function(target)
+        os.exec("git submodule update --init --recursive")
     end)
+end)
 
-target("install_luajit")
+target("install_luajit", function()
     set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
+    on_run(function(target)
         local curr_dir = os.workingdir()
         local luajit_pro_dir = curr_dir .. "/luajit-pro"
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
         local luarocks_version = "3.12.2"
 
         -- Remove existing luajit-pro directory
-        execute("rm -rf " .. luajit_pro_dir)
-        execute("git clone https://github.com/cyril0124/luajit-pro.git " .. luajit_pro_dir)
+        os.exec("rm -rf " .. luajit_pro_dir)
+        os.exec("git clone https://github.com/cyril0124/luajit-pro.git " .. luajit_pro_dir)
 
         -- Build luajit_pro_helper
         os.cd(luajit_pro_dir)
-        execute("cargo build --release")
+        os.exec("cargo build --release")
 
         -- Build luajit
-        execute("bash init.sh")
-        os.trycp(luajit_dir .. "/bin/luajit", luajit_dir .. "/bin/lua")
+        os.exec("bash init.sh")
+        os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
 
         -- Add luajit to PATH
-        os.addenvs({PATH = luajit_dir .. "/bin"})
+        os.addenvs({ PATH = path.join(luajit_dir, "bin") })
 
         -- Build luarocks
         do
-            execute("wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz", luajit_pro_dir, luarocks_version)
-            execute("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
+            os.exec(
+                "wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz",
+                luajit_pro_dir,
+                luarocks_version
+            )
+            os.exec("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
             os.cd("luarocks-" .. luarocks_version)
 
-            execute("make clean")
-            execute("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
-            execute("make")
-            execute("make install")
+            os.exec("make clean")
+            os.exec("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
+            os.exec("make")
+            os.exec("make install")
         end
 
         -- Rebuild luajit_pro_helper
         os.cd(luajit_pro_dir)
-        execute("cargo build --release")
+        os.exec("cargo build --release")
 
         os.cd(curr_dir)
     end)
+end)
 
-target("reinstall_luajit")
+target("reinstall_luajit", function()
     set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
+    on_run(function(target)
         local curr_dir = os.workingdir()
         local luajit_pro_dir = curr_dir .. "/luajit-pro"
         local luajit_dir = luajit_pro_dir .. "/luajit2.1"
 
         -- build luajit_pro_helper
         os.cd(luajit_pro_dir)
-        execute("cargo build --release")
+        os.exec("cargo build --release")
 
         -- execute("git reset --hard origin/master")
         -- execute("git pull origin master")
-        execute("bash init.sh")
+        os.exec("bash init.sh")
         os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
 
         os.cd(curr_dir)
     end)
+end)
 
-
-target("install_other_libs")
+target("install_other_libs", function()
     set_kind("phony")
-    on_run(function (target)
+    on_run(function(target)
         -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
         if os.getenv("CI_USE_CONAN_CACHE") then
             print("[xmake.lua] [install_other_libs] Using cached conan libs...")
@@ -91,7 +94,7 @@ target("install_other_libs")
         end
 
         local conan_cmd = "conan"
-        local has_conan = try { function () return os.iorun("conan --version") end }
+        local has_conan = try { function() return os.iorun("conan --version") end }
 
         if not has_conan then
             os.mkdir(path.join(prj_dir, "build"))
@@ -104,12 +107,12 @@ target("install_other_libs")
 
         os.cd(path.join(prj_dir, "scripts", "conan", "slang"))
         try {
-            function ()
+            function()
                 os.exec(conan_cmd .. " create . --build=missing")
             end,
             catch
             {
-                function (errors)
+                function(errors)
                     os.exec(conan_cmd .. " profile detect --force")
                     os.exec(conan_cmd .. " create . --build=missing")
                 end
@@ -119,11 +122,11 @@ target("install_other_libs")
         os.cd(prj_dir)
         os.exec(conan_cmd .. " install . --output-folder=%s --build=missing", libs_dir)
     end)
+end)
 
-target("install_lua_modules")
+target("install_lua_modules", function()
     set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
+    on_run(function(target)
         local curr_dir = os.workingdir()
         local luajit_pro_dir = path.join(curr_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
@@ -135,28 +138,28 @@ target("install_lua_modules")
             "argparse", -- Used by teal-language
         }
 
-        os.addenvs({PATH = path.join(luajit_dir, "bin")})
+        os.addenvs({ PATH = path.join(luajit_dir, "bin") })
         for i, lib in ipairs(libs) do
             cprint("\t${💥} ${yellow}[5.%d]${reset} install ${green}%s${reset}", i, lib)
-            execute("luarocks install --force-lock %s", lib)
+            os.exec("luarocks install --force-lock %s", lib)
         end
-        execute("luarocks list")
+        os.exec("luarocks list")
     end)
+end)
 
-target("install_tinycc")
+target("install_tinycc", function()
     set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
+    on_run(function(target)
         os.cd(path.join(prj_dir, "extern", "luajit_tcc"))
-        execute("make init")
-        execute("make")
+        os.exec("make init")
+        os.exec("make")
         os.cd(os.workingdir())
     end)
+end)
 
-target("setup_verilua")
+target("setup_verilua", function()
     set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
+    on_run(function(target)
         local shell_rc = path.join(os.getenv("HOME"), "." .. os.shell() .. "rc")
         local has_match = false
 
@@ -181,70 +184,64 @@ target("setup_verilua")
 
         -- generate libwwave_vpi_wellen_impl
         os.cd("wave_vpi")
-        execute("cargo build --release")
+        os.exec("cargo build --release")
         os.cd(os.workingdir())
 
-        execute("xmake run -y -v build_libverilua")
-        execute("xmake build -y -v testbench_gen")
-        execute("xmake build -y -v dpi_exporter")
-        execute("xmake build -y -v cov_exporter")
-        execute("xmake build -y -v signal_db_gen")
-        execute("xmake build -y -v libsignal_db_gen")
-        execute("xmake build -y -v wave_vpi_main")
-        execute("xmake build -y -v verilua_prebuild")
+        os.exec("xmake run -y -v build_libverilua")
+        os.exec("xmake build -y -v testbench_gen")
+        os.exec("xmake build -y -v dpi_exporter")
+        os.exec("xmake build -y -v cov_exporter")
+        os.exec("xmake build -y -v signal_db_gen")
+        os.exec("xmake build -y -v libsignal_db_gen")
+        os.exec("xmake build -y -v wave_vpi_main")
+        os.exec("xmake build -y -v verilua_prebuild")
 
         import("lib.detect.find_file")
-        if find_file("verdi", {"$(env PATH)"}) and os.getenv("VERDI_HOME") then
-            execute("xmake build -y -v wave_vpi_main_fsdb")
+        if find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
+            os.exec("xmake build -y -v wave_vpi_main_fsdb")
         end
-        if find_file("iverilog", {"$(env PATH)"}) then
-            execute("xmake build -y -v iverilog_vpi_module")
-        end
-    end)
-
-target("apply_xmake_patch")
-    set_kind("phony")
-    on_run(function (target)
-        local execute = os.exec
-        execute("bash apply_xmake_patch.sh")
-    end)
-
-target("verilua")
-    set_kind("phony")
-    on_install(function (target)
-        local execute = os.exec
-        cprint("${💥} ${yellow}[1/7]${reset} Update git submodules...") do
-            execute("xmake run update_submodules")
-        end
-
-        cprint("${💥} ${yellow}[2/7]${reset} Install other libs...") do
-            execute("xmake run install_other_libs")
-        end
-        
-        cprint("${💥} ${yellow}[3/7]${reset} Install LuaJIT-2.1...") do
-            execute("xmake run install_luajit")
-        end
-
-        cprint("${💥} ${yellow}[4/7]${reset} Install lua modules...") do
-            execute("xmake run install_lua_modules")
-        end
-
-        cprint("${💥} ${yellow}[5/7]${reset} Install tinycc...") do
-            execute("xmake run install_tinycc")
-        end
-
-        cprint("${💥} ${yellow}[6/7]${reset} Setup verilua home on ${green}%s${reset}...", os.shell()) do
-            execute("xmake run setup_verilua")
-        end
-
-        cprint("${💥} ${yellow}[7/7]${reset} Applying verilua patch for xmake...") do
-            execute("xmake run apply_xmake_patch")
+        if find_file("iverilog", { "$(env PATH)" }) then
+            os.exec("xmake build -y -v iverilog_vpi_module")
         end
     end)
+end)
 
-target("test")
+target("apply_xmake_patch", function()
     set_kind("phony")
-    on_run(function (target)
+    on_run(function(target)
+        os.exec("bash apply_xmake_patch.sh")
+    end)
+end)
+
+target("verilua", function()
+    set_kind("phony")
+    on_install(function(target)
+        cprint("${💥} ${yellow}[1/7]${reset} Update git submodules...")
+        os.exec("xmake run update_submodules")
+
+        cprint("${💥} ${yellow}[2/7]${reset} Install other libs...")
+        os.exec("xmake run install_other_libs")
+
+        cprint("${💥} ${yellow}[3/7]${reset} Install LuaJIT-2.1...")
+        os.exec("xmake run install_luajit")
+
+        cprint("${💥} ${yellow}[4/7]${reset} Install lua modules...")
+        os.exec("xmake run install_lua_modules")
+
+        cprint("${💥} ${yellow}[5/7]${reset} Install tinycc...")
+        os.exec("xmake run install_tinycc")
+
+        cprint("${💥} ${yellow}[6/7]${reset} Setup verilua home on ${green}%s${reset}...", os.shell())
+        os.exec("xmake run setup_verilua")
+
+        cprint("${💥} ${yellow}[7/7]${reset} Applying verilua patch for xmake...")
+        os.exec("xmake run apply_xmake_patch")
+    end)
+end)
+
+target("test", function()
+    set_kind("phony")
+    on_run(function(target)
         import("lib.detect.find_file")
 
         local old_env = os.getenvs()
@@ -252,13 +249,13 @@ target("test")
         local simulators = {}
         local has_vcs = false
 
-        if find_file("iverilog", {"$(env PATH)"}) then
+        if find_file("iverilog", { "$(env PATH)" }) then
             table.insert(simulators, "iverilog")
         end
-        if find_file("verilator", {"$(env PATH)"}) then
+        if find_file("verilator", { "$(env PATH)" }) then
             table.insert(simulators, "verilator")
         end
-        if find_file("vcs", {"$(env PATH)"}) then
+        if find_file("vcs", { "$(env PATH)" }) then
             has_vcs = true
             table.insert(simulators, "vcs")
         end
@@ -274,7 +271,7 @@ target("test")
                 os.exec("xmake build -v -P .")
                 if sim == "vcs" then
                     -- ignore error
-                    try { function () os.exec("xmake run -v -P .") end }
+                    try { function() os.exec("xmake run -v -P .") end }
                 else
                     os.exec("xmake run -v -P .")
                 end
@@ -298,11 +295,11 @@ target("test")
             os.tryrm("csrc")
             os.tryrm("simv*")
             os.tryrm("sim_build*")
-            os.execv(os.shell(), {"run_verilator.sh"})
-            os.execv(os.shell(), {"run_verilator_p.sh"})
+            os.execv(os.shell(), { "run_verilator.sh" })
+            os.execv(os.shell(), { "run_verilator_p.sh" })
 
             if has_vcs then
-                os.execv(os.shell(), {"run_vcs.sh"})
+                os.execv(os.shell(), { "run_vcs.sh" })
             end
         end
 
@@ -312,12 +309,12 @@ target("test")
             os.tryrm("csrc")
             os.tryrm("simv*")
             os.tryrm("sim_build*")
-            os.execv(os.shell(), {"run_verilator.sh"})
-            os.execv(os.shell(), {"run_verilator_dpi.sh"})
+            os.execv(os.shell(), { "run_verilator.sh" })
+            os.execv(os.shell(), { "run_verilator_dpi.sh" })
 
             if has_vcs then
-                os.execv(os.shell(), {"run_vcs.sh"})
-                os.execv(os.shell(), {"run_vcs_dpi.sh"})
+                os.execv(os.shell(), { "run_vcs.sh" })
+                os.execv(os.shell(), { "run_vcs_dpi.sh" })
             end
         end
 
@@ -325,13 +322,13 @@ target("test")
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "HSE_virtual_rtl"))
             os.tryrm("sim_build_dpi")
-            os.execv(os.shell(), {"run_verilator_dpi.sh"})
+            os.execv(os.shell(), { "run_verilator_dpi.sh" })
 
             if has_vcs then
                 os.tryrm("csrc")
                 os.tryrm("simv_dpi")
                 os.tryrm("simv_dpi.daidir")
-                os.execv(os.shell(), {"run_vcs_dpi.sh"})
+                os.execv(os.shell(), { "run_vcs_dpi.sh" })
             end
         end
 
@@ -376,7 +373,7 @@ target("test")
                     --     -- ignore error
                     --     try { function () os.exec("xmake run -v -P .") end }
                     -- else
-                        os.exec("xmake run -v -P .")
+                    os.exec("xmake run -v -P .")
                     -- end
 
                     cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
@@ -395,11 +392,12 @@ target("test")
         end
 
         cprint([[${green}
-  _____         _____ _____ 
+  _____         _____ _____
  |  __ \ /\    / ____/ ____|
- | |__) /  \  | (___| (___  
- |  ___/ /\ \  \___ \\___ \ 
+ | |__) /  \  | (___| (___
+ |  ___/ /\ \  \___ \\___ \
  | |  / ____ \ ____) |___) |
- |_| /_/    \_\_____/_____/ 
+ |_| /_/    \_\_____/_____/
 ${reset}]])
     end)
+end)

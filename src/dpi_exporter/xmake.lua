@@ -8,7 +8,7 @@ local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
 local slang_common_dir = path.join(prj_dir, "extern", "slang-common")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
-target("dpi_exporter")
+target("dpi_exporter", function()
     set_kind("binary")
     add_ldflags("-static")
 
@@ -21,7 +21,7 @@ target("dpi_exporter")
         set_symbols("debug")
         set_optimize("none")
     end
-    
+
     add_files(
         path.join(curr_dir, "*.cpp"),
         path.join(curr_dir, "src", "*.cpp"),
@@ -29,7 +29,7 @@ target("dpi_exporter")
     )
 
     add_defines("SLANG_BOOST_SINGLE_HEADER")
-    
+
     add_includedirs(
         slang_common_dir,
         boost_unordered_dir,
@@ -54,11 +54,12 @@ target("dpi_exporter")
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
-    before_build(function (target)
+    before_build(function(target)
         -- Add version info
         target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
     end)
 
-    after_build(function (target)
+    after_build(function(target)
         os.cp(target:targetfile(), path.join(prj_dir, "tools"))
     end)
+end)

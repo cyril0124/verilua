@@ -47,7 +47,7 @@ local function wave_vpi_main_common()
         add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
     end
 
-    add_linkgroups("luajit-5.1", {static = true, whole = true})
+    add_linkgroups("luajit-5.1", { static = true, whole = true })
     add_linkdirs(path.join(lua_dir, "lib"))
 
     add_links("luajit_pro_helper")
@@ -65,20 +65,21 @@ local function wave_vpi_main_common()
     add_links("wave_vpi_wellen_impl")
     add_linkdirs(path.join(wavevpi_dir, "target", "release"))
 
-    before_build(function (target)
+    before_build(function(target)
         -- Add version info
         target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
     end)
 
-    after_build(function (target)
+    after_build(function(target)
         os.cp(target:targetfile(), path.join(prj_dir, "tools"))
     end)
 end
 
-target("wave_vpi_main")
+target("wave_vpi_main", function()
     wave_vpi_main_common()
+end)
 
-target("wave_vpi_main_fsdb")
+target("wave_vpi_main_fsdb", function()
     if os.getenv("VERDI_HOME") then
         wave_vpi_main_common()
 
@@ -92,7 +93,7 @@ target("wave_vpi_main_fsdb")
 
         add_defines("USE_FSDB")
 
-        before_build(function (target)
+        before_build(function(target)
             assert(os.host() == "linux", "[wave_vpi_main_fsdb] `wave_vpi_main_fsdb` is only supported on linux")
             print("[wave_vpi_main_fsdb] verdi_home: " .. verdi_home)
         end)
@@ -102,4 +103,4 @@ target("wave_vpi_main_fsdb")
             raise("[wave_vpi_main_fsdb] VERDI_HOME is not defined!")
         end)
     end
-
+end)

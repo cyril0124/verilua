@@ -47,31 +47,33 @@ local function signal_db_gen_common()
     add_linkdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
     add_rpathdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
 
-    before_build(function (target)
+    before_build(function(target)
         -- Add version info
         target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
     end)
 end
 
 
-target("signal_db_gen")
+target("signal_db_gen", function()
     set_kind("binary")
     add_ldflags("-static")
 
     signal_db_gen_common()
 
-    after_build(function (target)
+    after_build(function(target)
         os.cp(target:targetfile(), path.join(prj_dir, "tools"))
     end)
+end)
 
-target("libsignal_db_gen")
+
+target("libsignal_db_gen", function()
     set_kind("shared")
     set_filename("libsignal_db_gen.so")
     add_defines("SO_LIB")
 
     signal_db_gen_common()
 
-    after_build(function (target)
+    after_build(function(target)
         os.cp(target:targetfile(), path.join(prj_dir, "shared"))
     end)
-
+end)

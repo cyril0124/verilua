@@ -7,7 +7,7 @@ local libs_dir = path.join(prj_dir, "conan_installed")
 local slang_common_dir = path.join(prj_dir, "extern", "slang-common")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
-target("testbench_gen")
+target("testbench_gen", function()
     set_kind("binary")
     add_ldflags("-static")
 
@@ -20,14 +20,14 @@ target("testbench_gen")
         set_symbols("debug")
         set_optimize("none")
     end
-    
+
     add_files(
         path.join(curr_dir, "*.cpp"),
         path.join(slang_common_dir, "*.cpp")
     )
 
     add_defines("SLANG_BOOST_SINGLE_HEADER")
-    
+
     add_includedirs(
         curr_dir,
         slang_common_dir,
@@ -35,16 +35,17 @@ target("testbench_gen")
         path.join(libs_dir, "include")
     )
 
-    add_links("svlang", "fmt", "mimalloc") -- order is important 
+    add_links("svlang", "fmt", "mimalloc")                -- order is important
     add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libasser
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
-    before_build(function (target)
+    before_build(function(target)
         -- Add version info
         target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
     end)
 
-    after_build(function (target)
+    after_build(function(target)
         os.cp(target:targetfile(), path.join(prj_dir, "tools"))
     end)
+end)
