@@ -27,23 +27,30 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
             std::vector<std::string> dpiTickFuncDeclParamVec;
             std::vector<std::string> dpiTickFuncDeclParam1Vec;
             std::vector<std::string> dpiTickFuncParamVec;
+            int sgIdx = 0;
             for (auto &sg : signalGroupVec) {
                 std::vector<std::string> declParamVec;
                 std::vector<std::string> paramVec;
 
                 for (auto &s : sg.signalInfoVec) {
                     if (s.bitWidth == 1) {
-                        declParamVec.push_back(fmt::format("\t{} bit {}", s.isWritable ? "output" : "input", s.hierPathName));
+                        declParamVec.push_back(fmt::format("\t\t{} bit {}", s.isWritable ? "output" : "input", s.hierPathName));
                     } else {
-                        declParamVec.push_back(fmt::format("\t{} bit [{}:0] {}", s.isWritable ? "output" : "input", s.bitWidth - 1, s.hierPathName));
+                        declParamVec.push_back(fmt::format("\t\t{} bit [{}:0] {}", s.isWritable ? "output" : "input", s.bitWidth - 1, s.hierPathName));
                     }
 
-                    paramVec.push_back(fmt::format("{}", s.hierPath));
+                    paramVec.push_back(fmt::format("\t\t\t{}", s.hierPath));
                 }
 
                 dpiTickFuncDeclParamVec.emplace_back(joinStrVec(declParamVec, ",\n"));
-                dpiTickFuncDeclParam1Vec.emplace_back(joinStrVec(declParamVec, ", "));
-                dpiTickFuncParamVec.emplace_back(joinStrVec(paramVec, ", "));
+                if (sgIdx == 0) {
+                    dpiTickFuncDeclParam1Vec.emplace_back(joinStrVec(declParamVec, ", \\\n"));
+                } else {
+                    dpiTickFuncDeclParam1Vec.emplace_back(joinStrVec(declParamVec, ", "));
+                }
+                dpiTickFuncParamVec.emplace_back(joinStrVec(paramVec, ", \\\n"));
+
+                sgIdx++;
             }
 
             // Deal with sensitive signal groups
@@ -67,7 +74,7 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                     // TODO: for senstive signals with bitWidth > 1
                     sSignalsCond += fmt::format("({} ^ {}) ||", s.hierPath, s.hierPathName + "__LAST");
                     sSignalsCondExtra += fmt::format("{} ||", s.hierPath);
-                    sSignalsLastRegAssign += fmt::format("{}__LAST <= {}; ", s.hierPathName, s.hierPath);
+                    sSignalsLastRegAssign += fmt::format("{}__LAST <= {}; \\\n\t", s.hierPathName, s.hierPath);
                     sSignalsLastRegVec.emplace_back(fmt::format("bit {}__LAST;", s.hierPathName));
                 }
                 sSignals.pop_back(); // Remove the last '\n'
@@ -77,27 +84,51 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                 sSignalsCondExtra.pop_back();
                 sSignalsCond += sSignalsCondExtra;
 
-                auto &name = signalGroupVec[i].name;
+                auto &name               = signalGroupVec[i].name;
+                auto sSignalGroupContent = fmt::format(R"({0}
+import "DPI-C" function void dpi_exporter_tick_{1}(
+{2}
+);)",
+                                                       joinStrVec(sSignalsLastRegVec, "\n"), name, dpiTickFuncDeclParamVec[i]);
                 sDpiTickFuncDecl += fmt::format(R"(
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 /*
-Sensitive group name: {1}
+Sensitive group name: {0}
 Sensitive trigger signals:
-{0}
+{1}
 */
-{3}
-import "DPI-C" function void dpi_exporter_tick_{1}(
 {2}
-);
 `endif // MANUALLY_CALL_DPI_EXPORTER_TICK
 )",
-                                                sSignals, name, dpiTickFuncDeclParamVec[i], joinStrVec(sSignalsLastRegVec, "\n"));
-                sDpiTickFuncDecl_1 += fmt::format("{0} import \"DPI-C\" function void dpi_exporter_tick_{1}({2}); ", joinStrVec(sSignalsLastRegVec, " "), name, dpiTickFuncDeclParam1Vec[i]);
-                sCallDpiTickFunc += fmt::format("if({0}) dpi_exporter_tick_{1}({2}); {3}", sSignalsCond, name, dpiTickFuncParamVec[i], sSignalsLastRegAssign);
+                                                name, sSignals, sSignalGroupContent);
+
+                // Replace '\n' with ' \\n'
+                size_t pos = 0;
+                while ((pos = sSignalGroupContent.find("\n", pos)) != std::string::npos) {
+                    sSignalGroupContent.replace(pos, 1, " \\\n\t");
+                    pos += 3;
+                }
+
+                if (sSignalsLastRegAssign != "") {
+                    // Remove the last '\\\n\t'
+                    sSignalsLastRegAssign.pop_back();
+                    sSignalsLastRegAssign.pop_back();
+                    sSignalsLastRegAssign.pop_back();
+                }
+
+                sDpiTickFuncDecl_1 += sSignalGroupContent + " \\\n\t";
+                sCallDpiTickFunc += fmt::format("if({0}) \\\n\t\tdpi_exporter_tick_{1}( \\\n{2}); \\\n\t{3}\\\n\t", sSignalsCond, name, dpiTickFuncParamVec[i], sSignalsLastRegAssign);
 
                 if (pldmGfifoDpi) {
                     pldmGfifoDpiStr += fmt::format("initial $ixc_ctrl(\"gfifo\", \"dpi_exporter_tick_{}\");\n", name);
                 }
+            }
+
+            if (sDpiTickFuncDecl_1 != "") {
+                // Remove trailing '\\\n\t'
+                sDpiTickFuncDecl_1.pop_back();
+                sDpiTickFuncDecl_1.pop_back();
+                sDpiTickFuncDecl_1.pop_back();
             }
 
             if (pldmGfifoDpi) {
@@ -106,7 +137,7 @@ import "DPI-C" function void dpi_exporter_tick_{1}(
             }
 
             json j;
-            j["dpiTickFuncDeclParam"]   = dpiTickFuncDeclParamVec[0];
+            j["dpiTickFuncDeclParam"]   = dpiTickFuncDeclParamVec[0]; // The first signal group is `DEFAULT`
             j["dpiTickFuncDeclParam_1"] = dpiTickFuncDeclParam1Vec[0];
             j["dpiTickFuncParam"]       = dpiTickFuncParamVec[0];
             j["sDpiTickFuncDecl"]       = sDpiTickFuncDecl;
@@ -124,8 +155,14 @@ import "DPI-C" function void dpi_exporter_tick(
 
 {{sDpiTickFuncDecl}}
 
-`define DECL_DPI_EXPORTER_TICK import "DPI-C" function void dpi_exporter_tick({{dpiTickFuncDeclParam_1}}); {{sDpiTickFuncDecl_1}}
-`define CALL_DPI_EXPORTER_TICK {{sCallDpiTickFunc}} dpi_exporter_tick({{dpiTickFuncParam}});
+`define DECL_DPI_EXPORTER_TICK \
+    import "DPI-C" function void dpi_exporter_tick( \
+{{dpiTickFuncDeclParam_1}}); {% if sDpiTickFuncDecl_1 != "" %}\{% endif %}
+    {{sDpiTickFuncDecl_1}}
+
+`define CALL_DPI_EXPORTER_TICK \
+    {% if sCallDpiTickFunc != "" %}{{sCallDpiTickFunc}}{% endif %}dpi_exporter_tick( \
+{{dpiTickFuncParam}});
 
 // If this macro is defined, the DPI tick function will be called manually in other places. 
 // Users can use with `DECL_DPI_EXPORTER_TICK` and `CALL_DPI_EXPORTER_TICK` to call the DPI tick function manually.
