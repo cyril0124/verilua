@@ -157,6 +157,28 @@ target("install_tinycc", function()
     end)
 end)
 
+target("build_all_tools", function()
+    set_kind("phony")
+    on_run(function()
+        local tools_target = {
+            "testbench_gen",
+            "dpi_exporter",
+            "cov_exporter",
+            "signal_db_gen",
+            "wave_vpi_main",
+            "verilua_prebuild" -- TODO: Remove this?
+        }
+        for _, target in ipairs(tools_target) do
+            os.exec("xmake build -y -v %s", target)
+        end
+
+        import("lib.detect.find_file")
+        if find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
+            os.exec("xmake build -y -v wave_vpi_main_fsdb")
+        end
+    end)
+end)
+
 target("setup_verilua", function()
     set_kind("phony")
     on_run(function(target)
@@ -188,18 +210,10 @@ target("setup_verilua", function()
         os.cd(os.workingdir())
 
         os.exec("xmake run -y -v build_libverilua")
-        os.exec("xmake build -y -v testbench_gen")
-        os.exec("xmake build -y -v dpi_exporter")
-        os.exec("xmake build -y -v cov_exporter")
-        os.exec("xmake build -y -v signal_db_gen")
+        os.exec("xmake run -y -v build_all_tools")
         os.exec("xmake build -y -v libsignal_db_gen")
-        os.exec("xmake build -y -v wave_vpi_main")
-        os.exec("xmake build -y -v verilua_prebuild")
 
         import("lib.detect.find_file")
-        if find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
-            os.exec("xmake build -y -v wave_vpi_main_fsdb")
-        end
         if find_file("iverilog", { "$(env PATH)" }) then
             os.exec("xmake build -y -v iverilog_vpi_module")
         end
