@@ -43,12 +43,12 @@ end
 `ifdef VERILUA
 import "DPI-C" function void verilua_init();
 import "DPI-C" function void verilua_final();
-import "DPI-C" function void verilua_main_step_safe();
+import "DPI-C" function void verilua_main_step();
 
 initial verilua_init();
 
 always @ (negedge clk) begin
-  verilua_main_step_safe();
+  verilua_main_step();
 end
 
 final verilua_final();
