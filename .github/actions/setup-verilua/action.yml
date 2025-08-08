@@ -1,0 +1,137 @@
+name: 'Setup Verilua Build Environment'
+description: 'Checks out code, sets up xmake, Rust, Icarus Verilog, and Conan dependencies'
+
+inputs:
+  runner-os:
+    description: 'OS'
+    required: true
+    default: 'ubuntu-latest'
+  xmake-version:
+    description: 'Xmake version'
+    required: true
+    default: '2.9.9'
+  verilator-version:
+    description: 'Verilator version'
+    required: true
+    default: 'v5.038'
+  iverilog-tag:
+    description: 'Icarus Verilog tag'
+    required: true
+    default: 's20250103'
+
+runs:
+  using: composite
+
+  steps:
+    - name: Set Environment Variables
+      run: |
+        echo "VERILATOR_PATH=/tmp/verilator-install" >> $GITHUB_ENV
+        echo "IVERILOG_PATH=/tmp/iverilog-install" >> $GITHUB_ENV
+        echo "CONAN_LIBS_PATH=/tmp/conan_installed" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Setup xmake
+      uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: ${{ inputs.xmake-version }}
+        actions-cache-folder: '.xmake-cache'
+        actions-cache-key: ${{ inputs.runner-os }}-xmake-${{ inputs.xmake-version }}
+
+    - name: Setup rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    # -----------------------------------------------
+    # Cache verilator
+    # -----------------------------------------------
+    - name: Cache Verilator installation
+      id: cache-verilator
+      uses: actions/cache@v4
+      with:
+        path: /tmp/verilator-install
+        key: ${{ inputs.runner-os }}-verilator-${{ inputs.verilator-version }}
+    - name: Setup Verilator
+      if: steps.cache-verilator.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev zlib1g zlib1g-dev
+        git clone https://github.com/verilator/verilator.git
+        cd verilator
+        git reset --hard ${{ inputs.verilator-version }}
+        autoconf
+        ./configure --prefix=${{ env.VERILATOR_PATH }}
+        make -j $(nproc)
+        make install
+      shell: bash
+    - name: Add Verilator to PATH
+      run: |
+        echo "PATH=${{ env.VERILATOR_PATH }}/bin:$PATH" >> $GITHUB_ENV
+        export PATH=${{ env.VERILATOR_PATH }}/bin:$PATH
+        which verilator
+      shell: bash
+
+    # -----------------------------------------------
+    # Cache iverilog
+    # -----------------------------------------------
+    - name: Cache Icarus Verilog installation
+      id: cache-iverilog
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.IVERILOG_PATH }}
+        key: ${{ inputs.runner-os }}-iverilog-${{ inputs.iverilog-tag }}
+    - name: Setup iverilog
+      if: steps.cache-iverilog.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get install -y --no-install-recommends g++ gperf flex bison make autoconf
+        git clone https://github.com/steveicarus/iverilog.git
+        cd iverilog
+        git reset --hard ${{ inputs.iverilog-tag }}
+        bash ./autoconf.sh
+        bash ./configure --prefix=${{ env.IVERILOG_PATH }}
+        make -j $(nproc)
+        make install
+      shell: bash
+    - name: Add Iverilog to PATH
+      run: |
+        echo "PATH=${{ env.IVERILOG_PATH }}/bin:$PATH" >> $GITHUB_ENV
+        export PATH=${{ env.IVERILOG_PATH }}/bin:$PATH
+        which iverilog
+
+        # Used by verilua
+        echo "IVERILOG_HOME=${{ env.IVERILOG_PATH }}" >> $GITHUB_ENV
+      shell: bash
+
+    # -----------------------------------------------
+    # Cache conan libs
+    # -----------------------------------------------
+    - name: Cache conan libs
+      id: cache-conan-libs
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CONAN_LIBS_PATH }}
+        key: ${{ inputs.runner-os }}-conan-libs-${{ hashFiles('**/conanfile*')}}
+    - name: Check conan libs
+      if: steps.cache-conan-libs.outputs.cache-hit == 'true'
+      run: |
+        ls -l ${{ env.CONAN_LIBS_PATH }}
+        cp -r ${{ env.CONAN_LIBS_PATH }} .
+        echo "CI_USE_CONAN_CACHE=1" >> $GITHUB_ENV
+      shell: bash
+    - name: Install verilua
+      run: |
+        xmake install verilua
+      shell: bash
+
+    - name: Update conan libs cache files
+      if: steps.cache-conan-libs.outputs.cache-hit != 'true'
+      run: |
+        cp -r ./conan_installed ${{ env.CONAN_LIBS_PATH }}
+      shell: bash
+
+    - name: Load env variables
+      run: |
+        ls -l
+        bash ./ci/load_verilua_env.sh $GITHUB_WORKSPACE
+      shell: bash

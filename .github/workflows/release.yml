@@ -17,10 +17,6 @@ jobs:
         os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
 
     env:
-      XMAKE_VERSION: '2.9.9'
-      IVERILOG_TAG: 's20250103'
-      IVERILOG_PATH: '/tmp/iverilog-install'
-      CONAN_LIBS_PATH: '/tmp/conan_installed'
       RELEASE_TAG: ${{ github.ref_name }}
 
     steps:
@@ -29,73 +25,10 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Setup xmake
-        uses: xmake-io/github-action-setup-xmake@v1
+      - name: Setup verilua
+        uses: ./.github/actions/setup-verilua
         with:
-          xmake-version: ${{ env.XMAKE_VERSION }}
-          actions-cache-folder: '.xmake-cache'
-          actions-cache-key: ${{ matrix.os }}-xmake-${{ env.XMAKE_VERSION }}
-
-      - name: Setup rust
-        uses: actions-rs/toolchain@v1
-        with:
-            profile: minimal
-            toolchain: stable
-            override: true
-
-      # -----------------------------------------------
-      # Cache iverilog
-      # -----------------------------------------------
-      - name: Cache Icarus Verilog installation
-        id: cache-iverilog
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.IVERILOG_PATH }}
-          key: ${{ matrix.os }}-iverilog-${{ env.IVERILOG_TAG }}
-      - name: Setup iverilog
-        if: steps.cache-iverilog.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get install -y --no-install-recommends g++ gperf flex bison make autoconf
-          git clone https://github.com/steveicarus/iverilog.git
-          cd iverilog
-          git reset --hard ${{ env.IVERILOG_TAG }}
-          bash ./autoconf.sh
-          bash ./configure --prefix=${{ env.IVERILOG_PATH }}
-          make -j $(nproc)
-          make install
-      - name: Add Iverilog to PATH
-        run: |
-          echo "PATH=${{ env.IVERILOG_PATH }}/bin:$PATH" >> $GITHUB_ENV
-          export PATH=${{ env.IVERILOG_PATH }}/bin:$PATH
-          which iverilog
-
-          # Used by verilua
-          echo "IVERILOG_HOME=${{ env.IVERILOG_PATH }}" >> $GITHUB_ENV
-
-      # -----------------------------------------------
-      # Cache conan libs
-      # -----------------------------------------------
-      - name: Cache conan libs
-        id: cache-conan-libs
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CONAN_LIBS_PATH }}
-          key: ${{ matrix.os }}-conan-libs-${{ hashFiles('**/conanfile*')}}
-      - name: Check conan libs
-        if: steps.cache-conan-libs.outputs.cache-hit == 'true'
-        run: |
-          ls -l ${{ env.CONAN_LIBS_PATH }}
-          cp -r ${{ env.CONAN_LIBS_PATH }} .
-          echo "CI_USE_CONAN_CACHE=1" >> $GITHUB_ENV
-
-      - name: Install verilua
-        run: |
-          xmake install verilua
-
-      - name: Update conan libs cache files
-        if: steps.cache-conan-libs.outputs.cache-hit != 'true'
-        run: |
-          cp -r ./conan_installed ${{ env.CONAN_LIBS_PATH }}
+          runner-os: ${{ matrix.os }}
 
       - name: Package
         run: |
