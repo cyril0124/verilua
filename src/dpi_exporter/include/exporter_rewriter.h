@@ -14,7 +14,7 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
     slang::ast::Compilation *compilation;
     bool findModule = false;
 
-    ExporterRewriter(slang::ast::Compilation *compilation, std::string insertModuleName, std::string sampleEdge, std::string topModuleName, std::string clock, std::vector<SignalGroup> signalGroupVec) : compilation(compilation), insertModuleName(insertModuleName), sampleEdge(sampleEdge), topModuleName(topModuleName), clock(clock), signalGroupVec(signalGroupVec){};
+    ExporterRewriter(slang::ast::Compilation *compilation, std::string insertModuleName, std::string sampleEdge, std::string topModuleName, std::string clock, std::vector<SignalGroup> signalGroupVec) : compilation(compilation), insertModuleName(insertModuleName), sampleEdge(sampleEdge), topModuleName(topModuleName), clock(clock), signalGroupVec(signalGroupVec) {};
 
     void handle(const ModuleDeclarationSyntax &syntax) {
         if (this->insertModuleName == syntax.header->name.rawText()) {
@@ -34,9 +34,9 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
 
                 for (auto &s : sg.signalInfoVec) {
                     if (s.bitWidth == 1) {
-                        declParamVec.push_back(fmt::format("\t\t{} bit {}", s.isWritable ? "output" : "input", s.hierPathName));
+                        declParamVec.push_back(fmt::format("\t{} bit {}", s.isWritable ? "output" : "input", s.hierPathName));
                     } else {
-                        declParamVec.push_back(fmt::format("\t\t{} bit [{}:0] {}", s.isWritable ? "output" : "input", s.bitWidth - 1, s.hierPathName));
+                        declParamVec.push_back(fmt::format("\t{} bit [{}:0] {}", s.isWritable ? "output" : "input", s.bitWidth - 1, s.hierPathName));
                     }
 
                     paramVec.push_back(fmt::format("\t\t\t{}", s.hierPath));
@@ -117,7 +117,13 @@ Sensitive trigger signals:
                 }
 
                 sDpiTickFuncDecl_1 += sSignalGroupContent + " \\\n\t";
-                sCallDpiTickFunc += fmt::format("if({0}) \\\n\t\tdpi_exporter_tick_{1}( \\\n{2}); \\\n\t{3}\\\n\t", sSignalsCond, name, dpiTickFuncParamVec[i], sSignalsLastRegAssign);
+                sCallDpiTickFunc += inja::render(R"(if({{sSignalsCond}}) begin \
+        dpi_exporter_tick_{{name}}( \
+{{dpiTickFuncParam}}); \
+    end \
+    {{sSignalsLastRegAssign}} \
+    )",
+                                                 json{{"sSignalsCond", sSignalsCond}, {"name", name}, {"dpiTickFuncParam", dpiTickFuncParamVec[i]}, {"sSignalsLastRegAssign", sSignalsLastRegAssign}});
 
                 if (pldmGfifoDpi) {
                     pldmGfifoDpiStr += fmt::format("initial $ixc_ctrl(\"gfifo\", \"dpi_exporter_tick_{}\");\n", name);
@@ -149,9 +155,13 @@ Sensitive trigger signals:
             j["pldmGfifoDpiStr"]        = pldmGfifoDpiStr;
 
             auto code = inja::render(R"(
+{% if dpiTickFuncDeclParam != "" %}
 import "DPI-C" function void dpi_exporter_tick(
-{{dpiTickFuncDeclParam}}    
+{{dpiTickFuncDeclParam}}
 );
+{% else %}
+import "DPI-C" function void dpi_exporter_tick();
+{% endif %}
 
 {{sDpiTickFuncDecl}}
 
@@ -161,8 +171,8 @@ import "DPI-C" function void dpi_exporter_tick(
     {{sDpiTickFuncDecl_1}}
 
 `define CALL_DPI_EXPORTER_TICK \
-    {% if sCallDpiTickFunc != "" %}{{sCallDpiTickFunc}}{% endif %}dpi_exporter_tick( \
-{{dpiTickFuncParam}});
+    {% if sCallDpiTickFunc != "" %}{{sCallDpiTickFunc}}{% endif %}{% if dpiTickFuncParam != "" %}dpi_exporter_tick( \
+{{dpiTickFuncParam}});{% else %}dpi_exporter_tick();{% endif %}
 
 // If this macro is defined, the DPI tick function will be called manually in other places. 
 // Users can use with `DECL_DPI_EXPORTER_TICK` and `CALL_DPI_EXPORTER_TICK` to call the DPI tick function manually.

@@ -105,7 +105,7 @@ class DPIExporter {
         return false;
     }
 
-    std::vector<ConciseSignalPattern> extractConfigInfo() {
+    std::pair<std::vector<ConciseSignalPattern>, std::vector<SensitiveTriggerInfo>> extractConfigInfo() {
         sol::state lua;
         lua.open_libraries(sol::lib::base);
         lua.open_libraries(sol::lib::string);
@@ -115,7 +115,35 @@ class DPIExporter {
         lua.script(R"(
 local append = table.insert
 local count = 0
+local name_map = {}
+local sensitive_name_map = {}
 patterns_data = {}
+sensitive_triggers_data = {}
+
+local function is_valid_name(str)
+    -- Empty string is not a valid identifier
+    if str == "" then
+        return false
+    end
+
+    -- First character must be a letter or underscore
+    local first_char = str:sub(1, 1)
+    if not first_char:match("[a-zA-Z_]") then
+        return false
+    end
+
+    -- Subsequent characters can be letters, numbers, or underscores
+    if #str > 1 then
+        local rest = str:sub(2)
+        -- If any character is invalid, return false
+        if rest:match("[^a-zA-Z0-9_]") then
+            return false
+        end
+    end
+
+    -- All checks passed
+    return true
+end
 
 function add_pattern(params)
     local name = params.name or "UNKNOWN_" .. count
@@ -130,8 +158,7 @@ function add_pattern(params)
 
     assert(not(disable and writable), "[add_pattern] disable and writable cannot be both `true`")
 
-    -- replace ` ` with `_` in the name
-    name = name:gsub(" ", "_")
+    assert(is_valid_name(name), string.format("[add_pattern] name `%s` is not a valid name", name))
 
     append(patterns_data, {
         name = name,
@@ -145,6 +172,33 @@ function add_pattern(params)
         disable = disable
     })
     count = count + 1
+
+    name_map[name] = true
+
+    return name
+end
+
+-- Alias name for `add_pattern`
+_G.add_signals = add_pattern
+
+function add_senstive_trigger(params)
+    local name = assert(params.name, "[add_senstive_trigger] name is nil")
+    local group_names = assert(params.group_names, "[add_senstive_trigger] group_names is nil")
+
+    for _, n in ipairs(group_names) do
+        assert(name_map[n], string.format("[add_senstive_trigger] group name `%s` not found, maybe you forgot to add it with `add_pattern(<params>)/add_signals(<params>)`", n))
+    end
+
+    assert(is_valid_name(name), string.format("[add_senstive_trigger] name `%s` is not a valid name", name))
+    assert(not sensitive_name_map[name], string.format("[add_senstive_trigger] name `%s` is already used", name))
+    assert(#group_names > 0, "[add_senstive_trigger] group_names is empty")
+
+    append(sensitive_triggers_data, {
+        name = name,
+        group_names = group_names
+    })
+
+    sensitive_name_map[name] = true
 end
 
 )");
@@ -179,7 +233,26 @@ end
             conciseSignalPatternVec.emplace_back(ConciseSignalPattern{name, module, clock == "" ? DEFAULT_CLOCK_NAME : clock, signals, writableSignals, disableSignals, sensitiveSignals});
         });
 
-        return conciseSignalPatternVec;
+        std::vector<SensitiveTriggerInfo> sensitiveTriggerInfoVec;
+
+        sol::table sensitiveTriggersData = lua["sensitive_triggers_data"];
+        sensitiveTriggersData.for_each([&](sol::object key, sol::object value) {
+            sol::table sensitiveTriggerData     = value.as<sol::table>();
+            std::string name                    = sensitiveTriggerData["name"].get<std::string>();
+            std::vector<std::string> groupNames = sensitiveTriggerData["group_names"].get<std::vector<std::string>>();
+
+            if (!quiet) {
+                fmt::println("[dpi_exporter] get sensitive trigger info:");
+                fmt::println("\tname: {}", name);
+                fmt::println("\tgroup_names: {}", fmt::join(groupNames, ", "));
+                fmt::println("\n");
+                fflush(stdout);
+            }
+
+            sensitiveTriggerInfoVec.emplace_back(SensitiveTriggerInfo{name, groupNames});
+        });
+
+        return {conciseSignalPatternVec, sensitiveTriggerInfoVec};
     }
 
   public:
@@ -294,7 +367,7 @@ end
         Config::getInstance().pldmGfifoDpi  = pldmGfifoDpi.value_or(false);
 
         // Get DPIExporterInfoVec from the provided lua config file
-        auto conciseSignalPatternVec = this->extractConfigInfo();
+        auto [conciseSignalPatternVec, sensitiveTriggerInfoVec] = this->extractConfigInfo();
         ASSERT(!conciseSignalPatternVec.empty(), "No signal pattern found in the config file");
 
         // Get SignalGroupVec from the provided conciseSignalPatternVec
@@ -362,7 +435,7 @@ end
             ASSERT(false, "TODO: distributeDPI is not supported yet!");
         }
 
-        std::string dpiFileContent = renderDpiFile(mergedSignalGroupVec, topModuleName, distributeDPI, metaInfoFilePath);
+        std::string dpiFileContent = renderDpiFile(mergedSignalGroupVec, sensitiveTriggerInfoVec, topModuleName, distributeDPI, metaInfoFilePath);
 
         {
             fmt::println("[dpi_exporter] start generating dpi file, outdir: {}, dpiFilePath: {}", outdir, dpiFilePath);

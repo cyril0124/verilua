@@ -164,6 +164,7 @@ extern "C" void verilua_main_step_safe();
 
 {% if hasSensitiveSignals == 1 %}
 bool hasSignalChanged = false; // Used for sensitive signals to indicate if there is a change in all sensitive signals.
+{{otherTriggerVars}}
 {% endif %}
 #endif // DPI_EXP_CALL_VERILUA_ENV_STEP
 
@@ -174,6 +175,7 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
     verilua_main_step_safe();
 {% if hasSensitiveSignals == 1 %}
     hasSignalChanged = false;
+    {{otherTriggerVarsReset}}
 {% endif %}
 #endif // DPI_EXP_CALL_VERILUA_ENV_STEP
 }
@@ -186,7 +188,7 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
 )";
 }
 
-std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string topModuleName, bool distributeDPI, std::string metaInfoFilePath) {
+std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::vector<SensitiveTriggerInfo> &sensitiveTriggerInfoVec, std::string topModuleName, bool distributeDPI, std::string metaInfoFilePath) {
     bool hasSensitiveSignals = false;
     std::vector<std::string> handleByNameVec;
     std::vector<std::string> getTypeStrVec;
@@ -206,6 +208,13 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::string 
 
     std::unordered_map<std::string, std::vector<std::string>> sDpiTickFuncParamMap;
     std::unordered_map<std::string, std::vector<std::string>> sDpiTickFuncBodyMap;
+
+    std::vector<std::string> otherTriggerVarsVec;
+    std::vector<std::string> otherTriggerVarsResetVec;
+    for (auto &st : sensitiveTriggerInfoVec) {
+        otherTriggerVarsVec.push_back(fmt::format("bool hasSignalChanged_{} = false;", st.name));
+        otherTriggerVarsResetVec.push_back(fmt::format("hasSignalChanged_{} = false;", st.name));
+    }
 
     // Reserve space for the vectors.
     for (auto &sg : signalGroupVec) {
@@ -506,16 +515,24 @@ extern "C" void VERILUA_DPI_EXPORTER_{0}_SET_HEX_STR(char *hexStr) {{
         auto sgName        = pair.first;
         auto &funcParamVec = pair.second;
 
+        std::vector<std::string> otherTriggerVarsSetVec;
+        for (auto &st : sensitiveTriggerInfoVec) {
+            if (std::find(st.groupNames.begin(), st.groupNames.end(), sgName) != st.groupNames.end()) {
+                otherTriggerVarsSetVec.push_back(fmt::format("hasSignalChanged_{} = true;", st.name));
+            }
+        }
+
         sDpiTickFuncContent += fmt::format(R"(
 extern "C" void dpi_exporter_tick_{0}({1}) {{
 {2}
 
 #ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
     hasSignalChanged = true;
+    {3}
 #endif
 }}
 )",
-                                           sgName, joinStrVec(funcParamVec, ", "), joinStrVec(sDpiTickFuncBodyMap[sgName], "\n"));
+                                           sgName, joinStrVec(funcParamVec, ", "), joinStrVec(sDpiTickFuncBodyMap[sgName], "\n"), joinStrVec(otherTriggerVarsSetVec, "\n"));
     }
     j["sDpiTickFuncContent"] = sDpiTickFuncContent;
 
@@ -539,7 +556,31 @@ extern "C" bool dpi_exporter_sensitive_trigger() {
 )",
                                                       jj);
 
+    for (auto &st : sensitiveTriggerInfoVec) {
+        json jjj;
+        jjj["triggerName"]         = st.name;
+        jjj["hasSensitiveSignals"] = hasSensitiveSignals ? 1 : 0;
+
+        sDpiTriggerFuncContent = sDpiTriggerFuncContent + "\n" +
+                                 inja::render(R"(
+extern "C" bool dpi_exporter_sensitive_trigger_{{triggerName}}() {
+#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+{% if hasSensitiveSignals == 1 %}
+    return hasSignalChanged_{{triggerName}};
+{% else %}
+    assert(0 && "dpi_exporter_sensitive_trigger_{{triggerName}}() should not be called when hasSensitiveSignals is FALSE");
+{% endif %}
+#else
+    assert(0 && "dpi_exporter_sensitive_trigger_{{triggerName}}() should not be called when cflags macro DPI_EXP_CALL_VERILUA_ENV_STEP is not defined");
+#endif
+}
+        )",
+                                              jjj);
+    }
+
     j["hasSensitiveSignals"]    = hasSensitiveSignals ? 1 : 0;
+    j["otherTriggerVars"]       = joinStrVec(otherTriggerVarsVec, "\n");
+    j["otherTriggerVarsReset"]  = joinStrVec(otherTriggerVarsResetVec, "\n");
     j["sDpiTriggerFuncContent"] = sDpiTriggerFuncContent;
 
     return inja::render(getDpiFileTemplate(), j);

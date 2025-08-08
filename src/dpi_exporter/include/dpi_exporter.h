@@ -16,6 +16,7 @@
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
 #include "sol/sol.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
@@ -99,7 +100,12 @@ inline std::pair<std::string, std::string> spiltHierPath(const std::string &hier
     return std::make_pair(modulePath, signalName);
 }
 
-inline std::string joinStrVec(const std::vector<std::string> &vec, const std::string &delimiter) { return fmt::to_string(fmt::join(vec, delimiter)); }
+inline std::string joinStrVec(const std::vector<std::string> &vec, const std::string &delimiter) {
+    if (vec.empty()) {
+        return "";
+    }
+    return fmt::to_string(fmt::join(vec, delimiter));
+}
 
 struct ConciseSignalPattern {
     std::string name;
@@ -162,6 +168,11 @@ struct ConciseSignalPattern {
 
         return false;
     }
+};
+
+struct SensitiveTriggerInfo {
+    std::string name;
+    std::vector<std::string> groupNames;
 };
 
 struct SignalInfo {
