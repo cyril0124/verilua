@@ -400,6 +400,24 @@ target("test", function()
         end
 
         do
+            local benchmark_cases = {
+                "signal_operation",
+                "multitasking",
+                "matrix_multiplier",
+            }
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests", "benchmarks"))
+            for _, case in ipairs(benchmark_cases) do
+                for _, sim in ipairs(simulators) do
+                    os.setenv("SIM", sim)
+                    os.tryrm("build")
+                    os.exec("xmake build -P . %s", case)
+                    os.exec("xmake run -P . %s", case)
+                end 
+            end
+        end
+
+        do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests"))
             os.exec("xmake run -P . test_all")

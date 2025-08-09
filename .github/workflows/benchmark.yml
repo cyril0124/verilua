@@ -1,0 +1,77 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  changes:
+    name: Changes Detection
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      has_changes: ${{ steps.filter.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          predicate-quantifier: 'every'
+          filters: .github/filters.yml
+
+  benchmarks:
+    runs-on: "ubuntu-24.04"
+    needs: changes
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    env:
+      verilator-version: 'v5.038'
+      iverilog-tag: 's20250103'
+
+    steps:
+      - name: Install hyperfine
+        run: |
+          wget https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine_1.19.0_amd64.deb
+          sudo dpkg -i hyperfine_1.19.0_amd64.deb
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Setup verilua
+        uses: ./.github/actions/setup-verilua
+        with:
+          runner-os: 'ubuntu-24.04'
+          verilator-version: ${{ env.verilator-version }}
+          iverilog-tag: ${{ env.iverilog-tag }}
+
+      - name: Run benchmarks
+        run: |
+          cd ./tests/benchmarks
+          xmake run -P . benchmarks
+
+      - name: Generate a token to access cyril0124/verilua-benchmark-results
+        id: generate_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.REPO_ACCESS_APP_ID }}
+          private-key: ${{ secrets.REPO_ACCESS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: verilua-benchmark-results
+          
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: verilua benchmark results
+          tool: "customSmallerIsBetter"
+          output-file-path: ./tests/benchmarks/output.json
+          gh-repository: 'github.com/cyril0124/verilua-benchmark-results'
+          gh-pages-branch: gh-pages
+          auto-push: true
+          github-token: ${{ steps.generate_token.outputs.token }}
