@@ -63,8 +63,8 @@ local post_init_mt = setmetatable({
 ---@field private width number
 ---@field private hdl ComplexHandleRaw
 ---@field private hdl_type string
----@field private is_array boolean
----@field private array_size number
+---@field is_array boolean
+---@field array_size number
 ---@field private array_hdls table<number, ComplexHandleRaw>
 ---@field private array_bitvecs table<number, BitVec>
 ---@field private beat_num number
@@ -94,7 +94,7 @@ local post_init_mt = setmetatable({
 ---
 ---@field at fun(self: CallableHDL, index: number): CallableHDL
 ---@field get_index fun(self: CallableHDL, index: number, force_multi_beat?: boolean): number|MultiBeatData
----@field get_index_all fun(self: CallableHDL, index: number, force_multi_beat?: boolean): number|MultiBeatData
+---@field get_index_all fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
 ---@field get_index_bitvec fun(self: CallableHDL, index: number): BitVec
 ---@field set_index fun(self: CallableHDL, index: number, value: number|uint64_t|MultiBeatData, force_single_beat?: boolean)
 ---@field set_index_bitfield fun(self: CallableHDL, index: number, s: number, e: number, v: number)
@@ -975,7 +975,11 @@ function CallableHDL:__len()
 end
 
 function CallableHDL:__tostring()
-    return f("<[CallableHDL] fullpath: %s, width: %d, beat_num: %d>", self.fullpath, self.width, self.beat_num)
+    if self.is_array then
+        return f("<[CallableHDL] fullpath: %s, width: %d, beat_num: %d, array_size: %d>", self.fullpath, self.width, self.beat_num, self.array_size)
+    else
+        return f("<[CallableHDL] fullpath: %s, width: %d, beat_num: %d>", self.fullpath, self.width, self.beat_num)
+    end
 end
 
 -- 
