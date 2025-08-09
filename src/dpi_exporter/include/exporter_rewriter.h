@@ -14,7 +14,24 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
     slang::ast::Compilation *compilation;
     bool findModule = false;
 
-    ExporterRewriter(slang::ast::Compilation *compilation, std::string insertModuleName, std::string sampleEdge, std::string topModuleName, std::string clock, std::vector<SignalGroup> signalGroupVec) : compilation(compilation), insertModuleName(insertModuleName), sampleEdge(sampleEdge), topModuleName(topModuleName), clock(clock), signalGroupVec(signalGroupVec) {};
+    // clang-format off
+    ExporterRewriter(
+        slang::ast::Compilation *compilation,
+        std::string insertModuleName,
+        std::string sampleEdge,
+        std::string topModuleName,
+        std::string clock, std::vector<SignalGroup> signalGroupVec
+    ) : 
+        compilation(compilation), 
+        insertModuleName(insertModuleName),
+        sampleEdge(sampleEdge),
+        topModuleName(topModuleName),
+        clock(clock),
+        signalGroupVec(signalGroupVec)
+    {
+
+    };
+    // clang-format on
 
     void handle(const ModuleDeclarationSyntax &syntax) {
         if (this->insertModuleName == syntax.header->name.rawText()) {
@@ -117,13 +134,22 @@ Sensitive trigger signals:
                 }
 
                 sDpiTickFuncDecl_1 += sSignalGroupContent + " \\\n\t";
+
+                // clang-format off
                 sCallDpiTickFunc += inja::render(R"(if({{sSignalsCond}}) begin \
         dpi_exporter_tick_{{name}}( \
 {{dpiTickFuncParam}}); \
     end \
     {{sSignalsLastRegAssign}} \
     )",
-                                                 json{{"sSignalsCond", sSignalsCond}, {"name", name}, {"dpiTickFuncParam", dpiTickFuncParamVec[i]}, {"sSignalsLastRegAssign", sSignalsLastRegAssign}});
+                json{
+                        {"sSignalsCond", sSignalsCond },
+                        { "name", name },
+                        { "dpiTickFuncParam", dpiTickFuncParamVec[i] },
+                        { "sSignalsLastRegAssign", sSignalsLastRegAssign }
+                    }
+                );
+                // clang-format on
 
                 if (pldmGfifoDpi) {
                     pldmGfifoDpiStr += fmt::format("initial $ixc_ctrl(\"gfifo\", \"dpi_exporter_tick_{}\");\n", name);
@@ -137,44 +163,67 @@ Sensitive trigger signals:
                 sDpiTickFuncDecl_1.pop_back();
             }
 
+            // clang-format off
+            std::string dpiTickFuncDecl = inja::render(R"({% if dpiTickFuncDeclParam != "" %}
+import "DPI-C" function void dpi_exporter_tick(
+{{dpiTickFuncDeclParam}}
+);
+{% else %}
+import "DPI-C" function void dpi_exporter_tick();
+{% endif %})",
+            json{
+                    { "dpiTickFuncDeclParam", dpiTickFuncDeclParamVec[0] /* The first signal group is `DEFAULT` */ }
+                }
+            );
+
+            std::string dpiTickDeclMacro = inja::render(R"(`define DECL_DPI_EXPORTER_TICK \
+    import "DPI-C" function void dpi_exporter_tick( \
+{{dpiTickFuncDeclParam_1}}); {% if sDpiTickFuncDecl_1 != "" %}\{% endif %}
+    {{sDpiTickFuncDecl_1}}
+            )", json {
+                { "dpiTickFuncDeclParam_1", dpiTickFuncDeclParam1Vec[0] },
+                { "sDpiTickFuncDecl_1", sDpiTickFuncDecl_1 }
+            });
+
+            std::string callDpiTickMacro = inja::render(R"(`define CALL_DPI_EXPORTER_TICK \
+    {% if sCallDpiTickFunc != "" %}{{sCallDpiTickFunc}}{% endif %}begin \
+    {% if dpiTickFuncParam != "" %}    dpi_exporter_tick( \
+{{dpiTickFuncParam}}); \
+    end
+    {% else %}    dpi_exporter_tick(); \
+    end
+    {% endif %}
+            )", json {
+                { "sCallDpiTickFunc", sCallDpiTickFunc },
+                { "dpiTickFuncParam", dpiTickFuncParamVec[0] }
+            });
+            // clang-format on
+
             if (pldmGfifoDpi) {
                 pldmGfifoDpiStr += "initial $ixc_ctrl(\"gfifo\", \"dpi_exporter_tick\");\n";
                 pldmGfifoDpiStr = std::string("`ifdef PALLADIUM\n") + pldmGfifoDpiStr + "`endif // PALLADIUM\n";
             }
 
             json j;
-            j["dpiTickFuncDeclParam"]   = dpiTickFuncDeclParamVec[0]; // The first signal group is `DEFAULT`
-            j["dpiTickFuncDeclParam_1"] = dpiTickFuncDeclParam1Vec[0];
-            j["dpiTickFuncParam"]       = dpiTickFuncParamVec[0];
-            j["sDpiTickFuncDecl"]       = sDpiTickFuncDecl;
-            j["sDpiTickFuncDecl_1"]     = sDpiTickFuncDecl_1;
-            j["sCallDpiTickFunc"]       = sCallDpiTickFunc;
-            j["sampleEdge"]             = sampleEdge;
-            j["topModuleName"]          = topModuleName;
-            j["clock"]                  = clock;
-            j["pldmGfifoDpiStr"]        = pldmGfifoDpiStr;
+            j["dpiTickFuncDecl"]  = dpiTickFuncDecl;
+            j["sDpiTickFuncDecl"] = sDpiTickFuncDecl;
+            j["dpiTickDeclMacro"] = dpiTickDeclMacro;
+            j["callDpiTickMacro"] = callDpiTickMacro;
+            j["sampleEdge"]       = sampleEdge;
+            j["topModuleName"]    = topModuleName;
+            j["clock"]            = clock;
+            j["pldmGfifoDpiStr"]  = pldmGfifoDpiStr;
 
             auto code = inja::render(R"(
-{% if dpiTickFuncDeclParam != "" %}
-import "DPI-C" function void dpi_exporter_tick(
-{{dpiTickFuncDeclParam}}
-);
-{% else %}
-import "DPI-C" function void dpi_exporter_tick();
-{% endif %}
+{{dpiTickFuncDecl}}
 
 {{sDpiTickFuncDecl}}
 
-`define DECL_DPI_EXPORTER_TICK \
-    import "DPI-C" function void dpi_exporter_tick( \
-{{dpiTickFuncDeclParam_1}}); {% if sDpiTickFuncDecl_1 != "" %}\{% endif %}
-    {{sDpiTickFuncDecl_1}}
+{{dpiTickDeclMacro}}
 
-`define CALL_DPI_EXPORTER_TICK \
-    {% if sCallDpiTickFunc != "" %}{{sCallDpiTickFunc}}{% endif %}{% if dpiTickFuncParam != "" %}dpi_exporter_tick( \
-{{dpiTickFuncParam}});{% else %}dpi_exporter_tick();{% endif %}
+{{callDpiTickMacro}}
 
-// If this macro is defined, the DPI tick function will be called manually in other places. 
+// If this macro(`MANUALLY_CALL_DPI_EXPORTER_TICK`) is defined, the DPI tick function will be called manually in other places. 
 // Users can use with `DECL_DPI_EXPORTER_TICK` and `CALL_DPI_EXPORTER_TICK` to call the DPI tick function manually.
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
