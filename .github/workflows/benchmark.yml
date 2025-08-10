@@ -75,3 +75,5 @@ jobs:
           gh-pages-branch: gh-pages
           auto-push: true
           github-token: ${{ steps.generate_token.outputs.token }}
+          alert-threshold: '120%'
+          alert-comment-cc-users: '@cyril0124'
