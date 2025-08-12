@@ -160,7 +160,14 @@ extern "C" char *dpi_exporter_get_meta_info_file_path() {
 // Call verilua_main_step_safe() in dpi_exporter_tick() if `DPI_EXP_CALL_VERILUA_ENV_STEP` macro is defined.
 // Only available when `distributeDPI` is 0.
 #ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+
+#ifdef DPI_EXP_USE_STRICT_STEP
+// Strict step mode: when error occurs in lua scripts, the entire simulation will be terminated immediately.
+extern "C" void verilua_main_step();
+#else // DPI_EXP_USE_STRICT_STEP
+// Safe step mode: when error occurs in lua scripts, the simulation will still continue but the error will be reported.
 extern "C" void verilua_main_step_safe();
+#endif // DPI_EXP_USE_STRICT_STEP
 
 {% if hasSensitiveSignals == 1 %}
 bool hasSignalChanged = false; // Used for sensitive signals to indicate if there is a change in all sensitive signals.
@@ -172,7 +179,13 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
 {{dpiTickFuncBody}}
 
 #ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+
+#ifdef DPI_EXP_USE_STRICT_STEP
+    verilua_main_step();
+#else // DPI_EXP_USE_STRICT_STEP
     verilua_main_step_safe();
+#endif // DPI_EXP_USE_STRICT_STEP
+
 {% if hasSensitiveSignals == 1 %}
     hasSignalChanged = false;
     {{otherTriggerVarsReset}}
