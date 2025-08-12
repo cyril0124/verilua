@@ -154,7 +154,7 @@ function SVAContext:add(typ)
             self.content_vec[#self.content_vec + 1] = process_content(content)
             return
         elseif typ == "property" then
-            local content = f("property %s() %s; endproperty", params.name, ret)
+            local content = f("property %s(); %s; endproperty", params.name, ret)
             self.property_vec[#self.property_vec + 1] = process_content(content)
 
             ---@type SVAContext.property
@@ -165,7 +165,7 @@ function SVAContext:add(typ)
             self.global_envs[params.name] = property
             return property
         elseif typ == "sequence" then
-            local content = f("sequence %s() %s; endsequence", params.name, ret)
+            local content = f("sequence %s(); %s; endsequence", params.name, ret)
             self.sequence_vec[#self.sequence_vec + 1] = process_content(content)
 
             ---@type SVAContext.sequence

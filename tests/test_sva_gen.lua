@@ -120,7 +120,7 @@ test1: cover property (test1 + 123 + 456);
         expect.equal(ret.__type, "Sequence")
         expect.equal(ret.name, "test")
         expect.equal(tostring(ctx), [[
-sequence test() test + 123 + 456; endsequence
+sequence test(); test + 123 + 456; endsequence
 
 ]])
 
@@ -133,9 +133,9 @@ sequence test() test + 123 + 456; endsequence
         expect.equal(ret1.__type, "Property")
         expect.equal(ret1.name, "test1")
         expect.equal(tostring(ctx), [[
-sequence test() test + 123 + 456; endsequence
+sequence test(); test + 123 + 456; endsequence
 
-property test1() test + 123 + 456; endproperty
+property test1(); test + 123 + 456; endproperty
 
 ]])
 
@@ -147,9 +147,9 @@ property test1() test + 123 + 456; endproperty
             expr = "test2 + $(test) + $(test1)",
         })
         expect.equal(tostring(ctx), [[
-sequence test() test + 123 + 456; endsequence
+sequence test(); test + 123 + 456; endsequence
 
-property test1() test + 123 + 456; endproperty
+property test1(); test + 123 + 456; endproperty
 
 // 1/1
 test2: cover property (test2 + test + test1);
