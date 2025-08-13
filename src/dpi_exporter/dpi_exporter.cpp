@@ -148,6 +148,7 @@ end
 function add_pattern(params)
     local name = params.name or "UNKNOWN_" .. count
     local module = assert(params.module, "[add_pattern] module is nil")
+    local inst = params.inst or "" -- Instance name
     local signals = params.signals or ""
     local writable_signals = params.writable_signals or ""
     local disable_signals = params.disable_signals or ""
@@ -163,6 +164,7 @@ function add_pattern(params)
     append(patterns_data, {
         name = name,
         module = module,
+        inst = inst,
         signals = signals,
         writable_signals = writable_signals,
         disable_signals = disable_signals,
@@ -210,7 +212,8 @@ end
         patternsData.for_each([&](sol::object key, sol::object value) {
             sol::table patternData       = value.as<sol::table>();
             std::string name             = patternData["name"].get<std::string>();
-            std::string module           = patternData["module"].get<std::string>();
+            std::string moduleName       = patternData["module"].get<std::string>();
+            std::string instName         = patternData["inst"].get<std::string>();
             std::string clock            = patternData["clock"].get<std::string>();
             std::string signals          = patternData["signals"].get<std::string>();
             std::string writableSignals  = patternData["writable_signals"].get<std::string>();
@@ -220,7 +223,8 @@ end
             if (!quiet) {
                 fmt::println("[dpi_exporter] get pattern:");
                 fmt::println("\tname: {}", name);
-                fmt::println("\tmodule: {}", module);
+                fmt::println("\tmoduleName: {}", moduleName);
+                fmt::println("\tinstName: {}", instName);
                 fmt::println("\tclock: {}", clock);
                 fmt::println("\tsignals: {}", signals);
                 fmt::println("\twritable_signals: {}", writableSignals);
@@ -230,7 +234,18 @@ end
                 fflush(stdout);
             }
 
-            conciseSignalPatternVec.emplace_back(ConciseSignalPattern{name, module, clock == "" ? DEFAULT_CLOCK_NAME : clock, signals, writableSignals, disableSignals, sensitiveSignals});
+            // clang-format off
+            conciseSignalPatternVec.emplace_back(ConciseSignalPattern{
+                name,
+                moduleName,
+                instName,
+                clock == "" ? DEFAULT_CLOCK_NAME : clock,
+                signals,
+                writableSignals,
+                disableSignals,
+                sensitiveSignals
+            });
+            // clang-format on
         });
 
         std::vector<SensitiveTriggerInfo> sensitiveTriggerInfoVec;
@@ -373,8 +388,8 @@ end
         // Get SignalGroupVec from the provided conciseSignalPatternVec
         std::vector<SignalGroup> signalGroupVec;
         for (auto &cpattern : conciseSignalPatternVec) {
-            fmt::println("\n[dpi_exporter] SignalGroup.name: {}, SignalGroup.moduleName: {}", cpattern.name, cpattern.module);
-            auto isTopModule = cpattern.module == topModuleName;
+            fmt::println("\n[dpi_exporter] SignalGroup.name: {}, SignalGroup.moduleName: {}", cpattern.name, cpattern.moduleName);
+            auto isTopModule = cpattern.moduleName == topModuleName;
             auto getter      = SignalInfoGetter(cpattern, compilation.get(), isTopModule);
             tree->root().visit(getter);
 
@@ -394,6 +409,8 @@ end
             if (cpattern.sensitiveSignals != "") {
                 ASSERT(getter.gotSenstiveSignal, "No sensitive signal found in the signal group, senstive signal is chosen from `signals`, maybe you should adjust your `signals` value to include sensitive signals", cpattern.name, cpattern.signals, cpattern.sensitiveSignals);
             }
+
+            ASSERT(!getter.signalGroup.signalInfoVec.empty(), "No signal found in the signal group, please check your `signals`/`moduleName`/`instName` value", cpattern.name, cpattern.signals, cpattern.moduleName, cpattern.instName);
 
             signalGroupVec.push_back(getter.signalGroup);
         }

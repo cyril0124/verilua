@@ -7,6 +7,8 @@ using json = nlohmann::json;
 struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> {
     ConciseSignalPattern cpattern;
     std::string moduleName;
+    std::string instName;
+    std::regex instNamePattern;
     slang::ast::Compilation *compilation;
     std::vector<std::string> hierPaths;
     SignalGroup signalGroup;
@@ -15,11 +17,23 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
 
     std::vector<std::string> shouldRemoveHierPaths;
 
-    SignalInfoGetter(ConciseSignalPattern cpattern, slang::ast::Compilation *compilation, bool isTopModule) : cpattern(cpattern), moduleName(cpattern.module), compilation(compilation), isTopModule(isTopModule) {
+    // clang-format off
+    SignalInfoGetter(
+        ConciseSignalPattern cpattern,
+        slang::ast::Compilation *compilation,
+        bool isTopModule
+    ) : cpattern(cpattern),
+        moduleName(cpattern.moduleName),
+        instName(cpattern.instName),
+        instNamePattern(cpattern.instName),
+        compilation(compilation),
+        isTopModule(isTopModule)
+    {
         signalGroup.name       = cpattern.name;
-        signalGroup.moduleName = cpattern.module;
+        signalGroup.moduleName = cpattern.moduleName;
         signalGroup.cpattern   = cpattern;
     };
+    // clang-format on
 
     void handle(const slang::syntax::ModuleDeclarationSyntax &syntax) {
         uint64_t globalHandleIdx = 0;
@@ -32,6 +46,35 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
             if (hierPaths.empty()) {
                 hierPaths.push_back(moduleName);
                 ASSERT(isTopModule, "TODO: hierPaths.empty() and !isTopModule", moduleName);
+            }
+
+            if (instName != "") {
+                bool findMatchedInst       = false; // Expect to match one instance
+                std::string targetHierPath = "";
+                for (auto &hierPath : hierPaths) {
+                    auto resultInst = &compilation->getRoot().lookupName<slang::ast::InstanceSymbol>(hierPath);
+                    if (resultInst != nullptr && std::regex_search(hierPath, instNamePattern)) {
+                        if (findMatchedInst) {
+                            // clang-format off
+                            PANIC(
+                                "Multiple matched instance found! Maybe you need to refine your `inst` value to make it more concise.", 
+                                cpattern.name,
+                                cpattern.moduleName,
+                                cpattern.instName,
+                                hierPaths
+                            );
+                            // clang-format on
+                        }
+                        findMatchedInst = true;
+                        inst            = const_cast<slang::ast::InstanceSymbol *>(resultInst);
+                        targetHierPath  = hierPath;
+                    }
+                }
+                ASSERT(findMatchedInst, "Can't find matched inst", cpattern.name, cpattern.moduleName, cpattern.instName, hierPaths);
+
+                // Make sure `hierPaths` has only one target hierPath
+                hierPaths.clear();
+                hierPaths.push_back(targetHierPath);
             }
 
             auto netIter = inst->body.membersOfType<slang::ast::NetSymbol>();

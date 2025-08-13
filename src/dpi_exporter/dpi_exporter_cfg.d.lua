@@ -6,6 +6,7 @@
 ---@field name? string
 ---@field clock? string
 ---@field module string
+---@field inst? dpi_exporter.regex_pattern Instance name of the module
 ---@field signals? dpi_exporter.regex_pattern
 ---@field writable_signals? dpi_exporter.regex_pattern
 ---@field disable_signals? dpi_exporter.regex_pattern

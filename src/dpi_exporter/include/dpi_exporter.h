@@ -109,7 +109,8 @@ inline std::string joinStrVec(const std::vector<std::string> &vec, const std::st
 
 struct ConciseSignalPattern {
     std::string name;
-    std::string module;
+    std::string moduleName;
+    std::string instName;
     std::string clock;
     std::string signals;
     std::string writableSignals;
