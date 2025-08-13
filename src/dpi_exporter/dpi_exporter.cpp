@@ -113,6 +113,7 @@ class DPIExporter {
         lua.open_libraries(sol::lib::math);
         lua.open_libraries(sol::lib::io);
         lua.script(R"(
+local f = string.format
 local append = table.insert
 local count = 0
 local name_map = {}
@@ -145,6 +146,17 @@ local function is_valid_name(str)
     return true
 end
 
+local valid_keys_for_add_pattern = {
+    "name",
+    "module",
+    "inst",
+    "signals",
+    "writable_signals",
+    "disable_signals",
+    "sensitive_signals",
+    "clock",
+    "writable",
+}
 function add_pattern(params)
     local name = params.name or "UNKNOWN_" .. count
     local module = assert(params.module, "[add_pattern] module is nil")
@@ -155,11 +167,28 @@ function add_pattern(params)
     local sensitive_signals = params.sensitive_signals or ""
     local clock = params.clock or ""
     local writable = params.writable or false
-    local disable = params.disable or false
+
+    for k, _ in pairs(params) do
+        local find_matched_key = false
+        for _, valid_key in ipairs(valid_keys_for_add_pattern) do
+            if k == valid_key then
+                find_matched_key = true
+                break
+            end
+        end
+        assert(find_matched_key, f(
+            "[add_pattern] invalid params key: %s, available keys: {%s}, params.name: %s, params.module: %s",
+            k,
+            table.concat(valid_keys_for_add_pattern, ", "),
+            name,
+            params.module
+        ))
+    end
 
     assert(not(disable and writable), "[add_pattern] disable and writable cannot be both `true`")
 
-    assert(is_valid_name(name), string.format("[add_pattern] name `%s` is not a valid name", name))
+    assert(is_valid_name(name), f("[add_pattern] name `%s` is not a valid name", name))
+    assert(not name_map[name], f("[add_pattern] name `%s` is already used", name))
 
     append(patterns_data, {
         name = name,
@@ -171,7 +200,6 @@ function add_pattern(params)
         sensitive_signals = sensitive_signals,
         clock = clock,
         writable = writable,
-        disable = disable
     })
     count = count + 1
 
@@ -183,16 +211,37 @@ end
 -- Alias name for `add_pattern`
 _G.add_signals = add_pattern
 
+local valid_keys_for_add_senstive_trigger = {
+    "name",
+    "group_names",
+}
 function add_senstive_trigger(params)
     local name = assert(params.name, "[add_senstive_trigger] name is nil")
     local group_names = assert(params.group_names, "[add_senstive_trigger] group_names is nil")
 
-    for _, n in ipairs(group_names) do
-        assert(name_map[n], string.format("[add_senstive_trigger] group name `%s` not found, maybe you forgot to add it with `add_pattern(<params>)/add_signals(<params>)`", n))
+    for k, _ in pairs(params) do
+        local find_matched_key = false
+        for _, valid_key in ipairs(valid_keys_for_add_senstive_trigger) do
+            if k == valid_key then
+                find_matched_key = true
+                break
+            end
+        end
+        assert(find_matched_key, f(
+            "[add_senstive_trigger] invalid params key: %s, available keys: {%s}, params.name: %s, params.group_names: %s",
+            k,
+            table.concat(valid_keys_for_add_senstive_trigger, ", "),
+            params.name,
+            params.group_names
+        ))
     end
 
-    assert(is_valid_name(name), string.format("[add_senstive_trigger] name `%s` is not a valid name", name))
-    assert(not sensitive_name_map[name], string.format("[add_senstive_trigger] name `%s` is already used", name))
+    for _, n in ipairs(group_names) do
+        assert(name_map[n], f("[add_senstive_trigger] group name `%s` not found, maybe you forgot to add it with `add_pattern(<params>)/add_signals(<params>)`", n))
+    end
+
+    assert(is_valid_name(name), f("[add_senstive_trigger] name `%s` is not a valid name", name))
+    assert(not sensitive_name_map[name], f("[add_senstive_trigger] name `%s` is already used", name))
     assert(#group_names > 0, "[add_senstive_trigger] group_names is empty")
 
     append(sensitive_triggers_data, {

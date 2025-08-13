@@ -104,7 +104,7 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                         gotSenstiveSignal = true;
                     }
 
-                    ASSERT(!isWritable, "NET should not be mark as writable", hierPathFull);
+                    ASSERT(!isWritable, "NET should not be marked as writable", hierPathFull);
 
                     if (isUnique) {
                         if (!Config::getInstance().quietEnabled) {
