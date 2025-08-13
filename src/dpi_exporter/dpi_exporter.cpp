@@ -112,6 +112,8 @@ class DPIExporter {
         lua.open_libraries(sol::lib::table);
         lua.open_libraries(sol::lib::math);
         lua.open_libraries(sol::lib::io);
+        lua.open_libraries(sol::lib::os);
+        lua.open_libraries(sol::lib::package);
         lua.script(R"(
 local f = string.format
 local append = table.insert
