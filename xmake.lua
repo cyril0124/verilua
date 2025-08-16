@@ -133,7 +133,7 @@ target("install_lua_modules", function()
         local libs = {
             "penlight",
             "luasocket",
-            "lsqlite3",
+            -- "lsqlite3",
             "linenoise",
             "argparse", -- Used by teal-language
         }
@@ -143,6 +143,15 @@ target("install_lua_modules", function()
             cprint("\t${💥} ${yellow}[5.%d]${reset} install ${green}%s${reset}", i, lib)
             os.exec("luarocks install --force-lock %s", lib)
         end
+
+        -- Workaround install failure for lsqlite3 on 2025.8.16
+        os.cd("/tmp")
+        os.exec("git clone https://github.com/cyril0124/lsqlite-src.git")
+        os.cd("lsqlite-src")
+        os.exec("unzip lsqlite3_v096.zip")
+        os.cd("lsqlite3_v096")
+        os.exec("luarocks make lsqlite3complete-0.9.6-1.rockspec")
+
         os.exec("luarocks list")
     end)
 end)
