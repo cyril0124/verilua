@@ -1,3 +1,4 @@
+---@diagnostic disable: need-check-nil
 local os = require "os"
 local scheduler = require "verilua.scheduler.LuaScheduler"
 
@@ -18,8 +19,8 @@ assert(scheduler ~= nil)
 local verilua = {}
 
 verilua.is_register_task_table = false
-verilua.start_time = 0
-verilua.end_time = 0
+verilua.start_time = 0.0
+verilua.end_time = 0.0
 
 verilua._start_callback = function ()
     verilua_warning("[start_callback] Not implemented!")

@@ -40,8 +40,8 @@ local SchedulerMode = _G.SchedulerMode
 ---@field private _alloc_coroutine_task_id fun(self: LuaScheduler): TaskID Allocates a new coroutine task ID
 ---@field private _remove_task fun(self: LuaScheduler, task_id: TaskID) Removes a task by ID
 ---@field private _register_callback fun(self: LuaScheduler, task_id: TaskID, callback_type: TaskCallbackType, str_value: string, integer_value: integer) Registers a callback for a task
----@field private curr_task_id TaskID Current task ID
----@field private curr_wakeup_event_id EventID Current wakeup event ID
+---@field curr_task_id TaskID Current task ID
+---@field curr_wakeup_event_id EventID Current wakeup event ID
 ---@field private new_event_hdl fun(self: LuaScheduler, event_name: string, user_event_id?: EventID): EventHandle Creates a new event handle
 ---@field private get_event_hdl fun(self: LuaScheduler, event_name: string, user_event_id?: EventID): EventHandle Alias for new_event_hdl
 ---@field private send_event fun(self: LuaScheduler, event_id: EventID) Sends an event

@@ -22,33 +22,33 @@ local force_path_table = {}
 
 ---@class ProxyTableHandle
 ---@field __type "ProxyTableHandle"
----@field set fun(self: ProxyTableHandle, v: number)
----@field set_imm fun(self: ProxyTableHandle, v: number)
+---@field set fun(self: ProxyTableHandle, v: integer)
+---@field set_imm fun(self: ProxyTableHandle, v: integer)
 ---@field set_shuffled fun(self: ProxyTableHandle)
 ---@field set_freeze fun(self: ProxyTableHandle)
----@field set_force fun(self: ProxyTableHandle, v: number)
+---@field set_force fun(self: ProxyTableHandle, v: integer)
 ---@field set_release fun(self: ProxyTableHandle)
 ---@field force_all fun(self: ProxyTableHandle)
 ---@field release_all fun(self: ProxyTableHandle)
 ---@field force_region fun(self: ProxyTableHandle, code_func: fun())
----@field get fun(self: ProxyTableHandle): number
----@field get_str fun(self: ProxyTableHandle, fmt: number): string
+---@field get fun(self: ProxyTableHandle): integer
+---@field get_str fun(self: ProxyTableHandle, fmt: integer): string
 ---@field get_hex_str fun(self: ProxyTableHandle): string
 ---@field set_str fun(self: ProxyTableHandle, str: string)
 ---@field set_hex_str fun(self: ProxyTableHandle, str: string)
 ---@field set_force_str fun(self: ProxyTableHandle, str: string)
----@field posedge fun(self: ProxyTableHandle, v?: number, func?: fun(c: number))
----@field negedge fun(self: ProxyTableHandle, v?: number, func?: fun(c: number))
----@field posedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
----@field negedge_until fun(self: ProxyTableHandle, max_limit: number, func: fun(c: number): boolean): boolean
+---@field posedge fun(self: ProxyTableHandle, v?: integer, func?: fun(c: integer))
+---@field negedge fun(self: ProxyTableHandle, v?: integer, func?: fun(c: integer))
+---@field posedge_until fun(self: ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
+---@field negedge_until fun(self: ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
 ---@field hdl fun(self: ProxyTableHandle): ComplexHandleRaw
 ---@field chdl fun(self: ProxyTableHandle): CallableHDL
 ---@field name fun(self: ProxyTableHandle): string
----@field get_width fun(self: ProxyTableHandle): number
+---@field get_width fun(self: ProxyTableHandle): integer
 ---@field dump_str fun(self: ProxyTableHandle): string
 ---@field dump fun(self: ProxyTableHandle)
----@field expect fun(self: ProxyTableHandle, value: number)
----@field expect_not fun(self: ProxyTableHandle, value: number)
+---@field expect fun(self: ProxyTableHandle, value: integer)
+---@field expect_not fun(self: ProxyTableHandle, value: integer)
 ---@field expect_hex_str fun(self: ProxyTableHandle, hex_value_str: string)
 ---@field expect_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
 ---@field expect_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
@@ -56,15 +56,15 @@ local force_path_table = {}
 ---@field expect_not_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
 ---@field expect_not_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
 ---@field _if fun(self: ProxyTableHandle, condition: fun(): boolean): ProxyTableHandle
----@field is fun(self: ProxyTableHandle, value: number): boolean
----@field is_not fun(self: ProxyTableHandle, value: number): boolean
+---@field is fun(self: ProxyTableHandle, value: integer): boolean
+---@field is_not fun(self: ProxyTableHandle, value: integer): boolean
 ---@field is_hex_str fun(self: ProxyTableHandle, hex_value_str: string): boolean
 ---@field is_bin_str fun(self: ProxyTableHandle, bin_value_str: string): boolean
 ---@field is_dec_str fun(self: ProxyTableHandle, dec_value_str: string): boolean
 ---@field tostring fun(self: ProxyTableHandle): string
 ---@field with_prefix fun(self: ProxyTableHandle, prefix_str: string): ProxyTableHandle
 ---@field auto_bundle fun(self, params: SignalDB.auto_bundle.params): Bundle
----@overload fun(self: ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): number|string|ComplexHandleRaw `__call` metamethod
+---@overload fun(self: ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): integer|string|ComplexHandleRaw `__call` metamethod
 ---@field [string] ProxyTableHandle
 
 ---@param path string

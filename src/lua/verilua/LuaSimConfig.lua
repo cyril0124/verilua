@@ -16,17 +16,17 @@ local setmetatable = setmetatable
 
 ---@class LuaSimConfig
 ---@field script string
----@field mode number
+---@field mode integer
 ---@field top string Top module name of the DUT
----@field srcs table<string>
----@field deps table<string>
+---@field srcs string[]
+---@field deps string[]
 ---@field is_hse boolean
----@field period number
+---@field period integer
 ---@field unit string
 ---@field luapanda_debug boolean
 ---@field vpi_learn boolean
 ---@field prj_dir string
----@field seed number
+---@field seed integer
 ---@field colors AnsiColors
 ---@field enable_dpi_exporter boolean Enable dpi_exporter optimization. The value getter function 
 ---                                   will bypass vpiml and obtain the value from underlying DPI-C 
@@ -359,7 +359,7 @@ function cfg:post_config()
     if env_seed then
         assert(env_seed:match("^%d+$") ~= nil, "[LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!")
         _G.verilua_debug(f("Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d", tostring(cfg.seed), env_seed))
-        cfg.seed = tonumber(env_seed) --[[@as number]]
+        cfg.seed = tonumber(env_seed) --[[@as integer]]
     end
 
     type_check(cfg.is_hse, "cfg.is_hse", "boolean")

@@ -75,8 +75,8 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field set_target_file fun(self: SignalDB, file_path: string): SignalDB
 ---@field set_rtl_filelist fun(self: SignalDB, file_path: string): SignalDB
 ---@field try_load_db fun(self: SignalDB): SignalDB
----@field set_enable_modules fun(self: SignalDB, modules: string[]): SignalDB
----@field set_disable_modules fun(self: SignalDB, modules: string[]): SignalDB
+---@field set_enable_modules fun(self: SignalDB, modules: table<integer, string>): SignalDB
+---@field set_disable_modules fun(self: SignalDB, modules: table<integer, string>): SignalDB
 ---@field private load_db fun(self: SignalDB, file_path: string)
 ---@field private generate_db fun(self: SignalDB, args_str: string)
 ---@field get_db_data fun(self: SignalDB): SignalDB.data
@@ -261,7 +261,7 @@ function SignalDB:get_top_module()
     local top_module, _ = next(self:get_db_data())
     assert(top_module, "[SignalDB] No top module found!")
 
-    return top_module
+    return top_module --[[@as string]]
 end
 
 function SignalDB:get_signal_info(hier_path)
@@ -316,6 +316,7 @@ local function _find_all(hiers, ret, path, pattern)
             end
 
             if type(v) == "table" then
+                ---@cast v SignalDB.data
                 _find_all(v, ret, path .. "." .. k, pattern)
             end
         elseif k_type == "number" then
@@ -341,6 +342,7 @@ local function _find_hier(hiers, ret, path, hier_pattern)
             end
 
             if type(v) == "table" then
+                ---@cast v SignalDB.data
                 _find_hier(v, ret, path .. "." .. k, hier_pattern)
             end
         end
@@ -358,6 +360,7 @@ local function _find_signal(hiers, ret, path, signal_pattern, hier_pattern, full
         local k_type = type(k)
         if k_type == "string" then
             if type(v) == "table" then
+                ---@cast v SignalDB.data
                 _find_signal(v, ret, path .. "." .. k, signal_pattern, hier_pattern, full_info)
             end
         elseif k_type == "number" then

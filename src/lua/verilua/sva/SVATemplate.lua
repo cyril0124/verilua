@@ -1,3 +1,4 @@
+---@diagnostic disable
 -- 
 -- Notice:
 --      A modified version of the penlight template preprocessor with 

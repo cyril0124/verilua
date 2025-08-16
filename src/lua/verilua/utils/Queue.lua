@@ -8,7 +8,7 @@ end
 
 ---@class (exact) Queue
 ---@overload fun(): Queue
----@field private data table<Queue.data>
+---@field private data table<integer, Queue.data>
 ---@field private first_ptr integer
 ---@field private last_ptr integer
 ---@field push fun(self: Queue, value: Queue.data)

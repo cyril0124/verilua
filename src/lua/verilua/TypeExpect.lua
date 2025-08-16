@@ -34,6 +34,17 @@ function texpect.expect_number(value, name)
 	end
 end
 
+---@param value integer
+---@param name string
+function texpect.expect_integer(value, name)
+	if type(value) ~= "number" then
+		error(
+			f("[expect_integer] Expected argument `%s` to be a `%s` value, but received a `%s` value instead", name, "number", type(value)),
+			0
+		)
+	end
+end
+
 ---@param value boolean
 ---@param name string
 function texpect.expect_boolean(value, name)
@@ -190,13 +201,13 @@ Throws:
 --]]
 ---@class (exact) texpect.expect_abdl.params
 ---@field name string
----@field width? number
----@field width_min? number
----@field width_max? number
+---@field width? integer
+---@field width_min? integer
+---@field width_max? integer
 
 ---@param value AliasBundle
 ---@param name string
----@param params string[]|texpect.expect_abdl.params[]
+---@param params table<integer, string|texpect.expect_abdl.params>
 function texpect.expect_abdl(value, name, params)
     if type(value) ~= "table" then
         error(

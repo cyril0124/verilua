@@ -1,3 +1,4 @@
+---@diagnostic disable: need-check-nil
 local ffi = require "ffi"
 local math = require "math"
 local vpiml = require "vpiml"
@@ -51,8 +52,8 @@ local post_init_mt = setmetatable({
 ---@class uint32_t: ffi.cdata*
 ---@class uint64_t: ffi.cdata*
 
----@class MultiBeatData.size: number
----@class MultiBeatData: {[0]: MultiBeatData.size, [number]: uint32_t}
+---@class MultiBeatData.size: integer
+---@class MultiBeatData: {[0]: MultiBeatData.size, [integer]: uint32_t}
 
 ---@class (exact) CallableHDL
 ---@overload fun(fullpath: string, name: string, hdl?: ComplexHandleRaw): CallableHDL
@@ -60,55 +61,55 @@ local post_init_mt = setmetatable({
 ---@field fullpath string
 ---@field name string
 ---@field private always_fired boolean
----@field private width number
+---@field private width integer
 ---@field private hdl ComplexHandleRaw
 ---@field private hdl_type string
 ---@field is_array boolean
----@field array_size number
----@field private array_hdls table<number, ComplexHandleRaw>
----@field private array_bitvecs table<number, BitVec>
----@field private beat_num number
+---@field array_size integer
+---@field private array_hdls table<integer, ComplexHandleRaw>
+---@field private array_bitvecs table<integer, BitVec>
+---@field private beat_num integer
 ---@field private is_multi_beat boolean
 ---@field private cached_value any
 ---@field reset_set_cached fun(self: CallableHDL) Reset the cached value to `nil`
 ---@field private c_results ffi.cdata*
 ---@field value any Used for assign value based on value type
 ---
----@field get fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
+---@field get fun(self: CallableHDL, force_multi_beat?: boolean): integer|MultiBeatData
 ---@field get64 fun(self: CallableHDL): uint64_t
 ---@field get_bitvec fun(self: CallableHDL): BitVec
----@field set fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_unsafe fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_cached fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_bitfield fun(self: CallableHDL, s: number, e: number, v: number)
----@field set_bitfield_hex_str fun(self: CallableHDL, s: number, e: number, hex_str: string)
----@field set_force fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field set fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_unsafe fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_cached fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_bitfield fun(self: CallableHDL, s: integer, e: integer, v: integer)
+---@field set_bitfield_hex_str fun(self: CallableHDL, s: integer, e: integer, hex_str: string)
+---@field set_force fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
 ---@field set_release fun(self: CallableHDL)
----@field set_imm fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_imm_unsafe fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_imm_cached fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_imm_bitfield fun(self: CallableHDL, s: number, e: number, v: number)
----@field set_imm_bitfield_hex_str fun(self: CallableHDL, s: number, e: number, hex_str: string)
----@field set_imm_force fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field set_imm fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_unsafe fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_cached fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_bitfield fun(self: CallableHDL, s: integer, e: integer, v: integer)
+---@field set_imm_bitfield_hex_str fun(self: CallableHDL, s: integer, e: integer, hex_str: string)
+---@field set_imm_force fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
 ---@field set_imm_release fun(self: CallableHDL)
 ---
----@field at fun(self: CallableHDL, index: number): CallableHDL
----@field get_index fun(self: CallableHDL, index: number, force_multi_beat?: boolean): number|MultiBeatData
----@field get_index_all fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
----@field get_index_bitvec fun(self: CallableHDL, index: number): BitVec
----@field set_index fun(self: CallableHDL, index: number, value: number|uint64_t|MultiBeatData, force_single_beat?: boolean)
----@field set_index_bitfield fun(self: CallableHDL, index: number, s: number, e: number, v: number)
----@field set_index_bitfield_hex_str fun(self: CallableHDL, index: number, s: number, e: number, hex_str: string)
----@field set_index_all fun(self: CallableHDL, values: table<number|uint64_t|table<number>>, force_single_beat?: boolean)
----@field set_index_unsafe_all fun(self: CallableHDL, values: table<number|uint64_t|table<number>>, force_single_beat?: boolean)
----@field set_imm_index fun(self: CallableHDL, index: number, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_imm_index_unsafe fun(self: CallableHDL, index: number, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_imm_index_bitfield fun(self: CallableHDL, index: number, s: number, e: number, v: number)
----@field set_imm_index_bitfield_hex_str fun(self: CallableHDL, index: number, s: number, e: number, hex_str: string)
----@field set_imm_index_all fun(self: CallableHDL, values: table<number|uint64_t|table<number>>, force_single_beat?: boolean)
----@field set_imm_index_unsafe_all fun(self: CallableHDL, values: table<number|uint64_t|table<number>>, force_single_beat?: boolean)
+---@field at fun(self: CallableHDL, index: integer): CallableHDL
+---@field get_index fun(self: CallableHDL, index: integer, force_multi_beat?: boolean): integer|MultiBeatData
+---@field get_index_all fun(self: CallableHDL, force_multi_beat?: boolean): integer|MultiBeatData
+---@field get_index_bitvec fun(self: CallableHDL, index: integer): BitVec
+---@field set_index fun(self: CallableHDL, index: integer, value: integer|uint64_t|MultiBeatData, force_single_beat?: boolean)
+---@field set_index_bitfield fun(self: CallableHDL, index: integer, s: integer, e: integer, v: integer)
+---@field set_index_bitfield_hex_str fun(self: CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
+---@field set_index_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_index_unsafe_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_imm_index fun(self: CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_index_unsafe fun(self: CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_index_bitfield fun(self: CallableHDL, index: integer, s: integer, e: integer, v: integer)
+---@field set_imm_index_bitfield_hex_str fun(self: CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
+---@field set_imm_index_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_imm_index_unsafe_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
 ---
----@field get_str fun(self: CallableHDL, fmt: number): string
+---@field get_str fun(self: CallableHDL, fmt: integer): string
 ---@field get_hex_str fun(self: CallableHDL): string
 ---@field get_bin_str fun(self: CallableHDL): string
 ---@field get_dec_str fun(self: CallableHDL): string
@@ -125,32 +126,32 @@ local post_init_mt = setmetatable({
 ---@field set_imm_shuffled fun(self: CallableHDL)
 ---@field set_imm_freeze fun(self: CallableHDL)
 ---
----@field get_index_str fun(self: CallableHDL, index: number, fmt: number): string
----@field get_index_hex_str fun(self: CallableHDL, index: number): string
----@field set_index_str fun(self: CallableHDL, index: number, str: string)
----@field set_index_hex_str fun(self: CallableHDL, index: number, str: string)
----@field set_index_bin_str fun(self: CallableHDL, index: number, str: string)
----@field set_index_dec_str fun(self: CallableHDL, index: number, str: string)
+---@field get_index_str fun(self: CallableHDL, index: integer, fmt: integer): string
+---@field get_index_hex_str fun(self: CallableHDL, index: integer): string
+---@field set_index_str fun(self: CallableHDL, index: integer, str: string)
+---@field set_index_hex_str fun(self: CallableHDL, index: integer, str: string)
+---@field set_index_bin_str fun(self: CallableHDL, index: integer, str: string)
+---@field set_index_dec_str fun(self: CallableHDL, index: integer, str: string)
 ---
----@field posedge fun(self: CallableHDL, cycles?: number, action_func?: fun(count: number))
----@field negedge fun(self: CallableHDL, cycles?: number, action_func?: fun(count: number))
+---@field posedge fun(self: CallableHDL, cycles?: integer, action_func?: fun(count: integer))
+---@field negedge fun(self: CallableHDL, cycles?: integer, action_func?: fun(count: integer))
 ---@field always_posedge fun(self: CallableHDL)
----@field posedge_until fun(self: CallableHDL, max_limit: number, func: fun(count: number)): boolean
----@field negedge_until fun(self: CallableHDL, max_limit: number, func: fun(count: number)): boolean
+---@field posedge_until fun(self: CallableHDL, max_limit: integer, func: fun(count: integer): boolean): boolean
+---@field negedge_until fun(self: CallableHDL, max_limit: integer, func: fun(count: integer): boolean): boolean
 ---
 ---@field dump_str fun(self: CallableHDL): string
 ---@field dump fun(self: CallableHDL)
----@field get_width fun(self: CallableHDL): number
----@field expect fun(self: CallableHDL, value: number|ffi.cdata*)
----@field expect_not fun(self: CallableHDL, value: number|ffi.cdata*)
+---@field get_width fun(self: CallableHDL): integer
+---@field expect fun(self: CallableHDL, value: integer|ffi.cdata*)
+---@field expect_not fun(self: CallableHDL, value: integer|ffi.cdata*)
 ---@field expect_hex_str fun(self: CallableHDL, hex_value_str: string)
 ---@field expect_bin_str fun(self: CallableHDL, bin_value_str: string)
 ---@field expect_dec_str fun(self: CallableHDL, dec_value_str: string)
 ---@field expect_not_hex_str fun(self: CallableHDL, hex_value_str: string)
 ---@field expect_not_bin_str fun(self: CallableHDL, bin_value_str: string)
 ---@field expect_not_dec_str fun(self: CallableHDL, dec_value_str: string)
----@field is fun(self: CallableHDL, value: number|ffi.cdata*): boolean
----@field is_not fun(self: CallableHDL, value: number|ffi.cdata*): boolean
+---@field is fun(self: CallableHDL, value: integer|ffi.cdata*): boolean
+---@field is_not fun(self: CallableHDL, value: integer|ffi.cdata*): boolean
 ---@field is_hex_str fun(self: CallableHDL, hex_value_str: string): boolean
 ---@field is_bin_str fun(self: CallableHDL, bin_value_str: string): boolean
 ---@field is_dec_str fun(self: CallableHDL, dec_value_str: string): boolean
@@ -192,7 +193,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         -- Verilator treat it as "vpiMemory"
         -- 
         self.is_array = true
-        self.array_size = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as number]]
+        self.array_size = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
         self.array_hdls = table_new(self.array_size, 0)
         self.array_bitvecs = table_new(self.array_size, 0)
         for i = 1, self.array_size do
@@ -204,7 +205,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         assert(false, f("Unknown hdl_type => %s fullpath => %s name => %s", self.hdl_type, self.fullpath, self.name))
     end
 
-    self.width = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as number]]
+    self.width = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
     self.cached_value = nil
@@ -340,6 +341,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     -- Check if DPI exporter is enabled
     -- Notice: Call `DpiExporter:init()` before creating any `CallableHDL` if you want to access the signal by dpi_exporter API.
     if cfg.enable_dpi_exporter then
+        ---@cast DpiExporter DpiExporter
         local is_exported = DpiExporter:is_exported(self.fullpath)
         if is_exported then
             print(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
@@ -360,7 +362,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                     self.get = function (this, force_multi_beat)
                         if force_multi_beat then
                             this.__dpi_get_vec(this.c_results)
-                            return this.c_results
+                            return this.c_results --[[@as MultiBeatData]]
                         else
                             return this.__dpi_get64()
                         end
@@ -368,7 +370,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 else
                     self.get = function (this)
                         this.__dpi_get_vec(this.c_results)
-                        return this.c_results
+                        return this.c_results --[[@as MultiBeatData]]
                     end
                 end
 
@@ -520,11 +522,13 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.posedge_until = function (this, max_limit, func)
             ---@diagnostic disable-next-line: missing-return
             assert(false, f("hdl bit width == %d > 1, <chdl>:posedge_until() only support 1-bit hdl", this.width))
+            ---@diagnostic disable-next-line: missing-return
         end
 
         self.negedge_until = function (this, max_limit, func)
             ---@diagnostic disable-next-line: missing-return
             assert(false, f("hdl bit width == %d > 1, <chdl>:negedge_until() only support 1-bit hdl", this.width))
+            ---@diagnostic disable-next-line: missing-return
         end
     end
 
@@ -654,11 +658,13 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.is = function (this, value)
             ---@diagnostic disable-next-line: missing-return
             assert(false, "<CallableHDL>:is(value) can only be used for hdl with 1 or 2 beat")
+            ---@diagnostic disable-next-line: missing-return
         end
 
         self.is_not = function (this, value)
             ---@diagnostic disable-next-line: missing-return
             assert(false, "<CallableHDL>:is_not(value) can only be used for hdl with 1 or 2 beat")
+            ---@diagnostic disable-next-line: missing-return
         end
     else
         self.is = function (this, value)

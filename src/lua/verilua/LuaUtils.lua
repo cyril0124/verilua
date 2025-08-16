@@ -45,8 +45,8 @@ function utils.serialize(t, conn)
     return table_concat(serialized, conn)
 end
 
----@param tab table<any> The table to be reversed
----@return table<any> The reversed table
+---@param tab any[] The table to be reversed
+---@return any[] The reversed table
 function utils.reverse_table(tab)
     local size = #tab
     local new_tab = table_new(size, 0)
@@ -73,7 +73,7 @@ do
         return table_concat(t_copy, separator)
     end
 
-    ---@param t number|ffi.cdata*|table The value to be converted to hexadecimal string
+    ---@param t integer|ffi.cdata*|table The value to be converted to hexadecimal string
     ---@param separator? string The separator for the hexadecimal string, defaults to ""
     ---@return string -- The hexadecimal string, MSB <=> LSB
     function utils.to_hex_str(t, separator)
@@ -86,7 +86,7 @@ do
             result = f("%x", t)
         elseif t_type == "cdata" then
             if ffi_istype("uint64_t", t) then
-                result = bit_tohex(t)
+                result = bit_tohex(t --[[@as integer]])
             else
                 -- 
                 -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
@@ -109,8 +109,8 @@ do
     end
 end
 
----@param n number The value to calculate the logarithm base 2
----@return number The ceiling of the logarithm base 2
+---@param n integer The value to calculate the logarithm base 2
+---@return integer The ceiling of the logarithm base 2
 function utils.log2Ceil(n)
     if n < 1 then
         return 0
@@ -121,26 +121,26 @@ function utils.log2Ceil(n)
     end
 end
 
----@param begin number The start bit
----@param endd number The end bit
----@param val number The value to be processed
----@return number The processed value
+---@param begin integer The start bit
+---@param endd integer The end bit
+---@param val integer The value to be processed
+---@return integer The processed value
 function utils.bitfield32(begin, endd, val)
     local mask = bit_lshift(1ULL, endd - begin + 1) - 1
-    return tonumber(bit.band(bit_rshift(val + 0ULL, begin), mask)) --[[@as number]]
+    return tonumber(bit.band(bit_rshift(val + 0ULL, begin), mask)) --[[@as integer]]
 end
 
----@param begin number The start bit
----@param endd number The end bit
----@param val number The value to be processed
----@return number The processed value
+---@param begin integer The start bit
+---@param endd integer The end bit
+---@param val integer The value to be processed
+---@return integer The processed value
 function utils.bitfield64(begin, endd, val)
     return bit_rshift( bit_lshift(val + 0ULL, 64 - endd - 1), begin + 64- endd - 1 )
 end
 
----@param hi number The higher 32 bits
----@param lo number The lower 32 bits
----@return number The combined 64-bit value
+---@param hi integer The higher 32 bits
+---@param lo integer The lower 32 bits
+---@return integer The combined 64-bit value
 function utils.to64bit(hi, lo)
     return bit_lshift(hi, 32) + lo
 end
@@ -167,22 +167,24 @@ function utils.print_hex(hex_table)
     io.write(utils.to_hex(hex_table).."\n")
 end
 
----@param num number The number to be converted to binary string
+---@param num integer The number to be converted to binary string
 ---@return string The binary string
 function utils.num_to_binstr(num)
     local num = tonumber(num)
     if num == 0 then return "0" end
     local binstr = ""
     while num > 0 do
+        ---@diagnostic disable-next-line: need-check-nil
         local bit = num % 2
         binstr = tostring(bit) .. binstr
+        ---@diagnostic disable-next-line: need-check-nil
         num = math_floor(num / 2)
     end
     return binstr
 end
 
----@param progress number The progress, ranges from (0, 1)
----@param length number The length of the progress bar
+---@param progress integer The progress, ranges from (0, 1)
+---@param length integer The length of the progress bar
 ---@return string The string representation of the progress bar
 function utils.get_progress_bar(progress, length)
     -- https://cn.piliapp.com/symbol/
@@ -192,8 +194,8 @@ function utils.get_progress_bar(progress, length)
     return progressBar
 end
 
----@param progress number The progress, ranges from (0, 1)
----@param length number The length of the progress bar
+---@param progress integer The progress, ranges from (0, 1)
+---@param length integer The length of the progress bar
 function utils.print_progress_bar(progress, length)
     print(utils.get_progress_bar(progress, length))
 end
@@ -300,9 +302,9 @@ end
 --   local str = utils.get_datetime_str()
 --         str == "20240124_2301" 
 -- 
----@return string|osdate The string representation of the current date and time in the format <Year><Month><Day>_<Hour><Minute>
+---@return string The string representation of the current date and time in the format <Year><Month><Day>_<Hour><Minute>
 function utils.get_datetime_str()
-    local datetime = os.date("%Y%m%d_%H%M")
+    local datetime = os.date("%Y%m%d_%H%M") --[[@as string]]
     return datetime
 end
 
@@ -356,9 +358,9 @@ local function hex_to_bin(hex)
 end
 
 ---@param str string The input string (binary starts with "0b", hexadecimal starts with "0x", decimal has no prefix)
----@param s number The start bit
----@param e number The end bit
----@param width number The width of the input string (optional)
+---@param s integer The start bit
+---@param e integer The end bit
+---@param width integer The width of the input string (optional)
 ---@return string The binary string
 function utils.bitfield_str(str, s, e, width)
     local prefix = str:sub(1, 2)
@@ -387,9 +389,9 @@ function utils.bitfield_str(str, s, e, width)
 end
 
 ---@class (exact) bitpat_to_hexstr.BitPattern
----@field s number
----@field e number
----@field v number|uint64_t
+---@field s integer
+---@field e integer
+---@field v integer|uint64_t
 
 ---@param bitpat_tbl bitpat_to_hexstr.BitPattern[] The bit pattern table
 ---@param width number The width of the bit pattern (optional)
@@ -443,11 +445,12 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
             -- The bit pattern fits within a single block
             local mask
             if num_bits == 64 then
+                ---@diagnostic disable-next-line
                 mask = 0xFFFFFFFFFFFFFFFFULL
             else
                 mask = bit_lshift(1ULL, num_bits) - 1
             end
-            local shifted_value = bit_lshift(bit.band(bitpat.v --[[@as number]], mask), start_pos)
+            local shifted_value = bit_lshift(bit.band(bitpat.v --[[@as integer]], mask), start_pos)
             v[start_block] = bit.bor(v[start_block], shifted_value)
         else
             -- The bit pattern spans across multiple blocks
@@ -456,11 +459,11 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
 
             -- Lower part in the start block
             local lower_mask = bit_lshift(1ULL, lower_bits) - 1
-            local lower_value = bit.band(bitpat.v --[[@as number]], lower_mask)
+            local lower_value = bit.band(bitpat.v --[[@as integer]], lower_mask)
             v[start_block] = bit.bor(v[start_block], bit_lshift(lower_value, start_pos))
 
             -- Upper part in the end block
-            local upper_value = bit_rshift(bitpat.v --[[@as number]], lower_bits)
+            local upper_value = bit_rshift(bitpat.v --[[@as integer]], lower_bits)
             v[end_block] = bit.bor(v[end_block], upper_value)
         end
     end
@@ -474,13 +477,13 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
     return hexstr
 end
 
----@param uint_value number The unsigned integer value to be converted to one-hot encoding
----@return number The one-hot encoded value
+---@param uint_value integer The unsigned integer value to be converted to one-hot encoding
+---@return integer The one-hot encoded value
 function utils.uint_to_onehot(uint_value)
     return bit_lshift(1, uint_value) + 0ULL
 end
 
----@param t table<any> The table to be shuffled
+---@param t any[] The table to be shuffled
 ---@return table The shuffled table
 function utils.shuffle(t)
     local n = #t
@@ -534,13 +537,13 @@ function utils.urandom64()
     return (math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)) --[[@as uint64_t]]
 end
 
----@param min number|uint64_t
----@param max number|uint64_t
+---@param min integer|uint64_t
+---@param max integer|uint64_t
 ---@return uint64_t
 function utils.urandom64_range(min, max)
     local random_value = math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
 
-    local range = 0ULL
+    local range = 0ULL --[[@as integer]]
     if max == 0xFFFFFFFFFFFFFFFFULL then
         range = 0xFFFFFFFFFFFFFFFFULL
     else
@@ -553,8 +556,8 @@ function utils.urandom64_range(min, max)
 end
 
 ---@param str string
----@param nr_group number
----@return table<string>, number
+---@param nr_group integer
+---@return string[], integer
 function utils.str_group_by(str, nr_group)
     local group_size = math_ceil(#str / nr_group)
     local result = table_new(group_size, 0)
@@ -566,7 +569,7 @@ function utils.str_group_by(str, nr_group)
 end
 
 ---@param str string
----@param step number
+---@param step integer
 ---@param separator string
 ---@return string
 function utils.str_sep(str, step, separator)
@@ -581,7 +584,7 @@ function utils.str_sep(str, step, separator)
     return result
 end
 
----@param n number
+---@param n integer
 ---@return uint64_t
 function utils.bitmask(n)
     assert(n <= 64, "n must be less than or equal to 64")
@@ -592,49 +595,49 @@ function utils.bitmask(n)
     end
 end
 
----@param value number
----@param start number
----@param length number
+---@param value integer
+---@param start integer
+---@param length integer
 ---@return uint64_t
 function utils.reset_bits(value, start, length)
     assert(start < 64)
     assert(length <= 64)
-    local mask = bit_lshift(utils.bitmask(length) --[[@as number]], start)
+    local mask = bit_lshift(utils.bitmask(length) --[[@as integer]], start)
     return bit_band(value, bit_bnot(mask)) --[[@as uint64_t]]
 end
 
----@param value number
----@param n number
----@return number
+---@param value number|integer
+---@param n integer
+---@return integer
 function utils.cover_with_n(value, n)
     return math_ceil(value / n)
 end
 
----@param bitwidth number
+---@param bitwidth integer
 ---@return uint64_t
 function utils.shuffle_bits(bitwidth)
     assert(bitwidth <= 64, "bitwidth must be less than or equal to 64")
     if bitwidth <= 32 then
-        return math_random(0, tonumber(utils.bitmask(bitwidth)) --[[@as number]]) --[[@as uint64_t]]
+        return math_random(0, tonumber(utils.bitmask(bitwidth)) --[[@as integer]]) --[[@as uint64_t]]
     else
         return utils.urandom64_range(0, utils.bitmask(bitwidth))
     end
 end
 
----@param bitwidth number
+---@param bitwidth integer
 ---@return string
 function utils.shuffle_bits_hex_str(bitwidth)
     if bitwidth <= 32 then
-        return bit_tohex(utils.shuffle_bits(bitwidth) --[[@as number]])
+        return bit_tohex(utils.shuffle_bits(bitwidth) --[[@as integer]])
     else
         local u32_chunk = utils.cover_with_n(bitwidth, 32)
         local result = ""
         local total_bits = bitwidth
         for i = 1, u32_chunk do
             if total_bits >= 32 then
-                result = bit_tohex(utils.shuffle_bits(32) --[[@as number]]) .. result
+                result = bit_tohex(utils.shuffle_bits(32) --[[@as integer]]) .. result
             else
-                result = bit_tohex(utils.shuffle_bits(total_bits) --[[@as number]]) .. result
+                result = bit_tohex(utils.shuffle_bits(total_bits) --[[@as integer]]) .. result
             end
             total_bits = total_bits - 32
         end
@@ -643,7 +646,7 @@ function utils.shuffle_bits_hex_str(bitwidth)
 end
 
 ---@param value_hex_str string
----@param bitwidth number
+---@param bitwidth integer
 ---@return string
 function utils.expand_hex_str(value_hex_str, bitwidth)
     local len = #value_hex_str
@@ -691,9 +694,9 @@ local false_values = {
     ["off"] = true,
 }
 ---@param key string Environment variable name
----@param value_type "string" | "boolean" | "number"
----@param default string|number|boolean Default value if the environment variable is not set
----@return string|number|boolean The value of the environment variable or the default value
+---@param value_type "string" | "boolean" | "number" | "integer"
+---@param default string|number|integer|boolean Default value if the environment variable is not set
+---@return string|number|integer|boolean The value of the environment variable or the default value
 function utils.get_env_or_else(key, value_type, default)
 	assert(type(key) == "string")
 	local v = os.getenv(key)
@@ -707,7 +710,7 @@ function utils.get_env_or_else(key, value_type, default)
             assert(default_type == "string", "[utils.get_env_or_else] default value must be `string`" .. " not `" .. default_type ..  "` since value_type is `string`")
         elseif value_type == "boolean" then
             assert(default_type == "boolean", "[utils.get_env_or_else] default value must be `boolean`" .. " not `" .. default_type ..  "` since value_type is `boolean`")
-        elseif value_type == "number" then
+        elseif value_type == "number" or value_type == "integer" then
             assert(default_type == "number", "[utils.get_env_or_else] default value must be `number`" .. " not `" .. default_type ..  "` since value_type is `number`")
         end
 
@@ -796,11 +799,11 @@ end
 --         Product: 20
 
 ---@class matrix_call.single_func: function
----@class matrix_call.seq_funcs: { [number]: function }
+---@class matrix_call.seq_funcs: { [integer]: function }
 ---@class matrix_call.single_func_with_args: { func: function, args: table, before?: function, after?: function }
----@class matrix_call.single_func_with_muti_args: { func: function, multi_args: table<table>, before?: function, after?: function }
----@class matrix_call.func_blocks: { [number]: matrix_call.single_func | matrix_call.seq_funcs | matrix_call.single_func_with_args | matrix_call.single_func_with_muti_args }
----@class matrix_call.params: { [number]: matrix_call.func_blocks }
+---@class matrix_call.single_func_with_muti_args: { func: function, multi_args: table[], before?: function, after?: function }
+---@class matrix_call.func_blocks: { [integer]: matrix_call.single_func | matrix_call.seq_funcs | matrix_call.single_func_with_args | matrix_call.single_func_with_muti_args }
+---@class matrix_call.params: { [integer]: matrix_call.func_blocks }
 
 ---@param func_table matrix_call.params
 function utils.matrix_call(func_table)
@@ -857,9 +860,9 @@ function utils.matrix_call(func_table)
         end
     end
 
-    ---@class matrix_call.current_dim: number
-    ---@alias matrix_call.dim_and_idx { [1]: matrix_call.current_dim, [2]: number }
-    ---@alias matrix_call.combination { [number]: matrix_call.dim_and_idx }
+    ---@alias matrix_call.current_dim integer
+    ---@alias matrix_call.dim_and_idx { [1]: matrix_call.current_dim, [2]: integer }
+    ---@alias matrix_call.combination { [integer]: matrix_call.dim_and_idx }
 
     -- Recursive function to generate all combinations
     ---@param current_dim matrix_call.current_dim

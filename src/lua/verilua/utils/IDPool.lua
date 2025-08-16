@@ -7,27 +7,27 @@ local assert = assert
 local f = string.format
 
 ---@class (exact) IDPool.params
----@field size number
----@field start_value? number
+---@field size integer
+---@field start_value? integer
 ---@field shuffle? boolean
 
 ---@class (exact) IDPool
 ---@overload fun(params: IDPool.params): IDPool
----@overload fun(pool_size_or_params: number, shuffle?: boolean): IDPool
----@field private pool_size number
----@field private start_value number
----@field private end_value number
+---@overload fun(pool_size_or_params: integer, shuffle?: boolean): IDPool
+---@field private pool_size integer
+---@field private start_value integer
+---@field private end_value integer
 ---@field private shuffle boolean
----@field private pool number[]
----@field private size number
----@field alloc fun(self: IDPool): number
----@field release fun(self: IDPool, id: number)
+---@field private pool integer[]
+---@field private size integer
+---@field alloc fun(self: IDPool): integer
+---@field release fun(self: IDPool, id: integer)
 ---@field is_full fun(self: IDPool): boolean Check if the pool is full (all IDs are available)
 ---@field is_empty fun(self: IDPool): boolean Check if the pool is empty(all IDs are allocated, none left in pool)
----@field used_count fun(self: IDPool): number
----@field free_count fun(self: IDPool): number
+---@field used_count fun(self: IDPool): integer
+---@field free_count fun(self: IDPool): integer
 ---@field reset fun(self: IDPool)
----@operator len: number
+---@operator len: integer
 local IDPool = class() --[[@as IDPool]]
 
 --
@@ -57,7 +57,7 @@ function IDPool:_init(params, shuffle)
         self.start_value = params.start_value or 0
         self.end_value = self.start_value + self.pool_size - 1
     else
-        ---@cast params number
+        ---@cast params integer
         self.start_value = 0
         self.end_value = params - 1
         self.pool_size = params
@@ -84,7 +84,7 @@ function IDPool:alloc()
     self.pool[self.size] = nil
     self.size = self.size - 1
     assert(self.size >= 0, "[IDPool] pool is empty")
-    return id
+    return id --[[@as integer]]
 end
 
 function IDPool:release(id)

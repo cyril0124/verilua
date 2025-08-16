@@ -9,8 +9,11 @@ local texpect = require "TypeExpect"
 local table_new = require "table.new"
 local subst = require("pl.template").substitute
 
+---@type any
 local sqlite3
+---@type any
 local sqlite3_clib
+---@type any
 local SQLITE3
 
 local print = print
@@ -61,9 +64,9 @@ end
 ---@field elements string[] | LuaDataBaseV2.elements.entry[]
 ---@field path string
 ---@field file_name string
----@field save_cnt_max? number Default: 10000
----@field size_limit? number Default: nil, in bytes
----@field table_cnt_max? number Default: nil
+---@field save_cnt_max? integer Default: 10000
+---@field size_limit? integer Default: nil, in bytes
+---@field table_cnt_max? integer Default: nil
 ---@field verbose? boolean Default: false
 ---@field no_check_bind_value? boolean Default: false, the caller is responsible for the data to be bound, good for performance
 ---@field libsqlite3_name? string Default: sqlite3
@@ -73,31 +76,31 @@ end
 ---@class (exact) LuaDataBaseV2
 ---@overload fun(params: LuaDataBaseV2.params): LuaDataBaseV2
 ---@field private db any
----@field private size_limit? number
----@field private file_count number
+---@field private size_limit? integer
+---@field private file_count integer
 ---@field private path_name string
 ---@field private file_name string
 ---@field private table_name string
 ---@field private table_name_template string
 ---@field private fullpath_name string
----@field private available_files table<string>
+---@field private available_files table<integer, string>
 ---@field private entries LuaDataBaseV2.elements.entry[]
 ---@field private stmt any
 ---@field private finished boolean
 ---@field private verbose boolean
 ---@field __type string
 ---@field elements string[]
----@field private pid number
+---@field private pid integer
 ---@field private create_table_cmd_template string
 ---@field private create_table_cmd string
 ---@field private prepare_cmd_template string
 ---@field private prepare_cmd string
 ---@field private pragma_cmd string
----@field private save_cnt_max number Call `<LuaDataBaseV2>:commit()` when the `save_cnt` exceeds this value
----@field private save_cnt number The count of data saved without calling commit
----@field private table_cnt_max? number Default: nil, the max count of table entries, once the table count exceeds this value, new table will be created
----@field private table_cnt number
----@field private table_idx number
+---@field private save_cnt_max integer Call `<LuaDataBaseV2>:commit()` when the `save_cnt` exceeds this value
+---@field private save_cnt integer The count of data saved without calling commit
+---@field private table_cnt_max? integer Default: nil, the max count of table entries, once the table count exceeds this value, new table will be created
+---@field private table_cnt integer
+---@field private table_idx integer
 ---@field private cache table
 ---@field private _log fun(self: LuaDataBaseV2, ...)
 ---@field private create_db fun(self: LuaDataBaseV2)
@@ -141,7 +144,6 @@ local LuaDataBaseV2 = class()
 --      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the `same order` and same number as the elements in the table
 --
 
----@param self LuaDataBaseV2
 ---@param params LuaDataBaseV2.params
 function LuaDataBaseV2:_init(params)
     texpect.expect_table(params, "init_tbl")
@@ -227,6 +229,8 @@ function LuaDataBaseV2:_init(params)
             texpect.expect_string(kv_str, "kv_str")
 
             key, data_type = kv_str:match("([^%s=>]+)%s*=>%s*([^%s]+)")
+            ---@cast data_type string
+
             data_type = data_type:upper()
             assert(data_type == "INTEGER" or data_type == "TEXT", "[LuaDataBaseV2] Unsupported data type: " .. data_type)
         else

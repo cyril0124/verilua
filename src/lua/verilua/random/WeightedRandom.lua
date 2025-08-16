@@ -5,7 +5,10 @@ local assert = assert
 local ipairs = ipairs
 local random = math.random
 
----@class (exact) WeightedRandom.weighted_random_table: {[1]: number, start: integer, end: integer}
+---@class (exact) WeightedRandom.weighted_random_table
+---@field [1] integer weight
+---@field [2] integer start
+---@field [3] integer end
 
 ---@class (exact) WeightedRandom
 ---@overload fun(weighted_random_table: WeightedRandom.weighted_random_table[]): WeightedRandom
@@ -47,6 +50,8 @@ function WeightedRandom:gen()
     end
 
     local last_value = self.weighted_random_table[#self.weighted_random_table]
+    
+    ---@diagnostic disable-next-line: need-check-nil
     return random(last_value[2], last_value[3])
 end
 

@@ -6,16 +6,16 @@ local random = math.random
 local randomseed = math.randomseed
 
 ---@class (exact) CyclicRandom
----@overload fun(start_value: number, end_value: number): CyclicRandom
----@field private gen_idx number
----@field private size number
----@field private values table<number, number>
----@field shuffle fun(self: CyclicRandom, seed: number)
----@field gen fun(self: CyclicRandom, seed?: number): number
+---@overload fun(start_value: integer, end_value: integer): CyclicRandom
+---@field private gen_idx integer
+---@field private size integer
+---@field private values table<integer, integer>
+---@field shuffle fun(self: CyclicRandom, seed: integer)
+---@field gen fun(self: CyclicRandom, seed?: integer): integer
 local CyclicRandom = class()
 
----@param start_value number
----@param end_value number
+---@param start_value integer
+---@param end_value integer
 function CyclicRandom:_init(start_value, end_value)
     texpect.expect_number(start_value, "start_value")
     texpect.expect_number(end_value, "end_value")

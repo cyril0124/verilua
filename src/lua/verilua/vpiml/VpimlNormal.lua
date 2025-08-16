@@ -3,6 +3,7 @@ local ffi = require "ffi"
 
 local C = ffi.C
 
+-- `GLOBAL_VERILUA_ENV` is set by `libverilua/src/verilua_env.rs`
 local env = _G.GLOBAL_VERILUA_ENV
 
 ffi.cdef[[

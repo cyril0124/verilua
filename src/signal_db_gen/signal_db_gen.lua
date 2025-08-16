@@ -49,10 +49,10 @@ local function type_str_to_vpi_type(type_str, hier_path)
     end
 end
 
----@param size number
----@param hier_path_vec string[]
----@param bitwidth_vec number[]
----@param type_str_vec string[]
+---@param size integer
+---@param hier_path_vec table<integer, string>
+---@param bitwidth_vec table<integer, integer>
+---@param type_str_vec table<integer, string>
 function _G.insert_signal_db(size, hier_path_vec, bitwidth_vec, type_str_vec)
     for i = 1, size do
         ---@type string[]

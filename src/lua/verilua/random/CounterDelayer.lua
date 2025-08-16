@@ -6,15 +6,15 @@ local f = string.format
 local random = math.random
 
 ---@class (exact) CounterDelayer
----@overload fun(min_delay: number, max_delay: number): CounterDelayer
----@field private min_delay number
----@field private max_delay number
----@field private cnt number
+---@overload fun(min_delay: integer, max_delay: integer): CounterDelayer
+---@field private min_delay integer
+---@field private max_delay integer
+---@field private cnt integer
 ---@field fire fun(self: CounterDelayer): boolean Check if it is time to fire, return `true` if it is time to fire
 local CounterDelayer = class()
 
----@param min_delay number
----@param max_delay number
+---@param min_delay integer
+---@param max_delay integer
 function CounterDelayer:_init(min_delay, max_delay)
     texpect.expect_number(min_delay, "min_delay")
     texpect.expect_number(max_delay, "max_delay")

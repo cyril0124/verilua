@@ -17,7 +17,7 @@ local verilua_debug = _G.verilua_debug
 
 ---@class (exact) Bundle
 ---@field __type string
----@field signals_table table<string>
+---@field signals_table table<integer, string>
 ---@field prefix string
 ---@field hierarchy string
 ---@field name string
@@ -26,9 +26,9 @@ local verilua_debug = _G.verilua_debug
 ---@field valid CallableHDL
 ---@field ready CallableHDL
 ---@field fire fun(self: Bundle): boolean
----@field get_all fun(self: Bundle): table<number|MultiBeatData>
----@field set_all fun(self: Bundle, values_tbl: table<number|MultiBeatData>)
----@field private __dump_parts table<string>
+---@field get_all fun(self: Bundle): table<integer, integer|MultiBeatData>
+---@field set_all fun(self: Bundle, values_tbl: table<integer, integer|integer[]>)
+---@field private __dump_parts table<integer, string>
 ---@field dump_str fun(self: Bundle): string
 ---@field format_dump_str fun(self: Bundle, format_func: fun(chdl: CallableHDL, name: string): string): string
 ---@field dump fun(self: Bundle)
@@ -111,6 +111,7 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
         self.fire = function (this)
             ---@diagnostic disable-next-line: missing-return
             assert(false, "[" .. self.name .. "] has not valid filed in this bundle!")
+            ---@diagnostic disable-next-line: missing-return
         end
     else
         if self.ready == nil then
@@ -142,6 +143,7 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
         self.get_all = function (this)
             ---@diagnostic disable-next-line: missing-return
             assert(false, "TODO: is_decoupled")
+            ---@diagnostic disable-next-line: missing-return
         end
 
         self.set_all = function (this, values_tbl)
@@ -150,7 +152,7 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
     end
 
     -- Used for saving dump parts
-    self.__dump_parts = table_new(#self.signals_table, 0)
+    self.__dump_parts = table_new(#self.signals_table, 0) --[[@as table<integer, string>]]
 
     if self.is_decoupled then 
         self.dump_str = function (this)

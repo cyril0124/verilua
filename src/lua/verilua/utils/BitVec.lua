@@ -36,32 +36,32 @@ local to_hex_str = utils.to_hex_str
 ---@alias BitVec.HexStr string
 
 ---@class (exact) BitVec
----@overload fun(data: table<number>|ffi.cdata*|number|string, bit_width?: number): BitVecInst
+---@overload fun(data: table<integer, integer>|ffi.cdata*|integer|string, bit_width?: integer): BitVecInst
 ---@field __type string
 ---@field _call_cache table<string, SubBitVec>
----@field u32_vec table<number>
----@field bit_width number
----@field beat_size number
----@field _update_u32_vec fun(self: BitVec, data: number[])
----@field update_value fun(self: BitVec, data: number[]|number|uint64_t|BitVec.HexStr)
----@field get_bitfield fun(self: BitVec, s: number, e: number): uint64_t
----@field get_bitfield_hex_str fun(self: BitVec, s: number, e: number): string
----@field get_bitfield_vec fun(self: BitVec, s: number, e: number): table<number>
----@field set_bitfield fun(self: BitVec, s: number, e: number, v: number|uint64_t)
----@field set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: BitVec.HexStr)
----@field set_bitfield_vec fun(self: BitVec, s: number, e: number, v: table<number>)
----@field _set_bitfield fun(self: BitVec, s: number, e: number, v: number|uint64_t): BitVec
----@field _set_bitfield_hex_str fun(self: BitVec, s: number, e: number, hex_str: BitVec.HexStr): BitVec
----@field _set_bitfield_vec fun(self: BitVec, s: number, e: number, v: table<number>): BitVec
+---@field u32_vec table<integer, integer>
+---@field bit_width integer
+---@field beat_size integer
+---@field _update_u32_vec fun(self: BitVec, data: integer[])
+---@field update_value fun(self: BitVec, data: integer[]|integer|uint64_t|BitVec.HexStr)
+---@field get_bitfield fun(self: BitVec, s: integer, e: integer): uint64_t
+---@field get_bitfield_hex_str fun(self: BitVec, s: integer, e: integer): string
+---@field get_bitfield_vec fun(self: BitVec, s: integer, e: integer): table<integer, integer>
+---@field set_bitfield fun(self: BitVec, s: integer, e: integer, v: integer|uint64_t)
+---@field set_bitfield_hex_str fun(self: BitVec, s: integer, e: integer, hex_str: BitVec.HexStr)
+---@field set_bitfield_vec fun(self: BitVec, s: integer, e: integer, v: table<integer, integer>)
+---@field _set_bitfield fun(self: BitVec, s: integer, e: integer, v: integer|uint64_t): BitVec
+---@field _set_bitfield_hex_str fun(self: BitVec, s: integer, e: integer, hex_str: BitVec.HexStr): BitVec
+---@field _set_bitfield_vec fun(self: BitVec, s: integer, e: integer, v: table<integer, integer>): BitVec
 ---@field dump_str fun(self: BitVec): string
 ---@field dump fun(self: BitVec)
 ---@field to_hex_str fun(self: BitVec): BitVec.HexStr
----@field tonumber fun(self: BitVec): number
----@field tonumber64 fun(self: BitVec): number
+---@field tonumber fun(self: BitVec): integer
+---@field tonumber64 fun(self: BitVec): integer
 local BitVec = class()
 
 ---@class (exact) BitVecInst: BitVec
----@overload fun(s: number, e: number): SubBitVec
+---@overload fun(s: integer, e: integer): SubBitVec
 
 local function hex_str_to_u32_vec(hex_str)
     local hex_length = #hex_str
@@ -124,7 +124,7 @@ function BitVec:_init(data, bit_width)
             assert(false, "Unsupported type: cdata(uint64_t)")
         end
 
-        local data_len = tonumber(data[0])
+        local data_len = tonumber(data[0]) --[[@as integer]]
         auto_bit_width = data_len * 32
 
         if bit_width then
@@ -145,18 +145,19 @@ function BitVec:_init(data, bit_width)
 
             self.bit_width = bit_width
         else
-            self.u32_vec = table_new(tonumber(data[0]) --[[@as number]], 0)
+            self.u32_vec = table_new(tonumber(data[0]) --[[@as integer]], 0)
             for i  = 1, data_len do
                 self.u32_vec[i] = data[i]
             end
             self.bit_width = auto_bit_width
         end
     elseif typ == "number" then
+        ---@cast data integer
         auto_bit_width = 32
         if bit_width then
             local beat_size = math_floor(math_floor(bit_width + 31) / 32)
 
-            self.u32_vec = table_new(beat_size, 0)
+            self.u32_vec = table_new(beat_size, 0) --[[@as table<integer, integer>]]
             self.u32_vec[1] = data
             for i = 2, beat_size do
                 self.u32_vec[i] = 0
@@ -194,7 +195,7 @@ function BitVec:_init(data, bit_width)
     self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
     if self.beat_size == 1 then
         self._update_u32_vec = function (t, data)
-            t.u32_vec[1] = data
+            t.u32_vec[1] = data[1]
         end
     elseif self.beat_size > 1 then
         self._update_u32_vec = function (t, data)
@@ -205,7 +206,7 @@ function BitVec:_init(data, bit_width)
     end
 
     self.tonumber = function (this)
-        return tonumber(this.u32_vec[1]) --[[@as number]]
+        return tonumber(this.u32_vec[1]) --[[@as integer]]
     end
 
     if self.beat_size > 1 then
@@ -240,6 +241,7 @@ function BitVec:update_value(data)
         end
     elseif typ == "cdata" then
         if ffi.istype("uint64_t", data) then
+            ---@cast data integer
             local beat_size = #self.u32_vec
 
             self.u32_vec[1] = tonumber(bit_band(data, 0x00000000FFFFFFFFULL))
@@ -333,16 +335,16 @@ function BitVec:get_bitfield_hex_str(s, e)
 
     local result = ""
     if beat_size == 1 then
-        result = bit_tohex(tonumber(self:get_bitfield(s, e)) --[[@as number]])
+        result = bit_tohex(tonumber(self:get_bitfield(s, e)) --[[@as integer]])
     else
         local ss = s
         local ee = s + 31
         for i = 1, beat_size - 1 do
-            result = bit_tohex(tonumber(self:get_bitfield(ss, ee)) --[[@as number]]) .. result
+            result = bit_tohex(tonumber(self:get_bitfield(ss, ee)) --[[@as integer]]) .. result
             ss = ee + 1
             ee = ee + 32
         end
-        result = bit_tohex(tonumber(self:get_bitfield(ss, e)) --[[@as number]]) .. result
+        result = bit_tohex(tonumber(self:get_bitfield(ss, e)) --[[@as integer]]) .. result
     end
 
     return result
@@ -351,7 +353,7 @@ end
 function BitVec:get_bitfield_vec(s, e)
     local beat_size = math_floor((e - s) / 32) + 1
 
-    local result = table_new(beat_size, 0)
+    local result = table_new(beat_size, 0) --[[@as table<integer, integer>]]
     if beat_size == 1 then
         result[1] = tonumber(self:get_bitfield(s, e))
     else
@@ -394,7 +396,7 @@ function BitVec:set_bitfield(s, e, v)
 
                 mask = bit_bnot(bit_lshift(bit_lshift(1ULL, end_bit - start_bit + 1) - 1, start_bit))
                 vmask = bit_lshift(1ULL, end_bit - start_bit + 1) - 1
-                masked_v = bit_band(v + 0ULL, vmask)
+                masked_v = bit_band((v + 0ULL) --[[@as integer]], vmask)
                 u32 = bit_bor(bit_band(u32, mask), bit_lshift(masked_v, start_bit))
             else
                 -- mask = ~(((1ULL << (31 - start_bit)) - 1) << start_bit)
@@ -404,7 +406,7 @@ function BitVec:set_bitfield(s, e, v)
 
                 mask = bit_bnot(bit_lshift(bit_lshift(1ULL, 31 - start_bit) - 1, start_bit))
                 vmask = bit_lshift(1ULL, 32 - start_bit) - 1
-                masked_v = bit_band(v + 0ULL, vmask)
+                masked_v = bit_band((v + 0ULL) --[[@as integer]], vmask)
                 u32 = bit_bor(bit_band(u32, mask), bit_lshift(masked_v, start_bit))
             end
         elseif i == end_beat_id then
@@ -415,13 +417,13 @@ function BitVec:set_bitfield(s, e, v)
 
             mask = bit_bnot(bit_lshift(1ULL, end_bit + 1) - 1)
             vmask = bit_lshift(1ULL, end_bit + 1) - 1
-            masked_v = bit_band(bit_rshift(v + 0ULL, (i - 1) * 32 - s), vmask)
+            masked_v = bit_band(bit_rshift((v + 0ULL) --[[@as integer]], (i - 1) * 32 - s), vmask)
             u32 = bit_bor(bit_band(u32, mask), masked_v)
         else
             -- masked_v = ((v + 0ULL) >> (32 - start_bit)) & 0xFFFFFFFFULL
             -- u32 = (u32 & 0ULL) | masked_v
 
-            masked_v = bit_band(bit_rshift(v + 0ULL, 32 - start_bit), 0xFFFFFFFFULL)
+            masked_v = bit_band(bit_rshift((v + 0ULL) --[[@as integer]], 32 - start_bit), 0xFFFFFFFFULL)
             u32 = bit_bor(bit_band(u32, 0ULL), masked_v)
         end
 

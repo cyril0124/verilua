@@ -25,9 +25,9 @@ local verilua_debug = _G.verilua_debug
 ---@field prefix string
 ---@field hierarchy string
 ---@field name string
----@field signals_tbl table<string>
----@field alias_tbl table<string>
----@field __dump_parts table<string>
+---@field signals_tbl table<integer, string>
+---@field alias_tbl table<integer, string>
+---@field __dump_parts table<integer, string>
 ---@field valid CallableHDL
 ---@field ready CallableHDL
 ---@field dump_str fun(self: AliasBundle): string
@@ -76,7 +76,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
     self.hierarchy = hierarchy
     self.name = name or "Unknown"
 
-    self.signals_tbl = table_new(#alias_signal_tbl, 0)
+    self.signals_tbl = table_new(#alias_signal_tbl, 0) --[[@as table<integer, string>]]
     for _, x in ipairs(alias_signal_tbl) do
         assert(x[1] ~= nil)
         assert(type(x[1]) == "string")
@@ -89,7 +89,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
     end
     local optional_signals = optional_signals or {} -- optional signals are allowed to be empty
 
-    self.alias_tbl = table_new(#alias_signal_tbl, 0)
+    self.alias_tbl = table_new(#alias_signal_tbl, 0) --[[@as table<integer, string>]]
     for _, x in ipairs(alias_signal_tbl) do
         if x[2] == nil then
             table_insert(self.alias_tbl, x[1])
@@ -119,7 +119,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
     end
 
     -- Used for saving dump parts
-    self.__dump_parts = table_new(num_signals, 0)
+    self.__dump_parts = table_new(num_signals, 0) --[[@as table<integer, string>]]
 
     self.dump_str = function (this)
         local parts = this.__dump_parts

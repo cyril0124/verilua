@@ -387,12 +387,12 @@ do
     local debug_traceback = debug.traceback
     local xpcall = xpcall
 
-    ---@type fun(block: table<function>): table<function>
+    ---@type fun(block: function[]): table<function>
     _G.catch = function (block)
         return {catch = block[1]}
     end
 
-    ---@type fun(block: table<function>): table<function>
+    ---@type fun(block: function[]): table<function>
     _G.finally = function (block)
         return {finally = block[1]}
     end
@@ -425,7 +425,7 @@ do
     ---         }
     ---     }
     --- ```
-    ---@type fun(block: table<function>): ...
+    ---@type fun(block: function[]): ...
     _G.try = function (block)
 
         -- get the try function
@@ -526,6 +526,7 @@ do
 ---@field bv fun(init_hex_str: string, bitwidth?: number): BitVec
 ---@field bit_vec fun(init_hex_str: string, bitwidth?: number): BitVec
 
+---@class string: string.ext Compatible with EmmyluaLS
 ---@class stringlib: string.ext
 
 ----------------------------------------------------------------------
@@ -1245,15 +1246,11 @@ do
     ---@class TaskName: string
     ---@alias TaskFunction fun()
 
-    ---@class _G
-    ---@field verilua fun(cmd: string): fun(tbl: table)
-    ---@field fork fun(task_table: table<TaskName|number, TaskFunction>)
-    ---@field initial fun(task_table: table<TaskName|number, TaskFunction>)
-    ---@field final fun(task_table: table<TaskName|number, TaskFunction>)
-
     local enable_verilua_debug = _G.enable_verilua_debug
     local verilua_debug = _G.verilua_debug
 
+    ---@param cmd string
+    ---@return fun(tbl: table)
     _G.verilua = function(cmd)
         if enable_verilua_debug then
             verilua_debug(f("[verilua/%s]", cmd), "execute => " .. cmd)
@@ -1373,6 +1370,7 @@ do
         end
     end
 
+    ---@param task_table table<TaskName|number, TaskFunction>
     _G.fork = function (task_table)
         assert(type(task_table) == "table")
         for name, func in pairs(task_table) do
@@ -1415,7 +1413,9 @@ do
     ---@param one_task_table table<TaskName|number, TaskFunction>
     ---@return EventHandle, TaskID
     _G.jfork = function (one_task_table)
+        ---@type EventHandle
         local ehdl
+        ---@type TaskID
         local task_id
         local cnt = 0
         assert(type(one_task_table) == "table")
@@ -1449,7 +1449,7 @@ do
 
     -- Join multiple `jfork` tasks(wait until all tasks finished)
     -- This function will block current task until all `jfork` tasks finished
-    ---@param ehdl_tbl EventHandle|EventHandle[]
+    ---@param ehdl_tbl EventHandle|table<integer, EventHandle>
     _G.join = function (ehdl_tbl)
         assert(type(ehdl_tbl) == "table")
         if ehdl_tbl.event_id then
@@ -1467,7 +1467,6 @@ do
                 end
 
                 finished_ehdl_vec[ehdl.event_id] = false
-                ---@diagnostic disable-next-line: invisible
                 table.insert(scheduler.event_task_id_list_map[ehdl.event_id], assert(scheduler.curr_task_id))
 
                 if not scheduler.event_name_map[ehdl.event_id] then
@@ -1491,7 +1490,6 @@ do
 
                 finished_cnt = finished_cnt + 1
 
-                ---@diagnostic disable-next-line: invisible
                 local curr_wakeup_event_id = assert(scheduler.curr_wakeup_event_id)
                 assert(not finished_ehdl_vec[curr_wakeup_event_id])
                 finished_ehdl_vec[curr_wakeup_event_id] = true
@@ -1499,6 +1497,7 @@ do
         end
     end
 
+    ---@param task_table table<TaskName|integer, TaskFunction>
     _G.initial = function (task_table)
         assert(type(task_table) == "table")
         for k, func in pairs(task_table) do
@@ -1507,6 +1506,7 @@ do
         end
     end
 
+    ---@param task_table table<TaskName|integer, TaskFunction>
     _G.final = function (task_table)
         assert(type(task_table) == "table")
         for k, func in pairs(task_table) do

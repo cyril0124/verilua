@@ -83,7 +83,7 @@ end
 
 ---@class (exact) ExportedModule
 ---@field hierPaths HierPath[]
----@field statistics {binExprCount: number, netCount: number, varCount: number}
+---@field statistics {binExprCount: integer, netCount: integer, varCount: integer}
 ---@field subModules ModuleName[]
 
 ---@class (exact) CovExporterMetaInfo
@@ -169,6 +169,9 @@ function CoverageGetter:enable_coverage(hier_or_module, recursive)
             self:read_cov_meta_info()
         end
 
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
+
         local hier_paths = self.cov_meta_info.exportedModules[hier_or_module].hierPaths
         if not hier_paths then
             assert(false, "[CoverageGetter] Failed to get hier paths from module name: " .. hier_or_module)
@@ -200,6 +203,9 @@ function CoverageGetter:disable_coverage(hier_or_module, recursive)
             self:read_cov_meta_info()
         end
 
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
+
         local hier_paths = self.cov_meta_info.exportedModules[hier_or_module].hierPaths
         if not hier_paths then
             assert(false, "[CoverageGetter] Failed to get hier paths from module name: " .. hier_or_module)
@@ -227,6 +233,9 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
             self:read_cov_meta_info()
         end
 
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
+
         local hier
         if hier_or_module:find("%.") then
             hier = hier_or_module
@@ -242,7 +251,7 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
                         hier_or_module, table.concat(hier_paths, ", ")))
             end
 
-            hier = hier_paths[1]
+            hier = hier_paths[1] --[[@as string]]
         end
 
         local module_name = self.cov_meta_info.hierPathToModuleName[hier]
@@ -270,6 +279,7 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
             if #submodules == 0 then
                 self.setDpiScope(hier)
                 self.getCoverage(self.coverage_value)
+                ---@diagnostic disable-next-line: undefined-field
                 return tonumber(self.coverage_value[0]) --[[@as number]]
             else
                 local total_count = 0
@@ -298,11 +308,12 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
         end
 
         -- Calculate recursive coverage
-        local acc_coverage = 0
+        local acc_coverage = 0.0
         for m, percent in pairs(module_to_percent) do
             if m == module_name then
                 self.setDpiScope(hier)
                 self.getCoverage(self.coverage_value)
+                ---@diagnostic disable-next-line: undefined-field
                 local coverage = tonumber(self.coverage_value[0]) --[[@as number]]
                 acc_coverage = acc_coverage + coverage * percent
             else
@@ -310,6 +321,7 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
                 for _, h in ipairs(hiers) do
                     self.setDpiScope(h)
                     self.getCoverage(self.coverage_value)
+                    ---@diagnostic disable-next-line: undefined-field
                     local submodule_coverage = tonumber(self.coverage_value[0]) --[[@as number]]
                     acc_coverage = acc_coverage + submodule_coverage * percent
                 end
@@ -324,6 +336,7 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
         -- ambiguity.
         self.setDpiScope(hier_or_module)
         self.getCoverage(self.coverage_value)
+        ---@diagnostic disable-next-line: undefined-field
         return tonumber(self.coverage_value[0]) --[[@as number]]
     end
 end
@@ -335,6 +348,9 @@ function CoverageGetter:get_cond_coverage(hier, recursive)
         if not self.cov_meta_info then
             self:read_cov_meta_info()
         end
+
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
 
         local module_name = self.cov_meta_info.hierPathToModuleName[hier]
         if not module_name then
@@ -361,6 +377,7 @@ function CoverageGetter:get_cond_coverage(hier, recursive)
             if #submodules == 0 then
                 self.setDpiScope(hier)
                 self.getCondCoverage(self.coverage_value)
+                ---@diagnostic disable-next-line: undefined-field
                 return tonumber(self.coverage_value[0]) --[[@as number]]
             else
                 local total_count = 0
@@ -388,11 +405,12 @@ function CoverageGetter:get_cond_coverage(hier, recursive)
         end
 
         -- Calculate recursive coverage
-        local acc_coverage = 0
+        local acc_coverage = 0.0
         for m, percent in pairs(module_to_percent) do
             if m == module_name then
                 self.setDpiScope(hier)
                 self.getCondCoverage(self.coverage_value)
+                ---@diagnostic disable-next-line: undefined-field
                 local coverage = tonumber(self.coverage_value[0]) --[[@as number]]
                 acc_coverage = acc_coverage + coverage * percent
             else
@@ -400,6 +418,7 @@ function CoverageGetter:get_cond_coverage(hier, recursive)
                 for _, h in ipairs(hiers) do
                     self.setDpiScope(h)
                     self.getCondCoverage(self.coverage_value)
+                    ---@diagnostic disable-next-line: undefined-field
                     local submodule_coverage = tonumber(self.coverage_value[0]) --[[@as number]]
                     acc_coverage = acc_coverage + submodule_coverage * percent
                 end
@@ -410,16 +429,17 @@ function CoverageGetter:get_cond_coverage(hier, recursive)
     else
         self.setDpiScope(hier)
         self.getCondCoverage(self.coverage_value)
+        ---@diagnostic disable-next-line: undefined-field
         return tonumber(self.coverage_value[0]) --[[@as number]]
     end
 end
 
 ---@param hier_or_module string Hierarchical path of the target module or module name
----@param length number? Length of the progress bar
+---@param length integer? Length of the progress bar
 ---@param recursive boolean? Whether to calculate recursive coverage value
 function CoverageGetter:show_coverage(hier_or_module, length, recursive)
     if hier_or_module:find("%.") then
-        local coverage = self:get_coverage(hier_or_module, recursive)
+        local coverage = self:get_coverage(hier_or_module, recursive) --[[@as integer]]
         print(f("[CoverageGetter] show_coverage: %s\n\t%s %.2f%%", hier_or_module,
             utils.get_progress_bar(coverage, length or 20),
             coverage * 100))
@@ -428,6 +448,9 @@ function CoverageGetter:show_coverage(hier_or_module, length, recursive)
             self:read_cov_meta_info()
         end
 
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
+
         local hier_paths = self.cov_meta_info.exportedModules[hier_or_module].hierPaths
         if not hier_paths then
             assert(false, "[CoverageGetter] Failed to get hier paths from module name: " .. hier_or_module)
@@ -435,7 +458,7 @@ function CoverageGetter:show_coverage(hier_or_module, length, recursive)
 
         print(f("[CoverageGetter] show_coverage: %s", hier_or_module))
         for _, hier_path in ipairs(hier_paths) do
-            local coverage = self:get_coverage(hier_path, recursive)
+            local coverage = self:get_coverage(hier_path, recursive) --[[@as integer]]
             print(f("\t%s\n\t%s %.2f%%", hier_path, utils.get_progress_bar(coverage, length or 20), coverage * 100))
         end
         print("")
@@ -443,17 +466,20 @@ function CoverageGetter:show_coverage(hier_or_module, length, recursive)
 end
 
 ---@param hier_or_module string Hierarchical path of the target module or module name
----@param length number? Length of the progress bar
+---@param length integer? Length of the progress bar
 ---@param recursive boolean? Whether to calculate recursive coverage value
 function CoverageGetter:show_cond_coverage(hier_or_module, length, recursive)
     if hier_or_module:find("%.") then
-        local coverage = self:get_cond_coverage(hier_or_module, recursive)
+        local coverage = self:get_cond_coverage(hier_or_module, recursive) --[[@as integer]]
         print(f("[CoverageGetter] show_cond_coverage: %s\n\t%s %.2f%%", hier_or_module,
             utils.get_progress_bar(coverage, length or 20), coverage * 100))
     else
         if not self.cov_meta_info then
             self:read_cov_meta_info()
         end
+
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
 
         local hier_paths = self.cov_meta_info.exportedModules[hier_or_module].hierPaths
         if not hier_paths then
@@ -462,7 +488,7 @@ function CoverageGetter:show_cond_coverage(hier_or_module, length, recursive)
 
         print(f("[CoverageGetter] show_cond_coverage: %s", hier_or_module))
         for _, hier_path in ipairs(hier_paths) do
-            local coverage = self:get_cond_coverage(hier_path, recursive)
+            local coverage = self:get_cond_coverage(hier_path, recursive) --[[@as integer]]
             print(f("\t%s\n\t%s %.2f%%", hier_path, utils.get_progress_bar(coverage, length or 20), coverage * 100))
         end
         print("")
@@ -473,6 +499,7 @@ end
 function CoverageGetter:get_coverage_count(hier)
     self.setDpiScope(hier)
     self.getCoverageCount(self.total_count, self.total_bin_expr_count)
+    ---@diagnostic disable-next-line: undefined-field
     return tonumber(self.total_count[0]) --[[@as number]], tonumber(self.total_bin_expr_count[0]) --[[@as number]]
 end
 
@@ -500,6 +527,9 @@ function CoverageGetter:reset_coverage(hier_or_module, recursive)
         if not self.cov_meta_info then
             self:read_cov_meta_info()
         end
+
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
 
         local hier_paths = self.cov_meta_info.exportedModules[hier_or_module].hierPaths
         if not hier_paths then
@@ -531,6 +561,9 @@ function CoverageGetter:show_coverage_count(hier_or_module)
             self:read_cov_meta_info()
         end
 
+        ---@diagnostic disable-next-line: unknown-cast-variable
+        ---@cast self.cov_meta_info CovExporterMetaInfo
+
         local hier_paths = self.cov_meta_info.exportedModules[hier_or_module].hierPaths
         if not hier_paths then
             assert(false, "[CoverageGetter] Failed to get hier paths from module name: " .. hier_or_module)
@@ -549,6 +582,9 @@ function CoverageGetter:module_name_to_hiers(module_name)
     if not self.cov_meta_info then
         self:read_cov_meta_info()
     end
+
+    ---@diagnostic disable-next-line: unknown-cast-variable
+    ---@cast self.cov_meta_info CovExporterMetaInfo
 
     local _hierPaths = self.cov_meta_info.exportedModules[module_name].hierPaths
     if not _hierPaths then

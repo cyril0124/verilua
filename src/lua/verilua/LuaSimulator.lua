@@ -14,6 +14,7 @@ local SchedulerMode = _G.SchedulerMode
 local verilua_debug = _G.verilua_debug
 local verilua_warning = _G.verilua_warning
 
+---@type fun()
 local set_dpi_scope
 if cfg.simulator == "vcs" then
     ffi.cdef [[
@@ -151,6 +152,7 @@ local get_mode = function()
     end
 end
 
+---@type any
 local print_hierarchy_lib
 local print_hierarchy = function(max_level)
     local max_level = max_level or 0

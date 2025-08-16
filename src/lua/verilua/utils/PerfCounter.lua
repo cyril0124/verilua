@@ -1,5 +1,5 @@
 ---@class (exact) PerfCounter.state
----@field calls number
+---@field calls integer
 ---@field total number
 
 ---@class (exact) PerfCounter
@@ -12,7 +12,7 @@ local PerfCounter = {
 
 function PerfCounter:wrap_func(name, func)
     assert(self.perf_map[name] == nil, "PerfCounter:wrap_func: name already exists")
-    self.perf_map[name] = { calls = 0, total = 0 }
+    self.perf_map[name] = { calls = 0, total = 0.0 }
 
     local state = self.perf_map[name]
 
@@ -48,7 +48,7 @@ function PerfCounter:print_perf(name)
 
     -- Step 1: Prepare the data for printing.
     local entries = {}
-    local grand_total_time = 0
+    local grand_total_time = 0.0
     for n, stats in pairs(self.perf_map) do
         if stats.calls > 0 then
             table.insert(entries, { name = n, stats = stats })
