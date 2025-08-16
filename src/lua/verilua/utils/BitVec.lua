@@ -42,7 +42,7 @@ local to_hex_str = utils.to_hex_str
 ---@field u32_vec table<integer, integer>
 ---@field bit_width integer
 ---@field beat_size integer
----@field _update_u32_vec fun(self: BitVec, data: integer[])
+---@field _update_u32_vec fun(self: BitVec, data: integer|integer[])
 ---@field update_value fun(self: BitVec, data: integer[]|integer|uint64_t|BitVec.HexStr)
 ---@field get_bitfield fun(self: BitVec, s: integer, e: integer): uint64_t
 ---@field get_bitfield_hex_str fun(self: BitVec, s: integer, e: integer): string
@@ -195,7 +195,8 @@ function BitVec:_init(data, bit_width)
     self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
     if self.beat_size == 1 then
         self._update_u32_vec = function (t, data)
-            t.u32_vec[1] = data[1]
+            ---@cast data integer
+            t.u32_vec[1] = data
         end
     elseif self.beat_size > 1 then
         self._update_u32_vec = function (t, data)
