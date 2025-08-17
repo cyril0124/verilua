@@ -1,16 +1,18 @@
+use fslock::LockFile;
 use goblin::elf::{Elf, Sym};
 use hashbrown::HashMap;
 use lazy_static::*;
-use libc::{PATH_MAX, c_char, readlink};
+use libc::{PATH_MAX, c_char, c_int, c_longlong, c_void, readlink};
 use once_cell::sync::OnceCell;
 use std::ffi::{CStr, CString};
 use std::io::Read;
+use std::ptr;
 use std::{fs::File, sync::Mutex};
 
 use crate::vpi_user::*;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_executable_name() -> *const libc::c_char {
+pub extern "C" fn get_executable_name() -> *const c_char {
     let mut path = [0; PATH_MAX as usize];
     let len = unsafe {
         readlink(
@@ -32,7 +34,7 @@ pub extern "C" fn get_executable_name() -> *const libc::c_char {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_self_cmdline() -> *mut libc::c_char {
+pub extern "C" fn get_self_cmdline() -> *mut c_char {
     let mut file = match File::open("/proc/self/cmdline") {
         Ok(file) => file,
         Err(_) => {
@@ -135,7 +137,7 @@ static CACHE_RESULT: Mutex<Option<String>> = Mutex::new(None);
 static EXECUTABLE_NAME: OnceCell<String> = OnceCell::new();
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_simulator_auto() -> *const std::ffi::c_char {
+pub extern "C" fn get_simulator_auto() -> *const c_char {
     let mut cached_result = CACHE_RESULT.lock().unwrap();
     if let Some(ref result) = *cached_result {
         return CString::new(result.clone()).unwrap().into_raw();
@@ -175,7 +177,7 @@ pub extern "C" fn get_simulator_auto() -> *const std::ffi::c_char {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn c_simulator_control(cmd: libc::c_longlong) {
+pub unsafe extern "C" fn c_simulator_control(cmd: c_longlong) {
     #[cfg(feature = "debug")]
     log::debug!("c_simulator_control => {}", {
         match cmd {
@@ -192,11 +194,54 @@ pub unsafe extern "C" fn c_simulator_control(cmd: libc::c_longlong) {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wildmatch(
-    pattern: *const libc::c_char,
-    string: *const libc::c_char,
-) -> libc::c_int {
+    pattern: *const c_char,
+    string: *const c_char,
+) -> c_int {
     let pattern = unsafe { CStr::from_ptr(pattern) };
     let string = unsafe { CStr::from_ptr(string) };
     wildmatch::WildMatch::new(pattern.to_str().unwrap()).matches(string.to_str().unwrap())
-        as libc::c_int
+        as c_int
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn acquire_lock(path: *const c_char) -> *mut c_void {
+    if path.is_null() {
+        println!("[acquire_lock] Path is null");
+        return ptr::null_mut();
+    }
+
+    let c_str = unsafe { CStr::from_ptr(path) };
+    let path_str = match c_str.to_str() {
+        Ok(s) => s,
+        Err(_) => return ptr::null_mut(),
+    };
+
+    let mut lockfile = match LockFile::open(path_str) {
+        Ok(f) => f,
+        Err(_) => {
+            println!(
+                "[acquire_lock] Failed to open lock file, path: {}",
+                path_str
+            );
+            return ptr::null_mut();
+        }
+    };
+
+    if let Err(_) = lockfile.lock() {
+        println!("[acquire_lock] Failed to lock, path: {}", path_str);
+        return ptr::null_mut();
+    }
+
+    Box::into_raw(Box::new(lockfile)) as *mut c_void
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn release_lock(lock_handle: *mut c_void) {
+    if lock_handle.is_null() {
+        panic!("Lock handle is null");
+    }
+
+    let lock_ptr = lock_handle as *mut LockFile;
+
+    let _lockfile_box = unsafe { Box::from_raw(lock_ptr) };
 }

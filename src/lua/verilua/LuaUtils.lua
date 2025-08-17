@@ -1002,4 +1002,62 @@ function utils.loadcode(code, env)
     return ret()
 end
 
+local unique_lock_file_idx = 0
+-- Execute a function in an exclusive environment. (i.e. only one thread can execute the function at the same time)
+---@param func fun()
+---@param lock_file_name string?
+function utils.exclusive_call(func, lock_file_name)
+    if not lock_file_name then
+        lock_file_name = "exclusive_call.lock." .. unique_lock_file_idx
+        unique_lock_file_idx = unique_lock_file_idx + 1
+    end
+
+    assert(type(func) == "function", "[utils.exclusive_call] `func` must be a function")
+    assert(type(lock_file_name) == "string", "[utils.exclusive_call] `lock_file_name` must be a string")
+
+    ffi.cdef [[
+        void *acquire_lock(const char *path);
+        void release_lock(void *lock);
+    ]]
+
+    local lock = ffi.C.acquire_lock(lock_file_name)
+    if not lock then
+        assert(false, "[utils.exclusive_call] failed to acquire lock, lock_file_name: " .. lock_file_name)
+    end
+
+    func()
+
+    ffi.C.release_lock(lock)
+end
+
+-- Generate `luacov.stats.out`
+-- How to generate coverage report using `luacov` in verilua:
+-- ```lua
+--      -- First, require luacov
+--      require "luacov"
+-- 
+--      -- Second, run your code
+--      -- <Your code here>
+-- 
+--      -- Third, generate coverage report at the end of the simulation
+--      final {
+--          function ()
+--              local utils = require "LuaUtils"
+--              utils.report_luacov()
+--          end
+--      }
+-- ```
+-- 
+function utils.report_luacov()
+    if not package.loaded.luacov then
+        assert(false, "[utils.report_luacov] luacov is not loaded! Please make sure you have inserted `require('luacov')` in your code.")
+    end
+
+    -- Needs exclusive call to avoid multiple threads generating the same report file
+    utils.exclusive_call(function ()
+        local runner = require("luacov.runner")
+        runner.save_stats()
+    end, "luacov.report.lock")
+end
+
 return utils

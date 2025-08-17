@@ -136,6 +136,7 @@ target("install_lua_modules", function()
             -- "lsqlite3",
             "linenoise",
             "argparse", -- Used by teal-language
+            "cluacov"
         }
 
         os.addenvs({ PATH = path.join(luajit_dir, "bin") })
