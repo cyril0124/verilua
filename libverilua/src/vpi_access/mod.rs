@@ -1,9 +1,11 @@
 #![allow(non_upper_case_globals)]
 use libc::{c_char, c_longlong};
 use std::cell::UnsafeCell;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 
-use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
+use crate::complex_handle::{
+    ComplexHandle, ComplexHandleRaw, ShuffledValueVec, ShuffledValueVecType,
+};
 use crate::utils;
 use crate::verilua_env::VeriluaEnv;
 use crate::vpi_user::*;

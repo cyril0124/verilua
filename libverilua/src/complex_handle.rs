@@ -10,6 +10,30 @@ pub type ComplexHandleRaw = libc::c_longlong;
 
 const MAX_VECTOR_SIZE: usize = 32;
 
+pub struct ShuffledValueVec<T> {
+    pub vec: Vec<T>,
+    pub len: usize,
+}
+
+impl<T> ShuffledValueVec<T>
+where
+    T: Clone,
+{
+    #[inline]
+    pub fn get_rand_value(&self) -> T {
+        let idx = unsafe { libc::rand() } % self.len as i32;
+        self.vec[idx as usize].clone()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ShuffledValueVecType {
+    None,
+    U32,
+    U64,
+    HexStr,
+}
+
 #[repr(C)]
 pub struct ComplexHandle {
     pub env: *mut libc::c_void,
@@ -31,6 +55,11 @@ pub struct ComplexHandle {
     pub negedge_cb_count: HashMap<TaskID, u32>,
     #[cfg(feature = "merge_cb")]
     pub edge_cb_count: HashMap<TaskID, u32>,
+
+    pub random_value_vec_type: ShuffledValueVecType,
+    pub random_value_u32_vec: ShuffledValueVec<u32>,
+    pub random_value_u64_vec: ShuffledValueVec<u64>,
+    pub random_value_hex_str_vec: ShuffledValueVec<String>,
 }
 
 impl ComplexHandle {
@@ -64,6 +93,19 @@ impl ComplexHandle {
                 posedge_cb_count: HashMap::new(),
                 negedge_cb_count: HashMap::new(),
                 edge_cb_count: HashMap::new(),
+                random_value_vec_type: ShuffledValueVecType::None,
+                random_value_u32_vec: ShuffledValueVec {
+                    vec: Vec::new(),
+                    len: 0,
+                },
+                random_value_u64_vec: ShuffledValueVec {
+                    vec: Vec::new(),
+                    len: 0,
+                },
+                random_value_hex_str_vec: ShuffledValueVec {
+                    vec: Vec::new(),
+                    len: 0,
+                },
             }
         }
 
@@ -83,6 +125,19 @@ impl ComplexHandle {
                     aval: 0,
                     bval: 0,
                 }; MAX_VECTOR_SIZE],
+                random_value_vec_type: ShuffledValueVecType::None,
+                random_value_u32_vec: ShuffledValueVec {
+                    vec: Vec::new(),
+                    len: 0,
+                },
+                random_value_u64_vec: ShuffledValueVec {
+                    vec: Vec::new(),
+                    len: 0,
+                },
+                random_value_hex_str_vec: ShuffledValueVec {
+                    vec: Vec::new(),
+                    len: 0,
+                },
             }
         }
     }

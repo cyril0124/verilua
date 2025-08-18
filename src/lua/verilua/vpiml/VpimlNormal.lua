@@ -102,9 +102,15 @@ ffi.cdef[[
 
     void vpiml_set_imm_shuffled(long long handle);
     void vpiml_set_imm_freeze(long long handle);
+
+    void vpiml_shuffled_range_u32(long long handle, uint32_t *u32_vec, uint32_t u32_vec_len);
+    void vpiml_shuffled_range_u64(long long handle, uint64_t *u64_vec, uint64_t u64_vec_len);
+    void vpiml_shuffled_range_hex_str(long long handle, const char **hex_str_vec, uint32_t hex_str_vec_len);
+    void vpiml_reset_shuffled_range(long long handle);
 ]]
 
-return {
+---@class VpimlNormal
+local vpiml = {
     vpiml_get_top_module = C.vpiml_get_top_module,
     vpiml_get_simulator_auto = C.vpiml_get_simulator_auto,
 
@@ -198,4 +204,11 @@ return {
 
     vpiml_set_imm_shuffled = C.vpiml_set_imm_shuffled,
     vpiml_set_imm_freeze = C.vpiml_set_imm_freeze,
+
+    vpiml_shuffled_range_u32 = C.vpiml_shuffled_range_u32,
+    vpiml_shuffled_range_u64 = C.vpiml_shuffled_range_u64,
+    vpiml_shuffled_range_hex_str = C.vpiml_shuffled_range_hex_str,
+    vpiml_reset_shuffled_range = C.vpiml_reset_shuffled_range,
 }
+
+return vpiml

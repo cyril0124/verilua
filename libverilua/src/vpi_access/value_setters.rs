@@ -225,6 +225,15 @@ macro_rules! impl_gen_set_value_str {
                     }
                 }
 
+                // The `value_str` is a string, this function is used internally.
+                pub fn [<_vpiml_ $set_type _value_ $str_type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: String) {
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    if complex_handle.try_put_value(self, &$flag, &$format as _) {
+                        complex_handle.put_value_str = value_str;
+                        self.hdl_put_value.push(complex_handle_raw);
+                    }
+                }
+
                 pub fn [<vpiml_ $set_type _imm_value_ $str_type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
                     let mut v = s_vpi_value {
@@ -450,46 +459,79 @@ impl VeriluaEnv {
 
     pub fn vpiml_set_shuffled(&mut self, complex_handle_raw: ComplexHandleRaw) {
         let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-        if complex_handle.width <= 32 {
-            unsafe {
-                self.vpiml_set_value(complex_handle_raw, libc::rand() as u32);
-            }
-        } else if complex_handle.width <= 64 {
-            unsafe {
+        match complex_handle.random_value_vec_type {
+            ShuffledValueVecType::None => unsafe {
+                if complex_handle.width <= 32 {
+                    self.vpiml_set_value(complex_handle_raw, libc::rand() as u32);
+                } else if complex_handle.width <= 64 {
+                    self.vpiml_set_value64(
+                        complex_handle_raw,
+                        (libc::rand() as u64) << 32 | libc::rand() as u64,
+                    );
+                } else {
+                    let mut value = Vec::with_capacity(complex_handle.beat_num);
+                    value.extend(
+                        (0..complex_handle.beat_num).map(|_| unsafe { libc::rand() } as u32),
+                    );
+                    self.vpiml_set_value_multi(complex_handle_raw, value.as_ptr());
+                }
+            },
+            ShuffledValueVecType::U32 => unsafe {
+                self.vpiml_set_value(
+                    complex_handle_raw,
+                    complex_handle.random_value_u32_vec.get_rand_value(),
+                );
+            },
+            ShuffledValueVecType::U64 => {
                 self.vpiml_set_value64(
                     complex_handle_raw,
-                    ((libc::rand() as u64) << 32) | (libc::rand() as u64),
+                    complex_handle.random_value_u64_vec.get_rand_value(),
                 );
             }
-        } else {
-            let mut value = Vec::with_capacity(complex_handle.beat_num);
-            value.extend((0..complex_handle.beat_num).map(|_| unsafe { libc::rand() } as u32));
-
-            unsafe {
-                self.vpiml_set_value_multi(complex_handle_raw, value.as_ptr());
+            ShuffledValueVecType::HexStr => {
+                self._vpiml_set_value_hex_str(
+                    complex_handle_raw,
+                    complex_handle.random_value_hex_str_vec.get_rand_value(),
+                );
             }
         }
     }
 
     pub fn vpiml_set_imm_shuffled(&mut self, complex_handle_raw: ComplexHandleRaw) {
         let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-        if complex_handle.width <= 32 {
-            unsafe {
-                self.vpiml_set_imm_value(complex_handle_raw, libc::rand() as u32);
-            }
-        } else if complex_handle.width <= 64 {
-            unsafe {
+        match complex_handle.random_value_vec_type {
+            ShuffledValueVecType::None => unsafe {
+                if complex_handle.width <= 32 {
+                    self.vpiml_set_imm_value(complex_handle_raw, libc::rand() as u32);
+                } else if complex_handle.width <= 64 {
+                    self.vpiml_set_imm_value64(
+                        complex_handle_raw,
+                        (libc::rand() as u64) << 32 | libc::rand() as u64,
+                    );
+                } else {
+                    let mut value = Vec::with_capacity(complex_handle.beat_num);
+                    value.extend(
+                        (0..complex_handle.beat_num).map(|_| unsafe { libc::rand() } as u32),
+                    );
+                    self.vpiml_set_imm_value_multi(complex_handle_raw, value.as_ptr());
+                }
+            },
+            ShuffledValueVecType::U32 => unsafe {
+                self.vpiml_set_imm_value(
+                    complex_handle_raw,
+                    complex_handle.random_value_u32_vec.get_rand_value(),
+                );
+            },
+            ShuffledValueVecType::U64 => {
                 self.vpiml_set_imm_value64(
                     complex_handle_raw,
-                    ((libc::rand() as u64) << 32) | (libc::rand() as u64),
+                    complex_handle.random_value_u64_vec.get_rand_value(),
                 );
             }
-        } else {
-            let mut value = Vec::with_capacity(complex_handle.beat_num);
-            value.extend((0..complex_handle.beat_num).map(|_| unsafe { libc::rand() } as u32));
-
-            unsafe {
-                self.vpiml_set_imm_value_multi(complex_handle_raw, value.as_ptr());
+            ShuffledValueVecType::HexStr => {
+                let rand_v = complex_handle.random_value_hex_str_vec.get_rand_value();
+                let c_string = CString::new(rand_v).unwrap();
+                self.vpiml_set_imm_value_hex_str(complex_handle_raw, c_string.as_ptr() as _);
             }
         }
     }
@@ -680,6 +722,59 @@ pub unsafe extern "C" fn vpiml_set_shuffled(complex_handle_raw: ComplexHandleRaw
 pub unsafe extern "C" fn vpiml_set_imm_shuffled(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
     env.vpiml_set_imm_shuffled(complex_handle_raw);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_shuffled_range_u32(
+    complex_handle_raw: ComplexHandleRaw,
+    u32_vec: *const u32,
+    u32_vec_len: usize,
+) {
+    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+    complex_handle.random_value_vec_type = ShuffledValueVecType::U32;
+    complex_handle.random_value_u32_vec = ShuffledValueVec {
+        vec: unsafe { std::slice::from_raw_parts(u32_vec, u32_vec_len).to_vec() },
+        len: u32_vec_len,
+    };
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_shuffled_range_u64(
+    complex_handle_raw: ComplexHandleRaw,
+    u64_vec: *const u64,
+    u64_vec_len: usize,
+) {
+    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+    complex_handle.random_value_vec_type = ShuffledValueVecType::U64;
+    complex_handle.random_value_u64_vec = ShuffledValueVec {
+        vec: unsafe { std::slice::from_raw_parts(u64_vec, u64_vec_len).to_vec() },
+        len: u64_vec_len,
+    };
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_shuffled_range_hex_str(
+    complex_handle_raw: ComplexHandleRaw,
+    hex_str_vec: *const *const c_char,
+    hex_str_vec_len: usize,
+) {
+    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+    complex_handle.random_value_vec_type = ShuffledValueVecType::HexStr;
+    complex_handle.random_value_hex_str_vec = ShuffledValueVec {
+        vec: unsafe {
+            std::slice::from_raw_parts(hex_str_vec, hex_str_vec_len)
+                .iter()
+                .map(|x| unsafe { CStr::from_ptr(*x).to_string_lossy().into_owned() })
+                .collect()
+        },
+        len: hex_str_vec_len,
+    };
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_reset_shuffled_range(complex_handle_raw: ComplexHandleRaw) {
+    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+    complex_handle.random_value_vec_type = ShuffledValueVecType::None;
 }
 
 #[unsafe(no_mangle)]

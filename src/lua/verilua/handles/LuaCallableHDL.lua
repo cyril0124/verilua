@@ -117,14 +117,19 @@ local post_init_mt = setmetatable({
 ---@field set_hex_str fun(self: CallableHDL, str: string)
 ---@field set_bin_str fun(self: CallableHDL, str: string)
 ---@field set_dec_str fun(self: CallableHDL, str: string)
----@field set_shuffled fun(self: CallableHDL)
 ---@field set_freeze fun(self: CallableHDL)
 ---@field set_imm_str fun(self: CallableHDL, str: string)
 ---@field set_imm_hex_str fun(self: CallableHDL, str: string)
 ---@field set_imm_bin_str fun(self: CallableHDL, str: string)
 ---@field set_imm_dec_str fun(self: CallableHDL, str: string)
----@field set_imm_shuffled fun(self: CallableHDL)
 ---@field set_imm_freeze fun(self: CallableHDL)
+---
+---@field set_shuffled fun(self: CallableHDL)
+---@field set_imm_shuffled fun(self: CallableHDL)
+---@field shuffled_range_u32 fun(self: CallableHDL, u32_vec: table<integer, integer>)
+---@field shuffled_range_u64 fun(self: CallableHDL, u64_vec: table<integer, integer|uint64_t>)
+---@field shuffled_range_hex_str fun(self: CallableHDL, hex_str_vec: table<integer, string>)
+---@field reset_shuffled_range fun(self: CallableHDL)
 ---
 ---@field get_index_str fun(self: CallableHDL, index: integer, fmt: integer): string
 ---@field get_index_hex_str fun(self: CallableHDL, index: integer): string
@@ -185,7 +190,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.is_array = false
     self.array_size = 0
-    if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" then
+    if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" or self.hdl_type == "vpiBitVar" then
         self.is_array = false
     elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
         -- 
@@ -300,6 +305,47 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.set_imm_freeze = function (this)
         vpiml.vpiml_set_imm_freeze(this.hdl)
+    end
+
+    self.shuffled_range_u32 = function (this, u32_vec)
+        assert(type(u32_vec) == "table", "`u32_vec` must be a table")
+
+        local v_type = type(u32_vec[1])
+        assert(v_type == "number", "`u32_vec` must be a table of `number` type")
+
+        local u32_vec_len = #u32_vec
+        local u32_vec_cdata = ffi_new("uint32_t[?]", u32_vec_len) --[[@as table<integer, integer>]]
+        for i = 1, u32_vec_len do
+            u32_vec_cdata[i - 1] = u32_vec[i]
+        end
+        vpiml.vpiml_shuffled_range_u32(this.hdl, u32_vec_cdata, u32_vec_len)
+    end
+
+    self.shuffled_range_u64 = function (this, u64_vec)
+        assert(type(u64_vec) == "table", "`u64_vec` must be a table")
+
+        local v_type = type(u64_vec[1])
+        assert(v_type == "number" or v_type == "cdata", "`u64_vec` must be a table of `number` or `cdata` type")
+
+        local u64_vec_len = #u64_vec
+        local u64_vec_cdata = ffi_new("uint64_t[?]", u64_vec_len) --[[@as table<integer, integer>]]
+        for i = 1, u64_vec_len do
+            u64_vec_cdata[i - 1] = u64_vec[i] --[[@as integer]]
+        end
+        vpiml.vpiml_shuffled_range_u64(this.hdl, u64_vec_cdata, u64_vec_len)
+    end
+
+    self.shuffled_range_hex_str = function (this, hex_str_vec)
+        assert(type(hex_str_vec) == "table", "`hex_str_vec` must be a table")
+        assert(type(hex_str_vec[1]) == "string", "`hex_str_vec` must be a table of `string` type")
+
+        local hex_str_vec_len = #hex_str_vec
+        local hex_str_vec_cdata = ffi_new("const char *[" .. hex_str_vec_len .. "]", hex_str_vec)
+        vpiml.vpiml_shuffled_range_hex_str(this.hdl, hex_str_vec_cdata, hex_str_vec_len)
+    end
+
+    self.reset_shuffled_range = function (this)
+        vpiml.vpiml_reset_shuffled_range(this.hdl)
     end
 
     if self.is_array then
