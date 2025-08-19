@@ -142,16 +142,21 @@ function SVAContext:add(typ)
                     params.cov_type == "sequence" or params.cov_type == "property",
                     "[SVAContext] cover error: `cov_type` should be `sequence` or `property`"
                 )
-                cov_type = params.cov_type
+                cov_type = assert(params.cov_type)
             end
 
-            local content = f("%s: cover %s (%s);", params.name, cov_type, ret)
-            self.content_vec[#self.content_vec + 1] = process_content(content)
-
+            local pre_content_name = f("_GEN_%s_%s", params.name, cov_type:upper())
+            local pre_content = process_content(f("%s %s(); %s; end%s", cov_type, pre_content_name, ret, cov_type))
+            local content = pre_content .. "\n" .. f("%s: cover %s (%s);", params.name, cov_type, pre_content_name)
+            self.content_vec[#self.content_vec + 1] = content
+            self.unique_stmt_name_map[pre_content_name] = true
             return
         elseif typ == "assert" then
-            local content = f("%s: assert property (%s);", params.name, ret)
-            self.content_vec[#self.content_vec + 1] = process_content(content)
+            local pre_content_name = f("_GEN_%s_PROPERTY", params.name)
+            local pre_content = process_content(f("property %s(); %s; endproperty", pre_content_name, ret))
+            local content = pre_content .. "\n" .. f("%s: assert property (%s);", params.name, pre_content_name)
+            self.content_vec[#self.content_vec + 1] = content
+            self.unique_stmt_name_map[pre_content_name] = true
             return
         elseif typ == "property" then
             local content = f("property %s(); %s; endproperty", params.name, ret)

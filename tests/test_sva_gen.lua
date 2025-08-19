@@ -17,7 +17,8 @@ describe("SVAContext test", function()
         expect.equal(ret, nil)
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property (test + 123 + 456);
+property _GEN_test_PROPERTY(); test + 123 + 456; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 ]])
 
@@ -35,7 +36,8 @@ test: cover property (test + 123 + 456);
         -- SVAContext:generate() is equal to tostring(SVAContext)
         expect.equal(ctx:generate(), [[
 // 1/1
-test1: cover property (test1 + 123 + 456);
+property _GEN_test1_PROPERTY(); test1 + 123 + 456; endproperty
+test1: cover property (_GEN_test1_PROPERTY);
 
 ]])
 
@@ -54,7 +56,8 @@ test1: cover property (test1 + 123 + 456);
         expect.equal(ret, nil)
         expect.equal(tostring(ctx), [[
 // 1/1
-test2: assert property (test2 + 123 + 456 + true);
+property _GEN_test2_PROPERTY(); test2 + 123 + 456 + true; endproperty
+test2: assert property (_GEN_test2_PROPERTY);
 
 ]])
 
@@ -72,7 +75,8 @@ test2: assert property (test2 + 123 + 456 + true);
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover sequence (test + 123 + 456);
+sequence _GEN_test_SEQUENCE(); test + 123 + 456; endsequence
+test: cover sequence (_GEN_test_SEQUENCE);
 
 ]])
 
@@ -89,7 +93,8 @@ test: cover sequence (test + 123 + 456);
         expect.equal(ret, nil)
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property (test + 123 + 456);
+property _GEN_test_PROPERTY(); test + 123 + 456; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 ]])
 
@@ -100,10 +105,12 @@ test: cover property (test + 123 + 456);
         expect.equal(ret, nil)
         expect.equal(tostring(ctx), [[
 // 1/2
-test: cover property (test + 123 + 456);
+property _GEN_test_PROPERTY(); test + 123 + 456; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 // 2/2
-test1: cover property (test1 + 123 + 456);
+property _GEN_test1_PROPERTY(); test1 + 123 + 456; endproperty
+test1: cover property (_GEN_test1_PROPERTY);
 
 ]])
 
@@ -152,7 +159,8 @@ sequence test(); test + 123 + 456; endsequence
 property test1(); test + 123 + 456; endproperty
 
 // 1/1
-test2: cover property (test2 + test + test1);
+property _GEN_test2_PROPERTY(); test2 + test + test1; endproperty
+test2: cover property (_GEN_test2_PROPERTY);
 
 ]])
 
@@ -178,7 +186,8 @@ test2: cover property (test2 + test + test1);
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property (test + path.to.c1 + path.to.c2);
+property _GEN_test_PROPERTY(); test + path.to.c1 + path.to.c2; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 ]])
 
@@ -207,7 +216,8 @@ test: cover property (test + path.to.c1 + path.to.c2);
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property (test + path.to.c1 + path.to.c2);
+property _GEN_test_PROPERTY(); test + path.to.c1 + path.to.c2; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 ]])
 
@@ -226,12 +236,13 @@ test: cover property (test + path.to.c1 + path.to.c2);
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property ( 1 2 3);
+property _GEN_test_PROPERTY(); 1 2 3; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 ]])
         ctx:clean()
 
-        -- Change `Lua` code identifier
+        -- Change `Lua` coded identifier
         ctx:add "cover" {
             name = "test",
             -- lines starting with % are Lua code
@@ -246,7 +257,8 @@ test: cover property ( 1 2 3);
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property ( 2);
+property _GEN_test_PROPERTY(); 2; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 ]])
 
@@ -273,7 +285,8 @@ test: cover property ( 2);
         }
         expect.equal(tostring(ctx), [[
 // 1/1
-test: cover property (123 456 789 path.to.f);
+property _GEN_test_PROPERTY(); 123 456 789 path.to.f; endproperty
+test: cover property (_GEN_test_PROPERTY);
 
 ]])
     end)
