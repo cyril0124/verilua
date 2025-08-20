@@ -2,8 +2,7 @@ use super::*;
 
 impl VeriluaEnv {
     pub fn vpiml_iterate_vpi_type(&mut self, module_name: *mut c_char, vpi_type: u32) {
-        let ref_module_handle =
-            unsafe { self.complex_handle_by_name(module_name, std::ptr::null_mut()) };
+        let ref_module_handle = self.complex_handle_by_name(module_name, std::ptr::null_mut());
         let chdl = ComplexHandle::from_raw(&ref_module_handle);
         let iter = unsafe { vpi_iterate(vpi_type as _, chdl.vpi_handle as vpiHandle) };
 
@@ -44,11 +43,11 @@ impl VeriluaEnv {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_iterate_vpi_type(
-    env: *mut libc::c_void,
+    env: *mut c_void,
     module_name: *mut c_char,
     vpi_type: u32,
 ) {
-    let env = unsafe { VeriluaEnv::from_void_ptr(env) };
+    let env = VeriluaEnv::from_void_ptr(env);
     env.vpiml_iterate_vpi_type(module_name, vpi_type)
 }
 
@@ -67,7 +66,7 @@ pub unsafe extern "C" fn vpiml_get_hdl_type(complex_handle_raw: ComplexHandleRaw
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_get_top_module() -> *const libc::c_char {
+pub unsafe extern "C" fn vpiml_get_top_module() -> *const c_char {
     let iter: vpiHandle = unsafe { vpi_iterate(vpiModule as _, std::ptr::null_mut()) };
     assert!(!iter.is_null(), "No module exist...");
 
@@ -84,6 +83,6 @@ pub unsafe extern "C" fn vpiml_get_top_module() -> *const libc::c_char {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_get_simulator_auto() -> *const libc::c_char {
-    return utils::get_simulator_auto();
+pub unsafe extern "C" fn vpiml_get_simulator_auto() -> *const c_char {
+    utils::get_simulator_auto()
 }

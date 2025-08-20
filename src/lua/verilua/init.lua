@@ -503,7 +503,7 @@ do
 ---@field render fun(template: string, vars: table): string
 ---@field strip fun(str: string, suffix: string): string
 ---@field join fun(str: string, list: table): string
----@field number fun(str: string): number
+---@field number fun(str: string): integer
 ---@field contains fun(str: string, target: string): boolean
 ---@field hdl fun(hierpath: string): ComplexHandleRaw
 ---@field chdl fun(hierpath: string, hdl?: ComplexHandleRaw): CallableHDL

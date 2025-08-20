@@ -67,7 +67,7 @@ impl ComplexHandle {
         let beat_num = (width as f64 / 32.0).ceil() as usize;
 
         assert!(
-            beat_num <= MAX_VECTOR_SIZE as usize,
+            beat_num <= MAX_VECTOR_SIZE,
             "beat_num is too large: {}, width: {}, name: {}",
             beat_num,
             width,

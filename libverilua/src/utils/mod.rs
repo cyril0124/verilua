@@ -1,5 +1,5 @@
 use fslock::LockFile;
-use goblin::elf::{Elf, Sym};
+use goblin::elf::Elf;
 use hashbrown::HashMap;
 use lazy_static::*;
 use libc::{PATH_MAX, c_char, c_int, c_longlong, c_void, readlink};
@@ -16,7 +16,7 @@ pub extern "C" fn get_executable_name() -> *const c_char {
     let mut path = [0; PATH_MAX as usize];
     let len = unsafe {
         readlink(
-            "/proc/self/exe\0".as_ptr() as *const _,
+            c"/proc/self/exe".as_ptr() as *const _,
             path.as_mut_ptr() as *mut _,
             path.len(),
         )
@@ -47,9 +47,9 @@ pub extern "C" fn get_self_cmdline() -> *mut c_char {
         panic!("Failed to read /proc/self/cmdline");
     }
 
-    for i in 0..buffer.len() {
-        if buffer[i] == b'\0' {
-            buffer[i] = b' ';
+    for buf in &mut buffer {
+        if *buf == b'\0' {
+            *buf = b' ';
         }
     }
 
@@ -157,7 +157,7 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
 
     // TODO: Optimize, read only the needed sections
     for string in elf.libraries {
-        log::debug!("[get_simulator_auto] Found library: {string}");
+        log::info!("[get_simulator_auto] Found library: {string}");
         if string.contains("libverilua_verilator.so")
             || string.contains("libverilua_verilator_dpi.so")
         {
@@ -178,8 +178,7 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn c_simulator_control(cmd: c_longlong) {
-    #[cfg(feature = "debug")]
-    log::debug!("c_simulator_control => {}", {
+    log::info!("c_simulator_control => {}", {
         match cmd {
             66 => "vpiStop",
             67 => "vpiFinish",
@@ -193,14 +192,10 @@ pub unsafe extern "C" fn c_simulator_control(cmd: c_longlong) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wildmatch(
-    pattern: *const c_char,
-    string: *const c_char,
-) -> c_int {
+pub unsafe extern "C" fn wildmatch(pattern: *const c_char, string: *const c_char) -> c_int {
     let pattern = unsafe { CStr::from_ptr(pattern) };
     let string = unsafe { CStr::from_ptr(string) };
-    wildmatch::WildMatch::new(pattern.to_str().unwrap()).matches(string.to_str().unwrap())
-        as c_int
+    wildmatch::WildMatch::new(pattern.to_str().unwrap()).matches(string.to_str().unwrap()) as c_int
 }
 
 #[unsafe(no_mangle)]
@@ -227,8 +222,11 @@ pub unsafe extern "C" fn acquire_lock(path: *const c_char) -> *mut c_void {
         }
     };
 
-    if let Err(_) = lockfile.lock() {
-        println!("[acquire_lock] Failed to lock, path: {}", path_str);
+    if let Err(err) = lockfile.lock() {
+        println!(
+            "[acquire_lock] Failed to lock, path: {}, err: {:?}",
+            path_str, err
+        );
         return ptr::null_mut();
     }
 

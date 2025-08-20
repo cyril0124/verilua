@@ -76,9 +76,8 @@ impl IDPool {
 
     #[inline(always)]
     pub fn release_id(&mut self, id: EdgeCallbackID) {
-        assert_eq!(
+        assert!(
             self.available_ids.insert(id),
-            true,
             "id {} is already available",
             id
         );
@@ -90,9 +89,7 @@ include!("./gen/gen_verilua_env_struct.rs");
 impl Default for VeriluaEnv {
     fn default() -> Self {
         let lua = unsafe { Lua::unsafe_new() };
-        let env = include!("./gen/gen_verilua_env_init.rs");
-
-        env
+        include!("./gen/gen_verilua_env_init.rs")
     }
 }
 
@@ -112,7 +109,7 @@ impl VeriluaEnv {
     #[inline(always)]
     pub fn from_complex_handle_raw(complex_handle_raw: ComplexHandleRaw) -> &'static mut Self {
         let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-        unsafe { VeriluaEnv::from_void_ptr(complex_handle.env) }
+        VeriluaEnv::from_void_ptr(complex_handle.env)
     }
 
     #[inline(always)]
@@ -121,7 +118,7 @@ impl VeriluaEnv {
     }
 
     pub fn initialize(&mut self) {
-        log::debug!("VeriluaEnv::initialize() start",);
+        log::info!("VeriluaEnv::initialize() start",);
 
         if self.initialized {
             return;
@@ -154,8 +151,8 @@ impl VeriluaEnv {
                 std::env::var("VL_RESOLVE_X_AS_ZERO").map_or(true, |v| v == "1" || v == "true");
         }
 
-        // Make `verilua_env available in lua
-        self.lua.globals().set(
+        // Make current verilua_env instance available in lua scope.
+        let _ = self.lua.globals().set(
             "GLOBAL_VERILUA_ENV",
             mlua::Value::LightUserData(mlua::LightUserData(self.as_void_ptr())),
         );
@@ -171,7 +168,7 @@ impl VeriluaEnv {
                     .to_str()
                     .unwrap();
                 std::env::set_var("DUT_TOP", dut_top);
-                log::debug!("DUT_TOP is not set, set it to `{dut_top}`");
+                log::info!("DUT_TOP is not set, auto set to `{dut_top}`");
             }
         }
 
@@ -185,7 +182,7 @@ impl VeriluaEnv {
 
         #[cfg(feature = "verilua_prebuild_bin")]
         {
-            log::debug!("[verilua_env] VL_PREBUILD is set to `1`, skip initialize");
+            log::warn!("[verilua_env] VL_PREBUILD is set to `1`, skip initialize");
             return;
         }
 
@@ -227,7 +224,7 @@ impl VeriluaEnv {
 
         self.start_time = Instant::now();
 
-        log::debug!("VeriluaEnv::initialize() finish");
+        log::info!("VeriluaEnv::initialize() finish");
     }
 
     pub fn finalize(&mut self) {
@@ -243,7 +240,7 @@ impl VeriluaEnv {
 
         #[cfg(feature = "verilua_prebuild_bin")]
         {
-            log::debug!("[verilua_env] VL_PREBUILD is set to `1`, skip finalize");
+            log::warn!("[verilua_env] VL_PREBUILD is set to `1`, skip finalize");
             return;
         }
 
@@ -375,10 +372,10 @@ impl VeriluaEnv {
 // is exiting cause in some cases the finalize function may not be called successfully.
 #[static_init::destructor(0)]
 extern "C" fn automatically_finalize_verilua_env() {
-    log::trace!("automatically_finalize_verilua_env");
+    log::info!("automatically_finalize_verilua_env");
     let env = get_verilua_env();
     if env.initialized && !env.finalized {
-        log::trace!("VeriluaEnv::finalize() called automatically");
+        log::info!("VeriluaEnv::finalize() called automatically");
         env.finalize();
     }
 }

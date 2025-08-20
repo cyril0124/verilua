@@ -1,6 +1,5 @@
 #![allow(non_upper_case_globals)]
-use libc::{c_char, c_longlong};
-use std::cell::UnsafeCell;
+use libc::{c_char, c_longlong, c_void};
 use std::ffi::{CStr, CString};
 
 use crate::complex_handle::{

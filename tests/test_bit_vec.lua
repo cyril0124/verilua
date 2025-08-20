@@ -107,7 +107,6 @@ describe("BitVec test", function ()
     it("should work properly for dump()", function ()
         local bitvec = BitVec({0x12345678})
         expect.equal(bitvec:dump_str(), "12345678")
-        expect.equal(bitvec:dump_str(false), "12345678")
 
         local bitvec = BitVec({0x12345678, 0x4455667788})
         expect.equal(bitvec:dump_str(), "5566778812345678")

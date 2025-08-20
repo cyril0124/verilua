@@ -55,7 +55,7 @@ include!("./gen/gen_register_callback_func.rs");
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_start_callback() {
-    log::debug!("vpiml_register_start_callback");
+    log::info!("vpiml_register_start_callback");
 
     let env = get_verilua_env_no_init();
     if env.has_start_cb {
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn vpiml_register_start_callback() {
 }
 
 unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
-    log::debug!("start_callback");
+    log::info!("start_callback");
 
     unsafe { verilua_env::verilua_init() };
     0
@@ -110,7 +110,7 @@ fn do_register_final_callback(env: &mut VeriluaEnv) {
 #[cfg(feature = "dpi")]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_final_callback(env: *mut libc::c_void) {
-    log::debug!("vpiml_register_final_callback(dpi)");
+    log::info!("vpiml_register_final_callback(dpi)");
 
     let env = VeriluaEnv::from_void_ptr(env);
     do_register_final_callback(env);
@@ -119,14 +119,14 @@ pub unsafe extern "C" fn vpiml_register_final_callback(env: *mut libc::c_void) {
 #[cfg(not(feature = "dpi"))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_final_callback() {
-    log::debug!("vpiml_register_final_callback");
+    log::info!("vpiml_register_final_callback");
 
     let env = get_verilua_env_no_init();
     do_register_final_callback(env);
 }
 
 unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
-    log::debug!("final_callback");
+    log::info!("final_callback");
     let env = unsafe { &mut *((*_cb_data).user_data as *mut VeriluaEnv) };
     env.finalize();
     0
@@ -526,12 +526,12 @@ macro_rules! gen_vpiml_register_edge_callback {
                             });
                     } else {
                         let edge_cb_id = env.edge_cb_idpool.alloc_id();
-                        let cb_hdl = do_register_edge_callback(
+                        let cb_hdl = unsafe { do_register_edge_callback(
                             &complex_handle_raw,
                             &task_id,
                             &$edge_type_enum,
                             &edge_cb_id
-                        );
+                        ) };
 
                         if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
                             // TODO: Check ?

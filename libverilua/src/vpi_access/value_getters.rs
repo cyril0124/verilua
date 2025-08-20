@@ -27,17 +27,15 @@ impl VeriluaEnv {
             let lo: u32 = unsafe { v.value.vector.read().aval } as _;
             let hi: u32 = unsafe { v.value.vector.add(1).read().aval } as _;
             ((hi as u64) << 32) | lo as u64
+        } else if self.resolve_x_as_zero
+            && (unsafe { v.value.vector.read().bval } != 0
+                || unsafe { v.value.vector.add(1).read().bval } != 0)
+        {
+            0
         } else {
-            if self.resolve_x_as_zero
-                && (unsafe { v.value.vector.read().bval } != 0
-                    || unsafe { v.value.vector.add(1).read().bval } != 0)
-            {
-                0
-            } else {
-                let lo: u32 = unsafe { v.value.vector.read().aval } as _;
-                let hi: u32 = unsafe { v.value.vector.add(1).read().aval } as _;
-                ((hi as u64) << 32) | lo as u64
-            }
+            let lo: u32 = unsafe { v.value.vector.read().aval } as _;
+            let hi: u32 = unsafe { v.value.vector.add(1).read().aval } as _;
+            ((hi as u64) << 32) | lo as u64
         }
     }
 
@@ -84,8 +82,6 @@ impl VeriluaEnv {
         complex_handle_raw: ComplexHandleRaw,
         fmt: u32,
     ) -> *const c_char {
-        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-
         match fmt {
             vpiBinStrVal => self.vpiml_get_value_bin_str(complex_handle_raw),
             vpiHexStrVal => self.vpiml_get_value_hex_str(complex_handle_raw),
