@@ -1,16 +1,24 @@
-# Verilua
+<div align="center">
 
-[![Regression](https://github.com/cyril0124/verilua/actions/workflows/regression.yml/badge.svg?branch=master&event=push)](https://github.com/cyril0124/verilua/actions/workflows/regression.yml)
-![GitHub Release](https://img.shields.io/github/v/release/cyril0124/verilua)
-![GitHub commits since latest release](https://img.shields.io/github/commits-since/cyril0124/verilua/latest)
-![GitHub Created At](https://img.shields.io/github/created-at/cyril0124/verilua)
+# 🌔 Verilua
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/cyril0124/verilua/regression.yml?style=for-the-badge)
+![GitHub Release](https://img.shields.io/github/v/release/cyril0124/verilua?style=for-the-badge)
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/cyril0124/verilua/latest?style=for-the-badge)
+![GitHub Created At](https://img.shields.io/github/created-at/cyril0124/verilua?style=for-the-badge)
+[![Static Badge](https://img.shields.io/badge/Benchmark-8A2BE2?style=for-the-badge)](https://cyril0124.github.io/verilua-benchmark-results/dev/bench/)
+
+</div>
+
+<div align="center">
+
+[📖 **Documentation**](https://cyril0124.github.io/verilua/)
+
+</div>
 
 `Verilua` is a versatile simulation framework for Hardware Verification based on `LuaJIT`. It can be used as a Hardwave Verification Language (`HVL`) to write testbenches and simulate hardware designs. Or it can be used as a Hardware Script Engine (`HSE`) to embed Lua scripts into the simulation. It can also can be used as a Waveform Analysis Language(`WAL`) to analyze the provided waveform files(VCD, FST, FSDB, etc).
 
-Please refer to the [documentation](https://cyril0124.github.io/verilua/) for more information.
-
-## Installation(from release)
+## 📦 Installation(from release)
 
 ### Download from release
 ```bash
@@ -44,7 +52,7 @@ Notice:
 - Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
 - `update_verilua` is only available if you have installed verilua from release.
 
-## Credits
+## 🌟 Credits
 - [LuaJIT](https://github.com/LuaJIT/LuaJIT) - Amazing lua implementation with high performance.
 - [Cocotb](https://github.com/cocotb/cocotb) - Verilua takes inspiration from cocotb.
 - [Slang](https://github.com/MikePopoloski/slang) - We use Slang to parse Verilog/SystemVerilog files and it is used in many tools in this repo.
