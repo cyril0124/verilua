@@ -514,6 +514,12 @@ do
         return decimal:gsub("^0*", "")
     end
 
+    ---@param str1 string The first hexadecimal string to be compared.(e.g. "0x1A")
+    ---@param str2 string The second hexadecimal string to be compared.(e.g. "0x2b")
+    function utils.compare_hex_str(str1, str2)
+        return str1:lower():gsub("0*", "") == str2:lower():gsub("0*", "")
+    end
+
     ---@param str1 string The first string to be compared
     ---@param str2 string The second string to be compared
     ---@return boolean Whether the two strings are equal
