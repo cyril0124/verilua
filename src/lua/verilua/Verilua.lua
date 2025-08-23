@@ -8,8 +8,6 @@ local assert = assert
 local ipairs = ipairs
 local table_insert = table.insert
 
-local cfg = _G.cfg
-local SchedulerMode = _G.SchedulerMode
 local verilua_info = _G.verilua_info
 local verilua_hello = _G.verilua_hello
 local verilua_warning = _G.verilua_warning
@@ -117,19 +115,6 @@ end
 _G.lua_negedge_step = function ()
 	scheduler:schedule_negedge_tasks()
 end
-
-----------------------------------
--- dominant mode
-------------------------------------
-_G.verilua_schedule_loop = function()
-    verilua_warning("enter verilua_schedule_loop")
-
-    assert(scheduler.schedule_loop ~= nil)
-    assert(type(scheduler.schedule_loop) == "function")
-
-    scheduler:schedule_loop()
-end
-
 
 _G.sim_event_chunk_1 = function (task_id_1)
 	scheduler:schedule_task(task_id_1)

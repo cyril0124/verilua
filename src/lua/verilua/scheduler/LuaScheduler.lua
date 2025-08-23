@@ -1,5 +1,4 @@
 local cfg = _G.cfg
-local SchedulerMode = _G.SchedulerMode
 
 ---@alias TaskID integer
 ---@alias EventID integer
@@ -61,20 +60,20 @@ local scheduler
 if os.getenv("VL_PREBUILD") then
     scheduler = require("verilua.scheduler.LuaDummyScheduler")
 else
-    local mode = cfg.mode
+    local scheduler_mode = cfg.mode
     local perf_time = os.getenv("VL_PERF_TIME") == "1"
+    local scheduler_suffix = perf_time and "P" or ""
 
-    if mode == SchedulerMode.NORMAL then
-        scheduler = require("verilua.scheduler.LuaNormalSchedulerV2" .. (perf_time and "P" or ""))
-    elseif mode == SchedulerMode.STEP then
-        scheduler = require("verilua.scheduler.LuaStepSchedulerV2" .. (perf_time and "P" or ""))
-    elseif mode == SchedulerMode.DOMINANT then
-        assert(false, "TODO:")
-        scheduler = require("verilua.scheduler.LuaDominantSchedulerV2" .. (perf_time and "P" or ""))
-    elseif mode == SchedulerMode.EDGE_STEP then
-        scheduler = require("verilua.scheduler.LuaEdgeStepSchedulerV2" .. (perf_time and "P" or ""))
+    if scheduler_mode == "normal" then
+        scheduler = require("verilua.scheduler.LuaNormalSchedulerV2" .. scheduler_suffix)
+    elseif scheduler_mode == "step" then
+        scheduler = require("verilua.scheduler.LuaStepSchedulerV2" .. scheduler_suffix)
+    elseif scheduler_mode == "edge_step" then
+        scheduler = require("verilua.scheduler.LuaEdgeStepSchedulerV2" .. scheduler_suffix)
     else
-        assert(false, "Unknown scheduler mode! maybe you forget to set it? please set `cfg.mode` to `normal`, `SchedulerMode.STEP` or `SchedulerMode.DOMINANT`")
+        assert(false, [[
+            Unknown scheduler mode! maybe you forget to set it? please set `cfg.mode` to "normal", "step" or "edge_step"
+        ]])
     end
 end
 

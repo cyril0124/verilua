@@ -16,17 +16,16 @@ local setmetatable = setmetatable
 
 ---@class LuaSimConfig
 ---@field script string
----@field mode integer
+---@field mode "normal"|"step"|"edge_step"|"unknown"
 ---@field simulator "verilator"|"vcs"|"iverilog"|"wave_vpi"|"unknown"
----@field top string Top module name of the DUT
+---@field top string Top module name of testbench
 ---@field srcs string[]
 ---@field deps string[]
 ---@field is_hse boolean
 ---@field period integer
 ---@field unit string
 ---@field luapanda_debug boolean
----@field vpi_learn boolean
----@field prj_dir string
+---@field prj_dir string Project directory
 ---@field seed integer
 ---@field colors AnsiColors
 ---@field enable_dpi_exporter boolean Enable dpi_exporter optimization. The value getter function 
@@ -64,26 +63,6 @@ local colors = {
     white   = "\27[37m"
 }
 cfg.colors = colors
-
-cfg.SchedulerMode = setmetatable({    
-    NORMAL    = 1,
-    STEP      = 2,
-    DOMINANT  = 3,
-    EDGE_STEP = 4,
-    N         = 1, -- alias of NORMAL
-    S         = 2, -- alias of STEP
-    D         = 3, -- alias of DOMINANT
-    E         = 4  -- alias of EDGE_STEP
-}, { 
-    __call = function (t, v)
-        for name, value in pairs(t) do
-            if value == v then
-                return name
-            end
-        end
-        assert(false, "[SchedulerMode] Key no found: " .. v)
-    end
-})
 
 local function get_debug_info(level)
     local _level = level or 2 -- Level 2 because we're inside a function
@@ -195,7 +174,7 @@ function cfg:dump_str()
     return inspect(self, {
         process = function(item, path)
             local t = type(item)
-            if t ~= "function" and t ~= "thread" and path[#path] ~= inspect.METATABLE and item ~= self.colors and item ~= self.SchedulerMode then
+            if t ~= "function" and t ~= "thread" and path[#path] ~= inspect.METATABLE and item ~= self.colors then
                 return item
             end
         end
@@ -307,29 +286,32 @@ function cfg:post_config()
     cfg.script = cfg.script or os.getenv("LUA_SCRIPT")
     assert(cfg.script, "[cfg:post_config] <cfg.script>(script) is not set! You should set <cfg.script> via enviroment variable <LUA_SCRIPT> or <cfg.script>")
 
+    cfg.is_hse = cfg:get_or_else("is_hse", false) -- Whether use verilua as HSE(Hardware Script Engine)
+
     if cfg.mode ~= nil then
-        if type(cfg.mode) == "string" then
-            ---@diagnostic disable-next-line: undefined-field
-            local mode_str = cfg.mode:upper()
-            if mode_str == "N" or mode_str == "NORMAL" then
-                cfg.mode = cfg.SchedulerMode.NORMAL
-            elseif mode_str == "S" or mode_str == "STEP" then
-                cfg.mode = cfg.SchedulerMode.STEP
-            elseif mode_str == "D" or mode_str == "DOMINANT" then
-                cfg.mode = cfg.SchedulerMode.DOMINANT
-            elseif mode_str == "E" or mode_str == "EDGE_STEP" then
-                cfg.mode = cfg.SchedulerMode.EDGE_STEP
-            else
-                assert(false, "Invalid SchedulerMode: " .. cfg.mode)
-            end
+        local scheduler_mode = cfg.mode
+        if cfg.is_hse then
+            local err_info = f([[
+                `cfg.mode` only support the following options when `cfg.is_hse` is true:
+                    - cfg.mode = "step"
+                    - cfg.mode = "edge_step"
+                But currently `cfg.mode` is `%s`
+            ]], tostring(scheduler_mode))
+            assert(scheduler_mode == "step" or scheduler_mode == "edge_step", err_info)
         else
-            ---@cast scheduler_mode integer
-            assert(type(cfg.mode) == "number")
-            assert(cfg.mode == cfg.SchedulerMode.NORMAL or cfg.mode == cfg.SchedulerMode.STEP or cfg.mode == cfg.SchedulerMode.DOMINANT, "Invalid SchedulerMode: " .. cfg.mode)
+            assert(
+                scheduler_mode == "normal",
+                [[[cfg:post_config] `cfg.mode` should be "normal" when using verilua as HVL or WAL]]
+            )
         end
     else
-        ---@diagnostic disable-next-line: assign-type-mismatch
-        cfg.mode = "nil"
+        if cfg.is_hse then
+            -- When using verilua as HSE(Hardware Script Engine), set the scheduler mode to "step"
+            cfg.mode = "step"
+        else
+            -- When using verilua as HVL(Hardware Verification Language) or WAL(Waveform Analysis Language), set the scheduler mode to "normal"
+            cfg.mode = "normal"
+        end
     end
 
     -- Make `cfg` available globally since it is used by `SignalDB` which provides the `vpiml_get_top_module()` function
@@ -345,11 +327,9 @@ function cfg:post_config()
     -- Setup configs with default values
     cfg.srcs            = cfg:get_or_else("srcs", {"./?.lua"})
     cfg.deps            = cfg:get_or_else("deps", {}) -- Dependencies
-    cfg.is_hse          = cfg:get_or_else("is_hse", false) or cfg:get_or_else("attach", false) -- Whether use verilua as HSE(Hardware Script Engine)
     cfg.period          = cfg:get_or_else("period", 10)
     cfg.unit            = cfg:get_or_else("unit", "ns")
     cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
-    cfg.vpi_learn       = cfg:get_or_else("vpi_learn", false)
     cfg.prj_dir         = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
 
     -- This flag is enabled by calling:

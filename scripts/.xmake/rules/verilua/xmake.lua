@@ -1,51 +1,99 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 local f = string.format
-local verilua_home = os.getenv("VERILUA_HOME") or "" -- verilua source code home
-local verilua_tools_home = verilua_home .. "/tools"
-local verilua_libs_home = verilua_home .. "/shared"
-local luajitpro_home = verilua_home .. "/luajit-pro/luajit2.1"
+local verilua_home = os.getenv("VERILUA_HOME") or ""
+local verilua_tools_home = path.join(verilua_home, "tools")
+local verilua_libs_home = path.join(verilua_home, "shared")
+local luajitpro_home = path.join(verilua_home, "luajit-pro", "luajit2.1")
 
-local function get_command_path(os, command)
-    local command_path = os.iorun("which %s", command):gsub("[\r\n]", "")
-    return command_path
-end
+---@alias InstrumentationType "cov_exporter"
+
+---@class CovExporterConfig: {module: string, disable_signal?: string, clock?: string, recursive?: boolean}
+
+---@class (exact) InstrumentationConfig
+---@field type InstrumentationType
+---@field config CovExporterConfig TODO: Other config
+---@field extra_args string[] Extra arguments for the instrumentation tool
 
 local function before_build_or_run(target)
-    -- Check if any of the valid toolchains is set. If not, raise an error.
+    --- Check if any of the valid toolchains is set. If not, raise an error.
+    --- You should set the toolchain using add_toolchains(<...>).
+    --- e.g. (in your xmake.lua)
+    --- ```lua
+    ---     add_toolchains("@verilator")
+    ---     -- or
+    ---     add_toolchains("@iverilog")
+    ---     -- or
+    ---     add_toolchains("@vcs")
+    ---     -- or
+    ---     add_toolchains("@wave_vpi")
+    --- ```
     local sim
-    if target:toolchain("verilator") ~= nil then
+    if target:toolchain("verilator") then
         sim = "verilator"
-    elseif target:toolchain("iverilog") ~= nil then
+    elseif target:toolchain("iverilog") then
         sim = "iverilog"
-    elseif target:toolchain("vcs") ~= nil then
+    elseif target:toolchain("vcs") then
         sim = "vcs"
-        
-        local vcs_no_initreg = target:values("cfg.vcs_no_initreg") == "1"
-        if vcs_no_initreg then
+
+        --- Disable vcs reg initialization, verilua use `+vcs+initreg+0` by default.
+        --- e.g. (in your xmake.lua)
+        --- ```lua
+        ---     set_values("cfg.vcs_no_initreg", "1")
+        --- ```
+        if target:values("cfg.vcs_no_initreg") == "1" then
             target:add("vcs_no_initreg", true)
         end
     elseif target:toolchain("wave_vpi") ~= nil then
         sim = "wave_vpi"
     else
-        raise("[before_build_or_run] Unknown toolchain! Please use set_toolchains([\"verilator\", \"iverilog\", \"vcs\", \"wave_vpi\"]) to set a proper toolchain.") 
+        raise([[
+            [before_build_or_run] Unknown toolchain!
+                Please use one of the following toolchains:
+                    - add_toolchains("@verilator")
+                    - add_toolchains("@iverilog")
+                    - add_toolchains("@vcs")
+                    - add_toolchains("@wave_vpi") => For waveform simulation only
+        ]])
     end
 
+    -- Used in `on_build` or `on_run` phase
     target:add("sim", sim)
-    cprint("${✅} [verilua-xmake] [%s] simulator is ${green underline}%s${reset}", target:name(), sim)
+    cprint("${✅} [verilua-xmake] [%s] simulator/toolchain is ${green underline}%s${reset}", target:name(), sim)
+
+    -- Used in `on_build` and `on_run` phases
+    local tb_top = target:values("cfg.tb_top") or "tb_top"
+    target:add("tb_top", tb_top)
+
+    --- Check top module
+    --- e.g. (in your xmake.lua)
+    --- ```lua
+    ---     set_values("cfg.top", "TestModule")
+    --- ```
+    local top = assert(
+        target:values("cfg.top"),
+        [[
+                [before_build_or_run] Unknown top module name!
+                    You should set 'top' by `set_values("cfg.top", "<your_top_module_name>")`
+            ]]
+    )
+    target:add("top", top) -- Used in `on_build` phase
+    cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
 
     -- Check if VERILUA_HOME is set.
     assert(verilua_home ~= "", "[before_build_or_run] [%s] please set VERILUA_HOME", target:name())
 
-    -- Check verilua version
-    -- e.g. 
-    --      set_values("verilua.version_required", "1.0.0")
-    --      set_values("verilua.version_required", "> 1.0.0")
-    --      set_values("verilua.version_required", ">= 1.0.0")
-    --      set_values("verilua.version_required", "< 1.0.0")
-    --      set_values("verilua.version_required", "<= 1.0.0")
-    --      set_values("verilua.version_required", "1.0.x")
-    local version_required = target:values("verilua.version_required")
+    --- Check verilua version using semantic versioning
+    --- e.g.
+    --- ```lua
+    ---     set_values("cfg.version_required", "1.0.0")
+    ---     set_values("cfg.version_required", "> 1.0.0")
+    ---     set_values("cfg.version_required", ">= 1.0.0")
+    ---     set_values("cfg.version_required", "< 1.0.0")
+    ---     set_values("cfg.version_required", "<= 1.0.0")
+    ---     set_values("cfg.version_required", "1.0.x")
+    --- ```
+    local version_required = target:values("cfg.version_required")
     if version_required then
         import("core.base.semver")
         local curr_version = io.readfile(path.join(verilua_home, "VERSION"))
@@ -58,130 +106,189 @@ local function before_build_or_run(target)
         )
     end
 
-    -- Generate build directory 
-    local top = assert(target:values("cfg.top"), "[before_build_or_run] You should set \'top\' by set_values(\"cfg.top\", \"<your_top_module>\")")
-    local build_dir_name = target:values("cfg.build_dir_name") or top
-    local build_dir_path = target:values("cfg.build_dir_path") or ("build/" .. target:get("sim"))
-    local build_dir = target:values("cfg.build_dir") or path.absolute(build_dir_path .. "/" .. build_dir_name)
-    local sim_build_dir = build_dir .. "/sim_build"
-    target:add("top", top)
-    target:add("build_dir", build_dir)
-    target:add("sim_build_dir", sim_build_dir)
-    cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
+    --- Check build directory
+    --- There are two ways to specify the build directory
+    --- 1. Set `cfg.build_dir` in xmake config
+    ---    e.g. (in your xmake.lua)
+    ---    ```lua
+    ---        set_values("cfg.build_dir", "/path/to/your/build")
+    ---    ```
+    --- 2. Set `cfg.build_dir_path` and/or `cfg.build_dir_name` in xmake config
+    ---    e.g. (in your xmake.lua)
+    ---    ```lua
+    ---        set_values("cfg.build_dir_path", "/path/to/your/build")
+    ---        set_values("cfg.build_dir_name", "my_build")
+    ---    ```
+    local cfg_build_dir_name = target:values("cfg.build_dir_name")
+    local cfg_build_dir_path = target:values("cfg.build_dir_path")
+    local cfg_build_dir = target:values("cfg.build_dir")
+    local build_dir_name = cfg_build_dir_name or top --[[@as string]]
+    local build_dir_path = cfg_build_dir_path or path.join("build", sim) --[[@as string]]
+    local build_dir = cfg_build_dir or path.absolute(path.join(build_dir_path, build_dir_name)) --[[@as string]]
+    local sim_build_dir = path.join(build_dir, "sim_build") --[[@as string]]
+    if cfg_build_dir ~= nil then
+        assert(
+            cfg_build_dir_name == nil,
+            "[before_build_or_run] [%s] please set `cfg.build_dir_name` to nil when `cfg.build_dir` is set",
+            target:name()
+        )
+        assert(
+            cfg_build_dir_path == nil,
+            "[before_build_or_run] [%s] please set `cfg.build_dir_path` to nil when `cfg.build_dir` is set",
+            target:name()
+        )
+    end
+    target:add("build_dir", build_dir)         -- Used in `on_build` and `on_run` phases
+    target:add("sim_build_dir", sim_build_dir) -- Used in `on_build` and `on_run` phases
     cprint("${✅} [verilua-xmake] [%s] build directory is ${green underline}%s${reset}", target:name(), build_dir)
 
+    -- Generate build directory if not exists
     if not os.isfile(sim_build_dir) then
         os.mkdir(sim_build_dir)
     end
 
-    -- Extract dependencies from sourcefiles
+    -- Extract dependencies  from sourcefiles
+    local deps_vec = {}
     local deps_path_map = {}
-    local deps_str = ""
     local sourcefiles = target:sourcefiles()
     for _, sourcefile in ipairs(sourcefiles) do
         local ext = path.extension(sourcefile)
         if ext == ".lua" or ext == ".luau" or ext == ".tl" then
             local dir = path.directory(path.absolute(sourcefile))
-            if deps_path_map[dir] == nil then
+            if not deps_path_map[dir] then
                 deps_path_map[dir] = true
-                deps_str = deps_str .. dir .. "/?.lua;"
+                deps_vec[#deps_vec + 1] = path.join(dir, "?.lua")
             end
         end
     end
 
-    -- Save lua_main directory into deps_str
-    local lua_main = path.absolute(os.getenv("LUA_SCRIPT") or assert(target:values("cfg.lua_main"), "[before_build_or_run] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"))
-    cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
-    deps_str = deps_str .. path.directory(lua_main) .. "/?.lua;"
-
-    -- Check verilua mode
-    local mode = "normal"
-    if sim ~= "wave_vpi" then
-        local _mode = target:values("cfg.mode")
-        if _mode ~= nil then
-            assert(_mode == "normal" or _mode == "step" or _mode == "dominant", "[before_build_or_run] mode should be `normal`, `step` or `dominant`")
-            mode = _mode
-        end
-        target:add("mode", mode)
+    --- Setup lua_main script which is the entry point of the simulation, can be seen as the main function in C language.
+    --- You can set it by environment variable or xmake config
+    ---
+    --- e.g. (set by enviroment variable `LUA_SCRIPT`)
+    --- ```shell
+    --- export LUA_SCRIPT=/path/to/your/main.lua
+    --- ```
+    --- e.g. (set by xmake config)
+    --- ```lua
+    ---     set_values("cfg.lua_main", "/path/to/your/main.lua")
+    --- ```
+    local env_lua_main = os.getenv("LUA_SCRIPT")
+    local cfg_lua_main = target:values("cfg.lua_main")
+    local lua_main = env_lua_main
+    if lua_main == nil then
+        assert(
+            cfg_lua_main,
+            "[before_build_or_run] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"
+        )
+        lua_main = path.absolute(cfg_lua_main)
     end
-    cprint("${✅} [verilua-xmake] [%s] verilua mode is ${green underline}%s${reset}", target:name(), mode)
+    cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
+    -- Save lua_main directory into deps_str
+    deps_vec[#deps_vec + 1] = path.join(path.directory(lua_main), "?.lua")
 
-
-    -- Generate verilua cfg file
-    local tb_top = target:values("cfg.tb_top") or "tb_top"
+    --- Verilua allows user to add their own configuration file(written in lua) which will be loaded before the main script.
+    --- e.g.
+    --- ```lua
+    ---     set_values("cfg.user_cfg", "/path/to/your/cfg.lua")
+    --- ```
+    --- The user configuration file is a lua script and also require to return a table.
+    --- e.g. (cfg.lua)
+    --- ```lua
+    --- local cfg = {}
+    --- cfg.some_option = 1
+    --- cfg.anything = "string"
+    --- return cfg
+    --- ```
+    --- Notice:
+    --          Not all verilua modules are supported in the user configuration file since verilua load user configuration file
+    ---         in a pretty early stage and some modules may not be available yet. Currently, only `LuaUtils` is supported.
+    --- e.g. (cfg.lua)
+    --- ```lua
+    --- local utils = require "LuaUtils"
+    --- local cfg = {}
+    --- cfg.some_option = utils.get_env_or_else("SOME_OPTION", "boolean", false)
+    --- -- Your code ...
+    --- return cfg
+    --- ```
     local user_cfg = target:values("cfg.user_cfg") or target:values("cfg.other_cfg")
     local user_cfg_path = "nil"
-    local shutdown_cycles = target:values("cfg.shutdown_cycles")
-
-    target:add("tb_top", tb_top)
-
     if user_cfg == nil or user_cfg == "" then
-        user_cfg = "nil" 
+        user_cfg = "nil"
     else
         local _user_cfg = user_cfg
-        user_cfg = "\"" .. path.basename(user_cfg) .. "\""
-        user_cfg_path = "\"" .. path.absolute(path.directory(_user_cfg)) .. "\""
+        user_cfg = path.basename(user_cfg)
+        user_cfg_path = path.absolute(path.directory(_user_cfg))
         cprint("${✅} [verilua-xmake] [%s] user_cfg is ${green underline}%s${reset}", target:name(), user_cfg)
     end
 
-    if shutdown_cycles == nil then 
-        shutdown_cycles = "10000 * 10" 
-    end
-    cprint("${✅} [verilua-xmake] [%s] shutdown_cycles is ${green underline}%s${reset}", target:name(), shutdown_cycles)
-
-
-    local cfg_file = path.absolute(target:get("build_dir") .. "/verilua_cfg.lua")
+    -- Generate verilua_cfg.lua which is used for loading some common settings used by verilua.
+    -- This file can be merged with user configuration file(cfg.user_cfg).
+    local verilua_cfg_file = path.absolute(path.join(target:get("build_dir"), "verilua_cfg.lua"))
     local cfg_file_str = f([[
-local lua_cfg = require "LuaSimConfig"
-
-local SchedulerMode = lua_cfg.SchedulerMode
+-------------------------------------------
+--- Auto generated by verilua, do not edit
+-------------------------------------------
 local cfg = {}
 
-cfg.top = os.getenv("DUT_TOP") or "%s"
-cfg.prj_dir = os.getenv("PRJ_DIR") or "%s"
-cfg.simulator = os.getenv("SIM") or "%s"
-cfg.mode = SchedulerMode.%s
-cfg.seed = os.getenv("SEED") or 101
-cfg.script = os.getenv("LUA_SCRIPT") or "%s"
+cfg.top = "%s"
+cfg.prj_dir = "%s"
+cfg.simulator = "%s"
+cfg.script = "%s"
 cfg.deps = {"%s"}
-cfg.user_cfg = %s
-cfg.user_cfg_path = %s
-cfg.enable_shutdown = true
-cfg.shutdown_cycles = os.getenv("SHUTDOWN_CYCLES") or %s
+
+local user_cfg = "%s"
+local user_cfg_path = "%s"
 
 -- Mix with other config
-if cfg.user_cfg ~= nil then
-    _G.package.path = _G.package.path .. ";" .. cfg.user_cfg_path .. "/?.lua"
-    local _cfg = require(cfg.user_cfg)
-    assert(type(_cfg) == "table", "cfg is not a table! => type(cfg): " .. type(_cfg) .. " cfg: " .. tostring(_cfg) .. " cfg_path: " .. tostring(cfg.user_cfg_path) .. " cfg_name: " .. tostring(cfg.user_cfg))
+if user_cfg ~= "nil" then
+    _G.package.path = _G.package.path .. ";" .. user_cfg_path .. "/?.lua"
+    local _cfg = require(user_cfg)
+    assert(type(_cfg) == "table", "cfg is not a table! => type(cfg): " .. type(_cfg) .. " cfg: " .. tostring(_cfg) .. " cfg_path: " .. tostring(user_cfg_path) .. " cfg_name: " .. tostring(user_cfg))
 
-    lua_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
+    local sim_cfg = require "LuaSimConfig"
+    sim_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
 end
 
 return cfg
-]], tb_top, os.getenv("PWD"), sim, mode:upper(), lua_main, deps_str, user_cfg, user_cfg_path, shutdown_cycles)
-    if os.isfile(cfg_file) and io.readfile(cfg_file) == cfg_file_str then
+]], tb_top, os.projectdir(), sim, lua_main, path.joinenv(deps_vec, ";"), user_cfg, user_cfg_path)
+    if os.isfile(verilua_cfg_file) and io.readfile(verilua_cfg_file) == cfg_file_str then
         cprint("${✅} [verilua-xmake] [%s] verilua_cfg.lua is up-to-date", target:name())
     else
-        io.writefile(cfg_file, cfg_file_str)
+        local lock = io.openlock(path.join(build_dir, "verilua_cfg.lua.lock")) -- To prevent concurrent writes
+        lock:lock()
+        io.writefile(verilua_cfg_file, cfg_file_str)
+        lock:unlock()
+        lock:close()
     end
+    target:add("verilua_cfg_file", verilua_cfg_file) -- Used in `on_build` and `on_run` phases
 
-    -- Used for loading some common settings in verilua
-    target:add("cfg_file", cfg_file)
-
+    -- Extra info provided by instrumentation
     local _instrumentation = target:values("instrumentation")
     if _instrumentation then
         local t = type(_instrumentation)
-        assert(t == "function", f("[before_build_or_run] `instrumentation` should be a `function` with a return value of `InstrumentationConfig[]`, but got `%s`", t))
+        assert(
+            t == "function",
+            "[before_build_or_run] `instrumentation` should be a `function` with a return value of `InstrumentationConfig[]`, but got `%s`",
+            t
+        )
 
         ---@type InstrumentationConfig[]
         local instrumentation = _instrumentation()
-        assert(type(instrumentation) == "table", f("[before_build_or_run] return value of `instrumentation` function should be a `table` of `InstrumentationConfig[]`, but got `%s`", type(instrumentation)))
+        assert(
+            type(instrumentation) == "table",
+            "[before_build_or_run] return value of `instrumentation` function should be a `table` of `InstrumentationConfig[]`, but got `%s`",
+            type(instrumentation)
+        )
 
         for _, inst in ipairs(instrumentation) do
             if inst.type == "cov_exporter" then
                 -- Used by `CoverageGetter.lua`
-                target:add("runenvs", "VL_COV_EXPORTER_META_FILE", build_dir .. "/.cov_exporter/cov_exporter.meta.json")
+                target:add(
+                    "runenvs",
+                    "VL_COV_EXPORTER_META_FILE",
+                    path.join(build_dir, ".cov_exporter", "cov_exporter.meta.json")
+                )
             end
         end
     end
@@ -192,86 +299,151 @@ return cfg
         for _, sourcefile in ipairs(sourcefiles) do
             local ext = path.extension(sourcefile)
             if ext == ".vcd" or ext == ".fst" or ext == ".fsdb" then
-                assert(get_waveform == false, "[before_build_or_run] Multiple waveform files are not supported")
+                assert(
+                    not get_waveform,
+                    "[before_build_or_run] Multiple waveform files are not supported, previous wavefile file: " ..
+                    waveform_file
+                )
                 get_waveform = true
                 waveform_file = path.absolute(sourcefile)
             end
         end
         if waveform_file ~= "" then
-            target:add("waveform_file", waveform_file)
+            target:add("waveform_file", waveform_file) -- Used in `on_build` and `on_run` phases
         end
     end
 
     target:set("kind", "binary")
 end
 
-rule("verilua")
+rule("verilua", function()
     set_extensions(".v", ".sv", ".svh", ".lua", ".luau", ".tl", ".d.tl", ".vlt", ".vcd", ".fst", ".fsdb")
 
     before_build(before_build_or_run)
-    
+
     before_run(before_build_or_run)
 
-    on_build(function (target)
+    on_build(function(target)
+        import("lib.detect.find_file")
         assert(verilua_home ~= "", "[on_build] [%s] please set VERILUA_HOME", target:name())
 
-        local f = string.format
         local top = target:get("top")
         local build_dir = target:get("build_dir")
-        local sim_build_dir = build_dir .. "/sim_build"
+        local sim_build_dir = path.join(build_dir, "sim_build")
         local sim = target:get("sim")
-        local mode = target:get("mode")
         local tb_top = target:get("tb_top")
         local sourcefiles = target:sourcefiles()
         local argv = {}
         local toolchain = ""
         local buildcmd = ""
 
+        --- For most of the simulators, we have `<sim>.flags` for user to specify extra command line flags.
+        --- e.g.(in your xmake.lua)
+        --- ```lua
+        ---     set_values("verilator.flags", "--trace", "--no-trace-top")
+        ---     set_values("vcs.flags", "-timescale=1ps/1ps")
+        ---     set_values("iverilog.flags", "-y /some/path")
+        --- ```
         if sim == "verilator" then
-            -- Verilator flags
+            local extra_verilator_flags = {
+                "--vpi",
+                "--cc",
+                "--exe",
+                "--MMD",
+                [[--no-timing -CFLAGS "-DNORMAL_MODE"]],
+                "-Mdir", sim_build_dir,
+                "-j 0", -- Verilate using use as many CPU threads as the machine has.
+                "--Wno-PINMISSING",
+                "--Wno-MODDUP",
+                "--Wno-WIDTHEXPAND",
+                "--Wno-WIDTHTRUNC",
+                "--Wno-UNOPTTHREADS",
+                "--Wno-IMPORTSTAR",
+                "+define+SIM_VERILATOR",
+                "--timescale-override 1ns/1ns",
+                "--top", tb_top,
+                [[-CFLAGS "-std=c++20"]],
+                [[-LDFLAGS "-flto"]],
+                [[-LDFLAGS "-u coverageCtrl -u getCoverageCount -u getCoverage -u getCondCoverage"]], -- Reserve symbols for coverage(cov_exporter)
+            }
+
+            --- Check if there is a verilator config file(*.vlt), if so, disable public flat read/write.
+            --- A verilator config file contains the infomation about which signals can be accessed.
+            --- Using verilator configuration file instead of plain `--public-flat-rw` can improve simulation performance.
+            --- e.g. (config.vlt)
+            --- ```plaintext
+            --- `verilator_config
+            --- public_flat_rw -module "tb_top" -var "*"
+            --- public_flat_rd -module "Top" -var "*"
+            --- public_flat_rd -module "Sub" -var "io_in_*"
+            --- ```
             local public_flat_rw = true
-            
-            -- Check if there is a verilator config file(*.vlt)
             for _, sourcefile in ipairs(sourcefiles) do
                 if sourcefile:endswith(".vlt") then
                     public_flat_rw = false
                 end
             end
+            if public_flat_rw then
+                extra_verilator_flags[#extra_verilator_flags + 1] = "--public-flat-rw"
+            end
 
-            local verilator_opt = "-O3" -- Enables slow optimizations for the code Verilator itself generates. -O3 may improve simulation performance at the cost of compile time.
+            -- Enables slow optimizations for the code Verilator itself generates. -O3 may improve simulation performance at the cost of compile time.
+            local verilator_opt = "-O3"
             local verilator_x_assign = "--x-assign unique"
             for _, flag in ipairs(target:values("verilator.flags")) do
-                local _flag = flag:trim() 
-                if _flag == "-O0" then
-                    verilator_opt = "-O0"
-                elseif _flag:startswith("--x-assign") and not _flag:endswith("--x-assign") then
-                    verilator_x_assign = flag
+                flag = flag:trim() -- Remove the left and right whitespace characters of the string
+                local maybe_flags = flag:split(" ", { plain = true })
+                for i, _flag in ipairs(maybe_flags) do
+                    if _flag == "-O0" then
+                        verilator_opt = "-O0"
+                    end
+                    if _flag:startswith("--x-assign") then
+                        local next_flag = maybe_flags[i + 1]
+                        assert(
+                            next_flag ~= nil,
+                            "Invalid `--x-assign` option for verilator.flags, `--x-assign` should be followed by a value(e.g. --x-assign 0/1/fast/unique)"
+                        )
+                        verilator_x_assign = "--x-assign " .. next_flag
+                    end
+                end
+            end
+            extra_verilator_flags[#extra_verilator_flags + 1] = verilator_opt
+            extra_verilator_flags[#extra_verilator_flags + 1] = verilator_x_assign
+
+            -- Some flags can be overridden by user defined flags
+            local verilator_flags = target:values("verilator.flags") or {}
+            for i, uflag in ipairs(verilator_flags) do
+                uflag = uflag:trim()
+                local maybe_uflags = uflag:split(" ", { plain = true })
+                for _, _uflag in ipairs(maybe_uflags) do
+                    if _uflag:startswith("--timescale-override") then
+                        -- Override the timescale flag
+                        for j, eflag in ipairs(extra_verilator_flags) do
+                            if eflag:startswith("--timescale-override") then
+                                local timescale_value = _uflag[2]
+                                if timescale_value == nil then
+                                    timescale_value = verilator_flags[i + 1]
+                                end
+                                assert(
+                                    timescale_value,
+                                    "Invalid `--timescale-override` option for verilator.flags, `--timescale-override` should be followed by a value(e.g. --timescale-override 1ns/1ns)"
+                                )
+                                extra_verilator_flags[j] = _uflag .. " " .. timescale_value
+                            end
+                        end
+                    elseif _uflag:startswith("--timing") then -- TODO: minimum verilator version?
+                        for j, eflag in ipairs(extra_verilator_flags) do
+                            if eflag:startswith("--no-timing") then
+                                -- TODO: test verilator timing mode
+                                extra_verilator_flags[j] = [[--timing -CFLAGS "-DTIMING_MODE"]]
+                            end
+                        end
+                    end
                 end
             end
 
-            target:add(
-                "values",
-                "verilator.flags",
-                "--vpi",
-                "--cc",
-                "--exe",
-                "--MMD",
-                "--no-timing",
-                "-Mdir", sim_build_dir,
-                verilator_x_assign,
-                verilator_opt,
-                "-j 0", -- Verilate using use as many CPU threads as the machine has.
-                "--Wno-PINMISSING", "--Wno-MODDUP", "--Wno-WIDTHEXPAND", "--Wno-WIDTHTRUNC", "--Wno-UNOPTTHREADS", "--Wno-IMPORTSTAR",
-                "--timescale-override", "1ns/1ns",
-                "+define+SIM_VERILATOR",
-                "-CFLAGS \"-std=c++20\"",
-                [[-LDFLAGS "-u coverageCtrl -u getCoverageCount -u getCoverage -u getCondCoverage"]], -- Reserve symbols for coverage(cov_exporter)
-                "-LDFLAGS \"-flto\"",
-                "--top", tb_top
-            )
-
-            if public_flat_rw then
-                target:add("values", "verilator.flags", "--public-flat-rw")
+            for _, eflag in ipairs(extra_verilator_flags) do
+                target:add("values", "verilator.flags", eflag)
             end
         elseif sim == "iverilog" then
             target:add(
@@ -279,30 +451,13 @@ rule("verilua")
                 "iverilog.flags",
                 "-g2012",
                 "-DSIM_IVERILOG",
-                "-D" .. mode:upper() .. "_MODE",
                 "-s", tb_top,
-                "-o", sim_build_dir .. "/simv.vvp"
+                "-o", path.join(sim_build_dir, "simv.vvp")
             )
         elseif sim == "vcs" then
-            local has_which_cmd = try { function () return os.iorun("which which") end }
-            local vcs_cc = has_which_cmd and get_command_path(os, "gcc") or ""
-            local vcs_cpp = has_which_cmd and get_command_path(os, "g++") or ""
-            local vcs_ld = has_which_cmd and get_command_path(os, "g++") or ""
-
-            local custom_toolchain_str = ""
-            if vcs_cc ~= "" then
-                custom_toolchain_str = custom_toolchain_str .. " -cc " .. vcs_cc
-            end
-            if vcs_cpp ~= "" then
-                custom_toolchain_str = custom_toolchain_str .. " -cpp " .. vcs_cpp
-            end
-            if vcs_ld ~= "" then
-                custom_toolchain_str = custom_toolchain_str .. " -ld " .. vcs_ld
-            end
-
-            target:add(
-                "values",
-                "vcs.flags",
+            local libluajit51_lib = path.join(luajitpro_home, "lib")
+            local libverilua_vcs_so = path.join(verilua_libs_home, "libverilua_vcs.so")
+            local extra_vcs_flags = {
                 "-sverilog",
                 "-full64",
                 "-debug_access+all",
@@ -313,71 +468,101 @@ rule("verilua")
                 "-kdb",
                 "-j" .. tostring((os.cpuinfo().ncpu or 128)),
                 "-timescale=1ns/1ns",
-                (function () if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+random" end end)(),
                 "+define+SIM_VCS",
                 "+define+VCS",
-                "+define+" .. mode:upper() .. "_MODE",
                 "-q",
+                [[-CFLAGS "-Ofast -march=native -loop-unroll"]],
+                [[-LDFLAGS "-flto -Wl,--no-as-needed"]],
+                f([[-LDFLAGS "-Wl,-rpath,%s"]], verilua_libs_home),                     -- for libverilua_vcs.so
+                f([[-LDFLAGS "-Wl,-rpath,%s"]], libluajit51_lib),                       -- for libluajit-5.1.so
+                f([[-LDFLAGS "-L%s -lluajit-5.1 -lverilua_vcs -lz"]], libluajit51_lib), -- libz is used by VERDI
+                "-load " .. libverilua_vcs_so,
+                "-o", path.join(sim_build_dir, "simv")
+            }
 
-                custom_toolchain_str,
+            local vcs_cc = find_file("gcc", { "$(env PATH)" })
+            local vcs_cpp = find_file("g++", { "$(env PATH)" })
+            local vcs_ld = find_file("g++", { "$(env PATH)" })
+            if vcs_cc ~= nil then
+                extra_vcs_flags[#extra_vcs_flags + 1] = "-cc " .. vcs_cc
+            end
+            if vcs_cpp ~= nil then
+                extra_vcs_flags[#extra_vcs_flags + 1] = "-cpp " .. vcs_cpp
+            end
+            if vcs_ld ~= nil then
+                extra_vcs_flags[#extra_vcs_flags + 1] = "-ld " .. vcs_ld
+            end
 
-                "-CFLAGS \"-Ofast -march=native -loop-unroll\"",
-                "-LDFLAGS \"-flto -Wl,--no-as-needed\"",
-                f("-LDFLAGS \"-Wl,-rpath,%s\"", verilua_libs_home), -- for libverilua_vcs.so
-                f("-LDFLAGS \"-Wl,-rpath,%s/luajit-pro/luajit2.1/lib\"", verilua_home), -- for libluajit-5.1.so
-                f("-LDFLAGS \"-L%s/luajit-pro/luajit2.1/lib -lluajit-5.1 -lverilua_vcs\"", verilua_home),
-                "-LDFLAGS \"-lz\"", -- libz is used by VERDI
-               
-                -- These flags are provided by `default.nix`
-                -- "-LDFLAGS \"-Wl,-rpath,/nix/store/pkl664rrz6vb95piixzfm7qy1yc2xzgc-zlib-1.3.1/lib\"",
-                -- "-LDFLAGS\"-Wl,-rpath,/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib -Wl,-rpath,/nix/store/c10zhkbp6jmyh0xc5kd123ga8yy2p4hk-glibc-2.39-52/lib64 -Wl,-rpath,/nix/store/swcl0ynnia5c57i6qfdcrqa72j7877mg-gcc-13.2.0-lib/lib\"",
+            if not target:get("vcs_no_initreg") then
+                extra_vcs_flags[#extra_vcs_flags + 1] = "+vcs+initreg+random"
+            end
 
-                "-load " .. verilua_libs_home .. "/libverilua_vcs.so",
-                "-o", sim_build_dir .. "/simv"
-            )
-        elseif sim == "wave_vpi" then
-            local get_waveform = false
-            local waveform_file = ""
-            for _, sourcefile in ipairs(sourcefiles) do
-                local ext = path.extension(sourcefile)
-                if ext == ".vcd" or ext == ".fst" then
-                    assert(get_waveform == false, "[on_load] Multiple waveform files are not supported")
-                    get_waveform = true
-                    waveform_file = path.absolute(sourcefile)
+            -- Some flags can be overridden by user defined flags
+            for _, uflag in ipairs(target:values("vcs.flags") or {}) do
+                uflag = uflag:trim()
+                local maybe_uflags = uflag:split(" ", { plain = true })
+                for _, _uflag in ipairs(maybe_uflags) do
+                    if _uflag:startswith("-timescale=") then
+                        -- Override the timescale flag
+                        for j, eflag in ipairs(extra_vcs_flags) do
+                            if eflag:startswith("-timescale=") then
+                                extra_vcs_flags[j] = _uflag
+                            end
+                        end
+                    end
                 end
             end
-            if waveform_file ~= "" then
-                target:add("waveform_file", waveform_file)
+
+            for _, eflag in ipairs(extra_vcs_flags) do
+                target:add("values", "vcs.flags", eflag)
             end
+        elseif sim == "wave_vpi" then
+            -- Do nothing
         end
 
         local sim_flags = target:values(sim .. ".flags") or {}
-        cprint("${✅} [verilua-xmake] [%s] `%s.flags` is ${green underline}%s${reset}", target:name(), sim, table.concat(sim_flags, " "))
+        cprint(
+            "${✅} [verilua-xmake] [%s] `%s.flags` is ${green underline}%s${reset}",
+            target:name(),
+            sim,
+            table.concat(sim_flags, " ")
+        )
         table.join2(argv, sim_flags)
 
         -- Add extra includedirs and link flags
-        target:add("includedirs", 
-            luajitpro_home .. "/include",
-            luajitpro_home .. "/include/luajit-2.1",
-            verilua_home .. "/src/include"
+        target:add("includedirs",
+            path.join(luajitpro_home, "include"),
+            path.join(luajitpro_home, "include", "luajit-2.1"),
+            path.join(verilua_home, "src", "include")
         )
         target:add("links", "luajit-5.1")
-        target:add("linkdirs", luajitpro_home .. "/lib", verilua_libs_home)
-        target:add("linkdirs", verilua_home .. "/conan_installed/lib")
-        target:add("includedirs", verilua_home .. "/conan_installed/include")
+        target:add("linkdirs", path.join(luajitpro_home, "lib"), verilua_libs_home)
+        target:add("linkdirs", path.join(verilua_home, "conan_installed", "lib"))
+        target:add("includedirs", path.join(verilua_home, "conan_installed", "include"))
 
         if sim == "verilator" then
             target:add("links", "verilua_verilator")
-            target:add("files", verilua_home .. "/src/verilator/*.cpp")
+            target:add("files", path.join(verilua_home, "src", "verilator", "*.cpp"))
         elseif sim == "vcs" then
-            -- If you are entering a C++ file or an object file compiled from a C++ file on 
-            -- the vcs command line, you must tell VCS to use the standard C++ library for 
-            -- linking. To do this, enter the -lstdc++ linker flag with the -LDFLAGS elaboration 
+            -- If you are entering a C++ file or an object file compiled from a C++ file on
+            -- the vcs command line, you must tell VCS to use the standard C++ library for
+            -- linking. To do this, enter the -lstdc++ linker flag with the -LDFLAGS elaboration
             -- option.
             target:add("links", "verilua_vcs", "stdc++")
         end
 
-        -- Generate <tb_top>.sv
+        --- Generate `<tb_top>.sv` + `others.sv` using `testbench_gen`.
+        --- <tb_top>.sv is the testbench top module which instantiates the DUT(top module)  and provides some
+        --- internal testbench interfaces used by verilua.
+        --- `others.sv` can be used by the user to add some extra testbench logic. This file wont updated by
+        --- `testbench_gen` if it already exists.
+        ---
+        --- You got the `cfg.not_gen_tb` option to disable the automatic generation of testbench top module.
+        --- Once you disable it, `<tb_top>.sv` wont be updated or generated even if rtl files changed.
+        --- e.g. (in your xmake.lua)
+        --- ```lua
+        ---     set_values("cfg.not_gen_tb", "1")
+        --- ```
         local _not_gen_tb = target:values("cfg.not_gen_tb") -- Do not automatically generate testbench top
         local not_gen_tb = false
         if _not_gen_tb == "1" then
@@ -399,14 +584,29 @@ rule("verilua")
 
             assert(file_str ~= "", "[on_build] Cannot find any .v/.sv files!")
 
-            -- Only the vfiles are needed to be checked
-            local tb_gen_flags = {"--top", top, "--tbtop", tb_top, "--nodpi", "--verbose", "--out-dir", build_dir}
-            local _tb_gen_flags = target:values("cfg.tb_gen_flags")
-            if _tb_gen_flags then
-                tb_gen_flags = table.join2(tb_gen_flags, _tb_gen_flags)
+            --- Since <tb_top>.sv and others.sv are generated by `testbench_gen` command, you can
+            --- specify the `cfg.tb_gen_flags` to pass some additional flags to `testbench_gen`
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---    set_values("cfg.tb_gen_flags", { "--some_flag", "--another_flag" })
+            --- ```
+            --- For more information about `testbench_gen`, please refer to `testbench_gen --help`
+            local u_tb_gen_flags = target:values("cfg.tb_gen_flags")
+            local tb_gen_flags = { "--top", top, "--tbtop", tb_top, "--nodpi", "--verbose", "--out-dir", build_dir }
+            if u_tb_gen_flags then
+                tb_gen_flags = table.join2(tb_gen_flags, u_tb_gen_flags)
             end
-            local gen_cmd = f(verilua_tools_home .. "/testbench_gen" .. " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str)
-            local is_generated = false
+            local gen_cmd = f(path.join(verilua_tools_home, "testbench_gen") ..
+                " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str)
+
+            --- You can also specify your own testbench top module file using `cfg.tb_top_file`.
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     set_values("cfg.tb_top_file", "/path/to/your/my_tb_top.sv")
+            --- ```
+            --- In the above example, `my_tb_top.sv` will be used as testbench top module.
+            --- Notice: Once you specify your own testbench top module, you are not allowed to
+            --- use some of the verilua features which depend on the generated testbench top module, e.g. `sim.dump_wave()`.
             local should_regenerate = true
             local input_tb_top_file = target:values("cfg.tb_top_file")
             if input_tb_top_file ~= nil then
@@ -419,27 +619,28 @@ rule("verilua")
             end
 
             if should_regenerate then
-                local has_testbench_gen = try { function () return os.iorun("which testbench_gen") end }
+                local has_testbench_gen = find_file("testbench_gen", { "$(env PATH)" })
                 if not has_testbench_gen then
-                    raise("[on_build] Cannot find `testbench_gen`! You should build `testbench_gen` in `verilua` root directory via `xmake build testbench_gen`")
+                    raise(
+                        "[on_build] Cannot find `testbench_gen`! You should build `testbench_gen` in `verilua` root directory via `xmake build testbench_gen`")
                 end
-                
+
                 os.exec(gen_cmd)
-                target:add("files", build_dir .. "/" .. tb_top ..".sv", build_dir .. "/others.sv")
+                target:add("files", path.join(build_dir, tb_top .. ".sv"), path.join(build_dir, "others.sv"))
             else
                 target:add("files", input_tb_top_file)
             end
         end
 
-        -- User defined `before_build`, the reason for this is that we want the generated files(tb_top.sv, others.sv) to be added to the target files
-        -- so that we could use them in `before_build` for further processing and at this time we own the complete rtl files.
-        -- 
-        -- Example:
-        --      set_values("before_build", function(target)
-        --          -- Do something
-        --      end)
-        -- 
-        local user_before_build  = target:values("before_build")
+        --- User defined `before_build`, the reason for this is that we want the generated files(tb_top.sv, others.sv) to be added to the target files
+        --- so that we could use them in `before_build` for further processing and at this time we own the complete rtl files.
+        --- e.g.(in your xmake.lua)
+        --- ```lua
+        ---     set_values("before_build", function(target)
+        ---         -- Do something
+        ---     end)
+        --- ```
+        local user_before_build = target:values("before_build")
         if user_before_build then
             local t = type(user_before_build)
             assert(t == "function", f("[on_build] before_build should be a `function`, but got `%s`", t))
@@ -449,28 +650,48 @@ rule("verilua")
             user_before_build(target)
         end
 
-        ---@alias InstrumentationType "cov_exporter"
-
-        ---@class CovExporterConfig: {module: string, disable_signal?: string, clock?: string, recursive?: boolean}
-
-        ---@class InstrumentationConfig
-        ---@field type InstrumentationType
-        ---@field config CovExporterConfig
-        ---@field extra_args string[] Extra arguments for the instrumentation tool
-
+        --- Instrumentation feature introduced in verilua for runtime coverage collection and other future features.
+        --- Notice: For now, only `cov_exporter` is supported.
+        --- e.g. (in your xmake.lua)
+        --- ```lua
+        ---     set_values("instrumentation", function()
+        ---         return {
+        ---             {
+        ---                 type = "cov_exporter",
+        ---                 config = {
+        ---                     { module = "LLC", recursive = true }
+        ---                 },
+        ---                 extra_args = [[
+        ---                     +define+SYNTHESIS
+        ---                     --alt-clock "tb_top.clock"
+        ---                     --dm ".*ram.*"
+        ---                 ]]
+        ---             },
+        ---             -- Other instrumentation configurations...
+        ---         }
+        ---     end)
+        --- ```
         local _instrumentation = target:values("instrumentation")
         if _instrumentation then
             local t = type(_instrumentation)
-            assert(t == "function", f("[on_build] `instrumentation` should be a `function` with a return value of `InstrumentationConfig[]`, but got `%s`", t))
+            assert(
+                t == "function",
+                "[on_build] `instrumentation` should be a `function` with a return value of `InstrumentationConfig[]`, but got `%s`",
+                t
+            )
 
-            ---@type InstrumentationConfig[]
             local instrumentation = _instrumentation()
-            assert(type(instrumentation) == "table", f("[on_build] return value of `instrumentation` function should be a `table` of `InstrumentationConfig[]`, but got `%s`", type(instrumentation)))
+            assert(
+                type(instrumentation) == "table",
+                "[on_build] return value of `instrumentation` function should be a `table` of `InstrumentationConfig[]`, but got `%s`",
+                type(instrumentation)
+            )
+            ---@cast instrumentation InstrumentationConfig[]
 
-            local gen_filelist = function ()
+            local gen_filelist = function()
                 local vfiles = {}
-                local sourcefiles = target:sourcefiles()
-                for _, sourcefile in ipairs(sourcefiles) do
+                local _sourcefiles = target:sourcefiles()
+                for _, sourcefile in ipairs(_sourcefiles) do
                     local ext = path.extension(sourcefile)
                     if ext == ".v" or ext == ".sv" or ext == ".svh" then
                         table.insert(vfiles, path.absolute(sourcefile))
@@ -482,20 +703,21 @@ rule("verilua")
                 return filelist
             end
 
-            local replace_sourcefiles = function (newpath)
-                local sourcefiles = target:sourcefiles()
-                for i, sourcefile in ipairs(sourcefiles) do
+            local replace_sourcefiles = function(newpath)
+                local _sourcefiles = target:sourcefiles()
+                for i, sourcefile in ipairs(_sourcefiles) do
                     local ext = path.extension(sourcefile)
                     if ext == ".v" or ext == ".sv" or ext == ".svh" then
                         local filename = path.filename(sourcefile)
                         local newfile = path.join(newpath, filename)
-                        sourcefiles[i] = newfile
+                        _sourcefiles[i] = newfile
                     end
                 end
             end
 
             for _, inst in ipairs(instrumentation) do
                 if inst.type == "cov_exporter" then
+                    local cov_exporter_outdir = path.join(build_dir, ".cov_exporter")
                     local cmd = "cov_exporter -q -f " .. gen_filelist() .. " --top " .. tb_top .. " +define+SYNTHESIS "
                     local etype = type(inst.extra_args)
                     if etype == "table" then
@@ -504,14 +726,20 @@ rule("verilua")
                         -- Replace '\n' with ' '
                         cmd = cmd .. inst.extra_args:gsub("\n", " ")
                     end
-                    cmd = cmd .. " --outdir " .. build_dir .. "/.cov_exporter" .. " --workdir " .. build_dir .. "/.cov_exporter"
+                    cmd = cmd .. " --outdir " .. cov_exporter_outdir .. " --workdir " .. cov_exporter_outdir
 
                     local config = inst.config
                     for _, module_cfg in ipairs(config) do
-                        assert(type(module_cfg.module) == "string", f("[on_build] `module` should be a `string`, but got `%s`", type(module_cfg.module)))
+                        assert(
+                            type(module_cfg.module) == "string",
+                            "[on_build] `module` should be a `string`, but got `%s`",
+                            type(module_cfg.module)
+                        )
                         cmd = cmd .. " --module " .. module_cfg.module
                         if module_cfg.disable_signal then
-                            cmd = cmd .. " --disable-signal-pattern \"" .. module_cfg.module .. ":" .. module_cfg.disable_signal .. "\""
+                            cmd = cmd ..
+                                " --disable-signal-pattern \"" ..
+                                module_cfg.module .. ":" .. module_cfg.disable_signal .. "\""
                         end
                         if module_cfg.clock then
                             cmd = cmd .. " --clock-signal \"" .. module_cfg.module .. ":" .. module_cfg.clock .. "\""
@@ -522,90 +750,127 @@ rule("verilua")
                     end
 
                     os.vrun(cmd)
-                    replace_sourcefiles(build_dir .. "/.cov_exporter")
+                    replace_sourcefiles(cov_exporter_outdir)
                 else
-                    assert(false, f("[on_build] Unknown instrumentation type: %s", inst.type))
+                    raise("[on_build] Unknown instrumentation type: %s", inst.type)
                 end
             end
         end
 
-        local has_which_cmd = try { function () return os.iorun("which which") end }
-        if not has_which_cmd then
-            cprint("${❌} [verilua-xmake] [%s] ${color.error underline}which${reset color.error} command not found!${reset clear}", target:name())
+        --- Here we manage to apply some build flags according to target settings.
+        --- e.g. cflags, ldflags, defines, includedirs, linkdirs, etc.
+        --- These flags are commonly used in C/C++ projects, but they are also useful in verilua project.
+        --- e.g. you may want to add some `-D` defines to your verilog source files or add some
+        --- include directories for verilator to find some C/C++ header files.
+        --- e.g. (in your xmake.lua)
+        --- ```lua
+        ---     add_defines("SIM_VERILATOR", "HELLO=1")
+        ---     add_includedirs("/path/to/inc1", "/path/to/inc2")
+        ---     add_cflags("-Wall", "-Wextra")
+        ---     add_ldflags("-lfmt", "-lmimalloc")
+        ---     add_linkdirs("/path/to/lib1", "/path/to/lib2")
+        ---     add_links("fmt", "mimalloc")
+        --- ```
+        local function apply_build_flags()
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_cflags("-Wall", "-Wextra")
+            --- ```
+            local cflags = target:get("cflags")
+            if cflags then
+                table.insert(argv, f([[-CFLAGS "%s"]], table.concat(cflags, " ")))
+            end
+
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_ldflags("-lfmt")
+            --- ```
+            local ldflags = target:get("ldflags")
+            if ldflags then
+                table.insert(argv, f([[-LDFLAGS "%s"]], table.concat(ldflags, " ")))
+            end
+
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_defines("HELLO", "WORLD=1")
+            --- ```
+            local defines = target:get("defines")
+            for _, define in ipairs(defines) do
+                table.insert(argv, f([[-CFLAGS "-D%s"]], define))
+            end
+
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_includedirs("/path/to/inc1", "/path/to/inc2")
+            --- ```
+            local includedirs = target:get("includedirs")
+            for _, dir in ipairs(includedirs) do
+                table.insert(argv, "-CFLAGS")
+                table.insert(argv, "-I" .. path.absolute(dir))
+            end
+
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_linkdirs("/path/to/link1", "/path/to/link2")
+            ---     add_rpathdirs("/path/to/link1", "/path/to/link2")
+            --- ```
+            local linkdirs, rpathdirs = target:get("linkdirs"), target:get("rpathdirs")
+            for _, dir in ipairs(linkdirs) do
+                table.insert(argv, "-LDFLAGS \"-L" .. path.absolute(dir) .. "\"")
+            end
+            for _, dir in ipairs(rpathdirs) do
+                table.insert(argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(dir) .. "\"")
+            end
+
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_links("fmt", "mimalloc")
+            --- ```
+            local links = target:get("links")
+            for _, link in ipairs(links) do
+                table.insert(argv, "-LDFLAGS")
+                table.insert(argv, "-l" .. link)
+            end
         end
 
         if sim == "verilator" then
-            toolchain = assert(target:toolchain("verilator"), '[on_build] we need to set_toolchains("@verilator") in target("%s")', target:name())
-            buildcmd = try { function () return os.iorun("which verilator") end } or assert(toolchain:config("verilator"), "[on_build] verilator not found!")
+            toolchain = assert(
+                target:toolchain("verilator"),
+                '[on_build] we need to set_toolchains("@verilator") in target("%s")',
+                target:name()
+            )
+            buildcmd = find_file("verilator", { "$(env PATH)" }) or
+                assert(toolchain:config("verilator"), "[on_build] verilator not found!")
 
-            if mode == "normal" then
-                table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-DNORMAL_MODE")
-            elseif mode == "step" then
-                table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-DSTEP_MODE")
-            elseif mode == "dominant" then
-                table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-DDOMINANT_MODE")
-            end
-
-            local includedirs = target:get("includedirs")
-            for _, dir in ipairs(includedirs) do
-                table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-I" .. path.absolute(dir))
-            end
-
-            local linkdirs, rpathdirs = target:get("linkdirs"), target:get("rpathdirs")
-            for _, dir in ipairs(linkdirs) do
-                table.insert(argv, "-LDFLAGS \"-L" .. path.absolute(dir) .. "\"")
-            end
-            for _, dir in ipairs(rpathdirs) do
-                table.insert(argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(dir) .. "\"")
-            end
-
-            local links = target:get("links")
-            for _, link in ipairs(links) do
-                table.insert(argv, "-LDFLAGS")
-                table.insert(argv, "-l" .. link)
-            end
+            apply_build_flags()
         elseif sim == "iverilog" then
-            toolchain = assert(target:toolchain("iverilog"), '[on_build] we need to set_toolchains("@iverilog") in target("%s")', target:name())
-            buildcmd = try { function () return os.iorun("which iverilog")  end } or assert(toolchain:config("iverilog"), "[on_build] iverilog not found!")
-
+            toolchain = assert(
+                target:toolchain("iverilog"),
+                '[on_build] we need to set_toolchains("@iverilog") in target("%s")',
+                target:name()
+            )
+            buildcmd = find_file("iverilog", { "$(env PATH)" }) or
+                assert(toolchain:config("iverilog"), "[on_build] iverilog not found!")
         elseif sim == "vcs" then
-            toolchain = assert(target:toolchain("vcs"), '[on_build] we need to set_toolchains("@vcs") in target("%s")', target:name())
-            buildcmd = try { function () return os.iorun("which vcs")  end } or assert(toolchain:config("vcs"), "[on_build] vcs not found!")
+            toolchain = assert(
+                target:toolchain("vcs"),
+                '[on_build] we need to set_toolchains("@vcs") in target("%s")',
+                target:name()
+            )
+            buildcmd = find_file("vcs", { "$(env PATH)" }) or
+                assert(toolchain:config("vcs"), "[on_build] vcs not found!")
 
-            local includedirs = target:get("includedirs")
-            for _, dir in ipairs(includedirs) do
-                table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-I" .. path.absolute(dir))
-            end
-
-            local linkdirs, rpathdirs = target:get("linkdirs"), target:get("rpathdirs")
-            for _, dir in ipairs(linkdirs) do
-                table.insert(argv, "-LDFLAGS \"-L" .. path.absolute(dir) .. "\"")
-            end
-            for _, dir in ipairs(rpathdirs) do
-                table.insert(argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(dir) .. "\"")
-            end
-
-            local links = target:get("links")
-            for _, link in ipairs(links) do
-                table.insert(argv, "-LDFLAGS")
-                table.insert(argv, "-l" .. link)
-            end
+            apply_build_flags()
         elseif sim == "wave_vpi" then
             -- Do nothing
         else
             raise("Unknown simulator! => " .. tostring(sim))
         end
 
-        cprint("${✅} [verilua-xmake] [%s] buildcmd is ${green underline}%s${reset}", target:name(), buildcmd)
-
-        local sourcefiles = target:sourcefiles()
+        sourcefiles = target:sourcefiles()
         local filelist_dut = {} -- only v/sv files
         local filelist_sim = {} -- including c/c++ files
+        local full_buildcmd = ""
         if sim ~= "wave_vpi" then
             for _, sourcefile in ipairs(sourcefiles) do
                 local ext = path.extension(sourcefile)
@@ -628,43 +893,71 @@ rule("verilua")
                 end
             end
 
+            local dut_file_f = path.join(build_dir, "dut_file.f")
+            local sim_file_f = path.join(build_dir, "sim_file.f")
             if #filelist_dut >= 200 then
-                -- filelist_dut is too long, pass a filelist to simulator 
-                table.insert(argv, "-f " .. build_dir .. "/dut_file.f")
+                -- filelist_dut is too long, pass a filelist to simulator
+                table.insert(argv, "-f " .. dut_file_f)
             else
-                table.join2(argv, filelist_dut) 
+                table.join2(argv, filelist_dut)
             end
 
             -- Write filelist of this build
-            io.writefile(build_dir .."/dut_file.f", table.concat(filelist_dut, '\n'))
-            io.writefile(build_dir .."/sim_file.f", table.concat(filelist_sim, '\n'))
+            io.writefile(dut_file_f, table.concat(filelist_dut, '\n'))
+            io.writefile(sim_file_f, table.concat(filelist_sim, '\n'))
 
             -- Run the build command to generate target binary
-            os.vrun(buildcmd .. " " .. table.concat(argv, " "))
+            full_buildcmd = buildcmd .. " " .. table.concat(argv, " ")
+            cprint(
+                "${✅} [verilua-xmake] [%s] full buildcmd is ${green underline}%s${reset}",
+                target:name(),
+                full_buildcmd
+            )
+            os.vrun(full_buildcmd)
             if sim == "verilator" then
+                --- e.g.
+                --- ```lua
+                ---     set_values("verilator.opt_slow", "-O3")
+                ---     set_values("verilator.opt_fast", "-O0")
+                --- ```
                 local user_opt_slow = target:values("verilator.opt_slow")
                 local user_opt_fast = target:values("verilator.opt_fast")
-                assert(type(user_opt_slow) == "nil" or type(user_opt_slow) == "string", "verilator.opt_slow must be a string")
-                assert(type(user_opt_fast) == "nil" or type(user_opt_fast) == "string", "verilator.opt_fast must be a string")
+                assert(
+                    type(user_opt_slow) == "nil" or type(user_opt_slow) == "string",
+                    "[on_build] `verilator.opt_slow`` must be a string"
+                )
+                assert(
+                    type(user_opt_fast) == "nil" or type(user_opt_fast) == "string",
+                    "[on_build] `verilator.opt_fast` must be a string"
+                )
 
                 local nproc = os.cpuinfo().ncpu or 128
-                local sim_build_dir = build_dir .. "/sim_build"
-                local tb_top_mk = sim_build_dir .. "/V" .. tb_top .. ".mk"
+                local tb_top_mk = path.join(sim_build_dir, "V" .. tb_top .. ".mk")
 
-                local opt_slow = user_opt_slow or "-O0" -- OPT_SLOW applies to slow-path code, which rarely executes, often only once at the beginning or end of the simulation.
-                local opt_fast = user_opt_fast or "-O3 -march=native" -- OPT_FAST specifies optimization options for those parts of the model on the fast path.
-                                                                      -- This is mostly code that is executed every cycle.
-                
+                -- OPT_SLOW applies to slow-path code, which rarely executes, often only once at the beginning or end of the simulation.
+                local opt_slow = user_opt_slow or "-O0"
+
+                -- OPT_FAST specifies optimization options for those parts of the model on the fast path.
+                -- This is mostly code that is executed every cycle.
+                local opt_fast = user_opt_fast or "-O3 -march=native"
+
                 -- TODO: consider PGO optimization
                 os.cd(sim_build_dir)
-                os.vrun("make -j%d VM_PARALLEL_BUILDS=1 OPT_SLOW=\"%s\" OPT_FAST=\"%s\" -C %s -f %s", nproc, opt_slow, opt_fast, sim_build_dir, tb_top_mk)
+                os.vrun(
+                    [[make -j%d VM_PARALLEL_BUILDS=1 OPT_SLOW="%s" OPT_FAST="%s" -C %s -f %s]],
+                    nproc,
+                    opt_slow,
+                    opt_fast,
+                    sim_build_dir,
+                    tb_top_mk
+                )
                 os.cd(os.curdir())
             end
         end
 
-        -- 
-        -- Create a clean.sh + build.sh + run.sh + prebuild.sh that can be used by user to manually run the simulation
-        -- 
+        --
+        -- Create a clean.sh + build.sh + run.sh that can be used by user to manually build/run/clean the simulation.
+        --
         -- Save the current environment variables
         local _runenvs = target:get("runenvs")
         local extra_runenvs = ""
@@ -677,81 +970,106 @@ rule("verilua")
                 end
             end
         end
-        
-        io.printf(build_dir .. "/setvars.sh", 
-[[#!/usr/bin/env bash
+
+        io.printf(
+            path.join(build_dir, "setvars.sh"),
+            [[#!/usr/bin/env bash
 export VERILUA_CFG=%s
 export SIM=%s
-%s]], target:get("cfg_file"), sim, extra_runenvs)
+%s]],
+            target:get("verilua_cfg_file"),
+            sim,
+            extra_runenvs
+        )
 
-        local sim_build_dir = target:get("sim_build_dir")
-        io.printf(build_dir .. "/clean.sh", 
-[[#!/usr/bin/env bash
+        io.printf(
+            path.join(build_dir, "clean.sh"),
+            [[#!/usr/bin/env bash
 source setvars.sh
-rm -rf %s]], sim_build_dir)
+rm -rf %s]],
+            sim_build_dir
+        )
 
-        local buildcmd_str = sim == "wave_vpi" and "# wave_vpi did not support build.sh \n#" or buildcmd:sub(1, -2) .. " " .. table.concat(argv, " ")
-        io.printf(build_dir .. "/build.sh", 
-[[#!/usr/bin/env bash
+        local buildcmd_str = ""
+        if sim == "wave_vpi" then
+            buildcmd_str = "# wave_vpi did not support build.sh \n#"
+        else
+            buildcmd_str = buildcmd .. " " .. table.concat(argv, " ")
+            -- TODO: extra build cmd for verilator(i.e. cd <sim_build_dir> && make ...)
+        end
+        io.printf(
+            path.join(build_dir, "build.sh"),
+            [[#!/usr/bin/env bash
 source setvars.sh
-%s 2>&1 | tee build.log]], buildcmd_str)
+%s 2>&1 | tee build.log]],
+            buildcmd_str
+        )
 
         local run_sh = ""
         if sim == "verilator" then
-            run_sh = f([[numactl -m 0 -C 0-7 %s/V%s 2>&1 | tee run.log]], sim_build_dir, tb_top)
+            run_sh = f([[%s/V%s 2>&1 | tee run.log]], sim_build_dir, tb_top)
         elseif sim == "vcs" then
-            run_sh = f([[%s/simv %s +notimingcheck 2>&1 | tee run.log]], sim_build_dir, (function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)())
+            run_sh = f([[%s/simv %s +notimingcheck 2>&1 | tee run.log]], sim_build_dir,
+                (function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)())
         elseif sim == "iverilog" then
             run_sh = f([[vvp -M %s -m libverilua_iverilog %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
         elseif sim == "wave_vpi" then
-            local waveform_file = assert(target:get("waveform_file"), "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
+            local waveform_file = assert(
+                target:get("waveform_file"),
+                "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst, .fsdb)"
+            )
             run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
         end
-        io.writefile(build_dir .. "/run.sh",       "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh)
-        io.writefile(build_dir .. "/debug_run.sh", "#!/usr/bin/env bash\nsource setvars.sh\n" .. "gdb --args " .. run_sh)
+        io.writefile(
+            path.join(build_dir, "run.sh"),
+            "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh
+        )
+        io.writefile(
+            path.join(build_dir, "debug_run.sh"),
+            "#!/usr/bin/env bash\nsource setvars.sh\n" .. "gdb --args " .. run_sh
+        )
 
-        io.printf(build_dir .. "/prebuild.sh",
-[[#!/usr/bin/env bash
-source setvars.sh
-verilua_prebuild -f %s]], build_dir .."/dut_file.f")
+        io.writefile(
+            path.join(build_dir, "verdi.sh"),
+            [[#!/usr/bin/env bash
+verdi -f filelist.f -sv -nologo $@]]
+        )
 
-        io.writefile(build_dir .. "/verdi.sh", 
-[[#!/usr/bin/env bash
-verdi -f filelist.f -sv -nologo $@]])
-        
         -- Copy the generated binary to targetdir
-        local sim_build_dir = target:get("sim_build_dir")
         os.mkdir(target:targetdir())
         if sim == "verilator" then
-            os.cp(sim_build_dir .. "/V" .. tb_top, target:targetdir())
-            os.cp(sim_build_dir .. "/V" .. tb_top, target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
+            local target_file = path.join(sim_build_dir, "V" .. tb_top)
+            os.cp(target_file, target:targetdir())
+            os.cp(target_file, path.join(target:targetdir(), target:name())) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "iverilog" then
-            os.cp(sim_build_dir .. "/simv.vvp", target:targetdir())
-            os.cp(sim_build_dir .. "/simv.vvp", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
+            local target_file = path.join(sim_build_dir, "simv.vvp")
+            os.cp(target_file, target:targetdir())
+            os.cp(target_file, path.join(target:targetdir(), target:name())) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "vcs" then
-            os.cp(sim_build_dir .. "/simv", target:targetdir())
-            os.cp(sim_build_dir .. "/simv", target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
+            local target_file = path.join(sim_build_dir, "simv")
+            os.cp(target_file, target:targetdir())
+            os.cp(target_file, path.join(target:targetdir(), target:name())) -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "wave_vpi" then
-            os.touch(target:targetdir() .. "/" .. target:name()) -- make xmake happy, otherwise it would fail to find the binary
+            os.touch(path.join(target:targetdir(), target:name()))           -- make xmake happy, otherwise it would fail to find the binary
         end
-    end) -- on_build
+    end)
 
-    on_clean(function (target)
+    on_clean(function(target)
         local build_dir = target:get("build_dir")
         if not os.isfile(build_dir) then
             os.rmdir(build_dir)
         end
 
         try {
-            function ()
+            function()
                 if not os.isfile(target:targetdir()) then
                     os.rmdir(target:targetdir())
                 end
             end
         }
-    end) -- on_clean
+    end)
 
-    on_run(function (target)
+    on_run(function(target)
         assert(verilua_home ~= "", "[on_run] [%s] please set VERILUA_HOME", target:name())
 
         local sim = target:get("sim")
@@ -771,91 +1089,127 @@ verdi -f filelist.f -sv -nologo $@]])
             os.addenvs(_env)
         end
 
-        -- Set VERILUA_CFG for verilua
-        os.setenv("VERILUA_CFG", target:get("cfg_file"))
+        --- Set VERILUA_CFG for verilua
+        --- VERILUA_CFG will be used when verilua call `init.lua` to load user configuration file
+        os.setenv("VERILUA_CFG", target:get("verilua_cfg_file"))
 
-        -- Move into build dircectory to execute our simulation
+        -- Move into build directory to execute our simulation
         os.cd(build_dir)
+
+        --- `<sim>.run_flags` and `<sim>.run_prefix` is provided for the user to controlling the simulation runtime behavior.
+        --- e.g. (in your xmake.lua)
+        --- ```lua
+        ---     add_values("verilator.run_flags", "--flag")
+        ---     add_values("verilator.run_prefix", "gdb --args")
+        --- ```
         if sim == "verilator" then
-            local run_flags = {""}
+            local run_flags = { "" }
             local _run_flags = target:values("verilator.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
             end
 
-            local run_prefix = {""}
+            local run_prefix = { "" }
             local _run_prefix = target:values("verilator.run_prefix")
             if _run_prefix then
                 table.join2(run_prefix, _run_prefix)
             end
-            
-            os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/V" .. tb_top .. " " .. table.concat(run_flags, " "))
+
+            local vtb_top = path.join(sim_build_dir, "V" .. tb_top)
+            os.exec(
+                table.concat(run_prefix, " ") ..
+                " " .. vtb_top .. " " .. table.concat(run_flags, " ")
+            )
         elseif sim == "iverilog" then
             import("lib.detect.find_file")
 
-            local run_flags = {"-M", verilua_libs_home, "-m", "libverilua_iverilog"}
+            local run_flags = { "-M", verilua_libs_home, "-m", "libverilua_iverilog" }
             local _run_flags = target:values("iverilog.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
             end
 
-            local run_prefix = {""}
+            local run_prefix = { "" }
             local _run_prefix = target:values("iverilog.run_prefix")
             if _run_prefix then
                 table.join2(run_prefix, _run_prefix)
             end
 
-            local vvp = assert(find_file("vvp", {"$(env PATH)"}), "[on_run] vvp not found!")
-            os.exec(table.concat(run_prefix, " ") .. " " .. vvp .. " " .. table.concat(run_flags, " ") .. " " .. sim_build_dir .. "/simv.vvp")
+            local vvp = assert(find_file("vvp", { "$(env PATH)" }), "[on_run] vvp not found!")
+            local simv_vvp = path.join(sim_build_dir, "simv.vvp")
+            os.exec(
+                table.concat(run_prefix, " ") ..
+                " " .. vvp .. " " .. table.concat(run_flags, " ") .. " " .. simv_vvp
+            )
         elseif sim == "vcs" then
-            local run_flags = {(function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)(), "+notimingcheck"}
+            local run_flags = {
+                "+notimingcheck"
+            }
             local _run_flags = target:values("vcs.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
             end
 
-            local run_prefix = {""}
+            if not target:get("vcs_no_initreg") then
+                run_flags[#run_flags + 1] = "+vcs+initreg+0"
+            end
+
+            local run_prefix = { "" }
             local _run_prefix = target:values("vcs.run_prefix")
             if _run_prefix then
                 table.join2(run_prefix, _run_prefix)
             end
-            
-            os.exec(table.concat(run_prefix, " ") .. " " .. sim_build_dir .. "/simv " .. table.concat(run_flags, " "))
+
+            local simv = path.join(sim_build_dir, "simv")
+            os.exec(
+                table.concat(run_prefix, " ") ..
+                " " .. simv .. " " .. table.concat(run_flags, " ")
+            )
         elseif sim == "wave_vpi" then
             import("lib.detect.find_file")
 
-            local waveform_file = assert(target:get("waveform_file"), "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
+            local waveform_file = assert(target:get("waveform_file"),
+                "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
 
-            local wave_vpi_main 
-            do 
+            local wave_vpi_main
+            do
                 if waveform_file:endswith(".fsdb") then
-                    wave_vpi_main = find_file("wave_vpi_main_fsdb", {"$(env PATH)"})
-                    assert(wave_vpi_main, "[on_run] wave_vpi_main_vcs is not defined!")
+                    wave_vpi_main = find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
+                    assert(wave_vpi_main, "[on_run] wave_vpi_main_fsdb is not defined!")
                 else
-                    wave_vpi_main = find_file("wave_vpi_main", {"$(env PATH)"})
+                    wave_vpi_main = find_file("wave_vpi_main", { "$(env PATH)" })
                     if not wave_vpi_main then
-                        local toolchain = assert(target:toolchain("wave_vpi"), '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")', target:name())
+                        local toolchain = assert(
+                            target:toolchain("wave_vpi"),
+                            '[on_run] we need to set_toolchains("@wave_vpi") in target("%s")',
+                            target:name()
+                        )
                         wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_run] wave_vpi_main not found!")
                     end
                 end
             end
 
-            cprint("${✅} [verilua-xmake] [%s] wave_vpi_main is ${green underline}%s${reset}", target:name(), wave_vpi_main)
+            cprint("${✅} [verilua-xmake] [%s] wave_vpi_main is ${green underline}%s${reset}", target:name(),
+                wave_vpi_main)
 
-            local run_flags = {"--wave-file", waveform_file}
+            local run_flags = { "--wave-file", waveform_file }
             local _run_flags = target:values("wave_vpi.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
             end
 
-            local run_prefix = {""}
+            local run_prefix = { "" }
             local _run_prefix = target:values("wave_vpi.run_prefix")
             if _run_prefix then
                 table.join2(run_prefix, _run_prefix)
             end
 
-            os.exec(table.concat(run_prefix, " ") .. " " .. wave_vpi_main .. " " .. table.concat(run_flags, " "))
+            os.exec(
+                table.concat(run_prefix, " ") ..
+                " " .. wave_vpi_main .. " " .. table.concat(run_flags, " ")
+            )
         else
             raise("TODO: [on_run] unknown simulator => " .. sim)
         end
-    end) -- on_run
+    end)
+end)

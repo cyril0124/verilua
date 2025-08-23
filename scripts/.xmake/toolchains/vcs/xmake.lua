@@ -1,9 +1,9 @@
 ---@diagnostic disable
 
-toolchain("vcs")
+toolchain("vcs", function()
     set_description("Synopsys VCS commercial SystemVerilog simulator")
- 
-    on_check(function (toolchain)
+
+    on_check(function(toolchain)
         import("lib.detect.find_file")
 
         local paths = {}
@@ -14,7 +14,7 @@ toolchain("vcs")
             end
         end
 
-        local vcs = find_file("vcs", table.join2({paths}, "$(env PATH)"))
+        local vcs = find_file("vcs", table.join2({ paths }, "$(env PATH)"))
         if vcs then
             toolchain:config_set("vcs", vcs)
             cprint("${dim}checking for vcs ... ${color.success}%s", path.filename(vcs))
@@ -26,5 +26,6 @@ toolchain("vcs")
         return true
     end)
 
-    on_load(function (toolchain)
+    on_load(function(toolchain)
     end)
+end)

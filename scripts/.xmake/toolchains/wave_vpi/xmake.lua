@@ -1,9 +1,9 @@
 ---@diagnostic disable
 
-toolchain("wave_vpi")
+toolchain("wave_vpi", function()
     set_description("wave_vpi waveform simulator(for now only support VCD, FST)")
- 
-    on_check(function (toolchain)
+
+    on_check(function(toolchain)
         import("lib.detect.find_file")
 
         local paths = {}
@@ -14,7 +14,7 @@ toolchain("wave_vpi")
             end
         end
 
-        local wave_vpi_main = find_file("wave_vpi_main", table.join2({paths}, "$(env PATH)"))
+        local wave_vpi_main = find_file("wave_vpi_main", table.join2({ paths }, "$(env PATH)"))
         if wave_vpi_main then
             toolchain:config_set("wave_vpi", wave_vpi_main)
             cprint("${dim}checking for wave_vpi_main ... ${color.success}%s", path.filename(wave_vpi_main))
@@ -26,5 +26,6 @@ toolchain("wave_vpi")
         return true
     end)
 
-    on_load(function (toolchain)
+    on_load(function(toolchain)
     end)
+end)

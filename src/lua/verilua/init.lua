@@ -165,7 +165,6 @@ end
 -- 
 _G.cfg = require "LuaSimConfig"
 _G.colors = cfg.colors
-_G.SchedulerMode = cfg.SchedulerMode
 
 local cfg_name, cfg_path
 do
@@ -246,7 +245,6 @@ end
 
 if cfg.simulator == "vcs" then
     ffi.cdef[[
-        int vcs_get_mode(void);
         void *svGetScopeFromName(const char *str);
         void svSetScope(void *scope);
     ]]
@@ -289,14 +287,6 @@ do
     end
 
     -- 
-    -- setup VL_DEF_VPI_LEARN inside init.lua, this can be overwrite by outer environment variable
-    -- 
-    local VL_DEF_VPI_LEARN = cfg.vpi_learn
-    if VL_DEF_VPI_LEARN ~= nil then
-        setenv_from_lua("VL_DEF_VPI_LEARN", VL_DEF_VPI_LEARN)
-    end
-
-    -- 
     -- setup DUT_TOP inside init.lua, this can be overwrite by outer environment variable
     -- 
     local DUT_TOP = cfg.top
@@ -313,35 +303,9 @@ do
 end
 
 -- 
--- setup mode
+-- Setup scheduler mode
 -- 
-do
-    if cfg.simulator == "verilator" or cfg.simulator == "vcs" then
-        if not cfg.is_hse then
-            if cfg.simulator == "vcs" then
-                ffi.C.svSetScope(ffi.C.svGetScopeFromName(cfg.top))
-
-                local success, mode = pcall(function () return ffi.C.vcs_get_mode() end)
-                if not success then
-                    mode = cfg.SchedulerMode.NORMAL
-                    _G.verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
-                end
-                cfg.mode = tonumber(mode)
-            else
-                assert(cfg.simulator == "verilator", "For now, only support Verilator")
-                local mode = ffi.C.verilator_get_mode()
-                cfg.mode = tonumber(mode)
-            end
-        else
-            if cfg.mode == "nil" then
-                cfg.mode = cfg.SchedulerMode.STEP
-            else
-                assert(cfg.mode == cfg.SchedulerMode.STEP or cfg.mode == cfg.SchedulerMode.EDGE_STEP, "For now, `cfg.mode` only support SchedulerMode.STEP/\"step\" or SchedulerMode.EDGE_STEP/\"edge_step\" when `cfg.is_hse` is `true`, but currently `cfg.mode` is " .. tostring(cfg.mode))
-            end
-        end
-        _G.verilua_debug("SchedulerMode is " .. cfg.SchedulerMode(cfg.mode))
-    end
-end
+_G.verilua_debug("SchedulerMode is " .. cfg.mode)
 
 -- 
 -- import scheduler functions

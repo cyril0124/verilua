@@ -6,28 +6,21 @@ local ffi = require "ffi"
 local path = require "pl.path"
 local utils = require "LuaUtils"
 
-local pcall = pcall
 local assert = assert
-local tonumber = tonumber
 local ffi_new = ffi.new
 
 local cfg = _G.cfg
-local SchedulerMode = _G.SchedulerMode
-local verilua_debug = _G.verilua_debug
-local verilua_warning = _G.verilua_warning
 
 ---@type fun()
 local set_dpi_scope
 if cfg.simulator == "vcs" then
     ffi.cdef [[
-        int vcs_get_mode(void);
-
-        void *svGetScopeFromName(char *str);
+        void *svGetScopeFromName(const char *str);
         void svSetScope(void *scope);
     ]]
 
     set_dpi_scope = function()
-        ffi.C.svSetScope(ffi.C.svGetScopeFromName(ffi.cast("char *", cfg.top)))
+        ffi.C.svSetScope(ffi.C.svGetScopeFromName(cfg.top))
     end
 end
 
@@ -40,7 +33,6 @@ ffi.cdef [[
     void verilator_simulation_enableTrace(void);
     void verilator_simulation_disableTrace(void);
 
-    int verilator_get_mode(void);
     void c_simulator_control(long long cmd);
 
     void vpiml_iterate_vpi_type(const char *module_name, int type);
@@ -138,22 +130,6 @@ local finish = function()
     simulator_control(SimCtrl.FINISH)
 end
 
-local get_mode = function()
-    if cfg.simulator == "vcs" then
-        set_dpi_scope()
-        local success, mode = pcall(function() return ffi.C.vcs_get_mode() end)
-        if not success then
-            mode = SchedulerMode.NORMAL
-            verilua_warning("cannot found ffi.C.vcs_get_mode(), using default mode NORMAL")
-        end
-        return tonumber(mode)
-    else
-        assert(cfg.simulator == "verilator", "For now, only support Verilator")
-        local mode = ffi.C.verilator_get_mode()
-        return tonumber(mode)
-    end
-end
-
 ---@type any
 local print_hierarchy_lib
 local print_hierarchy = function(max_level)
@@ -194,7 +170,6 @@ local LuaSimulator = {
     simulator_control = simulator_control,
     SimCtrl           = SimCtrl,
     finish            = finish,
-    get_mode          = get_mode,
     print_hierarchy   = print_hierarchy,
     iterate_vpi_type  = iterate_vpi_type
 }

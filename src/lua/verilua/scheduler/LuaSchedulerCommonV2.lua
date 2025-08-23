@@ -1,7 +1,4 @@
 local utils = require "LuaUtils"
-local STEP = _G.SchedulerMode.STEP
-local verilua_mode = cfg.mode
-local period = cfg.period
 local ceil = math.ceil
 local tostring = tostring
 local coroutine = coroutine
@@ -59,13 +56,17 @@ local NOOP = 44
 ---@type fun(yield_type: YieldType, string_value: string, integet_value: integer): ...
 local coro_yield = coroutine.yield
 
-local await_time = function (time)
-    if verilua_mode == STEP then
+local await_time
+if cfg.mode == "step" then
+    local period = cfg.period
+    await_time = function (time)
         local t = ceil(time / period)
-        for i = 1, t do
+        for _ = 1, t do
             coro_yield(NOOP, "", 0)
         end
-    else
+    end
+else
+    await_time = function (time)
         coro_yield(Timer, "", time)
     end
 end

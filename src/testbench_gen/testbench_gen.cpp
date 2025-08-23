@@ -358,58 +358,6 @@ initial begin
 {{regInitialize}}
 end
 
-
-// -----------------------------------------
-// verilua mode selection (only for vcs)
-// -----------------------------------------
-
-`ifdef SIM_VCS
-// SchedulerMode
-parameter NormalMode = 1;
-parameter StepMode = 2;
-parameter DominantMode = 3;
-
-export "DPI-C" function vcs_get_mode;
-function int vcs_get_mode;
-    `ifdef STEP_MODE
-        $display("[INFO] @%0t [%s:%d] vcs using StepMode", $time, `__FILE__, `__LINE__);
-        return StepMode;
-    `else
-        `ifdef DOMINANT_MODE
-            $display("[INFO] @%0t [%s:%d] TODO: DominantMode", $time, `__FILE__, `__LINE__); $fatal;
-            return DominantMode;
-        `else
-            $display("[INFO] @%0t [%s:%d] vcs using NormalMode", $time, `__FILE__, `__LINE__);
-            return NormalMode;
-        `endif
-    `endif
-endfunction
-
-`ifdef STEP_MODE
-import "DPI-C" function void verilua_init();
-import "DPI-C" function void verilua_main_step();
-import "DPI-C" function void verilua_final();
-
-initial begin
-    verilua_init();
-end
-
-// always@(posedge {{clockSignalName}}) begin
-//  #1 verilua_main_step();
-// end
-
-always@(negedge {{clockSignalName}}) begin
-    verilua_main_step();
-end
-
-final begin
-    verilua_final();
-end
-`endif // STEP_MODE
-
-`endif // SIM_VCS
-
-
 // -----------------------------------------
 //  DUT module instantiate
 // ----------------------------------------- 

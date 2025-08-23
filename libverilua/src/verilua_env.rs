@@ -172,6 +172,7 @@ impl VeriluaEnv {
             }
         }
 
+        // Environment variable `LUA_SCRIPT` is set while loading `init.lua`
         let lua_script = std::env::var("LUA_SCRIPT").expect("LUA_SCRIPT not set!");
         if let Err(e) = lua_dofile.call::<()>(lua_script) {
             panic!(
