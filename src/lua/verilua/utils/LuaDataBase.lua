@@ -165,7 +165,7 @@ function LuaDataBase:_init(params)
     -- If the pid of each LuaDataBase instance is different, then the database will not be committed
     self.pid = ffi.C.getpid()
 
-    if path_name then
+    if path_name ~= nil then
         self.path_name = path_name
         self.file_name = path.basename(path.join(path_name, file_name))
     else

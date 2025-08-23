@@ -1,3 +1,5 @@
+---@diagnostic disable: assign-type-mismatch
+
 local io = require "io"
 local os = require "os"
 local ffi = require "ffi"

@@ -8,8 +8,8 @@ local randomseed = math.randomseed
 ---@class (exact) CyclicRandom
 ---@overload fun(start_value: integer, end_value: integer): CyclicRandom
 ---@field private gen_idx integer
----@field private size integer
 ---@field private values table<integer, integer>
+---@field size integer
 ---@field shuffle fun(self: CyclicRandom, seed: integer)
 ---@field gen fun(self: CyclicRandom, seed?: integer): integer
 local CyclicRandom = class()

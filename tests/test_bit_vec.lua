@@ -1,3 +1,5 @@
+---@diagnostic disable: assign-type-mismatch
+
 local ffi = require "ffi"
 local lester = require "lester"
 local BitVec = require "BitVec"
@@ -138,7 +140,7 @@ describe("BitVec test", function ()
             local result = bitvec:get_bitfield_hex_str(test.s, test.e)
             local expected = test.expected
             if expected == nil then
-                expected = bit.tohex(tonumber(bitvec:get_bitfield(test.s, test.e)))
+                expected = bit.tohex(tonumber(bitvec:get_bitfield(test.s, test.e)) --[[@as integer]])
             end
             assert(result == expected, f("Failed for s=%d, e=%d: expected 0x%s, got 0x%s", test.s, test.e, expected, result))
         end
@@ -262,7 +264,6 @@ describe("BitVec test", function ()
         local bitvec_1 = BitVec({0x123, 0x456, 0x789})
         local bitvec_2 = BitVec("000007890000045600000123")
         expect.equal(bitvec_1:dump_str(), bitvec_2:dump_str())
-        expect.equal(bitvec_1:dump_str(false), bitvec_2:dump_str(false))
 
         for _, bitvec in ipairs({BitVec("", 64), BitVec({}, 64)}) do
             bitvec(0, 7):set(0x23)

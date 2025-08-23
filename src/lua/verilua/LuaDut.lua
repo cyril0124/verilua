@@ -72,7 +72,7 @@ local force_path_table = {}
 ---@return ProxyTableHandle
 local function create_proxy(path, use_prefix)
     local local_path = path
-    local use_prefix = use_prefix or false
+    use_prefix = use_prefix or false
 
     ---@type ProxyTableHandle
     local mt = setmetatable({
@@ -617,6 +617,7 @@ local function create_proxy(path, use_prefix)
         end
     }, {
         __index = function(t, k)
+            ---@diagnostic disable-next-line: unnecessary-if
             if not use_prefix then
                 return create_proxy(local_path .. '.' .. k, false)
             else

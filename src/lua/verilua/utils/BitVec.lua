@@ -32,6 +32,7 @@ local to_hex_str = utils.to_hex_str
 ---@field get_vec fun(self: SubBitVec): table<number>
 ---@field dump_str fun(self: SubBitVec): string
 ---@field dump fun(self: SubBitVec)
+---@field value integer|ffi.cdata*|string
 
 ---@alias BitVec.HexStr string
 

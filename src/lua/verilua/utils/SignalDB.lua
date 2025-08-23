@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-if
+
 local ffi = require "ffi"
 local path = require "pl.path"
 local inspect = require "inspect"

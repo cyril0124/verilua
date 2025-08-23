@@ -1,4 +1,4 @@
----@diagnostic disable: invisible
+---@diagnostic disable: invisible, access-invisible, assign-type-mismatch
 
 local lester = require 'lester'
 local describe, it, expect = lester.describe, lester.it, lester.expect

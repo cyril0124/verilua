@@ -235,9 +235,11 @@ do
     local CLOCK_MONOTONIC = 1
     local t = ffi.new("timespec[1]")
     local C = ffi.C
+    ---@diagnostic disable-next-line: inject-field
     os._clock = os.clock
     os.clock = function()
         C.clock_gettime(CLOCK_MONOTONIC, t)
+        ---@diagnostic disable-next-line: need-check-nil, undefined-field
         return tonumber(t[0].sec) + tonumber(t[0].nsec) * 1e-9
     end
 end
@@ -1452,7 +1454,7 @@ do
     ---@param ehdl_or_ehdl_tbl EventHandle|table<integer, EventHandle>
     _G.join = function (ehdl_or_ehdl_tbl)
         assert(type(ehdl_or_ehdl_tbl) == "table")
-        if ehdl_or_ehdl_tbl.event_id then
+        if ehdl_or_ehdl_tbl.event_id ~= nil then
             ---@cast ehdl_or_ehdl_tbl EventHandle
             ehdl_or_ehdl_tbl:wait()
         else

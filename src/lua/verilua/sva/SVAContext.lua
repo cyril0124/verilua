@@ -129,7 +129,7 @@ function SVAContext:add(typ)
             assert(false, err)
         end
 
-        if old_cat then
+        if old_cat ~= nil then
             _G.cat = old_cat
         else
             _G.cat = nil

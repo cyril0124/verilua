@@ -17,8 +17,8 @@ local math_random = math.random
 ---@field private first_ptr integer
 ---@field private last_ptr integer
 ---@field private _size integer
----@field private count integer
 ---@field private data table
+---@field count integer
 ---@field push fun(self: StaticQueue, value: StaticQueue.data): StaticQueue.success|StaticQueue.failed
 ---@field pop fun(self: StaticQueue): StaticQueue.data
 ---@field query_first fun(self: StaticQueue): StaticQueue.data

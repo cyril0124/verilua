@@ -360,7 +360,7 @@ end
 ---@param str string The input string (binary starts with "0b", hexadecimal starts with "0x", decimal has no prefix)
 ---@param s integer The start bit
 ---@param e integer The end bit
----@param width integer The width of the input string (optional)
+---@param width integer? The width of the input string (optional)
 ---@return string The binary string
 function utils.bitfield_str(str, s, e, width)
     local prefix = str:sub(1, 2)
@@ -553,7 +553,7 @@ function utils.urandom64_range(min, max)
     if max == 0xFFFFFFFFFFFFFFFFULL then
         range = 0xFFFFFFFFFFFFFFFFULL
     else
-        range = max - min + 1ULL
+        range = (max - min) --[[@as integer]] + 1ULL
     end
 
     local result = min + (random_value % (range))
@@ -842,10 +842,10 @@ function utils.matrix_call(func_table)
 
             if typ == "table" then
                 if #entry == 0 then
-                    if entry.args then
+                    if entry.args ~= nil then
                         assert(type(entry.args) == "table")
                         func_table_meta[i][j] = "single_func_with_args"
-                    elseif entry.multi_args then
+                    elseif entry.multi_args ~= nil then
                         assert(type(entry.multi_args) == "table")
                         assert(type(entry.multi_args[1]) == "table")
                         func_table_meta[i][j] = "single_func_with_muti_args"

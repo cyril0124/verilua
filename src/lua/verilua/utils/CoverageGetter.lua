@@ -261,7 +261,7 @@ function CoverageGetter:get_coverage(hier_or_module, recursive)
 
         ---@type table<string, number>
         local module_to_percent
-        if self.module_to_percent_cache[module_name] then
+        if self.module_to_percent_cache[module_name] ~= nil then
             module_to_percent = self.module_to_percent_cache[module_name]
         else
             module_to_percent = {}
@@ -359,7 +359,7 @@ function CoverageGetter:get_cond_coverage(hier, recursive)
 
         ---@type table<string, number>
         local module_to_percent
-        if self.module_to_percent_cache[module_name] then
+        if self.module_to_percent_cache[module_name] ~= nil then
             module_to_percent = self.module_to_percent_cache[module_name]
         else
             module_to_percent = {}

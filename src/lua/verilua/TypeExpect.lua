@@ -1,3 +1,4 @@
+---@diagnostic disable: unnecessary-if
 local inspect = require "inspect"
 
 local type = type

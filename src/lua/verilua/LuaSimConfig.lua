@@ -17,6 +17,7 @@ local setmetatable = setmetatable
 ---@class LuaSimConfig
 ---@field script string
 ---@field mode integer
+---@field simulator "verilator"|"vcs"|"iverilog"|"wave_vpi"|"unknown"
 ---@field top string Top module name of the DUT
 ---@field srcs string[]
 ---@field deps string[]
@@ -228,6 +229,7 @@ setmetatable(cfg, {
             ]]
             local simulator = ffi.string(ffi.C.vpiml_get_simulator_auto())
             if simulator ~= "unknown" then
+                ---@diagnostic disable-next-line: assign-type-mismatch
                 cfg.simulator = simulator
                 config_info(f("[LazyAccess] Automatically detected simulator: %s", simulator), get_debug_info(3))
             end
@@ -296,10 +298,11 @@ function cfg:post_config()
         local simulator = ffi.string(ffi.C.vpiml_get_simulator_auto())
         if simulator ~= "unknown" then
             config_info(f("[cfg:post_config] Automatically detected simulator: %s", simulator))
+            ---@diagnostic disable-next-line: assign-type-mismatch
             cfg.simulator = simulator
         end
     end
-    assert(cfg.simulator, "[cfg:post_config] <cfg.simulator>(simulator) is not set! You should set <cfg.simulator> via enviroment variable <SIM> or <cfg.simulator>")
+    assert(cfg.simulator ~= nil, "[cfg:post_config] <cfg.simulator>(simulator) is not set! You should set <cfg.simulator> via enviroment variable <SIM> or <cfg.simulator>")
 
     cfg.script = cfg.script or os.getenv("LUA_SCRIPT")
     assert(cfg.script, "[cfg:post_config] <cfg.script>(script) is not set! You should set <cfg.script> via enviroment variable <LUA_SCRIPT> or <cfg.script>")
@@ -320,6 +323,7 @@ function cfg:post_config()
                 assert(false, "Invalid SchedulerMode: " .. cfg.mode)
             end
         else
+            ---@cast scheduler_mode integer
             assert(type(cfg.mode) == "number")
             assert(cfg.mode == cfg.SchedulerMode.NORMAL or cfg.mode == cfg.SchedulerMode.STEP or cfg.mode == cfg.SchedulerMode.DOMINANT, "Invalid SchedulerMode: " .. cfg.mode)
         end
