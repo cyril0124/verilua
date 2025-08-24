@@ -1,6 +1,3 @@
--- TODO: Remove this
--- https://github.com/evo-lua/evo-runtime/blob/b101a992fdb465f571a612c091ada6a12df2407b/Runtime/Extensions/tablex.lua#L82
-
 local table = _G.table
 
 table.clear = require("table.clear")
@@ -37,4 +34,18 @@ table.contains = function(t, v)
         end
     end
     return false
+end
+
+-- `table.nkeys` is provided by openresty luajit2(https://github.com/openresty/luajit2)
+local has_table_nkeys, table_nkeys = pcall(require, "table.nkeys")
+if has_table_nkeys then
+    table.nkeys = table_nkeys
+else
+    table.nkeys = function(t)
+        local count = 0
+        for _, _ in pairs(t) do
+            count = count + 1
+        end
+        return count
+    end
 end
