@@ -58,7 +58,7 @@ verilua.finish_callback = function ()
 	scheduler:list_tasks()
 
     -- Automatically save default coverage group into json file
-    if #_G.default_cg.cover_points > 0 then
+    if _G.default_cg and #_G.default_cg.cover_points > 0 then
         _G.default_cg:report()
         _G.default_cg:try_save_once()
     end

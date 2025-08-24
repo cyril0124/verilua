@@ -59,6 +59,7 @@ local coro_yield = coroutine.yield
 local await_time
 if cfg.mode == "step" then
     local period = cfg.period
+    ---@param time integer
     await_time = function (time)
         local t = ceil(time / period)
         for _ = 1, t do
@@ -66,19 +67,23 @@ if cfg.mode == "step" then
         end
     end
 else
+    ---@param time integer
     await_time = function (time)
         coro_yield(Timer, "", time)
     end
 end
 
+---@param signal_str string
 local await_posedge = function(signal_str)
     coro_yield(Posedge, tostring(signal_str), 0)
 end
 
+---@param signal_hdl ComplexHandleRaw
 local await_posedge_hdl = function(signal_hdl)
     coro_yield(PosedgeHDL, "", signal_hdl)
 end
 
+---@param signal_hdl ComplexHandleRaw
 local always_await_posedge_hdl = function(signal_hdl)
     coro_yield(PosedgeAlwaysHDL, "", signal_hdl)
 end
@@ -87,18 +92,22 @@ local await_negedge = function (signal_str)
     coro_yield(Negedge, tostring(signal_str), 0)
 end
 
+---@param signal_hdl ComplexHandleRaw
 local await_negedge_hdl = function (signal_hdl)
     coro_yield(NegedgeHDL, "", signal_hdl)
 end
 
+---@param signal_str string
 local await_edge = function (signal_str)
     coro_yield(Edge, tostring(signal_str), 0)
 end
 
+---@param signal_hdl ComplexHandleRaw
 local await_edge_hdl = function (signal_hdl)
     coro_yield(EdgeHDL, "", signal_hdl)
 end
 
+---@param event_id_integer integer
 local await_event = function (event_id_integer)
     coro_yield(Event, "", event_id_integer)
 end
@@ -113,19 +122,6 @@ local exit_task = function ()
     coro_yield(EarlyExit, "", 0)
 end
 
----@class _G
----@field await_time fun(time: number)
----@field await_posedge fun(signal_str: string)
----@field await_posedge_hdl fun(signal_hdl: ComplexHandleRaw)
----@field always_await_posedge_hdl fun(signal_hdl: ComplexHandleRaw)
----@field await_negedge fun(signal_str: string)
----@field await_negedge_hdl fun(signal_hdl: ComplexHandleRaw)
----@field await_edge fun(signal_str: string)
----@field await_edge_hdl fun(signal_hdl: ComplexHandleRaw)
----@field await_event fun(event_id_integer: integer)
----@field await_noop fun()
----@field await_step fun()
----@field exit_task fun()
 return {
     YieldType         = YieldType,
     await_time        = await_time,
