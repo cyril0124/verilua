@@ -1,3 +1,18 @@
+/// This file is modified from https://github.com/cocotb/cocotb/blob/master/src/cocotb/share/lib/verilator/verilator.cpp
+/// with some modifications to satisfy this project.
+///
+/// To enable LightSSS, you need to add `ENABLE_LIGHTSSS` to defines:
+/// e.g. (in your xmake.lua)
+/// ```lua
+///     add_defines("ENABLE_LIGHTSSS")
+/// ```
+///
+/// To disable internal clock generation, you need to add `NO_INTERNAL_CLOCK` to defines:
+/// e.g. (in your xmake.lua)
+/// ```lua
+///     add_defines("NO_INTERNAL_CLOCK")
+/// ```
+
 #include "Vtb_top.h"
 #include "verilated.h"
 #include "verilated_vpi.h"
@@ -21,8 +36,10 @@
 #ifdef VM_TRACE
 #if VM_TRACE_FST
 #include <verilated_fst_c.h>
+using verilated_trace_t = VerilatedFstC;
 #else
 #include <verilated_vcd_c.h>
+using verilated_trace_t = VerilatedVcdC;
 #endif
 #endif
 
@@ -91,28 +108,35 @@ uint32_t uptime(void) {
 }
 
 struct EmuArgs {
-    bool verbose                = false;
-    bool enable_wave            = false;
-    bool wave_is_enable         = false;
-    bool wave_is_close          = false;
-    bool enable_coverage        = false;
-    bool enable_fork            = false;
-    int fork_interval           = 1000;
-    std::string trace_file      = "dump.vcd";
-    std::string fork_trace_file = "";
+    bool verbose;
+    bool enable_wave;
+    bool wave_is_enable;
+    bool wave_is_close;
+    bool enable_fork;
+    int fork_interval;
+    std::string trace_file;
+    std::string fork_trace_file;
+
+    // clang-format off
+    EmuArgs() :
+        verbose(false),
+        enable_wave(false),
+        wave_is_enable(false),
+        wave_is_close(false),
+        enable_fork(false),
+        fork_interval(1000),
+        trace_file("dump.vcd"),
+        fork_trace_file("")
+    {}
+    // clang-format on
 };
 
 class Emulator final {
   public:
-#if VM_TRACE
-#if VM_TRACE_FST
-    VerilatedFstC *tfp;
-#else
-    VerilatedVcdC *tfp;
-#endif
-#endif
     EmuArgs args;
-
+#if VM_TRACE
+    verilated_trace_t *tfp;
+#endif
     LightSSS *lightsss         = nullptr;
     uint32_t lasttime_snapshot = 0;
 
@@ -181,7 +205,7 @@ extern "C" void _verilator_simulation_initializeTrace(void *traceFilePath) {
     VL_INFO("initializeTrace trace_file:%s\n", global_emu->args.trace_file.c_str());
     global_emu->dump_wave();
 #else
-    VL_FATAL(false, "VM_TRACE is not defined!\n");
+    VL_FATAL(false, "VM_TRACE is not defined! Maybe you need to add verilator compile flags: `--trace`/`--trace-fst` to enable VM_TRACE.\n");
 #endif
 }
 
@@ -192,7 +216,7 @@ extern "C" void _verilator_simulation_enableTrace(void *param) {
     VL_INFO("simulation_enableTrace trace_file:%s\n", global_emu->args.trace_file.c_str());
     global_emu->dump_wave();
 #else
-    VL_FATAL(false, "VM_TRACE is not defined!\n");
+    VL_FATAL(false, "VM_TRACE is not defined! Maybe you need to add verilator compile flags: `--trace`/`--trace-fst` to enable VM_TRACE.\n");
 #endif
 }
 
@@ -203,7 +227,7 @@ extern "C" void _verilator_simulation_disableTrace(void *param) {
     VL_INFO("simulation_disableTrace trace_file:%s\n", global_emu->args.trace_file.c_str());
     global_emu->stop_dump_wave();
 #else
-    VL_FATAL(false, "VM_TRACE is not defined!\n");
+    VL_FATAL(false, "VM_TRACE is not defined! Maybe you need to add verilator compile flags: `--trace`/`--trace-fst` to enable VM_TRACE.\n");
 #endif
 }
 
@@ -212,9 +236,7 @@ Emulator::Emulator(int argc, char *argv[]) {
 
     argparse::ArgumentParser program("verilator main for verilua");
 
-    program.add_argument("-w", "--wave").help("wave enable").default_value(false).implicit_value(true);
-    program.add_argument("-c", "--cov").help("coverage enable").default_value(false).implicit_value(true);
-    program.add_argument("-ef", "--enable-fork").help("enable folking child processes to debug").default_value(false).implicit_value(true);
+    program.add_argument("-ef", "--enable-fork").help("Enable folking child processes to debug(LightSSS)").default_value(false).implicit_value(true);
     program.add_argument("-fi", "--fork-interval").help("LightSSS snapshot interval (in seconds)").default_value(1000).action([](const std::string &value) { return std::stoi(value); });
     program.add_argument("-ftf", "--fork-trace-file").help("Wavefile name when LightSSS is enabled").default_value("").action([](const std::string &value) { return value; });
 
@@ -226,15 +248,17 @@ Emulator::Emulator(int argc, char *argv[]) {
         exit(1);
     }
 
-    args.enable_wave     = program.get<bool>("--wave");
-    args.enable_coverage = program.get<bool>("--cov");
     args.enable_fork     = program.get<bool>("--enable-fork");
     args.fork_interval   = 1000 * program.get<int>("--fork-interval");
     args.fork_trace_file = program.get<std::string>("--fork-trace-file");
 
     if (args.enable_fork) {
+#ifdef ENABLE_LIGHTSSS
         lightsss = new LightSSS;
         VL_INFO("enable fork debugging...\n");
+#else  // ENABLE_LIGHTSSS
+        VL_FATAL(false, "LightSSS is not enabled! Maybe you need to add `ENABLE_LIGHTSSS` to defines: `add_defines(\"ENABLE_LIGHTSSS\")`\n");
+#endif // ENABLE_LIGHTSSS
     }
 
     verilua_alloc_verilator_func(_verilator_simulation_initializeTrace, "simulation_initializeTrace");
@@ -290,11 +314,7 @@ void Emulator::dump_wave() {
 #if VM_TRACE
     if (args.enable_wave && !args.wave_is_enable) {
         Verilated::traceEverOn(true);
-#if VM_TRACE_FST
-        tfp = new VerilatedFstC;
-#else
-        tfp = new VerilatedVcdC;
-#endif
+        tfp = new verilated_trace_t;
         dut_ptr->trace(tfp, 99);
         tfp->open(args.trace_file.c_str());
         args.wave_is_enable = true;
@@ -315,9 +335,11 @@ int Emulator::normal_mode_main() {
     this->start_simulation();
 
     while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
+#ifdef ENABLE_LIGHTSSS
         if (args.enable_fork) {
             lightsss_check_finish();
         }
+#endif // ENABLE_LIGHTSSS
 
         // Call registered timed callbacks (e.g. clock timer)
         // These are called at the beginning of the time step
@@ -337,11 +359,13 @@ int Emulator::normal_mode_main() {
         }
         VerilatedVpi::callCbs(cbReadOnlySynch);
 
+#ifndef NO_INTERNAL_CLOCK
         auto time = Verilated::time();
         if ((time % 10) == 0) {
             dut_ptr->eval_step();
-            dut_ptr->clock = dut_ptr->clock ? 0 : 1; // Toggle clock
+            dut_ptr->clock = dut_ptr->clock ? 0 : 1;
         }
+#endif
 
         dut_ptr->eval_end_step();
 
@@ -356,9 +380,12 @@ int Emulator::normal_mode_main() {
             tfp->dump(time);
         }
 #endif
+
+#ifdef ENABLE_LIGHTSSS
         if (args.enable_fork && (lightsss_try_fork() == -1)) {
             return -1;
         }
+#endif // ENABLE_LIGHTSSS
         Verilated::timeInc(5);
     }
 
@@ -377,9 +404,11 @@ int Emulator::timing_mode_main() {
 
     // TODO: not checked!
     while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
+#ifdef ENABLE_LIGHTSSS
         if (args.enable_fork) {
             lightsss_check_finish();
         }
+#endif
 
         // Call registered timed callbacks (e.g. clock timer)
         // These are called at the beginning of the time step
@@ -412,11 +441,13 @@ int Emulator::timing_mode_main() {
         // Call ReadOnly callbacks
         VerilatedVpi::callCbs(cbReadOnlySynch);
 
+#ifndef NO_INTERNAL_CLOCK
         auto time = Verilated::time();
         if ((time % 10) == 0) {
             dut_ptr->eval_step();
-            dut_ptr->clock = dut_ptr->clock ? 0 : 1; // Toggle clock
+            dut_ptr->clock = dut_ptr->clock ? 0 : 1;
         }
+#endif
 
 #if VM_TRACE
         if (args.enable_wave) {
@@ -449,9 +480,11 @@ int Emulator::timing_mode_main() {
         // These can modify signal values
         settle_value_callbacks();
 
+#ifdef ENABLE_LIGHTSSS
         if (args.enable_fork && (lightsss_try_fork() == -1)) {
             return -1;
         }
+#endif // ENABLE_LIGHTSSS
     }
 
     this->end_simulation();
@@ -482,11 +515,16 @@ void Emulator::finalize(bool success = true) {
         // VM_COVERAGE is a define which is set if Verilator is
         // instructed to collect coverage (when compiling the simulation)
 #if VM_COVERAGE
-        if (args.enable_coverage) {
-            VerilatedCov::write("coverage.dat");
-        }
+        /// Uses +verilator+coverage+file+<filename>
+        /// defaults to coverage.dat
+        /// e.g.(in your xmake.lua)
+        /// ```lua
+        ///     add_values("verilator.run_flags", "+verilator+coverage+file+another_coverage.dat")
+        /// ```
+        VerilatedCov::write();
 #endif
     } else {
+#ifdef ENABLE_LIGHTSSS
         if (args.enable_fork && !is_fork_child()) {
             VL_WARN("\nlightsss wakeup_child at %ld cycles\n", dut_ptr->cycles_o);
             fflush(stdout);
@@ -494,11 +532,8 @@ void Emulator::finalize(bool success = true) {
             lightsss->wakeup_child(dut_ptr->cycles_o);
             delete lightsss;
         }
+#endif // ENABLE_LIGHTSSS
     }
-
-    // Print verilator simulation statistics
-    // VerilatedContext *contextp = Verilated::threadContextp();
-    // contextp->statsPrintSummary();
 
     delete dut_ptr;
 #if VM_TRACE
