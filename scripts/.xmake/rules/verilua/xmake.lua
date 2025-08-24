@@ -412,7 +412,11 @@ rule("verilua", function()
             extra_verilator_flags[#extra_verilator_flags + 1] = verilator_x_assign
 
             -- Some flags can be overridden by user defined flags
-            local verilator_uflags = table.concat(target:values("verilator.flags") or {}, " ")
+            local _verilator_flags = target:values("verilator.flags") or {}
+            if type(_verilator_flags) ~= "table" then
+                _verilator_flags = { _verilator_flags }
+            end
+            local verilator_uflags = table.concat(_verilator_flags, " ")
             verilator_uflags = verilator_uflags:split(" ", { plain = true })
             for i, uflag in ipairs(verilator_uflags) do
                 if uflag:startswith("--timescale-override") then
@@ -456,7 +460,11 @@ rule("verilua", function()
             }
 
             -- Some flags can be overridden by user defined flags
-            local iverilog_uflags = table.concat(target:values("iverilog.flags") or {}, " ")
+            local _iverilog_flags = target:values("iverilog.flags") or {}
+            if type(_iverilog_flags) ~= "table" then
+                _iverilog_flags = { _iverilog_flags }
+            end
+            local iverilog_uflags = table.concat(_iverilog_flags, " ")
             iverilog_uflags = iverilog_uflags:split(" ", { plain = true })
             for i, uflag in ipairs(iverilog_uflags) do
                 if uflag:startswith("+timescale+") then
@@ -520,7 +528,11 @@ rule("verilua", function()
             end
 
             -- Some flags can be overridden by user defined flags
-            local vcs_uflags = table.concat(target:values("vcs.flags") or {}, " ")
+            local _vcs_flags = target:values("vcs.flags") or {}
+            if type(_vcs_flags) ~= "table" then
+                _vcs_flags = { _vcs_flags }
+            end
+            local vcs_uflags = table.concat(_vcs_flags, " ")
             vcs_uflags = vcs_uflags:split(" ", { plain = true })
             for i, uflag in ipairs(vcs_uflags) do
                 if uflag:startswith("-timescale=") then
