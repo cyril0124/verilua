@@ -1,6 +1,7 @@
 ---@diagnostic disable: undefined-global, undefined-field
 
 local f = string.format
+local default_timescale = "1ns/1ps"
 local verilua_home = os.getenv("VERILUA_HOME") or ""
 local verilua_tools_home = path.join(verilua_home, "tools")
 local verilua_libs_home = path.join(verilua_home, "shared")
@@ -360,7 +361,7 @@ rule("verilua", function()
                 "--Wno-UNOPTTHREADS",
                 "--Wno-IMPORTSTAR",
                 "+define+SIM_VERILATOR",
-                "--timescale-override 1ns/1ns",
+                "--timescale-override " .. default_timescale,
                 "--top", tb_top,
                 [[-CFLAGS "-std=c++20"]],
                 [[-LDFLAGS "-flto"]],
@@ -411,34 +412,30 @@ rule("verilua", function()
             extra_verilator_flags[#extra_verilator_flags + 1] = verilator_x_assign
 
             -- Some flags can be overridden by user defined flags
-            local verilator_flags = target:values("verilator.flags") or {}
-            for i, uflag in ipairs(verilator_flags) do
-                uflag = uflag:trim()
-                local maybe_uflags = uflag:split(" ", { plain = true })
-                for _, _uflag in ipairs(maybe_uflags) do
-                    if _uflag:startswith("--timescale-override") then
-                        -- Override the timescale flag
-                        for j, eflag in ipairs(extra_verilator_flags) do
-                            if eflag:startswith("--timescale-override") then
-                                local timescale_value = _uflag[2]
-                                if timescale_value == nil then
-                                    timescale_value = verilator_flags[i + 1]
-                                end
-                                assert(
-                                    timescale_value,
-                                    "Invalid `--timescale-override` option for verilator.flags, `--timescale-override` should be followed by a value(e.g. --timescale-override 1ns/1ns)"
-                                )
-                                extra_verilator_flags[j] = _uflag .. " " .. timescale_value
-                            end
-                        end
-                    elseif _uflag:startswith("--timing") then -- TODO: minimum verilator version?
-                        for j, eflag in ipairs(extra_verilator_flags) do
-                            if eflag:startswith("--no-timing") then
-                                -- TODO: test verilator timing mode
-                                extra_verilator_flags[j] = [[--timing -CFLAGS "-DTIMING_MODE"]]
-                            end
+            local verilator_uflags = table.concat(target:values("verilator.flags") or {}, " ")
+            verilator_uflags = verilator_uflags:split(" ", { plain = true })
+            for i, uflag in ipairs(verilator_uflags) do
+                if uflag:startswith("--timescale-override") then
+                    -- Override the timescale flag
+                    for j, eflag in ipairs(extra_verilator_flags) do
+                        if eflag:startswith("--timescale-override") then
+                            local timescale_value = verilator_uflags[i + 1]
+                            assert(
+                                timescale_value,
+                                "Invalid `--timescale-override` option for verilator.flags, `--timescale-override` should be followed by a value(e.g. --timescale-override 1ns/1ns)"
+                            )
+                            extra_verilator_flags[j] = uflag .. " " .. timescale_value
                         end
                     end
+                elseif uflag:startswith("--timing") then -- TODO: minimum verilator version?
+                    for j, eflag in ipairs(extra_verilator_flags) do
+                        if eflag:startswith("--no-timing") then
+                            -- TODO: test verilator timing mode
+                            extra_verilator_flags[j] = [[--timing -CFLAGS "-DTIMING_MODE"]]
+                        end
+                    end
+                elseif uflag:startswith("--trace") then
+                    extra_verilator_flags[#extra_verilator_flags + 1] = "--no-trace-top"
                 end
             end
 
@@ -446,14 +443,39 @@ rule("verilua", function()
                 target:add("values", "verilator.flags", eflag)
             end
         elseif sim == "iverilog" then
-            target:add(
-                "values",
-                "iverilog.flags",
+            local extra_iverilog_flags = {
                 "-g2012",
                 "-DSIM_IVERILOG",
                 "-s", tb_top,
-                "-o", path.join(sim_build_dir, "simv.vvp")
-            )
+                "-o", path.join(sim_build_dir, "simv.vvp"),
+            }
+
+            -- Some iverilog flags need to be added to the command file
+            local extra_iverilog_cmds = {
+                "+timescale+" .. default_timescale,
+            }
+
+            -- Some flags can be overridden by user defined flags
+            local iverilog_uflags = table.concat(target:values("iverilog.flags") or {}, " ")
+            iverilog_uflags = iverilog_uflags:split(" ", { plain = true })
+            for i, uflag in ipairs(iverilog_uflags) do
+                if uflag:startswith("+timescale+") then
+                    -- Override the timescale flag
+                    for j, eflag in ipairs(extra_iverilog_cmds) do
+                        if eflag:startswith("+timescale+") then
+                            extra_iverilog_cmds[j] = uflag
+                        end
+                    end
+                end
+            end
+
+            local iverilog_cmd_file = path.join(sim_build_dir, "cmds.f")
+            io.writefile(iverilog_cmd_file, table.concat(extra_iverilog_cmds, "\n") .. "\n")
+            extra_iverilog_flags[#extra_iverilog_flags + 1] = "-f " .. iverilog_cmd_file
+
+            for _, eflag in ipairs(extra_iverilog_flags) do
+                target:add("values", "iverilog.flags", eflag)
+            end
         elseif sim == "vcs" then
             local libluajit51_lib = path.join(luajitpro_home, "lib")
             local libverilua_vcs_so = path.join(verilua_libs_home, "libverilua_vcs.so")
@@ -467,7 +489,7 @@ rule("verilua", function()
                 "-lca",
                 "-kdb",
                 "-j" .. tostring((os.cpuinfo().ncpu or 128)),
-                "-timescale=1ns/1ns",
+                "-timescale=" .. default_timescale,
                 "+define+SIM_VCS",
                 "+define+VCS",
                 "-q",
@@ -498,16 +520,47 @@ rule("verilua", function()
             end
 
             -- Some flags can be overridden by user defined flags
-            for _, uflag in ipairs(target:values("vcs.flags") or {}) do
-                uflag = uflag:trim()
-                local maybe_uflags = uflag:split(" ", { plain = true })
-                for _, _uflag in ipairs(maybe_uflags) do
-                    if _uflag:startswith("-timescale=") then
-                        -- Override the timescale flag
-                        for j, eflag in ipairs(extra_vcs_flags) do
-                            if eflag:startswith("-timescale=") then
-                                extra_vcs_flags[j] = _uflag
-                            end
+            local vcs_uflags = table.concat(target:values("vcs.flags") or {}, " ")
+            vcs_uflags = vcs_uflags:split(" ", { plain = true })
+            for i, uflag in ipairs(vcs_uflags) do
+                if uflag:startswith("-timescale=") then
+                    -- Override the timescale flag
+                    for j, eflag in ipairs(extra_vcs_flags) do
+                        if eflag:startswith("-timescale=") then
+                            extra_vcs_flags[j] = uflag
+                        end
+                    end
+                elseif uflag:startswith("-cc") then
+                    for j, eflag in ipairs(extra_vcs_flags) do
+                        if eflag:startswith("-cc") then
+                            local cc_value = vcs_uflags[i + 1]
+                            assert(
+                                cc_value,
+                                "Invalid `-cc` option for vcs.flags, `-cc` should be followed by a value(e.g. -cc gcc)"
+                            )
+                            extra_vcs_flags[j] = uflag .. " " .. cc_value
+                        end
+                    end
+                elseif uflag:startswith("-cpp") then
+                    for j, eflag in ipairs(extra_vcs_flags) do
+                        if eflag:startswith("-cpp") then
+                            local cpp_value = vcs_uflags[i + 1]
+                            assert(
+                                cpp_value,
+                                "Invalid `-cpp` option for vcs.flags, `-cpp` should be followed by a value(e.g. -cpp g++)"
+                            )
+                            extra_vcs_flags[j] = uflag .. " " .. cpp_value
+                        end
+                    end
+                elseif uflag:startswith("-ld") then
+                    for j, eflag in ipairs(extra_vcs_flags) do
+                        if eflag:startswith("-ld") then
+                            local ld_value = vcs_uflags[i + 1]
+                            assert(
+                                ld_value,
+                                "Invalid `-ld` option for vcs.flags, `-ld` should be followed by a value(e.g. -ld g++)"
+                            )
+                            extra_vcs_flags[j] = uflag .. " " .. ld_value
                         end
                     end
                 end
