@@ -19,15 +19,13 @@ local tostring = tostring
 local math_random = math.random
 local getmetatable = getmetatable
 
--- 
--- strict lua, any undeclared global variables will lead to failed
--- 
+-- Strict mode, all global variables must be declared first
 require "strict"
 
 _G.inspect = require "inspect"
 
---- Print any object using `inspect.lua`
----@type fun(...: any)
+--- Print any lua object using `inspect.lua`
+---@param ... any
 _G.dbg     = function (...) print(inspect(...)) end
 _G.pp      = _G.dbg -- Alias for dbg
 _G.dump    = _G.pp -- Alias for dbg
@@ -41,8 +39,8 @@ local convert_to_hex = function(item, path)
     return item
 end
 
---- Print any object using `inspect.lua` with hex conversion on `number` and `uint64_t`
----@type fun(...: any)
+--- Print any lua object using `inspect.lua` with hex conversion on `number` and `uint64_t`
+---@param ... any
 _G.pph = function (...)
     print(inspect(..., {process = convert_to_hex}))
 end
@@ -100,6 +98,28 @@ _G.debug_str = function(...)
     local message = table.concat(args, "\t")
     return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. message)
 end
+
+---@class verilua.AnsiColors
+---@field reset string
+---@field black string
+---@field red string
+---@field green string
+---@field yellow string
+---@field blue string
+---@field magenta string
+---@field cyan string
+---@field white string
+_G.colors = {
+    reset   = "\27[0m",
+    black   = "\27[30m",
+    red     = "\27[31m",
+    green   = "\27[32m",
+    yellow  = "\27[33m",
+    blue    = "\27[34m",
+    magenta = "\27[35m",
+    cyan    = "\27[36m",
+    white   = "\27[37m"
+}
 
 -- 
 -- global debug log functions
@@ -159,11 +179,21 @@ ____   ____                .__ .__
     io.flush()
 end
 
--- 
--- load configuration
--- 
+
+--- Load user configuration file
+--- Verilua will read the environment variable `VERILUA_CFG` and ``VERILUA_CFG_PATH`` to load user configuration file.
+--- If `VERILUA_CFG_PATH` is not set, Verilua will search the directory name of the configuration file(`VERILUA_CFG`).
+--- So the user can set `VERILUA_CFG` to an absolute path of the configuration file, or set `VERILUA_CFG` to the file name and
+--- set `VERILUA_CFG_PATH` to the directory name of the configuration file.
+--- e.g.
+--- ```shell
+---   export VERILUA_CFG=mysim_config.lua
+---   export VERILUA_CFG_PATH=../simulator
+---   # or
+---   export VERILUA_CFG=/home/user/simulator/mysim_config.lua
+--- ```
+--- If `VERILUA_CFG` is not set, Verilua will not load any user configuration file.
 _G.cfg = require "LuaSimConfig"
-_G.colors = cfg.colors
 
 local cfg_name, cfg_path
 do
@@ -217,7 +247,6 @@ end
 _G.ffi = require "ffi"
 ffi.cdef[[
     int setenv(const char *name, const char *value, int overwrite);
-    int verilator_get_mode(void);
 ]]
 
 do
@@ -493,11 +522,9 @@ local scheduler = require "verilua.scheduler.LuaScheduler"
 local vl = require "Verilua"
 local unnamed_task_count = 0
 do
-    ---@class TaskName: string
-    ---@alias TaskFunction fun()
-
     local verilua_debug = _G.verilua_debug
 
+    ---@deprecated Use seperate functions `fork`, `jfork`, `initial`, `final` instead
     ---@param cmd string
     ---@return fun(tbl: table)
     _G.verilua = function(cmd)
@@ -619,6 +646,18 @@ do
         end
     end
 
+    --- Create multiple tasks run in parallel.
+    --- e.g.
+    --- ```lua
+    ---      fork {
+    ---          some_task = function ()
+    ---              -- body
+    ---          end,
+    ---          another_task = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    --- ```
     ---@param task_table table<TaskName|number, TaskFunction>
     _G.fork = function (task_table)
         assert(type(task_table) == "table")
@@ -636,29 +675,31 @@ do
         end
     end
 
-    -- Joinable fork, it can be used with `join` to wait until all tasks finished
-    -- Example:
-    --      -- (1) Create a joinable fork
-    --      local ehdl = jfork {
-    --          some_task = function ()
-    --              -- body
-    --          end
-    --      }
-    --      join(ehdl) -- Wait here until the task finished
-    -- 
-    --      -- (2) Create multiple joinable forks
-    --      local ehdl1 = jfork {
-    --          some_task1 = function ()
-    --              -- body
-    --          end
-    --      }
-    --      local ehdl2 = jfork {
-    --          some_task2 = function ()
-    --              -- body
-    --          end
-    --      }
-    --      join(ehdl1, ehdl2) -- Wait here until both tasks finished
-    -- 
+    --- Joinable fork, it can be used with `join` to wait until all tasks finished.
+    --- Unlike `fork`, `jfork` allows user to wait for one or multiple tasks to finish.
+    --- e.g.
+    --- ```lua
+    ---      -- (1) Create a joinable fork
+    ---      local ehdl = jfork {
+    ---          some_task = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      join(ehdl) -- Wait here until the task finished
+    --- 
+    ---      -- (2) Create multiple joinable forks
+    ---      local ehdl1 = jfork {
+    ---          some_task1 = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      local ehdl2 = jfork {
+    ---          some_task2 = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      join(ehdl1, ehdl2) -- Wait here until both tasks finished
+    --- ```
     ---@param one_task_table table<TaskName|number, TaskFunction>
     ---@return EventHandle, TaskID
     _G.jfork = function (one_task_table)
@@ -696,8 +737,37 @@ do
         return ehdl, task_id
     end
 
-    -- Join multiple `jfork` tasks(wait until all tasks finished)
-    -- This function will block current task until all `jfork` tasks finished
+    --- Join multiple `jfork` tasks(wait until all tasks finished).
+    --- This function will block current task until all `jfork` tasks finished.
+    --- e.g.
+    --- ```lua
+    ---      local ehdl1 = jfork {
+    ---          some_task1 = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      local ehdl2 = jfork {
+    ---          some_task2 = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      join({ ehdl1, ehdl2 }) -- Wait here until both tasks finished
+    --- ```
+    --- Or
+    --- ```lua
+    ---      local ehdl1 = jfork {
+    ---          some_task1 = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      local ehdl2 = jfork {
+    ---          some_task2 = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      join(ehdl1) -- Wait here until `ehdl1` finished
+    ---      join(ehdl2) -- Wait here until `ehdl2` finished
+    --- ```
     ---@param ehdl_or_ehdl_tbl EventHandle|table<integer, EventHandle>
     _G.join = function (ehdl_or_ehdl_tbl)
         assert(type(ehdl_or_ehdl_tbl) == "table")
@@ -746,6 +816,20 @@ do
         end
     end
 
+    --- Create initial tasks which will be executed at the start of simulation.
+    --- These tasks are different from the tasks created by `verilua "appendTasks"` or `fork`,
+    --- these tasks will be executed before all other tasks and only executed once.
+    --- e.g.
+    --- ```lua
+    ---      initial {
+    ---          task1 = function ()
+    ---              -- body
+    ---          end,
+    ---          task2 = function ()
+    ---              -- body    
+    ---          end
+    ---      }
+    --- ```
     ---@param task_table table<TaskName|integer, TaskFunction>
     _G.initial = function (task_table)
         assert(type(task_table) == "table")
@@ -755,6 +839,21 @@ do
         end
     end
 
+    --- Create final tasks which will be executed at the end of simulation.
+    --- These tasks are different from the tasks created by `verilua "appendFinishTasks"` or `finish`,
+    --- these tasks will be executed after all other tasks and only executed once.
+    --- e.g.
+    --- ```lua
+    ---      final {
+    ---          task1 = function ()
+    ---              -- body
+    ---          end,
+    ---          task2 = function ()
+    ---              -- body    
+    ---          end
+    ---      }
+    --- ```
+    --- `final` is useful when user want to do any cleanup work for the simulation environment.
     ---@param task_table table<TaskName|integer, TaskFunction>
     _G.final = function (task_table)
         assert(type(task_table) == "table")

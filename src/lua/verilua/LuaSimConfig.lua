@@ -14,7 +14,9 @@ local tonumber = tonumber
 local tostring = tostring
 local setmetatable = setmetatable
 
----@class LuaSimConfig
+local colors = _G.colors
+
+---@class verilua.LuaSimConfig
 ---@field script string
 ---@field mode "normal"|"step"|"edge_step"|"unknown"
 ---@field simulator "verilator"|"vcs"|"iverilog"|"wave_vpi"|"unknown"
@@ -27,42 +29,23 @@ local setmetatable = setmetatable
 ---@field luapanda_debug boolean
 ---@field prj_dir string Project directory
 ---@field seed integer
----@field colors AnsiColors
----@field enable_dpi_exporter boolean Enable dpi_exporter optimization. The value getter function 
----                                   will bypass vpiml and obtain the value from underlying DPI-C 
----                                   functions. Increase the performance of the value getter functions.
----                                   i.e. 
----                                         (origin) <chdl>:get() --> [vpiml]vpi_get_value() --> [dummy_vpi]complexHandle.getValue32() --> VERILUA_DPI_EXPORTER_xxx_GET() --> RTL Signals
----                                         (opt)    <chdl>:get() --> VERILUA_DPI_EXPORTER_xxx_GET() --> RTL Signals
----@field get_or_else fun(self: LuaSimConfig, cfg_str: string, default: any): any
----@field get_or_else_log fun(self: LuaSimConfig, cfg_str: string, default: any, log_str: string): any
----@field dump_str fun(self: LuaSimConfig): string
----@field dump fun(self: LuaSimConfig)
+---
+--- Enable dpi_exporter optimization. The value getter function 
+--- will bypass vpiml and obtain the value from underlying DPI-C 
+--- functions. Increase the performance of the value getter functions.
+--- i.e.
+--- ```text
+---  (origin) <chdl>:get() --> [vpiml]vpi_get_value() --> [dummy_vpi]complexHandle.getValue32() --> VERILUA_DPI_EXPORTER_xxx_GET() --> RTL Signals
+---  (opt)    <chdl>:get() --> VERILUA_DPI_EXPORTER_xxx_GET() --> RTL Signals
+--- ```
+---@field enable_dpi_exporter boolean
+---
+---@field get_or_else fun(self: verilua.LuaSimConfig, cfg_str: string, default: any): any
+---@field get_or_else_log fun(self: verilua.LuaSimConfig, cfg_str: string, default: any, log_str: string): any
+---@field dump_str fun(self: verilua.LuaSimConfig): string
+---@field dump fun(self: verilua.LuaSimConfig)
 ---@field [string] any This represents any other fields that may be added to the configuration table
 local cfg = {}
-
----@class AnsiColors
----@field reset string
----@field black string
----@field red string
----@field green string
----@field yellow string
----@field blue string
----@field magenta string
----@field cyan string
----@field white string
-local colors = {
-    reset   = "\27[0m",
-    black   = "\27[30m",
-    red     = "\27[31m",
-    green   = "\27[32m",
-    yellow  = "\27[33m",
-    blue    = "\27[34m",
-    magenta = "\27[35m",
-    cyan    = "\27[36m",
-    white   = "\27[37m"
-}
-cfg.colors = colors
 
 local function get_debug_info(level)
     local _level = level or 2 -- Level 2 because we're inside a function
@@ -188,18 +171,14 @@ function cfg:dump()
     print("----------------------------------------------------------------")
 end
 
--- 
--- Provide a lazy way for accessing some configuration key while loading `<user cfg>.lua`.
--- You can access the following key in `<user_cfg>.lua` using `_G.cfg.<xxx>`.
--- Example:
---      ```user_cfg.lua
---          local cfg = {}
---          
---          cfg.simulator = _G.cfg.simulator
--- 
---          return cfg
---      ```
---
+--- Provide a lazy way for accessing some configuration key while loading `<user cfg>.lua`.
+--- You can access the following key in `<user_cfg>.lua` using `_G.cfg.<xxx>`.
+--- e.g. (in your <user_cfg>.lua)
+--- ```lua
+---     local cfg = {}
+---     cfg.simulator = _G.cfg.simulator
+---     return cfg
+--- ```
 setmetatable(cfg, {
     __index = function (t, k)
         if k == "simulator" then
@@ -332,16 +311,18 @@ function cfg:post_config()
     cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
     cfg.prj_dir         = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
 
-    -- This flag is enabled by calling:
-    --      local DpiExporter = require "DpiExporter"
-    --      DpiExporter:init(<meta_info_file or nil>) -- cfg.enable_dpi_exporter will be set at the end of this function
+    --- This flag is enabled by calling:
+    --- ```lua
+    ---      local DpiExporter = require "DpiExporter"
+    ---      DpiExporter:init(<meta_info_file or nil>) -- cfg.enable_dpi_exporter will be set at the end of this function
+    --- ```
     cfg.enable_dpi_exporter = false
 
-    -- Setup seed, <SEED> set by environment variable has higher priority
+    -- Setup seed, <SEED> set by environment variable `SEED` has higher priority
     cfg.seed = cfg:get_or_else("seed", 1234)
     local env_seed = os.getenv("SEED")
     if env_seed then
-        assert(env_seed:match("^%d+$") ~= nil, "[LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!")
+        assert(env_seed:match("^%d+$") ~= nil, "[verilua.LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!")
         _G.verilua_debug(f("Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d", tostring(cfg.seed), env_seed))
         cfg.seed = tonumber(env_seed) --[[@as integer]]
     end

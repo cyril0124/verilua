@@ -30,7 +30,8 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 
 ---@class (exact) SignalDB.data
 ---
---- Example:
+--- Example json file:
+--- ```json
 --- {
 ---     ["top"] = {
 ---         {"signal_1", 1, "vpiReg"},
@@ -47,7 +48,7 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---         -- other hierarchies
 ---     }
 --- }
----
+--- ```
 ---@field [SignalDB.data.hier_path] SignalDB.data
 ---@field [integer] SignalInfo
 

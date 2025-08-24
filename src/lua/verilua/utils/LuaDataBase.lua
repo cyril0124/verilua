@@ -87,40 +87,40 @@ ffi.cdef [[
 ---@field commit fun(self: LuaDataBase,...)
 local LuaDataBase = class()
 
---
--- Example:
---      local LuaDB = require "verilua.utils.LuaDataBase"
---      local db = LuaDB {
---          table_name = "a_table",
---          elements = {
---                "val_1 => INTEGER",
---                "val_2 => INTEGER",
---                "val_3 => integer", -- case insensitive
---                "others => TEXT",
---          },
---          path = "./db",
---          file_name = "test.db",
---          save_cnt_max = 1000,
---          verbose = true
---      }
---
---      -- or
---      local db = LuaDB {
---          table_name = "a_table",
---          elements = {
---                { name = "val_1", type = "INTEGER" },
---                { name = "val_2", type = "INTEGER" },
---                { name = "val_3", type = "integer" }, -- case insensitive
---                { name = "others", type = "TEXT" },
---          },
---          path = "./db",
---          file_name = "test.db",
---          save_cnt_max = 1000,
---          verbose = true
---      }
---
---      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the `same order` and same number as the elements in the table
---
+--- e.g.
+--- ```lua
+---      local LuaDB = require "verilua.utils.LuaDataBase"
+---      local db = LuaDB {
+---          table_name = "a_table",
+---          elements = {
+---                "val_1 => INTEGER",
+---                "val_2 => INTEGER",
+---                "val_3 => integer", -- case insensitive
+---                "others => TEXT",
+---          },
+---          path = "./db",
+---          file_name = "test.db",
+---          save_cnt_max = 1000,
+---          verbose = true
+---      }
+---
+---      -- or
+---      local db = LuaDB {
+---          table_name = "a_table",
+---          elements = {
+---                { name = "val_1", type = "INTEGER" },
+---                { name = "val_2", type = "INTEGER" },
+---                { name = "val_3", type = "integer" }, -- case insensitive
+---                { name = "others", type = "TEXT" },
+---          },
+---          path = "./db",
+---          file_name = "test.db",
+---          save_cnt_max = 1000,
+---          verbose = true
+---      }
+---
+---      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the `same order` and same number as the elements in the table
+--- ```
 
 ---@param params LuaDataBase.params
 function LuaDataBase:_init(params)

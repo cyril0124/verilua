@@ -201,14 +201,14 @@ function utils.print_progress_bar(progress, length)
 end
 
 
--- 
--- Usage Example:
---   Direction = setmetatable({
---       name = "Direction",
---       INPUT = 0,
---       OUTPUT = 1
---   }, { __call = utils.enum_search })
--- 
+--- Usage Example:
+--- ```lua
+---   Direction = setmetatable({
+---       name = "Direction",
+---       INPUT = 0,
+---       OUTPUT = 1
+---   }, { __call = utils.enum_search })
+--- ```
 ---@param t table The enumeration table
 ---@param v number The value to be searched
 ---@return string The found key name, or throws an error if not found
@@ -224,26 +224,26 @@ function utils.enum_search(t, v)
 end
 
 
--- 
--- Usage Example:
---      local State = utils.enum_define({
---            name = "State",
--- 
---            RUN = 1,
---            STOP = 2,
---            RUNNING = 3,
---      })
---      local state_value = State.RUN
---      print("current state is " .. State(state_value)) -- print: current state is RUN
--- 
---      local State = utils.enum_define {
---            name = "State",
---
---            RUN = 1,
---            STOP = 2,
---            RUNNING = 3,
---      }
--- 
+--- Usage Example:
+--- ```lua
+---      local State = utils.enum_define({
+---            name = "State",
+--- 
+---            RUN = 1,
+---            STOP = 2,
+---            RUNNING = 3,
+---      })
+---      local state_value = State.RUN
+---      print("current state is " .. State(state_value)) -- print: current state is RUN
+--- 
+---      local State = utils.enum_define {
+---            name = "State",
+---
+---            RUN = 1,
+---            STOP = 2,
+---            RUNNING = 3,
+---      }
+--- ```
 ---@generic T: table
 ---@param enum_table T The enumeration table to be defined
 ---@return T The defined enumeration table
@@ -296,12 +296,12 @@ function utils.enum_define(enum_table)
 end
 
 
--- 
--- format: <Year><Month><Day>_<Hour><Minute>
--- Example:
---   local str = utils.get_datetime_str()
---         str == "20240124_2301" 
--- 
+--- Get the current date and time in the format <Year><Month><Day>_<Hour><Minute>
+--- e.g.
+--- ```lua
+---     local str = utils.get_datetime_str()
+---     assert(str == "20240124_2301")
+--- ```
 ---@return string The string representation of the current date and time in the format <Year><Month><Day>_<Hour><Minute>
 function utils.get_datetime_str()
     local datetime = os.date("%Y%m%d_%H%M") --[[@as string]]
@@ -748,62 +748,6 @@ function utils.get_env_or_else(key, value_type, default)
 	return value --[[@as string|number|boolean]]
 end
 
--- Example usage:
--- 1. Basic matrix call (2D):
---     matrix_call {
---         {
---             function() print("First dimension, option 1") end,
---             function() print("First dimension, option 2") end,
---         },
---         {
---             function() print("Second dimension, option 1") end,
---             function() print("Second dimension, option 2") end,
---         }
---     }
---     This will generate all combinations and execute them:
---     First dimension, option 1 -> Second dimension, option 1
---     First dimension, option 1 -> Second dimension, option 2
---     First dimension, option 2 -> Second dimension, option 1
---     First dimension, option 2 -> Second dimension, option 2
--- 
--- 2. Sequential functions (seq_funcs):
---      matrix_call {
---          {
---              {function() io.write("a") end, function() io.write(" b\n") end}
---          },
---          {
---              function() print("c") end
---          }
---      }
--- 
---      Output:
---      a b
---      c
--- 
--- 3. Single function with arguments (single_func_with_args):
---         matrix_call {
---             {
---                 {func = function(a, b) print("Sum:", a + b) end, args = {2, 3}},
---                 {func = function(a, b) print("Product:", a * b) end, args = {2, 3}},
---             }
---         }
---         Output:
---         Sum: 5
---         Product: 6
--- 
--- 4. Single function with multiple arguments (single_func_with_muti_args):
---         matrix_call {
---             {
---                 {func = function(a, b) print("Sum:", a + b) end, multi_args = {{2, 3}, {4, 5}}},
---                 {func = function(a, b) print("Product:", a * b) end, multi_args = {{2, 3}, {4, 5}}},
---             }
---         }
---         Output:
---         Sum: 5
---         Sum: 9
---         Product: 6
---         Product: 20
-
 ---@class matrix_call.single_func: function
 ---@class matrix_call.seq_funcs: { [integer]: function }
 ---@class matrix_call.single_func_with_args: { func: function, args: table, before?: function, after?: function }
@@ -811,6 +755,76 @@ end
 ---@class matrix_call.func_blocks: { [integer]: matrix_call.single_func | matrix_call.seq_funcs | matrix_call.single_func_with_args | matrix_call.single_func_with_muti_args }
 ---@class matrix_call.params: { [integer]: matrix_call.func_blocks }
 
+--- Example usage:
+--- 1. Basic matrix call (2D):
+--- ```lua
+---     matrix_call {
+---         {
+---             function() print("First dimension, option 1") end,
+---             function() print("First dimension, option 2") end,
+---         },
+---         {
+---             function() print("Second dimension, option 1") end,
+---             function() print("Second dimension, option 2") end,
+---         }
+---     }
+--- ```
+--- This will generate all combinations and execute them:
+--- ```shell
+---     First dimension, option 1 -> Second dimension, option 1
+---     First dimension, option 1 -> Second dimension, option 2
+---     First dimension, option 2 -> Second dimension, option 1
+---     First dimension, option 2 -> Second dimension, option 2
+--- ```
+--- 
+--- 2. Sequential functions (seq_funcs):
+--- ```lua
+---      matrix_call {
+---          {
+---              {function() io.write("a") end, function() io.write(" b\n") end}
+---          },
+---          {
+---              function() print("c") end
+---          }
+---      }
+--- ```
+--- Output:
+--- ```shell
+---     a b
+---     c
+--- ```
+--- 
+--- 3. Single function with arguments (single_func_with_args):
+--- ```lua
+---         matrix_call {
+---             {
+---                 {func = function(a, b) print("Sum:", a + b) end, args = {2, 3}},
+---                 {func = function(a, b) print("Product:", a * b) end, args = {2, 3}},
+---             }
+---         }
+--- ```
+--- Output:
+--- ```shell
+---     Sum: 5
+---     Product: 6
+--- ```
+--- 
+--- 4. Single function with multiple arguments (single_func_with_muti_args):
+--- ```lua
+---         matrix_call {
+---             {
+---                 {func = function(a, b) print("Sum:", a + b) end, multi_args = {{2, 3}, {4, 5}}},
+---                 {func = function(a, b) print("Product:", a * b) end, multi_args = {{2, 3}, {4, 5}}},
+---             }
+---         }
+--- ```
+--- Output:
+--- ```shell
+---     Sum: 5
+---     Sum: 9
+---     Product: 6
+---     Product: 20
+--- ```
 ---@param func_table matrix_call.params
 function utils.matrix_call(func_table)
     local dimensions = #func_table
@@ -1009,7 +1023,7 @@ function utils.loadcode(code, env)
 end
 
 local unique_lock_file_idx = 0
--- Execute a function in an exclusive environment. (i.e. only one thread can execute the function at the same time)
+--- Execute a function in an exclusive environment. (i.e. only one thread can execute the function at the same time)
 ---@param func fun()
 ---@param lock_file_name string?
 function utils.exclusive_call(func, lock_file_name)
@@ -1036,24 +1050,23 @@ function utils.exclusive_call(func, lock_file_name)
     ffi.C.release_lock(lock)
 end
 
--- Generate `luacov.stats.out`
--- How to generate coverage report using `luacov` in verilua:
--- ```lua
---      -- First, require luacov
---      require "luacov"
--- 
---      -- Second, run your code
---      -- <Your code here>
--- 
---      -- Third, generate coverage report at the end of the simulation
---      final {
---          function ()
---              local utils = require "LuaUtils"
---              utils.report_luacov()
---          end
---      }
--- ```
--- 
+--- Generate `luacov.stats.out` file using `luacov`
+--- Here is an example of how to generate coverage report using `luacov` in verilua:
+--- ```lua
+---      -- First, require luacov
+---      require "luacov"
+--- 
+---      -- Second, run your code
+---      -- <Your code here>
+--- 
+---      -- Third, generate coverage report at the end of the simulation
+---      final {
+---          function ()
+---              local utils = require "LuaUtils"
+---              utils.report_luacov()
+---          end
+---      }
+--- ```
 function utils.report_luacov()
     if not package.loaded.luacov then
         assert(false, "[utils.report_luacov] luacov is not loaded! Please make sure you have inserted `require('luacov')` in your code.")

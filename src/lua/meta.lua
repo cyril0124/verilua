@@ -1,4 +1,19 @@
----@meta
+---@meta meta.lua
+--- This file is used to provide some common type annotations used in Verilua.
+--- It will be loaded automatically by Lua Language Server(LuaLS/EmmyLuaLs).
+
+--- ComplexHandleRaw is a low-level handle to represent a hardware signal in libverilua.
+--- It is an integer value representing the address of the internal Rust object in libverilua.
+---@class ComplexHandleRaw: integer
+
+---@class uint32_t: ffi.cdata*
+---@class uint64_t: ffi.cdata*
+
+---@class TaskName: string
+
+--- Task function used in `fork`, `jfork`, `initial`, `final`.
+--- It should be a function without parameters and return value.
+---@alias TaskFunction fun()
 
 _G.GLOBAL_VERILUA_ENV = {} --[[@as lightuserdata]]
 

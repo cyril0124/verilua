@@ -3,32 +3,30 @@ local texpect = require "TypeExpect"
 
 local f = string.format
 
---
--- This module is used to generate type annotations used by lua language server like LuaLS/EmmyLua.
--- Mainly used for handles like `Bundle` and `AliasBundle` which use string literal to construct internal data
--- thus cannot be inferred by LuaLS/EmmyLua.
---
--- Example:
---      local GenTypeAnno = require "GenTypeAnno"
---      GenTypeAnno:gen_type_anno {
---          filename = "path/to/yout/meta.lua",
---          handles = {
---              { "MyBundle", my_bundle },
---              { "MyAliasBundle", my_alias_bundle },
---              my_bundle_1,
---              my_alias_bundle_1,
---          }
---      }
---
---      -- After running the above code, you will get a file named "path/to/yout/meta.lua".
---      -- This file will be loaded by LuaLS/EmmyLua to provide type annotations for your handles.
---      -- To inject the generated type annotations into your project, you can add the following code to your code:
---      local my_bundle = <...> -- Definition of your bundle
---      ---@cast my_bundle +MyBundle
---
---      `---@cast` can be used in LuaLS/EmmyLua to inject type annotations into your variables.
---      After that, you are able to get type suggestions for your handles.
---
+--- This module is used to generate type annotations used by lua language server like LuaLS/EmmyLua.
+--- Mainly used for handles like `Bundle` and `AliasBundle` which use string literal to construct internal data
+--- thus cannot be inferred by LuaLS/EmmyLua.
+--- ```lua
+---      local GenTypeAnno = require "GenTypeAnno"
+---      GenTypeAnno:gen_type_anno {
+---          filename = "path/to/yout/meta.lua",
+---          handles = {
+---              { "MyBundle", my_bundle },
+---              { "MyAliasBundle", my_alias_bundle },
+---              my_bundle_1,
+---              my_alias_bundle_1,
+---          }
+---      }
+---
+---      -- After running the above code, you will get a file named "path/to/yout/meta.lua".
+---      -- This file will be loaded by LuaLS/EmmyLua to provide type annotations for your handles.
+---      -- To inject the generated type annotations into your project, you can add the following code to your code:
+---      local my_bundle = <...> -- Definition of your bundle
+---      ---@cast my_bundle +MyBundle
+---
+---      `---@cast` can be used in LuaLS/EmmyLua to inject type annotations into your variables.
+---      After that, you are able to get type suggestions for your handles.
+--- ```
 
 ---@class (exact) GenTypeAnno.bundle_seq
 ---@field [1] string name
