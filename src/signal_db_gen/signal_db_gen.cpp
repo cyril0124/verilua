@@ -21,6 +21,13 @@
 #include <string_view>
 #include <vector>
 
+// For file locking
+#include <cerrno>     // For errno
+#include <cstring>    // For strerror()
+#include <fcntl.h>    // For open()
+#include <sys/file.h> // For flock()
+#include <unistd.h>   // For close()
+
 #ifndef VERILUA_VERSION
 #define VERILUA_VERSION "Unknown"
 #endif
@@ -33,6 +40,35 @@ using namespace slang::ast;
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
+
+class FileLock {
+  public:
+    FileLock(const std::string &path) : fd_(-1), lock_path_(path) {
+        fd_ = open(path.c_str(), O_RDWR | O_CREAT, 0666);
+        if (fd_ < 0) {
+            throw std::runtime_error("Failed to create lock file");
+        }
+        if (flock(fd_, LOCK_EX) == -1) {
+            close(fd_);
+            throw std::runtime_error("Failed to lock file: " + std::string(strerror(errno)));
+        }
+    }
+
+    ~FileLock() {
+        if (fd_ >= 0) {
+            flock(fd_, LOCK_UN);
+            close(fd_);
+        }
+    }
+
+    // Disable copy and assign
+    FileLock(const FileLock &)            = delete;
+    FileLock &operator=(const FileLock &) = delete;
+
+  private:
+    int fd_;
+    std::string lock_path_;
+};
 
 bool isFileNewer(const std::string &file1, const std::string &file2) {
     try {
@@ -454,7 +490,13 @@ int main(int argc, char **argv) {
 #endif
 
     if (ret == 1) {
-        driver.generateSignalDB();
+        std::string lockfilePath = driver.outfile.value_or(DEFAULT_OUTPUT_FILE) + ".lock";
+        try {
+            FileLock lock(lockfilePath);
+            driver.generateSignalDB();
+        } catch (const std::runtime_error &e) {
+            PANIC("[signal_db_gen] Failed to lock file", lockfilePath, e.what());
+        };
     }
 
 #ifndef SO_LIB
