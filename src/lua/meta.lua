@@ -17,6 +17,9 @@
 
 _G.GLOBAL_VERILUA_ENV = {} --[[@as lightuserdata]]
 
+--- Set by the scheduler when there is an error while executing a task
+_G.VERILUA_GOT_ERROR = false --[[@as boolean]]
+
 --- Wait for a specified number of simulation time.
 --- By default, the simulation time precision is 1ps(the default timescale is `1ns/1ps`),
 --- so `await_time(100)` will wait for 100ps.
