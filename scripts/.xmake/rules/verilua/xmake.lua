@@ -7,6 +7,8 @@ local verilua_tools_home = path.join(verilua_home, "tools")
 local verilua_libs_home = path.join(verilua_home, "shared")
 local luajitpro_home = path.join(verilua_home, "luajit-pro", "luajit2.1")
 
+---@alias SimulatorType "iverilog" | "verilator" | "vcs" | "wave_vpi"
+
 ---@alias InstrumentationType "cov_exporter"
 
 ---@class CovExporterConfig: {module: string, disable_signal?: string, clock?: string, recursive?: boolean}
@@ -331,7 +333,7 @@ rule("verilua", function()
         local top = target:get("top")
         local build_dir = target:get("build_dir")
         local sim_build_dir = path.join(build_dir, "sim_build")
-        local sim = target:get("sim")
+        local sim = target:get("sim") --[[@as SimulatorType]]
         local tb_top = target:get("tb_top")
         local sourcefiles = target:sourcefiles()
         local argv = {}
@@ -360,9 +362,42 @@ rule("verilua", function()
         ---         end
         ---     }
         --- ```
-        local no_internal_clock = target:values("cfg.no_internal_clock")
+        local no_internal_clock = target:values("cfg.no_internal_clock") --[[@as string]]
         if no_internal_clock == "1" then
-            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}cfg.no_internal_clock${reset} is enabled!", target:name())
+            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}cfg.no_internal_clock${reset} is enabled!",
+                target:name())
+        end
+
+        --- Check if user has set `cfg.use_inertial_put`
+        --- See https://github.com/cocotb/cocotb/pull/3861 for more details
+        --- e.g.(in your xmake.lua)
+        --- ```lua
+        ---     set_values("cfg.use_inertial_put", "1")
+        --- ```
+        local use_inertial_put = target:values("cfg.use_inertial_put") --[[@as string]]
+        if not use_inertial_put then
+            -- By default, `use_inertial_put` is enabled for `verilator` simulator
+            if sim == "verilator" then
+                use_inertial_put = "1"
+            end
+
+            local env_use_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT")
+            if env_use_inertial_put then
+                assert(
+                    env_use_inertial_put == "0" or env_use_inertial_put == "1",
+                    "[on_build] environment variable CFG_USE_INERTIAL_PUT should be 0 or 1"
+                )
+                use_inertial_put = env_use_inertial_put
+                cprint(
+                    "${✅} [verilua-xmake] [%s] environment variable ${yellow underline}CFG_USE_INERTIAL_PUT = %s${reset}",
+                    target:name(),
+                    env_use_inertial_put
+                )
+            end
+        end
+        if use_inertial_put == "1" then
+            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}cfg.use_inertial_put${reset} is enabled!", target:name())
+            assert(sim == "verilator", "[on_build] cfg.use_inertial_put is only supported for `verilator` simulator")
         end
 
         --- For most of the simulators, we have `<sim>.flags` for user to specify extra command line flags.
@@ -642,10 +677,16 @@ rule("verilua", function()
         target:add("links", "luajit-5.1")
         target:add("linkdirs", path.join(luajitpro_home, "lib"), verilua_libs_home)
         target:add("linkdirs", path.join(verilua_home, "conan_installed", "lib"))
+        target:add("rpathdirs", path.join(luajitpro_home, "lib"), verilua_libs_home)
+        target:add("rpathdirs", path.join(verilua_home, "conan_installed", "lib"))
         target:add("includedirs", path.join(verilua_home, "conan_installed", "include"))
 
         if sim == "verilator" then
-            target:add("links", "verilua_verilator")
+            if use_inertial_put == "1" then
+                target:add("links", "verilua_verilator_i")
+            else
+                target:add("links", "verilua_verilator")
+            end
             target:add("files", path.join(verilua_home, "src", "verilator", "*.cpp"))
         elseif sim == "vcs" then
             -- If you are entering a C++ file or an object file compiled from a C++ file on

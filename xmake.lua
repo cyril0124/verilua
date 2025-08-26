@@ -384,29 +384,38 @@ target("test", function()
             os.setenvs(old_env)
             for _, test_dir in ipairs(test_dirs) do
                 os.cd(test_dir)
-                for _, sim in ipairs(simulators) do
-                    cprint("")
-                    cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                    cprint("> sim: ${green underline}%s${reset}", sim)
-                    cprint("> test_dir: ${green underline}%s${reset}", test_dir)
-                    cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                local test = function(_simulators)
+                    for _, sim in ipairs(_simulators) do
+                        cprint("")
+                        cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                        cprint("> sim: ${green underline}%s${reset}", sim)
+                        cprint("> test_dir: ${green underline}%s${reset}", test_dir)
+                        cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-                    os.setenv("SIM", sim)
-                    os.tryrm("build")
-                    os.exec("xmake build -v -P .")
-                    -- if sim == "vcs" then
-                    --     -- ignore error
-                    --     try { function () os.exec("xmake run -v -P .") end }
-                    -- else
-                    os.exec("xmake run -v -P .")
-                    -- end
+                        os.setenv("SIM", sim)
+                        os.tryrm("build")
+                        os.exec("xmake build -v -P .")
+                        -- if sim == "vcs" then
+                        --     -- ignore error
+                        --     try { function () os.exec("xmake run -v -P .") end }
+                        -- else
+                        os.exec("xmake run -v -P .")
+                        -- end
 
-                    cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                    cprint("< sim: ${green underline}%s${reset}", sim)
-                    cprint("< test_dir: ${green underline}%s${reset}", test_dir)
-                    cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                    cprint("")
+                        cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+                        cprint("< sim: ${green underline}%s${reset}", sim)
+                        cprint("< test_dir: ${green underline}%s${reset}", test_dir)
+                        cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+                        cprint("")
+                    end
                 end
+                test(simulators)
+
+                os.setenv("CFG_USE_INERTIAL_PUT", "0")
+                assert(os.getenv("CFG_USE_INERTIAL_PUT") == "0")
+                test({ "verilator" })
+                os.setenv("CFG_USE_INERTIAL_PUT", nil)
+                assert(os.getenv("CFG_USE_INERTIAL_PUT") == nil)
             end
         end
 
@@ -420,12 +429,19 @@ target("test", function()
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "benchmarks"))
             for _, case in ipairs(benchmark_cases) do
-                for _, sim in ipairs(simulators) do
-                    os.setenv("SIM", sim)
-                    os.tryrm("build")
-                    os.exec("xmake build -P . %s", case)
-                    os.exec("xmake run -P . %s", case)
+                local test = function(_simulators)
+                    for _, sim in ipairs(_simulators) do
+                        os.setenv("SIM", sim)
+                        os.tryrm("build")
+                        os.exec("xmake build -P . %s", case)
+                        os.exec("xmake run -P . %s", case)
+                    end
                 end
+                test(simulators)
+
+                os.setenv("CFG_USE_INERTIAL_PUT", "0")
+                test({ "verilator" })
+                os.setenv("CFG_USE_INERTIAL_PUT", nil)
             end
         end
 

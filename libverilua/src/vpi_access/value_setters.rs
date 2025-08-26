@@ -17,9 +17,31 @@ macro_rules! impl_gen_set_force_value {
                     }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
-                        complex_handle.put_value_vectors[0].aval = value as _;
-                        self.do_push_hdl_put_value(complex_handle_raw);
+
+                    if cfg!(feature = "inertial_put") {
+                        let mut vec_v = t_vpi_vecval {
+                            aval: value as _,
+                            bval: 0,
+                        };
+                        let mut v = s_vpi_value {
+                            format: vpiVectorVal as _,
+                            value: t_vpi_value__bindgen_ty_1 {
+                                vector: &mut vec_v as *mut _,
+                            },
+                        };
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v as *mut _,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+                            complex_handle.put_value_vectors[0].aval = value as _;
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 
@@ -66,13 +88,36 @@ macro_rules! impl_gen_set_force_value {
                     }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+
+                    if cfg!(feature = "inertial_put") {
                         let vectors = &mut complex_handle.put_value_vectors;
                         vectors[1].aval = (value >> 32) as _;
                         vectors[1].bval = 0;
                         vectors[0].aval = (value & 0xFFFFFFFF) as _;
                         vectors[0].bval = 0;
-                        self.do_push_hdl_put_value(complex_handle_raw);
+                        let mut v = s_vpi_value {
+                            format: vpiVectorVal as _,
+                            value: t_vpi_value__bindgen_ty_1 {
+                                vector: vectors.as_mut_ptr(),
+                            },
+                        };
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v as *mut _,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+                            let vectors = &mut complex_handle.put_value_vectors;
+                            vectors[1].aval = (value >> 32) as _;
+                            vectors[1].bval = 0;
+                            vectors[0].aval = (value & 0xFFFFFFFF) as _;
+                            vectors[0].bval = 0;
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 
@@ -111,7 +156,8 @@ macro_rules! impl_gen_set_force_value {
                     }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+
+                    if cfg!(feature = "inertial_put") {
                         let vectors = &mut complex_handle.put_value_vectors;
                         for vector in vectors.iter_mut().take(complex_handle.beat_num as usize) {
                             vector.aval = 0;
@@ -121,7 +167,34 @@ macro_rules! impl_gen_set_force_value {
                         vectors[1].aval = (value >> 32) as _;
                         vectors[0].aval = ((value << 32) >> 32) as _;
 
-                        self.do_push_hdl_put_value(complex_handle_raw);
+                        let mut v = s_vpi_value {
+                            format: vpiVectorVal as _,
+                            value: t_vpi_value__bindgen_ty_1 {
+                                vector: vectors.as_mut_ptr(),
+                            },
+                        };
+
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v as *mut _,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+                            let vectors = &mut complex_handle.put_value_vectors;
+                            for vector in vectors.iter_mut().take(complex_handle.beat_num as usize) {
+                                vector.aval = 0;
+                                vector.bval = 0;
+                            }
+
+                            vectors[1].aval = (value >> 32) as _;
+                            vectors[0].aval = ((value << 32) >> 32) as _;
+
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 
@@ -163,14 +236,39 @@ macro_rules! impl_gen_set_force_value {
                     }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+
+                    if cfg!(feature = "inertial_put") {
                         let vectors = &mut complex_handle.put_value_vectors;
                         for (i, vector) in vectors.iter_mut().enumerate().take(complex_handle.beat_num as usize) {
                             vector.aval = unsafe { *value.add(i) } as _;
                             vector.bval = 0;
                         }
 
-                        self.do_push_hdl_put_value(complex_handle_raw);
+                        let mut v = s_vpi_value {
+                            format: vpiVectorVal as _,
+                            value: t_vpi_value__bindgen_ty_1 {
+                                vector: vectors.as_mut_ptr(),
+                            },
+                        };
+
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v as *mut _,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+                            let vectors = &mut complex_handle.put_value_vectors;
+                            for (i, vector) in vectors.iter_mut().enumerate().take(complex_handle.beat_num as usize) {
+                                vector.aval = unsafe { *value.add(i) } as _;
+                                vector.bval = 0;
+                            }
+
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 
@@ -180,6 +278,7 @@ macro_rules! impl_gen_set_force_value {
                     }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+
                     let vectors = &mut complex_handle.put_value_vectors;
                     for (i, vector) in vectors.iter_mut().enumerate().take(complex_handle.beat_num as usize) {
                         vector.aval = unsafe { *value.add(i) } as _;
@@ -218,19 +317,53 @@ macro_rules! impl_gen_set_value_str {
             impl VeriluaEnv {
                 pub fn [<vpiml_ $set_type _value_ $str_type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &$flag, &$format as _) {
-                        complex_handle.put_value_str =
-                            unsafe { CStr::from_ptr(value_str).to_str().unwrap().to_string() };
-                        self.do_push_hdl_put_value(complex_handle_raw);
+
+                    if cfg!(feature = "inertial_put") {
+                        let mut v = s_vpi_value {
+                            format: $format as _,
+                            value: t_vpi_value__bindgen_ty_1 { str_: value_str },
+                        };
+
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        if complex_handle.try_put_value(self, &$flag, &$format as _) {
+                            complex_handle.put_value_str =
+                                unsafe { CStr::from_ptr(value_str).to_str().unwrap().to_string() };
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 
                 // The `value_str` is a string, this function is used internally.
                 pub fn [<_vpiml_ $set_type _value_ $str_type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: String) {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &$flag, &$format as _) {
-                        complex_handle.put_value_str = value_str;
-                        self.do_push_hdl_put_value(complex_handle_raw);
+
+                    if cfg!(feature = "inertial_put") {
+                        let mut v = s_vpi_value {
+                            format: $format as _,
+                            value: t_vpi_value__bindgen_ty_1 { str_: CString::new(value_str.as_str()).unwrap().into_raw() as _, },
+                        };
+
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        if complex_handle.try_put_value(self, &$flag, &$format as _) {
+                            complex_handle.put_value_str = value_str;
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 
@@ -274,12 +407,37 @@ macro_rules! impl_gen_set_force_value_multi_beat {
                     }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-                    if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+
+                    if cfg!(feature = "inertial_put") {
                         paste::paste! {
-                            $( complex_handle.put_value_vectors[$i].aval = [<v $i>] as _ );*
+                            let mut vector = [
+                                $( t_vpi_vecval { aval: [<v $i>] as _, bval: 0 } ),*
+                            ];
                         }
 
-                        self.do_push_hdl_put_value(complex_handle_raw);
+                        let mut v = s_vpi_value {
+                            format: vpiVectorVal as _,
+                            value: t_vpi_value__bindgen_ty_1 {
+                                vector: &mut vector as *mut _
+                            }
+                        };
+
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v as *mut _,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
+                            paste::paste! {
+                                $( complex_handle.put_value_vectors[$i].aval = [<v $i>] as _ );*
+                            }
+
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 
@@ -289,6 +447,7 @@ macro_rules! impl_gen_set_force_value_multi_beat {
                     }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+
                     paste::paste! {
                         let mut vector = [
                             $( t_vpi_vecval { aval: [<v $i>] as _, bval: 0 } ),*
@@ -344,19 +503,47 @@ macro_rules! impl_gen_set_force_value_str {
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
-                    let cstr = unsafe { CStr::from_ptr(value_str) };
-                    let str_bytes = cstr.to_bytes();
-                    let (final_value_str, format) = if str_bytes.starts_with(b"0b") {
-                        (unsafe { value_str.add(2) }, vpiBinStrVal)
-                    } else if str_bytes.starts_with(b"0x") {
-                        (unsafe { value_str.add(2) }, vpiHexStrVal)
-                    } else {
-                        (value_str, vpiDecStrVal)
-                    };
+                    if cfg!(feature = "inertial_put") {
+                        let cstr = unsafe { CStr::from_ptr(value_str) };
+                        let str_bytes = cstr.to_bytes();
+                        let (final_value_str, format) = if str_bytes.starts_with(b"0b") {
+                            (unsafe { value_str.add(2) }, vpiBinStrVal)
+                        } else if str_bytes.starts_with(b"0x") {
+                            (unsafe { value_str.add(2) }, vpiHexStrVal)
+                        } else {
+                            (value_str, vpiDecStrVal)
+                        };
 
-                    if complex_handle.try_put_value(self, &$flag, &format as _) {
-                        complex_handle.put_value_str = unsafe { CStr::from_ptr(final_value_str).to_str().unwrap().to_string() };
-                        self.do_push_hdl_put_value(complex_handle_raw);
+                        let mut v = s_vpi_value {
+                            format: format as _,
+                            value: t_vpi_value__bindgen_ty_1 { integer: 0 },
+                        };
+
+                        v.value.str_ = final_value_str;
+
+                        unsafe {
+                            vpi_put_value(
+                                complex_handle.vpi_handle,
+                                &mut v,
+                                std::ptr::null_mut(),
+                                vpiInertialDelay as _,
+                            )
+                        };
+                    } else {
+                        let cstr = unsafe { CStr::from_ptr(value_str) };
+                        let str_bytes = cstr.to_bytes();
+                        let (final_value_str, format) = if str_bytes.starts_with(b"0b") {
+                            (unsafe { value_str.add(2) }, vpiBinStrVal)
+                        } else if str_bytes.starts_with(b"0x") {
+                            (unsafe { value_str.add(2) }, vpiHexStrVal)
+                        } else {
+                            (value_str, vpiDecStrVal)
+                        };
+
+                        if complex_handle.try_put_value(self, &$flag, &format as _) {
+                            complex_handle.put_value_str = unsafe { CStr::from_ptr(final_value_str).to_str().unwrap().to_string() };
+                            self.do_push_hdl_put_value(complex_handle_raw);
+                        }
                     }
                 }
 

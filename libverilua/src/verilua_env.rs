@@ -133,6 +133,7 @@ impl VeriluaEnv {
         log_feature!("verilator");
         log_feature!("wave_vpi");
         log_feature!("iverilog_vpi_mod");
+        log_feature!("inertial_put");
         log_feature!("dpi");
         log_feature!("debug");
         log_feature!("acc_time");

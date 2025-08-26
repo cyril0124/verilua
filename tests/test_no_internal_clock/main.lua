@@ -15,6 +15,8 @@ local count3 = dut.count3:chdl()
 local count4 = dut.count4:chdl()
 
 local is_verilator = cfg.simulator == "verilator"
+local no_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT") == "0"
+local is_inertial_put = not no_inertial_put
 
 ---@param clock CallableHDL
 ---@return TaskFunction
@@ -82,9 +84,15 @@ fork {
                 function()
                     clock1:posedge(5)
 
-                    count:expect(6)
-                    count1:expect(5)
-                    count2:expect(4)
+                    if is_verilator and is_inertial_put then
+                        count:expect(5)
+                        count1:expect(5)
+                        count2:expect(4)
+                    else
+                        count:expect(6)
+                        count1:expect(5)
+                        count2:expect(4)
+                    end
 
                     clock1:posedge(100)
 
@@ -111,9 +119,15 @@ fork {
                 function()
                     clock2:posedge(5)
 
-                    count:expect(8)
-                    count1:expect(7)
-                    count2:expect(5)
+                    if is_verilator and is_inertial_put then
+                        count:expect(7)
+                        count1:expect(7)
+                        count2:expect(5)
+                    else
+                        count:expect(8)
+                        count1:expect(7)
+                        count2:expect(5)
+                    end
 
                     clock2:posedge(100)
 

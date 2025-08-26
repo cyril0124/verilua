@@ -164,9 +164,11 @@ unsafe extern "C" fn read_write_synch_callback_for_put_values(
 ) -> PLI_INT32 {
     let env: &'static mut VeriluaEnv = get_verilua_env();
 
-    // Apply pending put values(or do value settles)
-    // Here all signal values are updated to HDL
-    env.apply_pending_put_values();
+    if !cfg!(feature = "inertial_put") {
+        // Apply pending put values(or do value settles)
+        // Here all signal values are updated to HDL
+        env.apply_pending_put_values();
+    }
 
     do_register_next_sim_time_callback();
     0

@@ -48,6 +48,7 @@ wave_vpi = []
 
 debug = []
 acc_time = []
+inertial_put = [] # See https://github.com/cocotb/cocotb/pull/3861 for more details
 
 opt_cb_task = []
 merge_cb = ["opt_cb_task"]

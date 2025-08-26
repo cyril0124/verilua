@@ -349,9 +349,6 @@ int Emulator::normal_mode_main() {
         // These are called at the beginning of the time step
         // before the iterative regions (IEEE 1800-2012 4.4.1)
         VerilatedVpi::callTimedCbs();
-
-        // Call Value Change callbacks triggered by Timer callbacks
-        // These can modify signal values
         settle_value_callbacks();
 
         do {
@@ -390,10 +387,10 @@ int Emulator::normal_mode_main() {
         // Increse simulation time for 1ps(default) when timescale is 1ns/1ps
         Verilated::timeInc(VERILATOR_STEP_TIME);
 
+        // Call registered NextSimTime
+        // It should be called in simulation cycle before everything else
+        // but not on first cycle
         VerilatedVpi::callCbs(cbNextSimTime);
-
-        // Call Value Change callbacks triggered by NextTimeStep callbacks
-        // These can modify signal values
         settle_value_callbacks();
 
         // TODO: Not work correctly
