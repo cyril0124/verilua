@@ -322,6 +322,8 @@ local gen_verilua_env_struct = function (num)
 pub struct VeriluaEnv {
     pub hdl_cache: HashMap<String, ComplexHandleRaw>,
     pub hdl_put_value: Vec<ComplexHandleRaw>,
+    pub hdl_put_value_bak: Vec<ComplexHandleRaw>,
+    pub use_hdl_put_value_bak: bool,
 
     #[cfg(feature = "chunk_task")]
     pub pending_posedge_cb_map: HashMap<ComplexHandleRaw, Vec<TaskID>>,
@@ -381,6 +383,8 @@ local gen_verilua_env_init = function (num)
 Self {
     hdl_cache: HashMap::new(),
     hdl_put_value: Vec::new(),
+    hdl_put_value_bak: Vec::new(),
+    use_hdl_put_value_bak: false,
 
     #[cfg(feature = "chunk_task")]
     pending_posedge_cb_map: HashMap::new(),

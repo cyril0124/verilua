@@ -1,6 +1,8 @@
 Self {
     hdl_cache: HashMap::new(),
     hdl_put_value: Vec::new(),
+    hdl_put_value_bak: Vec::new(),
+    use_hdl_put_value_bak: false,
 
     #[cfg(feature = "chunk_task")]
     pending_posedge_cb_map: HashMap::new(),

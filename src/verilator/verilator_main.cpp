@@ -28,6 +28,10 @@
 #include <memory>
 #include <string>
 
+#ifndef VERILATOR_STEP_TIME
+#define VERILATOR_STEP_TIME 1
+#endif
+
 #ifndef VM_TRACE_FST
 // emulate new verilator behavior for legacy versions
 #define VM_TRACE_FST 0
@@ -256,9 +260,9 @@ Emulator::Emulator(int argc, char *argv[]) {
 #ifdef ENABLE_LIGHTSSS
         lightsss = new LightSSS;
         VL_INFO("enable fork debugging...\n");
-#else  // ENABLE_LIGHTSSS
+#else
         VL_FATAL(false, "LightSSS is not enabled! Maybe you need to add `ENABLE_LIGHTSSS` to defines: `add_defines(\"ENABLE_LIGHTSSS\")`\n");
-#endif // ENABLE_LIGHTSSS
+#endif
     }
 
     verilua_alloc_verilator_func(_verilator_simulation_initializeTrace, "simulation_initializeTrace");
@@ -350,24 +354,41 @@ int Emulator::normal_mode_main() {
         // These can modify signal values
         settle_value_callbacks();
 
-        // We must evaluate whole design until we process all 'events'
-        bool again = true;
-        while (again) {
-            dut_ptr->eval_step();
-            again |= VerilatedVpi::callCbs(cbReadWriteSynch);
-            again = settle_value_callbacks();
-        }
+        do {
+            // We must evaluate whole design until we process all 'events' for
+            // this time step
+            do {
+                dut_ptr->eval_step();
+                VerilatedVpi::clearEvalNeeded();
+                VerilatedVpi::doInertialPuts();
+                settle_value_callbacks();
+            } while (VerilatedVpi::evalNeeded());
+
+            // Run ReadWrite callback as we are done processing this eval step
+            VerilatedVpi::callCbs(cbReadWriteSynch);
+            VerilatedVpi::doInertialPuts();
+            settle_value_callbacks();
+        } while (VerilatedVpi::evalNeeded());
+
+        dut_ptr->eval_end_step();
+
         VerilatedVpi::callCbs(cbReadOnlySynch);
 
-#ifndef NO_INTERNAL_CLOCK
-        auto time = Verilated::time();
-        if ((time % 10) == 0) {
+#ifndef NO_INTERNAL_CLOCK // Has internal clock
+        if ((Verilated::time() % (VERILATOR_STEP_TIME * 2)) == 0) {
             dut_ptr->eval_step();
             dut_ptr->clock = dut_ptr->clock ? 0 : 1;
         }
 #endif
 
-        dut_ptr->eval_end_step();
+#if VM_TRACE
+        if (args.enable_wave) {
+            tfp->dump(Verilated::time());
+        }
+#endif
+
+        // Increse simulation time for 1ps(default) when timescale is 1ns/1ps
+        Verilated::timeInc(VERILATOR_STEP_TIME);
 
         VerilatedVpi::callCbs(cbNextSimTime);
 
@@ -375,18 +396,17 @@ int Emulator::normal_mode_main() {
         // These can modify signal values
         settle_value_callbacks();
 
-#if VM_TRACE
-        if (args.enable_wave) {
-            tfp->dump(time);
-        }
-#endif
+        // TODO: Not work correctly
+        // if (!dut_ptr->eventsPending()) {
+        //     VL_INFO("No more events pending, finish simulation\n");
+        //     break;
+        // }
 
 #ifdef ENABLE_LIGHTSSS
         if (args.enable_fork && (lightsss_try_fork() == -1)) {
             return -1;
         }
-#endif // ENABLE_LIGHTSSS
-        Verilated::timeInc(5);
+#endif
     }
 
     this->end_simulation();
@@ -419,31 +439,29 @@ int Emulator::timing_mode_main() {
         // These can modify signal values
         settle_value_callbacks();
 
-        // We must evaluate whole design until we process all 'events'
-        bool again = true;
-        while (again) {
-            // Evaluate design
-            dut_ptr->eval_step();
+        do {
+            // We must evaluate whole design until we process all 'events' for
+            // this time step
+            do {
+                dut_ptr->eval_step();
+                VerilatedVpi::clearEvalNeeded();
+                VerilatedVpi::doInertialPuts();
+                settle_value_callbacks();
+            } while (VerilatedVpi::evalNeeded());
 
-            // Call Value Change callbacks triggered by eval()
-            // These can modify signal values
-            again = settle_value_callbacks();
+            // Run ReadWrite callback as we are done processing this eval step
+            VerilatedVpi::callCbs(cbReadWriteSynch);
+            VerilatedVpi::doInertialPuts();
+            settle_value_callbacks();
+        } while (VerilatedVpi::evalNeeded());
 
-            // Call registered ReadWrite callbacks
-            again |= VerilatedVpi::callCbs(cbReadWriteSynch);
-
-            // Call Value Change callbacks triggered by ReadWrite callbacks
-            // These can modify signal values
-            again |= settle_value_callbacks();
-        }
         dut_ptr->eval_end_step();
 
         // Call ReadOnly callbacks
         VerilatedVpi::callCbs(cbReadOnlySynch);
 
-#ifndef NO_INTERNAL_CLOCK
-        auto time = Verilated::time();
-        if ((time % 10) == 0) {
+#ifndef NO_INTERNAL_CLOCK // Has internal clock
+        if ((Verilated::time() % (VERILATOR_STEP_TIME * 2)) == 0) {
             dut_ptr->eval_step();
             dut_ptr->clock = dut_ptr->clock ? 0 : 1;
         }
@@ -455,21 +473,32 @@ int Emulator::timing_mode_main() {
         }
 #endif
 
-        // Copied from cocotb
+        // Copied from cocotb:
         // cocotb controls the clock inputs using cbAfterDelay so
         // skip ahead to the next registered callback
         const vluint64_t NO_TOP_EVENTS_PENDING = static_cast<vluint64_t>(~0ULL);
-        vluint64_t next_time_cocotb            = VerilatedVpi::cbNextDeadline();
+        vluint64_t next_time_deadline          = VerilatedVpi::cbNextDeadline();
         vluint64_t next_time_timing            = dut_ptr->eventsPending() ? dut_ptr->nextTimeSlot() : NO_TOP_EVENTS_PENDING;
-        vluint64_t next_time                   = std::min(next_time_cocotb, next_time_timing);
+        vluint64_t next_time                   = std::min(next_time_deadline, next_time_timing);
 
         // If there are no more cbAfterDelay callbacks,
         // the next deadline is max value, so end the simulation now
+#ifndef NO_INTERNAL_CLOCK // Has internal clock
         if (next_time == NO_TOP_EVENTS_PENDING) {
+            // When using internal clock, we always toggle the clock signal,
+            // so there are always have events pending.
+            Verilated::timeInc(VERILATOR_STEP_TIME);
+        } else {
+            Verilated::time(next_time);
+        }
+#else
+        if (next_time == NO_TOP_EVENTS_PENDING) {
+            VL_INFO("[Timing Mode] [No Internal Clock] No more events pending, finish simulation\n");
             break;
         } else {
             Verilated::time(next_time);
         }
+#endif
 
         // Call registered NextSimTime
         // It should be called in simulation cycle before everything else
@@ -484,7 +513,7 @@ int Emulator::timing_mode_main() {
         if (args.enable_fork && (lightsss_try_fork() == -1)) {
             return -1;
         }
-#endif // ENABLE_LIGHTSSS
+#endif
     }
 
     this->end_simulation();
@@ -532,7 +561,7 @@ void Emulator::finalize(bool success = true) {
             lightsss->wakeup_child(dut_ptr->cycles_o);
             delete lightsss;
         }
-#endif // ENABLE_LIGHTSSS
+#endif
     }
 
     delete dut_ptr;
@@ -550,16 +579,16 @@ Emulator::~Emulator() {
 
 int Emulator::run_main() {
 #ifdef NORMAL_MODE
-    VL_INFO("using verilua NORMAL_MODE\n");
+    VL_INFO("Using verilator in NORMAL_MODE\n");
     return normal_mode_main();
 #endif
 
 #ifdef TIMING_MODE
-    VL_INFO("using verilua TIMING_MODE\n");
-    return timing_mode_main(argc, argv);
+    VL_INFO("Using verilator in TIMING_MODE\n");
+    return timing_mode_main();
 #endif
 
-    VL_FATAL(false, "unknown mode");
+    VL_FATAL(false, "Unknown mode");
 }
 
 void signal_handler(int signal) {

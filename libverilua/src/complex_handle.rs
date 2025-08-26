@@ -176,9 +176,10 @@ impl ComplexHandle {
 
                     assert!(
                         target_idx.is_some(),
-                        "Duplicate flag, but not found in hdl_put_value, curr_flag: {}, new_flag: {}",
+                        "Duplicate flag, but not found in env.hdl_put_value, curr_flag: {}, new_flag: {}, self: {:?}",
                         curr_flag,
-                        *flag
+                        *flag,
+                        self
                     );
                     env.hdl_put_value
                         .remove(unsafe { target_idx.unwrap_unchecked() });

@@ -310,7 +310,9 @@ initial begin
     {% if resetSignalName == "" %}// no reset signal found!{% else %}{{resetSignalName}} = 1;{% endif %}
 end
 
+`ifndef NO_INTERNAL_CLOCK
 always #{{clockPeriod}} {{clockSignalName}} = ~{{clockSignalName}};
+`endif // NO_INTERNAL_CLOCK
 `endif // SIM_VERILATOR
 
 {% if clockSignalName != "clock" and clockSignalName != "" %}

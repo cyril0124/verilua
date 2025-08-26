@@ -100,6 +100,14 @@ impl Drop for VeriluaEnv {
     }
 }
 
+macro_rules! log_feature {
+    ($feature_name:literal) => {
+        if cfg!(feature = $feature_name) {
+            log::debug!("Feature `{}` is enabled", $feature_name);
+        }
+    };
+}
+
 impl VeriluaEnv {
     #[inline(always)]
     pub fn from_void_ptr(ptr: *mut libc::c_void) -> &'static mut Self {
@@ -119,6 +127,18 @@ impl VeriluaEnv {
 
     pub fn initialize(&mut self) {
         log::info!("VeriluaEnv::initialize() start",);
+
+        log_feature!("vcs");
+        log_feature!("iverilog");
+        log_feature!("verilator");
+        log_feature!("wave_vpi");
+        log_feature!("iverilog_vpi_mod");
+        log_feature!("dpi");
+        log_feature!("debug");
+        log_feature!("acc_time");
+        log_feature!("opt_cb_task");
+        log_feature!("merge_cb");
+        log_feature!("chunk_task");
 
         if self.initialized {
             return;
@@ -310,62 +330,94 @@ impl VeriluaEnv {
     }
 
     #[inline(always)]
+    pub fn do_push_hdl_put_value(&mut self, complex_handle_raw: ComplexHandleRaw) {
+        if (cfg!(feature = "vcs") || cfg!(feature = "iverilog")) && self.use_hdl_put_value_bak {
+            /// When we are in `apply_pending_put_values`, it is possible(in VCS/Iverilog) that the vpi_put_value operation
+            /// will trigger a new put value operation which will append to the `hdl_put_value`. While in every end of
+            /// `apply_pending_put_values`, we will clear the `hdl_put_value`, if the newly pushed `hdl_put_value` is not
+            /// backed up, the newly pushed `hdl_put_value` will also be cleared which is not what we want, so we need to
+            /// backup the `hdl_put_value` and restore it later(in NextSimTime callback).
+            /// The `hdl_put_value_bak` is used for backing up the `hdl_put_value` to solve this problem.
+            self.hdl_put_value_bak.push(complex_handle_raw);
+        } else {
+            self.hdl_put_value.push(complex_handle_raw);
+        }
+    }
+
+    #[inline(always)]
+    pub fn do_apply_pending_put_values(hdl_put_value: &mut Vec<ComplexHandleRaw>) {
+        hdl_put_value.iter_mut().for_each(|complex_handle_raw| {
+            let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
+
+            let mut v = match complex_handle.put_value_format {
+                vpiIntVal => s_vpi_value {
+                    format: vpiIntVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        integer: complex_handle.put_value_integer as _,
+                    },
+                },
+                vpiVectorVal => s_vpi_value {
+                    format: vpiVectorVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        vector: complex_handle.put_value_vectors.as_mut_ptr(),
+                    },
+                },
+                vpiHexStrVal | vpiDecStrVal | vpiOctStrVal | vpiBinStrVal => s_vpi_value {
+                    format: complex_handle.put_value_format as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        str_: CString::new(complex_handle.put_value_str.as_str())
+                            .unwrap()
+                            .into_raw() as _,
+                    },
+                },
+                vpiSuppressVal => s_vpi_value {
+                    format: vpiSuppressVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        integer: complex_handle.put_value_integer as _,
+                    },
+                },
+                vpiScalarVal => s_vpi_value {
+                    format: vpiScalarVal as _,
+                    value: t_vpi_value__bindgen_ty_1 {
+                        scalar: complex_handle.put_value_integer as _,
+                    },
+                },
+                _ => panic!(
+                    "Unsupported value format: {}",
+                    complex_handle.put_value_format
+                ),
+            };
+
+            unsafe {
+                vpi_put_value(
+                    complex_handle.vpi_handle,
+                    &mut v as *mut _,
+                    std::ptr::null_mut(),
+                    complex_handle.put_value_flag.take().unwrap() as _,
+                )
+            };
+        });
+
+        hdl_put_value.clear();
+    }
+
+    #[inline(always)]
     pub fn apply_pending_put_values(&mut self) {
-        self.hdl_put_value
-            .iter_mut()
-            .for_each(|complex_handle_raw| {
-                let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
-
-                let mut v = match complex_handle.put_value_format {
-                    vpiIntVal => s_vpi_value {
-                        format: vpiIntVal as _,
-                        value: t_vpi_value__bindgen_ty_1 {
-                            integer: complex_handle.put_value_integer as _,
-                        },
-                    },
-                    vpiVectorVal => s_vpi_value {
-                        format: vpiVectorVal as _,
-                        value: t_vpi_value__bindgen_ty_1 {
-                            vector: complex_handle.put_value_vectors.as_mut_ptr(),
-                        },
-                    },
-                    vpiHexStrVal | vpiDecStrVal | vpiOctStrVal | vpiBinStrVal => s_vpi_value {
-                        format: complex_handle.put_value_format as _,
-                        value: t_vpi_value__bindgen_ty_1 {
-                            str_: CString::new(complex_handle.put_value_str.as_str())
-                                .unwrap()
-                                .into_raw() as _,
-                        },
-                    },
-                    vpiSuppressVal => s_vpi_value {
-                        format: vpiSuppressVal as _,
-                        value: t_vpi_value__bindgen_ty_1 {
-                            integer: complex_handle.put_value_integer as _,
-                        },
-                    },
-                    vpiScalarVal => s_vpi_value {
-                        format: vpiScalarVal as _,
-                        value: t_vpi_value__bindgen_ty_1 {
-                            scalar: complex_handle.put_value_integer as _,
-                        },
-                    },
-                    _ => panic!(
-                        "Unsupported value format: {}",
-                        complex_handle.put_value_format
-                    ),
-                };
-
-                unsafe {
-                    vpi_put_value(
-                        complex_handle.vpi_handle,
-                        &mut v as *mut _,
-                        std::ptr::null_mut(),
-                        complex_handle.put_value_flag.take().unwrap() as _,
-                    )
-                };
-            });
-
-        self.hdl_put_value.clear();
+        if cfg!(feature = "vcs") || cfg!(feature = "iverilog") {
+            self.use_hdl_put_value_bak = true;
+            loop {
+                if self.hdl_put_value.is_empty() {
+                    break;
+                }
+                Self::do_apply_pending_put_values(&mut self.hdl_put_value);
+                if !self.hdl_put_value_bak.is_empty() {
+                    self.hdl_put_value.append(&mut self.hdl_put_value_bak);
+                }
+            }
+            self.use_hdl_put_value_bak = false;
+        } else {
+            Self::do_apply_pending_put_values(&mut self.hdl_put_value);
+        }
     }
 }
 

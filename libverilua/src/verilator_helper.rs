@@ -63,4 +63,3 @@ pub extern "C" fn verilator_simulation_disableTrace() {
     VERILATOR_SIMULATION_DISABLE_TRACE
         .with(|f| unsafe { (*f.get()).unwrap()(std::ptr::null_mut()) });
 }
-

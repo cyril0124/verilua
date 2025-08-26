@@ -19,7 +19,7 @@ macro_rules! impl_gen_set_force_value {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
                     if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
                         complex_handle.put_value_vectors[0].aval = value as _;
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -72,7 +72,7 @@ macro_rules! impl_gen_set_force_value {
                         vectors[1].bval = 0;
                         vectors[0].aval = (value & 0xFFFFFFFF) as _;
                         vectors[0].bval = 0;
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -121,7 +121,7 @@ macro_rules! impl_gen_set_force_value {
                         vectors[1].aval = (value >> 32) as _;
                         vectors[0].aval = ((value << 32) >> 32) as _;
 
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -170,7 +170,7 @@ macro_rules! impl_gen_set_force_value {
                             vector.bval = 0;
                         }
 
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -221,7 +221,7 @@ macro_rules! impl_gen_set_value_str {
                     if complex_handle.try_put_value(self, &$flag, &$format as _) {
                         complex_handle.put_value_str =
                             unsafe { CStr::from_ptr(value_str).to_str().unwrap().to_string() };
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -230,7 +230,7 @@ macro_rules! impl_gen_set_value_str {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
                     if complex_handle.try_put_value(self, &$flag, &$format as _) {
                         complex_handle.put_value_str = value_str;
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -279,7 +279,7 @@ macro_rules! impl_gen_set_force_value_multi_beat {
                             $( complex_handle.put_value_vectors[$i].aval = [<v $i>] as _ );*
                         }
 
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -356,7 +356,7 @@ macro_rules! impl_gen_set_force_value_str {
 
                     if complex_handle.try_put_value(self, &$flag, &format as _) {
                         complex_handle.put_value_str = unsafe { CStr::from_ptr(final_value_str).to_str().unwrap().to_string() };
-                        self.hdl_put_value.push(complex_handle_raw);
+                        self.do_push_hdl_put_value(complex_handle_raw);
                     }
                 }
 
@@ -427,7 +427,7 @@ impl VeriluaEnv {
                         unsafe { v.value.vector.add(i as _).read().bval } as _;
                 }
 
-                self.hdl_put_value.push(complex_handle_raw);
+                self.do_push_hdl_put_value(complex_handle_raw);
             }
         }
     }

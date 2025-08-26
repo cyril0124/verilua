@@ -379,6 +379,7 @@ target("test", function()
                 path.join(prj_dir, "tests", "test_edge"),
                 path.join(prj_dir, "tests", "test_set_value"),
                 path.join(prj_dir, "tests", "test_bitvec_signal"),
+                path.join(prj_dir, "tests", "test_no_internal_clock"),
             }
             os.setenvs(old_env)
             for _, test_dir in ipairs(test_dirs) do
@@ -414,6 +415,7 @@ target("test", function()
                 "signal_operation",
                 "multitasking",
                 "matrix_multiplier",
+                "matrix_multiplier_no_internal_clock",
             }
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "benchmarks"))
@@ -423,7 +425,7 @@ target("test", function()
                     os.tryrm("build")
                     os.exec("xmake build -P . %s", case)
                     os.exec("xmake run -P . %s", case)
-                end 
+                end
             end
         end
 

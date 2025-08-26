@@ -254,7 +254,7 @@ end
 return cfg
 ]], tb_top, os.projectdir(), sim, lua_main, path.joinenv(deps_vec, ";"), user_cfg, user_cfg_path)
     if os.isfile(verilua_cfg_file) and io.readfile(verilua_cfg_file) == cfg_file_str then
-        cprint("${✅} [verilua-xmake] [%s] verilua_cfg.lua is up-to-date", target:name())
+        cprint("${✅} [verilua-xmake] [%s] ${green underline}verilua_cfg.lua${reset} is up-to-date", target:name())
     else
         local lock = io.openlock(path.join(build_dir, "verilua_cfg.lua.lock")) -- To prevent concurrent writes
         lock:lock()
@@ -338,6 +338,33 @@ rule("verilua", function()
         local toolchain = ""
         local buildcmd = ""
 
+        --- Check if user has set `cfg.no_internal_clock`
+        --- Verilua will generate a clock signal internally if `cfg.no_internal_clock` is not set.
+        --- If `cfg.no_internal_clock` is set, Verilua will not generate a clock signal internally.
+        --- The user should generate a clock signal to push forward the simulation.
+        --- e.g.(in your xmake.lua)
+        --- ```lua
+        ---     set_values("cfg.no_internal_clock", "1")
+        --- ```
+        --- Also you need to generate a clock signal in your main.lua:
+        --- ```lua
+        ---     fork {
+        ---         function()
+        ---             local clock = dut.clock:chdl()
+        ---             while true do
+        ---                 clock:set(1)
+        ---                 await_time(2)
+        ---                 clock:set(0)
+        ---                 await_time(2)
+        ---             end
+        ---         end
+        ---     }
+        --- ```
+        local no_internal_clock = target:values("cfg.no_internal_clock")
+        if no_internal_clock == "1" then
+            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}cfg.no_internal_clock${reset} is enabled!", target:name())
+        end
+
         --- For most of the simulators, we have `<sim>.flags` for user to specify extra command line flags.
         --- e.g.(in your xmake.lua)
         --- ```lua
@@ -411,6 +438,10 @@ rule("verilua", function()
             extra_verilator_flags[#extra_verilator_flags + 1] = verilator_opt
             extra_verilator_flags[#extra_verilator_flags + 1] = verilator_x_assign
 
+            if no_internal_clock == "1" then
+                extra_verilator_flags[#extra_verilator_flags + 1] = [[-CFLAGS "-DNO_INTERNAL_CLOCK"]]
+            end
+
             -- Some flags can be overridden by user defined flags
             local _verilator_flags = target:values("verilator.flags") or {}
             if type(_verilator_flags) ~= "table" then
@@ -458,6 +489,10 @@ rule("verilua", function()
             local extra_iverilog_cmds = {
                 "+timescale+" .. default_timescale,
             }
+
+            if no_internal_clock == "1" then
+                extra_iverilog_cmds[#extra_iverilog_cmds + 1] = "+define+NO_INTERNAL_CLOCK"
+            end
 
             -- Some flags can be overridden by user defined flags
             local _iverilog_flags = target:values("iverilog.flags") or {}
@@ -525,6 +560,10 @@ rule("verilua", function()
 
             if not target:get("vcs_no_initreg") then
                 extra_vcs_flags[#extra_vcs_flags + 1] = "+vcs+initreg+random"
+            end
+
+            if no_internal_clock == "1" then
+                extra_vcs_flags[#extra_vcs_flags + 1] = "+define+NO_INTERNAL_CLOCK"
             end
 
             -- Some flags can be overridden by user defined flags
