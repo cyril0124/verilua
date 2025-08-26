@@ -47,11 +47,6 @@ local post_init_mt = setmetatable({
     end
 }, {})
 
----@class ComplexHandleRaw: integer
-
----@class uint32_t: ffi.cdata*
----@class uint64_t: ffi.cdata*
-
 ---@class MultiBeatData.size: integer
 ---@class MultiBeatData: {[0]: MultiBeatData.size, [integer]: uint32_t}
 

@@ -590,6 +590,12 @@ function utils.str_sep(str, step, separator)
     return result
 end
 
+--- Returns a bitmask of n bits
+--- e.g.
+--- ```lua
+--- local mask = utils.bitmask(4)
+--- assert(mask == 0b1111)
+--- ```
 ---@param n integer
 ---@return uint64_t
 function utils.bitmask(n)

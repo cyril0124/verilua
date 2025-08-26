@@ -17,6 +17,11 @@
 
 _G.GLOBAL_VERILUA_ENV = {} --[[@as lightuserdata]]
 
+--- Wait for a specified number of simulation time.
+--- By default, the simulation time precision is 1ps(the default timescale is `1ns/1ps`),
+--- so `await_time(100)` will wait for 100ps.
+--- The `time` value depends on the simulation time precision. If your timescale config is `1ms/1ns`,
+--- then `await_time(100)` will wait for 100ns, and `await_time(1000)` will wait for 1ms.
 ---@param time integer
 function await_time(time) end
 
