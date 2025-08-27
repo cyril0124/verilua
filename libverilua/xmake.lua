@@ -9,7 +9,7 @@ local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
 
 local common_features = "debug acc_time"
 
-local verilator_features = "chunk_task " .. common_features
+local verilator_features = "chunk_task verilator_inner_step_callback " .. common_features
 local vcs_features = "chunk_task merge_cb " .. common_features
 local iverilog_features = "chunk_task merge_cb " .. common_features
 local wave_vpi_features = "chunk_task " .. common_features
@@ -80,6 +80,7 @@ local function build_lib_common(simulator)
     end)
 end
 
+local all_libverilua_targets = {}
 for _, simulator in ipairs({
     "verilator",
     "verilator_i", -- `verilator` with `inertial_put` feature
@@ -96,7 +97,9 @@ for _, simulator in ipairs({
     -- libverilua_vcs_dpi
     -- libverilua_iverilog
     -- libverilua_wave_vpi
-    target("libverilua_" .. simulator, function()
+    local target_name = "libverilua_" .. simulator
+    all_libverilua_targets[#all_libverilua_targets + 1] = target_name
+    target(target_name, function()
         build_lib_common(simulator)
     end)
 end
@@ -110,23 +113,12 @@ target("build_libverilua", function()
         print("--------------------- [Build libverilua] ---------------------- ")
         try { function() os.vrun("cargo clean") end }
 
-        cprint("* Build ${green}libverilua_verilator${reset}")
-        os.vrun("xmake build libverilua_verilator")
-
-        cprint("* Build ${green}libverilua_verilator_i${reset}")
-        os.vrun("xmake build libverilua_verilator_i")
-
-        cprint("* Build ${green}libverilua_verilator_dpi${reset}")
-        os.vrun("xmake build libverilua_verilator_dpi")
-
-        cprint("* Build ${green}libverilua_vcs${reset}")
-        os.vrun("xmake build libverilua_vcs")
-
-        cprint("* Build ${green}libverilua_vcs_dpi${reset}")
-        os.vrun("xmake build libverilua_vcs_dpi")
-
-        cprint("* Build ${green}libverilua_wave_vpi${reset}")
-        os.vrun("xmake build libverilua_wave_vpi")
+        for _, target_name in ipairs(all_libverilua_targets) do
+            if not target_name:find("iverilog") then
+                cprint("* Build ${green}%s${reset}", target_name)
+                os.vrun("xmake build " .. target_name)
+            end
+        end
 
         if find_file("iverilog", { "$(env PATH)" }) then
             setup_cargo_env(os)

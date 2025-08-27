@@ -2,8 +2,6 @@ use libc::{c_char, c_int, c_void};
 use std::cell::UnsafeCell;
 use std::ffi::CStr;
 
-use crate::verilua_env::get_verilua_env;
-
 type VerilatorFunc = Option<unsafe extern "C" fn(*mut c_void)>;
 
 thread_local! {
@@ -62,4 +60,17 @@ pub extern "C" fn verilator_simulation_disableTrace() {
 
     VERILATOR_SIMULATION_DISABLE_TRACE
         .with(|f| unsafe { (*f.get()).unwrap()(std::ptr::null_mut()) });
+}
+
+/// This function is called from `verilator_main.cpp` when `verilator_inner_step_callback` is enabled.
+/// It is a performance opimization to save the time of registering the cbNextSimTime callback.
+#[unsafe(no_mangle)]
+pub extern "C" fn verilator_next_sim_time_callback() {
+    if cfg!(feature = "verilator_inner_step_callback") {
+        unsafe {
+            crate::vpi_callback::libverilua_next_sim_time_cb(std::ptr::null_mut());
+        }
+    } else {
+        panic!("`feature = \"verilator_inner_step_callback\"` is not enabled");
+    }
 }

@@ -79,6 +79,7 @@ typedef void (*VerilatorFunc)(void *);
 
 extern "C" {
 void verilua_alloc_verilator_func(VerilatorFunc func, const char *name);
+void verilator_next_sim_time_callback(void);
 void vlog_startup_routines_bootstrap(void);
 }
 
@@ -392,6 +393,7 @@ int Emulator::normal_mode_main() {
         // Call registered NextSimTime
         // It should be called in simulation cycle before everything else
         // but not on first cycle
+        verilator_next_sim_time_callback(); // libverilua feature `verilator_inner_step_callback` should be enabled
         VerilatedVpi::callCbs(cbNextSimTime);
         settle_value_callbacks();
 
@@ -501,6 +503,7 @@ int Emulator::timing_mode_main() {
         // Call registered NextSimTime
         // It should be called in simulation cycle before everything else
         // but not on first cycle
+        verilator_next_sim_time_callback(); // libverilua feature `verilator_inner_step_callback` should be enabled
         VerilatedVpi::callCbs(cbNextSimTime);
         settle_value_callbacks();
 

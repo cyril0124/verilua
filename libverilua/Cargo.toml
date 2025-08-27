@@ -46,6 +46,8 @@ iverilog_vpi_mod = []
 vcs = []
 wave_vpi = []
 
+verilator_inner_step_callback = []
+
 debug = []
 acc_time = []
 inertial_put = [] # See https://github.com/cocotb/cocotb/pull/3861 for more details

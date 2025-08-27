@@ -134,12 +134,20 @@ impl VeriluaEnv {
         log_feature!("wave_vpi");
         log_feature!("iverilog_vpi_mod");
         log_feature!("inertial_put");
+        log_feature!("verilator_next_sim_time_callback");
         log_feature!("dpi");
         log_feature!("debug");
         log_feature!("acc_time");
         log_feature!("opt_cb_task");
         log_feature!("merge_cb");
         log_feature!("chunk_task");
+
+        if cfg!(feature = "verilator_next_sim_time_callback") {
+            assert!(
+                cfg!(feature = "verilator"),
+                "`feature = \"verilator_next_sim_time_callback\"` requires `feature = \"verilator\"`"
+            );
+        }
 
         if self.initialized {
             return;
@@ -150,17 +158,17 @@ impl VeriluaEnv {
         if !self.has_final_cb {
             #[cfg(feature = "dpi")]
             unsafe {
-                vpi_callback::vpiml_register_final_callback(self.as_void_ptr())
+                vpi_callback::bootstrap_register_final_callback(self.as_void_ptr())
             };
 
             #[cfg(not(feature = "dpi"))]
             unsafe {
-                vpi_callback::vpiml_register_final_callback()
+                vpi_callback::bootstrap_register_final_callback()
             };
         }
 
         if !self.has_next_sim_time_cb {
-            unsafe { vpi_callback::vpiml_register_next_sim_time_callback() };
+            unsafe { vpi_callback::bootstrap_register_next_sim_time_callback() };
         }
 
         let lua_dofile: LuaFunction = self.lua.globals().get("dofile").unwrap();
