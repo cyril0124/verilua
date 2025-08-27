@@ -57,3 +57,62 @@ function await_noop() end
 function await_step() end
 
 function exit_task() end
+
+---------------------------------------------------
+--- Xmake related functions
+---------------------------------------------------
+---@alias verilua.xmake.toolchains
+--- | "@verilator"
+--- | "@iverilog"
+--- | "@vcs"
+--- | "@wave_vpi"
+
+---@alias verilua.xmake.set_values.yes_or_not
+--- | "1"
+--- | "0"
+
+---@alias verilua.xmake.set_values.cmd
+--- | "verilator.flags"
+--- | "verilator.run_prefix"
+--- | "verilator.run_flags"
+--- | "vcs.flags"
+--- | "vcs.run_prefix"
+--- | "vcs.run_flags"
+--- | "iverilog.flags"
+--- | "iverilog.run_prefix"
+--- | "iverilog.run_flags"
+--- | "wave_vpi.flags"
+--- | "wave_vpi.run_prefix"
+--- | "wave_vpi.run_flags"
+--- | "cfg.top" <Required>
+--- | "cfg.lua_main" <Required>
+--- | "cfg.tb_top"
+--- | "cfg.version_required"
+--- | "cfg.vcs_no_initreg"
+--- | "cfg.not_gen_tb"
+--- | "cfg.build_dir"
+--- | "cfg.build_dir_path"
+--- | "cfg.build_dir_name"
+--- | "cfg.user_cfg"
+--- | "cfg.no_gen_tb"
+--- | "cfg.tb_gen_flags"
+--- | "cfg.tb_top_file"
+--- | "cfg.no_internal_clock"
+--- | "cfg.use_inertial_put"
+
+---@param cmd verilua.xmake.set_values.cmd
+---@param ... verilua.xmake.set_values.yes_or_not|string
+function set_values(cmd, ...) end
+
+---@param cmd verilua.xmake.add_values.cmd
+---@param ... verilua.xmake.set_values.yes_or_not|string
+function add_values() end
+
+---@param toolchain verilua.xmake.toolchains
+function add_toolchain(toolchain) end
+
+---@param toolchain verilua.xmake.toolchains
+function set_toolchain(toolchain) end
+
+---@param rule "verilua"
+function add_rules(rule) end

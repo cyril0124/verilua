@@ -144,7 +144,7 @@ fork {
 
         do
             clock:negedge()
-                local u32_array = ffi.new("uint32_t[?]", 5)
+                local u32_array = ffi.new("uint32_t[?]", 5) --[[@as table<integer, integer>]]
                 u32_array[0] = 4 -- length of the u32_array
                 u32_array[1] = 0x32
                 u32_array[2] = 0x34
