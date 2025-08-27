@@ -637,7 +637,12 @@ int main(int argc, char **argv) {
 #ifdef VERILATOR_SIM_DEBUG
     Verilated::debug(99);
 #endif
+
+#ifdef VERILATOR_FATAL_ON_VPI_ERROR
+    Verilated::fatalOnVpiError(true);
+#else
     Verilated::fatalOnVpiError(false); // otherwise it will fail on systemtf
+#endif
 
 #ifdef VERILATOR_SIM_DEBUG
     Verilated::internalsDump();

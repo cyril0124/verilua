@@ -411,8 +411,8 @@ target("test", function()
                 end
                 test(simulators)
 
-                os.setenv("CFG_USE_INERTIAL_PUT", "0")
-                assert(os.getenv("CFG_USE_INERTIAL_PUT") == "0")
+                os.setenv("CFG_USE_INERTIAL_PUT", "1")
+                assert(os.getenv("CFG_USE_INERTIAL_PUT") == "1")
                 test({ "verilator" })
                 os.setenv("CFG_USE_INERTIAL_PUT", nil)
                 assert(os.getenv("CFG_USE_INERTIAL_PUT") == nil)
@@ -439,7 +439,7 @@ target("test", function()
                 end
                 test(simulators)
 
-                os.setenv("CFG_USE_INERTIAL_PUT", "0")
+                os.setenv("CFG_USE_INERTIAL_PUT", "1")
                 test({ "verilator" })
                 os.setenv("CFG_USE_INERTIAL_PUT", nil)
             end

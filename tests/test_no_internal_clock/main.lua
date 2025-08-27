@@ -15,8 +15,7 @@ local count3 = dut.count3:chdl()
 local count4 = dut.count4:chdl()
 
 local is_verilator = cfg.simulator == "verilator"
-local no_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT") == "0"
-local is_inertial_put = not no_inertial_put
+local is_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT") == "1"
 
 ---@param clock CallableHDL
 ---@return TaskFunction

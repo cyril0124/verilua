@@ -376,9 +376,9 @@ rule("verilua", function()
         --- ```
         local use_inertial_put = target:values("cfg.use_inertial_put") --[[@as string]]
         if not use_inertial_put then
-            -- By default, `use_inertial_put` is enabled for `verilator` simulator
+            -- By default, `use_inertial_put` is disabled for `verilator` simulator
             if sim == "verilator" then
-                use_inertial_put = "1"
+                use_inertial_put = "0"
             end
 
             local env_use_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT")
