@@ -32,6 +32,9 @@
 #define VERILATOR_STEP_TIME 1
 #endif
 
+const vluint64_t CLK_PERIOD      = 2; // Must be multiple of `VERILATOR_STEP_TIME`
+const vluint64_t CLK_HALF_PERIOD = CLK_PERIOD / 2;
+
 #ifndef VM_TRACE_FST
 // emulate new verilator behavior for legacy versions
 #define VM_TRACE_FST 0
@@ -345,6 +348,12 @@ int Emulator::normal_mode_main() {
         }
 #endif // ENABLE_LIGHTSSS
 
+#ifndef NO_INTERNAL_CLOCK // Has internal clock
+        if ((Verilated::time() > 0) && (Verilated::time() % CLK_HALF_PERIOD) == 0) {
+            dut_ptr->clock = !dut_ptr->clock;
+        }
+#endif
+
         // Call registered timed callbacks (e.g. clock timer)
         // These are called at the beginning of the time step
         // before the iterative regions (IEEE 1800-2012 4.4.1)
@@ -370,13 +379,6 @@ int Emulator::normal_mode_main() {
         dut_ptr->eval_end_step();
 
         VerilatedVpi::callCbs(cbReadOnlySynch);
-
-#ifndef NO_INTERNAL_CLOCK // Has internal clock
-        if ((Verilated::time() % (VERILATOR_STEP_TIME * 2)) == 0) {
-            dut_ptr->eval_step();
-            dut_ptr->clock = dut_ptr->clock ? 0 : 1;
-        }
-#endif
 
 #if VM_TRACE
         if (args.enable_wave) {
@@ -427,6 +429,12 @@ int Emulator::timing_mode_main() {
         }
 #endif
 
+#ifndef NO_INTERNAL_CLOCK // Has internal clock
+        if ((Verilated::time() > 0) && (Verilated::time() % CLK_HALF_PERIOD) == 0) {
+            dut_ptr->clock = !dut_ptr->clock;
+        }
+#endif
+
         // Call registered timed callbacks (e.g. clock timer)
         // These are called at the beginning of the time step
         // before the iterative regions (IEEE 1800-2012 4.4.1)
@@ -456,13 +464,6 @@ int Emulator::timing_mode_main() {
 
         // Call ReadOnly callbacks
         VerilatedVpi::callCbs(cbReadOnlySynch);
-
-#ifndef NO_INTERNAL_CLOCK // Has internal clock
-        if ((Verilated::time() % (VERILATOR_STEP_TIME * 2)) == 0) {
-            dut_ptr->eval_step();
-            dut_ptr->clock = dut_ptr->clock ? 0 : 1;
-        }
-#endif
 
 #if VM_TRACE
         if (args.enable_wave) {
@@ -501,9 +502,6 @@ int Emulator::timing_mode_main() {
         // It should be called in simulation cycle before everything else
         // but not on first cycle
         VerilatedVpi::callCbs(cbNextSimTime);
-
-        // Call Value Change callbacks triggered by NextTimeStep callbacks
-        // These can modify signal values
         settle_value_callbacks();
 
 #ifdef ENABLE_LIGHTSSS
@@ -575,6 +573,8 @@ Emulator::~Emulator() {
 }
 
 int Emulator::run_main() {
+    dut_ptr->clock = 0;
+
 #ifdef NORMAL_MODE
     VL_INFO("Using verilator in NORMAL_MODE\n");
     return normal_mode_main();
