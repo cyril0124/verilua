@@ -75,6 +75,8 @@ else
             Unknown scheduler mode! maybe you forget to set it? please set `cfg.mode` to "normal", "step" or "edge_step"
         ]])
     end
+
+    verilua_debug("Scheduler mode: %s", scheduler_mode)
 end
 
 ---@cast scheduler LuaScheduler

@@ -85,10 +85,10 @@ local function hex_str_to_u32_vec(hex_str)
     return u32_vec
 end
 
--- 
+--
 -- Little Endian:
 --  u32_vec: LSB {u32_0, u32_1, u32_2, u32_3, ...} MSB
--- 
+--
 function BitVec:_init(data, bit_width)
     local typ = type(data)
     local auto_bit_width
@@ -147,7 +147,7 @@ function BitVec:_init(data, bit_width)
             self.bit_width = bit_width
         else
             self.u32_vec = table_new(tonumber(data[0]) --[[@as integer]], 0)
-            for i  = 1, data_len do
+            for i = 1, data_len do
                 self.u32_vec[i] = data[i]
             end
             self.bit_width = auto_bit_width
@@ -166,7 +166,7 @@ function BitVec:_init(data, bit_width)
 
             self.bit_width = bit_width
         else
-            self.u32_vec = {data}
+            self.u32_vec = { data }
             self.bit_width = auto_bit_width
         end
     elseif typ == "string" then
@@ -195,28 +195,28 @@ function BitVec:_init(data, bit_width)
 
     self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
     if self.beat_size == 1 then
-        self._update_u32_vec = function (t, data)
+        self._update_u32_vec = function(t, data)
             ---@cast data integer
             t.u32_vec[1] = data
         end
     elseif self.beat_size > 1 then
-        self._update_u32_vec = function (t, data)
+        self._update_u32_vec = function(t, data)
             for i = 1, t.beat_size do
                 t.u32_vec[i] = data[i]
             end
         end
     end
 
-    self.tonumber = function (this)
+    self.tonumber = function(this)
         return tonumber(this.u32_vec[1]) --[[@as integer]]
     end
 
     if self.beat_size > 1 then
-        self.tonumber64 = function (this)
+        self.tonumber64 = function(this)
             return bit_lshift(this.u32_vec[2] + 0ULL, 32) + this.u32_vec[1]
         end
     else
-        self.tonumber64 = function (this)
+        self.tonumber64 = function(this)
             return this.u32_vec[1] + 0ULL
         end
     end
@@ -555,7 +555,7 @@ function BitVec:__len()
 end
 
 local subbitvec_shared_mt = {
-    __newindex = function (t, k, v)
+    __newindex = function(t, k, v)
         local typ = type(v)
         if k == "value" then
             if typ == "number" then
@@ -573,15 +573,15 @@ local subbitvec_shared_mt = {
         end
     end,
 
-    __tostring = function (t)
+    __tostring = function(t)
         return t:dump_str()
     end,
 
-    __eq = function (t, other)
+    __eq = function(t, other)
         return t:dump_str() == other:dump_str()
     end,
 
-    __len = function (t)
+    __len = function(t)
         return t._e - t._s + 1
     end,
 
@@ -599,35 +599,35 @@ function BitVec:__call(s, e)
             _s = s,
             _e = e,
 
-            set = function (t, v)
+            set = function(t, v)
                 self:set_bitfield(t._s, t._e, v)
             end,
 
-            set_hex_str = function (t, hex_str)
+            set_hex_str = function(t, hex_str)
                 self:set_bitfield_hex_str(t._s, t._e, hex_str)
             end,
 
-            set_vec = function (t, u32_vec)
+            set_vec = function(t, u32_vec)
                 self:set_bitfield_vec(t._s, t._e, u32_vec)
             end,
 
-            get = function (t)
+            get = function(t)
                 return self:get_bitfield(t._s, t._e)
             end,
 
-            get_hex_str = function (t)
+            get_hex_str = function(t)
                 return self:get_bitfield_hex_str(t._s, t._e)
             end,
 
-            get_vec = function (t)
+            get_vec = function(t)
                 return self:get_bitfield_vec(t._s, t._e)
             end,
 
-            dump_str = function (t)
+            dump_str = function(t)
                 return self:get_bitfield_hex_str(t._s, t._e)
             end,
 
-            dump = function (t)
+            dump = function(t)
                 print(self:dump_str())
             end
         }, subbitvec_shared_mt)

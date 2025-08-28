@@ -1,4 +1,3 @@
-
 local ffi = require "ffi"
 
 local C = ffi.C
@@ -6,7 +5,7 @@ local C = ffi.C
 -- `GLOBAL_VERILUA_ENV` is set by `libverilua/src/verilua_env.rs`
 local env = _G.GLOBAL_VERILUA_ENV
 
-ffi.cdef[[
+ffi.cdef [[
     const char *vpiml_get_top_module();
     const char *vpiml_get_simulator_auto();
 
@@ -33,7 +32,7 @@ ffi.cdef[[
     void vpiml_set_value64_force_single(long long handle, uint64_t value);
     void vpiml_set_value_multi(long long handle, uint32_t *values);
     void vpiml_set_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
-    void vpiml_set_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2); 
+    void vpiml_set_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2);
     void vpiml_set_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
     void vpiml_set_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
     void vpiml_set_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
@@ -45,7 +44,7 @@ ffi.cdef[[
     void vpiml_set_imm_value64_force_single(long long handle, uint64_t value);
     void vpiml_set_imm_value_multi(long long handle, uint32_t *values);
     void vpiml_set_imm_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
-    void vpiml_set_imm_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2); 
+    void vpiml_set_imm_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2);
     void vpiml_set_imm_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
     void vpiml_set_imm_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
     void vpiml_set_imm_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
@@ -114,19 +113,19 @@ local vpiml = {
     vpiml_get_top_module = C.vpiml_get_top_module,
     vpiml_get_simulator_auto = C.vpiml_get_simulator_auto,
 
-    vpiml_register_time_callback = function (time, id) C.vpiml_register_time_callback(env, time, id) end,
+    vpiml_register_time_callback = function(time, id) C.vpiml_register_time_callback(env, time, id) end,
     vpiml_register_posedge_callback = C.vpiml_register_posedge_callback,
     vpiml_register_negedge_callback = C.vpiml_register_negedge_callback,
     vpiml_register_edge_callback = C.vpiml_register_edge_callback,
     vpiml_register_posedge_callback_always = C.vpiml_register_posedge_callback_always,
     vpiml_register_negedge_callback_always = C.vpiml_register_negedge_callback_always,
 
-    vpiml_handle_by_name = function (name) return C.vpiml_handle_by_name(env, name) end,
-    vpiml_handle_by_index = function (hdl, idx) return C.vpiml_handle_by_index(env, hdl, idx) end,
+    vpiml_handle_by_name = function(name) return C.vpiml_handle_by_name(env, name) end,
+    vpiml_handle_by_index = function(hdl, idx) return C.vpiml_handle_by_index(env, hdl, idx) end,
 
     -- Safe version of `vpiml_handle_by_name`, can be used to check if a handle exists without throwing an error.
     -- Returns `-1` if the handle does not exist.
-    vpiml_handle_by_name_safe = function (name) return C.vpiml_handle_by_name_safe(env, name) end,
+    vpiml_handle_by_name_safe = function(name) return C.vpiml_handle_by_name_safe(env, name) end,
 
     vpiml_get_hdl_type = C.vpiml_get_hdl_type,
     vpiml_get_signal_width = C.vpiml_get_signal_width,

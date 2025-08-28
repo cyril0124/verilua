@@ -89,9 +89,15 @@ end
 
 function IDPool:release(id)
     if id < self.start_value or id > self.end_value then
-        assert(false,
-            f("[IDPool] id is out of range: %d, start_value => %d, end_value => %d", id, self.start_value, self
-            .end_value))
+        assert(
+            false,
+            f(
+                "[IDPool] id is out of range: %d, start_value => %d, end_value => %d",
+                id,
+                self.start_value,
+                self.end_value
+            )
+        )
     end
 
     for i = 1, self.size do

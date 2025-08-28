@@ -42,7 +42,14 @@ local __chdl_mt
 local post_init_mt = setmetatable({
     _post_init = function(obj)
         if not __chdl_mt then
-            __chdl_mt = setmetatable({__value = 0, __verbose = false, __stop_on_fail = false}, getmetatable(obj))
+            __chdl_mt = setmetatable(
+                {
+                    __value = 0,
+                    __verbose = false,
+                    __stop_on_fail = false
+                },
+                getmetatable(obj)
+            )
         end
     end
 }, {})
@@ -119,7 +126,7 @@ local post_init_mt = setmetatable({
 ---@field set_imm_dec_str fun(self: CallableHDL, str: string)
 ---@field set_imm_freeze fun(self: CallableHDL)
 ---
----@field set_shuffled fun(self: CallableHDL)
+---@field set_shuffled fun(self: CallableHDL) Randomly set the value according to the shuffled range(if shuffled range is set) or bitwidth
 ---@field set_imm_shuffled fun(self: CallableHDL)
 ---@field shuffled_range_u32 fun(self: CallableHDL, u32_vec: table<integer, integer>)
 ---@field shuffled_range_u64 fun(self: CallableHDL, u64_vec: table<integer, integer|uint64_t>)
@@ -176,7 +183,12 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
     if tmp_hdl == -1 then
-        local err = f("[CallableHDL:_init] No handle found! fullpath: %s name: %s\t\n%s\n", fullpath, self.name == "" and "Unknown" or self.name, debug.traceback())
+        local err = f(
+            "[CallableHDL:_init] No handle found! fullpath: %s name: %s\t\n%s\n",
+            fullpath,
+            self.name == "" and "Unknown" or self.name,
+            debug.traceback()
+        )
         verilua_debug(err)
         assert(false, err)
     end
@@ -188,10 +200,10 @@ function CallableHDL:_init(fullpath, name, hdl)
     if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" or self.hdl_type == "vpiBitVar" then
         self.is_array = false
     elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
-        -- 
+        --
         -- for multidimensional reg array, VCS vpi treat it as "vpiRegArray" while
         -- Verilator treat it as "vpiMemory"
-        -- 
+        --
         self.is_array = true
         self.array_size = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
         self.array_hdls = table_new(self.array_size, 0)
@@ -209,14 +221,21 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
     self.cached_value = nil
-    self.reset_set_cached = function (this)
+    self.reset_set_cached = function(this)
         this.cached_value = nil
     end
 
     self.c_results = ffi_new("uint32_t[?]", self.beat_num + 1) -- create a new array to store the result
-                                                               -- c_results[0] is the lenght of the beat data since a normal lua table use 1 as the first index of array while ffi cdata still use 0
+    -- c_results[0] is the lenght of the beat data since a normal lua table use 1 as the first index of array while ffi cdata still use 0
 
-    verilua_debug("New CallableHDL => ", "name: " .. self.name, "fullpath: " .. self.fullpath, "width: " .. self.width, "beat_num: " .. self.beat_num, "is_multi_beat: " .. tostring(self.is_multi_beat))
+    verilua_debug(
+        "New CallableHDL => ",
+        "name: " .. self.name,
+        "fullpath: " .. self.fullpath,
+        "width: " .. self.width,
+        "beat_num: " .. self.beat_num,
+        "is_multi_beat: " .. tostring(self.is_multi_beat)
+    )
 
     if self.beat_num == 1 then
         for k, func in pairs(require("verilua.handles.ChdlAccessSingle")(self.is_array)) do
@@ -232,77 +251,77 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
-    -- 
+    --
     -- #define vpiBinStrVal          1
     -- #define vpiOctStrVal          2
     -- #define vpiDecStrVal          3
     -- #define vpiHexStrVal          4
-    -- 
-    self.get_str = function (this, fmt)
+    --
+    self.get_str = function(this, fmt)
         return ffi_string(vpiml.vpiml_get_value_str(this.hdl, fmt))
     end
 
-    self.get_hex_str = function (this)
+    self.get_hex_str = function(this)
         return ffi_string(vpiml.vpiml_get_value_hex_str(this.hdl))
     end
 
-    self.get_bin_str = function (this)
+    self.get_bin_str = function(this)
         return ffi_string(vpiml.vpiml_get_value_bin_str(this.hdl))
     end
 
-    self.get_dec_str = function (this)
+    self.get_dec_str = function(this)
         return ffi_string(vpiml.vpiml_get_value_dec_str(this.hdl))
     end
 
-    self.set_str = function (this, str)
+    self.set_str = function(this, str)
         vpiml.vpiml_set_value_str(this.hdl, str)
     end
 
-    self.set_hex_str = function (this, str)
+    self.set_hex_str = function(this, str)
         vpiml.vpiml_set_value_hex_str(this.hdl, str)
     end
 
-    self.set_bin_str = function (this, str)
+    self.set_bin_str = function(this, str)
         vpiml.vpiml_set_value_bin_str(this.hdl, str)
     end
 
-    self.set_dec_str = function (this, str)
+    self.set_dec_str = function(this, str)
         vpiml.vpiml_set_value_dec_str(this.hdl, str)
     end
 
-    self.set_shuffled = function (this)
+    self.set_shuffled = function(this)
         vpiml.vpiml_set_shuffled(this.hdl)
     end
 
-    self.set_freeze = function (this)
+    self.set_freeze = function(this)
         vpiml.vpiml_set_freeze(this.hdl)
     end
 
-    self.set_imm_str = function (this, str)
+    self.set_imm_str = function(this, str)
         vpiml.vpiml_set_imm_value_str(this.hdl, str)
     end
 
-    self.set_imm_hex_str = function (this, str)
+    self.set_imm_hex_str = function(this, str)
         vpiml.vpiml_set_imm_value_hex_str(this.hdl, str)
     end
 
-    self.set_imm_bin_str = function (this, str)
+    self.set_imm_bin_str = function(this, str)
         vpiml.vpiml_set_imm_value_bin_str(this.hdl, str)
     end
 
-    self.set_imm_dec_str = function (this, str)
+    self.set_imm_dec_str = function(this, str)
         vpiml.vpiml_set_imm_value_dec_str(this.hdl, str)
     end
 
-    self.set_imm_shuffled = function (this)
+    self.set_imm_shuffled = function(this)
         vpiml.vpiml_set_imm_shuffled(this.hdl)
     end
 
-    self.set_imm_freeze = function (this)
+    self.set_imm_freeze = function(this)
         vpiml.vpiml_set_imm_freeze(this.hdl)
     end
 
-    self.shuffled_range_u32 = function (this, u32_vec)
+    self.shuffled_range_u32 = function(this, u32_vec)
         assert(type(u32_vec) == "table", "`u32_vec` must be a table")
 
         local v_type = type(u32_vec[1])
@@ -316,7 +335,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         vpiml.vpiml_shuffled_range_u32(this.hdl, u32_vec_cdata, u32_vec_len)
     end
 
-    self.shuffled_range_u64 = function (this, u64_vec)
+    self.shuffled_range_u64 = function(this, u64_vec)
         assert(type(u64_vec) == "table", "`u64_vec` must be a table")
 
         local v_type = type(u64_vec[1])
@@ -330,7 +349,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         vpiml.vpiml_shuffled_range_u64(this.hdl, u64_vec_cdata, u64_vec_len)
     end
 
-    self.shuffled_range_hex_str = function (this, hex_str_vec)
+    self.shuffled_range_hex_str = function(this, hex_str_vec)
         assert(type(hex_str_vec) == "table", "`hex_str_vec` must be a table")
         assert(type(hex_str_vec[1]) == "string", "`hex_str_vec` must be a table of `string` type")
 
@@ -339,37 +358,37 @@ function CallableHDL:_init(fullpath, name, hdl)
         vpiml.vpiml_shuffled_range_hex_str(this.hdl, hex_str_vec_cdata, hex_str_vec_len)
     end
 
-    self.reset_shuffled_range = function (this)
+    self.reset_shuffled_range = function(this)
         vpiml.vpiml_reset_shuffled_range(this.hdl)
     end
 
     if self.is_array then
-        self.get_index_str = function (this, index, fmt)
+        self.get_index_str = function(this, index, fmt)
             local chosen_hdl = this.array_hdls[index + 1]
             return ffi_string(vpiml.vpiml_get_value_str(chosen_hdl, fmt))
         end
 
-        self.get_index_hex_str = function (this, index)
+        self.get_index_hex_str = function(this, index)
             local chosen_hdl = this.array_hdls[index + 1]
             return ffi_string(vpiml.vpiml_get_value_hex_str(chosen_hdl))
         end
 
-        self.set_index_str = function (this, index, str)
+        self.set_index_str = function(this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
             vpiml.vpiml_set_value_str(chosen_hdl, str)
         end
 
-        self.set_index_hex_str = function (this, index, str)
+        self.set_index_hex_str = function(this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
             vpiml.vpiml_set_value_hex_str(chosen_hdl, str)
         end
 
-        self.set_index_bin_str = function (this, index, str)
+        self.set_index_bin_str = function(this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
             vpiml.vpiml_set_value_bin_str(chosen_hdl, str)
         end
 
-        self.set_index_dec_str = function (this, index, str)
+        self.set_index_dec_str = function(this, index, str)
             local chosen_hdl = this.array_hdls[index + 1]
             vpiml.vpiml_set_value_dec_str(chosen_hdl, str)
         end
@@ -391,7 +410,7 @@ function CallableHDL:_init(fullpath, name, hdl)
             if self.width <= 32 then
                 self.__vpi_get = self.get
                 self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
-                self.get = function (this)
+                self.get = function(this)
                     return this.__dpi_get()
                 end
             else
@@ -400,7 +419,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 self.__dpi_get64 = DpiExporter:fetch_get64_value_func(self.fullpath)
                 self.__dpi_get_vec = DpiExporter:fetch_get_vec_value_func(self.fullpath)
                 if self.width <= 64 then
-                    self.get = function (this, force_multi_beat)
+                    self.get = function(this, force_multi_beat)
                         if force_multi_beat then
                             this.__dpi_get_vec(this.c_results)
                             return this.c_results --[[@as MultiBeatData]]
@@ -409,13 +428,13 @@ function CallableHDL:_init(fullpath, name, hdl)
                         end
                     end
                 else
-                    self.get = function (this)
+                    self.get = function(this)
                         this.__dpi_get_vec(this.c_results)
                         return this.c_results --[[@as MultiBeatData]]
                     end
                 end
 
-                self.get64 = function (this)
+                self.get64 = function(this)
                     return this.__dpi_get64()
                 end
             end
@@ -433,21 +452,21 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     if self.width == 1 then
-        -- 
+        --
         -- Example:
         --      local clock = ("tb_top.clock"):chdl()
         --      clock:posedge()
-        --      
+        --
         --      local clock = CallableHDL("tb_top.clock", "name of clock chdl")
         --      clock:posedge()
-        --      
+        --
         --      clock:posedge(10)
         --      clock:posedge(123, function (c)
         --          -- body
         --          print("current is => " .. c)
         --       end)
-        -- 
-        self.posedge = function (this, times, func)
+        --
+        self.posedge = function(this, times, func)
             local _times = times or 1
             if _times == 1 then
                 await_posedge_hdl(this.hdl)
@@ -462,10 +481,10 @@ function CallableHDL:_init(fullpath, name, hdl)
             end
         end
 
-        -- 
+        --
         -- Example: the same as posedge
-        -- 
-        self.negedge= function (this, times, func)
+        --
+        self.negedge = function(this, times, func)
             local _times = times or 1
             if _times == 1 then
                 await_negedge_hdl(this.hdl)
@@ -480,12 +499,12 @@ function CallableHDL:_init(fullpath, name, hdl)
             end
         end
 
-        -- 
+        --
         -- Example:
         --      local clock = ("tb_top.clock"):chdl()
         --      clodk:always_posedge()
-        -- 
-        self.always_posedge = function (this)
+        --
+        self.always_posedge = function(this)
             if this.always_fired == false then
                 this.always_fired = true
                 always_await_posedge_hdl(this.hdl)
@@ -494,21 +513,21 @@ function CallableHDL:_init(fullpath, name, hdl)
             end
         end
 
-        -- 
+        --
         -- Example:
         --      local clock_chdl = ("tb_top.clock"):chdl()
         --          |_  or  local clock_chdl = dut.clock:chdl()
         --      local condition_meet = clock_chdl:posedge_until(100, function func()
         --          return dut.cycles() >= 100
         --      end)
-        -- 
-        self.posedge_until = function (this, max_limit, func)
+        --
+        self.posedge_until = function(this, max_limit, func)
             assert(max_limit ~= nil)
             assert(type(max_limit) == "number")
             assert(max_limit >= 1)
 
             assert(func ~= nil)
-            assert(type(func) == "function") 
+            assert(type(func) == "function")
 
             local condition_meet = false
             for i = 1, max_limit do
@@ -525,23 +544,23 @@ function CallableHDL:_init(fullpath, name, hdl)
             return condition_meet
         end
 
-        self.negedge_until = function (this, max_limit, func)
+        self.negedge_until = function(this, max_limit, func)
             assert(max_limit ~= nil)
             assert(type(max_limit) == "number")
             assert(max_limit >= 1)
 
             assert(func ~= nil)
-            assert(type(func) == "function") 
+            assert(type(func) == "function")
 
             local condition_meet = false
             for i = 1, max_limit do
                 condition_meet = func(i)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
-                
+
                 if not condition_meet then
                     await_negedge_hdl(this.hdl)
                 else
-                    break 
+                    break
                 end
             end
 
@@ -552,21 +571,21 @@ function CallableHDL:_init(fullpath, name, hdl)
             assert(false, f("hdl bit width == %d > 1, <chdl>:posedge() only support 1-bit hdl", this.width))
         end
 
-        self.negedge= function(this, times)
+        self.negedge = function(this, times)
             assert(false, f("hdl bit width == %d > 1, <chdl>:negedge() only support 1-bit hdl", this.width))
         end
 
-        self.always_posedge = function (this)
+        self.always_posedge = function(this)
             assert(false, f("hdl bit width == %d > 1, <chdl>:always_posedge() only support 1-bit hdl", this.width))
         end
 
-        self.posedge_until = function (this, max_limit, func)
+        self.posedge_until = function(this, max_limit, func)
             ---@diagnostic disable-next-line: missing-return
             assert(false, f("hdl bit width == %d > 1, <chdl>:posedge_until() only support 1-bit hdl", this.width))
             ---@diagnostic disable-next-line: missing-return
         end
 
-        self.negedge_until = function (this, max_limit, func)
+        self.negedge_until = function(this, max_limit, func)
             ---@diagnostic disable-next-line: missing-return
             assert(false, f("hdl bit width == %d > 1, <chdl>:negedge_until() only support 1-bit hdl", this.width))
             ---@diagnostic disable-next-line: missing-return
@@ -574,35 +593,39 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     if self.is_array then
-        self.dump_str = function (this)
+        self.dump_str = function(this)
             local s = f("[%s] => ", this.fullpath)
-            
+
             for i = 1, this.array_size do
                 s = s .. f("(%d): 0x%s ", i - 1, this:get_index_str(i - 1, HexStr))
             end
-            
+
             return s
         end
     else
-        self.dump_str = function (this)
+        self.dump_str = function(this)
             return f("[%s] => 0x%s", this.fullpath, this:get_hex_str())
         end
     end
 
-    self.dump = function (this)
+    self.dump = function(this)
         print(this:dump_str())
     end
 
-    self.get_width = function (this)
+    self.get_width = function(this)
         return this.width
     end
 
-    self.expect = function (this, value)
+    self.expect = function(this, value)
         local typ = type(value)
         assert(typ == "number" or typ == "cdata")
 
         if this.is_multi_beat and this.beat_num > 2 then
-            assert(false, "`<CallableHDL>:expect(value)` can only be used for hdl with 1 or 2 beat, use `<CallableHDL>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. this.beat_num)    
+            assert(
+                false,
+                "`<CallableHDL>:expect(value)` can only be used for hdl with 1 or 2 beat, use `<CallableHDL>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " ..
+                this.beat_num
+            )
         end
 
         if this:get() ~= value then
@@ -610,12 +633,16 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
-    self.expect_not = function (this, value)
+    self.expect_not = function(this, value)
         local typ = type(value)
         assert(typ == "number" or typ == "cdata")
 
         if this.is_multi_beat and this.beat_num > 2 then
-            assert(false, "`<CallableHDL>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `<CallableHDL>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. this.beat_num)    
+            assert(
+                false,
+                "`<CallableHDL>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `<CallableHDL>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " ..
+                this.beat_num
+            )
         end
 
         if this:get() == value then
@@ -667,7 +694,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
-    self._if = function (this, condition)
+    self._if = function(this, condition)
         local _condition = false
         if type(condition) == "boolean" then
             _condition = condition
@@ -687,7 +714,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         else
             return setmetatable({}, {
                 __index = function(t, k)
-                    return function ()
+                    return function()
                         -- an empty function
                     end
                 end
@@ -696,53 +723,53 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     if self.is_multi_beat and self.beat_num > 2 then
-        self.is = function (this, value)
+        self.is = function(this, value)
             ---@diagnostic disable-next-line: missing-return
             assert(false, "<CallableHDL>:is(value) can only be used for hdl with 1 or 2 beat")
             ---@diagnostic disable-next-line: missing-return
         end
 
-        self.is_not = function (this, value)
+        self.is_not = function(this, value)
             ---@diagnostic disable-next-line: missing-return
             assert(false, "<CallableHDL>:is_not(value) can only be used for hdl with 1 or 2 beat")
             ---@diagnostic disable-next-line: missing-return
         end
     else
-        self.is = function (this, value)
+        self.is = function(this, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
             return this:get() == value
         end
 
-        self.is_not = function (this, value)
+        self.is_not = function(this, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
             return this:get() ~= value
         end
     end
 
-    self.is_hex_str = function (this, hex_value_str)
+    self.is_hex_str = function(this, hex_value_str)
         assert(type(hex_value_str) == "string")
         return this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0*", "")
     end
 
-    self.is_bin_str = function (this, bin_value_str)
+    self.is_bin_str = function(this, bin_value_str)
         assert(type(bin_value_str) == "string")
         return this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*", "")
     end
 
-    self.is_dec_str = function (this, dec_value_str)
+    self.is_dec_str = function(this, dec_value_str)
         assert(type(dec_value_str) == "string")
         return this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")
     end
 end
 
 function CallableHDL:__call(force_multi_beat)
-    -- 
+    --
     -- This method is deprecated, invoke <CallableHDL>:get() to get the signal value
-    -- 
+    --
     assert(self.is_array == false, "For multidimensional array use <CallableHDL>:get_index()")
-    
+
     force_multi_beat = force_multi_beat or false
 
     if self.is_multi_beat then
@@ -757,7 +784,7 @@ function CallableHDL:__call(force_multi_beat)
     end
 end
 
--- 
+--
 -- Handles assignment to CallableHDL objects. If key is "value".
 -- Processes based on value type:
 --      - number
@@ -766,7 +793,7 @@ end
 --      - cdata (uint64_t or uint32_t[])
 --      - boolean
 -- Auto-type-based value assignment.
--- 
+--
 -- Example:
 --      <chdl>.value = 123
 --      <chdl>.value = 0x123
@@ -777,11 +804,11 @@ end
 --      <chdl>.value = {0x123, 0x456}
 --      <chdl>.value = true
 --      <chdl>.value = false
--- 
+--
 function CallableHDL:__newindex(k, v)
     if k == "value" then
         assert(not self.is_array, "TODO: not implemented for array type <chdl>")
-        
+
         local v_type = type(v)
 
         if v_type == "number" then
@@ -803,7 +830,7 @@ function CallableHDL:__newindex(k, v)
                 self:set_unsafe(v, true)
             elseif ffi.istype("uint32_t[]", v) then
                 if self.beat_num == 1 then
-                    self:set_unsafe(v[1], true) 
+                    self:set_unsafe(v[1], true)
                 else
                     self:set_unsafe(v)
                 end
@@ -821,7 +848,7 @@ function CallableHDL:__newindex(k, v)
         end
     elseif k == "value_imm" then
         assert(not self.is_array, "TODO: not implemented for array type <chdl>")
-        
+
         local v_type = type(v)
 
         if v_type == "number" then
@@ -843,7 +870,7 @@ function CallableHDL:__newindex(k, v)
                 self:set_imm_unsafe(v, true)
             elseif ffi.istype("uint32_t[]", v) then
                 if self.beat_num == 1 then
-                    self:set_imm_unsafe(v[1], true) 
+                    self:set_imm_unsafe(v[1], true)
                 else
                     self:set_imm_unsafe(v)
                 end
@@ -864,10 +891,9 @@ function CallableHDL:__newindex(k, v)
     end
 end
 
-
--- 
+--
 -- Auto-type-based value comparison.
--- 
+--
 -- Example:
 --      Note: the compared value MUST be enclosed in a special function named `v`, otherwise it will not be treated as a `__eq` overload.
 --      assert(<chdl> == v(123))
@@ -877,7 +903,7 @@ end
 --      assert(<chdl> == v(true))
 --      assert(<chdl> == v(BitVec(123)))
 --      assert(<chdl> == v(BitVec("123")))
--- 
+--
 function CallableHDL:__eq_impl(other)
     local v_type = type(other.__value)
     local value = other.__value
@@ -909,7 +935,7 @@ function CallableHDL:__eq_impl(other)
                             if value[i] ~= 0 then
                                 return false
                             end
-                        end 
+                        end
                     end
                 end
             else
@@ -952,7 +978,7 @@ function CallableHDL:__eq_impl(other)
                             if value[i] ~= 0 then
                                 return false
                             end
-                        end 
+                        end
                     end
                 end
             else
@@ -996,7 +1022,7 @@ function CallableHDL:__eq(other)
     assert(not self.is_array, "TODO: not implemented for array type <chdl>")
 
     local result = self:__eq_impl(other)
-    if (not result) and other.__verbose  then
+    if (not result) and other.__verbose then
         local value_str
         if type(other.__value) == "boolean" then
             value_str = other.__value and "1" or "0"
@@ -1023,19 +1049,30 @@ end
 
 function CallableHDL:__tostring()
     if self.is_array then
-        return f("<[CallableHDL] fullpath: %s, width: %d, beat_num: %d, array_size: %d>", self.fullpath, self.width, self.beat_num, self.array_size)
+        return f(
+            "<[CallableHDL] fullpath: %s, width: %d, beat_num: %d, array_size: %d>",
+            self.fullpath,
+            self.width,
+            self.beat_num,
+            self.array_size
+        )
     else
-        return f("<[CallableHDL] fullpath: %s, width: %d, beat_num: %d>", self.fullpath, self.width, self.beat_num)
+        return f(
+            "<[CallableHDL] fullpath: %s, width: %d, beat_num: %d>",
+            self.fullpath,
+            self.width,
+            self.beat_num
+        )
     end
 end
 
--- 
+--
 -- These methods are used with `__eq`.
 --      `v`: a special wrapper function for the value being compared since the `__eq` only allow to compare two metatables with each other.
 --      `vv`: verbose(print error message when the compared value mismatch)
 --      `vs`: verbose and stop on fail
--- 
-_G.v = function (value)
+--
+_G.v = function(value)
     -- return setmetatable({__value = value, __verbose = false}, _G.cfg.__chdl_mt)
 
     __chdl_mt.__value = value
@@ -1044,14 +1081,14 @@ _G.v = function (value)
     return __chdl_mt
 end
 
-_G.vv = function (value)
+_G.vv = function(value)
     __chdl_mt.__value = value
     __chdl_mt.__verbose = true
     __chdl_mt.__stop_on_fail = false
     return __chdl_mt
 end
 
-_G.vs = function (value)
+_G.vs = function(value)
     __chdl_mt.__value = value
     __chdl_mt.__verbose = true
     __chdl_mt.__stop_on_fail = true

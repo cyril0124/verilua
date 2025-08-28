@@ -6,7 +6,7 @@ local shared_dir = path.join(prj_dir, "shared")
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
-local wavevpi_dir = path.join(prj_dir, "wave_vpi")
+local wave_vpi_dir = path.join(prj_dir, "wave_vpi")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 local function wave_vpi_main_common()
@@ -27,12 +27,12 @@ local function wave_vpi_main_common()
 
     add_files(
         path.join(curr_dir, "*.cpp"),
-        path.join(wavevpi_dir, "src", "*.cc")
+        path.join(wave_vpi_dir, "src", "*.cc")
     )
 
     add_includedirs(
         boost_unordered_dir,
-        path.join(wavevpi_dir, "src"),
+        path.join(wave_vpi_dir, "src"),
         path.join(libs_dir, "include"),
         path.join(lua_dir, "include", "luajit-2.1")
     )
@@ -63,7 +63,7 @@ local function wave_vpi_main_common()
     add_rpathdirs(shared_dir)
 
     add_links("wave_vpi_wellen_impl")
-    add_linkdirs(path.join(wavevpi_dir, "target", "release"))
+    add_linkdirs(path.join(wave_vpi_dir, "target", "release"))
 
     before_build(function(target)
         -- Add version info

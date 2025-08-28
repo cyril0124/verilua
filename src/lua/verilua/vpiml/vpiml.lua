@@ -11,7 +11,7 @@ local vpiml_handle_by_name = vpiml.vpiml_handle_by_name
 local vpiml_handle_by_name_safe = vpiml.vpiml_handle_by_name_safe
 
 ---@diagnostic disable-next-line: duplicate-set-field
-vpiml.vpiml_handle_by_name = function (name)
+vpiml.vpiml_handle_by_name = function(name)
     local handle = handle_cache[name]
     if handle then
         return handle
@@ -23,7 +23,7 @@ vpiml.vpiml_handle_by_name = function (name)
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
-vpiml.vpiml_handle_by_name_safe = function (name)
+vpiml.vpiml_handle_by_name_safe = function(name)
     local handle = handle_cache[name]
     if handle then
         assert(handle ~= -1)

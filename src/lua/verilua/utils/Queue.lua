@@ -38,7 +38,7 @@ function Queue:pop()
     local first_ptr = self.first_ptr
     if first_ptr > self.last_ptr then error("queue is empty") end
     local value = self.data[first_ptr]
-    self.data[first_ptr] = nil        -- to allow garbage collection
+    self.data[first_ptr] = nil -- to allow garbage collection
     self.first_ptr = first_ptr + 1
     return value
 end

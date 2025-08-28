@@ -23,15 +23,16 @@ local colors = _G.colors
 ---@field top string Top module name of testbench
 ---@field srcs string[]
 ---@field deps string[]
----@field is_hse boolean
+---@field is_hse boolean Whether use verilua as HSE(Hardware Script Engine)
+---@field is_wal boolean Whether use verilua as WAL(Waveform Analysis Language)
 ---@field period integer
 ---@field unit string
 ---@field luapanda_debug boolean
 ---@field prj_dir string Project directory
 ---@field seed integer
 ---
---- Enable dpi_exporter optimization. The value getter function 
---- will bypass vpiml and obtain the value from underlying DPI-C 
+--- Enable dpi_exporter optimization. The value getter function
+--- will bypass vpiml and obtain the value from underlying DPI-C
 --- functions. Increase the performance of the value getter functions.
 --- i.e.
 --- ```text
@@ -97,7 +98,15 @@ end
 
 local function type_check(value, name, expect_type)
     if type(value) ~= expect_type then
-        error(f("Expected argument `%s` to be a `%s` value, but received a `%s` value instead, value => %s", name, expect_type, type(value), tostring(value)), 0)
+        error(f(
+                "Expected argument `%s` to be a `%s` value, but received a `%s` value instead, value => %s",
+                name,
+                expect_type,
+                type(value),
+                tostring(value)
+            ),
+            0
+        )
     end
 end
 
@@ -145,7 +154,12 @@ function cfg:get_or_else_log(cfg_str, default, log_str)
     local _cfg = rawget(self, cfg_str)
     if _cfg == nil then
         local _log_str = log_str or ""
-        self:config_warn(f("[cfg:get_or_else] %s `cfg.%s` is `nil`! use default config => `%s`", _log_str, cfg_str, tostring(default)))
+        self:config_warn(f(
+            "[cfg:get_or_else] %s `cfg.%s` is `nil`! use default config => `%s`",
+            _log_str,
+            cfg_str,
+            tostring(default)
+        ))
         return default
     end
     return _cfg
@@ -180,9 +194,9 @@ end
 ---     return cfg
 --- ```
 setmetatable(cfg, {
-    __index = function (t, k)
+    __index = function(t, k)
         if k == "simulator" then
-            ffi.cdef[[
+            ffi.cdef [[
                 const char *vpiml_get_simulator_auto();
             ]]
             local simulator = ffi.string(ffi.C.vpiml_get_simulator_auto())
@@ -250,7 +264,7 @@ function cfg:post_config()
     cfg.simulator = rawget(cfg, "simulator") or os.getenv("SIM")
     if not cfg.simulator then
         -- Try get simulator automatically
-        ffi.cdef[[
+        ffi.cdef [[
             const char *vpiml_get_simulator_auto();
         ]]
         local simulator = ffi.string(ffi.C.vpiml_get_simulator_auto())
@@ -260,12 +274,19 @@ function cfg:post_config()
             cfg.simulator = simulator
         end
     end
-    assert(cfg.simulator ~= nil, "[cfg:post_config] <cfg.simulator>(simulator) is not set! You should set <cfg.simulator> via enviroment variable <SIM> or <cfg.simulator>")
+    assert(
+        cfg.simulator ~= nil,
+        "[cfg:post_config] <cfg.simulator>(simulator) is not set! You should set <cfg.simulator> via enviroment variable <SIM> or <cfg.simulator>"
+    )
 
     cfg.script = cfg.script or os.getenv("LUA_SCRIPT")
-    assert(cfg.script, "[cfg:post_config] <cfg.script>(script) is not set! You should set <cfg.script> via enviroment variable <LUA_SCRIPT> or <cfg.script>")
+    assert(
+        cfg.script,
+        "[cfg:post_config] <cfg.script>(script) is not set! You should set <cfg.script> via enviroment variable <LUA_SCRIPT> or <cfg.script>"
+    )
 
-    cfg.is_hse = cfg:get_or_else("is_hse", false) -- Whether use verilua as HSE(Hardware Script Engine)
+    cfg.is_hse = cfg:get_or_else("is_hse", false)
+    cfg.is_wal = cfg.simulator == "wave_vpi"
 
     if cfg.mode ~= nil then
         local scheduler_mode = cfg.mode
@@ -298,18 +319,23 @@ function cfg:post_config()
     cfg.top = cfg.top or os.getenv("DUT_TOP")
     if not cfg.top then
         local vpiml = require "vpiml"
-        config_warn(f("[cfg:post_config] <cfg.top>(top-level name) is not set! Try to get it from `vpiml.vpiml_get_top_module()`..."))
+        config_warn(f(
+            "[cfg:post_config] <cfg.top>(top-level name) is not set! Try to get it from `vpiml.vpiml_get_top_module()`..."
+        ))
         cfg.top = ffi.string(vpiml.vpiml_get_top_module())
     end
-    assert(cfg.top, "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <DUT_TOP> or <cfg.top>")
+    assert(
+        cfg.top,
+        "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <DUT_TOP> or <cfg.top>"
+    )
 
     -- Setup configs with default values
-    cfg.srcs            = cfg:get_or_else("srcs", {"./?.lua"})
-    cfg.deps            = cfg:get_or_else("deps", {}) -- Dependencies
-    cfg.period          = cfg:get_or_else("period", 10)
-    cfg.unit            = cfg:get_or_else("unit", "ns")
-    cfg.luapanda_debug  = cfg:get_or_else("luapanda_debug", false)
-    cfg.prj_dir         = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
+    cfg.srcs                = cfg:get_or_else("srcs", { "./?.lua" })
+    cfg.deps                = cfg:get_or_else("deps", {}) -- Dependencies
+    cfg.period              = cfg:get_or_else("period", 10)
+    cfg.unit                = cfg:get_or_else("unit", "ns")
+    cfg.luapanda_debug      = cfg:get_or_else("luapanda_debug", false)
+    cfg.prj_dir             = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
 
     --- This flag is enabled by calling:
     --- ```lua
@@ -319,11 +345,18 @@ function cfg:post_config()
     cfg.enable_dpi_exporter = false
 
     -- Setup seed, <SEED> set by environment variable `SEED` has higher priority
-    cfg.seed = cfg:get_or_else("seed", 1234)
-    local env_seed = os.getenv("SEED")
+    cfg.seed                = cfg:get_or_else("seed", 1234)
+    local env_seed          = os.getenv("SEED")
     if env_seed then
-        assert(env_seed:match("^%d+$") ~= nil, "[verilua.LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!")
-        _G.verilua_debug(f("Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d", tostring(cfg.seed), env_seed))
+        assert(
+            env_seed:match("^%d+$") ~= nil,
+            "[verilua.LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!"
+        )
+        _G.verilua_debug(f(
+            "Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d",
+            tostring(cfg.seed),
+            env_seed
+        ))
         cfg.seed = tonumber(env_seed) --[[@as integer]]
     end
 
@@ -331,7 +364,7 @@ function cfg:post_config()
     type_check(cfg.seed, "cfg.seed", "number")
 
     setmetatable(cfg, {
-        __index = function (t, k)
+        __index = function(t, k)
             -- Any non-existent key will raise error
             config_error(false, f("[cfg] Attempt to access non-existent key '%s'", k))
         end

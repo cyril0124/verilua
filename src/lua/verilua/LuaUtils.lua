@@ -88,10 +88,10 @@ do
             if ffi_istype("uint64_t", t) then
                 result = bit_tohex(t --[[@as integer]])
             else
-                -- 
+                --
                 -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
                 -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
-                -- 
+                --
                 t_len = t[0]
                 result = get_result(t_len, t, separator)
             end
@@ -99,7 +99,7 @@ do
             if t_type ~= "table" then
                 assert(false, f("Invalid type: %s", t_type))
             end
-            
+
             t_len = #t
 
             result = get_result(t_len, t, separator)
@@ -135,7 +135,7 @@ end
 ---@param val integer The value to be processed
 ---@return integer The processed value
 function utils.bitfield64(begin, endd, val)
-    return bit_rshift( bit_lshift(val + 0ULL, 64 - endd - 1), begin + 64- endd - 1 )
+    return bit_rshift(bit_lshift(val + 0ULL, 64 - endd - 1), begin + 64 - endd - 1)
 end
 
 ---@param hi integer The higher 32 bits
@@ -145,7 +145,7 @@ function utils.to64bit(hi, lo)
     return bit_lshift(hi, 32) + lo
 end
 
--- 
+--
 -- LSB <==> MSB
 --
 ---@param hex_table number|table The value or table to be converted to hexadecimal
@@ -164,7 +164,7 @@ end
 
 ---@param hex_table number|table The value or table to be printed as hexadecimal
 function utils.print_hex(hex_table)
-    io.write(utils.to_hex(hex_table).."\n")
+    io.write(utils.to_hex(hex_table) .. "\n")
 end
 
 ---@param num integer The number to be converted to binary string
@@ -200,7 +200,6 @@ function utils.print_progress_bar(progress, length)
     print(utils.get_progress_bar(progress, length))
 end
 
-
 --- Usage Example:
 --- ```lua
 ---   Direction = setmetatable({
@@ -223,19 +222,18 @@ function utils.enum_search(t, v)
     assert(false, "Key no found: " .. v .. " in " .. t.name)
 end
 
-
 --- Usage Example:
 --- ```lua
 ---      local State = utils.enum_define({
 ---            name = "State",
---- 
+---
 ---            RUN = 1,
 ---            STOP = 2,
 ---            RUNNING = 3,
 ---      })
 ---      local state_value = State.RUN
 ---      print("current state is " .. State(state_value)) -- print: current state is RUN
---- 
+---
 ---      local State = utils.enum_define {
 ---            name = "State",
 ---
@@ -295,7 +293,6 @@ function utils.enum_define(enum_table)
     })
 end
 
-
 --- Get the current date and time in the format <Year><Month><Day>_<Hour><Minute>
 --- e.g.
 --- ```lua
@@ -311,7 +308,7 @@ end
 ---@param filename string The file name to be read
 ---@return string The content of the file
 function utils.read_file_str(filename)
-    local file = io.open(path.abspath(filename), "r") 
+    local file = io.open(path.abspath(filename), "r")
     if not file then
         assert(false, "cannot open " .. path.abspath(filename))
     end
@@ -323,7 +320,6 @@ function utils.read_file_str(filename)
 
     return content
 end
-
 
 local function dec_to_bin(dec)
     local num = tonumber(dec)
@@ -343,12 +339,28 @@ end
 local function hex_to_bin(hex)
     local bin = ""
     local hex_to_bin_map = {
-        ["0"] = "0000", ["1"] = "0001", ["2"] = "0010", ["3"] = "0011",
-        ["4"] = "0100", ["5"] = "0101", ["6"] = "0110", ["7"] = "0111",
-        ["8"] = "1000", ["9"] = "1001", ["A"] = "1010", ["B"] = "1011",
-        ["C"] = "1100", ["D"] = "1101", ["E"] = "1110", ["F"] = "1111",
-        ["a"] = "1010", ["b"] = "1011", ["c"] = "1100", ["d"] = "1101",
-        ["e"] = "1110", ["f"] = "1111"
+        ["0"] = "0000",
+        ["1"] = "0001",
+        ["2"] = "0010",
+        ["3"] = "0011",
+        ["4"] = "0100",
+        ["5"] = "0101",
+        ["6"] = "0110",
+        ["7"] = "0111",
+        ["8"] = "1000",
+        ["9"] = "1001",
+        ["A"] = "1010",
+        ["B"] = "1011",
+        ["C"] = "1100",
+        ["D"] = "1101",
+        ["E"] = "1110",
+        ["F"] = "1111",
+        ["a"] = "1010",
+        ["b"] = "1011",
+        ["c"] = "1100",
+        ["d"] = "1101",
+        ["e"] = "1110",
+        ["f"] = "1111"
     }
     for i = 3, #hex do
         local nibble = hex:sub(i, i)
@@ -402,7 +414,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
     if width ~= nil then
         assert(type(width) == "number" and width > 0, "width must be a positive number")
     else
-        width = 64 
+        width = 64
     end
 
     -- Calculate the number of 64-bit blocks required to handle the specified width
@@ -433,7 +445,9 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
         else
             max_val = bit_lshift(1ULL, num_bits) - 1
         end
-        assert(bitpat.v <= max_val, f("bitpat.v (%d) exceeds the maximum value (%d) for the specified bit range [%d, %d]", bitpat.v, max_val, bitpat.s, bitpat.e))
+        assert(bitpat.v <= max_val,
+            f("bitpat.v (%d) exceeds the maximum value (%d) for the specified bit range [%d, %d]", bitpat.v, max_val,
+                bitpat.s, bitpat.e))
 
         -- Determine which block and position within the block to apply the bit pattern
         local start_block = math_floor(bitpat.s / 64) + 1
@@ -490,11 +504,11 @@ function utils.shuffle(t)
     local k = 0
 
     while n >= 2 do
-      k = math_random(1, n)
-      t[n], t[k] = t[k], t[n]
-      n = n - 1
+        k = math_random(1, n)
+        t[n], t[k] = t[k], t[n]
+        n = n - 1
     end
-    
+
     return t
 end
 
@@ -586,7 +600,7 @@ function utils.str_sep(str, step, separator)
         result = result .. chunk .. separator
     end
 
-    result = result:sub(1, -#separator - 1)
+    result = result:sub(1, - #separator - 1)
     return result
 end
 
@@ -667,12 +681,28 @@ function utils.expand_hex_str(value_hex_str, bitwidth)
 end
 
 local hex_to_bin_map = {
-    ["0"] = "0000", ["1"] = "0001", ["2"] = "0010", ["3"] = "0011",
-    ["4"] = "0100", ["5"] = "0101", ["6"] = "0110", ["7"] = "0111",
-    ["8"] = "1000", ["9"] = "1001", ["A"] = "1010", ["B"] = "1011",
-    ["C"] = "1100", ["D"] = "1101", ["E"] = "1110", ["F"] = "1111",
-    ["a"] = "1010", ["b"] = "1011", ["c"] = "1100", ["d"] = "1101",
-    ["e"] = "1110", ["f"] = "1111"
+    ["0"] = "0000",
+    ["1"] = "0001",
+    ["2"] = "0010",
+    ["3"] = "0011",
+    ["4"] = "0100",
+    ["5"] = "0101",
+    ["6"] = "0110",
+    ["7"] = "0111",
+    ["8"] = "1000",
+    ["9"] = "1001",
+    ["A"] = "1010",
+    ["B"] = "1011",
+    ["C"] = "1100",
+    ["D"] = "1101",
+    ["E"] = "1110",
+    ["F"] = "1111",
+    ["a"] = "1010",
+    ["b"] = "1011",
+    ["c"] = "1100",
+    ["d"] = "1101",
+    ["e"] = "1110",
+    ["f"] = "1111"
 }
 ---@param hex_str string
 ---@return string
@@ -710,48 +740,60 @@ local false_values = {
 ---@param default string|number|integer|boolean Default value if the environment variable is not set
 ---@return string|number|integer|boolean The value of the environment variable or the default value
 function utils.get_env_or_else(key, value_type, default)
-	assert(type(key) == "string")
-	local v = os.getenv(key)
-	if v == nil then
+    assert(type(key) == "string")
+    local v = os.getenv(key)
+    if v == nil then
         local default_type = type(default)
         if default_type == "nil" then
             assert(false, "[utils.get_env_or_else] default value must be provided")
         end
 
         if value_type == "string" then
-            assert(default_type == "string", "[utils.get_env_or_else] default value must be `string`" .. " not `" .. default_type ..  "` since value_type is `string`")
+            assert(
+                default_type == "string",
+                "[utils.get_env_or_else] default value must be `string`" ..
+                " not `" .. default_type .. "` since value_type is `string`"
+            )
         elseif value_type == "boolean" then
-            assert(default_type == "boolean", "[utils.get_env_or_else] default value must be `boolean`" .. " not `" .. default_type ..  "` since value_type is `boolean`")
+            assert(
+                default_type == "boolean",
+                "[utils.get_env_or_else] default value must be `boolean`" ..
+                " not `" .. default_type .. "` since value_type is `boolean`"
+            )
         elseif value_type == "number" or value_type == "integer" then
-            assert(default_type == "number", "[utils.get_env_or_else] default value must be `number`" .. " not `" .. default_type ..  "` since value_type is `number`")
+            assert(
+                default_type == "number",
+                "[utils.get_env_or_else] default value must be `number`" ..
+                " not `" .. default_type .. "` since value_type is `number`"
+            )
         end
 
-		print("[utils.get_env_or_else] warning: " .. key .. " is not set, use default value: " .. tostring(default))
-		return default --[[@as string|number|boolean]]
-	end
+        print("[utils.get_env_or_else] warning: " .. key .. " is not set, use default value: " .. tostring(default))
+        return default --[[@as string|number|boolean]]
+    end
 
-	local value = nil
-	if value_type == "string" then
-		value = v
-	elseif value_type == "boolean" then
-		if truth_values[v] then
-			value = true
-		elseif false_values[v] then
-			value = false
-		else
-			assert(false, "[utils.get_env_or_else] unknown value type! " .. key .. " => " .. v)
-		end
-	elseif value_type == "number" then
-		local number_v = tonumber(v)
-		assert(number_v ~= nil, "[utils.get_env_or_else] invald number value! " .. key .. " => " .. v)
-		value = number_v
-	else
-		assert(false, "[utils.get_env_or_else] unknown value type")
-	end
+    local value = nil
+    if value_type == "string" then
+        value = v
+    elseif value_type == "boolean" then
+        if truth_values[v] then
+            value = true
+        elseif false_values[v] then
+            value = false
+        else
+            assert(false, "[utils.get_env_or_else] unknown value type! " .. key .. " => " .. v)
+        end
+    elseif value_type == "number" then
+        local number_v = tonumber(v)
+        assert(number_v ~= nil, "[utils.get_env_or_else] invald number value! " .. key .. " => " .. v)
+        value = number_v
+    else
+        assert(false, "[utils.get_env_or_else] unknown value type")
+    end
 
-	assert(value ~= nil)
-	print("[utils.get_env_or_else] info: " .. key .. " => " .. tostring(value))
-	return value --[[@as string|number|boolean]]
+    assert(value ~= nil)
+    print("[utils.get_env_or_else] info: " .. key .. " => " .. tostring(value))
+    return value --[[@as string|number|boolean]]
 end
 
 ---@class matrix_call.single_func: function
@@ -782,7 +824,7 @@ end
 ---     First dimension, option 2 -> Second dimension, option 1
 ---     First dimension, option 2 -> Second dimension, option 2
 --- ```
---- 
+---
 --- 2. Sequential functions (seq_funcs):
 --- ```lua
 ---      matrix_call {
@@ -799,7 +841,7 @@ end
 ---     a b
 ---     c
 --- ```
---- 
+---
 --- 3. Single function with arguments (single_func_with_args):
 --- ```lua
 ---         matrix_call {
@@ -814,7 +856,7 @@ end
 ---     Sum: 5
 ---     Product: 6
 --- ```
---- 
+---
 --- 4. Single function with multiple arguments (single_func_with_muti_args):
 --- ```lua
 ---         matrix_call {
@@ -874,7 +916,16 @@ function utils.matrix_call(func_table)
                     end
                 else
                     for k = 1, #entry do
-                        assert(type(entry[k]) == "function", f("func_table[%d][%d][%d] must be a function, but %s", i, j, k, type(entry[k])))
+                        assert(
+                            type(entry[k]) == "function",
+                            f(
+                                "func_table[%d][%d][%d] must be a function, but %s",
+                                i,
+                                j,
+                                k,
+                                type(entry[k])
+                            )
+                        )
                     end
                     func_table_meta[i][j] = "seq_funcs"
                 end
@@ -895,7 +946,6 @@ function utils.matrix_call(func_table)
     ---@param combination matrix_call.combination
     local function generate_combinations(current_dim, combination)
         if current_dim > dimensions then
-
             -- Execute the current combination of functions
             for i = 1, #combination do
                 local dim = combination[i][1]
@@ -945,7 +995,7 @@ function utils.matrix_call(func_table)
 
             -- Add the current dimension and index to the combination
             ---@type matrix_call.dim_and_idx
-            local dim_and_idx = {current_dim, i}
+            local dim_and_idx = { current_dim, i }
             new_combination[#new_combination + 1] = dim_and_idx
 
             -- Recursively process the next dimension
@@ -974,7 +1024,7 @@ function utils.execute_after(count, func, options)
     local _times_count = 0
 
     if _repeat then
-        return function ()
+        return function()
             _count = _count + 1
             if _count >= _target_count then
                 _count = 0
@@ -982,7 +1032,7 @@ function utils.execute_after(count, func, options)
             end
         end
     elseif _times then
-        return function ()
+        return function()
             if _finish then
                 return
             end
@@ -1001,7 +1051,7 @@ function utils.execute_after(count, func, options)
             end
         end
     else
-        return function ()
+        return function()
             if _finish then
                 return
             end
@@ -1016,12 +1066,12 @@ function utils.execute_after(count, func, options)
     end
 end
 
----@param code string 
----@param env? table 
+---@param code string
+---@param env? table
 function utils.loadcode(code, env)
     local ret = loadstring(code) --[[@as function]]
     if not ret then
-    assert(false, "[utils.loadcode] loadstring failed, code:\n" .. code)
+        assert(false, "[utils.loadcode] loadstring failed, code:\n" .. code)
     end
 
     if env then setfenv(ret, env) end
@@ -1061,10 +1111,10 @@ end
 --- ```lua
 ---      -- First, require luacov
 ---      require "luacov"
---- 
+---
 ---      -- Second, run your code
 ---      -- <Your code here>
---- 
+---
 ---      -- Third, generate coverage report at the end of the simulation
 ---      final {
 ---          function ()
@@ -1075,11 +1125,14 @@ end
 --- ```
 function utils.report_luacov()
     if not package.loaded.luacov then
-        assert(false, "[utils.report_luacov] luacov is not loaded! Please make sure you have inserted `require('luacov')` in your code.")
+        assert(
+            false,
+            "[utils.report_luacov] luacov is not loaded! Please make sure you have inserted `require('luacov')` in your code."
+        )
     end
 
     -- Needs exclusive call to avoid multiple threads generating the same report file
-    utils.exclusive_call(function ()
+    utils.exclusive_call(function()
         local runner = require("luacov.runner")
         runner.save_stats()
     end, "luacov.report.lock")

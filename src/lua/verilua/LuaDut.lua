@@ -77,18 +77,18 @@ local function create_proxy(path, use_prefix)
     ---@type ProxyTableHandle
     local mt = setmetatable({
         __type = "ProxyTableHandle",
-        get_local_path = function (this) return local_path end,
+        get_local_path = function(this) return local_path end,
 
-        -- 
+        --
         -- Example:
         --      local alias_signal = dut.path.to.signal
         --      alias_signal:set(123)        -- set value into 123, Notice: you cannot use alias_signal since Lua will treat this as a variable reassignment
         --      alias_signal:set "123"
         --      alias_signal:set("0x123")
         --      alias_signal:set("0b1111")
-        --      local value = alias_signal() -- read value 
-        -- 
-        set = function (t, v)
+        --      local value = alias_signal() -- read value
+        --
+        set = function(t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
@@ -98,7 +98,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        set_imm = function (t, v)
+        set_imm = function(t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
@@ -108,58 +108,58 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- Randomly set the value of the signal
-        -- 
+        --
         -- Example:
         --      dut.path.to.signal:set_shuffled()
-        -- 
-        set_shuffled = function (t)
+        --
+        set_shuffled = function(t)
             vpiml.vpiml_set_shuffled(vpiml.vpiml_handle_by_name(local_path))
         end,
-        set_freeze = function (t)
+        set_freeze = function(t)
             vpiml.vpiml_set_freeze(vpiml.vpiml_handle_by_name(local_path))
         end,
 
-        -- 
+        --
         -- Example:
         --      local cycles = dut.cycles
         --      cycles:set_force(0)
         --      ...
         --      cycles:set_release()
-        --      
+        --
         --      dut.path.to.cycles:set_force(123)
         --      ...
         --      dut.path.to.cycles:set_release()
-        -- 
-        set_force = function (t, v)
+        --
+        set_force = function(t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
             vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
         end,
-        set_imm_force = function (t, v)
+        set_imm_force = function(t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
             vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
         end,
-        set_release = function (t)
+        set_release = function(t)
             vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(local_path))
         end,
 
-        -- 
+        --
         -- Example:
         --      dut:force_all()
         --          dut.cycles:set(1)
         --          dut.path.to.signal:set(1)
-        --      
+        --
         --      dut.clock:posedge()
         --      dut:release_all()
-        -- 
-        force_all = function (t)
+        --
+        force_all = function(t)
             assert(set_force_enable == false)
             set_force_enable = true
         end,
@@ -172,7 +172,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- Normal value assign operations inside this region will all be treat as force operation.
         -- This method can automatically release all the forced signals hence you are free from calling dut:release_all() manually.
         --
@@ -181,7 +181,7 @@ local function create_proxy(path, use_prefix)
         --          dut.clock:negedge()
         --          dut.cycles:set(1)
         --      end)
-        -- 
+        --
         force_region = function(t, code_func)
             assert(type(code_func) == "function")
             t:force_all()
@@ -189,21 +189,21 @@ local function create_proxy(path, use_prefix)
             t:release_all()
         end,
 
-        -- 
+        --
         -- Example:
         --      local value = dut.cycles:get()
-        -- 
-        get = function (t)
+        --
+        get = function(t)
             return tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(local_path)))
         end,
 
-        -- 
+        --
         -- Example:
         --      local bin_str = dut.cycles:get_str(BinStr)
         --      local dec_str = dut.cycles:get_str(DecStr)
         --      local hex_str = dut.cycles:get_str(HexStr)
-        -- 
-        get_str = function (t, fmt)
+        --
+        get_str = function(t, fmt)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
@@ -211,12 +211,12 @@ local function create_proxy(path, use_prefix)
             return ffi_string(vpiml.vpiml_get_value_str(hdl, fmt))
         end,
 
-        -- 
+        --
         -- Example:
         --      local hex_str = dut.cycles:get_hex_str()
         --      assert(hex_str == "123")
-        -- 
-        get_hex_str = function (t)
+        --
+        get_hex_str = function(t)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
@@ -224,12 +224,12 @@ local function create_proxy(path, use_prefix)
             return ffi_string(vpiml.vpiml_get_value_str(hdl, HexStr))
         end,
 
-        -- 
+        --
         -- Example:
         --      -- Notice: prefix is required
         --      dut.cycles:set_str("0x123")    -- for hex string
         --      dut.cycles:set_str("0b101010") -- for binary string
-        -- 
+        --
         set_str = function(t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
@@ -239,12 +239,12 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- Example:
         --      -- Notice: prefix is not required
         --      dut.cycles:set_hex_str("123")
-        -- 
-        set_hex_str = function (t, str)
+        --
+        set_hex_str = function(t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
                 vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), "0x" .. str)
@@ -257,7 +257,7 @@ local function create_proxy(path, use_prefix)
             vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), str)
         end,
 
-        -- 
+        --
         -- Example:
         --      dut.clock:posedge()
         --      dut.reset:negedge()
@@ -266,7 +266,7 @@ local function create_proxy(path, use_prefix)
         --      dut.clock:posedge(10, function (c)
         --         print("current count is " .. c)
         --      end)
-        -- 
+        --
         posedge = function(t, v, func)
             local _v = v or 1
             local _v_type = type(_v)
@@ -275,8 +275,8 @@ local function create_proxy(path, use_prefix)
 
             local do_func = false
             if func ~= nil then
-                assert(type(func) == "function") 
-                do_func = true 
+                assert(type(func) == "function")
+                do_func = true
             end
 
             for i = 1, _v do
@@ -295,8 +295,8 @@ local function create_proxy(path, use_prefix)
 
             local do_func = false
             if func ~= nil then
-                assert(type(func) == "function") 
-                do_func = true 
+                assert(type(func) == "function")
+                do_func = true
             end
 
             for i = 1, _v do
@@ -307,19 +307,19 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- Example:
         --      local condition_meet = dut.clock:posedge_until(100, function func()
         --          return dut.cycles() >= 100
         --      end)
-        -- 
-        posedge_until = function (t, max_limit, func)
+        --
+        posedge_until = function(t, max_limit, func)
             assert(max_limit ~= nil)
             assert(type(max_limit) == "number")
             assert(max_limit >= 1)
 
             assert(func ~= nil)
-            assert(type(func) == "function") 
+            assert(type(func) == "function")
 
             local condition_meet = false
             for i = 1, max_limit do
@@ -335,13 +335,13 @@ local function create_proxy(path, use_prefix)
 
             return condition_meet
         end,
-        negedge_until = function (t, max_limit, func)
+        negedge_until = function(t, max_limit, func)
             assert(max_limit ~= nil)
             assert(type(max_limit) == "number")
             assert(max_limit >= 1)
 
             assert(func ~= nil)
-            assert(type(func) == "function") 
+            assert(type(func) == "function")
 
             local condition_meet = false
             for i = 1, max_limit do
@@ -351,18 +351,18 @@ local function create_proxy(path, use_prefix)
                 if not condition_meet then
                     await_negedge(local_path)
                 else
-                    break 
+                    break
                 end
             end
 
             return condition_meet
         end,
 
-        -- 
-        -- Example: 
+        --
+        -- Example:
         --      local hdl = dut.cycles:hdl()
-        -- 
-        hdl = function (t)
+        --
+        hdl = function(t)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
@@ -370,61 +370,63 @@ local function create_proxy(path, use_prefix)
             return hdl
         end,
 
-        -- 
+        --
         -- Example:
         --      local cycles_chdl = dut.cycles:chdl()
         --      print("value of cycles is " .. cycles_chdl:get())
         --      cycles_chdl:set(123)
-        -- 
-        chdl = function (t)
+        --
+        chdl = function(t)
             return CallableHDL(local_path, "")
         end,
 
-        -- 
+        --
         -- Example:
         --      local path = dut.path.to.signal:name()
         --      assert(path == "tb_top.path.to.signal")
-        -- 
-        name = function (t)
-           return local_path 
+        --
+        name = function(t)
+            return local_path
         end,
 
-        -- 
+        --
         -- Example:
         --      local width = dut.cycles:get_width()
         --      assert(width == 64)
-        -- 
-        get_width = function (t)
+        --
+        get_width = function(t)
             return tonumber(vpiml.vpiml_get_signal_width(vpiml.vpiml_handle_by_name(local_path)))
         end,
 
-        dump_str = function (t)
+        dump_str = function(t)
             local hdl = vpiml.vpiml_handle_by_name(local_path)
             local s = f("[%s] => ", local_path)
             s = s .. "0x" .. ffi_string(vpiml.vpiml_get_value_hex_str(hdl))
             return s
         end,
 
-        -- 
-        -- Example: 
+        --
+        -- Example:
         --      dut.path.to.signal:dump()
         --          => [tb_top.path.to.signal] => 0x1234
-        -- 
+        --
         dump = function(t)
             print(t:dump_str())
         end,
 
-        -- 
+        --
         -- Example:
         --      dut.paht.to.signal:expect(1) -- signal value should be 1 otherwise there will be a assert false
-        -- 
+        --
         expect = function(t, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
 
             local beat_num = t:get_width() / BeatWidth
             if beat_num > 2 then
-                assert(false, "`dut.<path>:expect(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. beat_num)    
+                assert(false,
+                    "`dut.<path>:expect(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " ..
+                    beat_num)
             end
 
             if t:get() ~= value then
@@ -438,7 +440,11 @@ local function create_proxy(path, use_prefix)
 
             local beat_num = t:get_width() / BeatWidth
             if beat_num > 2 then
-                assert(false, "`dut.<path>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " .. beat_num)    
+                assert(
+                    false,
+                    "`dut.<path>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " ..
+                    beat_num
+                )
             end
 
             if t:get() == value then
@@ -446,12 +452,12 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- Example:
         --      dut.path.to.signal:expect_hex_str("0x1234") -- signal value should be 0x1234 otherwise there will be a assert false
         --      dut.path.to.signal.expect_bin_str("0b1111")
         --      dut.path.to.signal.expect_dec_str("1234")
-        -- 
+        --
         expect_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
             local left = this:get_hex_str():lower():gsub("^0*", "")
@@ -496,7 +502,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- Example:
         --      dut.path.to.signal:_if(some_condition == true):expect(1)
         --
@@ -504,13 +510,13 @@ local function create_proxy(path, use_prefix)
         --
         --      dut.path.to.signal:_if(function() return some_condition == true end):expect(1)
         --
-        --              equals to 
+        --              equals to
         --
         --      if some_condition == true then
-        --          dut.path.to.signal:expect(1) 
+        --          dut.path.to.signal:expect(1)
         --      end
-        --  
-        _if = function (t, condition)
+        --
+        _if = function(t, condition)
             local _condition = false
             if type(condition) == "boolean" then
                 _condition = condition
@@ -530,7 +536,7 @@ local function create_proxy(path, use_prefix)
             else
                 return setmetatable({}, {
                     __index = function(t, k)
-                        return function ()
+                        return function()
                             -- an empty function
                         end
                     end
@@ -538,33 +544,33 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- Example:
         --      assert(dut.path.to.signal:is(1))
         --      assert(dut.another_signal:is_not(1))
-        --      
+        --
         --      You can also combine this with "_if":
         --          dut.path.to.signal:_if(dut.signal:is(1)):expect(123)
-        -- 
-        is = function (t, value)
+        --
+        is = function(t, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
 
             return t:get() == value
         end,
-        is_not = function (t, value)
+        is_not = function(t, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
 
             return t:get() ~= value
         end,
 
-        -- 
+        --
         -- Example:
         --      assert(dut.path.to.signal:is_hex_str("0x1"))
         --      assert(dut.another_signal:is_bin_str("0b101"))
         --      assert(dut.another_signal:is_dec_str("1"))
-        --      
+        --
         --      You can also combine this with "_if":
         --          dut.path.to.signal:_if(dut.signal:is_hex_str("0x1")):expect(123)
         --
@@ -580,28 +586,28 @@ local function create_proxy(path, use_prefix)
             return t:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")
         end,
 
-        -- 
+        --
         -- Example:
         --      Assume top module is `top`
         --      assert(dut.path.to.signal:tostring() == "top.path.to.signal")
-        -- 
+        --
         tostring = function(t)
             return local_path
         end,
 
-        -- 
+        --
         -- Example:
         --      local io_in = dut.path.to.mod:with_prefix("io_in_")
         --      assert(io_in.value:tostring() == "top.path.to.mod.io_in_value")
         --      assert(io_in.data:tostring() == "top.path.to.mod.io_in_data")
-        -- 
+        --
         with_prefix = function(t, prefix_str)
             return create_proxy(local_path .. '.' .. prefix_str, true)
         end,
 
-        -- 
+        --
         -- Create a `Bundle` with the signals which meet the certain conditions
-        --  
+        --
         -- Example:
         --      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_", endswith = "_value" }
         --      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_" }
@@ -611,7 +617,7 @@ local function create_proxy(path, use_prefix)
         --      local bdl = dut.path.to.mod:auto_bundle { filter = function (name, width)
         --          return width == 32 and name:endswith("_value")
         --      end }
-        -- 
+        --
         auto_bundle = function(t, params)
             return require("SignalDB"):auto_bundle(local_path, params)
         end
@@ -625,18 +631,18 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        -- 
+        --
         -- [Deprecated] please use <LuaDut>:set(...) or <LuaDut>:set_str(...)
-        -- 
+        --
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
             -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
             vpiml.vpiml_set_imm_value(vpiml.vpiml_handle_by_name(fullpath), v)
         end,
 
-        -- 
+        --
         -- [Deprecated] please use <LuaDut>:get(...) or <LuaDut>:get_str(...)
-        -- 
+        --
         __call = function(t, v)
             local data_type = v or "integer"
             if data_type == "integer" then
@@ -653,7 +659,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        __tostring = function ()
+        __tostring = function()
             return local_path
         end
     })

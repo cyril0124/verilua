@@ -37,20 +37,20 @@ local verilua_debug = _G.verilua_debug
 ---@field [string] CallableHDL
 local AliasBundle = class()
 
--- 
+--
 -- Access signal using alias name
--- 
+--
 -- @alias_signal_tbl: {
 --      {<org_name>, <alias_name>}, -- alias_name can be set as `nil`, then no alias name available for signal accessing
 --      ...
 -- }
--- 
+--
 -- @prefix   :
 -- @hierarchy :
 --      signal_name => <hierarchy>.<prefix>_<org_name>
 -- @name: bundle name
--- 
--- 
+--
+--
 -- Example:
 --      local abdl = AliasBundle(
 --          {
@@ -61,10 +61,10 @@ local AliasBundle = class()
 --          "path.to.hier",
 --          "name of alias bundle"
 --      )
--- 
+--
 --      local value = abdl.alias_name:get()
 --      abdl.alias_name_1:set(123)
--- 
+--
 function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_signals)
     texpect.expect_table(alias_signal_tbl, "alias_signal_tbl")
     texpect.expect_table(alias_signal_tbl[1], "alias_signal_tbl[1]")
@@ -98,7 +98,14 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
         end
     end
 
-    verilua_debug("New AliasBundle => ", "name: " .. self.name, "signals: {" .. table_concat(self.signals_tbl, ", ") .. "}", "prefix: " .. prefix, "hierarchy: ", hierarchy)
+    verilua_debug(
+        "New AliasBundle => ",
+        "name: " .. self.name,
+        "signals: {" .. table_concat(self.signals_tbl, ", ") .. "}",
+        "prefix: " .. prefix,
+        "hierarchy: ",
+        hierarchy
+    )
 
     -- Construct CallableHDL bundle
     local num_signals = #self.signals_tbl
@@ -121,7 +128,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
     -- Used for saving dump parts
     self.__dump_parts = table_new(num_signals, 0) --[[@as table<integer, string>]]
 
-    self.dump_str = function (this)
+    self.dump_str = function(this)
         local parts = this.__dump_parts
         table_clear(parts)
 
@@ -152,7 +159,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
         return table_concat(parts, " | ")
     end
 
-    self.format_dump_str = function (this, format_func)
+    self.format_dump_str = function(this, format_func)
         local parts = this.__dump_parts
         table_clear(parts)
 
@@ -183,16 +190,14 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
         return table_concat(parts, " | ")
     end
 
-    self.dump = function (this)
+    self.dump = function(this)
         print(this:dump_str())
     end
 
     ---@param format_func fun(chdl, name: string, alias_name: string): string
-    self.format_dump = function (this, format_func)
+    self.format_dump = function(this, format_func)
         print(this:format_dump_str(format_func))
     end
 end
-
-
 
 return AliasBundle

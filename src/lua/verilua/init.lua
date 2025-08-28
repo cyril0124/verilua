@@ -22,14 +22,14 @@ local getmetatable = getmetatable
 -- Strict mode, all global variables must be declared first
 require "strict"
 
-_G.inspect = require "inspect"
+_G.inspect           = require "inspect"
 
 --- Print any lua object using `inspect.lua`
 ---@param ... any
-_G.dbg     = function (...) print(inspect(...)) end
-_G.pp      = _G.dbg -- Alias for dbg
-_G.dump    = _G.pp -- Alias for dbg
-_G.printf  = function (s, ...) io.write(f(s, ...)) end
+_G.dbg               = function(...) print(inspect(...)) end
+_G.pp                = _G.dbg -- Alias for dbg
+_G.dump              = _G.pp  -- Alias for dbg
+_G.printf            = function(s, ...) io.write(f(s, ...)) end
 
 -- Convert to hex for pretty printing
 local convert_to_hex = function(item, path)
@@ -41,20 +41,20 @@ end
 
 --- Print any lua object using `inspect.lua` with hex conversion on `number` and `uint64_t`
 ---@param ... any
-_G.pph = function (...)
-    print(inspect(..., {process = convert_to_hex}))
+_G.pph               = function(...)
+    print(inspect(..., { process = convert_to_hex }))
 end
 
--- 
+--
 -- #define vpiBinStrVal          1
 -- #define vpiOctStrVal          2
 -- #define vpiDecStrVal          3
 -- #define vpiHexStrVal          4
--- 
-_G.BinStr = 1
-_G.OctStr = 2
-_G.DecStr = 3
-_G.HexStr = 4
+--
+_G.BinStr            = 1
+_G.OctStr            = 2
+_G.DecStr            = 3
+_G.HexStr            = 4
 
 do
     local PWD = os.getenv("PWD")
@@ -77,13 +77,13 @@ do
     end
 end
 
--- 
+--
 -- debug info
--- 
-_G.get_debug_info = function (level)
+--
+_G.get_debug_info = function(level)
     local info = debug.getinfo(level or 2, "nSl") -- Level 2 because we're inside a function
-    
-    local file = info.short_src -- info.source
+
+    local file = info.short_src                   -- info.source
     local line = info.currentline
     local func = info.name or "<anonymous>"
 
@@ -94,7 +94,7 @@ _G.default_debug_level = 4
 _G.debug_level = _G.default_debug_level
 _G.debug_str = function(...)
     local file, line, func = _G.get_debug_info(_G.debug_level)
-    local args = {...}
+    local args = { ... }
     local message = table.concat(args, "\t")
     return (("[%s:%s:%d]"):format(file, func, line) .. "\t" .. message)
 end
@@ -121,35 +121,35 @@ _G.colors = {
     white   = "\27[37m"
 }
 
--- 
+--
 -- global debug log functions
--- 
+--
 local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
 _G.enable_verilua_debug = enable_verilua_debug
 
 if enable_verilua_debug == true then
-    _G.verilua_debug = function (...)
+    _G.verilua_debug = function(...)
         io.write("\27[31m") -- RED
         print(_G.debug_str(">> [VERILUA DEBUG]", ...), "\27[0m")
         io.flush()
     end
 else
-    _G.verilua_debug = function (...)
+    _G.verilua_debug = function(...)
     end
 end
 
-_G.verilua_info = function (...)
+_G.verilua_info = function(...)
     io.write("\27[36m") -- CYAN
     print(">> [VERILUA INFO]", ..., "\27[0m")
 end
 
-_G.verilua_warning = function (...)
+_G.verilua_warning = function(...)
     io.write("\27[33m") -- YELLOW
     print(">> [VERILUA WARNING]", ..., "\27[0m")
     io.flush()
 end
 
-_G.verilua_error = function (...)
+_G.verilua_error = function(...)
     local error_print = function(...)
         io.write("\27[31m") -- RED
         print(">> [VERILUA ERROR]", ..., "\27[0m")
@@ -158,7 +158,7 @@ _G.verilua_error = function (...)
     assert(false, error_print(...))
 end
 
-_G.verilua_assert = function (cond, ...)
+_G.verilua_assert = function(cond, ...)
     if cond == nil or cond == false then
         _G.verilua_error(...)
     end
@@ -185,16 +185,16 @@ do
     local stringx = require "pl.stringx"
 
     cfg_name, cfg_path = cfg:get_user_cfg()
-    
+
     if cfg_name then
         if cfg_path == nil then
             cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
         end
-        
+
         assert(type(cfg_path) == "string")
 
         if string.len(cfg_path) ~= 0 then
-            _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua" 
+            _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua"
         end
 
         cfg_name = path.basename(cfg_name) -- strip basename
@@ -204,7 +204,14 @@ do
         end
 
         local _cfg = require(cfg_name)
-        assert(type(_cfg) == "table", f("`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s", cfg_name, cfg_path))
+        assert(
+            type(_cfg) == "table",
+            f(
+                "`cfg` is not a `table`, maybe there is package conflict. cfg_name:%s cfg_path:%s",
+                cfg_name,
+                cfg_path
+            )
+        )
 
         cfg:merge_config(_cfg)
     end
@@ -221,7 +228,7 @@ end
 ---             -- ...
 ---         end
 ---     }
---- 
+---
 ---     final {
 ---         function(got_error)
 ---             assert(got_error == true)
@@ -230,9 +237,9 @@ end
 --- ```
 _G.VERILUA_GOT_ERROR = false --[[@as boolean]]
 
--- 
+--
 -- add source_file/dependencies package path
--- 
+--
 do
     for _, src in ipairs(cfg.srcs) do
         _G.package.path = _G.package.path .. ";" .. src
@@ -243,16 +250,16 @@ do
     end
 end
 
--- 
+--
 -- we should load ffi setenv before setting up other environment variables
--- 
+--
 _G.ffi = require "ffi"
-ffi.cdef[[
+ffi.cdef [[
     int setenv(const char *name, const char *value, int overwrite);
 ]]
 
 do
-    ffi.cdef[[
+    ffi.cdef [[
         typedef struct timespec {
             long sec;
             long nsec;
@@ -274,19 +281,19 @@ do
 end
 
 if cfg.simulator == "vcs" then
-    ffi.cdef[[
+    ffi.cdef [[
         void *svGetScopeFromName(const char *str);
         void svSetScope(void *scope);
     ]]
 end
 
--- 
+--
 -- setup breakpoint
--- 
+--
 _G.bp = function() print("[Breakpoint] Invalid breakpoint!") end
 if os.getenv("VL_DEBUGGER") == "1" then
     _G.verilua_debug("VL_DEBUGGER is 1")
-    _G.bp = function() 
+    _G.bp = function()
         require("LuaPanda").start("localhost", 8818)
         ---@diagnostic disable-next-line: undefined-global
         local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP()
@@ -295,7 +302,7 @@ end
 
 --
 -- Setup some environment variables
--- 
+--
 do
     local function setenv_from_lua(name, value)
         assert(type(name) == "string")
@@ -308,17 +315,17 @@ do
         end
     end
 
-    -- 
+    --
     -- setup LUA_SCRIPT inside init.lua, this can be overwrite by outer environment variable
-    -- 
+    --
     local LUA_SCRIPT = cfg.script
     if LUA_SCRIPT ~= nil then
         setenv_from_lua("LUA_SCRIPT", LUA_SCRIPT)
     end
 
-    -- 
+    --
     -- setup DUT_TOP inside init.lua, this can be overwrite by outer environment variable
-    -- 
+    --
     local DUT_TOP = cfg.top
     if DUT_TOP ~= nil then
         setenv_from_lua("DUT_TOP", DUT_TOP)
@@ -332,14 +339,14 @@ do
     os.setenv = setenv_from_lua
 end
 
--- 
+--
 -- Setup scheduler mode
--- 
+--
 _G.verilua_debug("SchedulerMode is " .. cfg.mode)
 
--- 
+--
 -- import scheduler functions
--- 
+--
 local scommon = require "verilua.scheduler.LuaSchedulerCommonV2"
 for key, value in pairs(scommon) do
     _G[key] = value
@@ -349,10 +356,10 @@ end
 require "verilua.ext.tablex"
 require "verilua.ext.stringx"
 
--- 
+--
 -- try-catch-finally(https://xmake.io/#/manual/builtin_modules?id=try-catch-finally)
 -- Has the same functionality as the try-catch-finally in xmake
--- 
+--
 do
     local table_join = table.join
     local table_pack = table.pack
@@ -361,13 +368,13 @@ do
     local xpcall = xpcall
 
     ---@type fun(block: function[]): table<function>
-    _G.catch = function (block)
-        return {catch = block[1]}
+    _G.catch = function(block)
+        return { catch = block[1] }
     end
 
     ---@type fun(block: function[]): table<function>
-    _G.finally = function (block)
-        return {finally = block[1]}
+    _G.finally = function(block)
+        return { finally = block[1] }
     end
 
     --- Example:
@@ -399,8 +406,7 @@ do
     ---     }
     --- ```
     ---@type fun(block: function[]): ...
-    _G.try = function (block)
-
+    _G.try = function(block)
         -- get the try function
         local try = block[1]
         assert(try)
@@ -409,7 +415,12 @@ do
         local funcs = table_join(block[2] or {}, block[3] or {})
 
         -- try to call it
-        local results = table_pack(xpcall(try, function (errors) return "[try-catch-finally] " .. debug_traceback(errors) end))
+        local results = table_pack(
+            xpcall(
+                try,
+                function(errors) return "[try-catch-finally] " .. debug_traceback(errors) end
+            )
+        )
         local ok = results[1]
         if not ok then
             -- run the catch function
@@ -435,12 +446,12 @@ do
     local CoverPoint = require "verilua.coverage.CoverPoint"
     local AccurateCoverPoint = require "verilua.coverage.AccurateCoverPoint"
 
-    -- The verilua holds a default coverage group. 
+    -- The verilua holds a default coverage group.
     -- User can create a coverage point without manually creating a new coverage group for convenience.
     local default_cg = CoverGroup("default")
     _G.default_cg = default_cg
 
-    -- 
+    --
     -- Example:
     --      Basic usage:
     --          (1) Create coverage handle
@@ -456,7 +467,7 @@ do
     --                                 -- User does not required to manually call this function to save the `default_cg` into `json` file.
     --                                 -- For the user defined coverage groups, user should save it in some place and those coverage groups
     --                                 -- are not controlled by the verilua kernel.
-    -- 
+    --
     --      Use user defined coverage group:
     --          local CoverGroup = require "coverage.CoverGroup"
     --          local user_defined_cg = CoverGroup("user_defined")
@@ -464,11 +475,11 @@ do
     --          c2:inc()
     --          user_defined_cg:report()
     --          user_defined_cg:save()
-    -- 
+    --
     --      Accurate cover point(The accurate cover point will save the cycle time when cover point accumulate the internel counter):
     --          local accurate_cp = ("some accurate cover point"):cvhdl { type = "accurate" }
     --          accurate_cp:inc_with_cyclce(<cycle value>)    -- Use inc_with_cycle() instead of inc() for the accurate cover point
-    -- 
+    --
     getmetatable('').__index.cvhdl = function(name, params_table)
         local cover_group = default_cg
         local cover_point_type = "simple"
@@ -482,24 +493,34 @@ do
                 if key == "group" then
                     local value_type = type(value)
                     if value_type ~= "table" then
-                        assert(false, "[cvhdl] invalid `group` type! you should provide a valid CoverGroup. invalid_type => " .. value_type)
+                        assert(
+                            false,
+                            "[cvhdl] invalid `group` type! you should provide a valid CoverGroup. invalid_type => " ..
+                            value_type
+                        )
                     else
-                        assert(value.__type == "CoverGroup", "[cvhdl] the provided `group` did not contains `type` field! you should pass a valid CoverGroup")
+                        assert(
+                            value.__type == "CoverGroup",
+                            "[cvhdl] the provided `group` did not contains `type` field! you should pass a valid CoverGroup"
+                        )
                     end
                     cover_group = value
-                
-                -- Type of the CoverPoint
+
+                    -- Type of the CoverPoint
                 elseif key == "type" then
                     if value ~= "simple" and value ~= "accurate" then
-                        assert(false, "[cvhdl] invalid cover point type: " .. value .. ", available type: `simple`, `accurate`")
+                        assert(
+                            false,
+                            "[cvhdl] invalid cover point type: " .. value .. ", available type: `simple`, `accurate`"
+                        )
                     end
                     cover_point_type = value
                 else
-                    assert(false, "[cvhdl] invalid key: " .. key .. ", available keys: `group`") 
+                    assert(false, "[cvhdl] invalid key: " .. key .. ", available keys: `group`")
                 end
-            end 
+            end
         end
-        
+
         local cover_point
         if cover_point_type == "simple" then
             cover_point = CoverPoint(name, cover_group)
@@ -515,7 +536,7 @@ do
     end
 
     -- Alias of <string>:cvhdl()
-    getmetatable('').__index.cover_point = function (name, params_table)
+    getmetatable('').__index.cover_point = function(name, params_table)
         name:cvhdl(params_table)
     end
 end
@@ -534,7 +555,7 @@ do
             verilua_debug(f("[verilua/%s]", cmd), "execute => " .. cmd)
         end
 
-        -- 
+        --
         -- Example
         --      verilua "appendTasks" {
         --          another_task = function ()
@@ -554,14 +575,14 @@ do
         --          another_task_name = another_task,
         --          some_task_name = some_task
         --      }
-        -- 
+        --
         if cmd == "mainTask" or cmd == "appendTasks" then
-            return function (task_table)
+            return function(task_table)
                 assert(type(task_table) == "table")
                 for name, func in pairs(task_table) do
                     if type(name) == "number" then
                         name = ("unnamed_task_%d"):format(unnamed_task_count)
-                        unnamed_task_count = unnamed_task_count + 1   
+                        unnamed_task_count = unnamed_task_count + 1
                     end
 
                     if enable_verilua_debug then
@@ -572,66 +593,63 @@ do
                 end
             end
 
-        -- 
-        -- Example:
-        --      verilua "finishTask" { function ()
-        --            -- body
-        --      end }
-        -- 
-        --      local function some_finish_task()
-        --          -- body
-        --      end
-        --      verilua "finishTask" {
-        --          some_finish_task
-        --      }
-        -- 
+            --
+            -- Example:
+            --      verilua "finishTask" { function ()
+            --            -- body
+            --      end }
+            --
+            --      local function some_finish_task()
+            --          -- body
+            --      end
+            --      verilua "finishTask" {
+            --          some_finish_task
+            --      }
+            --
         elseif cmd == "finishTask" then
-            return function (task_table)
+            return function(task_table)
                 assert(type(task_table) == "table")
                 assert(#task_table == 1)
                 local func = task_table[1]
                 vl.register_finish_callback(func)
             end
 
-        -- 
-        -- Example:
-        --      verilua "startTask" { function ()
-        --            -- body
-        --      end }
-        -- 
-        --      local function some_start_task()
-        --          -- body
-        --      end
-        --      verilua "startTask" {
-        --          some_finish_task
-        --      }
-        -- 
+            --
+            -- Example:
+            --      verilua "startTask" { function ()
+            --            -- body
+            --      end }
+            --
+            --      local function some_start_task()
+            --          -- body
+            --      end
+            --      verilua "startTask" {
+            --          some_finish_task
+            --      }
+            --
         elseif cmd == "startTask" then
-            return function (task_table)
+            return function(task_table)
                 assert(type(task_table) == "table")
                 assert(#task_table == 1)
                 local func = task_table[1]
                 vl.register_start_callback(func)
             end
-
         elseif cmd == "appendFinishTasks" then
-            return function (task_table)
+            return function(task_table)
                 assert(type(task_table) == "table")
                 for k, func in pairs(task_table) do
                     assert(type(func) == "function")
                     vl.append_finish_callback(func)
                 end
             end
-
         elseif cmd == "appendStartTasks" then
-            return function (task_table)
+            return function(task_table)
                 assert(type(task_table) == "table")
                 for k, func in pairs(task_table) do
                     assert(type(func) == "function")
                     vl.append_start_callback(func)
                 end
             end
-
         elseif cmd == "showTasks" then
             scheduler:list_tasks()
         else
@@ -661,12 +679,12 @@ do
     ---      }
     --- ```
     ---@param task_table table<TaskName|number, TaskFunction>
-    _G.fork = function (task_table)
+    _G.fork = function(task_table)
         assert(type(task_table) == "table")
         for name, func in pairs(task_table) do
             if type(name) == "number" then
                 name = ("unnamed_fork_task_%d"):format(unnamed_task_count)
-                unnamed_task_count = unnamed_task_count + 1   
+                unnamed_task_count = unnamed_task_count + 1
             end
 
             if enable_verilua_debug then
@@ -688,7 +706,7 @@ do
     ---          end
     ---      }
     ---      join(ehdl) -- Wait here until the task finished
-    --- 
+    ---
     ---      -- (2) Create multiple joinable forks
     ---      local ehdl1 = jfork {
     ---          some_task1 = function ()
@@ -704,7 +722,7 @@ do
     --- ```
     ---@param one_task_table table<TaskName|number, TaskFunction>
     ---@return EventHandle, TaskID
-    _G.jfork = function (one_task_table)
+    _G.jfork = function(one_task_table)
         ---@type EventHandle
         local ehdl
         ---@type TaskID
@@ -771,7 +789,7 @@ do
     ---      join(ehdl2) -- Wait here until `ehdl2` finished
     --- ```
     ---@param ehdl_or_ehdl_tbl EventHandle|table<integer, EventHandle>
-    _G.join = function (ehdl_or_ehdl_tbl)
+    _G.join = function(ehdl_or_ehdl_tbl)
         assert(type(ehdl_or_ehdl_tbl) == "table")
         if ehdl_or_ehdl_tbl.event_id ~= nil then
             ---@cast ehdl_or_ehdl_tbl EventHandle
@@ -783,7 +801,7 @@ do
             local finished_ehdl_vec = {}
             for _, ehdl in ipairs(ehdl_or_ehdl_tbl) do
                 local e_type = type(ehdl)
-                if not(e_type == "table" and ehdl.__type == "EventHandleForJFork") then
+                if not (e_type == "table" and ehdl.__type == "EventHandleForJFork") then
                     assert(false, "`join` only supports EventHandle created by `jfork`, got " .. e_type)
                 end
 
@@ -828,12 +846,12 @@ do
     ---              -- body
     ---          end,
     ---          task2 = function ()
-    ---              -- body    
+    ---              -- body
     ---          end
     ---      }
     --- ```
     ---@param task_table table<TaskName|integer, TaskFunction>
-    _G.initial = function (task_table)
+    _G.initial = function(task_table)
         assert(type(task_table) == "table")
         for k, func in pairs(task_table) do
             assert(type(func) == "function")
@@ -851,13 +869,13 @@ do
     ---              -- body
     ---          end,
     ---          task2 = function ()
-    ---              -- body    
+    ---              -- body
     ---          end
     ---      }
     --- ```
     --- `final` is useful when user want to do any cleanup work for the simulation environment.
     ---@param task_table table<TaskName|integer, TaskFunction>
-    _G.final = function (task_table)
+    _G.final = function(task_table)
         assert(type(task_table) == "table")
         for k, func in pairs(task_table) do
             assert(type(func) == "function")
@@ -870,27 +888,27 @@ if os.getenv("VL_PREBUILD") == "1" then
     require "verilua.utils.PrebuildHelper"
 else
     ---@diagnostic disable-next-line: duplicate-set-field
-    _G.prebuild = function ()
+    _G.prebuild = function()
         -- do nothing
     end
 end
 
--- 
+--
 -- setup random seed
--- 
+--
 do
     _G.verilua_debug(f("random seed is %d", cfg.seed))
     math.randomseed(cfg.seed)
 end
 
--- 
+--
 -- Implement sorts of SystemVerilog APIs
--- 
-_G.urandom = function ()
+--
+_G.urandom = function()
     return math_random(0, 0xFFFFFFFF)
 end
 
-_G.urandom_range = function (min, max)
+_G.urandom_range = function(min, max)
     if min > max then
         assert(false, "min should be less than or equal to max")
     end

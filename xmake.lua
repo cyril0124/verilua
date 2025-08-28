@@ -20,9 +20,9 @@ end)
 target("install_luajit", function()
     set_kind("phony")
     on_run(function(target)
-        local curr_dir = os.workingdir()
-        local luajit_pro_dir = curr_dir .. "/luajit-pro"
-        local luajit_dir = luajit_pro_dir .. "/luajit2.1"
+        local curr_dir = os.projectdir()
+        local luajit_pro_dir = path.join(curr_dir, "luajit-pro")
+        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
         local luarocks_version = "3.12.2"
 
         -- Remove existing luajit-pro directory
@@ -68,8 +68,8 @@ target("reinstall_luajit", function()
     set_kind("phony")
     on_run(function(target)
         local curr_dir = os.workingdir()
-        local luajit_pro_dir = curr_dir .. "/luajit-pro"
-        local luajit_dir = luajit_pro_dir .. "/luajit2.1"
+        local luajit_pro_dir = path.join(curr_dir, "luajit-pro")
+        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
 
         -- build luajit_pro_helper
         os.cd(luajit_pro_dir)
