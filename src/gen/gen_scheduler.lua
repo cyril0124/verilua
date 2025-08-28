@@ -1,4 +1,6 @@
---[[luajit-pro, teal, pretty, {NORMAL = 1, STEP = 0, EDGE_STEP = 0, ACC_TIME = 0, SAFETY = 0, VERBOSE = 0}]]
+--[[luajit-pro, {NORMAL = 1, STEP = 0, EDGE_STEP = 0, ACC_TIME = 0, SAFETY = 0}]]
+
+---@diagnostic disable: need-check-nil
 
 if _G.NORMAL and _G.STEP and _G.EDGE_STEP then
     assert(false, "Should not have both NORMAL, STEP and EDGE_STEP")
@@ -10,7 +12,7 @@ end
 
 local safety_assert
 if _G.SAFETY then
-    safety_assert = function(cond, ...) 
+    safety_assert = function(cond, ...)
         if not cond then
             print(debug.traceback())
             assert(false, ...)
@@ -33,7 +35,8 @@ local coro_yield = coroutine.yield
 local coro_resume = coroutine.resume
 local coro_create = coroutine.create
 
-local os_clock: function(): number
+---@type fun(): number
+local os_clock
 if _G.ACC_TIME then
     os_clock = os.clock
 end
@@ -53,77 +56,45 @@ local EarlyExit = 11
 local Event = 12
 local NOOP = 44
 
-local type TaskID = integer
-local type TaskCallbackType = integer
-local type EventID = integer
-local type CoroutineTaskBody = function()
-local type FunctionTaskBody = function(): boolean | nil
-local type CoroutineYieldInfo = {integer, string, integer}
-
-local record EventHandle
-    __type: string
-    _scheduler: SchedulerClass
-    name: string
-    event_id: EventID
-    has_pending_wait: function(EventHandle): boolean
-    wait: function(EventHandle)
-    send: function(EventHandle)
-    remove: function(EventHandle)
-end
-
-local record SchedulerClass
-    -- Class member variables
-    running_task_count: integer
-    task_coroutine_map: {TaskID: thread} -- only for `coroutine` task
-    task_body_map: {TaskID: CoroutineTaskBody}
-    task_name_map_running: {TaskID: string} -- This map holds all the running task names
-    task_name_map_archived: {TaskID: string} -- This map holds all the archived task names
-    task_fired_status_map: {TaskID: boolean}
-    task_execution_count_map:  {TaskID: integer}
-    pending_removal_tasks: {TaskID}
-    user_removal_tasks: {TaskID}
-    posedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
-    negedge_tasks: {TaskID: boolean} -- Available only when `EDGE_STEP` is enabled
-    curr_task_id: TaskID
-
-    event_task_id_list_map: {EventID: {TaskID}}
-    event_name_map: {EventID: string}
-    has_wakeup_event: boolean
-    pending_wakeup_event: {EventID}
-    curr_wakeup_event_id: EventID
-
-    acc_time_table: {string: number}
-
-    -- Constructor
-    _init: function(SchedulerClass)
-    metamethod __call: function(SchedulerClass): SchedulerClass
-
-    -- Private
-    _is_coroutine_task: function(SchedulerClass, TaskID): boolean
-    _alloc_coroutine_task_id: function(SchedulerClass): TaskID
-    _remove_task: function(SchedulerClass, TaskID)
-    _register_callback: function(SchedulerClass, TaskID, TaskCallbackType, string, integer)
-
-    -- Public
-    remove_task: function(SchedulerClass, TaskID)
-    check_task_exists: function(SchedulerClass, TaskID): boolean
-    append_task: function(SchedulerClass, TaskID, string, CoroutineTaskBody, boolean): TaskID -- Append/Register a new task
-    wakeup_task: function(SchedulerClass, TaskID) -- Wakeup an registered task
-    try_wakeup_task: function(SchedulerClass, TaskID) -- Try to wakeup an registered task, if the task is still running, do nothing, otherwise, wakeup it
-    append_function_task: function(SchedulerClass, TaskID, string, FunctionTaskBody, CoroutineTaskBody, boolean): TaskID
-    schedule_task: function(SchedulerClass, TaskID)
-    schedule_tasks: function(SchedulerClass, TaskID)
-    schedule_all_tasks: function(SchedulerClass)
-    schedule_posedge_tasks: function(SchedulerClass) -- Available only when `EDGE_STEP` is enabled
-    schedule_negedge_tasks: function(SchedulerClass) -- Available only when `EDGE_STEP` is enabled
-    list_tasks: function(SchedulerClass)
-
-    new_event_hdl: function(SchedulerClass, string, EventID): EventHandle
-    get_event_hdl: function(SchedulerClass, string, EventID): EventHandle -- alias of `new_event_hdl`
-    send_event: function(Scheduler, EventID)
-end
-
-local Scheduler: SchedulerClass = class()
+---@class (exact) verilua.LuaScheduler_gen
+---@field private running_task_count integer Number of running tasks
+---@field private task_yield_info_map table<TaskID, CoroutineYieldInfo> Map of task IDs to coroutine yield info
+---@field private task_coroutine_map table<TaskID, thread> Map of task IDs to coroutine threads
+---@field private task_body_map table<TaskID, CoroutineTaskBody> Map of task IDs to coroutine task bodies
+---@field private task_name_map_running table<TaskID, string> Map of running task IDs to task names
+---@field private task_name_map_archived table<TaskID, string> Map of archived task IDs to task names
+---@field private task_fired_status_map table<TaskID, boolean> Map of task IDs to their fired status
+---@field private task_execution_count_map table<TaskID, integer> Map of task IDs to their execution count
+---@field private pending_removal_tasks TaskID[] List of task IDs pending removal
+---@field private user_removal_tasks TaskID[] List of user specified task IDs to be removed
+---@field private posedge_tasks table<TaskID, boolean> Available only when EDGE_STEP is enabled)
+---@field private negedge_tasks table<TaskID, boolean> Available only when EDGE_STEP is enabled)
+---@field event_task_id_list_map table<EventID, TaskID[]> Map of event IDs to lists of task IDs
+---@field event_name_map table<EventID, string> Map of event IDs to event names
+---@field private has_wakeup_event boolean Indicates if there is a wakeup event
+---@field private pending_wakeup_event table<EventID, any> List of pending wakeup event IDs
+---@field private acc_time_table table<string, number> Accumulated time table
+---@field private _is_coroutine_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID): boolean Checks if a task is a coroutine task
+---@field private _alloc_coroutine_task_id fun(self: verilua.LuaScheduler_gen): TaskID Allocates a new coroutine task ID
+---@field private _remove_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID) Removes a task by ID
+---@field private _register_callback fun(self: verilua.LuaScheduler_gen, task_id: TaskID, callback_type: TaskCallbackType, str_value: string, integer_value: integer) Registers a callback for a task
+---@field curr_task_id TaskID Current task ID
+---@field curr_wakeup_event_id EventID Current wakeup event ID
+---@field private new_event_hdl fun(self: verilua.LuaScheduler_gen, event_name: string, user_event_id?: EventID): EventHandle Creates a new event handle
+---@field private get_event_hdl fun(self: verilua.LuaScheduler_gen, event_name: string, user_event_id?: EventID): EventHandle Alias for new_event_hdl
+---@field private send_event fun(self: verilua.LuaScheduler_gen, event_id: EventID) Sends an event
+---@field remove_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID) Removes a task by ID
+---@field check_task_exists fun(self: verilua.LuaScheduler_gen, task_id: TaskID): boolean Checks if a task exists
+---@field append_task fun(self: verilua.LuaScheduler_gen, task_id?: TaskID, task_name: string, task_body: CoroutineTaskBody, start_now?: boolean): TaskID Appends or registers a new task
+---@field wakeup_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID) Wakes up a registered task
+---@field try_wakeup_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID) Tries to wake up a registered task, does nothing if the task is still running
+---@field schedule_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID) Schedules a specific task
+---@field schedule_tasks fun(self: verilua.LuaScheduler_gen, task_id: TaskID) Schedules multiple tasks
+---@field schedule_all_tasks fun(self: verilua.LuaScheduler_gen) Schedules all tasks
+---@field schedule_posedge_tasks fun(self: verilua.LuaScheduler_gen)|nil Schedules positive edge tasks (available only when EDGE_STEP is enabled)
+---@field schedule_negedge_tasks fun(self: verilua.LuaScheduler_gen)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
+---@field list_tasks fun(self: verilua.LuaScheduler_gen) Lists all running tasks
+local Scheduler = class()
 
 -- TaskID from 0 to 99999 is reserved for coroutine task
 local SCHEDULER_TASK_ID_MIN_COROUTINE = 0
@@ -148,6 +119,7 @@ function Scheduler:_init()
     self.pending_removal_tasks = {}
     self.user_removal_tasks = {}
 
+    ---@diagnostic disable-next-line: undefined-global
     if _G.EDGE_STEP then
         self.posedge_tasks = {}
         self.negedge_tasks = {}
@@ -158,42 +130,49 @@ function Scheduler:_init()
     self.has_wakeup_event = false
     self.pending_wakeup_event = {}
 
+    ---@diagnostic disable-next-line: undefined-global
     if _G.ACC_TIME then
         self.acc_time_table = {}
     end
 
+    ---@diagnostic disable-next-line: undefined-global
     if _G.NORMAL then
         verilua_debug("[Scheduler]", "Using NORMAL scheduler")
+        ---@diagnostic disable-next-line: undefined-global
     elseif _G.STEP then
         verilua_debug("[Scheduler]", "Using STEP scheduler")
     end
 end
 
-function Scheduler:_is_coroutine_task(id: TaskID): boolean
+function Scheduler:_is_coroutine_task(id)
     return id <= SCHEDULER_TASK_ID_MAX_COROUTINE and id >= SCHEDULER_TASK_ID_MIN_COROUTINE
 end
 
-function Scheduler:check_task_exists(id: TaskID): boolean
+function Scheduler:check_task_exists(id)
     return self.task_name_map_running[id] ~= nil
 end
 
-function Scheduler:_alloc_coroutine_task_id(): TaskID
+function Scheduler:_alloc_coroutine_task_id()
     local id = random(SCHEDULER_TASK_ID_MIN_COROUTINE, SCHEDULER_TASK_ID_MAX_COROUTINE)
     local cnt = 0
     while self.task_name_map_archived[id] ~= nil do
         id = random(SCHEDULER_TASK_ID_MIN_COROUTINE, SCHEDULER_TASK_ID_MAX_COROUTINE)
         cnt = cnt + 1
         if cnt >= SCHEDULER_ALLOC_TASK_ID_MAX_CNT then
-            assert(false, "[Scheduler] Failed to allocate coroutine task id! too many attempts, maybe there are no available task id")
+            assert(
+                false,
+                "[Scheduler] Failed to allocate coroutine task id! too many attempts, maybe there are no available task id"
+            )
         end
     end
     return id
 end
 
-function Scheduler:_remove_task(id: TaskID)
+function Scheduler:_remove_task(id)
     self.running_task_count = self.running_task_count - 1
     table_insert(self.pending_removal_tasks, id)
 
+    ---@diagnostic disable-next-line: undefined-global
     if _G.EDGE_STEP then
         if self.posedge_tasks[id] then
             self.posedge_tasks[id] = nil
@@ -203,28 +182,28 @@ function Scheduler:_remove_task(id: TaskID)
     end
 end
 
-function Scheduler:remove_task(id: TaskID)
+function Scheduler:remove_task(id)
     if not self.task_name_map_archived[id] then
         assert(false, "[Scheduler] Invalid task id! task_id: " .. id)
     end
 
-    if self.task_name_map_running[id] then
+    if self.task_name_map_running[id] ~= nil then
         table_insert(self.user_removal_tasks, id)
     end
 end
 
-function Scheduler:_register_callback(id: TaskID, cb_type: TaskCallbackType, str_value: string, integer_value: integer)
+function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
     if _G.NORMAL then
         if cb_type == PosedgeHDL then
             vpiml.vpiml_register_posedge_callback(integer_value, id)
         elseif cb_type == Posedge then
-			vpiml.vpiml_register_posedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
+            vpiml.vpiml_register_posedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
         elseif cb_type == PosedgeAlwaysHDL then
             vpiml.vpiml_register_posedge_callback_always(integer_value, id)
         elseif cb_type == NegedgeHDL then
             vpiml.vpiml_register_negedge_callback(integer_value, id)
         elseif cb_type == Negedge then
-			vpiml.vpiml_register_negedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
+            vpiml.vpiml_register_negedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
         elseif cb_type == NegedgeAlwaysHDL then
             vpiml.vpiml_register_negedge_callback_always(integer_value, id)
         elseif cb_type == Timer then
@@ -265,21 +244,40 @@ function Scheduler:_register_callback(id: TaskID, cb_type: TaskCallbackType, str
 end
 
 -- Used for creating a new coroutine task
-function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTaskBody, start_now: boolean): TaskID
+function Scheduler:append_task(id, name, task_body, start_now)
+    ---@diagnostic disable: undefined-global
     if _G.NORMAL then
         assert(self.running_task_count <= SCHEDULER_MAX_RUNNING_TASK_COUNT, "[Normal Scheduler] Too many tasks!")
+        ---@diagnostic disable: undefined-global
     elseif _G.STEP or _G.EDGE_STEP then
         assert(self.running_task_count <= SCHEDULER_MAX_RUNNING_TASK_COUNT, "[Step Scheduler] Too many tasks!")
     end
 
+    ---@diagnostic disable: undefined-global
     if _G.SAFETY then
-        safety_assert(id is TaskID or id is nil, "[Scheduler] append_tsak: `Task ID` must be a number! but got " .. type(id) .. "!")
-        safety_assert(name is string, "[Scheduler] append_tsak: `Task name` must be a string! but got " .. type(name) .. "!")
-        safety_assert(task_body is CoroutineTaskBody, "[Scheduler] append_tsak: `Task body` must be a function! but got " .. type(task_body) .. "!")
-        safety_assert(start_now is boolean or start_now is nil, "[Scheduler] append_task: `start_now` must be a boolean! but got " .. type(start_now) .. "!")
+        local id_type = type(id)
+        local name_type = type(name)
+        local task_body_type = type(task_body)
+        local start_now_type = type(start_now)
+        safety_assert(
+            id_t == "nil" or id_t == "number",
+            "[Scheduler] append_tsak: `Task ID` must be a number! but got " .. id_type .. "!"
+        )
+        safety_assert(
+            name_type == "string",
+            "[Scheduler] append_tsak: `Task name` must be a string! but got " .. name_type .. "!"
+        )
+        safety_assert(
+            task_body_type == "function",
+            "[Scheduler] append_tsak: `Task body` must be a function! but got " .. task_body_type .. "!"
+        )
+        safety_assert(
+            start_now_type == "boolean" or start_now_type == "nil",
+            "[Scheduler] append_task: `start_now` must be a boolean! but got " .. start_now_type .. "!"
+        )
     end
 
-    local task_id: TaskID = id
+    local task_id = id
     if id then
         if not self:_is_coroutine_task(id) then
             assert(false, "[Scheduler] Invalid coroutine task id!")
@@ -287,16 +285,17 @@ function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTas
 
         if self:check_task_exists(id) then
             local task_name = self.task_name_map_running[id]
-            assert(false, "[Scheduler] Task already exists! task_id: " .. id .. ", task_name: " .. task_name )
+            assert(false, "[Scheduler] Task already exists! task_id: " .. id .. ", task_name: " .. task_name)
         end
     else
         task_id = self:_alloc_coroutine_task_id()
     end
+    ---@cast task_id TaskID
 
     self.task_name_map_running[task_id] = name
     self.task_name_map_archived[task_id] = name
     self.task_fired_status_map[task_id] = false
-    self.task_coroutine_map[task_id] = coro_create(task_body as function)
+    self.task_coroutine_map[task_id] = coro_create(task_body)
     self.task_body_map[task_id] = task_body
     self.task_execution_count_map[task_id] = 0
 
@@ -312,23 +311,23 @@ function Scheduler:append_task(id: TaskID, name: string, task_body: CoroutineTas
     return task_id
 end
 
-function Scheduler:wakeup_task(id: TaskID)
+function Scheduler:wakeup_task(id)
     local task_name = self.task_name_map_archived[id]
     if task_name == nil then
         assert(false, "[Scheduler] Task not registered! task_id: " .. id)
     end
 
-    if self.task_name_map_running[id] then
+    if self.task_name_map_running[id] ~= nil then
         assert(false, "[Scheduler] Task already running! task_id: " .. id .. ", task_name: " .. task_name)
     end
-    
+
     self.task_name_map_running[id] = task_name
     self.task_fired_status_map[id] = true
-    self.task_coroutine_map[id] = coro_create(self.task_body_map[id] as function)
+    self.task_coroutine_map[id] = coro_create(self.task_body_map[id])
     self:schedule_task(id)
 end
 
-function Scheduler:try_wakeup_task(id: TaskID)
+function Scheduler:try_wakeup_task(id)
     if self:check_task_exists(id) then
         return
     else
@@ -339,12 +338,12 @@ function Scheduler:try_wakeup_task(id: TaskID)
 
         self.task_name_map_running[id] = task_name
         self.task_fired_status_map[id] = true
-        self.task_coroutine_map[id] = coro_create(self.task_body_map[id] as function)
+        self.task_coroutine_map[id] = coro_create(self.task_body_map[id])
         self:schedule_task(id)
     end
 end
 
-function Scheduler:schedule_task(id: TaskID)
+function Scheduler:schedule_task(id)
     for _, remove_id in ipairs(self.pending_removal_tasks) do
         self.task_name_map_running[remove_id] = nil
         self.task_execution_count_map[remove_id] = 0
@@ -359,29 +358,42 @@ function Scheduler:schedule_task(id: TaskID)
     table_clear(self.pending_removal_tasks)
 
     for i, remove_id in ipairs(self.user_removal_tasks) do
-		if remove_id == id then
-			table_remove(self.user_removal_tasks, i)
-			self.task_name_map_running[remove_id] = nil
-			self.task_execution_count_map[remove_id] = 0
-			self.task_fired_status_map[remove_id] = false
-			return
-		end
-	end
+        if remove_id == id then
+            table_remove(self.user_removal_tasks, i)
+            self.task_name_map_running[remove_id] = nil
+            self.task_execution_count_map[remove_id] = 0
+            self.task_fired_status_map[remove_id] = false
+            return
+        end
+    end
 
-    local task_cnt: integer = self.task_execution_count_map[id]
+    local task_cnt = self.task_execution_count_map[id]
     self.task_execution_count_map[id] = task_cnt + 1
 
-    local s, e: number, number
+    local s, e
     if _G.ACC_TIME then
         s = os_clock()
     end
 
-    local old_curr_task_id = self.curr_task_id
-    self.curr_task_id = id
-    local ok, cb_type_or_err, str_value, integer_value: boolean, TaskCallbackType, string, integer  = coro_resume(self.task_coroutine_map[id]) as (boolean, TaskCallbackType, string, integer)
-    self.curr_task_id = old_curr_task_id
+    local old_curr_task_id                       = self.curr_task_id
+    self.curr_task_id                            = id
+
+    local ok, cb_type_or_err, str_value, integer_value
+    ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id])
+
+    ---@cast ok boolean
+    ---@cast cb_type_or_err TaskCallbackType
+    ---@cast str_value string
+    ---@cast integer_value integer
+
+    self.curr_task_id                            = old_curr_task_id
     if not ok then
-        print(f("[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s", id, self.task_name_map_running[id], debug.traceback(self.task_coroutine_map[id] as string, cb_type_or_err)))
+        print(f(
+            "[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s",
+            id,
+            self.task_name_map_running[id],
+            debug.traceback(self.task_coroutine_map[id], cb_type_or_err)
+        ))
         io.flush()
 
         _G.VERILUA_GOT_ERROR = true
@@ -398,7 +410,10 @@ function Scheduler:schedule_task(id: TaskID)
         e = os_clock()
         local name = self.task_name_map_running[id]
         if _G.SAFETY then
-            assert(name is string, "task name is not string => " .. tostring(name) .. " id: " .. tostring(id))
+            assert(
+                type(name) == "string",
+                "task name is not string => " .. tostring(name) .. " id: " .. tostring(id)
+            )
         end
 
         local key = tostring(id) .. "@" .. name
@@ -420,7 +435,7 @@ function Scheduler:schedule_task(id: TaskID)
     end
 end
 
-function Scheduler:schedule_tasks(id: TaskID)
+function Scheduler:schedule_tasks(id)
     self:schedule_task(id)
 end
 
@@ -459,21 +474,21 @@ function Scheduler:schedule_negedge_tasks()
 end
 
 function Scheduler:list_tasks()
-	print("╔══════════════════════════════════════════════════════════════════════")
-	print("║ [Scheduler] List Tasks:")
-	print("╠══════════════════════════════════════════════════════════════════════")
+    print("╔══════════════════════════════════════════════════════════════════════")
+    print("║ [Scheduler] List Tasks:")
+    print("╠══════════════════════════════════════════════════════════════════════")
     if _G.ACC_TIME then
-        local total_time: number = 0
-        local max_key_str_len: integer = 0
+        local total_time = 0 --[[@as number]]
+        local max_key_str_len = 0 --[[@as integer]]
 
-        local task_name_count: {string: integer} = {}
+        local task_name_count = {} --[[@as table<string, integer>]]
         for key, _time in pairs(self.acc_time_table) do
             local _task_id, task_name = key:match("([^@]+)@(.*)")
             task_name_count[task_name] = (task_name_count[task_name] or 0) + 1
         end
 
         -- Merge task names with more than 20 occurence into one key
-        local filtered_acc_time_table: {string: number} = {}
+        local filtered_acc_time_table = {} --[[@as table<string, number>]]
         for key, time in pairs(self.acc_time_table) do
             local _task_id, task_name = key:match("([^@]+)@(.*)")
             if task_name_count[task_name] >= 20 then
@@ -493,16 +508,18 @@ function Scheduler:list_tasks()
         self.acc_time_table = filtered_acc_time_table
 
         -- Sort the accumulated time table from small to large
-        local sorted_keys: {string} = {}
+        local sorted_keys = {} --[[@as table<integer, string>]]
         for key, _ in pairs(filtered_acc_time_table) do
             table.insert(sorted_keys, key)
         end
-        table.sort(sorted_keys, function(a: string, b: string): boolean
+        table.sort(sorted_keys, function(a, b)
+            ---@cast a string
+            ---@cast b string
             return filtered_acc_time_table[a] < filtered_acc_time_table[b]
         end)
 
-        local max_str_len: integer = 0
-        local print_str_vec: {string} = {}
+        local max_str_len = 0 --[[@as integer]]
+        local print_str_vec = {} --[[@as table<integer, string>]]
         for _, key in ipairs(sorted_keys) do
             local time = self.acc_time_table[key]
             local percent = time / total_time * 100
@@ -515,13 +532,16 @@ function Scheduler:list_tasks()
             end
         end
 
-        local get_progress_bar = function(progress: number, length: integer): string
-            local completed: integer = math.floor(progress * length)
-            local remaining: integer = length - completed
-            local progressBar: string = "┃" .. string.rep("█", completed) .. "" .. string.rep("▒", remaining) .. "┃"
+        ---@param progress number The progress, ranges from (0, 1)
+        ---@param length integer The length of the progress bar
+        ---@return string The progress bar
+        local get_progress_bar = function(progress, length)
+            local completed = math.floor(progress * length)
+            local remaining = length - completed
+            local progressBar = "┃" .. string.rep("█", completed) .. "" .. string.rep("▒", remaining) .. "┃"
             return progressBar
         end
-        
+
         local idx = 1
         for _, key in ipairs(sorted_keys) do
             local time = self.acc_time_table[key]
@@ -531,12 +551,12 @@ function Scheduler:list_tasks()
             print(f("%-" .. max_str_len .. "s ", str) .. get_progress_bar(time / total_time, 30))
             idx = idx + 1
         end
-        
+
         print(f("║ total_time: %.2f s / %.2f ms", total_time, total_time * 1000))
         print("╠══════════════════════════════════════════════════════════════════════")
     end
 
-    local max_name_str_len: integer = 0
+    local max_name_str_len = 0 --[[@as integer]]
     for _, name in pairs(self.task_name_map_running) do
         local len = #name
         if len > max_name_str_len then
@@ -546,33 +566,34 @@ function Scheduler:list_tasks()
 
     local idx = 0
     for id, name in pairs(self.task_name_map_running) do
-        print(f("║ [%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id, self.task_execution_count_map[id]))
+        print(f("║ [%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id,
+            self.task_execution_count_map[id]))
         idx = idx + 1
     end
-	print("╚══════════════════════════════════════════════════════════════════════")
+    print("╚══════════════════════════════════════════════════════════════════════")
     print()
 end
 
-function Scheduler:send_event(event_id: EventID)
+function Scheduler:send_event(event_id)
     table_insert(self.pending_wakeup_event, event_id)
     self.has_wakeup_event = true
 end
 
--- 
+--
 -- Example:
 --      local scheduler = require "verilua.scheduler.LuaScheduler"
 --      local test_ehdl = scheduler:new_event_hdl("test_1") -- event id will be randomly allocated
 --      test_ehdl:wait()
 --      test_ehdl:send()
---      
+--
 --      local test_ehdl = scheduler:new_event_hdl("test_1", 1) -- manually set event_id
---      
+--
 --      local test_ehdl = scheduler:new_event_hdl "test_1"
--- 
--- 
-function Scheduler:new_event_hdl(name: string, user_event_id: EventID): EventHandle
+--
+--
+function Scheduler:new_event_hdl(name, user_event_id)
     if _G.SAFETY then
-        safety_assert(name is string, "[Scheduler] new_event_hdl: name must be a string")
+        safety_assert(type(name) == "string", "[Scheduler] new_event_hdl: name must be a string")
     end
 
     local event_id = user_event_id
@@ -583,31 +604,45 @@ function Scheduler:new_event_hdl(name: string, user_event_id: EventID): EventHan
             event_id = random(SCHEDULER_MIN_EVENT_ID, SCHEDULER_MAX_EVENT_ID)
             cnt = cnt + 1
             if cnt >= SCHEDULER_ALLOC_EVENT_ID_MAX_CNT then
-                assert(false, "[Scheduler] Failed to allocate event id! too many attempts, maybe there are no available event id")
+                assert(false,
+                    "[Scheduler] Failed to allocate event id! too many attempts, maybe there are no available event id")
             end
         end
     else
-        assert(type(user_event_id) == "number" and user_event_id == math.floor(user_event_id), "user_event_id must be an integer")
+        assert(
+            type(user_event_id) == "number" and user_event_id == math.floor(user_event_id),
+            "user_event_id must be an integer"
+        )
     end
+
+    ---@cast event_id EventID
 
     self.event_name_map[event_id] = name
     self.event_task_id_list_map[event_id] = {} -- task id comes from register_callback => (cb_type == Event)
 
-    return {
+    ---@type EventHandle
+    local ehdl = {
         __type = "EventHandle",
-        _scheduler = self,
+        _scheduler = self --[[@as verilua.LuaScheduler]],
         name = name,
         event_id = event_id,
-        has_pending_wait = function (this: EventHandle): boolean return #self.event_task_id_list_map[this.event_id] > 0 end,
-        wait = function (this: EventHandle) coro_yield(Event, "", this.event_id) end,
-        send = function (this: EventHandle) this._scheduler:send_event(this.event_id) end,
-        remove = function (this: EventHandle)
+        has_pending_wait = function(this)
+            return #self.event_task_id_list_map[this.event_id] > 0
+        end,
+        wait = function(this)
+            coro_yield(Event, "", this.event_id)
+        end,
+        send = function(this)
+            this._scheduler:send_event(this.event_id)
+        end,
+        remove = function(this)
             this._scheduler.event_name_map[this.event_id] = nil
         end
     }
+    return ehdl
 end
 
-function Scheduler:get_event_hdl(name: string, user_event_id: EventID): EventHandle
+function Scheduler:get_event_hdl(name, user_event_id)
     return self:new_event_hdl(name, user_event_id)
 end
 
