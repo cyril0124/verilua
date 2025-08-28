@@ -147,11 +147,12 @@ target("install_lua_modules", function()
 
         -- Workaround install failure for lsqlite3 on 2025.8.16
         os.cd("/tmp")
+        os.tryrm("/tmp/lsqlite-src")
         os.exec("git clone https://github.com/cyril0124/lsqlite-src.git")
         os.cd("lsqlite-src")
         os.exec("unzip lsqlite3_v096.zip")
         os.cd("lsqlite3_v096")
-        os.exec("luarocks make lsqlite3complete-0.9.6-1.rockspec")
+        os.exec("luarocks make --force-lock lsqlite3complete-0.9.6-1.rockspec")
 
         os.exec("luarocks list")
     end)
