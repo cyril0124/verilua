@@ -660,11 +660,15 @@ rule("verilua", function()
         end
 
         local sim_flags = target:values(sim .. ".flags") or {}
+        local sim_flags_str = table.concat(sim_flags, " ")
+        if sim_flags_str == "" then
+            sim_flags_str = "<No flags>"
+        end
         cprint(
             "${✅} [verilua-xmake] [%s] `%s.flags` is ${green underline}%s${reset}",
             target:name(),
             sim,
-            table.concat(sim_flags, " ")
+            sim_flags_str
         )
         table.join2(argv, sim_flags)
 
@@ -1016,7 +1020,39 @@ rule("verilua", function()
         local filelist_dut = {} -- only v/sv files
         local filelist_sim = {} -- including c/c++ files
         local full_buildcmd = ""
-        if sim ~= "wave_vpi" then
+        if sim == "wave_vpi" then
+            local waveform_file = assert(
+                target:get("waveform_file"),
+                "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst, .fsdb)"
+            )
+            local wave_vpi_main
+            do
+                if waveform_file:endswith(".fsdb") then
+                    wave_vpi_main = find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
+                    assert(wave_vpi_main, "[on_build] wave_vpi_main_fsdb is not defined!")
+                else
+                    wave_vpi_main = find_file("wave_vpi_main", { "$(env PATH)" })
+                    if not wave_vpi_main then
+                        local toolchain = assert(
+                            target:toolchain("wave_vpi"),
+                            '[on_build] we need to set_toolchains("@wave_vpi") in target("%s")',
+                            target:name()
+                        )
+                        wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_build] wave_vpi_main not found!")
+                    end
+                end
+            end
+            cprint(
+                "${✅} [verilua-xmake] [%s] wave_vpi_main is ${green underline}%s${reset}",
+                target:name(),
+                wave_vpi_main
+            )
+            cprint(
+                "${✅} [verilua-xmake] [%s] waveform_file is ${green underline}%s${reset}",
+                target:name(),
+                waveform_file
+            )
+        else
             for _, sourcefile in ipairs(sourcefiles) do
                 local ext = path.extension(sourcefile)
                 local abs_sourcefile = path.absolute(sourcefile)
