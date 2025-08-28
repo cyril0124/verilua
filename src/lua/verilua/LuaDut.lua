@@ -14,8 +14,8 @@ local setmetatable = setmetatable
 local HexStr = _G.HexStr
 local BinStr = _G.BinStr
 local DecStr = _G.DecStr
-local await_posedge = _G.await_posedge
-local await_negedge = _G.await_negedge
+local await_posedge_hdl = _G.await_posedge_hdl
+local await_negedge_hdl = _G.await_negedge_hdl
 
 local set_force_enable = false
 local force_path_table = {}
@@ -283,7 +283,7 @@ local function create_proxy(path, use_prefix)
                 if do_func then
                     func(i)
                 end
-                await_posedge(local_path)
+                await_posedge_hdl(vpiml.vpiml_handle_by_name(local_path))
             end
         end,
         negedge = function(t, v, func)
@@ -303,7 +303,7 @@ local function create_proxy(path, use_prefix)
                 if do_func then
                     func(i)
                 end
-                await_negedge(local_path)
+                await_negedge_hdl(vpiml.vpiml_handle_by_name(local_path))
             end
         end,
 
@@ -327,7 +327,7 @@ local function create_proxy(path, use_prefix)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
 
                 if not condition_meet then
-                    await_posedge(local_path)
+                    await_posedge_hdl(vpiml.vpiml_handle_by_name(local_path))
                 else
                     break
                 end
@@ -349,7 +349,7 @@ local function create_proxy(path, use_prefix)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
 
                 if not condition_meet then
-                    await_negedge(local_path)
+                    await_negedge_hdl(vpiml.vpiml_handle_by_name(local_path))
                 else
                     break
                 end

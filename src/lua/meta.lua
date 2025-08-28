@@ -28,23 +28,14 @@ _G.VERILUA_GOT_ERROR = false --[[@as boolean]]
 ---@param time integer
 function await_time(time) end
 
----@param signal_str string
-function await_posedge(signal_str) end
-
 ---@param signal_hdl ComplexHandleRaw
 function await_posedge_hdl(signal_hdl) end
 
 ---@param signal_hdl ComplexHandleRaw
 function always_await_posedge_hdl(signal_hdl) end
 
----@param signal_str string
-function await_negedge(signal_str) end
-
 ---@param signal_hdl ComplexHandleRaw
 function await_negedge_hdl(signal_hdl) end
-
----@param signal_str string
-function await_edge(signal_str) end
 
 ---@param signal_hdl ComplexHandleRaw
 function await_edge_hdl(signal_hdl) end

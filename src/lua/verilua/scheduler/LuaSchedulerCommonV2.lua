@@ -3,137 +3,107 @@ local ceil = math.ceil
 local tostring = tostring
 local coroutine = coroutine
 
----@enum YieldType
+---@enum verilua.scheduler.YieldType
 local YieldType = {
     name             = "YieldType",
     Timer            = 0,
-    Posedge          = 1,
-    PosedgeHDL       = 2,
-    Negedge          = 3,
-    NegedgeHDL       = 4,
-    PosedgeAlways    = 5,
-    PosedgeAlwaysHDL = 6,
-    NegedgeAlways    = 7,
-    NegedgeAlwaysHDL = 8,
-    Edge             = 9,
-    EdgeHDL          = 10,
-    EarlyExit        = 11,
-    Event            = 12,
-    NOOP             = 44
+    PosedgeHDL       = 1,
+    NegedgeHDL       = 2,
+    PosedgeAlways    = 3,
+    PosedgeAlwaysHDL = 4,
+    NegedgeAlways    = 5,
+    NegedgeAlwaysHDL = 6,
+    EdgeHDL          = 7,
+    EarlyExit        = 8,
+    Event            = 9,
+    ReadWrite        = 10,
+    ReadOnly         = 11,
+    NextSimTime      = 12,
+    NOOP             = 5555
 }
 YieldType = utils.enum_define(YieldType)
 
--- local Timer = YieldType.Timer
--- local Posedge = YieldType.Posedge 
--- local PosedgeHDL = YieldType.PosedgeHDL
--- local Negedge = YieldType.Negedge
--- local NegedgeHDL = YieldType.NegedgeHDL
--- local PosedgeAlways = YieldType.PosedgeAlways
--- local PosedgeAlwaysHDL = YieldType.PosedgeAlwaysHDL
--- local NegedgeAlways = YieldType.NegedgeAlways
--- local NegedgeAlwaysHDL = YieldType.NegedgeAlwaysHDL
--- local Edge = YieldType.Edge
--- local EdgeHDL = YieldType.EdgeHDL
--- local EarlyExit = YieldType.EarlyExit
--- local Event = YieldType.Event
--- local NOOP = YieldType.NOOP
-
 local Timer = 0
-local Posedge = 1
-local PosedgeHDL = 2
-local Negedge = 3
-local NegedgeHDL = 4
-local PosedgeAlways = 5
-local PosedgeAlwaysHDL = 6
-local NegedgeAlways = 7
-local NegedgeAlwaysHDL = 8
-local Edge = 9
-local EdgeHDL = 10
-local EarlyExit = 11
-local Event = 12
-local NOOP = 44
+local PosedgeHDL = 1
+local NegedgeHDL = 2
+local PosedgeAlways = 3
+local PosedgeAlwaysHDL = 4
+local NegedgeAlways = 5
+local NegedgeAlwaysHDL = 6
+local EdgeHDL = 7
+local EarlyExit = 8
+local Event = 9
+local ReadWrite = 10
+local ReadOnly = 11
+local NextSimTime = 12
+local NOOP = 5555
 
----@type fun(yield_type: YieldType, string_value: string, integet_value: integer): ...
+---@alias verilua.scheduler.CoroYieldFunc fun(yield_type: verilua.scheduler.YieldType, integet_value: integer): ...
+
+---@type verilua.scheduler.CoroYieldFunc
 local coro_yield = coroutine.yield
 
 local await_time
 if cfg.mode == "step" then
     local period = cfg.period
     ---@param time integer
-    await_time = function (time)
+    await_time = function(time)
         local t = ceil(time / period)
         for _ = 1, t do
-            coro_yield(NOOP, "", 0)
+            coro_yield(NOOP, 0)
         end
     end
 else
     ---@param time integer
-    await_time = function (time)
-        coro_yield(Timer, "", time)
+    await_time = function(time)
+        coro_yield(Timer, time)
     end
-end
-
----@param signal_str string
-local await_posedge = function(signal_str)
-    coro_yield(Posedge, tostring(signal_str), 0)
 end
 
 ---@param signal_hdl ComplexHandleRaw
 local await_posedge_hdl = function(signal_hdl)
-    coro_yield(PosedgeHDL, "", signal_hdl)
+    coro_yield(PosedgeHDL, signal_hdl)
 end
 
 ---@param signal_hdl ComplexHandleRaw
 local always_await_posedge_hdl = function(signal_hdl)
-    coro_yield(PosedgeAlwaysHDL, "", signal_hdl)
-end
-
-local await_negedge = function (signal_str)
-    coro_yield(Negedge, tostring(signal_str), 0)
+    coro_yield(PosedgeAlwaysHDL, signal_hdl)
 end
 
 ---@param signal_hdl ComplexHandleRaw
-local await_negedge_hdl = function (signal_hdl)
-    coro_yield(NegedgeHDL, "", signal_hdl)
-end
-
----@param signal_str string
-local await_edge = function (signal_str)
-    coro_yield(Edge, tostring(signal_str), 0)
+local await_negedge_hdl = function(signal_hdl)
+    coro_yield(NegedgeHDL, signal_hdl)
 end
 
 ---@param signal_hdl ComplexHandleRaw
-local await_edge_hdl = function (signal_hdl)
-    coro_yield(EdgeHDL, "", signal_hdl)
+local await_edge_hdl = function(signal_hdl)
+    coro_yield(EdgeHDL, signal_hdl)
 end
 
 ---@param event_id_integer integer
-local await_event = function (event_id_integer)
-    coro_yield(Event, "", event_id_integer)
+local await_event = function(event_id_integer)
+    coro_yield(Event, event_id_integer)
 end
 
-local await_noop = function ()
-    coro_yield(NOOP, "", 0)
+local await_noop = function()
+    coro_yield(NOOP, 0)
 end
 
 local await_step = await_noop
 
-local exit_task = function ()
-    coro_yield(EarlyExit, "", 0)
+local exit_task = function()
+    coro_yield(EarlyExit, 0)
 end
 
 return {
-    YieldType         = YieldType,
-    await_time        = await_time,
-    await_posedge     = await_posedge,
-    await_posedge_hdl = await_posedge_hdl,
-    await_negedge     = await_negedge,
-    await_negedge_hdl = await_negedge_hdl,
-    await_edge        = await_edge,
-    await_edge_hdl    = await_edge_hdl,
-    await_noop        = await_noop,
-    await_event       = await_event,
-    await_step        = await_step,
-    exit_task         = exit_task,
+    YieldType                = YieldType,
+    await_time               = await_time,
+    await_posedge_hdl        = await_posedge_hdl,
+    await_negedge_hdl        = await_negedge_hdl,
+    await_edge_hdl           = await_edge_hdl,
+    await_noop               = await_noop,
+    await_event              = await_event,
+    await_step               = await_step,
+    exit_task                = exit_task,
     always_await_posedge_hdl = always_await_posedge_hdl,
 }

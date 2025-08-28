@@ -38,7 +38,7 @@ local cfg = _G.cfg
 ---@field private _is_coroutine_task fun(self: verilua.LuaScheduler, task_id: TaskID): boolean Checks if a task is a coroutine task
 ---@field private _alloc_coroutine_task_id fun(self: verilua.LuaScheduler): TaskID Allocates a new coroutine task ID
 ---@field private _remove_task fun(self: verilua.LuaScheduler, task_id: TaskID) Removes a task by ID
----@field private _register_callback fun(self: verilua.LuaScheduler, task_id: TaskID, callback_type: TaskCallbackType, str_value: string, integer_value: integer) Registers a callback for a task
+---@field private _register_callback fun(self: verilua.LuaScheduler, task_id: TaskID, callback_type: TaskCallbackType, integer_value: integer) Registers a callback for a task
 ---@field curr_task_id TaskID Current task ID
 ---@field curr_wakeup_event_id EventID Current wakeup event ID
 ---@field private new_event_hdl fun(self: verilua.LuaScheduler, event_name: string, user_event_id?: EventID): EventHandle Creates a new event handle

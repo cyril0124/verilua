@@ -35,6 +35,8 @@ local coro_yield = coroutine.yield
 local coro_resume = coroutine.resume
 local coro_create = coroutine.create
 
+---@cast coro_yield verilua.scheduler.CoroYieldFunc
+
 ---@type fun(): number
 local os_clock
 if _G.ACC_TIME then
@@ -42,19 +44,19 @@ if _G.ACC_TIME then
 end
 
 local Timer = 0
-local Posedge = 1
-local PosedgeHDL = 2
-local Negedge = 3
-local NegedgeHDL = 4
-local PosedgeAlways = 5
-local PosedgeAlwaysHDL = 6
-local NegedgeAlways = 7
-local NegedgeAlwaysHDL = 8
-local Edge = 9
-local EdgeHDL = 10
-local EarlyExit = 11
-local Event = 12
-local NOOP = 44
+local PosedgeHDL = 1
+local NegedgeHDL = 2
+local PosedgeAlways = 3
+local PosedgeAlwaysHDL = 4
+local NegedgeAlways = 5
+local NegedgeAlwaysHDL = 6
+local EdgeHDL = 7
+local EarlyExit = 8
+local Event = 9
+local ReadWrite = 10
+local ReadOnly = 11
+local NextSimTime = 12
+local NOOP = 5555
 
 ---@class (exact) verilua.LuaScheduler_gen
 ---@field private running_task_count integer Number of running tasks
@@ -77,7 +79,7 @@ local NOOP = 44
 ---@field private _is_coroutine_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID): boolean Checks if a task is a coroutine task
 ---@field private _alloc_coroutine_task_id fun(self: verilua.LuaScheduler_gen): TaskID Allocates a new coroutine task ID
 ---@field private _remove_task fun(self: verilua.LuaScheduler_gen, task_id: TaskID) Removes a task by ID
----@field private _register_callback fun(self: verilua.LuaScheduler_gen, task_id: TaskID, callback_type: TaskCallbackType, str_value: string, integer_value: integer) Registers a callback for a task
+---@field private _register_callback fun(self: verilua.LuaScheduler_gen, task_id: TaskID, callback_type: TaskCallbackType, integer_value: integer) Registers a callback for a task
 ---@field curr_task_id TaskID Current task ID
 ---@field curr_wakeup_event_id EventID Current wakeup event ID
 ---@field private new_event_hdl fun(self: verilua.LuaScheduler_gen, event_name: string, user_event_id?: EventID): EventHandle Creates a new event handle
@@ -192,18 +194,14 @@ function Scheduler:remove_task(id)
     end
 end
 
-function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
+function Scheduler:_register_callback(id, cb_type, integer_value)
     if _G.NORMAL then
         if cb_type == PosedgeHDL then
             vpiml.vpiml_register_posedge_callback(integer_value, id)
-        elseif cb_type == Posedge then
-            vpiml.vpiml_register_posedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
         elseif cb_type == PosedgeAlwaysHDL then
             vpiml.vpiml_register_posedge_callback_always(integer_value, id)
         elseif cb_type == NegedgeHDL then
             vpiml.vpiml_register_negedge_callback(integer_value, id)
-        elseif cb_type == Negedge then
-            vpiml.vpiml_register_negedge_callback(vpiml.vpiml_handle_by_name_safe(str_value), id)
         elseif cb_type == NegedgeAlwaysHDL then
             vpiml.vpiml_register_negedge_callback_always(integer_value, id)
         elseif cb_type == Timer then
@@ -226,9 +224,9 @@ function Scheduler:_register_callback(id, cb_type, str_value, integer_value)
             table_insert(self.event_task_id_list_map[integer_value], id)
         end
     elseif _G.EDGE_STEP then
-        if cb_type == PosedgeHDL or cb_type == Posedge or cb_type == PosedgeAlwaysHDL or cb_type == Timer then
+        if cb_type == PosedgeHDL or cb_type == PosedgeAlwaysHDL or cb_type == Timer then
             self.posedge_tasks[id] = true
-        elseif cb_type == NegedgeHDL or cb_type == Negedge or cb_type == NegedgeAlwaysHDL then
+        elseif cb_type == NegedgeHDL or cb_type == NegedgeAlwaysHDL then
             self.negedge_tasks[id] = true
         elseif cb_type == NOOP then
             -- do nothing
@@ -375,18 +373,19 @@ function Scheduler:schedule_task(id)
         s = os_clock()
     end
 
-    local old_curr_task_id                       = self.curr_task_id
-    self.curr_task_id                            = id
+    local old_curr_task_id            = self.curr_task_id
+    self.curr_task_id                 = id
 
-    local ok, cb_type_or_err, str_value, integer_value
-    ok, cb_type_or_err, str_value, integer_value = coro_resume(self.task_coroutine_map[id])
+    local ok
+    local cb_type_or_err
+    local integer_value
+    ok, cb_type_or_err, integer_value = coro_resume(self.task_coroutine_map[id])
 
     ---@cast ok boolean
     ---@cast cb_type_or_err TaskCallbackType
-    ---@cast str_value string
     ---@cast integer_value integer
 
-    self.curr_task_id                            = old_curr_task_id
+    self.curr_task_id                 = old_curr_task_id
     if not ok then
         print(f(
             "[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s",
@@ -403,7 +402,7 @@ function Scheduler:schedule_task(id)
     if cb_type_or_err == nil or cb_type_or_err == EarlyExit then
         self:_remove_task(id)
     else
-        self:_register_callback(id, cb_type_or_err, str_value, integer_value)
+        self:_register_callback(id, cb_type_or_err, integer_value)
     end
 
     if _G.ACC_TIME then
@@ -630,7 +629,7 @@ function Scheduler:new_event_hdl(name, user_event_id)
             return #self.event_task_id_list_map[this.event_id] > 0
         end,
         wait = function(this)
-            coro_yield(Event, "", this.event_id)
+            coro_yield(Event, this.event_id)
         end,
         send = function(this)
             this._scheduler:send_event(this.event_id)
