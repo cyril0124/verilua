@@ -616,9 +616,9 @@ rule("verilua", function()
                             extra_vcs_flags[j] = uflag
                         end
                     end
-                elseif uflag:startswith("-cc") then
+                elseif uflag == "-cc" then
                     for j, eflag in ipairs(extra_vcs_flags) do
-                        if eflag:startswith("-cc") then
+                        if eflag:startswith("-cc ") then
                             local cc_value = vcs_uflags[i + 1]
                             assert(
                                 cc_value,
@@ -627,9 +627,9 @@ rule("verilua", function()
                             extra_vcs_flags[j] = uflag .. " " .. cc_value
                         end
                     end
-                elseif uflag:startswith("-cpp") then
+                elseif uflag == "-cpp" then
                     for j, eflag in ipairs(extra_vcs_flags) do
-                        if eflag:startswith("-cpp") then
+                        if eflag:startswith("-cpp ") then
                             local cpp_value = vcs_uflags[i + 1]
                             assert(
                                 cpp_value,
@@ -638,9 +638,9 @@ rule("verilua", function()
                             extra_vcs_flags[j] = uflag .. " " .. cpp_value
                         end
                     end
-                elseif uflag:startswith("-ld") then
+                elseif uflag == "-ld" then
                     for j, eflag in ipairs(extra_vcs_flags) do
-                        if eflag:startswith("-ld") then
+                        if eflag:startswith("-ld ") then
                             local ld_value = vcs_uflags[i + 1]
                             assert(
                                 ld_value,
