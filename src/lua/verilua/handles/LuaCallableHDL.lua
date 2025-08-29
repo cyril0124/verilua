@@ -404,7 +404,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         ---@cast DpiExporter DpiExporter
         local is_exported = DpiExporter:is_exported(self.fullpath)
         if is_exported then
-            print(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
+            verilua_debug(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
 
             -- Assign new `get`
             if self.width <= 32 then
