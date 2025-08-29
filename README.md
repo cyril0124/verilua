@@ -7,6 +7,8 @@
 ![GitHub commits since latest release](https://img.shields.io/github/commits-since/cyril0124/verilua/latest?style=for-the-badge)
 ![GitHub Created At](https://img.shields.io/github/created-at/cyril0124/verilua?style=for-the-badge)
 [![Static Badge](https://img.shields.io/badge/Benchmark-8A2BE2?style=for-the-badge)](https://cyril0124.github.io/verilua-benchmark-results/dev/bench/)
+![Static Badge](https://img.shields.io/badge/LuaJIT%202.1-blue?style=for-the-badge&logo=lua)
+
 
 </div>
 
@@ -52,8 +54,16 @@ Notice:
 - Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
 - `update_verilua` is only available if you have installed verilua from release.
 
+## 💡 Why Lua/LuaJIT?
+
+- 🚀 **High Performance**: LuaJIT, a Just-In-Time Compiler, transforms Lua code into native machine code, delivering exceptional speed and efficiency.
+- ⚡ **Lightweight & Fast**: Lua boasts a minimal runtime and near-instant startup time, outpacing other dynamic languages like Python.
+- 💫 **Seamless C Integration**: LuaJIT's Foreign Function Interface (FFI) enables efficient calls to C functions and libraries, and even supports calling Rust code, simplifying integration with native code.
+- 👍 **Enhanced Development**: While Lua is dynamically typed, tools like [LuaLS](https://github.com/LuaLS/lua-language-server) and [EmmyLuaLs](https://github.com/EmmyLuaLs/emmylua-analyzer-rust) introduce a comment-based type system, significantly improving code clarity and developer experience.
+
 ## 🌟 Credits
-- [LuaJIT](https://github.com/LuaJIT/LuaJIT) - Amazing lua implementation with high performance.
-- [Cocotb](https://github.com/cocotb/cocotb) - Verilua takes inspiration from cocotb.
-- [Slang](https://github.com/MikePopoloski/slang) - We use Slang to parse Verilog/SystemVerilog files and it is used in many tools in this repo.
-- [Xmake](https://github.com/xmake-io/xmake) - The entire build system is based on xmake.
+
+- **[LuaJIT](https://github.com/LuaJIT/LuaJIT)** - A high-performance Lua implementation powering Verilua's speed and efficiency.
+- **[Cocotb](https://github.com/cocotb/cocotb)** - A source of inspiration for Verilua's design and functionality.
+- **[Slang](https://github.com/MikePopoloski/slang)** - A robust parser for Verilog/SystemVerilog files, integral to many tools in this repository.
+- **[Xmake](https://github.com/xmake-io/xmake)** - The foundation of our streamlined and efficient build system.
