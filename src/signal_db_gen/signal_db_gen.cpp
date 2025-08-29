@@ -267,11 +267,14 @@ class WrappedDriver {
     json metaInfoJson;
     std::string metaInfoFilePath;
 
+    bool alreadyParsedCmdLine = false;
+
     WrappedDriver() {
         start = std::chrono::high_resolution_clock::now();
 
-        std::string veriluaHome = std::getenv("VERILUA_HOME");
-        ASSERT(veriluaHome.size() > 0, "VERILUA_HOME is not set");
+        const char *_veriluaHome = std::getenv("VERILUA_HOME");
+        ASSERT(_veriluaHome != nullptr, "VERILUA_HOME is not set");
+        std::string veriluaHome = _veriluaHome;
 
         lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::string, sol::lib::table, sol::lib::io, sol::lib::os);
         lua.safe_script_file(veriluaHome + "/src/signal_db_gen/signal_db_gen.lua");
@@ -290,7 +293,10 @@ class WrappedDriver {
     }
 
     int parseCmdLine(int argc, char **argv) {
-        ASSERT(driver.parseCommandLine(argc, argv));
+        if (!alreadyParsedCmdLine) {
+            ASSERT(driver.parseCommandLine(argc, argv));
+            alreadyParsedCmdLine = true;
+        }
 
         if (showHelp) {
             std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText(fmt::format("dpi_exporter(verilua@{})", VERILUA_VERSION).c_str()));
@@ -317,7 +323,10 @@ class WrappedDriver {
     }
 
     int parseCmdLine(std::string_view argList) {
-        ASSERT(driver.parseCommandLine(argList));
+        if (!alreadyParsedCmdLine) {
+            ASSERT(driver.parseCommandLine(argList));
+            alreadyParsedCmdLine = true;
+        }
 
         if (showHelp) {
             std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
@@ -478,28 +487,53 @@ class WrappedDriver {
     }
 };
 
-#ifdef SO_LIB
 extern "C" void signal_db_gen_main(const char *argList) {
-    WrappedDriver driver;
-    int ret = driver.parseCmdLine(std::string_view(argList));
-#else
-int main(int argc, char **argv) {
-    OS::setupConsole();
-    WrappedDriver driver;
-    int ret = driver.parseCmdLine(argc, argv);
-#endif
+    try {
+        WrappedDriver wDriver;
 
-    if (ret == 1) {
-        std::string lockfilePath = driver.outfile.value_or(DEFAULT_OUTPUT_FILE) + ".lock";
+        // Parse command line to get `outfile` option
+        ASSERT(wDriver.driver.parseCommandLine(std::string_view(argList)));
+        wDriver.alreadyParsedCmdLine = true;
+
+        std::string lockfilePath = wDriver.outfile.value_or(DEFAULT_OUTPUT_FILE) + ".lock";
         try {
             FileLock lock(lockfilePath);
-            driver.generateSignalDB();
-        } catch (const std::runtime_error &e) {
+            int ret = wDriver.parseCmdLine(std::string_view(argList));
+            if (ret == 1) {
+                wDriver.generateSignalDB();
+            }
+        } catch (const std::exception &e) {
             PANIC("[signal_db_gen] Failed to lock file", lockfilePath, e.what());
         };
+    } catch (const std::exception &e) {
+        fmt::println(stderr, "[signal_db_gen] {}", e.what());
     }
+}
 
 #ifndef SO_LIB
-    return ret;
-#endif
+int main(int argc, char **argv) {
+    try {
+        OS::setupConsole();
+        WrappedDriver wDriver;
+
+        // Parse command line to get `outfile` option
+        ASSERT(wDriver.driver.parseCommandLine(argc, argv));
+        wDriver.alreadyParsedCmdLine = true;
+
+        std::string lockfilePath = wDriver.outfile.value_or(DEFAULT_OUTPUT_FILE) + ".lock";
+        try {
+            FileLock lock(lockfilePath);
+            int ret = wDriver.parseCmdLine(argc, argv);
+            if (ret == 1) {
+                wDriver.generateSignalDB();
+            }
+        } catch (const std::exception &e) {
+            PANIC("[signal_db_gen] Failed to lock file", lockfilePath, e.what());
+        };
+    } catch (const std::exception &e) {
+        fmt::println(stderr, "[signal_db_gen] {}", e.what());
+        return -1;
+    }
+    return 0;
 }
+#endif
