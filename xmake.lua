@@ -153,6 +153,7 @@ target("install_lua_modules", function()
         os.exec("unzip lsqlite3_v096.zip")
         os.cd("lsqlite3_v096")
         os.exec("luarocks make --force-lock lsqlite3complete-0.9.6-1.rockspec")
+        os.exec("luarocks make --force-lock lsqlite3-0.9.6-1.rockspec")
 
         os.exec("luarocks list")
     end)
