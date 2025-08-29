@@ -41,6 +41,10 @@ pub struct EdgeCbData {
     pub vpi_time: t_vpi_time,
 }
 
+pub struct NormalCbData {
+    pub task_id: TaskID,
+}
+
 #[inline(always)]
 fn edge_type_to_value(edge_type: &EdgeType) -> EdgeValue {
     match edge_type {
@@ -132,11 +136,136 @@ unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     0
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_register_rd_synch_callback(task_id: TaskID) {
+    let user_data = Box::into_raw(Box::new(NormalCbData { task_id: task_id }));
+
+    let mut cb_data = s_cb_data {
+        reason: cbReadOnlySynch as _,
+        cb_rtn: Some(rd_synch_callback),
+        time: &mut t_vpi_time {
+            type_: vpiSimTime as _,
+            high: 0,
+            low: 0,
+            real: 0.0,
+        },
+        obj: std::ptr::null_mut(),
+        user_data: user_data as *mut _,
+        value: std::ptr::null_mut(),
+        index: 0,
+    };
+
+    unsafe { vpi_register_cb(&mut cb_data) };
+}
+
+unsafe extern "C" fn rd_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
+    let cb_data = unsafe { cb_data.read() };
+    let user_data: Box<NormalCbData> =
+        unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
+    let env = get_verilua_env();
+
+    if let Err(e) = env
+        .lua_sim_event
+        .as_ref()
+        .unwrap()
+        .call::<()>(user_data.task_id)
+    {
+        env.finalize();
+        panic!("{}", e);
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_register_rw_synch_callback(task_id: TaskID) {
+    let user_data = Box::into_raw(Box::new(NormalCbData { task_id: task_id }));
+
+    let mut cb_data = s_cb_data {
+        reason: cbReadWriteSynch as _,
+        cb_rtn: Some(rw_synch_callback),
+        time: &mut t_vpi_time {
+            type_: vpiSimTime as _,
+            high: 0,
+            low: 0,
+            real: 0.0,
+        },
+        obj: std::ptr::null_mut(),
+        user_data: user_data as *mut _,
+        value: std::ptr::null_mut(),
+        index: 0,
+    };
+
+    unsafe { vpi_register_cb(&mut cb_data) };
+}
+
+unsafe extern "C" fn rw_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
+    let cb_data = unsafe { cb_data.read() };
+    let user_data: Box<NormalCbData> =
+        unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
+    let env = get_verilua_env();
+
+    if let Err(e) = env
+        .lua_sim_event
+        .as_ref()
+        .unwrap()
+        .call::<()>(user_data.task_id)
+    {
+        env.finalize();
+        panic!("{}", e);
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_register_next_sim_time_callback(task_id: TaskID) {
+    let user_data = Box::into_raw(Box::new(NormalCbData { task_id: task_id }));
+
+    let mut t = t_vpi_time {
+        type_: vpiSimTime as _,
+        high: 0,
+        low: 0,
+        real: 0.0,
+    };
+
+    let mut cb_data = s_cb_data {
+        reason: cbNextSimTime as _,
+        cb_rtn: Some(next_sim_time_callback),
+        time: &mut t,
+        obj: std::ptr::null_mut(),
+        user_data: user_data as *mut _,
+        value: std::ptr::null_mut(),
+        index: 0,
+    };
+
+    let handle = unsafe { vpi_register_cb(&mut cb_data as _) };
+    unsafe { vpi_free_object(handle) };
+}
+
+unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
+    let cb_data = unsafe { cb_data.read() };
+    let user_data: Box<NormalCbData> =
+        unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
+    let env = get_verilua_env();
+
+    if let Err(e) = env
+        .lua_sim_event
+        .as_ref()
+        .unwrap()
+        .call::<()>(user_data.task_id)
+    {
+        env.finalize();
+        panic!("{}", e);
+    }
+
+    0
+}
+
 #[inline(always)]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn libverilua_register_rw_synch_cb() {
     // `ReadWriteSynch` callback is used to settle value changes(e.g. put value or force value) in Verilua
-    // log::debug!("vpiml_register_read_write_synch_callback()");
 
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,
@@ -177,7 +306,7 @@ unsafe extern "C" fn libverilua_flush_put_values(cb_data: *mut t_cb_data) -> PLI
 
 #[inline(always)]
 fn libverilua_do_register_next_sim_time_cb() {
-    // `libverilua_do_register_next_sim_time_cb` will be called in `read_write_synch_callback`
+    // `libverilua_do_register_next_sim_time_cb` will be called in `libverilua_flush_put_values`
     // since we do all value settles in the `ReadWriteSynch` callback
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,

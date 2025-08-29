@@ -47,7 +47,17 @@ function await_noop() end
 
 function await_step() end
 
+--- Exit the current task
 function exit_task() end
+
+--- Await cbReadWrite callback
+function await_rw() end
+
+--- Await cbReadOnly callback
+function await_rd() end
+
+--- Await cbNextSimTime callback
+function await_nsim() end
 
 ---------------------------------------------------
 --- Xmake related functions

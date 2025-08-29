@@ -95,6 +95,18 @@ local exit_task = function()
     coro_yield(EarlyExit, 0)
 end
 
+local await_rw = function()
+    coro_yield(ReadWrite, 0)
+end
+
+local await_rd = function()
+    coro_yield(ReadOnly, 0)
+end
+
+local await_nsim = function()
+    coro_yield(NextSimTime, 0)
+end
+
 return {
     YieldType                = YieldType,
     await_time               = await_time,
@@ -105,5 +117,8 @@ return {
     await_event              = await_event,
     await_step               = await_step,
     exit_task                = exit_task,
+    await_rw                 = await_rw,
+    await_rd                 = await_rd,
+    await_nsim               = await_nsim,
     always_await_posedge_hdl = always_await_posedge_hdl,
 }

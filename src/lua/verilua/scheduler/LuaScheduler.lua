@@ -2,7 +2,7 @@ local cfg = _G.cfg
 
 ---@alias TaskID integer
 ---@alias EventID integer
----@alias TaskCallbackType integer
+---@alias TaskCallbackType verilua.scheduler.YieldType
 ---@alias FunctionTaskBody fun(): boolean?
 ---@alias CoroutineYieldInfo [integer, string, integer]
 ---@alias CoroutineTaskBody fun()
@@ -18,7 +18,6 @@ local cfg = _G.cfg
 ---@field remove fun(self: EventHandle) Mark this EventHandle as removed
 
 ---@class (exact) verilua.LuaScheduler
----@field private running_task_count integer Number of running tasks
 ---@field private task_yield_info_map table<TaskID, CoroutineYieldInfo> Map of task IDs to coroutine yield info
 ---@field private task_coroutine_map table<TaskID, thread> Map of task IDs to coroutine threads
 ---@field private task_body_map table<TaskID, CoroutineTaskBody> Map of task IDs to coroutine task bodies
@@ -30,13 +29,17 @@ local cfg = _G.cfg
 ---@field private user_removal_tasks TaskID[] List of user specified task IDs to be removed
 ---@field private posedge_tasks table<TaskID, boolean> Available only when EDGE_STEP is enabled)
 ---@field private negedge_tasks table<TaskID, boolean> Available only when EDGE_STEP is enabled)
+---@field private next_task_id TaskID Next available task ID
+---@field private next_event_id EventID Next available event ID
 ---@field event_task_id_list_map table<EventID, TaskID[]> Map of event IDs to lists of task IDs
 ---@field event_name_map table<EventID, string> Map of event IDs to event names
 ---@field private has_wakeup_event boolean Indicates if there is a wakeup event
 ---@field private pending_wakeup_event table<EventID, any> List of pending wakeup event IDs
 ---@field private acc_time_table table<string, number> Accumulated time table
----@field private _is_coroutine_task fun(self: verilua.LuaScheduler, task_id: TaskID): boolean Checks if a task is a coroutine task
----@field private _alloc_coroutine_task_id fun(self: verilua.LuaScheduler): TaskID Allocates a new coroutine task ID
+---@field private _is_valid_task_id fun(self: verilua.LuaScheduler, task_id: TaskID): boolean Checks if a task ID is valid
+---@field private _is_valid_event_id fun(self: verilua.LuaScheduler, event_id: EventID): boolean Checks if an event ID is valid
+---@field private _alloc_task_id fun(self: verilua.LuaScheduler): TaskID Allocates a new task ID
+---@field private _alloc_event_id fun(self: verilua.LuaScheduler): EventID Allocates a new event ID
 ---@field private _remove_task fun(self: verilua.LuaScheduler, task_id: TaskID) Removes a task by ID
 ---@field private _register_callback fun(self: verilua.LuaScheduler, task_id: TaskID, callback_type: TaskCallbackType, integer_value: integer) Registers a callback for a task
 ---@field curr_task_id TaskID Current task ID
@@ -54,7 +57,7 @@ local cfg = _G.cfg
 ---@field schedule_all_tasks fun(self: verilua.LuaScheduler) Schedules all tasks
 ---@field schedule_posedge_tasks fun(self: verilua.LuaScheduler)|nil Schedules positive edge tasks (available only when EDGE_STEP is enabled)
 ---@field schedule_negedge_tasks fun(self: verilua.LuaScheduler)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
----@field list_tasks fun(self: verilua.LuaScheduler) Lists all running tasks
+---@field list_tasks fun(self: verilua.LuaScheduler) List all running tasks
 
 local scheduler
 if os.getenv("VL_PREBUILD") then
