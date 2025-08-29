@@ -28,7 +28,7 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     needs: changes
-    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
     strategy:
       matrix:
         os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]

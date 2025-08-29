@@ -28,7 +28,7 @@ jobs:
   benchmarks:
     runs-on: "ubuntu-24.04"
     needs: changes
-    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
     env:
       verilator-version: 'v5.038'
       iverilog-tag: 's20250103'
