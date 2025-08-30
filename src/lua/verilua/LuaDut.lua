@@ -22,49 +22,364 @@ local force_path_table = {}
 
 ---@class ProxyTableHandle
 ---@field __type "ProxyTableHandle"
+---
+--- Set value into the signal, the value must be an integer(32-bit value).
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:set(123)
+--- ```
 ---@field set fun(self: ProxyTableHandle, v: integer)
+---
+--- Immediately set value into the signal, bypassing any delay.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:set_imm(123)
+--- ```
 ---@field set_imm fun(self: ProxyTableHandle, v: integer)
+---
+--- Randomly set value into the signal.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:set_shuffled()
+--- ```
 ---@field set_shuffled fun(self: ProxyTableHandle)
+---
+--- Freeze the current value of the signal.
+--- e.g.
+--- ```lua
+--- assert(dut.path.to.signal:get() == 123)
+--- dut.path.to.signal:set_freeze()
+--- -- ...
+--- assert(dut.path.to.signal:get() == 123)
+--- ```
 ---@field set_freeze fun(self: ProxyTableHandle)
+---
+--- Forcely set value into the signal, the value must be an integer(32-bit value).
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:set_force(123)
+--- dut.path.to.signal:set(111) -- this will be ignored
+--- -- ...
+--- assert(dut.path.to.signal:get() == 123)
+--- ```
 ---@field set_force fun(self: ProxyTableHandle, v: integer)
+---
+--- Release the `set_force` operation.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:set_force(123)
+--- assert(dut.path.to.signal:get() == 123)
+--- dut.path.to.signal:set_release()
+--- -- ...
+--- dut.path.to.signal:set(111)
+--- -- ...
+--- assert(dut.path.to.signal:get() == 111)
+--- ```
 ---@field set_release fun(self: ProxyTableHandle)
+---
+--- Enable force mode for all subsequent set operations.
+--- e.g.
+--- ```lua
+--- dut:force_all()
+--- dut.cycles:set(1)
+--- dut.path.to.signal:set(1)
+--- ```
 ---@field force_all fun(self: ProxyTableHandle)
+---
+--- Release all forced signals, disabling force mode.
+--- e.g.
+--- ```lua
+--- dut:force_all()
+--- dut.clock:posedge()
+--- dut:release_all()
+--- ```
 ---@field release_all fun(self: ProxyTableHandle)
+---
+--- Execute a code block where all set operations are treated as force operations.
+--- Automatically releases forced signals after execution.
+--- e.g.
+--- ```lua
+--- dut:force_region(function()
+---     dut.clock:negedge()
+---     dut.cycles:set(1)
+--- end)
+--- ```
 ---@field force_region fun(self: ProxyTableHandle, code_func: fun())
+---
+--- Get the current value of the signal as an integer.
+--- e.g.
+--- ```lua
+--- local value = dut.cycles:get()
+--- ```
 ---@field get fun(self: ProxyTableHandle): integer
+---
+--- Get the signal value as a formatted string (hex, binary, or decimal).
+--- e.g.
+--- ```lua
+--- local bin_str = dut.cycles:get_str(BinStr)
+--- local dec_str = dut.cycles:get_str(DecStr)
+--- local hex_str = dut.cycles:get_str(HexStr)
+--- ```
 ---@field get_str fun(self: ProxyTableHandle, fmt: integer): string
+---
+--- Get the signal value as a hexadecimal string.
+--- e.g.
+--- ```lua
+--- local hex_str = dut.cycles:get_hex_str()
+--- assert(hex_str == "123")
+--- ```
 ---@field get_hex_str fun(self: ProxyTableHandle): string
+---
+--- Set the signal value using a string (hex or binary with prefix).
+--- e.g.
+--- ```lua
+--- dut.cycles:set_str("0x123")    -- for hex string
+--- dut.cycles:set_str("0b101010") -- for binary string
+--- ```
 ---@field set_str fun(self: ProxyTableHandle, str: string)
+---
+--- Set the signal value using a hexadecimal string (no prefix required).
+--- e.g.
+--- ```lua
+--- dut.cycles:set_hex_str("123")
+--- ```
 ---@field set_hex_str fun(self: ProxyTableHandle, str: string)
+---
+--- Forcefully set the signal value using a string.
+--- e.g.
+--- ```lua
+--- dut.cycles:set_force_str("0x123")
+--- ```
 ---@field set_force_str fun(self: ProxyTableHandle, str: string)
+---
+--- Wait for positive edge(s) on the signal, optionally executing a callback.
+--- e.g.
+--- ```lua
+--- dut.clock:posedge()
+--- dut.reset:posedge(10)
+--- dut.clock:posedge(10, function(c) print("current count is " .. c) end)
+--- ```
 ---@field posedge fun(self: ProxyTableHandle, v?: integer, func?: fun(c: integer))
+---
+--- Wait for negative edge(s) on the signal, optionally executing a callback.
+--- e.g.
+--- ```lua
+--- dut.clock:negedge()
+--- dut.reset:negedge(10)
+--- dut.clock:negedge(10, function(c) print("current count is " .. c) end)
+--- ```
 ---@field negedge fun(self: ProxyTableHandle, v?: integer, func?: fun(c: integer))
+---
+--- Wait for positive edges until a condition is met or max limit is reached.
+--- e.g.
+--- ```lua
+--- local condition_met = dut.clock:posedge_until(100, function(c)
+---     return dut.cycles:get() >= 100
+--- end)
+--- ```
 ---@field posedge_until fun(self: ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
+---
+--- Wait for negative edges until a condition is met or max limit is reached.
+--- e.g.
+--- ```lua
+--- local condition_met = dut.clock:negedge_until(100, function(c)
+---     return dut.cycles:get() >= 100
+--- end)
+--- ```
 ---@field negedge_until fun(self: ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
+---
+--- Get the raw handle(ComplexHandleRaw) for the signal.
+--- e.g.
+--- ```lua
+--- local hdl = dut.cycles:hdl()
+--- ```
 ---@field hdl fun(self: ProxyTableHandle): ComplexHandleRaw
+---
+--- Get a CallableHDL for the signal.
+--- e.g.
+--- ```lua
+--- local cycles_chdl = dut.cycles:chdl()
+--- print("value of cycles is " .. cycles_chdl:get())
+--- cycles_chdl:set(123)
+--- ```
 ---@field chdl fun(self: ProxyTableHandle): CallableHDL
+---
+--- Get the full path name of the signal.
+--- e.g.
+--- ```lua
+--- local path = dut.path.to.signal:name()
+--- assert(path == "tb_top.path.to.signal")
+--- ```
 ---@field name fun(self: ProxyTableHandle): string
+---
+--- Get the bit width of the signal.
+--- e.g.
+--- ```lua
+--- local width = dut.cycles:get_width()
+--- assert(width == 64)
+--- ```
 ---@field get_width fun(self: ProxyTableHandle): integer
+---
+--- Get a string representation of the signal value with its path.
+--- e.g.
+--- ```lua
+--- local str = dut.path.to.signal:dump_str()
+--- -- Returns: "[tb_top.path.to.signal] => 0x1234"
+--- ```
 ---@field dump_str fun(self: ProxyTableHandle): string
+---
+--- Print the signal value with its path.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:dump()
+--- -- Prints: [tb_top.path.to.signal] => 0x1234
+--- ```
 ---@field dump fun(self: ProxyTableHandle)
+---
+--- Assert that the signal value equals the specified value.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect(1)
+--- ```
 ---@field expect fun(self: ProxyTableHandle, value: integer)
+---
+--- Assert that the signal value does not equal the specified value.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect_not(1)
+--- ```
 ---@field expect_not fun(self: ProxyTableHandle, value: integer)
+---
+--- Assert that the signal value matches the specified hexadecimal string.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect_hex_str("1234abc")
+--- ```
 ---@field expect_hex_str fun(self: ProxyTableHandle, hex_value_str: string)
+---
+--- Assert that the signal value matches the specified binary string.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect_bin_str("10101010")
+--- ```
 ---@field expect_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
+---
+--- Assert that the signal value matches the specified decimal string.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect_dec_str("1234")
+--- ```
 ---@field expect_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
+---
+--- Assert that the signal value does not match the specified hexadecimal string.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect_not_hex_str("1234abc")
+--- ```
 ---@field expect_not_hex_str fun(self: ProxyTableHandle, hex_value_str: string)
+---
+--- Assert that the signal value does not match the specified binary string.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect_not_bin_str("10101010")
+--- ```
 ---@field expect_not_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
+---
+--- Assert that the signal value does not match the specified decimal string.
+--- e.g.
+--- ```lua
+--- dut.path.to.signal:expect_not_dec_str("1234")
+--- ```
 ---@field expect_not_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
+---
+--- TODO:
 ---@field _if fun(self: ProxyTableHandle, condition: fun(): boolean): ProxyTableHandle
+---
+--- Check if the signal value equals the specified value.
+--- e.g.
+--- ```lua
+--- assert(dut.path.to.signal:is(1))
+--- ```
 ---@field is fun(self: ProxyTableHandle, value: integer): boolean
+---
+--- Check if the signal value does not equal the specified value.
+--- e.g.
+--- ```lua
+--- assert(dut.path.to.signal:is_not(1))
+--- ```
 ---@field is_not fun(self: ProxyTableHandle, value: integer): boolean
+---
+--- Check if the signal value matches the specified hexadecimal string.
+--- e.g.
+--- ```lua
+--- assert(dut.path.to.signal:is_hex_str("abcd"))
+--- ```
 ---@field is_hex_str fun(self: ProxyTableHandle, hex_value_str: string): boolean
+---
+--- Check if the signal value matches the specified binary string.
+--- e.g.
+--- ```lua
+--- assert(dut.path.to.signal:is_bin_str("10101010"))
+--- ```
 ---@field is_bin_str fun(self: ProxyTableHandle, bin_value_str: string): boolean
+---
+--- Check if the signal value matches the specified decimal string.
+--- e.g.
+--- ```lua
+--- assert(dut.path.to.signal:is_dec_str("1234"))
+--- ```
 ---@field is_dec_str fun(self: ProxyTableHandle, dec_value_str: string): boolean
+---
+--- --- Get the string representation of the signal's path.
+--- e.g.
+--- ```lua
+--- assert(dut.path.to.signal:tostring() == "tb_top.path.to.signal")
+--- ```
 ---@field tostring fun(self: ProxyTableHandle): string
+---
+--- Create a new proxy with a prefixed path.
+--- e.g.
+--- ```lua
+--- local io_in = dut.path.to.mod:with_prefix("io_in_")
+--- assert(io_in.value:tostring() == "top.path.to.mod.io_in_value")
+--- ```
 ---@field with_prefix fun(self: ProxyTableHandle, prefix_str: string): ProxyTableHandle
+---
+--- Automatically create a `Bundle` by filtering signals in the design based on specified criteria.
+--- The `params` table can contain the following fields:
+--- - `startswith` (string, optional): Only include signals that start with this prefix.
+--- - `endswith` (string, optional): Only include signals that end with this suffix
+--- - `matches` (string, optional): A Lua pattern to match signal names.
+--- - `wildmatch` (string, optional): A wildcard pattern (using `*`) to match signal names.
+--- - `filter` (function, optional): A custom filter function that takes a signal name and width as arguments and returns a boolean.
+--- - `prefix` (string, optional): A prefix to add to each signal name in the bundle.
+--- The `params` table must contain at least one of the filtering criteria (`startswith`, `endswith`, `matches`, `wildmatch`, or `filter`).
+--- e.g.
+--- ```lua
+---      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_", endswith = "_value" }
+---      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_" }
+---      local bdl = dut.path.to.mod:auto_bundle { endswith = "_value" }
+---      local bdl = dut.path.to.mod:auto_bundle { matches = "^io_" }
+---      local bdl = dut.path.to.mod:auto_bundle { wildmatch = "*_value_*" }
+---      local bdl = dut.path.to.mod:auto_bundle { filter = function (name, width)
+---          return width == 32 and name:endswith("_value")
+---      end }
+--- ```
+---
+--- Priority:
+---      filter > matches > wildmatch > startswith > prefix > endswith
+--- Available combinations:
+---      - matches + filter
+---      - wildmatch + filter
+---      - wildmatch + filter + prefix
+---      - startswith + endswith
+---      - startswith + endswith + filter
+---      - prefix + filter
+---      - startswith + filter
+---      - endswith + filter
 ---@field auto_bundle fun(self, params: SignalDB.auto_bundle.params): Bundle
----@overload fun(self: ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): integer|string|ComplexHandleRaw `__call` metamethod
+---
+---@overload fun(self: ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): integer|string|ComplexHandleRaw `__call` metamethod, deprecated
 ---@field [string] ProxyTableHandle
 
 ---@param path string
@@ -79,22 +394,13 @@ local function create_proxy(path, use_prefix)
         __type = "ProxyTableHandle",
         get_local_path = function(this) return local_path end,
 
-        --
-        -- Example:
-        --      local alias_signal = dut.path.to.signal
-        --      alias_signal:set(123)        -- set value into 123, Notice: you cannot use alias_signal since Lua will treat this as a variable reassignment
-        --      alias_signal:set "123"
-        --      alias_signal:set("0x123")
-        --      alias_signal:set("0b1111")
-        --      local value = alias_signal() -- read value
-        --
         set = function(t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
+                vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
             else
-                vpiml.vpiml_set_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
+                vpiml.vpiml_set_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
             end
         end,
 
@@ -102,18 +408,13 @@ local function create_proxy(path, use_prefix)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
+                vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
             else
-                vpiml.vpiml_set_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
+                vpiml.vpiml_set_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
             end
         end,
 
-        --
-        -- Randomly set the value of the signal
-        --
-        -- Example:
-        --      dut.path.to.signal:set_shuffled()
-        --
+
         set_shuffled = function(t)
             vpiml.vpiml_set_shuffled(vpiml.vpiml_handle_by_name(local_path))
         end,
@@ -121,44 +422,24 @@ local function create_proxy(path, use_prefix)
             vpiml.vpiml_set_freeze(vpiml.vpiml_handle_by_name(local_path))
         end,
 
-        --
-        -- Example:
-        --      local cycles = dut.cycles
-        --      cycles:set_force(0)
-        --      ...
-        --      cycles:set_release()
-        --
-        --      dut.path.to.cycles:set_force(123)
-        --      ...
-        --      dut.path.to.cycles:set_release()
-        --
         set_force = function(t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
-            vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
+            vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
         end,
         set_imm_force = function(t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
-            vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v))
+            vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
         end,
         set_release = function(t)
             vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(local_path))
         end,
 
-        --
-        -- Example:
-        --      dut:force_all()
-        --          dut.cycles:set(1)
-        --          dut.path.to.signal:set(1)
-        --
-        --      dut.clock:posedge()
-        --      dut:release_all()
-        --
         force_all = function(t)
             assert(set_force_enable == false)
             set_force_enable = true
@@ -172,16 +453,6 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        --
-        -- Normal value assign operations inside this region will all be treat as force operation.
-        -- This method can automatically release all the forced signals hence you are free from calling dut:release_all() manually.
-        --
-        -- Example:
-        --      dut:force_region(function()
-        --          dut.clock:negedge()
-        --          dut.cycles:set(1)
-        --      end)
-        --
         force_region = function(t, code_func)
             assert(type(code_func) == "function")
             t:force_all()
@@ -189,20 +460,10 @@ local function create_proxy(path, use_prefix)
             t:release_all()
         end,
 
-        --
-        -- Example:
-        --      local value = dut.cycles:get()
-        --
         get = function(t)
             return tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(local_path)))
         end,
 
-        --
-        -- Example:
-        --      local bin_str = dut.cycles:get_str(BinStr)
-        --      local dec_str = dut.cycles:get_str(DecStr)
-        --      local hex_str = dut.cycles:get_str(HexStr)
-        --
         get_str = function(t, fmt)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
@@ -211,11 +472,6 @@ local function create_proxy(path, use_prefix)
             return ffi_string(vpiml.vpiml_get_value_str(hdl, fmt))
         end,
 
-        --
-        -- Example:
-        --      local hex_str = dut.cycles:get_hex_str()
-        --      assert(hex_str == "123")
-        --
         get_hex_str = function(t)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
@@ -224,26 +480,15 @@ local function create_proxy(path, use_prefix)
             return ffi_string(vpiml.vpiml_get_value_str(hdl, HexStr))
         end,
 
-        --
-        -- Example:
-        --      -- Notice: prefix is required
-        --      dut.cycles:set_str("0x123")    -- for hex string
-        --      dut.cycles:set_str("0b101010") -- for binary string
-        --
         set_str = function(t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(str))
+                vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(str) --[[@as integer]])
             else
-                vpiml.vpiml_set_value(vpiml.vpiml_handle_by_name(local_path), tonumber(str))
+                vpiml.vpiml_set_value(vpiml.vpiml_handle_by_name(local_path), tonumber(str) --[[@as integer]])
             end
         end,
 
-        --
-        -- Example:
-        --      -- Notice: prefix is not required
-        --      dut.cycles:set_hex_str("123")
-        --
         set_hex_str = function(t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
@@ -257,16 +502,6 @@ local function create_proxy(path, use_prefix)
             vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), str)
         end,
 
-        --
-        -- Example:
-        --      dut.clock:posedge()
-        --      dut.reset:negedge()
-        --      dut.path.to.some.signal:posedge()
-        --      dut.clock:posedge(10)
-        --      dut.clock:posedge(10, function (c)
-        --         print("current count is " .. c)
-        --      end)
-        --
         posedge = function(t, v, func)
             local _v = v or 1
             local _v_type = type(_v)
@@ -307,12 +542,6 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        --
-        -- Example:
-        --      local condition_meet = dut.clock:posedge_until(100, function func()
-        --          return dut.cycles() >= 100
-        --      end)
-        --
         posedge_until = function(t, max_limit, func)
             assert(max_limit ~= nil)
             assert(type(max_limit) == "number")
@@ -358,10 +587,6 @@ local function create_proxy(path, use_prefix)
             return condition_meet
         end,
 
-        --
-        -- Example:
-        --      local hdl = dut.cycles:hdl()
-        --
         hdl = function(t)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
@@ -370,30 +595,17 @@ local function create_proxy(path, use_prefix)
             return hdl
         end,
 
-        --
-        -- Example:
-        --      local cycles_chdl = dut.cycles:chdl()
-        --      print("value of cycles is " .. cycles_chdl:get())
-        --      cycles_chdl:set(123)
-        --
+
         chdl = function(t)
             return CallableHDL(local_path, "")
         end,
 
-        --
-        -- Example:
-        --      local path = dut.path.to.signal:name()
-        --      assert(path == "tb_top.path.to.signal")
-        --
+
         name = function(t)
             return local_path
         end,
 
-        --
-        -- Example:
-        --      local width = dut.cycles:get_width()
-        --      assert(width == 64)
-        --
+
         get_width = function(t)
             return tonumber(vpiml.vpiml_get_signal_width(vpiml.vpiml_handle_by_name(local_path)))
         end,
@@ -405,19 +617,12 @@ local function create_proxy(path, use_prefix)
             return s
         end,
 
-        --
-        -- Example:
-        --      dut.path.to.signal:dump()
-        --          => [tb_top.path.to.signal] => 0x1234
-        --
+
         dump = function(t)
             print(t:dump_str())
         end,
 
-        --
-        -- Example:
-        --      dut.paht.to.signal:expect(1) -- signal value should be 1 otherwise there will be a assert false
-        --
+
         expect = function(t, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
@@ -452,12 +657,6 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        --
-        -- Example:
-        --      dut.path.to.signal:expect_hex_str("0x1234") -- signal value should be 0x1234 otherwise there will be a assert false
-        --      dut.path.to.signal.expect_bin_str("0b1111")
-        --      dut.path.to.signal.expect_dec_str("1234")
-        --
         expect_hex_str = function(this, hex_value_str)
             assert(type(hex_value_str) == "string")
             local left = this:get_hex_str():lower():gsub("^0*", "")
@@ -502,20 +701,6 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        --
-        -- Example:
-        --      dut.path.to.signal:_if(some_condition == true):expect(1)
-        --
-        --                 or
-        --
-        --      dut.path.to.signal:_if(function() return some_condition == true end):expect(1)
-        --
-        --              equals to
-        --
-        --      if some_condition == true then
-        --          dut.path.to.signal:expect(1)
-        --      end
-        --
         _if = function(t, condition)
             local _condition = false
             if type(condition) == "boolean" then
@@ -544,14 +729,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        --
-        -- Example:
-        --      assert(dut.path.to.signal:is(1))
-        --      assert(dut.another_signal:is_not(1))
-        --
-        --      You can also combine this with "_if":
-        --          dut.path.to.signal:_if(dut.signal:is(1)):expect(123)
-        --
+
         is = function(t, value)
             local typ = type(value)
             assert(typ == "number" or typ == "cdata")
@@ -565,15 +743,6 @@ local function create_proxy(path, use_prefix)
             return t:get() ~= value
         end,
 
-        --
-        -- Example:
-        --      assert(dut.path.to.signal:is_hex_str("0x1"))
-        --      assert(dut.another_signal:is_bin_str("0b101"))
-        --      assert(dut.another_signal:is_dec_str("1"))
-        --
-        --      You can also combine this with "_if":
-        --          dut.path.to.signal:_if(dut.signal:is_hex_str("0x1")):expect(123)
-        --
         is_hex_str = function(t, hex_value_str)
             return t:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0*", "")
         end,
@@ -586,38 +755,15 @@ local function create_proxy(path, use_prefix)
             return t:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")
         end,
 
-        --
-        -- Example:
-        --      Assume top module is `top`
-        --      assert(dut.path.to.signal:tostring() == "top.path.to.signal")
-        --
         tostring = function(t)
             return local_path
         end,
 
-        --
-        -- Example:
-        --      local io_in = dut.path.to.mod:with_prefix("io_in_")
-        --      assert(io_in.value:tostring() == "top.path.to.mod.io_in_value")
-        --      assert(io_in.data:tostring() == "top.path.to.mod.io_in_data")
-        --
+
         with_prefix = function(t, prefix_str)
             return create_proxy(local_path .. '.' .. prefix_str, true)
         end,
 
-        --
-        -- Create a `Bundle` with the signals which meet the certain conditions
-        --
-        -- Example:
-        --      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_", endswith = "_value" }
-        --      local bdl = dut.path.to.mod:auto_bundle { startswith = "io_in_" }
-        --      local bdl = dut.path.to.mod:auto_bundle { endswith = "_value" }
-        --      local bdl = dut.path.to.mod:auto_bundle { matches = "^io_" }
-        --      local bdl = dut.path.to.mod:auto_bundle { prefix = "io_in_" }
-        --      local bdl = dut.path.to.mod:auto_bundle { filter = function (name, width)
-        --          return width == 32 and name:endswith("_value")
-        --      end }
-        --
         auto_bundle = function(t, params)
             return require("SignalDB"):auto_bundle(local_path, params)
         end

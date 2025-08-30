@@ -332,7 +332,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         for i = 1, u32_vec_len do
             u32_vec_cdata[i - 1] = u32_vec[i]
         end
-        vpiml.vpiml_shuffled_range_u32(this.hdl, u32_vec_cdata, u32_vec_len)
+        vpiml.vpiml_shuffled_range_u32(this.hdl, u32_vec_cdata --[[@as table<integer, ffi.cdata*>]], u32_vec_len)
     end
 
     self.shuffled_range_u64 = function(this, u64_vec)
@@ -346,7 +346,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         for i = 1, u64_vec_len do
             u64_vec_cdata[i - 1] = u64_vec[i] --[[@as integer]]
         end
-        vpiml.vpiml_shuffled_range_u64(this.hdl, u64_vec_cdata, u64_vec_len)
+        vpiml.vpiml_shuffled_range_u64(this.hdl, u64_vec_cdata --[[@as table<integer, ffi.cdata*>]], u64_vec_len)
     end
 
     self.shuffled_range_hex_str = function(this, hex_str_vec)
@@ -355,6 +355,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
         local hex_str_vec_len = #hex_str_vec
         local hex_str_vec_cdata = ffi_new("const char *[" .. hex_str_vec_len .. "]", hex_str_vec)
+        ---@cast hex_str_vec_cdata ffi.cdata*[][]
         vpiml.vpiml_shuffled_range_hex_str(this.hdl, hex_str_vec_cdata, hex_str_vec_len)
     end
 

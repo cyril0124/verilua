@@ -261,7 +261,7 @@ local vpiml = {
     ---@type fun(handle: ComplexHandleRaw)
     vpiml_release_imm_value = C.vpiml_release_imm_value,
 
-    ---@type fun(handle: ComplexHandleRaw): string
+    ---@type fun(handle: ComplexHandleRaw, fmt: integer): string
     vpiml_get_value_str = C.vpiml_get_value_str,
     ---@type fun(handle: ComplexHandleRaw): string
     vpiml_get_value_hex_str = C.vpiml_get_value_hex_str,
@@ -289,9 +289,9 @@ local vpiml = {
     ---@type fun(handle: ComplexHandleRaw)
     vpiml_set_imm_freeze = C.vpiml_set_imm_freeze,
 
-    ---@type fun(handle: ComplexHandleRaw, u32_vec: ffi.cdata*[], u32_vec_len: integer)
+    ---@type fun(handle: ComplexHandleRaw, u32_vec: table<integer, ffi.cdata*>, u32_vec_len: integer)
     vpiml_shuffled_range_u32 = C.vpiml_shuffled_range_u32,
-    ---@type fun(handle: ComplexHandleRaw, u64_vec: ffi.cdata*[], u64_vec_len: integer)
+    ---@type fun(handle: ComplexHandleRaw, u64_vec: table<integer, ffi.cdata*>, u64_vec_len: integer)
     vpiml_shuffled_range_u64 = C.vpiml_shuffled_range_u64,
     ---@type fun(handle: ComplexHandleRaw, hex_str_vec: ffi.cdata*[][], hex_str_vec_len: integer)
     vpiml_shuffled_range_hex_str = C.vpiml_shuffled_range_hex_str,

@@ -15,9 +15,9 @@ local scheduler = require "verilua.scheduler.LuaScheduler"
 ---@field [string] string|number
 
 ---@class (exact) string.bdl.params
----@field hier string
----@field prefix? string
----@field is_decoupled? boolean
+---@field hier string Hierachy path of the bundle, e.g. `tb_top.u_top.path.to.module`
+---@field prefix? string Default is `""`
+---@field is_decoupled? boolean Default is `true`
 ---@field name? string
 ---@field optional_signals? table<integer, string>
 
@@ -407,6 +407,8 @@ end
 ---      local bdl_str = ("|"):join {"valid", "ready", "address", "opcode", "param", "source", "data"} -- bdl_str ==> "valid|ready|address|opcode|param|source|data"
 ---      local bdl = bdl_str:bundle {hier = cfg.top .. ".u_TestTop_fullSys_1Core.l2", is_decoupled = true, name = "Channel A", prefix = "auto_in_a_"}
 --- ```
+---@param str string
+---@param params_table string.bdl.params
 local process_bundle = function(str, params_table)
     local signals_table = stringx.split(str, "|")
     local will_remove_idx = {}
