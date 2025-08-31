@@ -256,7 +256,7 @@ local vpiml = {
     vpiml_force_imm_value_multi_beat_8 = C.vpiml_force_imm_value_multi_beat_8,
 
     ---@type fun(handle: ComplexHandleRaw)
-    vpiml_release_value = C.vpiml_release_value,
+    vpiml_release_value = C.vpiml_release_imm_value,
 
     ---@type fun(handle: ComplexHandleRaw)
     vpiml_release_imm_value = C.vpiml_release_imm_value,

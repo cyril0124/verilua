@@ -39,6 +39,46 @@ fork {
         clock:negedge()
         dut.inc:expect(12)
 
+        if cfg.simulator ~= "verilator" then
+            dut.inc:set_force(111)
+            clock:posedge()
+            dut.inc:expect(111)
+            clock:posedge(10, function(count)
+                dut.inc:expect(111)
+            end)
+            dut.inc:set_release()
+            clock:posedge()
+
+            local inc = dut.inc:chdl()
+            inc:set_force(112)
+            clock:posedge()
+            inc:expect(112)
+            inc:set_release()
+
+            inc:set(0)
+            inc:set_force(113)
+            clock:posedge()
+            inc:expect(113)
+            inc:set_release()
+            clock:posedge()
+
+            inc:set_force(114)
+            inc:set_force(115)
+            clock:posedge()
+            inc:expect(115)
+            inc:set_release()
+            clock:posedge()
+
+            inc:set_force(116)
+            inc:set_force(117)
+            inc:set_force(118)
+            inc:set_force(119)
+            clock:posedge()
+            inc:expect(119)
+            inc:set_release()
+            clock:posedge()
+        end
+
         do
             clock:posedge()
             dut.inc:set(22)
@@ -102,8 +142,6 @@ fork {
 
         -- TODO: multiple set
         -- TODO: multiple set_imm
-        -- TODO: multiple set_force
-        -- TODO: set_force overlap set/set_imm
 
         sim.finish()
     end

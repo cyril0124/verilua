@@ -161,10 +161,11 @@ impl ComplexHandle {
     pub fn try_put_value(&mut self, env: &mut VeriluaEnv, flag: &u32, format: &u32) -> bool {
         match self.put_value_flag {
             Some(curr_flag) => {
-                if curr_flag == vpiForceFlag {
+                if curr_flag == vpiForceFlag && *flag != vpiForceFlag {
                     // vpiForceFlag has higher priority than other flags
                     false
                 } else {
+                    // New force value will overwrite old force value
                     self.put_value_flag = Some(*flag);
                     self.put_value_format = *format;
 
