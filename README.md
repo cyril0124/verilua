@@ -14,6 +14,8 @@
 
 <div align="center">
 
+[💻 **Guided tour**](./examples/guided_tour/main.lua)
+
 [📖 **Documentation**](https://cyril0124.github.io/verilua/)
 
 </div>

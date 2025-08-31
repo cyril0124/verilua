@@ -31,6 +31,7 @@ target("install_luajit", function()
 
         -- Build luajit_pro_helper
         os.cd(luajit_pro_dir)
+        os.exec("git submodule update --init")
         os.exec("cargo build --release")
 
         -- Build luajit
@@ -382,6 +383,7 @@ target("test", function()
                 path.join(prj_dir, "tests", "test_set_value"),
                 path.join(prj_dir, "tests", "test_bitvec_signal"),
                 path.join(prj_dir, "tests", "test_no_internal_clock"),
+                path.join(prj_dir, "examples", "guided_tour"),
             }
             os.setenvs(old_env)
             for _, test_dir in ipairs(test_dirs) do
