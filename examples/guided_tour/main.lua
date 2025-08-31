@@ -284,6 +284,61 @@ fork {
             assert(reg128 ~= v("0x12346"))
         end
 
+        --- `<chdl>:set_shuffled()` allows you to randomly assign values to the signal based on the signal width
+        do
+            --- For example, for a 4-bit signal, it will randomly assign a value from `0x0` to `0xf`
+            local reg4 = dut.u_top.reg4:chdl()
+            local values = {}
+            for _ = 1, 100 do
+                reg4:set_shuffled()
+                clock:posedge()
+                local v = reg4:get()
+                values[v] = true
+            end
+
+            --- metamethod `#` can be used to get the bitwidth of a signal
+            local bitwidth_of_reg4 = #reg4
+            assert(bitwidth_of_reg4 == 4)
+            --- Or you can use `<chdl>:get_width()`
+            assert(reg4:get_width() == 4)
+
+            --- `table.nkeys` can be used to get the number of keys in a lua table
+            assert(table.nkeys(values) == math.pow(2, bitwidth_of_reg4))
+
+            table.clear(values)
+            assert(table.nkeys(values) == 0)
+
+            --- `<chdl>:shuffled_range_u32(<...>)`/`<chdl>:shuffled_range_u64(<...>)`/`<chdl>:shuffled_range_hex_str(<...>)` allows you
+            --- to assign values to the signal based on the specified range.
+            --- The suffix `_u32`/`_u64`/`_hex_str` means the range is for `number`/`uint64_t`/`hex_str` type values.
+            --- And the only argument is a lua table that contains the range values.
+            reg4:shuffled_range_u32({ 1, 3 }) --- Only need to specify the range values one time
+            for _ = 1, 100 do
+                reg4:set_shuffled()
+                clock:posedge()
+                local v = reg4:get()
+                values[v] = true
+            end
+            assert(table.nkeys(values) == 2)
+            assert(values[1] == true)
+            assert(values[3] == true)
+
+            table.clear(values)
+            assert(table.nkeys(values) == 0)
+
+            reg4:shuffled_range_hex_str({ "2", "0", "1" })
+            for _ = 1, 100 do
+                reg4:set_shuffled()
+                clock:posedge()
+                local v = reg4:get()
+                values[v] = true
+            end
+            assert(table.nkeys(values) == 3)
+            assert(values[2] == true)
+            assert(values[0] == true)
+            assert(values[1] == true)
+        end
+
         local u_sub = dut.u_top.u_sub
 
         --- `<ProxyTableHandle>:tostring()` will return the full path(hierarchical path) of the signal
@@ -414,6 +469,33 @@ fork {
             assert(chdl.__type == "CallableHDL")
         end
 
+        --- `verilator` does not support force/release operation for now
+        if cfg.simulator ~= "verilator" then
+            local counter = dut.u_top.internal_reg:chdl()
+            dut.reset:set(1)
+            dut.clock:posedge()
+            dut.reset:set(0)
+            dut.clock:posedge()
+
+            counter:expect(0)
+            dut.clock:posedge()
+            counter:expect(1)
+            dut.clock:posedge(2)
+            counter:expect(3)
+
+            --- `<chdl>:set_force(<...>)` is similar to `<chdl>:set(...)` but with force operation, the assigned value will be kept until we call `<chdl>:set_release()`
+            counter:set_force(1)
+            dut.clock:posedge()
+            dut.clock:posedge(100, function(c)
+                --- Keep the value of `counter` as 1
+                counter:expect(1)
+            end)
+            counter:set_release()
+            dut.clock:posedge()
+            --- After release, the value of `counter` will be updated as expected
+            counter:expect(2)
+        end
+
         local a = 123
 
         --- `fork` can be used anywhere
@@ -472,6 +554,8 @@ fork {
         assert(a == 138)
         clock:posedge(10)
         assert(a == 138) --- `a` is not changed since the task is removed
+
+        -- TODO: Fake CHDL
 
         --- Finish the simulation, you must call this function manually otherwise the simulation will be stuck and never finish
         sim.finish()

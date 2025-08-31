@@ -15,11 +15,13 @@ always @(posedge clock) begin
     end
 end
 
+reg [3:0] reg4;
 reg [31:0] reg32;
 reg [47:0] reg48;
 reg [63:0] reg64;
 reg [127:0] reg128;
 initial begin
+    reg4 = 4;
     reg32 = 32;
     reg48 = 48;
     reg64 = 64'hffffffffffffffff;
