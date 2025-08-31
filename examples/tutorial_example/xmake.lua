@@ -2,7 +2,7 @@
 
 local sim = os.getenv("SIM") or "verilator"
 
-target("TestDesign")
+target("TestDesign", function()
     -- 1. add `veriluua` rule
     add_rules("verilua")
 
@@ -20,12 +20,12 @@ target("TestDesign")
     -- 3. add files, including verilog and lua files(or C/C++ files)
     add_files(
         "./Design.v",
-        "./LuaMain.lua"
+        "./main.lua"
     )
 
     -- 4. set configuration
     set_values("cfg.top", "Design") -- MANDATORY, set top module name
-    set_values("cfg.lua_main", "./LuaMain.lua") -- MANDATORY, set lua main file
+    set_values("cfg.lua_main", "./main.lua") -- MANDATORY, set lua main file
 
     -- 5. set the corresponding toolchain flags if required
     -- for iverilog
@@ -47,3 +47,4 @@ target("TestDesign")
 
     -- 6. build the testbench by `xmake build -P . TestDesign` where `-P .` is used to specify the project directory because the default project directory is the parent directory
     -- 7. run the simulation by `xmake run -P . TestDesign`
+end)

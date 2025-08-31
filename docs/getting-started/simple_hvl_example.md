@@ -12,8 +12,8 @@
 
 ## 1. 创建一个 Lua 脚本文件
 下面是本节中使用到的 Lua 脚本文件，它将会在 Verilua 中被调用，从而控制硬件仿真的过程，这类似 C 语言中的 main 函数。
-```lua title="LuaMain.lua" linenums="1"
---8<-- "examples/tutorial_example/LuaMain.lua"
+```lua title="main.lua" linenums="1"
+--8<-- "examples/tutorial_example/main.lua"
 ```
 
 ??? note "上述代码的相关语法解释"
@@ -84,7 +84,7 @@
             类似 `negedge` 的仿真时间控制函数还有 `posedge`、`edge`等，具体的功能将在后续的教程中进行介绍（TODO：），需要注意的是这些函数只能对**位宽为 1 的信号**进行使用！
 
     * `negedge` 可以接收两个参数，第一个是等待的次数，第二个是回调函数，回调函数在每次触发事件的时候都会被执行。
-        ```lua title="LuaMain.lua" linenums="11" hl_lines="1-3"
+        ```lua title="main.lua" linenums="11" hl_lines="1-3"
                 dut.clock:negedge(10, function ()
                     print("current cycle:", dut.cycles:get())
                 end)
@@ -143,7 +143,7 @@ Verilua 的工程（HVL 和 WAL 场景）使用 `xmake` 来管理，因此需要
 
 === "xmake.lua"
     ```lua title="xmake.lua"
-    target("TestDesign")                -- target 的名称可以随意取
+    target("TestDesign", function()                -- target 的名称可以随意取
         -- 
         -- Mandatory settings
         -- 
@@ -154,14 +154,14 @@ Verilua 的工程（HVL 和 WAL 场景）使用 `xmake` 来管理，因此需要
         add_toolchains("@verilator")
         
         -- 添加 RTL 文件, 也可以使用通配符进行匹配，如 ./*.v
-        -- 如果 LuaMain 中使用到了其他的 Lua 模块，和添加 RTL 文件一样这里也可以添加 Lua 文件
+        -- 如果 main.lua 中使用到了其他的 Lua 模块，和添加 RTL 文件一样这里也可以添加 Lua 文件
         add_files("./Design.v")
         
         -- 设置 RTL 文件中的 top 实例名称（顶层模块名称），这里就是 Design
         set_values("cfg.top", "Design") 
 
-        -- 设置需要执行的 Lua 脚本文件，一般只有一个主脚本，这里就是前面创建的 LuaMain.lua
-        set_values("cfg.lua_main", "./LuaMain.lua")
+        -- 设置需要执行的 Lua 脚本文件，一般只有一个主脚本，这里就是前面创建的 main.lua
+        set_values("cfg.lua_main", "./main.lua")
 
 
         -- 
@@ -174,17 +174,19 @@ Verilua 的工程（HVL 和 WAL 场景）使用 `xmake` 来管理，因此需要
 
         -- `XXX`.run_prefix 用于设置仿真器的运行前缀，将会在运行仿真的时候被添加到命令行的前面
         set_values("verilator.run_prefix", "")
+    end)
     ```
 === "xmake.lua（无注释）"
     ```lua title="xmake.lua"
-    target("TestDesign")
+    target("TestDesign", function()
         add_rules("verilua")
         add_toolchains("@verilator")
         add_files("./Design.v")
         set_values("cfg.top", "Design") 
-        set_values("cfg.lua_main", "./LuaMain.lua")
+        set_values("cfg.lua_main", "./main.lua")
         set_values("verilator.flags", "--trace", "--no-trace-top")
         set_values("verilator.run_prefix", "")
+    end)
     ```
 
 ## 3. 编译
@@ -195,7 +197,7 @@ xmake build -P . TestDesign
 
 - 上面的命令中，TestDesign 是我们创建的 target 的名称。
 - 如果 RTL 文件没有被再次修改，那么只需要执行一次编译即可，如果文件被修改了，那么需要再次执行编译。
-- 如果 Lua 文件（这里主要是 LuaMain.lua）被修改了，也不需要重新编译，因为 Lua 是解释执行的语言，不需要编译。
+- 如果 Lua 文件（这里主要是 main.lua）被修改了，也不需要重新编译，因为 Lua 是解释执行的语言，不需要编译。
 - `-P .` 用于指定 xmake 的运行路径为当前目录，如果不指定，那么 xmake 会自动查找上层的 xmake.lua 文件。因此这里添加了 `-P .` 参数，以便在当前目录下执行 xmake。如果你的工程目录的上一层目录没有 xmake.lua 文件，那么就不需要添加 `-P .` 参数。
 - 如果编译成功，会在命令行最后输出 `[100%]: build ok, spent XXXs` 的信息，如果编译失败，那么会显示 error。
 

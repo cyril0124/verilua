@@ -4,6 +4,9 @@ site_url: https://cyril0124.github.io/verilua
 site_description: >-
   Verilua: An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT
 
+repo_name: cyril0124/verilua
+repo_url: https://github.com/cyril0124/verilua
+
 theme:
   name: material
   features:
@@ -11,6 +14,8 @@ theme:
     - navigation.expand
     - navigation.path
     - navigation.footer
+    - navigation.tabs
+    - navigation.tabs.sticky
 
     # Back-to-top button
     - navigation.top
@@ -31,8 +36,8 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   icon:
-    logo: fontawesome/solid/book
-    repo: fontawesome/brands/github
+    logo: material/language-lua
+    repo: fontawesome/brands/git-alt
 
 copyright: Copyright &copy; 2023 - 2025 Chuyu Zheng
 

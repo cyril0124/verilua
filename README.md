@@ -50,9 +50,9 @@ To update the verilua to the latest version, you can run:
 ```bash
 update_verilua
 ```
-Notice: 
-- Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
-- `update_verilua` is only available if you have installed verilua from release.
+> [!IMPORTANT] 
+> - Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
+> - `update_verilua` is only available if you have installed verilua from release.
 
 ## 💡 Why Lua/LuaJIT?
 
