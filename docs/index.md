@@ -1,10 +1,4 @@
-# Welcome to `Verilua` documentation!
-
-<center>
-  <span style="font-size: 1.8em;">
-      :simple-git: [https://github.com/cyril0124/verilua](https://github.com/cyril0124/verilua)
-  </span>
-</center>
+# Introduction
 
 !!! info "English Version Status"
     The English version of this documentation is currently being prepared. We are working to translate the existing Chinese content into English as soon as possible. In the meantime, you may refer to the Chinese version of this documentation or use your browser's translation tool to read it.
@@ -39,7 +33,11 @@ WAL 的概念最早于 2022 年由 Lucas Klemmer 等人的一篇[论文](https:/
 由于 WAL 属于 Verilua 的其中一种使用场景，因此 WAL 场景下也能够复用 HVL、HSE 中使用的验证组件，这种复用性极大地提高了波形分析效率，用户可以通过复用来减少重复开发的成本。
 
 ## Verilua 架构概览
-Verilua 的解耦框架中，分为 Frontend、Kernel、Backend 三个层次，其中 Frontend 表示的是用户的业务代码； Kernel 则包含了 Scheduler、Handles 等 DSL 的核心组件以及 Verilua 的运行时环境等；Backend 对于 HVL、HSE 表示的是具体的硬件仿真器，对于 WAL 这里指的则是 Verilua 开发的 `wave_vpi`。
+Verilua 的解耦框架中，分为 Frontend、Kernel、Backend 三个层次：
+
+- Frontend 表示的是用户的业务代码；
+- Kernel 则包含了 Scheduler、Handles 等 DSL 的核心组件以及 Verilua 的运行时环境等；
+- Backend 对于 HVL、HSE 表示的是具体的硬件仿真器，对于 WAL 这里指的则是 Verilua 开发的 `wave_vpi`，Verilua 编写的用户代码可以在这些不同的 Backend 中使用，且不需要做额外的适配。
 
 HVL、HSE、WAL 基于同一个中间件（VPI-ML），用于连接 Kernel 和 Backend，VPI-ML 能够在各种硬件仿真器中支持，这是实现解耦与复用的关键，特别地对于 HSE，可以使用 `dummy_vpi`（后续将会介绍） 代替这一中间件来减少 HSE 的接入开销。
 

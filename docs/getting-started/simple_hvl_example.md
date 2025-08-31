@@ -40,7 +40,8 @@
     * `#!lua dut.clock:negedge()` 这一行中的 `dut` 用于指代当前的一整个 DUT，可以使用 `dut.<top_signal>` 来访问 DUT 的接口信号，这里的 `#!lua dut.clock` 就是 DUT 的顶层 clock 信号，而 `#!lua dut.clock:negedge()` 用于等待 clock 信号的下降沿，一旦调用这一函数，那么就会将此时的函数控制权交给仿真器，等到 clock 的下降沿到达的时候再通过 Scheduler 返回交出控制权的位置；
     <a id="about-dut"></a>
     !!! tip "关于 dut"
-        `dut` 是 Verilua 中的一个全局的 table，主要用来提供**临时**的信号访问功能，具体的功能将在后续的教程中进行介绍（TODO：），如果想用 `dut` 来访问 DUT 的内部信号，那么需要以 `dut.u_<top_module_name>.<internal_signal_name>` 的方式访问，例如 `dut.u_Design.value`，这里加上 `u_<top_module_name>` 的原因是因为 Verilua 在编译的时候会根据所提供的 RTL 信息自动创建 Testbench，这个 Testbench 中会例化当前的 DUT，并将其取名为 `u_Design`。下面是自动生成的 Testbench 的部分代码：
+        <a id="about-dut"> </a>
+        `dut` 是 Verilua 中的一个全局的 table，主要用来提供**临时**的信号访问功能，具体的功能将在后续的教程中进行介绍（TODO：），如果想用 `dut` 来访问 DUT 的{==内部信号==}(顶层的接口信号不需要)，那么需要以 `dut.u_<top_module_name>.<internal_signal_name>` 的方式访问，例如 `dut.u_Design.value`，这里加上 `u_<top_module_name>` 的原因是因为 Verilua 在编译的时候会根据所提供的 RTL 信息自动创建 Testbench，这个 Testbench 中会例化当前的 DUT，并将其取名为 `u_Design`。下面是自动生成的 Testbench 的部分代码：
         ```SystemVerilog title="tb_top.sv" linenums="1" hl_lines="28-34"
         module tb_top;
             // ...
@@ -96,7 +97,7 @@
     * `#!lua local clock = dut.clock:chdl()` 用于创建一个 Verilua 的 `CallableHDL` 对象（也叫 `chdl`），这个对象用于管理 `tb_top.clock` 这个信号（`dut` 默认代表的 Testbench 顶层是 `tb_top`，也可以进行修改，但是不建议这么做）。
         - `CallableHDL` 其内部包括了多种信息，包括信号位宽、hierarchy path 等。
         - 还包括了各种用于控制信号的方法，例如：`<chdl>:set(<value>)` 用于设置信号的值，`<chdl>:get()` 用于获取信号的值，`<chdl>:posedge()` 用于等待信号上升沿，等等。
-        - 使用 `CallableHDL` 对象对信号进行操作的性能比使用 `dut` 进行操作时的性能更高（底层实现的差异所导致的，`dut` 主要用于临时访问信号，不建议在性能要求较高的场景大量使用 `dut`）。
+        - 使用 `CallableHDL` 对象对信号进行操作的性能比使用 `dut` 进行操作时的性能更高（底层实现的差异所导致的，`dut` 主要用于临时访问信号，不建议在性能要求较高的场景大量使用 `dut` 的方式访问信号）。
 
     * `#!lua dut.value:dump()` 用于将信号的值（主要是以 Hex String 的形式）输出到控制台，可以用于查看信号的值，所有的信号相关的操作方式都有这个方法，包括上面提到的 `CallableHDL`。打印的内容如下所示：
         ```shell title="Terminal"

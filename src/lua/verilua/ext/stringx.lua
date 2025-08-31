@@ -409,6 +409,7 @@ end
 --- ```
 ---@param str string
 ---@param params_table string.bdl.params
+---@return Bundle
 local process_bundle = function(str, params_table)
     local signals_table = stringx.split(str, "|")
     local will_remove_idx = {}

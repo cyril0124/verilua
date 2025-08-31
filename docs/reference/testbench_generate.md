@@ -109,6 +109,9 @@ add_values("cfg.tb_gen_flags", "--ignore-unknown-modules", "--verbose")
 
 默认情况下，`testbench_gen` 会生成两个文件，一个是 `tb_top.sv`，另一个是 `other.sv`，其中 `tb_top.sv` 是 Testbench 文件，`other.sv` 是留给用户自定义的文件。用户可以在 `others.sv` 中自行添加其他的内容，每次重新生成 Testbench 的时候如果 `others.sv` 存在，就不会重新生成或者覆盖，因此用户可以安全地在其中添加用户自定义的内容。 部分内容如下（假设 DUT 为 `Design`）：
 
+!!! note
+    我们之前在[这里](../getting-started/simple_hvl_example.md#about-dut)简单介绍过相关的内容。
+
 ```verilog title="tb_top.sv"
 // -----------------------------------------
 // user custom code
