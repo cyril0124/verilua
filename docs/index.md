@@ -17,8 +17,29 @@ Verilua 的 HVL、HSE、WAL 能够覆盖硬件验证中的多个流程。
       <figcaption>验证组件的复用问题</figcaption>
     </figure>
 
+## 为什么使用 Verilua?
+- 传统 SystemVerilog + UVM 芯片验证方法的不足：
+    - ❌ 学习曲线陡峭：UVM 框架庞大复杂，组件繁多且规则严格，新手需要较长时间掌握，开发效率较低
+    - ❌ SV 语言局限性：SystemVerilog 作为硬件描述语言，受限于硬件设计语义，缺乏普通编程语言（如 Python 或 C++）的灵活性，限制了验证开发的效率和表达能力（例如实现一个数据库的数据保存功能，可能需要 SV -> DPIC -> SV 的方式来实现）
+- [Cocotb](https://www.cocotb.org/) 等框架？
+    - ✅ Cocotb 是一个开源的基于 Python 的硬件验证框架，允许用户使用 Python 语言编写验证平台，基于 coroutine（协程）实现类似 SV 中的并发控制，适用于硬件验证场景
+    - ✅ Cocotb 在开源社区中广泛使用，成熟且稳定，并且能使用 Python 的强大的第三方库生态
+- 但是 Cocotb 并不适合在生产环境下使用：
+    - ❌ 因为采用 Python，存在性能问题，Python 几乎是最慢的脚本语言之一，编写复杂的验证环境的时候，这种性能问题会影响验证效率
+    - ❌ Cocotb 编写的硬件验证组件无法复用（在其他非 Cocotb 的验证平台中使用），只能在自己的框架下使用，隔离的验证生态使得团队难以与行业主流验证工具链无缝对接
+
+- Verilua 的特点
+    - ✅ 使用 Lua 语言进行硬件验证，Lua 语言简单易学，功能完整，同样具备 coroutine 功能，能够实现并发控制逻辑
+    - ✅ Lua 的开发体验比 SystemVerilog 更好，因为 Lua 语言的使用人数比 SystemVerilog 多很多，开发者积极开发各种插件提高 Lua 语言的开发体验，例如：EmmyLuaLs、LuaLS
+    - ✅ 由于采用 Lua 的 LuaJIT 实现（LuaJIT 几乎是最快的脚本语言实现），因此性能比基于 Python 的 Cocotb 更高，能够满足硬件验证的需要
+    - ✅ Verilua 支持 HVL（Hardware Verification Language）、HSE（Hardware Script Engine）、WAL（Waveform Analysis Language）三种验证场景，能够实现验证组件的跨验证平台、跨场景复用，解决非 SV 验证平台的验证组件复用问题（HVL、HSE、WAL 三种场景都能使用同一套基于 Verilua 编写的验证组件）
+
+- Verilua 的缺点/不足：
+    - ❌ Verilua 的底层基于 VPI，不是直接与硬件信号进行交互，而是通过中间层 API 的方式进行，所以相比于纯 SV 的验证环境存在天然的性能差距
+    - ...
+
 ## Hardware Verification Language（`HVL`）
-硬件验证语言，专门用于硬件验证场景，能够控制验证平台的运行或者描述复杂的验证逻辑，我们熟悉的 SystemVerilog 就属于一种 HVL（当然也属于 HDL），类似地 [Cocotb](https://www.cocotb.org/) 框架允许将 Python 作为一种 HVL，而 [Verilator](https://veripool.org/guide/latest/) 能够允许用户将 C++ 作为一种 HVL。
+硬件验证语言，专门用于硬件验证场景，能够控制验证平台的运行或者描述复杂的验证逻辑，我们熟悉的 SystemVerilog 就属于一种 HVL（当然也属于 HDL），类似地 Cocotb 框架允许将 Python 作为一种 HVL，而 [Verilator](https://veripool.org/guide/latest/) 能够允许用户将 C++ 作为一种 HVL。
 
 在 Verilua 中，Lua 语言被选择用来作为 Verilua 的 HVL（Verilua 的名字由来：Verification + Lua），具体而言采用的是 [LuaJIT](https://luajit.org/) 这一 Lua 实现，因为 LuaJIT 是一个性能更高的 Lua 实现，并且支持 JIT 编译，这能够为 Verilua 提供更好的 HVL 性能。Verilua 在 LuaJIT 的基础上构造了一个 DSL（Domain Specific Language），以方便用户能够使用 Lua 语言来进行硬件验证业务代码的编写，从而能够使用 Lua 语言作为一种 HVL。
 
