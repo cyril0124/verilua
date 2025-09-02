@@ -194,13 +194,14 @@ function LuaDataBase:_init(params)
             texpect.expect_string(kv_str, "kv_str")
 
             key, data_type = kv_str:match("([^%s=>]+)%s*=>%s*([^%s]+)")
-            ---@cast data_type string
-
-            data_type = data_type:upper()
-            assert(data_type == "INTEGER" or data_type == "TEXT", "[LuaDataBase] Unsupported data type: " .. data_type)
         else
-            assert(t == "string", "[LuaDataBase] Unsupported type: " .. t)
+            assert(false, "[LuaDataBase] Unsupported type: " .. t)
         end
+
+        ---@cast data_type string
+
+        data_type = data_type:upper()
+        assert(data_type == "INTEGER" or data_type == "TEXT", "[LuaDataBase] Unsupported data type: " .. data_type)
 
         if data_type == "INTEGER" then
             table_insert(pre_alloc_entry, 0)
@@ -433,7 +434,7 @@ function LuaDataBase:_init(params)
     })
 
     -- try to remove `table.unpack` which cannot be jit compiled by LuaJIT
-    self.save = utils.loadcode(save_func_code)
+    self.save = utils.loadcode(save_func_code, nil, "LuaDataBase:save()")
     self.commit = utils.loadcode(
         commit_func_code,
         {
@@ -444,7 +445,8 @@ function LuaDataBase:_init(params)
             lfs_attributes = lfs.attributes,
             print = print,
             path_join = path.join
-        }
+        },
+        "LuaDataBase:commit()"
     )
 
     final {

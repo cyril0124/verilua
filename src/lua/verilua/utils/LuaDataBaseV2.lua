@@ -13,8 +13,9 @@ local subst = require("pl.template").substitute
 local sqlite3
 ---@type any
 local sqlite3_clib
----@type any
-local SQLITE3
+
+local DB_OK = 0
+local DB_ERR = 1
 
 local print = print
 local pairs = pairs
@@ -166,7 +167,6 @@ function LuaDataBaseV2:_init(params)
             path = libsqlite3_path,
         }
         sqlite3_clib = sqlite3.clib
-        SQLITE3 = sqlite3.const
     end
 
     local no_check_bind_value = params.no_check_bind_value
@@ -229,13 +229,14 @@ function LuaDataBaseV2:_init(params)
             texpect.expect_string(kv_str, "kv_str")
 
             key, data_type = kv_str:match("([^%s=>]+)%s*=>%s*([^%s]+)")
-            ---@cast data_type string
-
-            data_type = data_type:upper()
-            assert(data_type == "INTEGER" or data_type == "TEXT", "[LuaDataBaseV2] Unsupported data type: " .. data_type)
         else
-            assert(t == "string", "[LuaDataBaseV2] Unsupported type: " .. t)
+            assert(false, "[LuaDataBaseV2] Unsupported type: " .. t)
         end
+
+        ---@cast data_type string
+
+        data_type = data_type:upper()
+        assert(data_type == "INTEGER" or data_type == "TEXT", "[LuaDataBaseV2] Unsupported data type: " .. data_type)
 
         if data_type == "INTEGER" then
             table_insert(pre_alloc_entry, 0)
@@ -349,7 +350,7 @@ function LuaDataBaseV2:_init(params)
 |> end
                 end
             end
-    ]], { _escape = "|>", enable_verilua_debug = _G.enable_verilua_debug, sqlite3_ok = SQLITE3.OK }))
+    ]], { _escape = "|>", enable_verilua_debug = _G.enable_verilua_debug, sqlite3_ok = DB_OK }))
 
     -- Create database
     self:create_db()
@@ -459,7 +460,7 @@ function LuaDataBaseV2:_init(params)
         pid = self.pid,
         prepare = _perpare_cmd,
         bind_values_code = bind_values_code,
-        sqlite3_ok = SQLITE3.OK,
+        sqlite3_ok = DB_OK,
         verbose_print = self.verbose and "this:_log('commit!')" or "",
         size_limit_check = self.size_limit and subst([[
             if this.finished then
@@ -500,11 +501,11 @@ function LuaDataBaseV2:_init(params)
                     assert(false, "[LuaDataBaseV2] [commit] SQLite3 error: " .. this.db:errmsg())
                 end
             end
-        ]], { table_cnt_max = self.table_cnt_max, prepare = _perpare_cmd, sqlite3_ok = SQLITE3.OK }) or "",
+        ]], { table_cnt_max = self.table_cnt_max, prepare = _perpare_cmd, sqlite3_ok = DB_OK }) or "",
     })
 
     -- try to remove `table.unpack` which cannot be jit compiled by LuaJIT
-    self.save = utils.loadcode(save_func_code)
+    self.save = utils.loadcode(save_func_code, nil, "LuaDataBaseV2:save()")
     self.commit = utils.loadcode(
         commit_func_code,
         {
@@ -517,7 +518,8 @@ function LuaDataBaseV2:_init(params)
             sqlite3_clib = sqlite3_clib,
             print = print,
             path_join = path.join
-        }
+        },
+        "LuaDataBaseV2:commit()"
     )
 
     final {
@@ -556,11 +558,11 @@ function LuaDataBaseV2:create_db()
 
     -- Open database
     local code, db = sqlite3.open(self.fullpath_name)
-    if code ~= SQLITE3.OK then
+    if code ~= DB_OK then
         assert(false, f("[LuaDataBaseV2] Cannot open %s => %s", self.fullpath_name, db:errmsg()))
     end
     code = db:exec(self.pragma_cmd)
-    if code ~= SQLITE3.OK then
+    if code ~= DB_OK then
         assert(false, f("[LuaDataBaseV2] Cannot set cache size %s => %s", self.fullpath_name, db:errmsg()))
     end
 

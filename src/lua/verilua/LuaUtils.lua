@@ -1068,8 +1068,9 @@ end
 
 ---@param code string
 ---@param env? table
-function utils.loadcode(code, env)
-    local ret = loadstring(code) --[[@as function]]
+---@param chunkname? string
+function utils.loadcode(code, env, chunkname)
+    local ret = loadstring(code, chunkname) --[[@as function]]
     if not ret then
         assert(false, "[utils.loadcode] loadstring failed, code:\n" .. code)
     end

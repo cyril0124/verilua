@@ -71,6 +71,8 @@ function load_clib()
 
   if type(args.name) == 'string' then
     if type(args.path) == 'string' then
+      local lib = package.searchpath(args.name, args.path)
+      assert(lib, "[thirdparty_lib.sqlite.lua] library not found, name: " .. tostring(args.name) .. ", path: " .. tostring(args.path))
       return ffi.load(package.searchpath(args.name, args.path))
     else
       return ffi.load(args.name)
