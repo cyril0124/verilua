@@ -14,6 +14,9 @@ local sqlite3
 ---@type any
 local sqlite3_clib
 
+---@type verilua.utils.duckdb
+local duckdb
+
 local DB_OK = 0
 local DB_ERR = 1
 
@@ -32,7 +35,7 @@ ffi.cdef [[
     pid_t getpid(void);
 ]]
 
-local function bind_values(stmt, ...)
+local function sqlite3_bind_values(stmt, ...)
     local n = select("#", ...)
     for i = 1, n do
         local v = select(i, ...)
@@ -42,7 +45,7 @@ local function bind_values(stmt, ...)
         elseif t == "string" then
             stmt:bind_text(i, v)
         else
-            assert(false, "[LuaDataBaseV2.bind_values_safe] Unsupported data type: " .. t)
+            assert(false, "[LuaDataBaseV2.sqlite3_bind_values] Unsupported data type: " .. t)
         end
     end
 end
@@ -70,13 +73,18 @@ end
 ---@field table_cnt_max? integer Default: nil
 ---@field verbose? boolean Default: false
 ---@field no_check_bind_value? boolean Default: false, the caller is responsible for the data to be bound, good for performance
----@field libsqlite3_name? string Default: sqlite3
----@field libsqlite3_path? string Default: nil
+---@field backend? "sqlite3" | "duckdb"
+---@field lib_name? string Default: sqlite3/duckdb
+---@field lib_path? string Default: nil
 ---@field pragmas? LuaDataBaseV2.pragmas
 
 ---@class (exact) LuaDataBaseV2
 ---@overload fun(params: LuaDataBaseV2.params): LuaDataBaseV2
 ---@field private db any
+---@field private duckdb_config verilua.utils.duckdb.duckdb_config
+---@field private duckdb_conn verilua.utils.duckdb.duckdb_connection
+---@field private duckdb_appd verilua.utils.duckdb.duckdb_appender
+---@field private backend "sqlite3" | "duckdb"
 ---@field private size_limit? integer
 ---@field private file_count integer
 ---@field private path_name string
@@ -149,24 +157,39 @@ local LuaDataBaseV2 = class()
 function LuaDataBaseV2:_init(params)
     texpect.expect_table(params, "init_tbl")
 
-    local save_cnt_max    = params.save_cnt_max or 10000
-    local table_cnt_max   = params.table_cnt_max
-    local verbose         = params.verbose or false
-    local table_name      = params.table_name
-    local elements        = params.elements
-    local file_name       = params.file_name
-    local path_name       = params.path
-    local size_limit      = params.size_limit -- Size in bytes
-    local pragmas         = params.pragmas or {} --[[@as LuaDataBaseV2.pragmas]]
+    local save_cnt_max  = params.save_cnt_max or 10000
+    local table_cnt_max = params.table_cnt_max
+    local verbose       = params.verbose or false
+    local table_name    = params.table_name
+    local elements      = params.elements
+    local file_name     = params.file_name
+    local path_name     = params.path
+    local size_limit    = params.size_limit -- Size in bytes
+    local pragmas       = params.pragmas or {} --[[@as LuaDataBaseV2.pragmas]]
 
-    local libsqlite3_name = params.libsqlite3_name or "sqlite3"
-    local libsqlite3_path = params.libsqlite3_path
-    do
-        sqlite3 = require("thirdparty_lib.sqlite3") {
-            name = libsqlite3_name,
-            path = libsqlite3_path,
-        }
-        sqlite3_clib = sqlite3.clib
+    local backend       = params.backend or "sqlite3"
+    self.backend        = backend
+
+    if backend == "sqlite3" then
+        local lib_name = params.lib_name or "sqlite3"
+        local lib_path = params.lib_path
+        do
+            sqlite3 = require("thirdparty_lib.sqlite3") {
+                name = lib_name,
+                path = lib_path,
+            }
+            sqlite3_clib = sqlite3.clib
+        end
+    else
+        assert(backend == "duckdb", "Unsupported backend: " .. backend)
+        local lib_name = params.lib_name or "duckdb"
+        local lib_path = params.lib_path
+        do
+            duckdb = require("verilua.utils.duckdb") {
+                name = lib_name,
+                path = lib_path,
+            }
+        end
     end
 
     local no_check_bind_value = params.no_check_bind_value
@@ -244,6 +267,14 @@ function LuaDataBaseV2:_init(params)
             table_insert(pre_alloc_entry, "")
         end
 
+        if backend == "duckdb" then
+            if data_type == "INTEGER" then
+                data_type = "BIGINT"
+            else
+                data_type = "VARCHAR"
+            end
+        end
+
         self.elements[#self.elements + 1] = key .. " => " .. data_type
         self.entries[#self.entries + 1] = { name = key, type = data_type }
         entry_names[i] = key
@@ -259,10 +290,17 @@ function LuaDataBaseV2:_init(params)
         self.table_name = f(self.table_name_template, 0)
     end
 
-    self.create_table_cmd_template = subst(
-        "CREATE TABLE %s \n( $(pattern_str) );",
-        { pattern_str = table.concat(pattern_table, ", ") }
-    )
+    if backend == "duckdb" then
+        self.create_table_cmd_template = subst(
+            "CREATE OR REPLACE TABLE %s \n( $(pattern_str) );",
+            { pattern_str = table.concat(pattern_table, ", ") }
+        )
+    else
+        self.create_table_cmd_template = subst(
+            "CREATE TABLE %s \n( $(pattern_str) );",
+            { pattern_str = table.concat(pattern_table, ", ") }
+        )
+    end
     self.create_table_cmd = f(self.create_table_cmd_template, self.table_name)
 
     -- Create prepare cmd for stmt
@@ -281,35 +319,43 @@ function LuaDataBaseV2:_init(params)
 
     -- Create pragma cmd
     self.pragma_cmd = ""
-    if pragmas.cache_size then
-        texpect.expect_string(pragmas.cache_size, "pragmas.cache_size")
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA cache_size = " .. pragmas.cache_size .. ";"
+    if backend == "duckdb" then
+        local ret, config = duckdb.new_config()
+        assert(ret == DB_OK, "duckdb.new_config failed")
+        config:set_and_check("default_order", "DESC")
+
+        self.duckdb_config = config
     else
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA cache_size = -1000000;"
-    end
-    if pragmas.journal_mode then
-        texpect.expect_string(pragmas.journal_mode, "pragmas.journal_mode")
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA journal_mode = " .. pragmas.journal_mode .. ";"
-    else
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA journal_mode = OFF;"
-    end
-    if pragmas.synchronous then
-        texpect.expect_string(pragmas.synchronous, "pragmas.synchronous")
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA synchronous = " .. pragmas.synchronous .. ";"
-    else
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA synchronous = OFF;"
-    end
-    if pragmas.locking_mode then
-        texpect.expect_string(pragmas.locking_mode, "pragmas.locking_mode")
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA locking_mode = " .. pragmas.locking_mode .. ";"
-    else
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA locking_mode = EXCLUSIVE;"
-    end
-    if pragmas.foreign_keys then
-        texpect.expect_string(pragmas.foreign_keys, "pragmas.foreign_keys")
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA foreign_keys = " .. pragmas.foreign_keys .. ";"
-    else
-        self.pragma_cmd = self.pragma_cmd .. "PRAGMA foreign_keys = OFF;"
+        if pragmas.cache_size then
+            texpect.expect_string(pragmas.cache_size, "pragmas.cache_size")
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA cache_size = " .. pragmas.cache_size .. ";"
+        else
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA cache_size = -1000000;"
+        end
+        if pragmas.journal_mode then
+            texpect.expect_string(pragmas.journal_mode, "pragmas.journal_mode")
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA journal_mode = " .. pragmas.journal_mode .. ";"
+        else
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA journal_mode = OFF;"
+        end
+        if pragmas.synchronous then
+            texpect.expect_string(pragmas.synchronous, "pragmas.synchronous")
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA synchronous = " .. pragmas.synchronous .. ";"
+        else
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA synchronous = OFF;"
+        end
+        if pragmas.locking_mode then
+            texpect.expect_string(pragmas.locking_mode, "pragmas.locking_mode")
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA locking_mode = " .. pragmas.locking_mode .. ";"
+        else
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA locking_mode = EXCLUSIVE;"
+        end
+        if pragmas.foreign_keys then
+            texpect.expect_string(pragmas.foreign_keys, "pragmas.foreign_keys")
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA foreign_keys = " .. pragmas.foreign_keys .. ";"
+        else
+            self.pragma_cmd = self.pragma_cmd .. "PRAGMA foreign_keys = OFF;"
+        end
     end
 
     verilua_debug(f(
@@ -323,7 +369,7 @@ function LuaDataBaseV2:_init(params)
     self.save_cnt_max = save_cnt_max
     self.save_cnt = 1
     self.cache = table_new(save_cnt_max, 0) -- TODO: using FFI data structure
-    for i = 1, save_cnt_max do
+    for _ = 1, save_cnt_max do
         table_insert(self.cache, pre_alloc_entry)
     end
 
@@ -336,21 +382,45 @@ function LuaDataBaseV2:_init(params)
         end
     end
 
-    self.create_table = utils.loadcode(subst([[
-            return function (self)
-                local code = self.db:exec(self.create_table_cmd)
-                if code ~= $(sqlite3_ok) then
-                    assert(false, string.format("[LuaDataBase] [%s] SQLite3 error: %s", self.fullpath_name, self.db:errmsg()))
+    local create_table_code = subst([[
+            return function (this)
+|> if backend == "duckdb" then
+                local code, errmsg = this.duckdb_conn:exec(this.create_table_cmd)
+|> else
+                local code = this.db:exec(this.create_table_cmd)
+|> end
+                if code ~= $(DB_OK) then
+|> if backend == "duckdb" then
+                    assert(false, string.format("[LuaDataBase] [%s] $(backend) error: %s", this.fullpath_name, errmsg))
+|> else
+                    assert(false, string.format("[LuaDataBase] [%s] $(backend) error: %s", this.fullpath_name, this.db:errmsg()))
+|> end
                 else
-                    if self.table_cnt_max then
-                        self.table_cnt = 0
+                    if this.table_cnt_max then
+                        this.table_cnt = 0
                     end
 |> if enable_verilua_debug then
-                    verilua_debug("[LuaDataBaseV2] cmd execute success! cmd => " .. self.create_table_cmd)
+                    verilua_debug("[LuaDataBaseV2] cmd execute success! cmd => " .. this.create_table_cmd)
 |> end
                 end
+
+|> if backend == "duckdb" then
+                local ret, appd = this.duckdb_conn:new_appender(this.table_name)
+                if ret ~= $(DB_OK) then
+                    assert(false, string.format("[LuaDataBase] [%s] $(backend) failed to create appender", this.fullpath_name))
+                end
+                this.duckdb_appd = appd
+|> end
             end
-    ]], { _escape = "|>", enable_verilua_debug = _G.enable_verilua_debug, sqlite3_ok = DB_OK }))
+    ]],
+        {
+            _escape = "|>",
+            enable_verilua_debug = _G.enable_verilua_debug,
+            backend = backend,
+            DB_OK = DB_OK
+        }
+    )
+    self.create_table = utils.loadcode(create_table_code)
 
     -- Create database
     self:create_db()
@@ -365,33 +435,64 @@ function LuaDataBaseV2:_init(params)
     end
 
     local bind_values_code
-    if no_check_bind_value then
-        local t = {}
-        for i, entry in ipairs(self.entries) do
-            if entry.type == "INTEGER" then
-                t[#t + 1] = subst([[
-                    local __cache_value__$(n) = __cache_value[$(i)]
-                    sqlite3_clib.sqlite3_bind_double(stmt, $(i), __cache_value__$(n)) ]],
-                    { i = i, n = entry.name }
-                )
-            elseif entry.type == "TEXT" then
-                t[#t + 1] = subst([[
-                    local __cache_value__$(n) = __cache_value[$(i)]
-                    sqlite3_clib.sqlite3_bind_text(stmt, $(i), __cache_value__$(n), #__cache_value__$(n), nil) ]],
-                    { i = i, n = entry.name }
-                )
-            else
-                assert(false, "[LuaDataBaseV2] Unsupported data type: " .. entry.type)
+    if self.backend == "duckdb" then
+        if no_check_bind_value then
+            local t = {}
+            for i, entry in ipairs(self.entries) do
+                if entry.type == "BIGINT" then
+                    t[#t + 1] = subst([[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        this.duckdb_appd:append_uint64(__cache_value__$(n)) ]],
+                        { i = i, n = entry.name }
+                    )
+                elseif entry.type == "VARCHAR" then
+                    t[#t + 1] = subst([[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        this.duckdb_appd:append_string(__cache_value__$(n)) ]],
+                        { i = i, n = entry.name }
+                    )
+                else
+                    assert(false, "[LuaDataBaseV2] Unsupported data type: " .. entry.type)
+                end
             end
+            bind_values_code = table.concat(t, "\n\n")
+        else
+            bind_values_code = subst(
+                "this.duckdb_appd:append_values($(commit))",
+                {
+                    commit = table.concat(commit_data_unpack_items, ", ")
+                }
+            )
         end
-        bind_values_code = table.concat(t, "\n\n")
     else
-        bind_values_code = subst(
-            "bind_values(stmt, $(commit))",
-            {
-                commit = table.concat(commit_data_unpack_items, ", ")
-            }
-        )
+        if no_check_bind_value then
+            local t = {}
+            for i, entry in ipairs(self.entries) do
+                if entry.type == "INTEGER" then
+                    t[#t + 1] = subst([[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        sqlite3_clib.sqlite3_bind_double(stmt, $(i), __cache_value__$(n)) ]],
+                        { i = i, n = entry.name }
+                    )
+                elseif entry.type == "TEXT" then
+                    t[#t + 1] = subst([[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        sqlite3_clib.sqlite3_bind_text(stmt, $(i), __cache_value__$(n), #__cache_value__$(n), nil) ]],
+                        { i = i, n = entry.name }
+                    )
+                else
+                    assert(false, "[LuaDataBaseV2] Unsupported data type: " .. entry.type)
+                end
+            end
+            bind_values_code = table.concat(t, "\n\n")
+        else
+            bind_values_code = subst(
+                "sqlite3_bind_values(stmt, $(commit))",
+                {
+                    commit = table.concat(commit_data_unpack_items, ", ")
+                }
+            )
+        end
     end
 
     --
@@ -422,6 +523,68 @@ function LuaDataBaseV2:_init(params)
     })
 
     local _perpare_cmd = self.table_cnt_max and "this.prepare_cmd" or "\"" .. self.prepare_cmd .. "\""
+    local size_limit_check_code = ""
+    local table_cnt_check_code = ""
+    if self.size_limit then
+        size_limit_check_code = subst([[
+            if this.finished then
+                return
+            end
+
+            -- Size in bytes
+            local size = lfs_attributes(this.fullpath_name, "size")
+            if size > $(size_limit) then
+                -- Close older database
+                this.db:close()
+
+                -- Create new database
+                this.file_count = this.file_count + 1
+                this.fullpath_name = path_join(this.path_name, this.file_count .. "__" .. this.file_name)
+                this:create_db()
+            end
+        ]], { size_limit = self.size_limit })
+    end
+    if self.table_cnt_max then
+        table_cnt_check_code = subst([[
+            this.table_cnt = this.table_cnt + 1
+            if this.table_cnt >= $(table_cnt_max) then
+|> if backend == "duckdb" then
+                this.duckdb_appd:flush()
+|> else
+                stmt:finalize()
+                this.db:exec("COMMIT")
+|> end
+
+                local table_idx = this.table_idx
+                local new_table_name = f(this.table_name_template, table_idx + 1)
+
+                this.create_table_cmd = f(this.create_table_cmd_template, new_table_name)
+|> if backend == "duckdb" then
+                this.table_name = new_table_name
+|> else
+                this.prepare_cmd = f(this.prepare_cmd_template, new_table_name)
+|> end
+                this:create_table()
+
+                this.table_idx = table_idx + 1
+                this.table_cnt = 0
+
+|> if backend ~= "duckdb" then
+                this.db:exec("BEGIN TRANSACTION")
+                code, stmt = this.db:prepare_v2($(prepare))
+                if code ~= $(sqlite3_ok) then
+                    assert(false, "[LuaDataBaseV2] [commit] SQLite3 error: " .. this.db:errmsg())
+                end
+|> end
+            end
+        ]], {
+            _escape = "|>",
+            backend = self.backend,
+            table_cnt_max = self.table_cnt_max,
+            prepare = _perpare_cmd,
+            sqlite3_ok = DB_OK
+        })
+    end
     local commit_func_code = subst([[
         return function(this)
             -- This is used when `LightSSS` is enabled.
@@ -431,6 +594,15 @@ function LuaDataBaseV2:_init(params)
                 return
             end
 
+|> if backend == "duckdb" then
+            for cnt = 1, this.save_cnt do
+                local __cache_value = this.cache[cnt]
+                $(bind_values_code)
+                this.duckdb_appd:end_row()
+                $(table_cnt_check)
+            end
+            this.duckdb_appd:flush()
+|> else
             -- Notice: parametes passed into this function should hold the same order as the elements in the table
             this.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
             local code, stmt = this.db:prepare_v2($(prepare))
@@ -449,6 +621,7 @@ function LuaDataBaseV2:_init(params)
 
             stmt:finalize()
             this.db:exec("COMMIT")
+|> end
 
             this.save_cnt = 1
 
@@ -457,51 +630,15 @@ function LuaDataBaseV2:_init(params)
             $(size_limit_check)
         end
     ]], {
+        _escape = "|>",
+        backend = self.backend,
         pid = self.pid,
         prepare = _perpare_cmd,
         bind_values_code = bind_values_code,
         sqlite3_ok = DB_OK,
         verbose_print = self.verbose and "this:_log('commit!')" or "",
-        size_limit_check = self.size_limit and subst([[
-            if this.finished then
-                return
-            end
-
-            -- Size in bytes
-            local size = lfs_attributes(this.fullpath_name, "size")
-            if size > $(size_limit) then
-                -- Close older database
-                this.db:close()
-
-                -- Create new database
-                this.file_count = this.file_count + 1
-                this.fullpath_name = path_join(this.path_name, this.file_count .. "__" .. this.file_name)
-                this:create_db()
-            end
-        ]], { size_limit = self.size_limit }) or "",
-        table_cnt_check = self.table_cnt_max and subst([[
-            this.table_cnt = this.table_cnt + 1
-            if this.table_cnt >= $(table_cnt_max) then
-                stmt:finalize()
-                this.db:exec("COMMIT")
-
-                local table_idx = this.table_idx
-                local new_table_name = f(this.table_name_template, table_idx + 1)
-
-                this.create_table_cmd = f(this.create_table_cmd_template, new_table_name)
-                this.prepare_cmd = f(this.prepare_cmd_template, new_table_name)
-                this:create_table()
-
-                this.table_idx = table_idx + 1
-                this.table_cnt = 0
-
-                this.db:exec("BEGIN TRANSACTION")
-                code, stmt = this.db:prepare_v2($(prepare))
-                if code ~= $(sqlite3_ok) then
-                    assert(false, "[LuaDataBaseV2] [commit] SQLite3 error: " .. this.db:errmsg())
-                end
-            end
-        ]], { table_cnt_max = self.table_cnt_max, prepare = _perpare_cmd, sqlite3_ok = DB_OK }) or "",
+        size_limit_check = size_limit_check_code,
+        table_cnt_check = table_cnt_check_code,
     })
 
     -- try to remove `table.unpack` which cannot be jit compiled by LuaJIT
@@ -513,7 +650,7 @@ function LuaDataBaseV2:_init(params)
             lfs = lfs,
             assert = assert,
             f = string.format,
-            bind_values = bind_values,
+            sqlite3_bind_values = sqlite3_bind_values,
             lfs_attributes = lfs.attributes,
             sqlite3_clib = sqlite3_clib,
             print = print,
@@ -556,17 +693,46 @@ function LuaDataBaseV2:create_db()
         verilua_debug(f("[LuaDataBaseV2] Remove %s failed! => %s\n", self.fullpath_name, err_msg))
     end
 
-    -- Open database
-    local code, db = sqlite3.open(self.fullpath_name)
-    if code ~= DB_OK then
-        assert(false, f("[LuaDataBaseV2] Cannot open %s => %s", self.fullpath_name, db:errmsg()))
-    end
-    code = db:exec(self.pragma_cmd)
-    if code ~= DB_OK then
-        assert(false, f("[LuaDataBaseV2] Cannot set cache size %s => %s", self.fullpath_name, db:errmsg()))
+    local backend_db = sqlite3
+    local is_duckdb = self.backend == "duckdb"
+    if is_duckdb then
+        backend_db = duckdb
     end
 
-    self.db = db
+    -- Open database
+    if is_duckdb then
+        local code, db = backend_db.open(self.fullpath_name, self.duckdb_config)
+        if code ~= DB_OK then
+            assert(false, f("[LuaDataBaseV2] [%s] Cannot open %s => %s", self.backend, self.fullpath_name, db:errmsg()))
+        end
+
+        ---@cast db verilua.utils.duckdb.duckdb_database
+        self.db = db
+
+        local ret2, conn = self.db:new_conn()
+        assert(ret2 == DB_OK)
+        self.duckdb_conn = conn
+    else
+        local code, db = backend_db.open(self.fullpath_name)
+        if code ~= DB_OK then
+            assert(false, f("[LuaDataBaseV2] [%s] Cannot open %s => %s", self.backend, self.fullpath_name, db:errmsg()))
+        end
+
+        self.db = db
+
+        code = db:exec(self.pragma_cmd)
+        if code ~= DB_OK then
+            assert(
+                false,
+                f(
+                    "[LuaDataBaseV2] [%s] Cannot set cache size %s => %s",
+                    self.backend,
+                    self.fullpath_name,
+                    db:errmsg()
+                )
+            )
+        end
+    end
 
     -- Add to available files
     table_insert(self.available_files, self.fullpath_name)
@@ -586,10 +752,11 @@ end
 function LuaDataBaseV2:clean_up()
     local path = require "pl.path"
     print(f(
-        "[LuaDataBaseV2] [%s] [%s => %s] clean up...\n",
+        "[LuaDataBaseV2] [%s] [%s => %s] [%s] clean up...\n",
         self.table_name,
         self.fullpath_name,
-        path.abspath(self.fullpath_name)
+        path.abspath(self.fullpath_name),
+        self.backend
     ))
 
     self:commit()

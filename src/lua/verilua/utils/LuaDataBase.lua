@@ -136,6 +136,11 @@ function LuaDataBase:_init(params)
     local size_limit    = params.size_limit -- Size in bytes
     local pragmas       = params.pragmas or {} --[[@as LuaDataBase.pragmas]]
 
+    ---@diagnostic disable-next-line: undefined-field
+    if type(params.backend) == "string" then
+        assert(false, "LuaDataBase does not support `backend` parameter, use LuaDataBaseV2 instead.")
+    end
+
     texpect.expect_string(table_name, "table_name")
     texpect.expect_table(elements, "elements")
     texpect.expect_string(file_name, "file_name")
