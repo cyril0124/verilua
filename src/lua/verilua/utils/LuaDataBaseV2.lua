@@ -275,7 +275,7 @@ function LuaDataBaseV2:_init(params)
             end
         end
 
-        self.elements[#self.elements + 1] = key .. " => " .. data_type
+        self.elements[#self.elements + 1] = key .. "=>" .. data_type
         self.entries[#self.entries + 1] = { name = key, type = data_type }
         entry_names[i] = key
         pattern_table[i] = key .. " " .. data_type

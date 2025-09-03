@@ -414,7 +414,7 @@ function texpect.expect_abdl(value, name, params)
     end
 end
 
----@param value LuaDataBase
+---@param value LuaDataBase|LuaDataBaseV2
 ---@param name string
 ---@param elements_table string[]
 function texpect.expect_database(value, name, elements_table)
@@ -446,8 +446,15 @@ function texpect.expect_database(value, name, elements_table)
             assert(type(elements_table) == "table", "[expect_database] elements_table must be a table")
 
             -- Remove trivial space
-            for _, s in ipairs(elements_table) do
-                s:gsub(" ", "")
+            for i, s in ipairs(elements_table) do
+                elements_table[i] = s:gsub(" ", "")
+            end
+
+            ---@diagnostic disable-next-line: access-invisible
+            if value.backend and value.backend == "duckdb" then
+                for i, s in ipairs(elements_table) do
+                    elements_table[i] = s:gsub("INTEGER", "BIGINT"):gsub("TEXT", "VARCHAR")
+                end
             end
 
             local expect = inspect(elements_table)

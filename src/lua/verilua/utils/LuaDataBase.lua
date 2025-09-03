@@ -137,8 +137,9 @@ function LuaDataBase:_init(params)
     local pragmas       = params.pragmas or {} --[[@as LuaDataBase.pragmas]]
 
     ---@diagnostic disable-next-line: undefined-field
-    if type(params.backend) == "string" then
-        assert(false, "LuaDataBase does not support `backend` parameter, use LuaDataBaseV2 instead.")
+    if type(params.backend) == "string" and params.backend ~= "sqlite3" then
+        ---@diagnostic disable-next-line: undefined-field
+        assert(false, "LuaDataBase does not support `backend` parameter, use LuaDataBaseV2 instead. params.backend: " .. params.backend)
     end
 
     texpect.expect_string(table_name, "table_name")
@@ -214,7 +215,7 @@ function LuaDataBase:_init(params)
             table_insert(pre_alloc_entry, "")
         end
 
-        self.elements[#self.elements + 1] = key .. " => " .. data_type
+        self.elements[#self.elements + 1] = key .. "=>" .. data_type
         self.entries[#self.entries + 1] = { name = key, type = data_type }
         entry_names[i] = key
         pattern_table[i] = key .. " " .. data_type
