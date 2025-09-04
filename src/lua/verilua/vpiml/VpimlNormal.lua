@@ -256,7 +256,14 @@ local vpiml = {
     vpiml_force_imm_value_multi_beat_8 = C.vpiml_force_imm_value_multi_beat_8,
 
     ---@type fun(handle: ComplexHandleRaw)
-    vpiml_release_value = C.vpiml_release_imm_value,
+    vpiml_release_value = (function()
+        if cfg.simulator == "iverilog" then
+            --- see: tests/test_set_value/main.lua:117
+            return C.vpiml_release_imm_value
+        else
+            return C.vpiml_release_value
+        end
+    end)(),
 
     ---@type fun(handle: ComplexHandleRaw)
     vpiml_release_imm_value = C.vpiml_release_imm_value,

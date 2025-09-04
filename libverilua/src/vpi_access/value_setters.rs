@@ -611,16 +611,27 @@ impl VeriluaEnv {
         //      Best to pass its current value to the sim when releasing
         unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-        if complex_handle.try_put_value(self, &vpiReleaseFlag, &(v.format as u32)) {
-            complex_handle.put_value_integer = unsafe { v.value.integer } as _;
-            for i in 0..complex_handle.beat_num {
-                complex_handle.put_value_vectors[i].aval =
-                    unsafe { v.value.vector.add(i as _).read().aval } as _;
-                complex_handle.put_value_vectors[i].bval =
-                    unsafe { v.value.vector.add(i as _).read().bval } as _;
-            }
+        if cfg!(feature = "inertial_put") {
+            unsafe {
+                vpi_put_value(
+                    complex_handle.vpi_handle,
+                    &mut v,
+                    std::ptr::null_mut(),
+                    vpiInertialDelay as _,
+                )
+            };
+        } else {
+            if complex_handle.try_put_value(self, &vpiReleaseFlag, &(v.format as u32)) {
+                complex_handle.put_value_integer = unsafe { v.value.integer } as _;
+                for i in 0..complex_handle.beat_num {
+                    complex_handle.put_value_vectors[i].aval =
+                        unsafe { v.value.vector.add(i as _).read().aval } as _;
+                    complex_handle.put_value_vectors[i].bval =
+                        unsafe { v.value.vector.add(i as _).read().bval } as _;
+                }
 
-            self.do_push_hdl_put_value(complex_handle_raw);
+                self.do_push_hdl_put_value(complex_handle_raw);
+            }
         }
     }
 
@@ -628,25 +639,33 @@ impl VeriluaEnv {
         let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
         if cfg!(feature = "verilator") {
             panic!("release value is not supported in verilator!");
-        } else {
-            let mut v = s_vpi_value {
-                format: vpiVectorVal as _,
-                value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
-            };
-
-            // Tips from cocotb:
-            //      Best to pass its current value to the sim when releasing
-            unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
-
-            unsafe {
-                vpi_put_value(
-                    complex_handle.vpi_handle,
-                    &mut v,
-                    std::ptr::null_mut(),
-                    vpiReleaseFlag as _,
-                )
-            };
         }
+        let mut v = s_vpi_value {
+            format: vpiVectorVal as _,
+            value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
+        };
+
+        // Also remove from hdl_put_value and complex_handle.put_value_flag
+        if let Some(target_idx) = self.hdl_put_value.iter().position(|complex_handle_raw| {
+            let _complex_handle = ComplexHandle::from_raw(complex_handle_raw);
+            _complex_handle.vpi_handle == complex_handle.vpi_handle
+        }) {
+            self.hdl_put_value.remove(target_idx);
+            complex_handle.put_value_flag = None;
+        }
+
+        // Tips from cocotb:
+        //      Best to pass its current value to the sim when releasing
+        unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
+
+        unsafe {
+            vpi_put_value(
+                complex_handle.vpi_handle,
+                &mut v,
+                std::ptr::null_mut(),
+                vpiReleaseFlag as _,
+            )
+        };
     }
 
     pub fn vpiml_set_shuffled(&mut self, complex_handle_raw: ComplexHandleRaw) {

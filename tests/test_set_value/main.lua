@@ -62,6 +62,20 @@ fork {
             inc:set_release()
             clock:posedge()
 
+            inc:set_force(213)
+            inc:set(0)
+            clock:posedge()
+            inc:expect(213)
+            inc:set_release()
+            clock:posedge()
+
+            inc:set_force(120)
+            clock:posedge()
+            inc:set(111)
+            clock:posedge()
+            inc:expect(120)
+            inc:set_imm_release()
+
             inc:set_force(114)
             inc:set_force(115)
             clock:posedge()
@@ -76,7 +90,34 @@ fork {
             clock:posedge()
             inc:expect(119)
             inc:set_release()
+            inc:set_release()
             clock:posedge()
+
+            inc:set_force(120)
+            inc:set_release()
+            clock:posedge()
+            inc:expect(119)
+
+            inc:set_release()
+            inc:set_force(121)
+            clock:posedge()
+            inc:expect(121)
+            inc:set_release()
+
+            inc:set_release()
+            inc:set_release()
+
+            local counter = dut.u_top.counter:chdl()
+            counter:set_force(1)
+            clock:posedge()
+            counter:expect(1)
+            counter:set_release()
+            clock:posedge()
+
+            --- TODO: There are problems with iverilog, the counter value is not updated when `<chdl>:set_release()` is called using `vpiml.vpiml_release_value()`.
+            ---        As a workaround, use `vpiml.vpiml_release_imm_value()` instead.
+            ---        Maybe this is a bug of iverilog?
+            counter:expect(2)
         end
 
         do

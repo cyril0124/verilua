@@ -19,4 +19,16 @@ always @(posedge clock) begin
     end
 end
 
+reg [7:0] counter;
+initial begin
+    counter = 0;
+end
+always @(posedge clock) begin
+    if (reset) begin
+        counter <= 8'b0;
+    end else begin
+        counter <= counter + 1'b1;
+    end
+end
+
 endmodule
