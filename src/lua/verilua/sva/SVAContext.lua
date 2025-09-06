@@ -23,6 +23,7 @@ local setmetatable = setmetatable
 ---@field envs? table<string, any>
 
 ---@class (exact) SVAContext
+---@field private default_clocking_expr string
 ---@field private unique_stmt_name_map table<string, boolean>
 ---@field private global_envs table<string, any>
 ---@field private sequence_vec string[]
@@ -30,9 +31,11 @@ local setmetatable = setmetatable
 ---@field private content_vec string[]
 ---@field with_global_envs fun(self: SVAContext, envs: table<string, any>): SVAContext
 ---@field add fun(self: SVAContext, typ: "cover" | "assert" | "property" | "sequence"): fun(params: SVAContext.add.params): SVAContext.property | SVAContext.sequence | nil
+---@field default_clocking fun(self: SVAContext, signal: CallableHDL|ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): SVAContext
 ---@field clean fun(self: SVAContext): SVAContext
 ---@field generate fun(self: SVAContext): string
 local SVAContext = {
+    default_clocking_expr = "",
     unique_stmt_name_map = {},
     global_envs = {},
     sequence_vec = {},
@@ -43,6 +46,11 @@ local SVAContext = {
 setmetatable(SVAContext, {
     __tostring = function(self)
         local content = ""
+
+        if self.default_clocking_expr ~= "" then
+            content = content .. self.default_clocking_expr .. "\n\n"
+        end
+
         for _, v in ipairs(self.sequence_vec) do
             content = content .. tostring(v) .. "\n\n"
         end
@@ -188,6 +196,53 @@ function SVAContext:add(typ)
     end
 end
 
+function SVAContext:default_clocking(signal, edge_type, overwrite)
+    local t = type(signal)
+    assert(
+        t == "table",
+        "[SVAContext] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " .. t
+    )
+
+    local handle_t = signal.__type
+    local is_chdl = handle_t == "CallableHDL"
+    local is_dut = handle_t == "ProxyTableHandle"
+    assert(
+        is_chdl or is_dut,
+        "[SVAContext] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " ..
+        tostring(handle_t)
+    )
+
+    ---@type CallableHDL
+    local chdl
+    if is_chdl then
+        ---@cast signal CallableHDL
+        chdl = signal
+    elseif is_dut then
+        ---@cast signal ProxyTableHandle
+        chdl = signal:chdl()
+    else
+        assert(false, "Should not reach here")
+    end
+
+    assert(chdl:get_width() == 1, "[SVAContext] default_clocking error: `signal` should be a 1-bit signal")
+
+    assert(
+        edge_type == "posedge" or edge_type == "negedge",
+        "[SVAContext] default_clocking error: `edge_type` should be `posedge` or `negedge`"
+    )
+
+    if not overwrite and self.default_clocking_expr ~= "" then
+        assert(
+            false,
+            "[SVAContext] default_clocking error: `overwrite` is false, but `self.default_clocking_expr` is not empty"
+        )
+    end
+
+    self.default_clocking_expr = f("default clocking @(%s %s); endclocking", edge_type, chdl.fullpath)
+
+    return self
+end
+
 function SVAContext:with_global_envs(envs)
     for key, value in pairs(envs) do
         self.global_envs[key] = value
@@ -196,6 +251,7 @@ function SVAContext:with_global_envs(envs)
 end
 
 function SVAContext:clean()
+    self.default_clocking_expr = ""
     self.unique_stmt_name_map = {}
     self.global_envs = {}
     self.sequence_vec = {}

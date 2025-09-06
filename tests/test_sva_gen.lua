@@ -289,5 +289,48 @@ property _GEN_test_PROPERTY(); 123 456 789 path.to.f; endproperty
 test: cover property (_GEN_test_PROPERTY);
 
 ]])
+
+        ctx:clean()
+    end)
+
+    it("can add default clocking", function()
+        local clock_signal = {
+            __type = "CallableHDL",
+            fullpath = "path.to.clock",
+            get_width = function() return 1 end
+        }
+        ---@cast clock_signal CallableHDL
+        ctx:default_clocking(clock_signal, "posedge")
+        expect.equal(tostring(ctx), [[
+default clocking @(posedge path.to.clock); endclocking
+
+]])
+
+        ctx:clean()
+
+        local clock_dut_signal = {
+            __type = "ProxyTableHandle",
+            chdl = function(t)
+                return clock_signal
+            end
+        }
+        ---@cast clock_dut_signal ProxyTableHandle
+        ctx:default_clocking(clock_dut_signal, "negedge")
+        expect.equal(tostring(ctx), [[
+default clocking @(negedge path.to.clock); endclocking
+
+]])
+
+        local ok = pcall(function()
+            ctx:default_clocking(clock_dut_signal, "posedge")
+        end)
+        assert(not ok)
+
+        ok = pcall(function()
+            ctx:default_clocking(clock_dut_signal, "posedge", true)
+        end)
+        assert(ok)
+
+        ctx:clean()
     end)
 end)
