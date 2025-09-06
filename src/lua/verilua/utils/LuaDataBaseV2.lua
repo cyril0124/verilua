@@ -601,7 +601,8 @@ function LuaDataBaseV2:_init(params)
                 this.duckdb_appd:end_row()
                 $(table_cnt_check)
             end
-            this.duckdb_appd:flush()
+            -- Do flush in clean up function
+            -- this.duckdb_appd:flush()
 |> else
             -- Notice: parametes passed into this function should hold the same order as the elements in the table
             this.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
@@ -760,6 +761,18 @@ function LuaDataBaseV2:clean_up()
     ))
 
     self:commit()
+
+    if self.backend == "duckdb" then
+        print(f(
+            "[LuaDataBaseV2] [%s] [%s => %s] [%s] flush appender...\n",
+            self.table_name,
+            self.fullpath_name,
+            path.abspath(self.fullpath_name),
+            self.backend
+        ))
+        local ret = self.duckdb_appd:flush()
+        assert(ret == DB_OK, "[LuaDataBaseV2] [duckdb] Cannot flush appender")
+    end
 end
 
 return LuaDataBaseV2
