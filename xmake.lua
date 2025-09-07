@@ -461,6 +461,13 @@ target("test", function()
             os.exec("xmake run -P .")
         end
 
+        do
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests", "test_signal_db"))
+            os.exec("xmake build -P .")
+            os.exec("xmake run -P .")
+        end
+
         cprint([[${green}
   _____         _____ _____
  |  __ \ /\    / ____/ ____|
