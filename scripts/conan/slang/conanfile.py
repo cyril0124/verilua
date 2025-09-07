@@ -4,7 +4,7 @@ from conan.tools.files import get, copy
 
 class SlangConan(ConanFile):
     name = "slang"
-    version = "8.0"
+    version = "9.0"
     license = "MIT"
     url = "https://github.com/cyril0124/slang"
     description = "SystemVerilog compiler and language services"
@@ -14,7 +14,7 @@ class SlangConan(ConanFile):
     generators = "CMakeDeps"
 
     def source(self):
-        get(self, "https://github.com/cyril0124/slang/archive/refs/tags/v8.0.tar.gz",
+        get(self, "https://github.com/cyril0124/slang/archive/refs/tags/v9.0.tar.gz",
             strip_root=True)
 
     def layout(self):

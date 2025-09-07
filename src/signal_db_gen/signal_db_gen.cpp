@@ -151,8 +151,7 @@ class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
 
         auto varIter = ast.membersOfType<VariableSymbol>();
         for (const auto &var : varIter) {
-            std::string hierPath;
-            var.getHierarchicalPath(hierPath);
+            std::string hierPath = var.getHierarchicalPath();
 
             auto bitWidth = var.getType().getBitWidth();
             auto typeStr  = var.getType().toString();
@@ -166,8 +165,7 @@ class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
 
         auto netIter = ast.membersOfType<NetSymbol>();
         for (const auto &net : netIter) {
-            std::string hierPath;
-            net.getHierarchicalPath(hierPath);
+            std::string hierPath = net.getHierarchicalPath();
 
             auto bitWidth = net.getType().getBitWidth();
             auto dataType = net.netType.getDataType().toString();
@@ -479,11 +477,9 @@ class WrappedDriver {
 
     std::unique_ptr<slang::ast::Compilation> getCompilelation() {
         ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
-        auto compilation    = driver.createCompilation();
-        bool compileSuccess = driver.reportCompilation(*compilation, quiet.value_or(false));
+        bool compileSuccess = driver.runFullCompilation(quiet.value_or(false));
         ASSERT(compileSuccess);
-
-        return compilation;
+        return driver.createCompilation();
     }
 };
 

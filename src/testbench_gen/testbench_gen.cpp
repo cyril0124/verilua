@@ -183,11 +183,11 @@ int main(int argc, const char *argv[]) {
     ASSERT(driver.parseAllSources());
     ASSERT(driver.reportParseDiags());
 
-    auto compilation = driver.createCompilation();
-
     // Check compilation errors
-    bool compileSuccess = driver.reportCompilation(*compilation, false);
+    bool compileSuccess = driver.runFullCompilation(false);
     ASSERT(compileSuccess);
+
+    auto compilation = driver.createCompilation();
 
     std::string topName     = "";
     auto &rootSymbol        = compilation->getRoot();
@@ -738,7 +738,6 @@ endmodule
         ASSERT(driver.processOptions());
         ASSERT(driver.parseAllSources());
 
-        auto compilationForCheck = driver.createCompilation();
-        ASSERT(driver.reportCompilation(*compilationForCheck, false));
+        ASSERT(driver.runFullCompilation(false));
     }
 }

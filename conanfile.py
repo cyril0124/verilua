@@ -7,7 +7,7 @@ class VeriluaConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
 
     requires = (
-        "slang/8.0",
+        "slang/9.0",
         "sol2/3.3.1",
         "argparse/3.1",
         "inja/3.4.0",
