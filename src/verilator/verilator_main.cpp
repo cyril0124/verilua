@@ -248,8 +248,19 @@ Emulator::Emulator(int argc, char *argv[]) {
     program.add_argument("-fi", "--fork-interval").help("LightSSS snapshot interval (in seconds)").default_value(1000).action([](const std::string &value) { return std::stoi(value); });
     program.add_argument("-ftf", "--fork-trace-file").help("Wavefile name when LightSSS is enabled").default_value("").action([](const std::string &value) { return value; });
 
+    // Filter out verilog plusargs (starting with +) before passing to argparse
+    std::vector<char *> filtered_argv;
+    // The first argument (argv[0]) is always the name of the program itself and must be preserved
+    filtered_argv.push_back(argv[0]);
+    for (int i = 1; i < argc; ++i) {
+        // If the current argument starts with +, skip it
+        if (argv[i] && argv[i][0] != '+') {
+            filtered_argv.push_back(argv[i]);
+        }
+    }
+
     try {
-        program.parse_args(argc, argv);
+        program.parse_args(filtered_argv.size(), filtered_argv.data());
     } catch (const std::runtime_error &err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
