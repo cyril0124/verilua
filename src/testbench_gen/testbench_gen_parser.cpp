@@ -2,6 +2,35 @@
 
 void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
     if (ast.name == topName) {
+        for (auto &p : ast.getParameters()) {
+            if (p->isPortParam()) {
+                auto maybeParamDeclSyn = p->defaultValSyntax->parent;
+                ASSERT(toString(maybeParamDeclSyn->kind) == "ParameterDeclaration", "Expected ParameterDeclaration", toString(maybeParamDeclSyn->kind));
+
+                auto &paramDeclSyn = maybeParamDeclSyn->as<slang::syntax::ParameterDeclarationSyntax>();
+                auto paramTypeStr  = toString(paramDeclSyn.type->kind);
+
+                std::string typeStr = "";
+                if (paramTypeStr == "StringType") {
+                    typeStr = "string";
+                } else if (paramTypeStr == "IntType") {
+                    typeStr = "int";
+                } else if (paramTypeStr == "IntegerType") {
+                    typeStr = "integer";
+                } else if (paramTypeStr == "RealType") {
+                    typeStr = "real";
+                } else if (paramTypeStr == "TimeType") {
+                    typeStr = "time";
+                } else if (paramTypeStr == "ImplicitType") {
+                    typeStr = "";
+                } else {
+                    PANIC("TODO: Unsupported parameter type", paramTypeStr);
+                }
+                portParamStmts.push_back(fmt::format("parameter {} {}", typeStr, p->defaultValSyntax->toString()));
+                portParamInstStmts.push_back(fmt::format(".{0}({0})", p->symbol.name));
+            }
+        }
+
         auto pl = ast.getPortList();
         for (auto p : pl) {
             auto &port         = p->as<PortSymbol>();

@@ -209,11 +209,14 @@ int main(int argc, const char *argv[]) {
 
     // Start iterate the whole design to get all available ports
     TestbenchGenParser parser(topName, verbose);
-    auto &portInfos = parser.portInfos;
+    auto &portInfos          = parser.portInfos;
+    auto &portParamStmts     = parser.portParamStmts;
+    auto &portParamInstStmts = parser.portParamInstStmts;
     compilation->getRoot().visit(parser);
 
-    // Save portInfos into meta file
-    metaInfoJson["portInfos"] = portInfos;
+    // Save portInfos, portParamStmts into meta file
+    metaInfoJson["portInfos"]      = portInfos;
+    metaInfoJson["portParamStmts"] = portParamStmts;
 
     // Check whether clock and reset signal has been matched
     bool clockSignalHasMatch = false;
@@ -267,7 +270,7 @@ int main(int argc, const char *argv[]) {
 {{customCodeStrOuter}}
 {{customCodeOuterFileContent}} 
 
-module {{tbtopName}}(
+module {{tbtopName}} {{tbtopPortParamDecl}}(
 `ifdef SIM_VERILATOR
     input wire clock,
     input wire reset,
@@ -364,7 +367,7 @@ end
 // -----------------------------------------
 //  DUT module instantiate
 // ----------------------------------------- 
-{{topName}} {{dutName}} (
+{{topName}} {{dutPortParamDecl}} {{dutName}} (
 {{signalConnect}}
 ); // {{dutName}}
 
@@ -533,16 +536,19 @@ initial begin
             
     if ($test$plusargs("dump_enable=1")) begin
         // 1. set dump file name
+        // +dump_file=<file_name>
         if ($value$plusargs("dump_file=%s", dump_file))
             $display("[INFO] @%0t [%s:%d] dump_file => %s ", $time, `__FILE__, `__LINE__, dump_file);
         else
             $display("[INFO] @%0t [%s:%d] [default] dump_file => %s ", $time, `__FILE__, `__LINE__, dump_file);
 
         // 2. set dump start cycle
+        // +dump_start_cycle=<cycle_number>
         if ($value$plusargs("dump_start_cycle=%d", dump_start_cycle))
             $display("[INFO] @%0t [%s:%d] dump_start_cycle: %d ", $time, `__FILE__, `__LINE__, dump_start_cycle);
 
         // 3. set dump type
+        // +dump_vcd
         if ($test$plusargs("dump_vcd")) begin
             $display("[INFO] @%0t [%s:%d] enable dump_vcd ", $time, `__FILE__, `__LINE__);
 
@@ -551,6 +557,7 @@ initial begin
 
             $dumpfile({dump_file, ".vcd"});
             $dumpvars(0, {{tbtopName}});
+        // +dump_fsdb
         end else if ($test$plusargs("dump_fsdb")) begin
             `ifndef VCS_DUMP_VCD
                 $display("[INFO] @%0t [%s:%d] enable dump_fsdb ", $time, `__FILE__, `__LINE__);
@@ -666,10 +673,21 @@ endmodule
         ASSERT(signalConnect.length() > 2, "No signals to connect");
         signalConnect.erase(signalConnect.length() - 2);
 
+        std::string tbtopPortParamDecl = "";
+        std::string dutPortParamDecl   = "";
+        if (portParamStmts.size() > 0) {
+            tbtopPortParamDecl = fmt::to_string(fmt::join(portParamStmts, ",\n"));
+            tbtopPortParamDecl = fmt::format("#(\n{}\n)", tbtopPortParamDecl);
+            dutPortParamDecl   = fmt::to_string(fmt::join(portParamInstStmts, ",\n"));
+            dutPortParamDecl   = fmt::format("#(\n{}\n)", dutPortParamDecl);
+        }
+
         json tbtopData;
         tbtopData["tbtopName"]                  = tbtopName;
+        tbtopData["tbtopPortParamDecl"]         = tbtopPortParamDecl;
         tbtopData["topName"]                    = topName;
         tbtopData["dutName"]                    = dutName;
+        tbtopData["dutPortParamDecl"]           = dutPortParamDecl;
         tbtopData["clockPeriod"]                = period;
         tbtopData["clockSignalName"]            = clockSignalName;
         tbtopData["resetSignalName"]            = resetSignalName;

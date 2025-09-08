@@ -107,5 +107,20 @@ class TestbenchGenParser : public ASTVisitor<TestbenchGenParser, false, false> {
 
     std::vector<PortInfo> portInfos;
 
+    // e.g.
+    // {
+    //     "parameter string foo = \"bar\"",
+    //     "parameter int bar = 42",
+    //     ...
+    // }
+    std::vector<std::string> portParamStmts;
+    // e.g.
+    // {
+    //   ".foo(foo)",
+    //   ".bar(bar)",
+    //   ... 
+    // }
+    std::vector<std::string> portParamInstStmts;
+
     void handle(const InstanceBodySymbol &ast);
 };
