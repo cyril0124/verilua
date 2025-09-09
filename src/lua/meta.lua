@@ -95,7 +95,6 @@ function await_nsim() end
 --- | "cfg.build_dir_path"
 --- | "cfg.build_dir_name"
 --- | "cfg.user_cfg"
---- | "cfg.no_gen_tb"
 --- | "cfg.tb_gen_flags"
 --- | "cfg.tb_top_file"
 --- | "cfg.no_internal_clock"
