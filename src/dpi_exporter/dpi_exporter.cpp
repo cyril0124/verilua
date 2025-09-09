@@ -494,7 +494,7 @@ end
             fmt::println("[dpi_exporter] start rebuilding syntax tree");
             fflush(stdout);
 
-            tree = driver.rebuildSyntaxTree(*newTree, !quiet);
+            tree = driver.rebuildSyntaxTree(*newTree, !quiet, 20);
 
             fmt::println("[dpi_exporter] done rebuilding syntax tree");
             fflush(stdout);
