@@ -129,6 +129,9 @@ A a_inst_0 (
     .o_value_2(o_value_2)
 );
 
+initial begin
+    $display("current line: %d", `__LINE__);
+end
 
 reg i_value_4;
 reg i_value_5;
