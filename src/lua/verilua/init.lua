@@ -792,6 +792,10 @@ do
     _G.join = function(ehdl_or_ehdl_tbl)
         assert(type(ehdl_or_ehdl_tbl) == "table")
         if ehdl_or_ehdl_tbl.event_id ~= nil then
+            if not scheduler.event_name_map[ehdl_or_ehdl_tbl.event_id] then
+                -- If the event is already finished, just return
+                return
+            end
             ---@cast ehdl_or_ehdl_tbl EventHandle
             ehdl_or_ehdl_tbl:wait()
         else
@@ -809,6 +813,7 @@ do
                 table.insert(scheduler.event_task_id_list_map[ehdl.event_id], assert(scheduler.curr_task_id))
 
                 if not scheduler.event_name_map[ehdl.event_id] then
+                    -- If the event is already finished, increment already_finished_cnt
                     already_finished_cnt = already_finished_cnt + 1
                 end
             end
