@@ -3,21 +3,6 @@
 using json   = nlohmann::json;
 namespace fs = std::filesystem;
 
-namespace nlohmann {
-template <> struct adl_serializer<PortInfo> {
-    static void to_json(json &j, const PortInfo &p) { j = json{{"name", p.name}, {"dir", p.dir}, {"pType", p.pType}, {"declStr", p.declStr}, {"arraySize", p.arraySize}, {"id", p.id}}; }
-
-    static void from_json(const json &j, PortInfo &p) {
-        j.at("name").get_to(p.name);
-        j.at("dir").get_to(p.dir);
-        j.at("pType").get_to(p.pType);
-        j.at("declStr").get_to(p.declStr);
-        j.at("arraySize").get_to(p.arraySize);
-        j.at("id").get_to(p.id);
-    }
-};
-} // namespace nlohmann
-
 int main(int argc, const char *argv[]) {
     OS::setupConsole();
     slang::driver::Driver driver;
@@ -629,49 +614,36 @@ endmodule
         }
 
         auto lastId = portInfos.back().id;
+        std::vector<std::string> signalConnVec;
+        std::vector<std::string> signalDeclVec;
+        std::vector<std::string> regInitializeVec;
         for (auto &port : parser.portInfos) {
-            if (port.id != lastId) {
-                signalConnect = signalConnect + fmt::format("\t.{:<30} ({:<30}), // direction: {:<10} dataType: {}\n", port.name, port.name, port.dir, port.pType);
-            } else {
-                // is last element
-                signalConnect = signalConnect + fmt::format("\t.{:<30} ({:<30})  // direction: {:<10} dataType: {}\n", port.name, port.name, port.dir, port.pType);
-            }
+            signalConnVec.push_back(fmt::format("\t.{:<30} ({:<30}) /* direction: {:<10} dataType: {} */", port.name, port.name, port.dir, port.type));
 
             if (port.name == clockSignalName || port.name == resetSignalName) {
                 continue;
             } else {
+                signalDeclVec.push_back(fmt::format("{} // {}", port.toDeclString(), port.toString()));
                 if (port.isInput()) {
-                    if (port.isArray()) {
-                        signalDecl = signalDecl + fmt::format("{}; // Input\n", port.declStr);
-                        for (int i = 0; i < port.arraySize; i++) {
-                            if (i % 8 == 0 && i != 0)
-                                regInitialize = regInitialize + "\n";
-                            regInitialize = regInitialize + fmt::format("\t{}[{:<3}] = 0; ", port.name, i); // TODO:
+                    std::string regInitializeStr = "";
+                    if (port.dimensions.size() > 0) {
+                        std::string indexStr = "";
+                        for (int i = 0; i < port.dimensions.size(); i++) {
+                            std::string indexName = fmt::format("i{}", i);
+                            regInitializeStr += fmt::format("\tfor(int {0} = 0; {0} < ({1}); {0}++)\n", indexName, port.dimSizes[i]);
+                            indexStr += fmt::format("[{}]", indexName);
                         }
-                        regInitialize = regInitialize + "\n";
+                        regInitializeStr += "\t" + fmt::format("\t{}{} = 0;", port.name, indexStr);
                     } else {
-                        signalDecl    = signalDecl + fmt::format("{:<20} {:<30}; // Input\n", replaceString(port.pType, "logic", "reg"), port.name);
-                        regInitialize = regInitialize + fmt::format("\t{:<30} = 0;\n", port.name);
+                        regInitializeStr += "\t" + fmt::format("{} = 0;", port.name);
                     }
-                } else if (port.isOutput()) {
-                    if (port.isArray()) {
-                        signalDecl = signalDecl + fmt::format("{}; // Output\n", port.declStr);
-                    } else {
-                        if (port.pType.find("logic") != std::string::npos) {
-                            signalDecl = signalDecl + fmt::format("{:<20} {:<30}; // Output\n", replaceString(port.pType, "logic", "wire"), port.name);
-                        } else if (port.pType.find("reg") != std::string::npos) {
-                            signalDecl = signalDecl + fmt::format("{:<20} {:<30}; // Output\n", replaceString(port.pType, "reg", "wire"), port.name);
-                        } else {
-                            ASSERT(false, "Port type is not supported", port.pType);
-                        }
-                    }
-                } else {
-                    ASSERT(false, "Port direction is not supported", port.dir);
+                    regInitializeVec.push_back(regInitializeStr);
                 }
             }
         }
-        ASSERT(signalConnect.length() > 2, "No signals to connect");
-        signalConnect.erase(signalConnect.length() - 2);
+        signalDecl    = joinStrVec(signalDeclVec, "\n");
+        signalConnect = joinStrVec(signalConnVec, ",\n");
+        regInitialize = joinStrVec(regInitializeVec, "\n");
 
         std::string tbtopPortParamDecl = "";
         std::string dutPortParamDecl   = "";

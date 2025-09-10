@@ -31,64 +31,86 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
             }
         }
 
-        auto pl = ast.getPortList();
-        for (auto p : pl) {
-            auto &port         = p->as<PortSymbol>();
-            auto &pType        = port.getType();
-            auto &dir          = port.direction;
-            auto &internalKind = port.internalSymbol->kind;
-            auto arraySize     = 0;
+        // Check for ImplicitAnsiPortSyntax
+        ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::ImplicitAnsiPortSyntax &node) {
+            // ImplicitAnsiPort:
+            // e.g.
+            //  module top(
+            //      input wire clk, <----
+            //      output reg value
+            //  );
+            //
+            // endmodule
+            auto headerKind = node.header->kind;
+            auto name       = node.declarator->name.rawText();
 
-            if (pType.kind == slang::ast::SymbolKind::ScalarType) {
-                /// Represents the single-bit scalar types.
-                auto &pt = pType.as<ScalarType>();
-            } else if (pType.kind == slang::ast::SymbolKind::PackedArrayType) {
-                /// Represents a packed array of some simple element type
-                /// (vectors, packed structures, other packed arrays).
-                auto &pt = pType.as<PackedArrayType>();
-            } else if (pType.kind == slang::ast::SymbolKind::FixedSizeUnpackedArrayType) {
-                /// Represents a fixed size unpacked array (as opposed to a
-                /// dynamically sized unpacked array, associative array, or queue).
-                auto &pt  = pType.as<FixedSizeUnpackedArrayType>();
-                arraySize = pt.getFixedRange().width();
-                ASSERT(!pt.isDynamicallySizedArray(), "Expected fixed size array", port.name);
-            } else {
-                ASSERT(false, "Unknown port type kind", toString(pType.kind));
-            }
-
-            if (internalKind == SymbolKind::Net) {
-                auto &net  = port.internalSymbol->as<NetSymbol>();
-                auto dType = net.netType.getDataType().toString();
-
-                if (verbose)
-                    fmt::println("[TestbenchGenParser] [Net] portName: {} portWidth: {} "
-                                 "pType: {} dir: {} arraySize: {} dType: {}",
-                                 port.name, pType.getBitWidth(), pType.toString(), toString(port.direction), arraySize, dType);
-            } else if (internalKind == SymbolKind::Variable) {
-                auto &var = port.internalSymbol->as<VariableSymbol>();
-
-                if (verbose)
-                    fmt::println("[TestbenchGenParser] [Var] portName: {} portWidth: {} "
-                                 "pType: {} dir: {} arraySize: {}",
-                                 port.name, pType.getBitWidth(), pType.toString(), toString(port.direction), arraySize);
-            } else {
-                ASSERT(false, "Unknown internal kind", toString(internalKind));
-            }
-
-            std::string declStr = "";
-            if (arraySize != 0) { // is FixedSizeUnpackedArrayType
-                if (dir == ArgumentDirection::In) {
-                    declStr = replaceString(replaceString(pType.toString(), "logic", "reg"), "$", std::string(" ") + std::string(port.name));
-                } else if (dir == ArgumentDirection::Out) {
-                    declStr = replaceString(replaceString(pType.toString(), "logic", "wire"), "$", std::string(" ") + std::string(port.name));
-                } else {
-                    ASSERT(false, "Unknown direction", toString(dir));
-                }
-            }
-
-            portInfos.push_back(PortInfo{std::string(port.name), std::string(toString(port.direction)), pType.toString(), declStr, arraySize, portIdAllocator});
+            // clang-format off
+            PortInfo p = {
+                .dir = "",
+                .type = "",
+                .name = std::string(node.declarator->name.rawText()),
+                .dimensions = {},
+                .dimSizes = {},
+                .isNet = headerKind == slang::syntax::SyntaxKind::NetPortHeader,
+                .id = portIdAllocator
+            };
             portIdAllocator++;
-        }
+            // clang-format on
+
+            // fmt::println("implicitAnsiPort: name: <{}>", name);
+
+            if (headerKind == slang::syntax::SyntaxKind::NetPortHeader) {
+                auto &netPortHeader = node.header->as<slang::syntax::NetPortHeaderSyntax>();
+                auto dataType       = netPortHeader.dataType;
+                p.dir               = netPortHeader.direction.valueText();
+                p.type              = "wire " + dataType->toString();
+                // fmt::println("\tnetPortHeader: dataType: <{}>, dir: <{}>", dataType->toString(), netPortHeader.direction.valueText());
+            } else if (headerKind == slang::syntax::SyntaxKind::VariablePortHeader) {
+                auto &varPortHeader = node.header->as<slang::syntax::VariablePortHeaderSyntax>();
+                auto dataType       = varPortHeader.dataType;
+                auto dataTypeStr    = dataType->toString();
+                p.dir               = varPortHeader.direction.valueText();
+                if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
+                    // e.g. input value(no type specified)
+                    p.type = "wire " + dataTypeStr;
+                } else {
+                    p.type = dataTypeStr;
+                }
+                // fmt::println("\tvarPortHeader: dataType: <{}>, dir: <{}>", dataType->toString(), varPortHeader.direction.valueText());
+            } else {
+                PANIC("TODO: Unsupported PortDeclarationSyntax header kind", toString(headerKind));
+            }
+
+            for (auto dim : node.declarator->dimensions) {
+                ASSERT(dim->specifier->kind == slang::syntax::SyntaxKind::RangeDimensionSpecifier, "Expected RangeDimensionSpecifier", toString(dim->specifier->kind));
+                auto &specifier = dim->specifier->as<slang::syntax::RangeDimensionSpecifierSyntax>();
+
+                ASSERT(specifier.selector->kind == slang::syntax::SyntaxKind::SimpleRangeSelect, "Expected SimpleRangeSelect", toString(dim->specifier->kind));
+                auto &rangeSel = specifier.selector->as<slang::syntax::RangeSelectSyntax>();
+
+                std::string dimSizeStr;
+                bool gotZero = false;
+                if (rangeSel.left->toString() == "0") {
+                    gotZero    = true;
+                    dimSizeStr = fmt::format("{} - {} + 1", rangeSel.right->toString(), rangeSel.left->toString());
+                } else if (rangeSel.right->toString() == "0") {
+                    gotZero    = true;
+                    dimSizeStr = fmt::format("{} - {} + 1", rangeSel.left->toString(), rangeSel.right->toString());
+                }
+                ASSERT(gotZero, "Expected one side of range to be 0", rangeSel.left->toString(), rangeSel.right->toString());
+
+                p.dimensions.push_back(dim->toString());
+                p.dimSizes.push_back(dimSizeStr);
+                // fmt::println("\tdim: {}, <{}>, <{}>, <{}>", dim->toString(), rangeSel.left->toString(), rangeSel.right->toString(), dimSizeStr);
+            }
+            // fmt::println("{}", p.toString());
+            // fmt::println("{}", p.toDeclString());
+            // fmt::println("");
+            portInfos.push_back(p);
+        }));
+
+        // Check for PortDeclarationSyntax, for non-ansi ports
+        ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::PortDeclarationSyntax &node) { PANIC("TODO: Non-ansi port declaration not supported yet", node.toString()); }));
     }
 
     if (verbose)

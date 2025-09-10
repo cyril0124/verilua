@@ -199,7 +199,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.array_size = 0
     if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" or self.hdl_type == "vpiBitVar" then
         self.is_array = false
-    elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
+    elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiArrayVar" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
         --
         -- for multidimensional reg array, VCS vpi treat it as "vpiRegArray" while
         -- Verilator treat it as "vpiMemory"
