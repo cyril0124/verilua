@@ -687,7 +687,6 @@ endmodule
             std::ofstream othersFile(othersFilePath);
             ASSERT(othersFile.is_open(), "Cannot open others.sv");
             othersFile << R"(
-//VCS coverage exclude_file
 module Others (
     input wire clock,
     input wire reset
