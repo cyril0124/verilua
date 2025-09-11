@@ -110,7 +110,78 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
         }));
 
         // Check for PortDeclarationSyntax, for non-ansi ports
-        ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::PortDeclarationSyntax &node) { PANIC("TODO: Non-ansi port declaration not supported yet", node.toString()); }));
+        ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::PortDeclarationSyntax &node) {
+            auto headerKind = node.header->kind;
+
+            std::vector<PortInfo> ports;
+            for (auto declarator : node.declarators) {
+                // clang-format off
+                PortInfo p = {
+                    .dir = "",
+                    .type = "",
+                    .name = std::string(declarator->name.rawText()),
+                    .dimensions = {},
+                    .dimSizes = {},
+                    .isNet = headerKind == slang::syntax::SyntaxKind::NetPortHeader,
+                    .id = portIdAllocator
+                };
+                // clang-format on
+                portIdAllocator++;
+                for (auto dim : declarator->dimensions) {
+                    ASSERT(dim->specifier->kind == slang::syntax::SyntaxKind::RangeDimensionSpecifier, "Expected RangeDimensionSpecifier", toString(dim->specifier->kind));
+                    auto &specifier = dim->specifier->as<slang::syntax::RangeDimensionSpecifierSyntax>();
+
+                    ASSERT(specifier.selector->kind == slang::syntax::SyntaxKind::SimpleRangeSelect, "Expected SimpleRangeSelect", toString(dim->specifier->kind));
+                    auto &rangeSel = specifier.selector->as<slang::syntax::RangeSelectSyntax>();
+
+                    std::string dimSizeStr;
+                    bool gotZero = false;
+                    if (rangeSel.left->toString() == "0") {
+                        gotZero    = true;
+                        dimSizeStr = fmt::format("{} - {} + 1", rangeSel.right->toString(), rangeSel.left->toString());
+                    } else if (rangeSel.right->toString() == "0") {
+                        gotZero    = true;
+                        dimSizeStr = fmt::format("{} - {} + 1", rangeSel.left->toString(), rangeSel.right->toString());
+                    }
+                    ASSERT(gotZero, "Expected one side of range to be 0", rangeSel.left->toString(), rangeSel.right->toString());
+
+                    p.dimensions.push_back(dim->toString());
+                    p.dimSizes.push_back(dimSizeStr);
+                }
+                ports.push_back(p);
+            }
+
+            if (headerKind == slang::syntax::SyntaxKind::NetPortHeader) {
+                auto &netPortHeader = node.header->as<slang::syntax::NetPortHeaderSyntax>();
+                auto dataType       = netPortHeader.dataType;
+                auto dir            = netPortHeader.direction.valueText();
+                auto type           = "wire " + dataType->toString();
+                for (auto &p : ports) {
+                    p.dir  = dir;
+                    p.type = type;
+                }
+            } else if (headerKind == slang::syntax::SyntaxKind::VariablePortHeader) {
+                auto &varPortHeader = node.header->as<slang::syntax::VariablePortHeaderSyntax>();
+                auto dataType       = varPortHeader.dataType;
+                auto dataTypeStr    = dataType->toString();
+                auto dir            = varPortHeader.direction.valueText();
+                std::string type;
+                if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
+                    // e.g. input value(no type specified)
+                    type = "wire " + dataTypeStr;
+                } else {
+                    type = dataTypeStr;
+                }
+                for (auto &p : ports) {
+                    p.dir  = dir;
+                    p.type = type;
+                }
+            } else {
+                PANIC("TODO: Unsupported PortDeclarationSyntax header kind", toString(headerKind));
+            }
+
+            portInfos.insert(portInfos.end(), ports.begin(), ports.end());
+        }));
     }
 
     if (verbose)
