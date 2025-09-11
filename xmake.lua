@@ -451,6 +451,21 @@ target("test", function()
 
         do
             os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests", "test_testbench_gen"))
+            os.exec("xmake run -P .")
+            for _, sim in ipairs(simulators) do
+                if sim ~= "iverilog" then
+                    os.setenv("SIM", sim)
+                    os.exec("xmake b -P . test_run_ansi")
+                    os.exec("xmake r -P . test_run_ansi")
+                    os.exec("xmake b -P . test_run_non_ansi")
+                    os.exec("xmake r -P . test_run_non_ansi")
+                end
+            end
+        end
+
+        do
+            os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests"))
             os.exec("xmake run -P . test_all")
         end
