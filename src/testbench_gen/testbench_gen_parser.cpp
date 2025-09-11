@@ -31,7 +31,37 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
             }
         }
 
+        auto portList      = ast.getPortList();
+        auto getPortSymbol = [&](const std::string &name) {
+            const slang::ast::PortSymbol *ret = nullptr;
+            for (auto p : portList) {
+                auto &port = p->as<PortSymbol>();
+                if (port.name == name) {
+                    ret = &port;
+                }
+            }
+            ASSERT(ret != nullptr, "Could not find port", name);
+            return ret;
+        };
+
+        auto getPortDir = [&](const std::string &name) {
+            auto port = getPortSymbol(name);
+            if (port->direction == slang::ast::ArgumentDirection::In) {
+                return "input";
+            } else if (port->direction == slang::ast::ArgumentDirection::Out) {
+                return "output";
+            } else {
+                PANIC("TODO: Unsupported port direction", toString(port->direction));
+            }
+        };
+
+        auto getPortType = [&](const std::string &name) {
+            auto port = getPortSymbol(name);
+            return port->getType().toString();
+        };
+
         // Check for ImplicitAnsiPortSyntax
+        std::string lastAnsiPortTypeStr = "";
         ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::ImplicitAnsiPortSyntax &node) {
             // ImplicitAnsiPort:
             // e.g.
@@ -57,26 +87,54 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
             portIdAllocator++;
             // clang-format on
 
-            // fmt::println("implicitAnsiPort: name: <{}>", name);
-
             if (headerKind == slang::syntax::SyntaxKind::NetPortHeader) {
                 auto &netPortHeader = node.header->as<slang::syntax::NetPortHeaderSyntax>();
-                auto dataType       = netPortHeader.dataType;
-                p.dir               = netPortHeader.direction.valueText();
-                p.type              = "wire " + dataType->toString();
-                // fmt::println("\tnetPortHeader: dataType: <{}>, dir: <{}>", dataType->toString(), netPortHeader.direction.valueText());
+                auto dataTypeStr    = netPortHeader.dataType->toString();
+                if (dataTypeStr == "") {
+                    if (getPortType(p.name) == "logic") {
+                        // e.g.
+                        //      input clk, <--- no type
+                        // Here `clk` is `wire` type
+                        dataTypeStr = "wire";
+                    } else {
+                        // e.g.
+                        //  input wire [3:0] foo,
+                        //                   bar, <--- no type
+                        //
+                        // Here `bar` has no type, so we use the type of `foo`
+                        ASSERT(lastAnsiPortTypeStr != "", "Expected lastAnsiPortTypeStr to be set", p.name, getPortType(p.name));
+                        dataTypeStr = lastAnsiPortTypeStr;
+                    }
+                } else if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
+                    // NetPortHeader has no `wire` prefix, so add it here
+                    dataTypeStr = "wire " + dataTypeStr;
+                }
+                p.dir  = getPortDir(p.name);
+                p.type = dataTypeStr;
             } else if (headerKind == slang::syntax::SyntaxKind::VariablePortHeader) {
                 auto &varPortHeader = node.header->as<slang::syntax::VariablePortHeaderSyntax>();
-                auto dataType       = varPortHeader.dataType;
-                auto dataTypeStr    = dataType->toString();
-                p.dir               = varPortHeader.direction.valueText();
-                if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
-                    // e.g. input value(no type specified)
-                    p.type = "wire " + dataTypeStr;
-                } else {
-                    p.type = dataTypeStr;
+                auto dataTypeStr    = varPortHeader.dataType->toString();
+                if (dataTypeStr == "") {
+                    if (getPortType(p.name) == "logic") {
+                        // e.g.
+                        //      output value, <--- no type
+                        dataTypeStr = "wire";
+                    } else {
+                        // e.g.
+                        //      output reg [3:0] foo,
+                        //                       bar, <--- no type
+                        // Here `bar` has no type, so we use the type of `foo`
+                        ASSERT(lastAnsiPortTypeStr != "", "Expected lastAnsiPortTypeStr to be set", p.name, getPortType(p.name));
+                        dataTypeStr = lastAnsiPortTypeStr;
+                    }
+                } else if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
+                    // e.g.
+                    //      input [WIDTH-1:0] foo, <--- no type
+                    //      input [7:0] bar, <--- no type
+                    dataTypeStr = "wire " + dataTypeStr;
                 }
-                // fmt::println("\tvarPortHeader: dataType: <{}>, dir: <{}>", dataType->toString(), varPortHeader.direction.valueText());
+                p.dir  = getPortDir(p.name);
+                p.type = dataTypeStr;
             } else {
                 PANIC("TODO: Unsupported PortDeclarationSyntax header kind", toString(headerKind));
             }
@@ -101,16 +159,16 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
 
                 p.dimensions.push_back(dim->toString());
                 p.dimSizes.push_back(dimSizeStr);
-                // fmt::println("\tdim: {}, <{}>, <{}>, <{}>", dim->toString(), rangeSel.left->toString(), rangeSel.right->toString(), dimSizeStr);
             }
-            // fmt::println("{}", p.toString());
-            // fmt::println("{}", p.toDeclString());
-            // fmt::println("");
+            if (verbose)
+                fmt::println("[TestbenchGenParser] get ansi port: {}", p.toString());
+            lastAnsiPortTypeStr = p.type;
             portInfos.push_back(p);
         }));
 
         // Check for PortDeclarationSyntax, for non-ansi ports
         ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::PortDeclarationSyntax &node) {
+            PANIC("TODO: Handle non-ansi ports");
             auto headerKind = node.header->kind;
 
             std::vector<PortInfo> ports;
@@ -153,32 +211,69 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
 
             if (headerKind == slang::syntax::SyntaxKind::NetPortHeader) {
                 auto &netPortHeader = node.header->as<slang::syntax::NetPortHeaderSyntax>();
-                auto dataType       = netPortHeader.dataType;
-                auto dir            = netPortHeader.direction.valueText();
-                auto type           = "wire " + dataType->toString();
+                auto dataTypeStr    = netPortHeader.dataType->toString();
                 for (auto &p : ports) {
-                    p.dir  = dir;
-                    p.type = type;
+                    // fmt::println("[NetPortHeader] <{}> dataTypeStr: <{}> ", p.name, dataTypeStr);
+                    if (dataTypeStr == "") {
+                        if (getPortType(p.name) == "logic") {
+                            // e.g.
+                            //      input clk, <--- no type
+                            // Here `clk` is `wire` type
+                            dataTypeStr = "wire";
+                        } else {
+                            // e.g.
+                            //  input wire [3:0] foo,
+                            //                   bar, <--- no type
+                            //
+                            // Here `bar` has no type, so we use the type of `foo`
+                            ASSERT(lastAnsiPortTypeStr != "", "Expected lastAnsiPortTypeStr to be set", p.name, getPortType(p.name));
+                            dataTypeStr = lastAnsiPortTypeStr;
+                        }
+                    } else if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
+                        // NetPortHeader has no `wire` prefix, so add it here
+                        dataTypeStr = "wire " + dataTypeStr;
+                    }
+                    p.dir  = getPortDir(p.name);
+                    p.type = dataTypeStr;
                 }
             } else if (headerKind == slang::syntax::SyntaxKind::VariablePortHeader) {
                 auto &varPortHeader = node.header->as<slang::syntax::VariablePortHeaderSyntax>();
-                auto dataType       = varPortHeader.dataType;
-                auto dataTypeStr    = dataType->toString();
-                auto dir            = varPortHeader.direction.valueText();
-                std::string type;
-                if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
-                    // e.g. input value(no type specified)
-                    type = "wire " + dataTypeStr;
-                } else {
-                    type = dataTypeStr;
-                }
+                auto dataTypeStr    = varPortHeader.dataType->toString();
                 for (auto &p : ports) {
-                    p.dir  = dir;
-                    p.type = type;
+                    // fmt::println("[VariablePortHeader] <{}> dataTypeStr: <{}> ", p.name, dataTypeStr);
+                    if (dataTypeStr == "") {
+                        if (getPortType(p.name) == "logic") {
+                            // e.g.
+                            //      output value, <--- no type
+                            dataTypeStr = "wire";
+                        } else {
+                            // e.g.
+                            //      output reg [3:0] foo,
+                            //                       bar, <--- no type
+                            // Here `bar` has no type, so we use the type of `foo`
+                            ASSERT(lastAnsiPortTypeStr != "", "Expected lastAnsiPortTypeStr to be set", p.name, getPortType(p.name));
+                            dataTypeStr = lastAnsiPortTypeStr;
+                        }
+                    } else if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
+                        // e.g.
+                        //      input [WIDTH-1:0] foo, <--- no type
+                        //      input [7:0] bar, <--- no type
+                        dataTypeStr = "wire " + dataTypeStr;
+                    }
+                    p.dir  = getPortDir(p.name);
+                    p.type = dataTypeStr;
                 }
             } else {
                 PANIC("TODO: Unsupported PortDeclarationSyntax header kind", toString(headerKind));
             }
+
+            if (verbose) {
+                for (auto p : ports) {
+                    fmt::println("[TestbenchGenParser] get non-ansi port: {}", p.toString());
+                }
+            }
+
+            lastAnsiPortTypeStr = ports[0].type;
 
             portInfos.insert(portInfos.end(), ports.begin(), ports.end());
         }));

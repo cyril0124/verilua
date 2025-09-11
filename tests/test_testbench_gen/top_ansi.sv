@@ -11,6 +11,14 @@ module TopAnsi#(
     output reg [7:0] count1,
     output reg [VAL-1:0] count2,
 
+    output reg oo1,
+               oo2,
+    
+    output reg [7:0] oo3,
+                     oo4,
+
+    output oo5,
+
     output logic o,
     output reg o3,
     output wire o4,
@@ -20,6 +28,16 @@ module TopAnsi#(
     output logic [7:0] o8 [3:0],
     output logic [VAL-1:0] o9 [3:0][VAL-1:0][VAL-1:0],
     output logic [7:0] o10 [0:9],
+
+    input   ii1,
+            ii2,
+            ii3,
+
+    input [7:0] ii4,
+                ii5,
+                ii6,
+
+    input ii7,
 
     input logic i,
     input wire [7:0] i2 [3:0][3:0],

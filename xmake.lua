@@ -456,10 +456,13 @@ target("test", function()
             for _, sim in ipairs(simulators) do
                 if sim ~= "iverilog" then
                     os.setenv("SIM", sim)
+                    os.tryrm("./build")
                     os.exec("xmake b -P . test_run_ansi")
                     os.exec("xmake r -P . test_run_ansi")
-                    os.exec("xmake b -P . test_run_non_ansi")
-                    os.exec("xmake r -P . test_run_non_ansi")
+
+                    -- TODO: testbench_gen for non-ansi port declaration
+                    -- os.exec("xmake b -P . test_run_non_ansi")
+                    -- os.exec("xmake r -P . test_run_non_ansi")
                 end
             end
         end

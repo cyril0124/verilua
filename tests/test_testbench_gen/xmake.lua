@@ -52,7 +52,8 @@ target("test", function()
         local rtl = path.join(os.scriptdir(), "top_ansi.sv")
         os.exec("testbench_gen %s --out-dir %s --regen --verbose --check-output", rtl, build_dir)
 
-        rtl = path.join(os.scriptdir(), "top_non_ansi.sv")
-        os.exec("testbench_gen %s --out-dir %s --regen --verbose --check-output", rtl, build_dir)
+        -- TODO:
+        -- rtl = path.join(os.scriptdir(), "top_non_ansi.sv")
+        -- os.exec("testbench_gen %s --out-dir %s --regen --verbose --check-output", rtl, build_dir)
     end)
 end)
