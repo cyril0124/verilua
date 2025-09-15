@@ -381,6 +381,7 @@ target("test", function()
             local test_dirs = {
                 path.join(prj_dir, "tests", "test_edge"),
                 path.join(prj_dir, "tests", "test_set_value"),
+                path.join(prj_dir, "tests", "test_basic_signal"),
                 path.join(prj_dir, "tests", "test_bitvec_signal"),
                 path.join(prj_dir, "tests", "test_no_internal_clock"),
                 path.join(prj_dir, "examples", "guided_tour"),

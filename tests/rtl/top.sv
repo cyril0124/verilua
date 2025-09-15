@@ -14,6 +14,7 @@ module top(
 );
 
 reg reg1;
+reg [3:0] reg4;
 reg [7:0] reg8;
 reg [15:0] reg16;
 reg [31:0] reg32;
@@ -22,6 +23,7 @@ reg [67:0] reg68;
 reg [127:0] reg128;
 initial begin
     reg1 = 1;
+    reg4 = 4;
     reg8 = 8;
     reg16 = 16;
     reg32 = 32;
@@ -64,10 +66,10 @@ initial begin
     logic128 = 128;
 end
 
-reg [7:0] two_dim_reg[0:3];
+reg [7:0] vec_reg[0:3];
 initial begin
     for(integer i = 0; i < 4; i = i + 1) begin
-        two_dim_reg[i] = i;
+        vec_reg[i] = i;
     end
 end
 
