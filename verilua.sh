@@ -6,15 +6,20 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-current_shell=$(ps -p $$ -ocomm=)
-
-if [[ "$current_shell" == *bash* ]]; then
+if [ -n "$BASH_VERSION" ]; then
     script_file=$(realpath "${BASH_SOURCE[0]}")
-elif [[ "$current_shell" == *zsh* ]]; then
-    script_file=$0
+elif [ -n "$ZSH_VERSION" ]; then
+    script_file=$(realpath "$0")
 else
-    echo "[verilua.sh] Unknown shell, current shell is: $current_shell"
-    exit 1
+    current_shell=$(ps -p $$ -ocomm=)
+    echo -e "${YELLOW}[verilua.sh] Warning: Unknown shell.${NC}"
+    echo -e "\tAttempting to proceed, but behavior might be unpredictable."
+    echo -e "\tCurrent shell seems to be: ${BOLD}$current_shell${NC}"
+    script_file=$(realpath "$0")
+    if [ ! -f "$script_file" ]; then
+        echo -e "${RED}[verilua.sh] Error: Could not determine script path in this shell.${NC}"
+        exit 1
+    fi
 fi
 
 script_dir=$(dirname $(realpath $script_file))
