@@ -111,9 +111,9 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                         isIdentifierEqualNet = false;
                     } else {
                         // If the NetSymbol has been assigned by continuous assign after the net is defined, it is not a literal equal net.
-                        auto conAssignSymIten = inst->body.membersOfType<slang::ast::ContinuousAssignSymbol>();
+                        auto conAssignSymIter = inst->body.membersOfType<slang::ast::ContinuousAssignSymbol>();
                         if (!conAssignSetInit) {
-                            for (const auto &conAssignSym : conAssignSymIten) {
+                            for (const auto &conAssignSym : conAssignSymIter) {
                                 auto syntax = conAssignSym.getSyntax();
                                 if (syntax->kind != slang::syntax::SyntaxKind::AssignmentExpression) {
                                     continue;
@@ -131,7 +131,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
                             conAssignSetInit = true;
                         }
 
-                        for (const auto &conAssignSym : conAssignSymIten) {
+                        for (const auto &conAssignSym : conAssignSymIter) {
                             auto syntax = conAssignSym.getSyntax();
                             if (syntax->kind != slang::syntax::SyntaxKind::AssignmentExpression) {
                                 // fmt::println("\t\tNot AssignmentExpressionSyntax: {}", syntax->toString());
@@ -204,8 +204,8 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
             }
 
             // TODO: Optimize some simple expr? (e.g. assign a = c & d;)
-            auto conAssignSymIten = inst->body.membersOfType<slang::ast::ContinuousAssignSymbol>();
-            for (const auto &conAssignSym : conAssignSymIten) {
+            auto conAssignSymIter = inst->body.membersOfType<slang::ast::ContinuousAssignSymbol>();
+            for (const auto &conAssignSym : conAssignSymIter) {
                 // Optimize alias signal assignment
                 // e.g.
                 //      wire a;
