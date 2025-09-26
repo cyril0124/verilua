@@ -47,6 +47,8 @@ local function wave_vpi_main_common()
         add_cxflags("-O2 -funroll-loops -march=native -fomit-frame-pointer")
     end
 
+    add_links("dl", "pthread")
+
     add_linkgroups("luajit-5.1", { static = true, whole = true })
     add_linkdirs(path.join(lua_dir, "lib"))
 
