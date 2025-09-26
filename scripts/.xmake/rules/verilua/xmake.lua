@@ -99,7 +99,7 @@ local function before_build_or_run(target)
     local version_required = target:values("cfg.version_required")
     if version_required then
         import("core.base.semver")
-        local curr_version = io.readfile(path.join(verilua_home, "VERSION"))
+        local curr_version = io.readfile(path.join(verilua_home, "VERSION")):trim()
         assert(
             semver.satisfies(curr_version, version_required),
             "[before_build_or_run] [%s] verilua version is satisfied, expected: %s, current version: %s",

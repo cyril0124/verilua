@@ -42,7 +42,8 @@ target("testbench_gen", function()
 
     before_build(function(target)
         -- Add version info
-        target:add("defines", format([[VERILUA_VERSION="%s"]], io.readfile(path.join(prj_dir, "VERSION"))))
+        local version = io.readfile(path.join(prj_dir, "VERSION")):trim()
+        target:add("defines", format([[VERILUA_VERSION="%s"]], version))
     end)
 
     after_build(function(target)
