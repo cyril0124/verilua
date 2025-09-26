@@ -1,12 +1,15 @@
-#include "wave_vpi.h"
-#include "vpi_user.h"
 #include "lua.hpp"
+#include "vpi_user.h"
+#include "wave_vpi.h"
 
-#include <signal.h>
-#include <iostream>
-#include <cpptrace/cpptrace.hpp>
 #include <argparse/argparse.hpp>
 #include <filesystem>
+#include <iostream>
+#include <signal.h>
+
+#ifdef USE_CPPTRACE
+#include <cpptrace/cpptrace.hpp>
+#endif
 
 #ifndef VERILUA_VERSION
 #define VERILUA_VERSION "Unknown"
@@ -14,49 +17,45 @@
 
 int main(int argc, const char *argv[]) {
     lua_State *L = luaL_newstate(); // keep luajit symbols
-    
+
     signal(SIGABRT, [](int sig) {
         fmt::println("[wave_vpi_main] SIGABRT");
-        cpptrace::generate_trace().print(std::cerr, true); 
+#ifdef USE_CPPTRACE
+        cpptrace::generate_trace().print(std::cerr, true);
+#endif
         exit(1);
     });
 
     signal(SIGSEGV, [](int sig) {
         fmt::println("[wave_vpi_main] SIGSEGV");
-        cpptrace::generate_trace().print(std::cerr, true); 
+#ifdef USE_CPPTRACE
+        cpptrace::generate_trace().print(std::cerr, true);
+#endif
         exit(1);
     });
 
 #ifdef USE_FSDB
     argparse::ArgumentParser program("wave_vpi_main_fsdb", VERILUA_VERSION);
-    program.add_argument("-w", "--wave-file")
-        .default_value(std::string(""))
-        .required()
-        .help("input wave file for wave vpi(FSDB)");
+    program.add_argument("-w", "--wave-file").default_value(std::string("")).required().help("input wave file for wave vpi(FSDB)");
 #else
     argparse::ArgumentParser program("wave_vpi_main", VERILUA_VERSION);
-    program.add_argument("-w", "--wave-file")
-        .default_value(std::string(""))
-        .required()
-        .help("input wave file for wave vpi(VCD, FST)");
+    program.add_argument("-w", "--wave-file").default_value(std::string("")).required().help("input wave file for wave vpi(VCD, FST)");
 #endif
-
 
     try {
         program.parse_args(argc, argv);
-    }
-    catch (const std::exception& err) {
+    } catch (const std::exception &err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
         return 1;
     }
 
     auto waveFile = std::string("");
-    if(program.is_used("--wave-file")) {
+    if (program.is_used("--wave-file")) {
         waveFile = std::filesystem::absolute(program.get<std::string>("--wave-file"));
     } else {
         auto _waveFile = std::getenv("WAVE_FILE");
-        if(_waveFile == nullptr) {
+        if (_waveFile == nullptr) {
             std::cerr << "[wave_vpi_main] either env var WAVE_FILE or command line argument --wave-file is required" << std::endl;
             std::cerr << program;
             return 1;
@@ -64,13 +63,13 @@ int main(int argc, const char *argv[]) {
             waveFile = std::string(_waveFile);
         }
     }
-    
+
     fmt::println("[wave_vpi_main] waveFile is => {}", waveFile);
     std::cout << std::flush;
 
     fmt::println("[wave_vpi_main] init...");
     std::cout << std::flush;
-    
+
     wave_vpi_init(waveFile.c_str());
 
     fmt::println("[wave_vpi_main] init finish!");
@@ -80,4 +79,3 @@ int main(int argc, const char *argv[]) {
     std::cout << std::flush;
     wave_vpi_main();
 }
-

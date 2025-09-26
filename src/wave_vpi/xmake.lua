@@ -18,7 +18,7 @@ local function wave_vpi_main_common()
     set_targetdir(path.join(build_dir, "bin"))
     set_objectdir(path.join(build_dir, "obj"))
 
-    add_shflags(
+    add_ldflags(
         "-static-libstdc++ -static-libgcc",
         "-Wl,--no-as-needed"
     )
@@ -55,8 +55,8 @@ local function wave_vpi_main_common()
     add_rpathdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
 
     add_links("fmt", "mimalloc")
-    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
     add_linkdirs(path.join(libs_dir, "lib"))
+    add_rpathdirs(path.join(libs_dir, "lib"))
 
     add_links("verilua_wave_vpi")
     add_linkdirs(shared_dir)
@@ -64,6 +64,14 @@ local function wave_vpi_main_common()
 
     add_links("wave_vpi_wellen_impl")
     add_linkdirs(path.join(wave_vpi_dir, "target", "release"))
+
+    local no_cpptrace = os.getenv("NO_CPPTRACE")
+    if not no_cpptrace then
+        add_defines("USE_CPPTRACE")
+        add_links("cpptrace", "dwarf", "zstd", "z")
+        add_linkdirs(path.join(libs_dir, "lib"))
+        add_rpathdirs(path.join(libs_dir, "lib"))
+    end
 
     before_build(function(target)
         -- Add version info
