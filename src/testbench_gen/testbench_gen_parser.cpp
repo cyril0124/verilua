@@ -140,22 +140,35 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
             }
 
             for (auto dim : node.declarator->dimensions) {
+                std::string dimSizeStr;
+
                 ASSERT(dim->specifier->kind == slang::syntax::SyntaxKind::RangeDimensionSpecifier, "Expected RangeDimensionSpecifier", toString(dim->specifier->kind));
                 auto &specifier = dim->specifier->as<slang::syntax::RangeDimensionSpecifierSyntax>();
 
-                ASSERT(specifier.selector->kind == slang::syntax::SyntaxKind::SimpleRangeSelect, "Expected SimpleRangeSelect", toString(dim->specifier->kind));
-                auto &rangeSel = specifier.selector->as<slang::syntax::RangeSelectSyntax>();
-
-                std::string dimSizeStr;
-                bool gotZero = false;
-                if (rangeSel.left->toString() == "0") {
-                    gotZero    = true;
-                    dimSizeStr = fmt::format("{} - {} + 1", rangeSel.right->toString(), rangeSel.left->toString());
-                } else if (rangeSel.right->toString() == "0") {
-                    gotZero    = true;
-                    dimSizeStr = fmt::format("{} - {} + 1", rangeSel.left->toString(), rangeSel.right->toString());
+                auto selectorKind = specifier.selector->kind;
+                if (selectorKind == slang::syntax::SyntaxKind::SimpleRangeSelect) {
+                    // e.g.: logic a [3:0], logic a [WIDTH-1:0], logic a [0:WIDTH-1], etc
+                    auto &rangeSel = specifier.selector->as<slang::syntax::RangeSelectSyntax>();
+                    bool gotZero   = false;
+                    if (rangeSel.left->toString() == "0") {
+                        gotZero    = true;
+                        dimSizeStr = fmt::format("{} - {} + 1", rangeSel.right->toString(), rangeSel.left->toString());
+                    } else if (rangeSel.right->toString() == "0") {
+                        gotZero    = true;
+                        dimSizeStr = fmt::format("{} - {} + 1", rangeSel.left->toString(), rangeSel.right->toString());
+                    }
+                    ASSERT(gotZero, "Expected one side of range to be 0", rangeSel.left->toString(), rangeSel.right->toString());
+                } else if (selectorKind == slang::syntax::SyntaxKind::BitSelect) {
+                    // e.g.: logic a[12], logic a[WIDTH], logic a[WIDTH*2], logic a[WIDTH-1], etc
+                    auto &bitSel = specifier.selector->as<slang::syntax::BitSelectSyntax>();
+                    if (bitSel.expr->toString() == "0") {
+                        dimSizeStr = "1";
+                    } else {
+                        dimSizeStr = bitSel.expr->toString();
+                    }
+                } else {
+                    PANIC("TODO: Unsupported dimension specifier selector kind", toString(selectorKind));
                 }
-                ASSERT(gotZero, "Expected one side of range to be 0", rangeSel.left->toString(), rangeSel.right->toString());
 
                 p.dimensions.push_back(dim->toString());
                 p.dimSizes.push_back(dimSizeStr);
@@ -189,7 +202,7 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                     ASSERT(dim->specifier->kind == slang::syntax::SyntaxKind::RangeDimensionSpecifier, "Expected RangeDimensionSpecifier", toString(dim->specifier->kind));
                     auto &specifier = dim->specifier->as<slang::syntax::RangeDimensionSpecifierSyntax>();
 
-                    ASSERT(specifier.selector->kind == slang::syntax::SyntaxKind::SimpleRangeSelect, "Expected SimpleRangeSelect", toString(dim->specifier->kind));
+                    ASSERT(specifier.selector->kind == slang::syntax::SyntaxKind::SimpleRangeSelect, "Expected SimpleRangeSelect", toString(specifier.selector->kind));
                     auto &rangeSel = specifier.selector->as<slang::syntax::RangeSelectSyntax>();
 
                     std::string dimSizeStr;
