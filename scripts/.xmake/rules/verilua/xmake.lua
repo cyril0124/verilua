@@ -1307,6 +1307,27 @@ verdi -f filelist.f -sv -nologo $@]]
             local run_flags = { "-M", verilua_libs_home, "-m", "libverilua_iverilog" }
             local _run_flags = target:values("iverilog.run_flags")
             if _run_flags then
+                local _run_flags_str
+                if type(_run_flags) == "string" then
+                    _run_flags_str = _run_flags:trim()
+                else
+                    _run_flags_str = table.concat(_run_flags, " "):trim()
+                end
+                local user_run_flags = _run_flags_str:split(" ", { plain = true })
+
+                -- To allow user to override the default `-M` and `-m` flags
+                for i, flag in ipairs(user_run_flags) do
+                    if flag == "-M" then
+                        local M_flag_value = user_run_flags[i + 1]
+                        assert(M_flag_value, "[on_run] '-M' flag must be followed by a value")
+                        run_flags[2] = M_flag_value
+                    elseif flag == "-m" then
+                        local m_flag_value = user_run_flags[i + 1]
+                        assert(m_flag_value, "[on_run] '-m' flag must be followed by a value")
+                        run_flags[4] = m_flag_value
+                    end
+                end
+
                 table.join2(run_flags, _run_flags)
             end
 
