@@ -425,6 +425,18 @@ target("test", function()
         end
 
         do
+            os.cd(path.join(prj_dir, "tests", "test_basic_signal"))
+            for _, sim in ipairs(simulators) do
+                os.setenv("SIM", sim)
+                os.setenv("NO_INTERNAL_CLOCK", "1")
+                os.tryrm("build")
+                os.exec("xmake build -v -P .")
+                os.exec("xmake run -v -P .")
+            end
+            os.setenv("NO_INTERNAL_CLOCK", nil)
+        end
+
+        do
             local benchmark_cases = {
                 "signal_operation",
                 "multitasking",

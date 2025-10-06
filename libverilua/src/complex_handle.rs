@@ -169,8 +169,19 @@ impl ComplexHandle {
                     self.put_value_flag = Some(*flag);
                     self.put_value_format = *format;
 
+                    let hdl_put_value: &mut Vec<ComplexHandleRaw>;
+                    if cfg!(feature = "vcs") || cfg!(feature = "iverilog") {
+                        if env.use_hdl_put_value_bak {
+                            hdl_put_value = &mut env.hdl_put_value_bak;
+                        } else {
+                            hdl_put_value = &mut env.hdl_put_value;
+                        }
+                    } else {
+                        hdl_put_value = &mut env.hdl_put_value;
+                    };
+
                     // Remove old flag
-                    let target_idx = env.hdl_put_value.iter().position(|complex_handle_raw| {
+                    let target_idx = hdl_put_value.iter().position(|complex_handle_raw| {
                         let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
                         complex_handle.vpi_handle == self.vpi_handle
                     });
@@ -182,8 +193,8 @@ impl ComplexHandle {
                         *flag,
                         self
                     );
-                    env.hdl_put_value
-                        .remove(unsafe { target_idx.unwrap_unchecked() });
+
+                    hdl_put_value.remove(unsafe { target_idx.unwrap_unchecked() });
 
                     true
                 }

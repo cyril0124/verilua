@@ -1,9 +1,22 @@
 local utils = require "LuaUtils"
 
+local clock = dut.clock:chdl()
+
+if os.getenv("NO_INTERNAL_CLOCK") then
+    fork {
+        function()
+            while true do
+                clock:set(1)
+                await_time(1)
+                clock:set(0)
+                await_time(1)
+            end
+        end
+    }
+end
+
 fork {
     function()
-        local clock = dut.clock:chdl()
-
         local test = function()
             local type_vec = { "reg", "bit", "logic" }
             local bitwidth_vec = { 1, 8, 16, 32, 64, 68, 128 }
@@ -57,6 +70,10 @@ fork {
         reg8:set(0xbb)
         clock:posedge()
         reg8:expect(0xbb)
+
+        for i = 1, 10 do
+            reg8:set(i)
+        end
 
         local vec_reg = dut.u_top.vec_reg:chdl()
         for i = 0, vec_reg.array_size - 1 do
