@@ -1,4 +1,4 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
@@ -155,5 +155,32 @@ target("verilua_prebuild", function()
 
     after_build(function(target)
         os.cp(path.join(prj_dir, "target", "release", "verilua_prebuild"), path.join(prj_dir, "tools"))
+    end)
+end)
+
+target("build_libverilua_no_opt", function()
+    set_kind("phony")
+    on_run(function()
+        setup_cargo_env(os)
+        try { function() os.vrun("cargo clean") end }
+
+        os.mkdir(path.join(shared_dir, "no_opt"))
+        
+        print("[build libverilua_no_opt] build libverilua_verilator.so...")
+        os.vrun([[cargo build --release --features "verilator verilator_inner_step_callback %s"]], common_features)
+        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_verilator.so"))
+
+        print("[build libverilua_no_opt] build libverilua_vcs.so...")
+        os.vrun([[cargo build --release --features "vcs %s"]], common_features)
+        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_vcs.so"))
+
+        local build_iverilog_vpi_module_cmd = format(
+            [[cargo build --release --features "iverilog iverilog_vpi_mod %s"]],
+           common_features 
+        )
+        print("[build libverilua_no_opt] build libverilua_iverilog.so...")
+        os.vrun(build_iverilog_vpi_module_cmd)
+        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_iverilog.so"))
+        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_iverilog.vpi"))
     end)
 end)
