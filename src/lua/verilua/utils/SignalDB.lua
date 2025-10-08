@@ -246,7 +246,11 @@ function SignalDB:generate_db(args_str)
     local cmd = "signal_db_gen " .. args
 
     if not self.is_prebuild then
-        local lib = ffi.load("signal_db_gen")
+        -- local lib = ffi.load("signal_db_gen")
+        local verilua_home = os.getenv("VERILUA_HOME")
+        assert(verilua_home, "[SignalDB] environment variable `VERILUA_HOME` is not set!")
+
+        local lib = ffi.load(verilua_home .. "/shared/libsignal_db_gen.so")
         ffi.cdef [[
             void signal_db_gen_main(const char *argList);
         ]]

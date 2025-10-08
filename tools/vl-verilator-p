@@ -37,8 +37,8 @@ CFLAGS += f"-I{luapath}/include -I{luapath}/include/luajit-2.1 "
 CFLAGS += f"-I{verilua_path}/src/include "
 CFLAGS += f"-I{verilua_path}/conan_installed/include "
 
-LDFLAGS += f"-L{libpath} -lverilua_verilator "
-LDFLAGS += f"-L{liblua_path} -lluajit-5.1 "
+LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -lverilua_verilator "
+LDFLAGS += f"-Wl,-rpath,{liblua_path} -L{liblua_path} -Wl,--no-as-needed -lluajit-5.1 "
 
 verilator = shutil.which("verilator")
 assert verilator != None, "[vl-verilator-p] cannot find `verilator` in PATH"

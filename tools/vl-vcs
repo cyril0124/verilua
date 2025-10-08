@@ -34,12 +34,14 @@ cmd_list = [vcs] + [
     "-CFLAGS", f'\"-I{verilua_path}/src/include\"',
     "-LDFLAGS", f'\"-Wl,-rpath,{liblua_path}\"',
     
+    "-LDFLAGS", f'\"-Wl,-rpath,{liblua_path}\"',
+    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from libverilua_vcs
     "-LDFLAGS", f'\"-L{liblua_path}\"',
-    "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from libverilua_vcs
-    "-LDFLAGS", f'\"-lluajit-5.1\"',
+    "-LDFLAGS", '\"-lluajit-5.1\"',
     
-    "-LDFLAGS", f'\"-L{libpath}\"',
+    "-LDFLAGS", f'\"-Wl,-rpath,{libpath}\"',
     "-LDFLAGS", '\"-Wl,--no-as-needed\"', # Keep symbols from libverilua_vcs
+    "-LDFLAGS", f'\"-L{libpath}\"',
     "-LDFLAGS", '\"-lverilua_vcs\"',
 
     "-LDFLAGS", '-lstdc++',
