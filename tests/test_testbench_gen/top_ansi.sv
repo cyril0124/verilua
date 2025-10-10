@@ -47,6 +47,8 @@ module TopAnsi#(
     input [7:0] i6,
     input [VAL-1:0] i7[3:0],
 
+    input wire [3:0] io_axi_cfg_awregion,
+
     input bit i10
 );
 

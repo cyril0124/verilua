@@ -138,7 +138,7 @@ using PortInfo = struct {
         auto _type = type;
         if (isInput()) {
             // e.g. input reg <...>
-            ASSERT(!containsString(toString(), "reg"), "Unexpected reg in input port", toString());
+            ASSERT(!std::regex_match(toString(), std::regex("\breg\b")), "Unexpected reg in input port", toString());
 
             // _type = replaceString(_type, "logic", "reg");
             _type = replaceString(_type, "wire", "reg");
