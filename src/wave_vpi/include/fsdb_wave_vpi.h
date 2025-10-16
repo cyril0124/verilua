@@ -7,10 +7,9 @@
 #include <condition_variable>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <thread>
 #include <vector>
-#include <set>
-
 
 #define LAST_MODIFIED_TIME_FILE "last_modified_time.wave_vpi_fsdb"
 #define TIME_TABLE_FILE "time_table.wave_vpi_fsdb"
@@ -25,6 +24,7 @@
 #define TIME_TABLE_MAX_INDEX_VAR_CODE_MAX 2000
 #define Xtag64ToUInt64(xtag64) (uint64_t)(((uint64_t)xtag64.H << 32) + xtag64.L)
 
+namespace fsdb_wave_vpi {
 class FsdbWaveVpi {
   public:
     std::string waveFileName;
@@ -66,6 +66,7 @@ typedef struct {
 
 extern std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 
+// JIT options
 extern bool enableJIT;
 extern std::atomic<uint32_t> jitOptThreadCnt;
 extern uint32_t jitMaxOptThreads;
@@ -73,3 +74,4 @@ extern uint64_t jitHotAccessThreshold;
 extern uint64_t jitCompileThreshold;
 extern uint64_t jitCompileWindowSize;
 extern uint64_t jitRecompileWindowSize;
+}; // namespace fsdb_wave_vpi

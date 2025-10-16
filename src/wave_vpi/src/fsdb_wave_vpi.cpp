@@ -2,6 +2,7 @@
 #ifdef USE_FSDB
 #include "fsdb_wave_vpi.h"
 
+namespace fsdb_wave_vpi {
 std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 
 // TODO: make these member variables of FsdbWaveVpi
@@ -327,4 +328,5 @@ uint32_t FsdbWaveVpi::findNearestTimeIndex(uint64_t time) {
         }
     }
 }
+}; // namespace fsdb_wave_vpi
 #endif // USE_FSDB

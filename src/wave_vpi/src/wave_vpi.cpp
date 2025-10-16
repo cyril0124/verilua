@@ -36,10 +36,10 @@ void sigabrt_handler(int unused) {
 
 void wave_vpi_init(const char *filename) {
 #ifdef USE_FSDB
-    fsdbWaveVpi = std::make_shared<FsdbWaveVpi>(ffrObject::ffrOpenNonSharedObj((char *)filename), std::string(filename));
+    fsdb_wave_vpi::fsdbWaveVpi = std::make_shared<fsdb_wave_vpi::FsdbWaveVpi>(ffrObject::ffrOpenNonSharedObj((char *)filename), std::string(filename));
 
-    cursor.maxIndex = fsdbWaveVpi->xtagU64Vec.size() - 1;
-    cursor.maxTime  = fsdbWaveVpi->xtagU64Vec.at(fsdbWaveVpi->xtagU64Vec.size() - 1);
+    cursor.maxIndex = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1;
+    cursor.maxTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.at(fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1);
 #else
     wellen_initialize(filename);
 
@@ -162,7 +162,7 @@ void wave_vpi_loop() {
     }
 
 #ifdef USE_FSDB
-    fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, fsdbWaveVpi->xtagU64Vec[cursor.index]);
+    fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index]);
 #else
     fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, wellen_get_time_from_index(cursor.index));
 #endif

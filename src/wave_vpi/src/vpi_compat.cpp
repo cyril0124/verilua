@@ -62,16 +62,16 @@ uint32_t fsdbGetSingleBitValue(vpiHandle object) {
     vpi_get_value(object, &v); // Use `vpi_get_value` since we have JIT-like feature in `vpi_get_value`
     return v.value.integer;
 
-    // auto fsdbSigHdl = reinterpret_cast<FsdbSignalHandlePtr>(object);
+    // auto fsdbSigHdl = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(object);
     // auto vcTrvsHdl = fsdbSigHdl->vcTrvsHdl;
     // byte_T *retVC;
     // fsdbBytesPerBit bpb;
 
-    // auto time = fsdbWaveVpi->xtagVec[cursor.index];
+    // auto time = fsdb_wave_vpi::fsdbWaveVpi->xtagVec[cursor.index];
     // time.hltag.L = time.hltag.L + 1; // Move a little bit further to ensure we are not in the sensitive clock edge which may lead to signal value confusion.
     // if(FSDB_RC_SUCCESS != vcTrvsHdl->ffrGotoXTag(&time)) [[unlikely]] {
-    //     auto currIndexTime = fsdbWaveVpi->xtagU64Vec[cursor.index];
-    //     auto maxIndexTime = fsdbWaveVpi->xtagU64Vec[cursor.maxIndex];
+    //     auto currIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
+    //     auto maxIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.maxIndex];
     //     VL_FATAL(false, "vcTrvsHdl->ffrGotoXTag() failed! time.hltag.L: {}, time.hltag.H: {}, maxIndexTime: {}, currIndexTime: {}, cursor.maxIndex: {}, cursor.index: {}", time.hltag.L, time.hltag.H, maxIndexTime, currIndexTime, cursor.maxIndex, cursor.index);
     // }
     // if(FSDB_RC_SUCCESS != vcTrvsHdl->ffrGetVC(&retVC)) [[unlikely]] {
@@ -133,7 +133,7 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
 
         auto t = *cb_data_p;
 #ifdef USE_FSDB
-        size_t bitSize = reinterpret_cast<FsdbSignalHandlePtr>(cb_data_p->obj)->bitSize;
+        size_t bitSize = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(cb_data_p->obj)->bitSize;
         if (bitSize == 1) [[likely]] {
             willAppendValueCb.emplace_back(std::make_pair(vpiHandleAllcator, ValueCbInfo{
                                                                                  .cbData   = std::make_shared<t_cb_data>(*cb_data_p),
@@ -165,8 +165,8 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
 
         uint64_t time = (((uint64_t)cb_data_p->time->high << 32) | (cb_data_p->time->low));
 #ifdef USE_FSDB
-        uint64_t targetTime  = fsdbWaveVpi->xtagU64Vec[cursor.index] + time;
-        uint64_t targetIndex = fsdbWaveVpi->findNearestTimeIndex(targetTime);
+        uint64_t targetTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index] + time;
+        uint64_t targetIndex = fsdb_wave_vpi::fsdbWaveVpi->findNearestTimeIndex(targetTime);
 #else
         uint64_t targetTime  = wellen_get_time_from_index(cursor.index) + time;
         uint64_t targetIndex = wellen_get_index_from_time(targetTime);
@@ -230,17 +230,17 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     VL_FATAL(scope == nullptr, "TODO: scope is not supported for now");
 
 #ifdef USE_FSDB
-    auto varIdCode = fsdbWaveVpi->getVarIdCodeByName(name);
+    auto varIdCode = fsdb_wave_vpi::fsdbWaveVpi->getVarIdCodeByName(name);
     if (varIdCode == -1) {
         return nullptr;
     }
 
-    auto hdl = fsdbWaveVpi->fsdbObj->ffrCreateVCTrvsHdl(varIdCode);
+    auto hdl = fsdb_wave_vpi::fsdbWaveVpi->fsdbObj->ffrCreateVCTrvsHdl(varIdCode);
     if (!hdl) {
         VL_FATAL(false, "Failed to create value change traverse handle, name: {}", std::string(name));
     }
 
-    auto fsdbSigHdl = new FsdbSignalHandle{.name = std::string(name), .vcTrvsHdl = hdl, .varIdCode = varIdCode, .bitSize = hdl->ffrGetBitSize()};
+    auto fsdbSigHdl = new fsdb_wave_vpi::FsdbSignalHandle{.name = std::string(name), .vcTrvsHdl = hdl, .varIdCode = varIdCode, .bitSize = hdl->ffrGetBitSize()};
 
     auto vpiHdl = reinterpret_cast<vpiHandle>(fsdbSigHdl);
 #else
@@ -289,7 +289,7 @@ PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle object) {
 #ifdef USE_FSDB
     switch (property) {
     case vpiSize:
-        return reinterpret_cast<FsdbSignalHandlePtr>(object)->bitSize;
+        return reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(object)->bitSize;
     default:
         VL_FATAL(false, "Unimplemented property: {}", property);
     }
@@ -302,7 +302,7 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle object) {
 #ifdef USE_FSDB
     switch (property) {
     case vpiType: {
-        auto varType = reinterpret_cast<FsdbSignalHandle *>(object)->vcTrvsHdl->ffrGetVarType();
+        auto varType = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandle *>(object)->vcTrvsHdl->ffrGetVarType();
         switch (varType) {
         case FSDB_VT_VCD_REG:
             return const_cast<PLI_BYTE8 *>("vpiReg");
@@ -321,7 +321,7 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle object) {
 };
 
 #ifdef USE_FSDB
-static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVec, FsdbSignalHandlePtr fsdbSigHdl) {
+static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVec, fsdb_wave_vpi::FsdbSignalHandlePtr fsdbSigHdl) {
     static std::mutex optMutex;
 
     // Ensure only one `fsdbObj` can be processed for all the optimization threads. (It seems like a bug that FsdbReader did not allow multiple ffrObjects to be processed at multiple threads. )
@@ -340,7 +340,7 @@ static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVe
     optValueVec.reserve(xtagVec.size());
 
     auto currentCursorIdx = cursor.index;
-    auto optFinishIdx     = currentCursorIdx + jitCompileWindowSize;
+    auto optFinishIdx     = currentCursorIdx + fsdb_wave_vpi::jitCompileWindowSize;
 
     if (optFinishIdx >= xtagVec.size()) {
         optFinishIdx = xtagVec.size() - 1;
@@ -446,7 +446,7 @@ static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVe
         // Continue optimization
         auto optFinish    = false;
         auto optStartIdx  = fsdbSigHdl->optFinishIdx;
-        auto optFinishIdx = fsdbSigHdl->optFinishIdx + jitCompileWindowSize;
+        auto optFinishIdx = fsdbSigHdl->optFinishIdx + fsdb_wave_vpi::jitCompileWindowSize;
         if (optFinishIdx >= xtagVec.size()) {
             optFinishIdx = xtagVec.size() - 1;
             optFinish    = true;
@@ -467,7 +467,7 @@ static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVe
         }
     }
 
-    jitOptThreadCnt.store(jitOptThreadCnt.load() - 1);
+    fsdb_wave_vpi::jitOptThreadCnt.store(fsdb_wave_vpi::jitOptThreadCnt.load() - 1);
 
     // fsdbObj->ffrClose();
     if (verbose_jit) {
@@ -481,16 +481,16 @@ void vpi_get_value(vpiHandle object, p_vpi_value value_p) {
 #ifdef USE_FSDB
     static byte_T buffer[FSDB_MAX_BIT_SIZE + 1];
     static s_vpi_vecval vpiValueVecs[100];
-    auto fsdbSigHdl = reinterpret_cast<FsdbSignalHandlePtr>(object);
+    auto fsdbSigHdl = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(object);
 
-    if (!enableJIT)
+    if (!fsdb_wave_vpi::enableJIT)
         goto ReadFromFSDB;
 
     if (fsdbSigHdl->optFinish) {
         if (cursor.index >= fsdbSigHdl->optFinishIdx) {
             // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, fsdbSigHdl->optFinishIdx, fsdbSigHdl->name);
             goto ReadFromFSDB;
-        } else if (cursor.index >= (fsdbSigHdl->optFinishIdx - jitRecompileWindowSize)) {
+        } else if (cursor.index >= (fsdbSigHdl->optFinishIdx - fsdb_wave_vpi::jitRecompileWindowSize)) {
             // fmt::println("[WARN] continue optimization... {} cursot.index:{} optFinishIdx:{}", fsdbSigHdl->name, cursor.index, fsdbSigHdl->optFinishIdx);
             fsdbSigHdl->continueOpt = true;
             fsdbSigHdl->cv.notify_all();
@@ -530,13 +530,13 @@ void vpi_get_value(vpiHandle object, p_vpi_value value_p) {
         fsdbSigHdl->readCnt++;
 
         // Doing somthing like JIT(Just-In-Time)...
-        if (!fsdbSigHdl->doOpt && fsdbSigHdl->bitSize <= 32 && fsdbSigHdl->readCnt > jitHotAccessThreshold) {
-            auto _jitOptThreadCnt = jitOptThreadCnt.load();
-            if (_jitOptThreadCnt <= jitMaxOptThreads) {
-                jitOptThreadCnt.store(_jitOptThreadCnt + 1);
+        if (!fsdbSigHdl->doOpt && fsdbSigHdl->bitSize <= 32 && fsdbSigHdl->readCnt > fsdb_wave_vpi::jitHotAccessThreshold) {
+            auto _jitOptThreadCnt = fsdb_wave_vpi::jitOptThreadCnt.load();
+            if (_jitOptThreadCnt <= fsdb_wave_vpi::jitMaxOptThreads) {
+                fsdb_wave_vpi::jitOptThreadCnt.store(_jitOptThreadCnt + 1);
                 fsdbSigHdl->doOpt       = true;
                 fsdbSigHdl->continueOpt = false;
-                fsdbSigHdl->optThread   = std::thread(std::bind(optThreadTask, fsdbWaveVpi->waveFileName, fsdbWaveVpi->xtagVec, fsdbSigHdl));
+                fsdbSigHdl->optThread   = std::thread(std::bind(optThreadTask, fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl));
             }
         }
     }
@@ -548,12 +548,12 @@ ReadFromFSDB:
     fsdbBytesPerBit bpb;
     size_t bitSize = fsdbSigHdl->bitSize;
 
-    auto time    = fsdbWaveVpi->xtagVec[cursor.index];
+    auto time    = fsdb_wave_vpi::fsdbWaveVpi->xtagVec[cursor.index];
     time.hltag.L = time.hltag.L + 1; // Move a little bit further to ensure we are not in the sensitive clock edge which may lead to signal value confusion.
 
     if (FSDB_RC_SUCCESS != vcTrvsHdl->ffrGotoXTag(&time)) [[unlikely]] {
-        auto currIndexTime = fsdbWaveVpi->xtagU64Vec[cursor.index];
-        auto maxIndexTime  = fsdbWaveVpi->xtagU64Vec[cursor.maxIndex];
+        auto currIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
+        auto maxIndexTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.maxIndex];
         VL_FATAL(false, "vcTrvsHdl->ffrGotoXTag() failed! time.hltag.L: {}, time.hltag.H: {}, maxIndexTime: {}, currIndexTime: {}, cursor.maxIndex: {}, cursor.index: {}", time.hltag.L, time.hltag.H, maxIndexTime, currIndexTime, cursor.maxIndex, cursor.index);
     }
     if (FSDB_RC_SUCCESS != vcTrvsHdl->ffrGetVC(&retVC)) [[unlikely]] {
@@ -759,13 +759,13 @@ ReadFromFSDB:
     // fmt::println("\n[{}] retVC:{}", hdlToNameMap[object], retVC[0]);
     // if(value_p->format == vpiIntVal) {
     //     format = "vpiIntVal";
-    //     fmt::println("[{}]@{} format:{} value: {}", hdlToNameMap[object], fsdbWaveVpi->xtagU64Vec[cursor.index], format, value_p->value.integer);
+    //     fmt::println("[{}]@{} format:{} value: {}", hdlToNameMap[object], fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index], format, value_p->value.integer);
     // } else if(value_p->format == vpiVectorVal) {
     //     format = "vpiVectorVal";
-    //     fmt::println("[{}]@{} format:{} value: {}", hdlToNameMap[object], fsdbWaveVpi->xtagU64Vec[cursor.index], format, value_p->value.vector[0].aval);
+    //     fmt::println("[{}]@{} format:{} value: {}", hdlToNameMap[object], fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index], format, value_p->value.vector[0].aval);
     // } else if (value_p->format == vpiHexStrVal) {
     //     format = "vpiHexStrVal";
-    //     fmt::println("[{}]@{} format:{} value: {}", hdlToNameMap[object], fsdbWaveVpi->xtagU64Vec[cursor.index], format, value_p->value.str);
+    //     fmt::println("[{}]@{} format:{} value: {}", hdlToNameMap[object], fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index], format, value_p->value.str);
     // }
 #else
     wellen_vpi_get_value_from_index(reinterpret_cast<void *>(object), cursor.index, value_p);
