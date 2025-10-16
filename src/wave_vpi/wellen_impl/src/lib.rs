@@ -373,34 +373,34 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
         return Box::into_raw(value) as *mut c_void;
     }
 
-    // TODO:
-    // let s = get_hierarchy().lookup_var(path, name)
+    let id = if let Some((path_str, signal_name)) = name.rsplit_once(".") {
+        let path_vec: Vec<&str> = path_str.split(".").collect();
+        let path_slice: &[&str] = &path_vec;
 
-    let id = {
         let hierarchy = get_hierarchy();
-        hierarchy.iter_vars().find_map(|var| {
-            let signal_name = var.full_name(&hierarchy);
-            if signal_name == name.to_string() {
-                let ids = [var.signal_ref(); 1];
-                let loaded =
-                    get_wave_source().load_signals(&ids, &hierarchy, LOAD_OPTS.multi_thread);
-                let (loaded_id, loaded_signal) = loaded.into_iter().next().unwrap();
-                assert_eq!(loaded_id, ids[0]);
+        let var_ref = &hierarchy
+            .lookup_var(path_slice, &signal_name)
+            .expect("Failed to lookup var");
+        let var = &hierarchy[*var_ref];
 
-                get_signal_cache().insert(
-                    loaded_id,
-                    SignalInfo {
-                        signal: loaded_signal,
-                        var_type: var.var_type(),
-                    },
-                );
+        let ids = [var.signal_ref(); 1];
+        let loaded = get_wave_source().load_signals(&ids, &hierarchy, LOAD_OPTS.multi_thread);
+        let (loaded_id, loaded_signal) = loaded.into_iter().next().unwrap();
+        assert_eq!(loaded_id, ids[0], "Failed to load signal, name: {}", name);
 
-                Some(loaded_id as vpiHandle)
-            } else {
-                None
-            }
-        })
+        get_signal_cache().insert(
+            loaded_id,
+            SignalInfo {
+                signal: loaded_signal,
+                var_type: var.var_type(),
+            },
+        );
+
+        Some(loaded_id as vpiHandle)
+    } else {
+        panic!("[wellen_vpi_handle_by_name] not a valid name: {}", name);
     };
+
     assert!(
         id.is_some(),
         "[wellen_vpi_handle_by_name] cannot find vpiHandle => name:{}",
