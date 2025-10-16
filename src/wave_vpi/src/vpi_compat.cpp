@@ -29,6 +29,10 @@
 extern WaveCursor cursor;
 
 namespace vpi_compat {
+
+bool vpiControlTerminate    = false;
+std::string terminateReason = "Unknown";
+
 std::unique_ptr<s_cb_data> startOfSimulationCb = NULL;
 std::unique_ptr<s_cb_data> endOfSimulationCb   = NULL;
 
@@ -257,9 +261,13 @@ PLI_INT32 vpi_control(PLI_INT32 operation, ...) {
     case vpiFinish:
         if (operation == vpiStop) {
             VL_INFO("get vpiStop\n");
+            terminateReason = "vpiStop";
         } else {
             VL_INFO("get vpiFinish\n");
+            terminateReason = "vpiFinish";
         }
+
+        vpiControlTerminate = true;
         endOfSimulation();
         return 1;
     default:

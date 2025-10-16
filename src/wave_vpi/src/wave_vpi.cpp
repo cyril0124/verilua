@@ -72,7 +72,7 @@ void wave_vpi_loop() {
     VL_FATAL(cursor.maxIndex != 0, "cursor.maxIndex should not be 0");
     fmt::println("[wave_vpi::loop] START! cursor.maxIndex => {} cursor.maxTime => {}", cursor.maxIndex, cursor.maxTime);
 
-    while (cursor.index < cursor.maxIndex) {
+    while (cursor.index < cursor.maxIndex && !vpi_compat::vpiControlTerminate) {
         // Deal with cbAfterDelay(time) callbacks
         if (!vpi_compat::timeCbQueue.empty()) {
             bool again = cursor.index >= vpi_compat::timeCbQueue.front().first;
@@ -166,6 +166,10 @@ void wave_vpi_loop() {
 #else
     fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, wellen_get_time_from_index(cursor.index));
 #endif
+
+    if (vpi_compat::vpiControlTerminate) {
+        fmt::println("[wave_vpi::loop] Terminated by vpiControlTerminate, reason: {}", vpi_compat::terminateReason);
+    }
 
     vpi_compat::endOfSimulation();
     exit(0);

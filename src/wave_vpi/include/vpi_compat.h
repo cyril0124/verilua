@@ -3,8 +3,11 @@
 #include "boost_unordered.hpp"
 #include <wave_vpi.h>
 
-// TODO: use namespace
 namespace vpi_compat {
+
+extern bool vpiControlTerminate;
+extern std::string terminateReason;
+
 extern std::unique_ptr<s_cb_data> startOfSimulationCb;
 extern std::unique_ptr<s_cb_data> endOfSimulationCb;
 
@@ -23,10 +26,10 @@ extern std::vector<vpiHandleRaw> willRemoveValueCb;
 extern vpiHandleRaw vpiHandleAllcator;
 
 inline void endOfSimulation() {
-    static bool isEndOfSimulation = false;
+    static bool called = false;
 
-    if (endOfSimulationCb && !isEndOfSimulation) {
-        isEndOfSimulation = true;
+    if (endOfSimulationCb && !called) {
+        called = true;
 #ifndef USE_FSDB
         wellen_finalize();
 #endif
