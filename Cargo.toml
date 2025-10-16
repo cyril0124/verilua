@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["libverilua"]
+members = ["libverilua", "src/wave_vpi/wellen_impl"]
 exclude = ["luajit-pro", "wave_vpi"]
 
 [profile.release]

@@ -1,4 +1,4 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
@@ -6,15 +6,14 @@ local shared_dir = path.join(prj_dir, "shared")
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
-local wave_vpi_dir = path.join(prj_dir, "wave_vpi")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 local function wave_vpi_main_common()
     set_kind("binary")
 
-    add_deps("libverilua_wave_vpi")
+    add_deps("libverilua_wave_vpi", "wave_vpi_wellen_impl")
 
-    set_languages("c99", "c++20")
+    set_languages("c++20")
     set_targetdir(path.join(build_dir, "bin"))
     set_objectdir(path.join(build_dir, "obj"))
 
@@ -27,13 +26,14 @@ local function wave_vpi_main_common()
 
     add_files(
         path.join(curr_dir, "*.cpp"),
-        path.join(wave_vpi_dir, "src", "*.cc")
+        path.join(curr_dir, "src", "*.cpp")
     )
 
     add_includedirs(
         boost_unordered_dir,
-        path.join(wave_vpi_dir, "src"),
+        path.join(curr_dir, "include"),
         path.join(libs_dir, "include"),
+        path.join(prj_dir, "src", "include"),
         path.join(lua_dir, "include", "luajit-2.1")
     )
 
@@ -65,7 +65,8 @@ local function wave_vpi_main_common()
     add_rpathdirs(shared_dir)
 
     add_links("wave_vpi_wellen_impl")
-    add_linkdirs(path.join(wave_vpi_dir, "target", "release"))
+    add_linkdirs(path.join(prj_dir, "target", "release"))
+    add_rpathdirs(path.join(prj_dir, "target", "release"))
 
     local no_cpptrace = os.getenv("NO_CPPTRACE")
     if not no_cpptrace then
@@ -114,4 +115,12 @@ target("wave_vpi_main_fsdb", function()
             raise("[wave_vpi_main_fsdb] VERDI_HOME is not defined!")
         end)
     end
+end)
+
+target("wave_vpi_wellen_impl", function()
+    set_kind("phony")
+    on_build(function()
+        os.cd(path.join(curr_dir, "wellen_impl"))
+        os.exec("cargo build --release")
+    end)
 end)

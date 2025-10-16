@@ -217,11 +217,6 @@ target("setup_verilua", function()
 
         cprint("[setup_verilua] shell_rc: ${green underline}%s${reset}, has_match: %s", shell_rc, tostring(has_match))
 
-        -- generate libwwave_vpi_wellen_impl
-        os.cd("wave_vpi")
-        os.exec("cargo build --release")
-        os.cd(os.workingdir())
-
         os.exec("xmake run -y -v build_libverilua")
         os.exec("xmake run -y -v build_all_tools")
         os.exec("xmake build -y -v libsignal_db_gen")

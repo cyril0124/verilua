@@ -1,5 +1,4 @@
 #include "lua.hpp"
-#include "vpi_user.h"
 #include "wave_vpi.h"
 
 #include <argparse/argparse.hpp>
@@ -19,7 +18,7 @@ int main(int argc, const char *argv[]) {
     lua_State *L = luaL_newstate(); // keep luajit symbols
 
     signal(SIGABRT, [](int sig) {
-        fmt::println("[wave_vpi_main] SIGABRT");
+        fmt::println("[wave_vpi::main] SIGABRT");
 #ifdef USE_CPPTRACE
         cpptrace::generate_trace().print(std::cerr, true);
 #endif
@@ -27,7 +26,7 @@ int main(int argc, const char *argv[]) {
     });
 
     signal(SIGSEGV, [](int sig) {
-        fmt::println("[wave_vpi_main] SIGSEGV");
+        fmt::println("[wave_vpi::main] SIGSEGV");
 #ifdef USE_CPPTRACE
         cpptrace::generate_trace().print(std::cerr, true);
 #endif
@@ -56,7 +55,7 @@ int main(int argc, const char *argv[]) {
     } else {
         auto _waveFile = std::getenv("WAVE_FILE");
         if (_waveFile == nullptr) {
-            std::cerr << "[wave_vpi_main] either env var WAVE_FILE or command line argument --wave-file is required" << std::endl;
+            std::cerr << "[wave_vpi::main] either env var WAVE_FILE or command line argument --wave-file is required" << std::endl;
             std::cerr << program;
             return 1;
         } else {
@@ -64,18 +63,18 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    fmt::println("[wave_vpi_main] waveFile is => {}", waveFile);
+    fmt::println("[wave_vpi::main] waveform: {}{}{}", ANSI_COLOR_GREEN, waveFile, ANSI_COLOR_RESET);
     std::cout << std::flush;
 
-    fmt::println("[wave_vpi_main] init...");
+    fmt::println("[wave_vpi::main] initializing...");
     std::cout << std::flush;
 
     wave_vpi_init(waveFile.c_str());
 
-    fmt::println("[wave_vpi_main] init finish!");
+    fmt::println("[wave_vpi::main] initialization finish!");
     std::cout << std::flush;
 
-    fmt::println("[wave_vpi_main] start running wave_vpi_main()!");
+    fmt::println("[wave_vpi::main] start running wave_vpi_loop()!");
     std::cout << std::flush;
-    wave_vpi_main();
+    wave_vpi_loop();
 }
