@@ -46,7 +46,7 @@ assert verilator != None, "[vl-verilator-p] cannot find `verilator` in PATH"
 cmd_list = [verilator] + [
     "--vpi",
     "+define+VERILUA",
-    "-LDFLAGS", LDFLAGS, 
+    "-LDFLAGS", LDFLAGS,
     "-CFLAGS", '"' + CFLAGS + '"'
 ] + sys.argv[1:]
 
