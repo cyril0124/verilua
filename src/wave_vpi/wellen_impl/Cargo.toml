@@ -11,6 +11,9 @@ bytemuck = "1.16.0"
 byteorder = "1.5.0"
 serde = "1.0"
 serde_yaml = "0.9.34"
+env_logger = "0.11.8"
+log = "0.4.27"
+static_init = "1.0.4"
 
 [lib]
 path = "src/lib.rs"

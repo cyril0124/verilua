@@ -55,6 +55,11 @@ static mut SIGNAL_REF_CACHE: Option<UnsafeCell<HashMap<String, SignalRef>>> = No
 static mut SIGNAL_CACHE: Option<UnsafeCell<HashMap<SignalRef, SignalInfo>>> = None;
 static mut HAS_NEWLY_ADD_SIGNAL_REF: bool = false;
 
+#[static_init::constructor(0)]
+extern "C" fn init_env_logger() {
+    let _ = env_logger::try_init();
+}
+
 #[inline(always)]
 fn get_time_table() -> &'static mut Vec<u64> {
     unsafe {
@@ -155,13 +160,14 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
     let r_str = c_str.to_str().unwrap();
     let filename = r_str;
 
-    let header = viewers::read_header_from_file(&filename, &LOAD_OPTS).expect("Failed to load file!");
+    let header =
+        viewers::read_header_from_file(&filename, &LOAD_OPTS).expect("Failed to load file!");
     let hierarchy = header.hierarchy;
 
     let body = viewers::read_body(header.body, &hierarchy, None).expect("Failed to load body!");
     let wave_source = body.source;
     wave_source.print_statistics();
-    println!(
+    log::info!(
         "[wave_vpi::wellen_initialize] The hierarchy takes up at least {} of memory.",
         ByteSize::b(hierarchy.size_in_memory() as u64)
     );
@@ -172,7 +178,7 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
         HIERARCHY = Some(UnsafeCell::new(hierarchy));
         WAVE_SOURCE = Some(UnsafeCell::new(wave_source));
 
-        println!(
+        log::info!(
             "[wave_vpi::wellen_initialize] Time table size: {}",
             time_table_len
         );
@@ -203,9 +209,12 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
                 time: modified_timestamp,
             };
 
-            println!(
+            log::info!(
                 "[wave_vpi::wellen_initialize] modified_timestamp: last({}) curr({})  file_size: last({}) curr({})",
-                last_modified_timestamp, modified_timestamp, last_file_size, file_size
+                last_modified_timestamp,
+                modified_timestamp,
+                last_file_size,
+                file_size
             );
 
             serde_yaml::to_writer(writer, &modified_time).unwrap();
@@ -216,9 +225,10 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
                     .expect(format!("Failed to parse {}", SIGNAL_REF_COUNT_FILE).as_str());
 
                 let signal_ref_count_threshold = SIGNAL_REF_COUNT_THRESHOLD;
-                println!(
+                log::info!(
                     "[wave_vpi::wellen_initialize] signal_ref_count: {} signal_ref_count_threshold: {}",
-                    signal_ref_count, signal_ref_count_threshold
+                    signal_ref_count,
+                    signal_ref_count_threshold
                 );
 
                 if signal_ref_count >= signal_ref_count_threshold {
@@ -244,14 +254,15 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
             time: modified_timestamp,
         };
 
-        println!(
+        log::info!(
             "[wave_vpi::wellen_initialize] modified_timestamp(new): {}  file_size(new): {}",
-            modified_timestamp, file_size
+            modified_timestamp,
+            file_size
         );
 
         serde_yaml::to_writer(writer, &modified_time).unwrap();
     }
-    println!(
+    log::info!(
         "[wave_vpi::wellen_initialize] use_cached_data => {}",
         use_cached_data
     );
@@ -259,7 +270,7 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
     unsafe {
         if try_get_signal_ref_cache().is_none() {
             if use_cached_data {
-                println!(
+                log::info!(
                     "[wave_vpi::wellen_initialize] start read {}",
                     SIGNAL_REF_CACHE_FILE
                 );
@@ -269,7 +280,7 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
                     SIGNAL_REF_CACHE =
                         Some(UnsafeCell::new(serde_yaml::from_reader(reader).unwrap()));
                 } else {
-                    println!(
+                    log::warn!(
                         "[wave_vpi::wellen_initialize] Failed to open {}",
                         SIGNAL_REF_CACHE_FILE
                     );
@@ -282,7 +293,7 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
 
         if try_get_signal_cache().is_none() {
             if use_cached_data {
-                println!(
+                log::info!(
                     "[wave_vpi::wellen_initialize] start read {}",
                     SIGNAL_CACHE_FILE
                 );
@@ -291,7 +302,7 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
                     let reader = BufReader::new(file);
                     SIGNAL_CACHE = Some(UnsafeCell::new(serde_yaml::from_reader(reader).unwrap()));
                 } else {
-                    println!(
+                    log::warn!(
                         "[wave_vpi::wellen_initialize] Failed to open signal cache file: {}",
                         SIGNAL_CACHE_FILE
                     );
@@ -303,18 +314,18 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
         }
     }
 
-    println!("[wave_vpi::wellen_initialize] init finish...");
+    log::info!("[wave_vpi::wellen_initialize] init finish...");
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_finalize() {
-    println!("[wave_vpi::wellen_finalize] ... ");
+    log::info!("[wave_vpi::wellen_finalize] ... ");
 
     let signal_ref_cache = get_signal_ref_cache();
     if signal_ref_cache.len() >= SIGNAL_REF_COUNT_THRESHOLD {
         unsafe {
             if HAS_NEWLY_ADD_SIGNAL_REF {
-                println!("[wave_vpi::wellen_finalize] save signal ref into cache file");
+                log::info!("[wave_vpi::wellen_finalize] save signal ref into cache file");
 
                 if let Some(ref cache) = SIGNAL_REF_CACHE {
                     let c = &*cache.get();
@@ -334,11 +345,11 @@ pub unsafe extern "C" fn wellen_finalize() {
                     serde_yaml::to_writer(file, c).unwrap();
                 }
             } else {
-                println!("[wave_vpi::wellen_finalize] no newly added signal ref")
+                log::info!("[wave_vpi::wellen_finalize] no newly added signal ref")
             }
         }
     } else {
-        println!(
+        log::info!(
             "[wave_vpi::wellen_finalize] signal ref count is too small, not save cache file! signal_ref_count: {} < threshold: {}",
             signal_ref_cache.len(),
             SIGNAL_REF_COUNT_THRESHOLD
@@ -357,11 +368,12 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
 
     let id_opt = get_signal_ref_cache().get(&name.to_string());
     if let Some(id) = id_opt {
-        // println!("[wellen_vpi_handle_by_name] find vpiHandle => name:{} id:{:?}", name, id);
+        log::debug!("find vpiHandle in cache => name: {} id: {:?}", name, id);
         let value = Box::new(id.clone() as vpiHandle);
         return Box::into_raw(value) as *mut c_void;
     }
 
+    // TODO:
     // let s = get_hierarchy().lookup_var(path, name)
 
     let id = {
@@ -394,7 +406,8 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
         "[wellen_vpi_handle_by_name] cannot find vpiHandle => name:{}",
         name
     );
-    // println!("[wellen_vpi_handle_by_name] find vpiHandle => name:{} id:{:?}", name, id);
+
+    log::debug!("find vpiHandle => name:{} id:{:?}", name, id);
 
     get_signal_ref_cache().insert(name.to_string(), id.unwrap());
     unsafe {
@@ -751,9 +764,12 @@ pub unsafe extern "C" fn wellen_vpi_iterate(
                         if scope_name.starts_with("$") || scope_name.ends_with("_pkg") {
                             return None;
                         } else {
-                            println!(
+                            log::debug!(
                                 "{:#?} scope_ref => {:?} name => {} full_name => {}",
-                                scope, scope_ref, scope_name, full_name
+                                scope,
+                                scope_ref,
+                                scope_name,
+                                full_name
                             );
                             Some(scope_name)
                         }
@@ -761,7 +777,7 @@ pub unsafe extern "C" fn wellen_vpi_iterate(
                         None
                     }
                 });
-                println!("iterate name => {}", r.unwrap());
+                log::debug!("iterate name => {}", r.unwrap());
             }
             _ => {
                 panic!("type => {}", _type)
