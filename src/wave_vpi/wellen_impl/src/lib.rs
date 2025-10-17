@@ -150,6 +150,32 @@ fn get_wave_source() -> &'static mut SignalSource {
     }
 }
 
+fn lest_score(target: &str, candidate: &str) -> usize {
+    target
+        .split(".")
+        .zip(candidate.split("."))
+        .take_while(|(a, b)| a == b)
+        .count()
+}
+
+// Get the most likely signal name from the hierarchy.
+fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
+    let hierarchy = get_hierarchy();
+    let mut match_vec: Vec<_> = hierarchy
+        .iter_vars()
+        .into_iter()
+        .map(|var| {
+            let full_name = var.full_name(hierarchy);
+            let score = lest_score(name, full_name.as_str());
+            (score, full_name)
+        })
+        .collect();
+
+    // Sort by score
+    match_vec.sort_by_key(|(score, full_name)| (*score, full_name.clone()));
+    match_vec.into_iter().take(n).map(|(_, s)| s).collect()
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn wellen_initialize(filename: *const c_char) {
     let c_str = unsafe {
@@ -378,11 +404,17 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
         let path_slice: &[&str] = &path_vec;
 
         let hierarchy = get_hierarchy();
-        let var_ref = &hierarchy
-            .lookup_var(path_slice, &signal_name)
-            .expect("Failed to lookup var");
-        let var = &hierarchy[*var_ref];
+        let var_ref_opt = &hierarchy.lookup_var(path_slice, &signal_name);
+        if var_ref_opt.is_none() {
+            let v = get_most_likely_signal_name(name, 5);
+            panic!(
+                "Failed to lookup var, name: {}, path: {}, siangl: {}\nMost likely signal names: {:#?}",
+                name, path_str, signal_name, v
+            );
+        }
+        let var_ref = &var_ref_opt.unwrap();
 
+        let var = &hierarchy[*var_ref];
         let ids = [var.signal_ref(); 1];
         let loaded = get_wave_source().load_signals(&ids, &hierarchy, LOAD_OPTS.multi_thread);
         let (loaded_id, loaded_signal) = loaded.into_iter().next().unwrap();
