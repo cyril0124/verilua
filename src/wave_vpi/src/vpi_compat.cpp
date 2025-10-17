@@ -230,7 +230,7 @@ vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p
 }
 
 vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
-    // TODO: scope
+    // TODO: scope?
     VL_FATAL(scope == nullptr, "TODO: scope is not supported for now");
 
 #ifdef USE_FSDB
@@ -329,7 +329,7 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle object) {
 };
 
 #ifdef USE_FSDB
-static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVec, fsdb_wave_vpi::FsdbSignalHandlePtr fsdbSigHdl) {
+static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVec, fsdb_wave_vpi::FsdbSignalHandlePtr fsdbSigHdl) {
     static std::mutex optMutex;
 
     // Ensure only one `fsdbObj` can be processed for all the optimization threads. (It seems like a bug that FsdbReader did not allow multiple ffrObjects to be processed at multiple threads. )
@@ -443,7 +443,7 @@ static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVe
     }
 
     if (verbose_jit) {
-        fmt::println("[optThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{}", fsdbSigHdl->name, currentCursorIdx, optFinishIdx);
+        fmt::println("[fsdbOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{}", fsdbSigHdl->name, currentCursorIdx, optFinishIdx);
     }
 
     int optCnt = 0;
@@ -467,7 +467,7 @@ static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVe
         optCnt++;
 
         if (verbose_jit) {
-            fmt::println("[optThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, fsdbSigHdl->name, optStartIdx, optFinishIdx);
+            fmt::println("[fsdbOptThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, fsdbSigHdl->name, optStartIdx, optFinishIdx);
         }
 
         if (optFinish) {
@@ -479,7 +479,7 @@ static void optThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVe
 
     // fsdbObj->ffrClose();
     if (verbose_jit) {
-        fmt::println("[optThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, fsdbSigHdl->name);
+        fmt::println("[fsdbOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, fsdbSigHdl->name);
         optCnt++;
     }
 }
@@ -538,13 +538,14 @@ void vpi_get_value(vpiHandle object, p_vpi_value value_p) {
         fsdbSigHdl->readCnt++;
 
         // Doing somthing like JIT(Just-In-Time)...
+        // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
         if (!fsdbSigHdl->doOpt && fsdbSigHdl->bitSize <= 32 && fsdbSigHdl->readCnt > fsdb_wave_vpi::jitHotAccessThreshold) {
             auto _jitOptThreadCnt = fsdb_wave_vpi::jitOptThreadCnt.load();
             if (_jitOptThreadCnt <= fsdb_wave_vpi::jitMaxOptThreads) {
                 fsdb_wave_vpi::jitOptThreadCnt.store(_jitOptThreadCnt + 1);
                 fsdbSigHdl->doOpt       = true;
                 fsdbSigHdl->continueOpt = false;
-                fsdbSigHdl->optThread   = std::thread(std::bind(optThreadTask, fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl));
+                fsdbSigHdl->optThread   = std::thread(std::bind(fsdbOptThreadTask, fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl));
             }
         }
     }

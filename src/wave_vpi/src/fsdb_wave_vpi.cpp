@@ -5,7 +5,6 @@
 namespace fsdb_wave_vpi {
 std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 
-// TODO: make these member variables of FsdbWaveVpi
 bool enableJIT                        = true;
 std::atomic<uint32_t> jitOptThreadCnt = 0;
 uint32_t jitMaxOptThreads             = JIT_DEFAULT_MAX_OPT_THREADS;
