@@ -3,10 +3,13 @@
 #include "boost_unordered.hpp"
 #include "fmt/core.h"
 #include "vpi_user.h"
+#include <condition_variable>
 #include <csignal>
+#include <cstdint>
 #include <memory>
 #include <queue>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifndef FALSE
@@ -49,7 +52,6 @@
         }                                                                                                                                                                                                                                                                                                                                                                                                      \
     } while (0)
 
-#ifndef USE_FSDB
 // Exported from rust side
 extern "C" {
 void wellen_initialize(const char *filename);
@@ -60,6 +62,7 @@ uint64_t wellen_get_time_from_index(uint64_t index);
 uint64_t wellen_get_index_from_time(uint64_t time);
 
 char *wellen_get_value_str(void *handle, uint64_t time_table_idx);
+uint32_t wellen_get_int_value(void *handle, uint64_t time_table_index);
 
 void wellen_vpi_get_value(void *handle, uint64_t time, p_vpi_value value_p);
 void wellen_vpi_get_value_from_index(void *handle, uint64_t time_table_idx, p_vpi_value value_p);
@@ -69,7 +72,6 @@ PLI_INT32 wellen_vpi_get(PLI_INT32 property, void *handle);
 PLI_BYTE8 *wellen_vpi_get_str(PLI_INT32 property, void *object);
 void *wellen_vpi_iterate(PLI_INT32 type, void *refHandle);
 }
-#endif
 
 using CursorTime_t = uint64_t;
 using TaskId_t     = uint64_t;
@@ -83,7 +85,7 @@ struct ValueCbInfo {
     size_t bitSize;
     uint32_t bitValue;
 #else
-    vpiHandleRaw handle;
+    vpiHandle handle;
 #endif
     std::string valueStr;
 };
@@ -107,6 +109,23 @@ struct WaveCursor {
     }
 #endif
 };
+
+typedef struct {
+    std::string name;
+    vpiHandle vpiHdl;
+    size_t bitSize;
+
+    // Used by JIT-like feature
+    uint64_t readCnt = 0;
+    std::thread optThread;
+    bool doOpt       = false;
+    bool optFinish   = false;
+    bool continueOpt = false;
+    std::vector<uint32_t> optValueVec;
+    uint64_t optFinishIdx = 0;
+    std::condition_variable cv;
+    std::mutex mtx;
+} SignalHandle, *SignalHandlePtr;
 
 void wave_vpi_init(const char *filename);
 void wave_vpi_loop();

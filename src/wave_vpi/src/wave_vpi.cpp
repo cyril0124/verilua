@@ -1,4 +1,5 @@
 #include "wave_vpi.h"
+#include "jit_options.h"
 #include "vpi_compat.h"
 
 #ifdef USE_FSDB
@@ -52,6 +53,8 @@ void wave_vpi_loop() {
     // Setup SIG handler so that we can exit gracefully
     std::signal(SIGINT, sigint_handler);   // Deal with Ctrl-C
     std::signal(SIGABRT, sigabrt_handler); // Deal with assert
+
+    jit_options::initialize();
 
 #ifndef NO_VLOG_STARTUP
     // Manually call vlog_startup_routines_bootstrap(), which is called at the beginning of the simulation according to VPI standard specification.
@@ -109,7 +112,7 @@ void wave_vpi_loop() {
                     }
                 }
 #else
-                auto newValueStr = vpi_compat::_wellen_get_value_str(&cb.second.handle);
+                auto newValueStr = vpi_compat::_wellen_get_value_str(cb.second.handle);
                 if (newValueStr != cb.second.valueStr) {
                     misMatch           = true;
                     cb.second.valueStr = newValueStr;

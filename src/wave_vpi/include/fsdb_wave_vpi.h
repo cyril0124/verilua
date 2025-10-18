@@ -66,12 +66,4 @@ typedef struct {
 
 extern std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 
-// JIT options
-extern bool enableJIT;
-extern std::atomic<uint32_t> jitOptThreadCnt;
-extern uint32_t jitMaxOptThreads;
-extern uint64_t jitHotAccessThreshold;
-extern uint64_t jitCompileThreshold;
-extern uint64_t jitCompileWindowSize;
-extern uint64_t jitRecompileWindowSize;
 }; // namespace fsdb_wave_vpi

@@ -506,6 +506,35 @@ fn find_nearest_time_index(time_table: &[u64], time: u64) -> usize {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_idx: u64) -> u32 {
+    let handle = unsafe { *{ handle as *mut vpiHandle } };
+    let loaded_signal = get_signal_cache()
+        .get(&(handle as vpiHandle))
+        .unwrap()
+        .signal
+        .borrow();
+
+    if let Some(off) = loaded_signal.get_offset(time_table_idx as u32) {
+        let signal_v = loaded_signal.get_value_at(&off, 0);
+        match signal_v {
+            SignalValue::Binary(data, _bits) => {
+                let words = bytes_to_u32s_be(data);
+                let value = words[words.len() - 1] as i32;
+                value as _
+            }
+            // If the value is a 4-value, which means it contains X or Z, we return 0 since X
+            // state is not supported in wave_vpi.
+            // TODO: consider support X state in wave_vpi?
+            SignalValue::FourValue(_data, _bits) => 0,
+            _ => todo!("{:#?}", signal_v),
+        }
+    } else {
+        // No value found at time index 0, use default value: 0
+        0
+    }
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
     handle: *mut c_void,
     time_table_idx: u64,
@@ -519,15 +548,11 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
         .unwrap()
         .signal
         .borrow();
-    let off = loaded_signal.get_offset(time_table_idx as u32);
 
-    if let Some(off) = off {
-        let _time_table = get_time_table();
-        let _wave_time = _time_table[time_table_idx as usize];
-        let mut signal_bit_string = loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+    if let Some(off) = loaded_signal.get_offset(time_table_idx as u32) {
         let signal_v = loaded_signal.get_value_at(&off, 0);
 
-        // TODO: performance
+        // TODO: improve performance?
         match signal_v {
             SignalValue::Binary(data, _bits) => {
                 let words = bytes_to_u32s_be(data);
@@ -560,6 +585,8 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                     }
                     vpiHexStrVal => {
                         const chunk_size: u32 = 4;
+                        let mut signal_bit_string =
+                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
 
                         // Check if the length of `signal_bit_string` is not a multiple of 4
                         if signal_bit_string.len() % 4 != 0 {
@@ -598,9 +625,12 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                         // todo!("vpiHexStrVal signal_bit_string => {} bits => {} hex_digits => {} {}", signal_bit_string, _bits, hex_digits, hex_string);
                     }
                     vpiBinStrVal => {
+                        let signal_bit_string =
+                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
                         let c_string =
                             CString::new(signal_bit_string).expect("CString::new failed");
                         let c_str_ptr = c_string.into_raw();
+
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
@@ -629,9 +659,12 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                         (*value_p).value.integer = 0;
                     },
                     vpiBinStrVal => {
+                        let signal_bit_string =
+                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
                         let c_string =
                             CString::new(signal_bit_string).expect("CString::new failed");
                         let c_str_ptr = c_string.into_raw();
+
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }

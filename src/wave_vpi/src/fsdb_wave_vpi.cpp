@@ -5,14 +5,6 @@
 namespace fsdb_wave_vpi {
 std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 
-bool enableJIT                        = true;
-std::atomic<uint32_t> jitOptThreadCnt = 0;
-uint32_t jitMaxOptThreads             = JIT_DEFAULT_MAX_OPT_THREADS;
-uint64_t jitHotAccessThreshold        = JTT_DEFAULT_HOT_ACCESS_THRESHOLD;
-uint64_t jitCompileThreshold          = JTT_DEFAULT_COMPILE_THRESHOLD;
-uint64_t jitCompileWindowSize         = JIT_DEFAULT_RECOMPILE_WINDOW_SIZE;
-uint64_t jitRecompileWindowSize       = JIT_DEFAULT_RECOMPILE_WINDOW_SIZE;
-
 // Used by <ffrReadScopeVarTree2>
 typedef struct {
     int desiredDepth;
@@ -236,49 +228,6 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         // Recreate tbVcTrvsHdl to reset the xtag to start point
         tbVcTrvsHdl->ffrFree();
         tbVcTrvsHdl = fsdbObj->ffrCreateTimeBasedVCTrvsHdl(sigNum, sigArr);
-
-        auto _enableJIT = std::getenv("WAVE_VPI_ENABLE_JIT");
-        if (_enableJIT != nullptr) {
-            enableJIT = std::string(_enableJIT) == "1";
-        }
-        fmt::println("[wave_vpi::fsdb_wave_vpi] WAVE_VPI_ENABLE_JIT:{}", enableJIT);
-
-        auto _jitMaxOptThreads = std::getenv("WAVE_VPI_JIT_MAX_OPT_THREADS");
-        if (_jitMaxOptThreads != nullptr) {
-            jitMaxOptThreads = std::stoul(_jitMaxOptThreads);
-        }
-        fmt::println("[wave_vpi::fsdb_wave_vpi] WAVE_VPI_JIT_MAX_OPT_THREADS:{}", jitMaxOptThreads);
-
-        auto _jitHotAccessThreshold = std::getenv("WAVE_VPI_JIT_HOT_ACCESS_THRESHOLD");
-        if (_jitHotAccessThreshold != nullptr) {
-            jitHotAccessThreshold = std::stoull(_jitHotAccessThreshold);
-        }
-        fmt::println("[wave_vpi::fsdb_wave_vpi] WAVE_VPI_JIT_HOT_ACCESS_THRESHOLD:{}", jitHotAccessThreshold);
-
-        auto _jitCompileThreshold = std::getenv("WAVE_VPI_JIT_COMPILE_THRESHOLD");
-        if (_jitCompileThreshold != nullptr) {
-            jitCompileThreshold = std::stoull(_jitCompileThreshold);
-        }
-        fmt::println("[wave_vpi::fsdb_wave_vpi] WAVE_VPI_JIT_COMPILE_THRESHOLD:{}", jitCompileThreshold);
-
-        auto _jitCompileWindowSize = std::getenv("WAVE_VPI_JIT_COMPILE_WINDOW_SIZE");
-        if (_jitCompileWindowSize != nullptr) {
-            jitCompileWindowSize = std::stoull(_jitCompileWindowSize);
-        }
-        fmt::println("[wave_vpi::fsdb_wave_vpi] WAVE_VPI_JIT_COMPILE_WINDOW_SIZE:{}", jitCompileWindowSize);
-
-        auto _jitRecompileWindowSize = std::getenv("WAVE_VPI_JIT_RECOMPILE_WINDOW_SIZE");
-        if (_jitRecompileWindowSize != nullptr) {
-            if (std::string(_jitRecompileWindowSize) == "-1") {
-                jitRecompileWindowSize = jitCompileWindowSize;
-                fmt::println("[wave_vpi::fsdb_wave_vpi] WAVE_VPI_JIT_RECOMPILE_WINDOW_SIZE = WAVE_VPI_JIT_COMPILE_WINDOW_SIZE = {}", jitRecompileWindowSize);
-            } else {
-                jitRecompileWindowSize = std::stoull(_jitRecompileWindowSize);
-                fmt::println("[wave_vpi::fsdb_wave_vpi] WAVE_VPI_JIT_RECOMPILE_WINDOW_SIZE:{}", jitRecompileWindowSize);
-            }
-        }
-
-        VL_FATAL(jitRecompileWindowSize <= jitCompileWindowSize, "`jitRecompileWindowSize`({}) should less than or equal to `jitCompileWindowSize`({})", jitRecompileWindowSize, jitCompileWindowSize);
     }
 }
 

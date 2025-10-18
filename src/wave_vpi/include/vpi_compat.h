@@ -77,6 +77,6 @@ inline void appendNextSimTimeCb() {
 std::string fsdbGetBinStr(vpiHandle object);
 uint32_t fsdbGetSingleBitValue(vpiHandle object);
 #else
-std::string _wellen_get_value_str(vpiHandle object);
+std::string _wellen_get_value_str(vpiHandle sigHdl);
 #endif
 }; // namespace vpi_compat
