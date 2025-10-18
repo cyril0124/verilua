@@ -17,7 +17,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[cfg(feature = "debug")]
 #[static_init::constructor(0)]
 extern "C" fn init_env_logger() {
-    env_logger::try_init();
+    let _ = env_logger::try_init();
 }
 
 #[cfg(not(feature = "dpi"))]

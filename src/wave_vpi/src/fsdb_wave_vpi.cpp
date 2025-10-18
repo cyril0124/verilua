@@ -6,11 +6,11 @@ namespace fsdb_wave_vpi {
 std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 
 // Used by <ffrReadScopeVarTree2>
-typedef struct {
+using FsdbTreeCbContext = struct {
     int desiredDepth;
     std::string_view fullName;
     fsdbVarIdcode retVarIdCode;
-} FsdbTreeCbContext;
+};
 
 uint32_t currentDepth = 0;
 char currentScope[MAX_SCOPE_DEPTH][256];
@@ -18,7 +18,7 @@ char currentScope[MAX_SCOPE_DEPTH][256];
 static bool_T fsdbTreeCb(fsdbTreeCBType cbType, void *cbClientData, void *cbData) {
     switch (cbType) {
     case FSDB_TREE_CBT_SCOPE: {
-        fsdbTreeCBDataScope *scopeData = (fsdbTreeCBDataScope *)cbData;
+        auto scopeData = (fsdbTreeCBDataScope *)cbData;
         if (currentDepth < MAX_SCOPE_DEPTH - 1) {
             strcpy(currentScope[currentDepth], scopeData->name);
             currentDepth++;
@@ -30,7 +30,7 @@ static bool_T fsdbTreeCb(fsdbTreeCBType cbType, void *cbClientData, void *cbData
         if (contextData->desiredDepth != currentDepth) {
             return FALSE;
         }
-        fsdbTreeCBDataVar *varData = (fsdbTreeCBDataVar *)cbData;
+        auto varData = (fsdbTreeCBDataVar *)cbData;
 
         char fullName[256] = "";
         for (int i = 0; i < currentDepth; ++i) {
@@ -125,7 +125,7 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
             sigNum = maxVarIdcode - 1;
         }
         tbVcTrvsHdl = fsdbObj->ffrCreateTimeBasedVCTrvsHdl(sigNum, sigArr);
-        if (NULL == tbVcTrvsHdl) {
+        if (nullptr == tbVcTrvsHdl) {
             VL_FATAL(false, "Failed to create time based vc trvs hdl! please re-execute the program. sigNum: {}, waveFileName: {}", sigNum, this->waveFileName);
         }
 
@@ -262,19 +262,18 @@ uint32_t FsdbWaveVpi::findNearestTimeIndex(uint64_t time) {
         return xtagU64Vec.size() - 1;
     } else if (it == xtagU64Vec.begin()) {
         return 0;
-    } else {
-        uint32_t index = it - xtagU64Vec.begin();
-        if (xtagU64Vec[index] == time) {
-            return index;
-        } else {
-            uint32_t before = index - 1;
-            if (xtagU64Vec[before] < time) {
-                return before;
-            } else {
-                return index;
-            }
-        }
     }
+
+    uint32_t index = it - xtagU64Vec.begin();
+    if (xtagU64Vec[index] == time) {
+        return index;
+    }
+
+    uint32_t before = index - 1;
+    if (xtagU64Vec[before] < time) {
+        return before;
+    }
+    return index;
 }
 }; // namespace fsdb_wave_vpi
 #endif // USE_FSDB

@@ -4,7 +4,7 @@
 #include <argparse/argparse.hpp>
 #include <filesystem>
 #include <iostream>
-#include <signal.h>
+#include <csignal>
 
 #ifdef USE_CPPTRACE
 #include <cpptrace/cpptrace.hpp>
@@ -58,9 +58,8 @@ int main(int argc, const char *argv[]) {
             std::cerr << "[wave_vpi::main] either env var WAVE_FILE or command line argument --wave-file is required" << std::endl;
             std::cerr << program;
             return 1;
-        } else {
-            waveFile = std::string(_waveFile);
         }
+        waveFile = std::string(_waveFile);
     }
 
     fmt::println("[wave_vpi::main] waveform: {}{}{}", ANSI_COLOR_GREEN, waveFile, ANSI_COLOR_RESET);

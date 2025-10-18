@@ -10,7 +10,7 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                 auto &paramDeclSyn = maybeParamDeclSyn->as<slang::syntax::ParameterDeclarationSyntax>();
                 auto paramTypeStr  = toString(paramDeclSyn.type->kind);
 
-                std::string typeStr = "";
+                std::string typeStr;
                 if (paramTypeStr == "StringType") {
                     typeStr = "string";
                 } else if (paramTypeStr == "IntType") {
@@ -48,11 +48,11 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
             auto port = getPortSymbol(name);
             if (port->direction == slang::ast::ArgumentDirection::In) {
                 return "input";
-            } else if (port->direction == slang::ast::ArgumentDirection::Out) {
-                return "output";
-            } else {
-                PANIC("TODO: Unsupported port direction", toString(port->direction));
             }
+            if (port->direction == slang::ast::ArgumentDirection::Out) {
+                return "output";
+            }
+            PANIC("TODO: Unsupported port direction", toString(port->direction));
         };
 
         auto getPortType = [&](const std::string &name) {
@@ -61,7 +61,7 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
         };
 
         // Check for ImplicitAnsiPortSyntax
-        std::string lastAnsiPortTypeStr = "";
+        std::string lastAnsiPortTypeStr;
         ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::ImplicitAnsiPortSyntax &node) {
             // ImplicitAnsiPort:
             // e.g.

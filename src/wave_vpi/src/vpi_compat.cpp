@@ -1,6 +1,7 @@
 #include "vpi_compat.h"
 #include "jit_options.h"
 #include "wave_vpi.h"
+#include <cstdint>
 
 #ifdef USE_FSDB
 #include "fsdb_wave_vpi.h"
@@ -35,8 +36,8 @@ namespace vpi_compat {
 bool vpiControlTerminate    = false;
 std::string terminateReason = "Unknown";
 
-std::unique_ptr<s_cb_data> startOfSimulationCb = NULL;
-std::unique_ptr<s_cb_data> endOfSimulationCb   = NULL;
+std::unique_ptr<s_cb_data> startOfSimulationCb = nullptr;
+std::unique_ptr<s_cb_data> endOfSimulationCb   = nullptr;
 
 std::queue<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> timeCbQueue;
 std::vector<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> willAppendTimeCbQueue;
@@ -200,14 +201,14 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
         vpiHandleRaw handle = vpiHandleAllcator;
         vpiHandleAllcator++;
         return new vpiHandleRaw(handle);
-    } else {
-        return nullptr;
     }
+
+    return nullptr;
 }
 
 PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) {
     VL_FATAL(cb_obj != nullptr, "cb_obj is nullptr");
-    if (valueCbMap.find(*cb_obj) != valueCbMap.end()) {
+    if (valueCbMap.contains(*cb_obj)) {
         willRemoveValueCb.emplace_back(*cb_obj);
     }
     delete cb_obj;
@@ -217,7 +218,7 @@ PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) {
 PLI_INT32 vpi_free_object(vpiHandle object) {
     if (object != nullptr) {
         VL_FATAL(false, "TODO: vpi_free_object is not supported for now");
-        if (valueCbMap.find(*object) != valueCbMap.end()) {
+        if (valueCbMap.contains(*object)) {
             valueCbMap.erase(*object);
         }
         delete object;
@@ -229,7 +230,7 @@ PLI_INT32 vpi_release_handle(vpiHandle object) { return vpi_free_object(object);
 
 vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
     VL_FATAL(false, "Unsupported in wave_vpi, all signals are read-only!");
-    return 0;
+    return nullptr;
 }
 
 vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
@@ -328,7 +329,7 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
         }
 #else
         auto vpiHdl = reinterpret_cast<SignalHandlePtr>(sigHdl)->vpiHdl;
-        return reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(property, reinterpret_cast<void *>(vpiHdl)));
+        return wellen_vpi_get_str(property, reinterpret_cast<void *>(vpiHdl));
 #endif
     }
     default:
@@ -362,7 +363,7 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
         optFinishIdx = xtagVec.size() - 1;
     }
 
-    auto optFunc = [&hdl, &xtagVec, &bitSize, &fsdbFileName, fsdbSigHdl](size_t startIdx, size_t finishIdx) {
+    auto optFunc = [&hdl, &xtagVec, &bitSize, &fsdbFileName, fsdbSigHdl](uint64_t startIdx, uint64_t finishIdx) {
         byte_T *retVC;
         fsdbBytesPerBit bpb;
 
@@ -497,7 +498,7 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 
     // std::unique_lock<std::mutex> lock(optMutex);
 
-    auto optFunc = [sigHdl](size_t startIdx, size_t finishIdx) {
+    auto optFunc = [sigHdl](uint64_t startIdx, uint64_t finishIdx) {
         auto &optValueVec = sigHdl->optValueVec;
         for (auto idx = startIdx; idx < finishIdx; idx++) {
             optValueVec[idx] = wellen_get_int_value(sigHdl->vpiHdl, idx);
@@ -506,9 +507,7 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 
     auto currentCursorIdx = cursor.index;
     auto optFinishIdx     = currentCursorIdx + jit_options::compileWindowSize;
-    if (optFinishIdx >= cursor.maxIndex) {
-        optFinishIdx = cursor.maxIndex;
-    }
+    optFinishIdx          = std::min(optFinishIdx, cursor.maxIndex);
 
     sigHdl->optValueVec.reserve(cursor.maxIndex);
 
