@@ -1,6 +1,7 @@
 #pragma once
 
 #include "boost_unordered.hpp"
+#include "jit_options.h"
 #include <wave_vpi.h>
 
 namespace vpi_compat {
@@ -34,6 +35,9 @@ inline void endOfSimulation() {
         wellen_finalize();
 #endif
         endOfSimulationCb->cb_rtn(endOfSimulationCb.get());
+#ifdef PROFILE_JIT
+        jit_options::reportStatistic();
+#endif
     }
 }
 

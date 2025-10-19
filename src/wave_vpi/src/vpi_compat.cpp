@@ -550,6 +550,10 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 #endif
 
 void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
+#ifdef PROFILE_JIT
+    auto _totalReadStart = std::chrono::high_resolution_clock::now();
+#endif
+
 #ifdef USE_FSDB
     static byte_T buffer[FSDB_MAX_BIT_SIZE + 1];
     static s_vpi_vecval vpiValueVecs[100];
@@ -562,28 +566,32 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
         if (cursor.index >= fsdbSigHdl->optFinishIdx) {
             // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, fsdbSigHdl->optFinishIdx, fsdbSigHdl->name);
             goto ReadFromFSDB;
-        } else if (cursor.index >= (fsdbSigHdl->optFinishIdx - jit_options::recompileWindowSize)) {
+        } else if (!fsdbSigHdl->continueOpt && cursor.index >= (fsdbSigHdl->optFinishIdx - jit_options::recompileWindowSize)) {
             // fmt::println("[WARN] continue optimization... {} cursot.index:{} optFinishIdx:{}", fsdbSigHdl->name, cursor.index, fsdbSigHdl->optFinishIdx);
             fsdbSigHdl->continueOpt = true;
             fsdbSigHdl->cv.notify_all();
         }
 
+#ifdef PROFILE_JIT
+        jit_options::statistic.readFromOpt++;
+#endif
+
         switch (value_p->format) {
         case vpiIntVal: {
             value_p->value.integer = fsdbSigHdl->optValueVec[cursor.index];
-            return;
+            break;
         }
         case vpiVectorVal: {
             vpiValueVecs[0].aval  = fsdbSigHdl->optValueVec[cursor.index];
             vpiValueVecs[0].bval  = 0;
             value_p->value.vector = vpiValueVecs;
-            return;
+            break;
         }
         case vpiHexStrVal: {
             const int bufferSize = 8; // TODO: 4 * 8 = 32, if support 64 bit signal, this value should be set to 16.
             snprintf(reinterpret_cast<char *>(buffer), bufferSize, "%x", fsdbSigHdl->optValueVec[cursor.index]);
             value_p->value.str = (char *)buffer;
-            return;
+            break;
         }
         case vpiBinStrVal: {
             auto &bitSize = fsdbSigHdl->bitSize;
@@ -593,13 +601,22 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
             }
             buffer[bitSize]    = '\0';
             value_p->value.str = (char *)buffer;
-            return;
+            break;
         }
         default:
             VL_FATAL(false, "Unsupported format: {}", value_p->format);
         }
-    } else {
+
+#ifdef PROFILE_JIT
+        auto _optEnd         = std::chrono::high_resolution_clock::now();
+        auto _optElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_optEnd - _totalReadStart).count();
+        jit_options::statistic.readFromOptTime += _optElapsedTime;
+        jit_options::statistic.totalReadTime += _optElapsedTime;
+#endif
+        return;
+    } else if (!fsdbSigHdl->doOpt) {
         fsdbSigHdl->readCnt++;
+        // fmt::println("[WARN] readCnt: {} signalName: {} doOpt: {} bitSize: {}", fsdbSigHdl->readCnt, fsdbSigHdl->name, fsdbSigHdl->doOpt, fsdbSigHdl->bitSize);
 
         // Doing somthing like JIT(Just-In-Time)...
         // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
@@ -610,11 +627,19 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
                 fsdbSigHdl->doOpt       = true;
                 fsdbSigHdl->continueOpt = false;
                 fsdbSigHdl->optThread   = std::thread(std::bind(fsdbOptThreadTask, fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl));
+            } else {
+#ifdef PROFILE_JIT
+                jit_options::statistic.optThreadNotEnough++;
+#endif
             }
         }
     }
 
 ReadFromFSDB:
+
+#ifdef PROFILE_JIT
+    jit_options::statistic.readFromNormal++;
+#endif
 
     auto vcTrvsHdl = fsdbSigHdl->vcTrvsHdl;
     byte_T *retVC;
@@ -828,7 +853,14 @@ ReadFromFSDB:
     }
     }
 
-#else
+#ifdef PROFILE_JIT
+    auto _normalEnd         = std::chrono::high_resolution_clock::now();
+    auto _normalElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_normalEnd - _totalReadStart).count();
+    jit_options::statistic.readFromNormalTime += _normalElapsedTime;
+    jit_options::statistic.totalReadTime += _normalElapsedTime;
+#endif
+
+#else // USE_FSDB
     static char _buffer[1024 * 1024];
     static s_vpi_vecval _vpiValueVecs[100];
 
@@ -842,28 +874,32 @@ ReadFromFSDB:
         if (cursor.index >= _sigHdl->optFinishIdx) {
             // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, _sigHdl->optFinishIdx, _sigHdl->name);
             goto ReadFromWellen;
-        } else if (cursor.index >= (_sigHdl->optFinishIdx - jit_options::recompileWindowSize)) {
+        } else if (!_sigHdl->continueOpt && cursor.index >= (_sigHdl->optFinishIdx - jit_options::recompileWindowSize)) {
             // fmt::println("[WARN] continue optimization... {} cursot.index:{} optFinishIdx:{}", _sigHdl->name, cursor.index, _sigHdl->optFinishIdx);
             _sigHdl->continueOpt = true;
             _sigHdl->cv.notify_all();
         }
 
+#ifdef PROFILE_JIT
+        jit_options::statistic.readFromOpt++;
+#endif
+
         switch (value_p->format) {
         case vpiIntVal: {
             value_p->value.integer = _sigHdl->optValueVec[cursor.index];
-            return;
+            break;
         }
         case vpiVectorVal: {
             _vpiValueVecs[0].aval = _sigHdl->optValueVec[cursor.index];
             _vpiValueVecs[0].bval = 0;
             value_p->value.vector = _vpiValueVecs;
-            return;
+            break;
         }
         case vpiHexStrVal: {
             const int bufferSize = 8; // TODO: 4 * 8 = 32, if support 64 bit signal, this value should be set to 16.
             snprintf(reinterpret_cast<char *>(_buffer), bufferSize, "%x", _sigHdl->optValueVec[cursor.index]);
             value_p->value.str = (char *)_buffer;
-            return;
+            break;
         }
         case vpiBinStrVal: {
             auto &bitSize = _sigHdl->bitSize;
@@ -873,28 +909,53 @@ ReadFromFSDB:
             }
             _buffer[bitSize]   = '\0';
             value_p->value.str = (char *)_buffer;
-            return;
+            break;
         }
         default:
             VL_FATAL(false, "Unsupported format: {}", value_p->format);
         }
-    } else {
+
+#ifdef PROFILE_JIT
+        auto _optEnd         = std::chrono::high_resolution_clock::now();
+        auto _optElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_optEnd - _totalReadStart).count();
+        jit_options::statistic.readFromOptTime += _optElapsedTime;
+        jit_options::statistic.totalReadTime += _optElapsedTime;
+#endif
+        return;
+    } else if (!_sigHdl->doOpt) {
         _sigHdl->readCnt++;
+        // fmt::println("[WARN] readCnt: {} signalName: {} doOpt: {} bitSize: {}", _sigHdl->readCnt, _sigHdl->name, _sigHdl->doOpt, _sigHdl->bitSize);
 
         // Doing somthing like JIT(Just-In-Time)...
         // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
-        if (!_sigHdl->doOpt && _sigHdl->bitSize <= 32 && _sigHdl->readCnt > jit_options::hotAccessThreshold) {
+        if (_sigHdl->bitSize <= 32 && _sigHdl->readCnt > jit_options::hotAccessThreshold) {
             auto _jitOptThreadCnt = jit_options::optThreadCnt.load();
             if (_jitOptThreadCnt <= jit_options::maxOptThreads) {
                 jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);
                 _sigHdl->doOpt       = true;
                 _sigHdl->continueOpt = false;
                 _sigHdl->optThread   = std::thread(std::bind(wellenOptThreadTask, _sigHdl));
+            } else {
+#ifdef PROFILE_JIT
+                jit_options::statistic.optThreadNotEnough++;
+#endif
             }
         }
     }
 
 ReadFromWellen:
-    wellen_vpi_get_value_from_index(reinterpret_cast<void *>(vpiHdl), cursor.index, value_p);
+
+#ifdef PROFILE_JIT
+    jit_options::statistic.readFromNormal++;
 #endif
+
+    wellen_vpi_get_value_from_index(reinterpret_cast<void *>(vpiHdl), cursor.index, value_p);
+
+#ifdef PROFILE_JIT
+    auto _normalEnd         = std::chrono::high_resolution_clock::now();
+    auto _normalElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_normalEnd - _totalReadStart).count();
+    jit_options::statistic.readFromNormalTime += _normalElapsedTime;
+    jit_options::statistic.totalReadTime += _normalElapsedTime;
+#endif
+#endif // USE_FSDB
 }

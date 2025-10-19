@@ -9,6 +9,8 @@ uint64_t hotAccessThreshold        = JTT_DEFAULT_HOT_ACCESS_THRESHOLD;
 uint64_t compileWindowSize         = JIT_DEFAULT_COMPILE_WINDOW_SIZE;
 uint64_t recompileWindowSize       = JIT_DEFAULT_RECOMPILE_WINDOW_SIZE;
 
+Statistic statistic;
+
 void initialize() {
     auto _enableJIT = std::getenv("WAVE_VPI_ENABLE_JIT");
     if (_enableJIT != nullptr) {
@@ -48,6 +50,26 @@ void initialize() {
 
         VL_FATAL(recompileWindowSize <= compileWindowSize, "`recompileWindowSize`({}) should less than or equal to `compileWindowSize`({})", recompileWindowSize, compileWindowSize);
     }
+}
+
+void reportStatistic() {
+    auto totalRead           = statistic.readFromOpt + statistic.readFromNormal;
+    auto optPerReadTimeNs    = statistic.readFromOptTime / statistic.readFromOpt;
+    auto normalPerReadTimeNs = statistic.readFromNormalTime / statistic.readFromNormal;
+
+    auto noJitReadTimeNs = totalRead * normalPerReadTimeNs;
+    auto jitEfficiency   = (noJitReadTimeNs - statistic.totalReadTime) * 100 / noJitReadTimeNs;
+
+    fmt::println("[wave_vpi::jit_options::reportStatistic]");
+    fmt::println("\ttotalRead:\t{}", totalRead);
+    fmt::println("\ttotalReadTime:\t{:.2f} ms", statistic.totalReadTime / 1000000);
+    fmt::println("\tnoJitReadTime:\t{:.2f} ms(suppose)", noJitReadTimeNs / 1000000);
+    fmt::println("\treadFromOpt:\t{}({:.2f}%)", statistic.readFromOpt, static_cast<double>(statistic.readFromOpt) / totalRead * 100);
+    fmt::println("\treadFromNormal:\t{}({:.2f}%)", statistic.readFromNormal, static_cast<double>(statistic.readFromNormal) / totalRead * 100);
+    fmt::println("\treadFromOptTime:\t{:.2f} ns/read, {:.2f} ms(total)", optPerReadTimeNs, statistic.readFromOptTime / 1000000);
+    fmt::println("\treadFromNormalTime:\t{:.2f} ns/read, {:.2f} ms(total)", normalPerReadTimeNs, statistic.readFromNormalTime / 1000000);
+    fmt::println("\toptThreadNotEnough:\t{}({:.2f}%)", statistic.optThreadNotEnough, static_cast<double>(statistic.optThreadNotEnough) / statistic.readFromNormal * 100);
+    fmt::println("\tjitEfficiency:\t{:.2f}%", jitEfficiency);
 }
 
 } // namespace jit_options

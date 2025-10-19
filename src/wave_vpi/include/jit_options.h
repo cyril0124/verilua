@@ -17,5 +17,17 @@ extern uint64_t compileThreshold;
 extern uint64_t compileWindowSize;
 extern uint64_t recompileWindowSize;
 
+typedef struct {
+    double totalReadTime;
+    uint64_t readFromOpt;
+    uint64_t readFromNormal;
+    double readFromOptTime;
+    double readFromNormalTime;
+    uint64_t optThreadNotEnough;
+} Statistic;
+
+extern Statistic statistic;
+
 void initialize();
+void reportStatistic();
 }; // namespace jit_options

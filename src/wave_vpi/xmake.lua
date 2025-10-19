@@ -23,6 +23,7 @@ local function wave_vpi_main_common()
     )
 
     add_defines("VL_DEF_OPT_USE_BOOST_UNORDERED")
+    -- add_defines("PROFILE_JIT")
 
     add_files(
         path.join(curr_dir, "*.cpp"),
