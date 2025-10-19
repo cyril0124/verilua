@@ -163,7 +163,6 @@ fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
     let hierarchy = get_hierarchy();
     let mut match_vec: Vec<_> = hierarchy
         .iter_vars()
-        .into_iter()
         .map(|var| {
             let full_name = var.full_name(hierarchy);
             let score = lest_score(name, full_name.as_str());
@@ -177,7 +176,7 @@ fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn wellen_initialize(filename: *const c_char) {
+pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     let c_str = unsafe {
         assert!(!filename.is_null());
         CStr::from_ptr(filename)
@@ -187,7 +186,7 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
     let filename = r_str;
 
     let header =
-        viewers::read_header_from_file(&filename, &LOAD_OPTS).expect("Failed to load file!");
+        viewers::read_header_from_file(filename, &LOAD_OPTS).expect("Failed to load file!");
     let hierarchy = header.hierarchy;
 
     let body = viewers::read_body(header.body, &hierarchy, None).expect("Failed to load body!");
@@ -215,7 +214,7 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
     if let Ok(file) = File::open(LAST_MODIFIED_TIME_FILE) {
         let reader = BufReader::new(file);
         let modified_time: FileModifiedInfo = serde_yaml::from_reader(reader)
-            .expect(format!("Failed to parse {}", LAST_MODIFIED_TIME_FILE).as_str());
+            .unwrap_or_else(|_| panic!("Failed to parse {}", LAST_MODIFIED_TIME_FILE));
         let last_modified_timestamp = modified_time.time;
         let last_file_size = modified_time.size;
 
@@ -244,25 +243,23 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
             );
 
             serde_yaml::to_writer(writer, &modified_time).unwrap();
-        } else {
-            if let Ok(file) = File::open(SIGNAL_REF_COUNT_FILE) {
-                let reader: BufReader<File> = BufReader::new(file);
-                let signal_ref_count: usize = serde_yaml::from_reader(reader)
-                    .expect(format!("Failed to parse {}", SIGNAL_REF_COUNT_FILE).as_str());
+        } else if let Ok(file) = File::open(SIGNAL_REF_COUNT_FILE) {
+            let reader: BufReader<File> = BufReader::new(file);
+            let signal_ref_count: usize = serde_yaml::from_reader(reader)
+                .unwrap_or_else(|_| panic!("Failed to parse {}", SIGNAL_REF_COUNT_FILE));
 
-                let signal_ref_count_threshold = SIGNAL_REF_COUNT_THRESHOLD;
-                log::info!(
-                    "[wave_vpi::wellen_initialize] signal_ref_count: {} signal_ref_count_threshold: {}",
-                    signal_ref_count,
-                    signal_ref_count_threshold
-                );
+            let signal_ref_count_threshold = SIGNAL_REF_COUNT_THRESHOLD;
+            log::info!(
+                "[wave_vpi::wellen_initialize] signal_ref_count: {} signal_ref_count_threshold: {}",
+                signal_ref_count,
+                signal_ref_count_threshold
+            );
 
-                if signal_ref_count >= signal_ref_count_threshold {
-                    use_cached_data = true;
-                }
-            } else {
+            if signal_ref_count >= signal_ref_count_threshold {
                 use_cached_data = true;
             }
+        } else {
+            use_cached_data = true;
         }
     } else {
         // Create new file if it does not exist.
@@ -289,8 +286,9 @@ pub extern "C" fn wellen_initialize(filename: *const c_char) {
         serde_yaml::to_writer(writer, &modified_time).unwrap();
     }
     log::info!(
-        "[wave_vpi::wellen_initialize] use_cached_data => {}",
-        use_cached_data
+        "[wave_vpi::wellen_initialize] use_cached_data => {} {}",
+        use_cached_data,
+        if use_cached_data { "✅" } else { "❌" }
     );
 
     unsafe {
@@ -395,7 +393,7 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
     let id_opt = get_signal_ref_cache().get(&name.to_string());
     if let Some(id) = id_opt {
         log::debug!("find vpiHandle in cache => name: {} id: {:?}", name, id);
-        let value = Box::new(id.clone() as vpiHandle);
+        let value = Box::new(*id as vpiHandle);
         return Box::into_raw(value) as *mut c_void;
     }
 
@@ -484,7 +482,8 @@ fn bytes_to_u32s_be(bytes: &[u8]) -> Vec<u32> {
 }
 
 pub const fn cover_with_32(size: usize) -> usize {
-    (size + 31) / 32
+    // (size + 31) / 32
+    size.div_ceil(32)
 }
 
 fn find_nearest_time_index(time_table: &[u64], time: u64) -> usize {
@@ -779,7 +778,7 @@ pub unsafe extern "C" fn wellen_vpi_get(property: PLI_INT32, handle: *mut c_void
     let first_indx = loaded_signal.get_first_time_idx().unwrap();
     let off = loaded_signal
         .get_offset(first_indx)
-        .expect(format!("failed to get offset, signal => {:?}", loaded_signal).as_str());
+        .unwrap_or_else(|| panic!("failed to get offset, signal => {:?}", loaded_signal));
     let signal_v = loaded_signal.get_value_at(&off, 0);
 
     match property as u32 {
@@ -837,7 +836,7 @@ pub unsafe extern "C" fn wellen_vpi_iterate(
                     if scope.scope_type() == ScopeType::Module {
                         let scope_name = scope.name(hier);
                         if scope_name.starts_with("$") || scope_name.ends_with("_pkg") {
-                            return None;
+                            None
                         } else {
                             log::debug!(
                                 "{:#?} scope_ref => {:?} name => {} full_name => {}",
