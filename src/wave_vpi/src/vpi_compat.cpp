@@ -1,7 +1,6 @@
 #include "vpi_compat.h"
 #include "jit_options.h"
 #include "wave_vpi.h"
-#include <cstdint>
 
 #ifdef USE_FSDB
 #include "fsdb_wave_vpi.h"

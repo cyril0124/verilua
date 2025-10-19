@@ -75,6 +75,42 @@ static bool_T fsdbTreeCb(fsdbTreeCBType cbType, void *cbClientData, void *cbData
     return TRUE; // return TRUE to continue the traverse
 }
 
+uint64_t FsdbWaveVpi::setupMaxIndexVarCode(uint64_t maxIndexVarCode) {
+    if (tbVcTrvsHdl != nullptr) {
+        tbVcTrvsHdl->ffrFree();
+        tbVcTrvsHdl = nullptr;
+    }
+
+    // TODO: Value change on envvar "MAX_INDEX_VAR_CODE" should resultin recompile
+    auto _maxIndexVarCode = std::getenv("MAX_INDEX_VAR_CODE");
+    if (_maxIndexVarCode != nullptr) {
+        maxIndexVarCode = std::stoull(_maxIndexVarCode);
+    }
+    sigNum = maxIndexVarCode;
+
+    fmt::println("[wave_vpi::fsdb_wave_vpi] maxIndexVarCode => {}", maxIndexVarCode);
+    fflush(stdout);
+
+    for (int i = FSDB_MIN_VAR_IDCODE; i <= maxIndexVarCode; i++) {
+        // !! DO NOT try to load all signals !!
+        fsdbObj->ffrAddToSignalList(i);
+        sigArr[i - 1] = i;
+    }
+    fsdbObj->ffrLoadSignals();
+    fmt::println("[wave_vpi::fsdb_wave_vpi] load all signals finish");
+    fflush(stdout);
+
+    if (sigNum > maxVarIdcode) {
+        sigNum = maxVarIdcode - 1;
+    }
+    tbVcTrvsHdl = fsdbObj->ffrCreateTimeBasedVCTrvsHdl(sigNum, sigArr);
+    if (nullptr == tbVcTrvsHdl) {
+        VL_FATAL(false, "Failed to create time based vc trvs hdl! please re-execute the program. sigNum: {}, waveFileName: {}", sigNum, this->waveFileName);
+    }
+
+    return maxIndexVarCode;
+}
+
 FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fsdbObj(fsdbObj), waveFileName(waveFileName) {
     char fsdbName[FSDB_MAX_PATH + 1] = {0};
     strncpy(fsdbName, this->waveFileName.c_str(), FSDB_MAX_PATH);
@@ -86,6 +122,8 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         if (FSDB_FT_VERILOG != fsdbInfo.file_type) {
             VL_FATAL(false, "fsdb file type is not verilog! {}", this->waveFileName);
         }
+        maxXtagValue = Xtag64ToUInt64(fsdbInfo.max_xtag.hltag);
+        fmt::println("[wave_vpi::fsdb_wave_vpi] maxXtagValue: {}", maxXtagValue);
 
         // fsdbObj = std::make_shared<ffrObject>(ffrObject::ffrOpen3(fsdbName));
         // if (NULL == fsdbObj) {
@@ -101,33 +139,7 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         fmt::println("[wave_vpi::fsdb_wave_vpi] start load all signals...");
         fflush(stdout);
 
-        // TODO: Value change on envvar "MAX_INDEX_VAR_CODE" should resultin recompile
-        uint32_t maxIndexVarCode = TIME_TABLE_MAX_INDEX_VAR_CODE;
-        auto _maxIndexVarCode    = std::getenv("MAX_INDEX_VAR_CODE");
-        if (_maxIndexVarCode != nullptr) {
-            maxIndexVarCode = std::stoull(_maxIndexVarCode);
-            sigNum          = maxIndexVarCode;
-        }
-
-        fmt::println("[wave_vpi::fsdb_wave_vpi] TIME_TABLE_MAX_INDEX_VAR_CODE => {}", maxIndexVarCode);
-        fflush(stdout);
-
-        for (int i = FSDB_MIN_VAR_IDCODE; i <= maxIndexVarCode; i++) {
-            // !! DO NOT try to load all signals !!
-            fsdbObj->ffrAddToSignalList(i);
-            sigArr[i - 1] = i;
-        }
-        fsdbObj->ffrLoadSignals();
-        fmt::println("[wave_vpi::fsdb_wave_vpi] load all signals finish");
-        fflush(stdout);
-
-        if (sigNum > maxVarIdcode) {
-            sigNum = maxVarIdcode - 1;
-        }
-        tbVcTrvsHdl = fsdbObj->ffrCreateTimeBasedVCTrvsHdl(sigNum, sigArr);
-        if (nullptr == tbVcTrvsHdl) {
-            VL_FATAL(false, "Failed to create time based vc trvs hdl! please re-execute the program. sigNum: {}, waveFileName: {}", sigNum, this->waveFileName);
-        }
+        uint64_t maxIndexVarCode = setupMaxIndexVarCode(TIME_TABLE_MAX_INDEX_VAR_CODE);
 
         bool useCachedData = false;
         std::ifstream lastModifiedTimeFile(LAST_MODIFIED_TIME_FILE);
@@ -136,8 +148,8 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
 
         auto updateLastModifiedTimeFile = [&waveFileSize, &lastWriteTime]() {
             std::ofstream _lastModifiedTimeFile(LAST_MODIFIED_TIME_FILE);
-            _lastModifiedTimeFile << waveFileSize << std::endl;
-            _lastModifiedTimeFile << lastWriteTime << std::endl;
+            _lastModifiedTimeFile << waveFileSize << "\n";
+            _lastModifiedTimeFile << lastWriteTime << "\n";
             _lastModifiedTimeFile.close();
         };
 
@@ -187,7 +199,7 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
                     xtagVec[i].hltag.L = xtagU64Vec[i] & 0xFFFFFFFF;
                 }
 
-                fmt::println("[wave_vpi::fsdb_wave_vpi] read from timeTableFile => xtagU64Vec size: {}", xtagU64Vec.size());
+                fmt::println("[wave_vpi::fsdb_wave_vpi] read from timeTableFile => xtagU64Vec size: {}, maxValue: {}", xtagU64Vec.size(), xtagU64Vec.back());
             } else {
                 fmt::println("[wave_vpi::fsdb_wave_vpi] failed to open {}, doing normal parse...", TIME_TABLE_FILE);
                 goto NormalParse;
@@ -199,9 +211,23 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
 
             int i = 0;
             fsdbXTag xtag;
+            uint64_t parsedMaxXtagValue = 0;
             std::set<uint64_t> xtagU64Set;
+
+            int retryTimes                  = 0;
+            const int MAX_RETRY_TIMES       = 10;
+            const double ACCEPTABLE_PERCENT = 95.0;
+
+        DoNormalParse:
+            i = 0;
+            xtagU64Set.clear();
+            xtagVec.clear();
+
+            // Iterate specific number of signals across the entire waveform to get time table.
             while (FSDB_RC_SUCCESS == tbVcTrvsHdl->ffrGotoNextVC()) {
-                tbVcTrvsHdl->ffrGetXTag((void *)&xtag);
+                auto ret = tbVcTrvsHdl->ffrGetXTag((void *)&xtag);
+                VL_FATAL(ret == FSDB_RC_SUCCESS, "Failed to get xtag!");
+
                 auto u64Xtag = Xtag64ToUInt64(xtag.hltag);
                 if (xtagU64Set.find(u64Xtag) == xtagU64Set.end()) {
                     xtagU64Set.insert(u64Xtag);
@@ -209,8 +235,32 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
                 }
                 i++;
             }
-            fmt::println("[wave_vpi::fsdb_wave_vpi] xtagU64Set size: {}, total size: {}", xtagU64Set.size(), i);
+            parsedMaxXtagValue = Xtag64ToUInt64(xtagVec.back().hltag);
+
+            fmt::println("[wave_vpi::fsdb_wave_vpi] xtagU64Set.size: {}, xtagVec.maxValue: {}, total size: {}", xtagU64Set.size(), parsedMaxXtagValue, i);
             fflush(stdout);
+
+            // Sometimes the signals used to collect time table is not enough, so we need to increase the number of signals and try recollect the time table.
+            auto matchedPercent = static_cast<double>(parsedMaxXtagValue * 100) / static_cast<double>(maxXtagValue);
+            if (parsedMaxXtagValue < maxXtagValue) {
+                retryTimes++;
+                if (retryTimes > MAX_RETRY_TIMES) {
+                    if (matchedPercent < ACCEPTABLE_PERCENT) {
+                        VL_FATAL(false, "Failed to parse the whole time table! parsedMaxXtagValue({}) < maxXtagValue({}), matchedPercent: {:.2f}%", parsedMaxXtagValue, maxXtagValue, matchedPercent);
+                    } else {
+                        fmt::println("[wave_vpi::fsdb_wave_vpi] matchedPercent: {:.2f}% > 95%, continue...", matchedPercent);
+                        goto ParseFinish;
+                    }
+                }
+
+                uint64_t newMaxIndexVarCode = maxIndexVarCode + 10 * (retryTimes ^ 2);
+                fmt::println("\n[wave_vpi::fsdb_wave_vpi] parsedMaxXtagValue({}) < maxXtagValue({}), try to increase maxIndexVarCode to {} and reparse, retryTimes: {}", parsedMaxXtagValue, maxXtagValue, newMaxIndexVarCode, retryTimes);
+                fflush(stdout);
+
+                maxIndexVarCode = setupMaxIndexVarCode(newMaxIndexVarCode);
+                goto DoNormalParse;
+            }
+        ParseFinish:
 
             // Create xtagU64Vec besed on xtagU64Set
             xtagU64Vec.assign(xtagU64Set.begin(), xtagU64Set.end());
