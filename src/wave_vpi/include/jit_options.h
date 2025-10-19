@@ -10,6 +10,7 @@
 
 namespace jit_options {
 extern bool enableJIT;
+extern bool verboseJIT;
 extern std::atomic<uint32_t> optThreadCnt;
 extern uint32_t maxOptThreads;
 extern uint64_t hotAccessThreshold;

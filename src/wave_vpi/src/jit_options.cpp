@@ -3,6 +3,7 @@
 
 namespace jit_options {
 bool enableJIT                     = true;
+bool verboseJIT                    = false;
 std::atomic<uint32_t> optThreadCnt = 0;
 uint32_t maxOptThreads             = JIT_DEFAULT_MAX_OPT_THREADS;
 uint64_t hotAccessThreshold        = JTT_DEFAULT_HOT_ACCESS_THRESHOLD;
@@ -19,6 +20,12 @@ void initialize() {
     fmt::println("[wave_vpi::jit_options::initialize] WAVE_VPI_ENABLE_JIT: {}", enableJIT);
 
     if (enableJIT) {
+        auto _verboseJIT = std::getenv("WAVE_VPI_VERBOSE_JIT");
+        if (_verboseJIT != nullptr) {
+            verboseJIT = std::string(_verboseJIT) == "1";
+        }
+        fmt::println("[wave_vpi::jit_options::initialize] WAVE_VPI_VERBOSE_JIT: {}", verboseJIT);
+
         auto _maxOptThreads = std::getenv("WAVE_VPI_JIT_MAX_OPT_THREADS");
         if (_maxOptThreads != nullptr) {
             maxOptThreads = std::stoul(_maxOptThreads);

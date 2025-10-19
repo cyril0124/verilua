@@ -347,6 +347,13 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
     // Ensure only one `fsdbObj` can be processed for all the optimization threads. (It seems like a bug that FsdbReader did not allow multiple ffrObjects to be processed at multiple threads. )
     std::unique_lock<std::mutex> lock(optMutex);
 
+    auto verboseJIT = jit_options::verboseJIT;
+
+    if (verboseJIT) {
+        fmt::println("[fsdbOptThreadTask] First optimization start! {} currentCursorIdx:{}, windowSize:{}", fsdbSigHdl->name, cursor.index, jit_options::compileWindowSize);
+        fflush(stdout);
+    }
+
     ffrObject *fsdbObj = ffrObject::ffrOpenNonSharedObj(const_cast<char *>(fsdbFileName.c_str()));
     VL_FATAL(fsdbObj != nullptr, "Failed to open fsdbObj, fsdbFileName: {}", fsdbFileName);
     fsdbObj->ffrReadScopeVarTree();
@@ -448,14 +455,9 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
     lock.unlock();
 
-    auto _verbose_jit = std::getenv("WAVE_VPI_VERBOSE_JIT");
-    auto verbose_jit  = false;
-    if (_verbose_jit != nullptr) {
-        verbose_jit = std::string(_verbose_jit) == "1";
-    }
-
-    if (verbose_jit) {
-        fmt::println("[fsdbOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{}", fsdbSigHdl->name, currentCursorIdx, optFinishIdx);
+    if (verboseJIT) {
+        fmt::println("[fsdbOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", fsdbSigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
+        fflush(stdout);
     }
 
     int optCnt = 0;
@@ -478,8 +480,9 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
         optCnt++;
 
-        if (verbose_jit) {
+        if (verboseJIT) {
             fmt::println("[fsdbOptThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, fsdbSigHdl->name, optStartIdx, optFinishIdx);
+            fflush(stdout);
         }
 
         if (optFinish) {
@@ -490,14 +493,14 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
     jit_options::optThreadCnt.store(jit_options::optThreadCnt.load() - 1);
 
     // fsdbObj->ffrClose();
-    if (verbose_jit) {
+    if (verboseJIT) {
         fmt::println("[fsdbOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, fsdbSigHdl->name);
-        optCnt++;
+        fflush(stdout);
     }
 }
 #else
 static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
-    static std::mutex optMutex;
+    // static std::mutex optMutex;
 
     // std::unique_lock<std::mutex> lock(optMutex);
 
@@ -508,9 +511,16 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
         }
     };
 
+    auto verboseJIT = jit_options::verboseJIT;
+
     auto currentCursorIdx = cursor.index;
     auto optFinishIdx     = currentCursorIdx + jit_options::compileWindowSize;
     optFinishIdx          = std::min(optFinishIdx, cursor.maxIndex);
+
+    if (verboseJIT) {
+        fmt::println("[wellenOptThreadTask] First optimization start! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", sigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
+        fflush(stdout);
+    }
 
     sigHdl->optValueVec.reserve(cursor.maxIndex);
 
@@ -520,6 +530,11 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
     sigHdl->optFinishIdx = optFinishIdx;
 
     // lock.unlock();
+
+    if (verboseJIT) {
+        fmt::println("[wellenOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", sigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
+        fflush(stdout);
+    }
 
     int optCnt = 0;
     std::unique_lock<std::mutex> continueOptLock(sigHdl->mtx);
@@ -540,12 +555,22 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
         sigHdl->continueOpt  = false;
         optCnt++;
 
+        if (verboseJIT) {
+            fmt::println("[wellenOptThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, sigHdl->name, optStartIdx, optFinishIdx);
+            fflush(stdout);
+        }
+
         if (optFinish) {
             break;
         }
     }
 
     jit_options::optThreadCnt.store(jit_options::optThreadCnt.load() - 1);
+
+    if (verboseJIT) {
+        fmt::println("[wellenOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, sigHdl->name);
+        fflush(stdout);
+    }
 }
 #endif
 
