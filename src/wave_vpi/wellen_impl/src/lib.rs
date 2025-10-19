@@ -407,10 +407,20 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
         let var_ref_opt = &hierarchy.lookup_var(path_slice, &signal_name);
         if var_ref_opt.is_none() {
             let v = get_most_likely_signal_name(name, 5);
-            panic!(
+            log::debug!(
                 "Failed to lookup var, name: {}, path: {}, siangl: {}\nMost likely signal names: {:#?}",
-                name, path_str, signal_name, v
+                name,
+                path_str,
+                signal_name,
+                v
             );
+            // panic!(
+            //     "Failed to lookup var, name: {}, path: {}, siangl: {}\nMost likely signal names: {:#?}",
+            //     name, path_str, signal_name, v
+            // );
+
+            // Return null if the signal is not found.
+            return std::ptr::null_mut();
         }
         let var_ref = &var_ref_opt.unwrap();
 

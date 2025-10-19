@@ -252,6 +252,10 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     auto vpiHdl = reinterpret_cast<vpiHandle>(fsdbSigHdl);
 #else
     auto _vpiHdl = reinterpret_cast<vpiHandle>(wellen_vpi_handle_by_name(name));
+    if (_vpiHdl == nullptr) {
+        return nullptr;
+    }
+
     auto bitSize = wellen_vpi_get(vpiSize, reinterpret_cast<void *>(_vpiHdl));
     auto sigHdl  = new SignalHandle{.name = std::string(name), .vpiHdl = _vpiHdl, .bitSize = (size_t)bitSize};
 
