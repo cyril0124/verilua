@@ -76,6 +76,8 @@ void reportStatistic() {
     fmt::println("\treadFromOptTime:\t{:.2f} ns/read, {:.2f} ms(total)", optPerReadTimeNs, statistic.readFromOptTime / 1000000);
     fmt::println("\treadFromNormalTime:\t{:.2f} ns/read, {:.2f} ms(total)", normalPerReadTimeNs, statistic.readFromNormalTime / 1000000);
     fmt::println("\toptThreadNotEnough:\t{}({:.2f}%)", statistic.optThreadNotEnough, static_cast<double>(statistic.optThreadNotEnough) / statistic.readFromNormal * 100);
+    fmt::println("\tjitOptTaskCnt:\t{}", statistic.jitOptTaskCnt.load());
+    fmt::println("\tjitOptTaskFirstFinishCnt:\t{}", statistic.jitOptTaskFirstFinishCnt.load());
     fmt::println("\tjitEfficiency:\t{:.2f}%", jitEfficiency);
 }
 

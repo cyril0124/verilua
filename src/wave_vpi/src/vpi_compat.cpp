@@ -347,6 +347,10 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
     // Ensure only one `fsdbObj` can be processed for all the optimization threads. (It seems like a bug that FsdbReader did not allow multiple ffrObjects to be processed at multiple threads. )
     std::unique_lock<std::mutex> lock(optMutex);
 
+#ifdef PROFILE_JIT
+    jit_options::statistic.jitOptTaskCnt.store(jit_options::statistic.jitOptTaskCnt.load() + 1);
+#endif
+
     auto verboseJIT = jit_options::verboseJIT;
 
     if (verboseJIT) {
@@ -455,6 +459,10 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
     lock.unlock();
 
+#ifdef PROFILE_JIT
+    jit_options::statistic.jitOptTaskFirstFinishCnt.store(jit_options::statistic.jitOptTaskFirstFinishCnt.load() + 1);
+#endif
+
     if (verboseJIT) {
         fmt::println("[fsdbOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", fsdbSigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
         fflush(stdout);
@@ -504,6 +512,10 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 
     // std::unique_lock<std::mutex> lock(optMutex);
 
+#ifdef PROFILE_JIT
+    jit_options::statistic.jitOptTaskCnt.store(jit_options::statistic.jitOptTaskCnt.load() + 1);
+#endif
+
     auto optFunc = [sigHdl](uint64_t startIdx, uint64_t finishIdx) {
         auto &optValueVec = sigHdl->optValueVec;
         for (auto idx = startIdx; idx < finishIdx; idx++) {
@@ -530,6 +542,10 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
     sigHdl->optFinishIdx = optFinishIdx;
 
     // lock.unlock();
+
+#ifdef PROFILE_JIT
+    jit_options::statistic.jitOptTaskFirstFinishCnt.store(jit_options::statistic.jitOptTaskFirstFinishCnt.load() + 1);
+#endif
 
     if (verboseJIT) {
         fmt::println("[wellenOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", sigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);

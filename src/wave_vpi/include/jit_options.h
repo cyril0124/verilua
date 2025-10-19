@@ -18,14 +18,18 @@ extern uint64_t compileThreshold;
 extern uint64_t compileWindowSize;
 extern uint64_t recompileWindowSize;
 
-typedef struct {
+struct Statistic_t {
     double totalReadTime;
     uint64_t readFromOpt;
     uint64_t readFromNormal;
     double readFromOptTime;
     double readFromNormalTime;
     uint64_t optThreadNotEnough;
-} Statistic;
+    std::atomic<uint32_t> jitOptTaskCnt;
+    std::atomic<uint32_t> jitOptTaskFirstFinishCnt;
+};
+
+using Statistic = Statistic_t;
 
 extern Statistic statistic;
 
