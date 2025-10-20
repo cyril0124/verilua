@@ -680,7 +680,7 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
                 jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);
                 fsdbSigHdl->doOpt       = true;
                 fsdbSigHdl->continueOpt = false;
-                fsdbSigHdl->optThread   = std::thread(std::bind(fsdbOptThreadTask, fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl));
+                fsdbSigHdl->optThread   = std::thread([fsdbSigHdl] { fsdbOptThreadTask(fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl); });
             } else {
 #ifdef PROFILE_JIT
                 jit_options::statistic.optThreadNotEnough++;
@@ -987,7 +987,7 @@ ReadFromFSDB:
                 jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);
                 _sigHdl->doOpt       = true;
                 _sigHdl->continueOpt = false;
-                _sigHdl->optThread   = std::thread(std::bind(wellenOptThreadTask, _sigHdl));
+                _sigHdl->optThread   = std::thread([_sigHdl] { wellenOptThreadTask(_sigHdl); });
             } else {
 #ifdef PROFILE_JIT
                 jit_options::statistic.optThreadNotEnough++;
