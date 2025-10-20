@@ -488,8 +488,8 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
         // Continue optimization
         auto optFinish    = false;
-        auto optStartIdx  = fsdbSigHdl->optFinishIdx;
-        auto optFinishIdx = fsdbSigHdl->optFinishIdx + jit_options::compileWindowSize;
+        auto optStartIdx  = std::max(cursor.index, fsdbSigHdl->optFinishIdx);
+        auto optFinishIdx = optStartIdx + jit_options::compileWindowSize;
         if (optFinishIdx >= xtagVec.size()) {
             optFinishIdx = xtagVec.size() - 1;
             optFinish    = true;
@@ -572,8 +572,8 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 
         // Continue optimization
         auto optFinish    = false;
-        auto optStartIdx  = sigHdl->optFinishIdx;
-        auto optFinishIdx = sigHdl->optFinishIdx + jit_options::compileWindowSize;
+        auto optStartIdx  = std::max(cursor.index, sigHdl->optFinishIdx);
+        auto optFinishIdx = optStartIdx + jit_options::compileWindowSize;
         if (optFinishIdx >= cursor.maxIndex) {
             optFinishIdx = cursor.maxIndex;
             optFinish    = true;
