@@ -3,10 +3,16 @@
 #include <fmt/core.h>
 #include <thread>
 
-#define JTT_DEFAULT_HOT_ACCESS_THRESHOLD 10
+#define JTT_DEFAULT_HOT_ACCESS_THRESHOLD 30
 #define JIT_DEFAULT_COMPILE_WINDOW_SIZE 200000
 #define JIT_DEFAULT_RECOMPILE_WINDOW_SIZE 200000
-#define JIT_DEFAULT_MAX_OPT_THREADS 20 // Maximum threads(default) that are allowed to be run for JIT optimization.
+
+// Maximum threads(default) that are allowed to be run for JIT optimization.
+#ifdef USE_FSDB
+#define JIT_DEFAULT_MAX_OPT_THREADS 20
+#else
+#define JIT_DEFAULT_MAX_OPT_THREADS 900 // Maximum threads(default) that are allowed to be run for JIT optimization.
+#endif
 
 namespace jit_options {
 extern bool enableJIT;
