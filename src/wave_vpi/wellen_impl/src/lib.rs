@@ -6,7 +6,7 @@ use bytesize::ByteSize;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cell::UnsafeCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString};
 use std::fs;
 use std::fs::File;
@@ -45,6 +45,7 @@ const SIGNAL_REF_COUNT_THRESHOLD: usize = 15;
 const LAST_MODIFIED_TIME_FILE: &str = "last_modified_time.wave_vpi.yaml";
 const SIGNAL_REF_COUNT_FILE: &str = "signal_ref_count.wave_vpi.yaml";
 const SIGNAL_REF_CACHE_FILE: &str = "signal_ref_cache.wave_vpi.yaml";
+const SIGNAL_REF_CACHE_NULL_FILE: &str = "signal_ref_cache_null.wave_vpi.yaml";
 const SIGNAL_CACHE_FILE: &str = "signal_cache.wave_vpi.yaml";
 
 static mut TIME_TABLE: Option<UnsafeCell<Vec<u64>>> = None;
@@ -52,6 +53,7 @@ static mut HIERARCHY: Option<UnsafeCell<Hierarchy>> = None;
 static mut WAVE_SOURCE: Option<UnsafeCell<SignalSource>> = None;
 
 static mut SIGNAL_REF_CACHE: Option<UnsafeCell<HashMap<String, SignalRef>>> = None;
+static mut SIGNAL_REF_CACHE_NULL: Option<UnsafeCell<HashSet<String>>> = None;
 static mut SIGNAL_CACHE: Option<UnsafeCell<HashMap<SignalRef, SignalInfo>>> = None;
 static mut HAS_NEWLY_ADD_SIGNAL_REF: bool = false;
 
@@ -96,6 +98,20 @@ fn get_signal_ref_cache() -> &'static mut HashMap<String, SignalRef> {
             None => {
                 panic!(
                     "SIGNAL_REF_CACHE is not initialized! Please call `wave_vpi::wellen_initialize` first."
+                )
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn get_signal_ref_cache_null() -> &'static mut HashSet<String> {
+    unsafe {
+        match SIGNAL_REF_CACHE_NULL {
+            Some(ref mut signal_ref_cache_null) => &mut *signal_ref_cache_null.get(),
+            None => {
+                panic!(
+                    "SIGNAL_REF_CACHE_NULL is not initialized! Please call `wave_vpi::wellen_initialize` first."
                 )
             }
         }
@@ -310,8 +326,26 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
                     );
                     SIGNAL_REF_CACHE = Some(UnsafeCell::new(HashMap::new()));
                 }
+
+                log::info!(
+                    "[wave_vpi::wellen_initialize] start read {}",
+                    SIGNAL_REF_CACHE_NULL_FILE
+                );
+                let _file = File::open(SIGNAL_REF_CACHE_NULL_FILE);
+                if let Ok(file) = _file {
+                    let reader = BufReader::new(file);
+                    SIGNAL_REF_CACHE_NULL =
+                        Some(UnsafeCell::new(serde_yaml::from_reader(reader).unwrap()));
+                } else {
+                    log::warn!(
+                        "[wave_vpi::wellen_initialize] Failed to open {}",
+                        SIGNAL_REF_CACHE_NULL_FILE
+                    );
+                    SIGNAL_REF_CACHE_NULL = Some(UnsafeCell::new(HashSet::new()));
+                }
             } else {
                 SIGNAL_REF_CACHE = Some(UnsafeCell::new(HashMap::new()));
+                SIGNAL_REF_CACHE_NULL = Some(UnsafeCell::new(HashSet::new()));
             }
         }
 
@@ -363,6 +397,12 @@ pub unsafe extern "C" fn wellen_finalize() {
                     serde_yaml::to_writer(file, c).unwrap();
                 }
 
+                if let Some(ref cache) = SIGNAL_REF_CACHE_NULL {
+                    let c = &*cache.get();
+                    let file = File::create(SIGNAL_REF_CACHE_NULL_FILE).unwrap();
+                    serde_yaml::to_writer(file, c).unwrap();
+                }
+
                 if let Some(ref cache) = SIGNAL_CACHE {
                     let c = &*cache.get();
                     let file = File::create(SIGNAL_CACHE_FILE).unwrap();
@@ -397,6 +437,11 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
         return Box::into_raw(value) as *mut c_void;
     }
 
+    if get_signal_ref_cache_null().get(&name.to_string()).is_some() {
+        log::debug!("find vpiHandle in cache null => name: {}", name);
+        return std::ptr::null_mut();
+    }
+
     let id = if let Some((path_str, signal_name)) = name.rsplit_once(".") {
         let path_vec: Vec<&str> = path_str.split(".").collect();
         let path_slice: &[&str] = &path_vec;
@@ -416,6 +461,12 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
             //     "Failed to lookup var, name: {}, path: {}, siangl: {}\nMost likely signal names: {:#?}",
             //     name, path_str, signal_name, v
             // );
+
+            // If the signal is not found, we add it to the null cache to avoid looking it up again.
+            get_signal_ref_cache_null().insert(String::from(name));
+            unsafe {
+                HAS_NEWLY_ADD_SIGNAL_REF = true;
+            }
 
             // Return null if the signal is not found.
             return std::ptr::null_mut();
