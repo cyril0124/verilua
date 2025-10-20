@@ -26,6 +26,8 @@ extern std::vector<vpiHandleRaw> willRemoveValueCb;
 // The vpiHandleAllocator is a counter that counts the number of vpiHandles allocated which make it easy to provide unique vpiHandle values.
 extern vpiHandleRaw vpiHandleAllcator;
 
+void startOfSimulation();
+
 inline void endOfSimulation() {
     static bool called = false;
 

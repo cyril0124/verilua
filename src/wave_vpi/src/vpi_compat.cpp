@@ -54,6 +54,12 @@ vpiHandleRaw vpiHandleAllcator = 0;
 
 // boost::unordered_flat_map<vpiHandle, std::string> hdlToNameMap; // For debug purpose
 
+void startOfSimulation() {
+    if (startOfSimulationCb != nullptr) {
+        startOfSimulationCb->cb_rtn(startOfSimulationCb.get());
+    }
+}
+
 #ifdef USE_FSDB
 std::string fsdbGetBinStr(vpiHandle object) {
     s_vpi_value v;
@@ -247,7 +253,11 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
         VL_FATAL(false, "Failed to create value change traverse handle, name: {}", std::string(name));
     }
 
-    auto fsdbSigHdl = new fsdb_wave_vpi::FsdbSignalHandle{.name = std::string(name), .vcTrvsHdl = hdl, .varIdCode = varIdCode, .bitSize = hdl->ffrGetBitSize()};
+    auto bitSize    = hdl->ffrGetBitSize();
+    auto fsdbSigHdl = new fsdb_wave_vpi::FsdbSignalHandle{.name = std::string(name), .vcTrvsHdl = hdl, .varIdCode = varIdCode, .bitSize = bitSize};
+
+    // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
+    fsdbSigHdl->canOpt = bitSize <= 32;
 
     auto vpiHdl = reinterpret_cast<vpiHandle>(fsdbSigHdl);
 #else
@@ -258,6 +268,9 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
 
     auto bitSize = wellen_vpi_get(vpiSize, reinterpret_cast<void *>(_vpiHdl));
     auto sigHdl  = new SignalHandle{.name = std::string(name), .vpiHdl = _vpiHdl, .bitSize = (size_t)bitSize};
+
+    // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
+    sigHdl->canOpt = bitSize <= 32;
 
     auto vpiHdl = reinterpret_cast<vpiHandle>(sigHdl);
 #endif
@@ -600,7 +613,7 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
     static s_vpi_vecval vpiValueVecs[100];
     auto fsdbSigHdl = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(sigHdl);
 
-    if (!jit_options::enableJIT)
+    if (!fsdbSigHdl->canOpt || !jit_options::enableJIT)
         goto ReadFromFSDB;
 
     if (fsdbSigHdl->optFinish) {
@@ -661,7 +674,7 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
 
         // Doing somthing like JIT(Just-In-Time)...
         // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
-        if (!fsdbSigHdl->doOpt && fsdbSigHdl->bitSize <= 32 && fsdbSigHdl->readCnt > jit_options::hotAccessThreshold) {
+        if (fsdbSigHdl->readCnt >= jit_options::hotAccessThreshold) {
             auto _jitOptThreadCnt = jit_options::optThreadCnt.load();
             if (_jitOptThreadCnt <= jit_options::maxOptThreads) {
                 jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);
@@ -908,7 +921,7 @@ ReadFromFSDB:
     auto _sigHdl = reinterpret_cast<SignalHandlePtr>(sigHdl);
     auto vpiHdl  = _sigHdl->vpiHdl;
 
-    if (!jit_options::enableJIT)
+    if (!_sigHdl->canOpt || !jit_options::enableJIT)
         goto ReadFromWellen;
 
     if (_sigHdl->optFinish) {
@@ -968,8 +981,7 @@ ReadFromFSDB:
         // fmt::println("[WARN] readCnt: {} signalName: {} doOpt: {} bitSize: {}", _sigHdl->readCnt, _sigHdl->name, _sigHdl->doOpt, _sigHdl->bitSize);
 
         // Doing somthing like JIT(Just-In-Time)...
-        // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
-        if (_sigHdl->bitSize <= 32 && _sigHdl->readCnt > jit_options::hotAccessThreshold) {
+        if (_sigHdl->readCnt >= jit_options::hotAccessThreshold) {
             auto _jitOptThreadCnt = jit_options::optThreadCnt.load();
             if (_jitOptThreadCnt <= jit_options::maxOptThreads) {
                 jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);

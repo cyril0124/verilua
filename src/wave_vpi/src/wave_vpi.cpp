@@ -61,10 +61,7 @@ void wave_vpi_loop() {
     vlog_startup_routines_bootstrap();
 #endif
 
-    // Call vpi_compat::startOfSimulationCb if it exists
-    if (vpi_compat::startOfSimulationCb) {
-        vpi_compat::startOfSimulationCb->cb_rtn(vpi_compat::startOfSimulationCb.get());
-    }
+    vpi_compat::startOfSimulation();
 
     // Append callbacks which is registered from vpi_compat::startOfSimulationCb
     vpi_compat::appendTimeCb();

@@ -56,6 +56,7 @@ typedef struct {
     uint64_t readCnt = 0;
     std::thread optThread;
     bool doOpt       = false;
+    bool canOpt      = false;
     bool optFinish   = false;
     bool continueOpt = false;
     std::vector<uint32_t> optValueVec;
