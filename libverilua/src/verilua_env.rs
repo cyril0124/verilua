@@ -216,6 +216,8 @@ impl VeriluaEnv {
             return;
         }
 
+        self.start_time = Instant::now();
+
         let verilua_init: LuaFunction = self
             .lua
             .globals()
@@ -251,8 +253,6 @@ impl VeriluaEnv {
         );
 
         include!("./gen/gen_sim_event_chunk_init.rs");
-
-        self.start_time = Instant::now();
 
         log::info!("VeriluaEnv::initialize() finish");
     }
@@ -294,8 +294,8 @@ impl VeriluaEnv {
         {
             _overhead = (self.lua_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0;
             builder.push_record([
-                format!("{:.2} sec", total_time.as_secs_f64()).as_str(),
-                format!("{:.2} sec", self.lua_time.as_secs_f64()).as_str(),
+                format!("{:.4} sec", total_time.as_secs_f64()).as_str(),
+                format!("{:.4} sec", self.lua_time.as_secs_f64()).as_str(),
                 format!("{_overhead:.2}%").as_str(),
             ]);
         }
@@ -303,7 +303,7 @@ impl VeriluaEnv {
         #[cfg(not(feature = "acc_time"))]
         {
             builder.push_record([
-                format!("{:.2} sec", total_time.as_secs_f64()).as_str(),
+                format!("{:.4} sec", total_time.as_secs_f64()).as_str(),
                 "--",
                 "--",
             ]);
