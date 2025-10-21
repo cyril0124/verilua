@@ -287,6 +287,7 @@ function cfg:post_config()
 
     cfg.is_hse = cfg:get_or_else("is_hse", false)
     cfg.is_wal = cfg.simulator == "wave_vpi"
+    assert(not (cfg.is_hse and cfg.is_wal), "[cfg:post_config] `cfg.is_hse` and `cfg.is_wal` cannot be true at the same time")
 
     if cfg.mode ~= nil then
         local scheduler_mode = cfg.mode
