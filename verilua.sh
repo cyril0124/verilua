@@ -46,35 +46,37 @@ function unload_verilua() {
 }
 
 function test_verilua() {
-    if ! command -v iverilog &> /dev/null && 
-       ! command -v verilator &> /dev/null && 
+    if ! command -v iverilog &> /dev/null &&
+       ! command -v verilator &> /dev/null &&
        ! command -v vcs &> /dev/null; then
         echo "[test_verilua] No simulator found, skipping verilua test."
         return
     fi
 
     curr_dir=$(pwd)
-    cd $VERILUA_HOME/examples/simple_ut_env
+    case_dir=$VERILUA_HOME/examples/guided_tour/
 
     if command -v iverilog &> /dev/null; then
-        SIM=iverilog xmake b -P . &> /dev/null
-        SIM=iverilog xmake r -P . &> /dev/null
+        SIM=iverilog xmake b -P $case_dir &> /dev/null
+        SIM=iverilog xmake r -P $case_dir &> /dev/null
         rm -rf build
+        echo "[test_verilua] successfully tested verilua with iverilog"
     fi
 
     if command -v verilator &> /dev/null; then
-        SIM=verilator xmake b -P . &> /dev/null
-        SIM=verilator xmake r -P . &> /dev/null
+        SIM=verilator xmake b -P $case_dir &> /dev/null
+        SIM=verilator xmake r -P $case_dir &> /dev/null
         rm -rf build
+        echo "[test_verilua] successfully tested verilua with verilator"
     fi
 
     if command -v vcs &> /dev/null; then
-        SIM=vcs xmake b -P . &> /dev/null
-        SIM=vcs xmake r -P . &> /dev/null
+        SIM=vcs xmake b -P $case_dir &> /dev/null
+        SIM=vcs xmake r -P $case_dir &> /dev/null
         rm -rf build
+        echo "[test_verilua] successfully tested verilua with vcs"
     fi
 
-    cd $curr_dir
     echo "[test_verilua] Test verilua finished!"
 }
 
