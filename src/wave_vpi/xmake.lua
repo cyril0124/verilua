@@ -17,7 +17,7 @@ local function wave_vpi_main_common()
     set_targetdir(path.join(build_dir, "bin"))
     set_objectdir(path.join(build_dir, "obj"))
 
-    add_ldflags(
+    add_shflags(
         "-static-libstdc++ -static-libgcc",
         "-Wl,--no-as-needed"
     )
