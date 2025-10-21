@@ -3,6 +3,7 @@
 #include "boost_unordered.hpp"
 #include "ffrAPI.h"
 #include "fsdbShr.h"
+#include "nlohmann/json.hpp"
 
 #include <condition_variable>
 #include <cstdint>
@@ -14,6 +15,7 @@
 
 #define LAST_MODIFIED_TIME_FILE "last_modified_time.wave_vpi_fsdb"
 #define TIME_TABLE_FILE "time_table.wave_vpi_fsdb"
+#define USED_VAR_ID_CODE_CACHE_FILE "used_var_id_code_cache.wave_vpi_fsdb"
 
 #define MAX_SCOPE_DEPTH 100
 #define TIME_TABLE_MAX_INDEX_VAR_CODE 10
@@ -35,10 +37,12 @@ class FsdbWaveVpi {
     std::vector<uint64_t> xtagU64Vec;
     std::vector<fsdbXTag> xtagVec;
 
-    boost::unordered_flat_map<std::string, fsdbVarIdcode> varIdCodeCache; // TODO: store into json file at the end of simulation and read back at the start of simulation
+    bool hasNewlyAddedVarIdCode = false;
+    boost::unordered_flat_map<std::string, fsdbVarIdcode> varIdCodeCache;
+    std::unordered_map<std::string, fsdbVarIdcode> usedVarIdCodeCache;
 
     FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName);
-    ~FsdbWaveVpi() {};
+    ~FsdbWaveVpi();
     fsdbVarIdcode getVarIdCodeByName(char *name);
     uint32_t findNearestTimeIndex(uint64_t time);
 

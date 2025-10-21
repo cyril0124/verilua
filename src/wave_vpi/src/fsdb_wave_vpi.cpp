@@ -5,6 +5,8 @@
 namespace fsdb_wave_vpi {
 std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 
+using json = nlohmann::json;
+
 // Used by <ffrReadScopeVarTree2>
 using FsdbTreeCbContext = struct {
     int desiredDepth;
@@ -183,6 +185,13 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         fmt::println("[wave_vpi::fsdb_wave_vpi] useCachedData: {}", useCachedData);
 
         if (useCachedData) {
+            std::ifstream usedVarIdCodeCacheFile(USED_VAR_ID_CODE_CACHE_FILE);
+            if (usedVarIdCodeCacheFile.is_open()) {
+                json j             = json::parse(usedVarIdCodeCacheFile);
+                usedVarIdCodeCache = j.get<std::unordered_map<std::string, fsdbVarIdcode>>();
+                usedVarIdCodeCacheFile.close();
+            }
+
             std::ifstream timeTableFile(TIME_TABLE_FILE, std::ios::binary);
             if (timeTableFile.is_open()) {
                 std::size_t vecSize;
@@ -281,12 +290,32 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
     }
 }
 
+FsdbWaveVpi::~FsdbWaveVpi() {
+    if (hasNewlyAddedVarIdCode) {
+        json j = usedVarIdCodeCache;
+        std::ofstream o(USED_VAR_ID_CODE_CACHE_FILE);
+
+        o << j.dump(4) << "\n";
+        o.close();
+    }
+}
+
 fsdbVarIdcode FsdbWaveVpi::getVarIdCodeByName(char *name) {
-    auto it = varIdCodeCache.find(std::string(name));
+    std::string nameStr = std::string(name);
+
+    auto _it = usedVarIdCodeCache.find(nameStr);
+    if (_it != usedVarIdCodeCache.end()) {
+        return _it->second;
+    }
+
+    hasNewlyAddedVarIdCode = true;
+
+    auto it = varIdCodeCache.find(nameStr);
     if (it != varIdCodeCache.end()) {
         // fmt::println("found in varIdCodeCache! {}", name);
         // fflush(stdout);
         fsdbVarIdcode existingValue = it->second;
+        usedVarIdCodeCache[nameStr] = existingValue;
         return existingValue;
     }
 
@@ -299,10 +328,13 @@ fsdbVarIdcode FsdbWaveVpi::getVarIdCodeByName(char *name) {
     FsdbTreeCbContext contextData = {.desiredDepth = static_cast<int>(std::count(fullName.begin(), fullName.end(), '.')), .fullName = fullName, .retVarIdCode = 0};
     fsdbObj->ffrReadScopeVarTree2(fsdbTreeCb, (void *)&contextData);
 
-    if (contextData.retVarIdCode == 0) {
+    auto retVarIdCode = contextData.retVarIdCode;
+    if (retVarIdCode == 0) {
         return -1;
     }
-    return contextData.retVarIdCode;
+
+    usedVarIdCodeCache[nameStr] = retVarIdCode;
+    return retVarIdCode;
 }
 
 uint32_t FsdbWaveVpi::findNearestTimeIndex(uint64_t time) {
