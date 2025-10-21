@@ -110,7 +110,7 @@ struct WaveCursor {
 #endif
 };
 
-typedef struct {
+struct SignalHandle_t {
     std::string name;
     vpiHandle vpiHdl;
     size_t bitSize;
@@ -126,7 +126,10 @@ typedef struct {
     uint64_t optFinishIdx = 0;
     std::condition_variable cv;
     std::mutex mtx;
-} SignalHandle, *SignalHandlePtr;
+};
+
+using SignalHandle    = SignalHandle_t;
+using SignalHandlePtr = SignalHandle_t *;
 
 void wave_vpi_init(const char *filename);
 void wave_vpi_loop();

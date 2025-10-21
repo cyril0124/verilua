@@ -28,20 +28,7 @@ extern vpiHandleRaw vpiHandleAllcator;
 
 void startOfSimulation();
 
-inline void endOfSimulation() {
-    static bool called = false;
-
-    if (endOfSimulationCb && !called) {
-        called = true;
-#ifndef USE_FSDB
-        wellen_finalize();
-#endif
-        endOfSimulationCb->cb_rtn(endOfSimulationCb.get());
-#ifdef PROFILE_JIT
-        jit_options::reportStatistic();
-#endif
-    }
-}
+void endOfSimulation();
 
 inline void appendTimeCb() {
     for (auto &cb : willAppendTimeCbQueue) {

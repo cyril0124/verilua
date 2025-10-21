@@ -46,7 +46,7 @@ class FsdbWaveVpi {
     uint64_t setupMaxIndexVarCode(uint64_t maxIndexVarCode);
 };
 
-typedef struct {
+struct FsdbSignalHandle_t {
     std::string name;
     ffrVCTrvsHdl vcTrvsHdl;
     fsdbVarIdcode varIdCode;
@@ -63,7 +63,10 @@ typedef struct {
     uint64_t optFinishIdx;
     std::condition_variable cv;
     std::mutex mtx;
-} FsdbSignalHandle, *FsdbSignalHandlePtr;
+};
+
+using FsdbSignalHandle    = FsdbSignalHandle_t;
+using FsdbSignalHandlePtr = FsdbSignalHandle_t *;
 
 extern std::shared_ptr<FsdbWaveVpi> fsdbWaveVpi;
 

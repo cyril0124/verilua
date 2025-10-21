@@ -60,6 +60,21 @@ void startOfSimulation() {
     }
 }
 
+void endOfSimulation() {
+    static bool called = false;
+
+    if (endOfSimulationCb && !called) {
+        called = true;
+#ifndef USE_FSDB
+        wellen_finalize();
+#endif
+        endOfSimulationCb->cb_rtn(endOfSimulationCb.get());
+#ifdef PROFILE_JIT
+        jit_options::reportStatistic();
+#endif
+    }
+}
+
 #ifdef USE_FSDB
 std::string fsdbGetBinStr(vpiHandle object) {
     s_vpi_value v;
