@@ -20,7 +20,6 @@ extern bool verboseJIT;
 extern std::atomic<uint32_t> optThreadCnt;
 extern uint32_t maxOptThreads;
 extern uint64_t hotAccessThreshold;
-extern uint64_t compileThreshold;
 extern uint64_t compileWindowSize;
 extern uint64_t recompileWindowSize;
 
