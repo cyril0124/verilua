@@ -6,6 +6,7 @@ use libc::{PATH_MAX, c_char, c_int, c_longlong, c_void, readlink};
 use once_cell::sync::OnceCell;
 use std::ffi::{CStr, CString};
 use std::io::Read;
+use std::process::Command;
 use std::ptr;
 use std::{fs::File, sync::Mutex};
 
@@ -242,4 +243,56 @@ pub unsafe extern "C" fn release_lock(lock_handle: *mut c_void) {
     let lock_ptr = lock_handle as *mut LockFile;
 
     let _lockfile_box = unsafe { Box::from_raw(lock_ptr) };
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn iorun(cmd: *const c_char) -> *const c_char {
+    if cmd.is_null() {
+        log::debug!("ERROR: iorun received a NULL command pointer");
+        return std::ptr::null();
+    }
+
+    let cmd_str = match unsafe { CStr::from_ptr(cmd) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            log::debug!("ERROR: Failed to convert C string to UTF-8: {}", e);
+            return std::ptr::null();
+        }
+    };
+
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd").args(&["/C", cmd_str]).output()
+    } else {
+        Command::new("sh").arg("-c").arg(cmd_str).output()
+    };
+
+    match output {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+            // Use stdout if available, otherwise use stderr
+            let result = if !stdout.is_empty() {
+                stdout
+            } else if !stderr.is_empty() {
+                log::debug!("No stdout, using stderr as result");
+                stderr
+            } else {
+                log::debug!("Both stdout and stderr are empty");
+                String::new()
+            };
+
+            match CString::new(result.clone()) {
+                Ok(c_string) => c_string.into_raw(),
+                Err(e) => {
+                    log::debug!("ERROR: Failed to create CString from result: {}", e);
+                    std::ptr::null()
+                }
+            }
+        }
+        Err(e) => {
+            log::debug!("ERROR: Failed to execute command '{}': {}", cmd_str, e);
+            std::ptr::null()
+        }
+    }
 }

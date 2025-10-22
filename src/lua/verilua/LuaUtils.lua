@@ -1139,4 +1139,42 @@ function utils.report_luacov()
     end, "luacov.report.lock")
 end
 
+---@param func_ptr_str string e.g. void (*)(const char*)
+---@param ffi_func_decl_str string e.g. void my_func(const char*); => trailing semicolon is required
+---@param func_name string e.g. my_func
+---@return fun(any, ...): any
+function utils.try_ffi_cast(func_ptr_str, ffi_func_decl_str, func_name)
+    local SymbolHelper = require("SymbolHelper")
+    if SymbolHelper.get_global_symbol_addr(func_name) ~= 0 then
+        return SymbolHelper.ffi_cast(func_ptr_str, func_name) --[[@as fun(any, ...): any]]
+    else
+        ffi.cdef(ffi_func_decl_str)
+        assert(ffi.C[func_name], "[utils.try_ffi_cast] Failed to get symbol: " .. ffi_func_decl_str)
+        return ffi.C[func_name] --[[@as fun(any, ...): any]]
+    end
+end
+
+---@type fun(cmd: string): string?
+local iorun_cfunc
+--- Run a command and return the output(stdout or stderr if stdout is empty)
+---@param cmd string
+---@return string
+function utils.iorun(cmd)
+    if not iorun_cfunc then
+        local _iorun = utils.try_ffi_cast(
+            "const char*(*)(const char*)",
+            "const char* iorun(const char*);",
+            "iorun"
+        )
+        iorun_cfunc = _iorun
+    end
+
+    local ret = iorun_cfunc(cmd)
+    if ret == nil then
+        assert(false, "[utils.iorun] Failed to run command: " .. cmd)
+    end
+
+    return ffi.string(ret)
+end
+
 return utils
