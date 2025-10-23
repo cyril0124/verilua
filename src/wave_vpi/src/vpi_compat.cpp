@@ -193,10 +193,17 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
 
         uint64_t time = (((uint64_t)cb_data_p->time->high << 32) | (cb_data_p->time->low));
 #ifdef USE_FSDB
-        uint64_t targetTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index] + time;
+        uint64_t targetTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index] + time;
+#else
+        uint64_t targetTime = wellen_get_time_from_index(cursor.index) + time;
+#endif
+        if (targetTime > cursor.maxTime) {
+            break;
+        }
+
+#ifdef USE_FSDB
         uint64_t targetIndex = fsdb_wave_vpi::fsdbWaveVpi->findNearestTimeIndex(targetTime);
 #else
-        uint64_t targetTime  = wellen_get_time_from_index(cursor.index) + time;
         uint64_t targetIndex = wellen_get_index_from_time(targetTime);
 #endif
         // VL_FATAL(targetTime <= cursor.maxTime, "targetTime: {}, cursor.maxTime: {}", targetTime, cursor.maxTime);
