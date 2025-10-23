@@ -38,7 +38,7 @@ std::string terminateReason = "Unknown";
 std::unique_ptr<s_cb_data> startOfSimulationCb = nullptr;
 std::unique_ptr<s_cb_data> endOfSimulationCb   = nullptr;
 
-std::queue<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> timeCbQueue;
+boost::unordered_flat_map<uint64_t, std::vector<std::shared_ptr<t_cb_data>>> timeCbMap;
 std::vector<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> willAppendTimeCbQueue;
 
 // The nextSimTimeQueue is a queue of callbacks that will be called at the next simulation time.
@@ -199,7 +199,7 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
         uint64_t targetTime  = wellen_get_time_from_index(cursor.index) + time;
         uint64_t targetIndex = wellen_get_index_from_time(targetTime);
 #endif
-        VL_FATAL(targetTime <= cursor.maxTime, "targetTime: {}, cursor.maxTime: {}", targetTime, cursor.maxTime);
+        // VL_FATAL(targetTime <= cursor.maxTime, "targetTime: {}, cursor.maxTime: {}", targetTime, cursor.maxTime);
 
         willAppendTimeCbQueue.emplace_back(std::make_pair(targetIndex, std::make_shared<t_cb_data>(*cb_data_p)));
         break;

@@ -74,13 +74,17 @@ void wave_vpi_loop() {
 
     while (cursor.index < cursor.maxIndex && !vpi_compat::vpiControlTerminate) {
         // Deal with cbAfterDelay(time) callbacks
-        if (!vpi_compat::timeCbQueue.empty()) {
-            bool again = cursor.index >= vpi_compat::timeCbQueue.front().first;
-            while (again) {
-                auto cb = vpi_compat::timeCbQueue.front().second;
-                cb->cb_rtn(cb.get());
-                vpi_compat::timeCbQueue.pop();
-                again = !vpi_compat::timeCbQueue.empty() && cursor.index >= vpi_compat::timeCbQueue.front().first;
+        if (!vpi_compat::timeCbMap.empty()) {
+            for (auto it = vpi_compat::timeCbMap.begin(); it != vpi_compat::timeCbMap.end();) {
+                if (cursor.index >= it->first) {
+                    auto cbVec = it->second;
+                    for (auto &cb : cbVec) {
+                        cb->cb_rtn(cb.get());
+                    }
+                    it = vpi_compat::timeCbMap.erase(it);
+                } else {
+                    ++it;
+                }
             }
         }
         vpi_compat::appendTimeCb();

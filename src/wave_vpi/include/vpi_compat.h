@@ -12,7 +12,7 @@ extern std::string terminateReason;
 extern std::unique_ptr<s_cb_data> startOfSimulationCb;
 extern std::unique_ptr<s_cb_data> endOfSimulationCb;
 
-extern std::queue<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> timeCbQueue;
+extern boost::unordered_flat_map<uint64_t, std::vector<std::shared_ptr<t_cb_data>>> timeCbMap;
 extern std::vector<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> willAppendTimeCbQueue;
 
 // The nextSimTimeQueue is a queue of callbacks that will be called at the next simulation time.
@@ -31,9 +31,14 @@ void startOfSimulation();
 void endOfSimulation();
 
 inline void appendTimeCb() {
-    for (auto &cb : willAppendTimeCbQueue) {
-        timeCbQueue.push(cb);
-        // fmt::println("append appendTimeCb");
+    for (auto &cbPair : willAppendTimeCbQueue) {
+        auto targetIdx = cbPair.first;
+        auto cb        = cbPair.second;
+        if (timeCbMap.find(targetIdx) != timeCbMap.end()) {
+            timeCbMap[targetIdx].emplace_back(cb);
+        } else {
+            timeCbMap[targetIdx] = {cb};
+        }
     }
     willAppendTimeCbQueue.clear();
 }
