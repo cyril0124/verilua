@@ -584,7 +584,7 @@ pub unsafe extern "C" fn vpiml_register_time_callback(
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,
         high: (time >> 32) as _,
-        low: (time & 0xFFFF) as _,
+        low: (time & 0xFFFFFFFF) as _,
         real: 0.0,
     };
 
