@@ -715,6 +715,9 @@ ReadFromFSDB:
 
 #ifdef PROFILE_JIT
     jit_options::statistic.readFromNormal++;
+    if (!fsdbSigHdl->canOpt) {
+        jit_options::statistic.unOptimizableRead++;
+    }
 #endif
 
     auto vcTrvsHdl = fsdbSigHdl->vcTrvsHdl;
@@ -1022,6 +1025,9 @@ ReadFromWellen:
 
 #ifdef PROFILE_JIT
     jit_options::statistic.readFromNormal++;
+    if (!_sigHdl->canOpt) {
+        jit_options::statistic.unOptimizableRead++;
+    }
 #endif
 
     wellen_vpi_get_value_from_index(reinterpret_cast<void *>(vpiHdl), cursor.index, value_p);

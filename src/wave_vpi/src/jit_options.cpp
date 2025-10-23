@@ -71,6 +71,7 @@ void reportStatistic() {
     fmt::println("\ttotalRead:\t{}", totalRead);
     fmt::println("\ttotalReadTime:\t{:.2f} ms", statistic.totalReadTime / 1000000);
     fmt::println("\tnoJitReadTime:\t{:.2f} ms(suppose)", noJitReadTimeNs / 1000000);
+    fmt::println("\tunOptimizableRead:\t{}({:.2f}%)", statistic.unOptimizableRead, static_cast<double>(statistic.unOptimizableRead) / totalRead * 100);
     fmt::println("\treadFromOpt:\t{}({:.2f}%)", statistic.readFromOpt, static_cast<double>(statistic.readFromOpt) / totalRead * 100);
     fmt::println("\treadFromNormal:\t{}({:.2f}%)", statistic.readFromNormal, static_cast<double>(statistic.readFromNormal) / totalRead * 100);
     fmt::println("\treadFromOptTime:\t{:.2f} ns/read, {:.2f} ms(total)", optPerReadTimeNs, statistic.readFromOptTime / 1000000);

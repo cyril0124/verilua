@@ -27,6 +27,7 @@ struct Statistic_t {
     double totalReadTime;
     uint64_t readFromOpt;
     uint64_t readFromNormal;
+    uint64_t unOptimizableRead;
     double readFromOptTime;
     double readFromNormalTime;
     uint64_t optThreadNotEnough;
