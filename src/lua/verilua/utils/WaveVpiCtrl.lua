@@ -33,8 +33,10 @@ end
 ---@field set_cursor_index fun(self: verilua.WaveVpiCtrl, index: integer)
 ---@field jit_options verilua.WaveVpiJitOptions
 ---@field to_end fun(self: verilua.WaveVpiCtrl) Move the cursor to the end of the waveform file .
+---@field to_percent fun(self: verilua.WaveVpiCtrl, percent: number) Move the cursor to the specified percent of the waveform file .
 ---@field protected get_max_cursor_index_cfunc fun(): integer
 ---@field protected set_cursor_index_cfunc fun(index: integer)
+---@field protected set_cursor_index_percent_cfunc fun(percent: number)
 local WaveVpiCtrl = {
     jit_options = {
         set = function(self, opt_name, value)
@@ -120,6 +122,19 @@ end
 function WaveVpiCtrl:to_end()
     local max_index = self:get_max_cursor_index()
     self:set_cursor_index(max_index - 1)
+end
+
+function WaveVpiCtrl:to_percent(percent)
+    if not self.set_cursor_index_percent_cfunc then
+        self.set_cursor_index_percent_cfunc = try_ffi_cast(
+            "void (*)(double)",
+            "void wave_vpi_ctrl_set_cursor_index_percent(double percent);",
+            "wave_vpi_ctrl_set_cursor_index_percent"
+        ) --[[@as fun(percent: number)]]
+    end
+
+    assert(percent <= 100)
+    self.set_cursor_index_percent_cfunc(percent)
 end
 
 return WaveVpiCtrl

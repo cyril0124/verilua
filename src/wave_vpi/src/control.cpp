@@ -12,6 +12,16 @@ extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) {
     cursor.index = index;
 }
 
+extern "C" void wave_vpi_ctrl_set_cursor_index_percent(double percent) {
+    VL_FATAL(cursor.index == 0, "set_cursor_index_percent can only be called when cursor is at index 0");
+    if (percent >= 100) {
+        cursor.index = cursor.maxIndex - 1;
+    } else {
+        uint64_t targetIndex = cursor.maxIndex * percent;
+        cursor.index         = targetIndex;
+    }
+}
+
 extern "C" void wave_vpi_ctrl_set_jit_options(const char *opt_name, uint64_t v) {
     auto n = std::string(opt_name);
     if (n == "enable") {
