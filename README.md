@@ -26,7 +26,7 @@
 
 ### Download from release
 ```bash
-wget https://github.com/cyril0124/verilua/releases/download/v1.0.0/verilua-x64-ubuntu-22.04.zip
+wget https://github.com/cyril0124/verilua/releases/download/v2.0.0/verilua-x64-ubuntu-22.04.zip
 
 unzip verilua-x64-ubuntu-22.04.zip -d <path-to-install>
 ```
@@ -52,7 +52,7 @@ To update the verilua to the latest version, you can run:
 ```bash
 update_verilua
 ```
-> [!IMPORTANT] 
+> [!IMPORTANT]
 > - Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
 > - `update_verilua` is only available if you have installed verilua from release.
 
