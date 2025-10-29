@@ -292,6 +292,16 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
         }));
     }
 
+    // Check if therer has any clocking logic(e.g. always block)
+    ast.visit(makeVisitor([&](auto &, const slang::ast::ProceduralBlockSymbol &procBlock) {
+        auto syn     = procBlock.getSyntax();
+        auto synKind = syn->kind;
+        if (synKind == slang::syntax::SyntaxKind::AlwaysBlock || synKind == slang::syntax::SyntaxKind::AlwaysFFBlock || synKind == slang::syntax::SyntaxKind::AlwaysLatchBlock) {
+            hasProceduralBlock = true;
+        }
+        // fmt::println("procBlock.kind: {} synKind: {}", toString(procBlock.kind), toString(syn->kind));
+    }));
+
     if (verbose)
         fmt::println("[TestbenchGenParser] get module:{}", ast.name);
 }

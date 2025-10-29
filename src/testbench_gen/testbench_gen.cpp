@@ -228,8 +228,16 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    ASSERT(clockSignalHasMatch, "Clock signal not match", clockSignalName);
-    fmt::println("[testbench_gen] clock signal: {}", clockSignalName);
+    if (!clockSignalHasMatch) {
+        if (parser.hasProceduralBlock) {
+            PANIC("Clock signal not match", clockSignalName);
+        } else {
+            clockSignalName = "clock";
+            fmt::println("[testbench_gen] Warning: Clock signal not match! hasProceduralBlock = false");
+        }
+    } else {
+        fmt::println("[testbench_gen] clock signal: {}", clockSignalName);
+    }
 
     if (!resetSignalHasMatch) {
         fmt::println("[testbench_gen] Warning: Reset signal not match!");
@@ -613,7 +621,10 @@ endmodule
             customCodeOuterFileContent = ss.str();
         }
 
-        auto lastId = portInfos.back().id;
+        auto lastId = 0;
+        if (!portInfos.empty()) {
+            lastId = portInfos.back().id;
+        }
         std::vector<std::string> signalConnVec;
         std::vector<std::string> signalDeclVec;
         std::vector<std::string> regInitializeVec;

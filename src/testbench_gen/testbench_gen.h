@@ -187,6 +187,7 @@ class TestbenchGenParser : public ASTVisitor<TestbenchGenParser, false, false> {
 
   public:
     bool verbose;
+    bool hasProceduralBlock = false;
     TestbenchGenParser(std::string topName, bool verbose) : topName(topName) { this->verbose = verbose; }
 
     std::vector<PortInfo> portInfos;
