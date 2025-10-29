@@ -130,6 +130,31 @@ local finish = function()
     simulator_control(SimCtrl.FINISH)
 end
 
+
+-- Bypass initial phase, typically used at the outtest fork task
+--- e.g.
+--- ```lua
+--- fork {
+---     outtest_forked_task = function()
+---         sim.bypass_initial()
+---
+---         fork {
+---             inner_forked_task = function()
+---                 -- ...
+---             end
+---         }
+---
+---         -- ....
+---     end
+--- }
+--- ```
+local already_bypass_initial = false
+local bypass_initial = function()
+    assert(not already_bypass_initial, "bypass_initial can only be called once!")
+    already_bypass_initial = true
+    await_nsim()
+end
+
 ---@type any
 local print_hierarchy_lib
 local print_hierarchy = function(max_level)
@@ -159,6 +184,7 @@ end
 ---@field dump_wave fun(trace_file_path?: string)
 ---@field simulator_control fun(sim_crtl: SimCtrl)
 ---@field finish fun()
+---@field bypass_initial fun()
 ---@field get_mode fun(): number
 ---@field print_hierarchy fun(max_level?: number)
 ---@field iterate_vpi_type fun(module_name: string, type: number)
@@ -170,6 +196,7 @@ local LuaSimulator = {
     simulator_control = simulator_control,
     SimCtrl           = SimCtrl,
     finish            = finish,
+    bypass_initial    = bypass_initial,
     print_hierarchy   = print_hierarchy,
     iterate_vpi_type  = iterate_vpi_type
 }

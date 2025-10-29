@@ -106,6 +106,9 @@ end
 local await_nsim = function()
     coro_yield(NextSimTime, 0)
 end
+if cfg.mode == "edge_step" then
+    await_nsim = function() end
+end
 
 return {
     YieldType                = YieldType,
