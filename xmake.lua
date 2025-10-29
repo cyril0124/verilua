@@ -377,6 +377,7 @@ target("test", function()
                 path.join(prj_dir, "tests", "test_edge"),
                 path.join(prj_dir, "tests", "test_set_value"),
                 path.join(prj_dir, "tests", "test_basic_signal"),
+                path.join(prj_dir, "tests", "test_comb"),
                 path.join(prj_dir, "tests", "test_bitvec_signal"),
                 path.join(prj_dir, "tests", "test_no_internal_clock"),
                 path.join(prj_dir, "examples", "guided_tour"),
@@ -422,15 +423,22 @@ target("test", function()
         end
 
         do
-            os.cd(path.join(prj_dir, "tests", "test_basic_signal"))
-            for _, sim in ipairs(simulators) do
-                os.setenv("SIM", sim)
-                os.setenv("NO_INTERNAL_CLOCK", "1")
-                os.tryrm("build")
-                os.exec("xmake build -v -P .")
-                os.exec("xmake run -v -P .")
+            local test_dirs = {
+                path.join(prj_dir, "tests", "test_basic_signal"),
+                path.join(prj_dir, "tests", "test_comb"),
+            }
+            os.setenvs(old_env)
+            for _, test_dir in ipairs(test_dirs) do
+                os.cd(test_dir)
+                for _, sim in ipairs(simulators) do
+                    os.setenv("SIM", sim)
+                    os.setenv("NO_INTERNAL_CLOCK", "1")
+                    os.tryrm("build")
+                    os.exec("xmake build -v -P .")
+                    os.exec("xmake run -v -P .")
+                end
+                os.setenv("NO_INTERNAL_CLOCK", nil)
             end
-            os.setenv("NO_INTERNAL_CLOCK", nil)
         end
 
         do
