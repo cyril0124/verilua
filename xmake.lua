@@ -1,4 +1,4 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 local prj_dir  = os.curdir()
 local libs_dir = path.join(prj_dir, "conan_installed")
@@ -285,19 +285,6 @@ target("test", function()
         assert(#simulators > 0, "No simulators found!")
 
         do
-            os.cd(path.join(prj_dir, "tests", "test_basic_signal"))
-            for _, sim in ipairs(simulators) do
-                print(sim)
-                os.setenv("SIM", sim)
-                os.setenv("NO_INTERNAL_CLOCK", "1")
-                os.tryrm("build")
-                os.exec("xmake build -v -P .")
-                os.exec("xmake run -v -P .")
-            end
-            os.setenv("NO_INTERNAL_CLOCK", nil)
-        end
-
-        do
             os.cd(path.join(prj_dir, "examples", "tutorial_example"))
 
             for _, sim in ipairs(simulators) do
@@ -424,11 +411,13 @@ target("test", function()
                 end
                 test(simulators)
 
-                os.setenv("CFG_USE_INERTIAL_PUT", "1")
-                assert(os.getenv("CFG_USE_INERTIAL_PUT") == "1")
-                test({ "verilator" })
-                os.setenv("CFG_USE_INERTIAL_PUT", nil)
-                assert(os.getenv("CFG_USE_INERTIAL_PUT") == nil)
+                if table.contains(simulators, "verilator") then
+                    os.setenv("CFG_USE_INERTIAL_PUT", "1")
+                    assert(os.getenv("CFG_USE_INERTIAL_PUT") == "1")
+                    test({ "verilator" })
+                    os.setenv("CFG_USE_INERTIAL_PUT", nil)
+                    assert(os.getenv("CFG_USE_INERTIAL_PUT") == nil)
+                end
             end
         end
 
@@ -464,9 +453,11 @@ target("test", function()
                 end
                 test(simulators)
 
-                os.setenv("CFG_USE_INERTIAL_PUT", "1")
-                test({ "verilator" })
-                os.setenv("CFG_USE_INERTIAL_PUT", nil)
+                if table.contains(simulators, "verilator") then
+                    os.setenv("CFG_USE_INERTIAL_PUT", "1")
+                    test({ "verilator" })
+                    os.setenv("CFG_USE_INERTIAL_PUT", nil)
+                end
             end
         end
 

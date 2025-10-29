@@ -57,14 +57,14 @@ int main(int argc, const char *argv[]) {
     if (_dryrun.value_or(false)) {
         fmt::println(R"(
 --------------- [testbench_gen] ---------------
-      _                               
-     | |                              
-   __| |_ __ _   _    _ __ _   _ _ __  
-  / _` | '__| | | |  | '__| | | | '_ \ 
+      _
+     | |
+   __| |_ __ _   _    _ __ _   _ _ __
+  / _` | '__| | | |  | '__| | | | '_ \
  | (_| | |  | |_| |  | |  | |_| | | | |
   \__,_|_|   \__, |  |_|   \__,_|_| |_|
-              __/ |                     
-             |___/           
+              __/ |
+             |___/
 -----------------------------------------------
 )");
         return 0;
@@ -253,7 +253,7 @@ int main(int argc, const char *argv[]) {
 // -----------------------------------------
 
 {{customCodeStrOuter}}
-{{customCodeOuterFileContent}} 
+{{customCodeOuterFileContent}}
 
 module {{tbtopName}} {{tbtopPortParamDecl}}(
 `ifdef SIM_VERILATOR
@@ -288,7 +288,7 @@ module {{tbtopName}} {{tbtopPortParamDecl}}(
 
 // -----------------------------------------
 // deal with clock, reset, cycles
-// -----------------------------------------   
+// -----------------------------------------
 `ifndef SIM_VERILATOR
 reg {{clockSignalName}};
 {% if resetSignalName == "" %}// no reset signal found!{% else %}reg {{resetSignalName}};{% endif %}
@@ -329,7 +329,7 @@ reg [63:0] cycles; // A timestamp counter for simulation, start from 0 and never
 initial cycles = 0;
 always@(posedge {{clockSignalName}}) begin
     cycles <= cycles + 1; // Increment the timestamp counter every clock cycle
-end 
+end
 
 `ifdef SIM_VERILATOR
 assign cycles_o = cycles; // Tie the timestamp counter to the output port for verilator
@@ -337,7 +337,7 @@ assign cycles_o = cycles; // Tie the timestamp counter to the output port for ve
 
 // -----------------------------------------
 // reg/wire declaration
-// -----------------------------------------  
+// -----------------------------------------
 {{signalDecl}}
 
 
@@ -345,13 +345,13 @@ assign cycles_o = cycles; // Tie the timestamp counter to the output port for ve
 //  reg initialize
 // -----------------------------------------
 initial begin
-    $display("[INFO] @%0t [%s:%d] hello from {{tbtopName}}", $time, `__FILE__, `__LINE__);
+    // $display("[INFO] @%0t [%s:%d] hello from {{tbtopName}}", $time, `__FILE__, `__LINE__);
 {{regInitialize}}
 end
 
 // -----------------------------------------
 //  DUT module instantiate
-// ----------------------------------------- 
+// -----------------------------------------
 {{topName}} {{dutPortParamDecl}} {{dutName}} (
 {{signalConnect}}
 ); // {{dutName}}
@@ -387,7 +387,7 @@ end
                     `ifndef FILE_SIZE
                         `define FILE_SIZE 25
                     `endif
-                
+
                     `ifndef NUM_OF_FILES
                         `define NUM_OF_FILES 1000
                     `endif
@@ -400,7 +400,7 @@ end
                 `ifdef FSDB_DUMP_SVA
                     //
                     // Dump System Verilog Assertions
-                    // Notice: To enable this feature, you also need to add `+fsdb+sva_success` 
+                    // Notice: To enable this feature, you also need to add `+fsdb+sva_success`
                     //         to your `./simv` command line args at runtime or in your `vcs`
                     //         command line args at build time.
                     //
@@ -416,7 +416,7 @@ end
                 //   +Reg_Only: Record only signals of register type.
                 //   +parameter: Record parameters.
                 //   +fsdbfile+filename: Specify the fsdb file name.
-                // 
+                //
                 $fsdbDumpvars(0, {{tbtopName}}, "+all");
             `endif // VCS_DUMP_VCD
         `endif // SIM_VCS
@@ -518,7 +518,7 @@ end
 initial begin
     string dump_file = "dump";
     integer dump_start_cycle = 0;
-            
+
     if ($test$plusargs("dump_enable=1")) begin
         // 1. set dump file name
         // +dump_file=<file_name>
@@ -573,7 +573,7 @@ Others u_others(
 
 
 // -----------------------------------------
-// user custom code 
+// user custom code
 //    use `--custom-code/-cc <file>` to pass in the custom code file.
 //       |_ e.g. `testbench_gen [...] --custom-code path/to/file`
 //    use `--custom-code-str/-ccs <string>` to pass in the custom code string.

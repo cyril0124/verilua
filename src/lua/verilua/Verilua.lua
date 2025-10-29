@@ -54,7 +54,7 @@ verilua.start_callback = function()
 
 	-- Call user defined start callbacks
 	if #verilua.start_callback_vec == 0 then
-		verilua_warning("[start_callback] Not implemented!")
+		-- verilua_warning("[start_callback] Not implemented!")
 	else
 		for _, callback_func in ipairs(verilua.start_callback_vec) do
 			callback_func()
@@ -81,7 +81,7 @@ verilua.finish_callback = function()
 
 	-- User defined finish callbacks
 	if #verilua.finish_callback_vec == 0 then
-		verilua_warning("[finish_callback] Not implemented!")
+		-- verilua_warning("[finish_callback] Not implemented!")
 	else
 		-- Set by the scheduler when there is an error while executing a task
 		local VERILUA_GOT_ERROR = _G.VERILUA_GOT_ERROR
