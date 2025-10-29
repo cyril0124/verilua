@@ -381,6 +381,7 @@ target("test", function()
                 path.join(prj_dir, "tests", "test_bitvec_signal"),
                 path.join(prj_dir, "tests", "test_no_internal_clock"),
                 path.join(prj_dir, "examples", "guided_tour"),
+                path.join(prj_dir, "examples", "simple_mux"),
             }
             os.setenvs(old_env)
             for _, test_dir in ipairs(test_dirs) do
