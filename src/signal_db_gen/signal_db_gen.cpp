@@ -295,7 +295,7 @@ class WrappedDriver {
         }
 
         if (showHelp) {
-            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText(fmt::format("dpi_exporter(verilua@{})", VERILUA_VERSION).c_str()));
+            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText(fmt::format("signal_db_gen(verilua@{})", VERILUA_VERSION).c_str()));
             return 0;
         }
 
@@ -325,7 +325,7 @@ class WrappedDriver {
         }
 
         if (showHelp) {
-            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText("dpi_exporter for verilua").c_str());
+            std::cout << fmt::format("{}\n", driver.cmdLine.getHelpText(fmt::format("signal_db_gen(verilua@{})", VERILUA_VERSION).c_str()));
             return 0;
         }
 
