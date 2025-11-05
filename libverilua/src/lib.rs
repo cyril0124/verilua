@@ -10,7 +10,7 @@ mod vpi_user;
 pub type TaskID = u32;
 pub type EdgeCallbackID = u32;
 
-#[cfg(all(not(feature = "verilua_prebuild_bin"), not(feature = "dpi")))]
+#[cfg(all(not(feature = "dpi")))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
@@ -38,6 +38,3 @@ pub extern "C" fn vlog_startup_routines_bootstrap() {
         unsafe { f() };
     }
 }
-
-#[cfg(feature = "verilua_prebuild_bin")]
-include!("bin/verilua_prebuild.rs");

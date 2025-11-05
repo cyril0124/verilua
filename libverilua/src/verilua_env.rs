@@ -210,12 +210,6 @@ impl VeriluaEnv {
             );
         };
 
-        #[cfg(feature = "verilua_prebuild_bin")]
-        {
-            log::warn!("[verilua_env] VL_PREBUILD is set to `1`, skip initialize");
-            return;
-        }
-
         self.start_time = Instant::now();
 
         let verilua_init: LuaFunction = self
@@ -266,12 +260,6 @@ impl VeriluaEnv {
             return;
         } else {
             self.finalized = true;
-        }
-
-        #[cfg(feature = "verilua_prebuild_bin")]
-        {
-            log::warn!("[verilua_env] VL_PREBUILD is set to `1`, skip finalize");
-            return;
         }
 
         let finish_callback: LuaFunction = self.lua.globals().get("finish_callback").unwrap();
@@ -434,6 +422,14 @@ impl VeriluaEnv {
 // is exiting cause in some cases the finalize function may not be called successfully.
 #[static_init::destructor(0)]
 extern "C" fn automatically_finalize_verilua_env() {
+    #[cfg(feature = "nosim")]
+    {
+        // If `NOSIM_BUILD` environment variable is set, we will not call `finalize` function.
+        if std::env::var("NOSIM_BUILD").is_ok() {
+            return;
+        }
+    }
+
     log::info!("automatically_finalize_verilua_env");
     let env = get_verilua_env();
     if env.initialized && !env.finalized {

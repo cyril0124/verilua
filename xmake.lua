@@ -9,6 +9,7 @@ includes(path.join(prj_dir, "src", "dpi_exporter", "xmake.lua"))
 includes(path.join(prj_dir, "src", "signal_db_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "testbench_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "wave_vpi", "xmake.lua"))
+includes(path.join(prj_dir, "src", "nosim", "xmake.lua"))
 
 target("update_submodules", function()
     set_kind("phony")
@@ -179,7 +180,7 @@ target("build_all_tools", function()
             "cov_exporter",
             "signal_db_gen",
             "wave_vpi_main",
-            "verilua_prebuild" -- TODO: Remove this?
+            "nosim"
         }
         for _, target in ipairs(tools_target) do
             os.exec("xmake build -y -v %s", target)
@@ -218,8 +219,8 @@ target("setup_verilua", function()
         cprint("[setup_verilua] shell_rc: ${green underline}%s${reset}, has_match: %s", shell_rc, tostring(has_match))
 
         os.exec("xmake run -y -v build_libverilua")
-        os.exec("xmake run -y -v build_all_tools")
         os.exec("xmake build -y -v libsignal_db_gen")
+        os.exec("xmake run -y -v build_all_tools")
 
         import("lib.detect.find_file")
         if find_file("iverilog", { "$(env PATH)" }) then

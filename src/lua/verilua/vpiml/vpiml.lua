@@ -1,8 +1,8 @@
 local vpiml
 local handle_cache = {}
 
-if os.getenv("VL_PREBUILD") == "1" then
-    vpiml = require "VpimlPrebuild"
+if cfg.simulator == "nosim" then
+    vpiml = require "VpimlNosim"
 else
     vpiml = require "VpimlNormal"
 end

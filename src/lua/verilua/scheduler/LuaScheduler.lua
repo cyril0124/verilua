@@ -60,9 +60,7 @@ local cfg = _G.cfg
 ---@field list_tasks fun(self: verilua.LuaScheduler) List all running tasks
 
 local scheduler
-if os.getenv("VL_PREBUILD") then
-    scheduler = require("verilua.scheduler.LuaDummyScheduler")
-else
+do
     local scheduler_mode = cfg.mode
     local perf_time = os.getenv("VL_PERF_TIME") == "1"
     local scheduler_suffix = perf_time and "P" or ""

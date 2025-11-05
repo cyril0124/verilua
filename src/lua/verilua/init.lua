@@ -889,15 +889,6 @@ do
     end
 end
 
-if os.getenv("VL_PREBUILD") == "1" then
-    require "verilua.utils.PrebuildHelper"
-else
-    ---@diagnostic disable-next-line: duplicate-set-field
-    _G.prebuild = function()
-        -- do nothing
-    end
-end
-
 --
 -- setup random seed
 --

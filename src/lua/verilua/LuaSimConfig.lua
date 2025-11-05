@@ -19,7 +19,7 @@ local colors = _G.colors
 ---@class verilua.LuaSimConfig
 ---@field script string
 ---@field mode "normal"|"step"|"edge_step"|"unknown"
----@field simulator "verilator"|"vcs"|"iverilog"|"wave_vpi"|"unknown"
+---@field simulator "verilator"|"vcs"|"iverilog"|"wave_vpi"|"nosim"|"unknown"
 ---@field top string Top module name of testbench
 ---@field srcs string[]
 ---@field deps string[]
@@ -287,7 +287,10 @@ function cfg:post_config()
 
     cfg.is_hse = cfg:get_or_else("is_hse", false)
     cfg.is_wal = cfg.simulator == "wave_vpi"
-    assert(not (cfg.is_hse and cfg.is_wal), "[cfg:post_config] `cfg.is_hse` and `cfg.is_wal` cannot be true at the same time")
+    assert(
+        not (cfg.is_hse and cfg.is_wal),
+        "[cfg:post_config] `cfg.is_hse` and `cfg.is_wal` cannot be true at the same time"
+    )
 
     if cfg.mode ~= nil then
         local scheduler_mode = cfg.mode

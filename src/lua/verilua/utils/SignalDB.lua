@@ -15,8 +15,6 @@ local table_insert = table.insert
 
 local cfg = _G.cfg
 
-local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
-
 ---@alias SignalInfo.signal_name string
 ---@alias SignalInfo.bitwidth number
 ---@alias SignalInfo.vpi_type "vpiNet" | "vpiReg"
@@ -66,7 +64,6 @@ local is_prebuild = os.getenv("VL_PREBUILD") ~= nil
 ---@field private top string?
 ---@field private check_file string?
 ---@field private target_file string
----@field private is_prebuild boolean?
 ---@field private rtl_filelist string
 ---@field private extra_signal_db_gen_args string
 ---@field private initialized boolean
@@ -94,18 +91,14 @@ local SignalDB = {
     top = os.getenv("DUT_TOP"),
     check_file = nil,
     target_file = "./signal_db.ldb",
-    is_prebuild = is_prebuild,
-    rtl_filelist = is_prebuild and
-        assert(os.getenv("VL_PREBUILD_FILELIST"),
-            "[SignalDB] `VL_PREBUILD_FILELIST` is not set when `VL_PREBUILD` is true!") or
-        "dut_file.f",
-    extra_signal_db_gen_args = os.getenv("VL_PREBUILD_SARGS") or "",
+    rtl_filelist = "dut_file.f",
+    extra_signal_db_gen_args = "",
     initialized = false,
     regenerate = false,
 }
 
 local function get_check_file()
-    if is_prebuild then
+    if cfg.simulator == "nosim" then
         return nil
     else
         local SymbolHelper = require "SymbolHelper"
@@ -130,13 +123,13 @@ function SignalDB:init(params)
         return self
     end
 
-    if not self.is_prebuild then
+    if not cfg.simulator == "nosim" then
         assert(cfg.simulator ~= "wave_vpi", "[SignalDB] wave_vpi is not supported yet!")
     end
 
     -- Try to find `rtl_filelist` in: `<check_file_dir>/../<rtl_filelist>`, `./<rtl_filelist>`, `<rtl_filelist>`
     local rtl_filelist = self.rtl_filelist
-    if not self.is_prebuild then
+    if cfg.simulator ~= "nosim" then
         self.check_file = self.check_file or get_check_file()
         local dir, _ = path.splitpath(self.check_file)
         if path.isfile(rtl_filelist) then
@@ -148,10 +141,27 @@ function SignalDB:init(params)
         else
             error("[SignalDB] can not find `" .. rtl_filelist .. "`")
         end
-    end
 
-    self:generate_db(f("-q --it --iu -f %s -o %s %s", rtl_filelist, self.target_file,
-        self.regenerate and "--no-cache" or ""))
+        self:generate_db(f(
+            "--quiet --ignore-chisel-trivial-signals --ignore-underscore-signals -f %s -o %s %s",
+            rtl_filelist,
+            self.target_file,
+            self.regenerate and "--no-cache" or ""
+        ))
+    else
+        local nosim_cmdline_args_file = "./nosim_cmdline_args.lua"
+        assert(path.isfile(nosim_cmdline_args_file),
+            f("[SignalDB] can not find `%s`", nosim_cmdline_args_file))
+
+        local args_func = loadfile(nosim_cmdline_args_file)
+        assert(type(args_func) == "function")
+
+        local args_str = args_func()
+        assert(type(args_str) == "string")
+
+        local nosim_cmdline_args = stringx.replace(args_str, "--build", "")
+        self:generate_db(nosim_cmdline_args)
+    end
 
     self:load_db(self.target_file)
 

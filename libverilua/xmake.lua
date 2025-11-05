@@ -13,6 +13,7 @@ local verilator_features = "chunk_task verilator_inner_step_callback " .. common
 local vcs_features = "chunk_task merge_cb " .. common_features
 local iverilog_features = "chunk_task merge_cb " .. common_features
 local wave_vpi_features = "chunk_task " .. common_features
+local nosim_features = "chunk_task " .. common_features
 
 local build_iverilog_vpi_module_cmd = format(
     [[cargo build --release --features "iverilog iverilog_vpi_mod %s"]],
@@ -65,6 +66,8 @@ local function build_lib_common(simulator)
             os.vrun([[cargo build --release --features "wave_vpi %s"]], wave_vpi_features)
         elseif simulator == "iverilog" then
             os.vrun(build_iverilog_vpi_module_cmd)
+        elseif simulator == "nosim" then
+            os.vrun([[cargo build --release --features "nosim %s"]], nosim_features)
         else
             raise("Unknown simulator => " .. simulator)
         end
@@ -84,7 +87,8 @@ for _, simulator in ipairs({
     "vcs",
     "vcs_dpi",
     "iverilog",
-    "wave_vpi"
+    "wave_vpi",
+    "nosim"
 }) do
     -- libverilua_verilator
     -- libverilua_verilator_i
@@ -139,18 +143,6 @@ target("iverilog_vpi_module", function()
         os.vrun(build_iverilog_vpi_module_cmd)
 
         os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "libverilua_iverilog.vpi"))
-    end)
-end)
-
-target("verilua_prebuild", function()
-    set_kind("phony")
-    on_build(function(target)
-        setup_cargo_env(os)
-        os.exec("cargo build --release --features verilua_prebuild_bin")
-    end)
-
-    after_build(function(target)
-        os.cp(path.join(prj_dir, "target", "release", "verilua_prebuild"), path.join(prj_dir, "tools"))
     end)
 end)
 

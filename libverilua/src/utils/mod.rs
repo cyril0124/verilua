@@ -170,6 +170,12 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
         } else if string.contains("liverilua_iverilog.so") {
             *cached_result = Some("iverilog".to_string());
             return CString::new("iverilog").unwrap().into_raw();
+        } else if string.contains("libverilua_wave_vpi.so") {
+            *cached_result = Some("wave_vpi".to_string());
+            return CString::new("wave_vpi").unwrap().into_raw();
+        } else if string.contains("libverilua_nosim.so") {
+            *cached_result = Some("nosim".to_string());
+            return CString::new("nosim").unwrap().into_raw();
         }
     }
 
