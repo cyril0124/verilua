@@ -1025,6 +1025,7 @@ rule("verilua", function()
                 target:get("waveform_file"),
                 "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst, .fsdb)"
             )
+
             local wave_vpi_main
             do
                 if waveform_file:endswith(".fsdb") then
@@ -1042,6 +1043,7 @@ rule("verilua", function()
                     end
                 end
             end
+
             cprint(
                 "${✅} [verilua-xmake] [%s] wave_vpi_main is ${green underline}%s${reset}",
                 target:name(),

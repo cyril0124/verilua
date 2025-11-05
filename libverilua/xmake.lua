@@ -14,10 +14,6 @@ local vcs_features = "chunk_task merge_cb " .. common_features
 local iverilog_features = "chunk_task merge_cb " .. common_features
 local wave_vpi_features = "chunk_task " .. common_features
 
-local build_libverilua_wave_vpi_cmd = format(
-    [[cargo build --release --features "wave_vpi %s"]],
-    wave_vpi_features
-)
 local build_iverilog_vpi_module_cmd = format(
     [[cargo build --release --features "iverilog iverilog_vpi_mod %s"]],
     iverilog_features
@@ -66,7 +62,7 @@ local function build_lib_common(simulator)
             os.vrun([[cargo build --release --features "vcs dpi %s"]], vcs_features)
             os.setenv("RUSTFLAGS", "")
         elseif simulator == "wave_vpi" then
-            os.vrun(build_libverilua_wave_vpi_cmd)
+            os.vrun([[cargo build --release --features "wave_vpi %s"]], wave_vpi_features)
         elseif simulator == "iverilog" then
             os.vrun(build_iverilog_vpi_module_cmd)
         else
@@ -165,7 +161,7 @@ target("build_libverilua_no_opt", function()
         try { function() os.vrun("cargo clean") end }
 
         os.mkdir(path.join(shared_dir, "no_opt"))
-        
+
         print("[build libverilua_no_opt] build libverilua_verilator.so...")
         os.vrun([[cargo build --release --features "verilator verilator_inner_step_callback %s"]], common_features)
         os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_verilator.so"))
@@ -176,7 +172,7 @@ target("build_libverilua_no_opt", function()
 
         local build_iverilog_vpi_module_cmd = format(
             [[cargo build --release --features "iverilog iverilog_vpi_mod %s"]],
-           common_features 
+           common_features
         )
         print("[build libverilua_no_opt] build libverilua_iverilog.so...")
         os.vrun(build_iverilog_vpi_module_cmd)
