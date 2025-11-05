@@ -236,29 +236,62 @@ function SignalDB:get_db_data()
     return self.db_data
 end
 
+local SIGNALDB_SUCCESS = 0
+local SIGNALDB_NO_NEED_GEN = 1
+local SIGNALDB_EXCEPTION_OCCURRED = 2
 function SignalDB:generate_db(args_str)
+    local args = args_str .. " " .. self.extra_signal_db_gen_args
+
     local top_args = ""
-    if type(self.top) == "string" and not self.extra_signal_db_gen_args:find("--top") then
+    local extra_args_has_top = stringx.lfind(self.extra_signal_db_gen_args, "--top")
+    if type(self.top) == "string" and not extra_args_has_top then
         top_args = " --top " .. self.top
+
+        if not stringx.lfind(args_str, "--top") then
+            args = args .. top_args
+        else
+            -- Has --top in args_str
+            if not stringx.lfind(args_str, top_args) then
+                -- Found conflict top args
+                -- args_list is a pl.List object
+                local args_list = stringx.split(args_str)
+                local top_idx = args_list:index("--top")
+                assert(args_list:contains("--top"))
+                args_list[top_idx + 1] = self.top
+                args = args_list:join(" ")
+            else
+                -- Identical top args, do nothing
+            end
+        end
     end
 
-    local args = args_str .. " " .. self.extra_signal_db_gen_args .. top_args
+    if extra_args_has_top then
+        assert(false, "TODO:")
+    end
+
     local cmd = "signal_db_gen " .. args
 
-    if not self.is_prebuild then
-        -- local lib = ffi.load("signal_db_gen")
-        local verilua_home = os.getenv("VERILUA_HOME")
-        assert(verilua_home, "[SignalDB] environment variable `VERILUA_HOME` is not set!")
+    -- Trim duplicate spaces
+    local _cmd_list = stringx.split(cmd)
+    cmd = _cmd_list:join(" ")
 
-        local lib = ffi.load(verilua_home .. "/shared/libsignal_db_gen.so")
-        ffi.cdef [[
-            void signal_db_gen_main(const char *argList);
-        ]]
-        print(f("[SignalDB] generate_db: %s", cmd))
-        lib.signal_db_gen_main(cmd)
+    local verilua_home = os.getenv("VERILUA_HOME")
+    assert(verilua_home, "[SignalDB] environment variable `VERILUA_HOME` is not set!")
+
+    local lib = ffi.load(verilua_home .. "/shared/libsignal_db_gen.so")
+    ffi.cdef [[
+        int signal_db_gen_main(const char *argList);
+    ]]
+
+    print(f("[SignalDB] generate_db cmd: %s", cmd))
+    local ret = lib.signal_db_gen_main(cmd)
+
+    if ret == SIGNALDB_NO_NEED_GEN then
+        print("[SignalDB] generate_db: no need to generate!")
+    elseif ret == SIGNALDB_EXCEPTION_OCCURRED then
+        assert(false, "[SignalDB] generate_db failed! Exception occurred!")
     else
-        print(f("[SignalDB] generate_db: %s", cmd))
-        os.execute(cmd)
+        assert(ret == SIGNALDB_SUCCESS, "[SignalDB] generate_db failed! ret => " .. ret)
     end
 end
 
@@ -329,6 +362,7 @@ local function _find_all(hiers, ret, path, pattern)
         elseif k_type == "number" then
             local signal_info = v
             local signal_name = signal_info[1]
+            ---@cast signal_name string
             if wildmatch(pattern, signal_name) then
                 table_insert(ret, path .. "." .. signal_name)
             end
