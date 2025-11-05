@@ -761,9 +761,12 @@ function utils.get_env_or_else(key, value_type, default)
                 " not `" .. default_type .. "` since value_type is `boolean`"
             )
         elseif value_type == "number" or value_type == "integer" then
+            local should_check_cdata = default_type == "cdata"
+            local cdata_is_uint64 = ffi.istype("uint64_t", default)
+            local cdata_is_int64 = ffi.istype("int64_t", default)
             assert(
-                default_type == "number",
-                "[utils.get_env_or_else] default value must be `number`" ..
+                default_type == "number" or (should_check_cdata and (cdata_is_int64 or cdata_is_uint64)),
+                "[utils.get_env_or_else] default value must be `number`/ `cdata(uint64_t)`" ..
                 " not `" .. default_type .. "` since value_type is `number`"
             )
         end
