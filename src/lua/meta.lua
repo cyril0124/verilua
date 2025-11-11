@@ -4,16 +4,10 @@
 
 --- ComplexHandleRaw is a low-level handle to represent a hardware signal in libverilua.
 --- It is an integer value representing the address of the internal Rust object in libverilua.
----@class ComplexHandleRaw: integer
+---@class verilua.handles.ComplexHandleRaw: integer
 
 ---@class uint32_t: ffi.cdata*
 ---@class uint64_t: ffi.cdata*
-
----@class TaskName: string
-
---- Task function used in `fork`, `jfork`, `initial`, `final`.
---- It should be a function without parameters and return value.
----@alias TaskFunction fun()
 
 _G.GLOBAL_VERILUA_ENV = {} --[[@as lightuserdata]]
 
@@ -28,16 +22,16 @@ _G.VERILUA_GOT_ERROR = false --[[@as boolean]]
 ---@param time integer
 function await_time(time) end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 function await_posedge_hdl(signal_hdl) end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 function always_await_posedge_hdl(signal_hdl) end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 function await_negedge_hdl(signal_hdl) end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 function await_edge_hdl(signal_hdl) end
 
 ---@param event_id_integer integer

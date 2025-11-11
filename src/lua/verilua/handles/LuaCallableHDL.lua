@@ -33,7 +33,36 @@ local await_noop = _G.await_noop
 
 local DpiExporter
 
----@class CallableHDL.mt: CallableHDL
+-- TODO: better indexed CallableHDL
+-- local t = setmetatable({a = 123}, {
+--     __index = function (t, k)
+--         print("__index", k)
+--         return setmetatable({}, {
+--             __index = function (t, k)
+--                 if k == "chdl" then
+--                     return function ()
+--                         print("hello from chdl")
+
+--                         return 0
+--                     end
+--                 end
+--             end,
+--             __newindex = function (t, k, v)
+--                 print("N __newindex", k, v)
+--             end
+--         })
+--     end,
+
+--     __newindex = function (t, k, v)
+--         print("__newindex", k, v)
+--     end
+-- })
+
+-- local arr_chdl = t[1]:chdl()
+-- t[1].value = 123
+
+
+---@class verilua.handles.CallableHDL.mt: verilua.handles.CallableHDL
 ---@field __value any
 ---@field __verbose boolean
 ---@field __stop_on_fail boolean
@@ -54,115 +83,115 @@ local post_init_mt = setmetatable({
     end
 }, {})
 
----@class MultiBeatData.size: integer
----@class MultiBeatData: {[0]: MultiBeatData.size, [integer]: uint32_t}
+---@class verilua.handles.MultiBeatData.size: integer
+---@class verilua.handles.MultiBeatData: {[0]: verilua.handles.MultiBeatData.size, [integer]: uint32_t}
 
----@class (exact) CallableHDL
----@overload fun(fullpath: string, name: string, hdl?: ComplexHandleRaw): CallableHDL
+---@class (exact) verilua.handles.CallableHDL
+---@overload fun(fullpath: string, name: string, hdl?: verilua.handles.ComplexHandleRaw): verilua.handles.CallableHDL
 ---@field __type string
 ---@field fullpath string
 ---@field name string
 ---@field private always_fired boolean
 ---@field private width integer
----@field private hdl ComplexHandleRaw
+---@field private hdl verilua.handles.ComplexHandleRaw
 ---@field private hdl_type string
 ---@field is_array boolean
 ---@field array_size integer
----@field private array_hdls table<integer, ComplexHandleRaw>
----@field private array_bitvecs table<integer, BitVec>
+---@field private array_hdls table<integer, verilua.handles.ComplexHandleRaw>
+---@field private array_bitvecs table<integer, verilua.utils.BitVec>
 ---@field private beat_num integer
 ---@field private is_multi_beat boolean
 ---@field private cached_value any
----@field reset_set_cached fun(self: CallableHDL) Reset the cached value to `nil`
+---@field reset_set_cached fun(self: verilua.handles.CallableHDL) Reset the cached value to `nil`
 ---@field private c_results ffi.cdata*
 ---@field value any Used for assign value based on value type
 ---
----@field get fun(self: CallableHDL, force_multi_beat?: boolean): integer|MultiBeatData
----@field get64 fun(self: CallableHDL): uint64_t
----@field get_bitvec fun(self: CallableHDL): BitVec
----@field set fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_unsafe fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_cached fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_bitfield fun(self: CallableHDL, s: integer, e: integer, v: integer)
----@field set_bitfield_hex_str fun(self: CallableHDL, s: integer, e: integer, hex_str: string)
----@field set_force fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_release fun(self: CallableHDL)
----@field set_imm fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_unsafe fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_cached fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_bitfield fun(self: CallableHDL, s: integer, e: integer, v: integer)
----@field set_imm_bitfield_hex_str fun(self: CallableHDL, s: integer, e: integer, hex_str: string)
----@field set_imm_force fun(self: CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_release fun(self: CallableHDL)
+---@field get fun(self: verilua.handles.CallableHDL, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
+---@field get64 fun(self: verilua.handles.CallableHDL): uint64_t
+---@field get_bitvec fun(self: verilua.handles.CallableHDL): verilua.utils.BitVec
+---@field set fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
+---@field set_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
+---@field set_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_release fun(self: verilua.handles.CallableHDL)
+---@field set_imm fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
+---@field set_imm_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
+---@field set_imm_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_release fun(self: verilua.handles.CallableHDL)
 ---
----@field at fun(self: CallableHDL, index: integer): CallableHDL
----@field get_index fun(self: CallableHDL, index: integer, force_multi_beat?: boolean): integer|MultiBeatData
----@field get_index_all fun(self: CallableHDL, force_multi_beat?: boolean): integer|MultiBeatData
----@field get_index_bitvec fun(self: CallableHDL, index: integer): BitVec
----@field set_index fun(self: CallableHDL, index: integer, value: integer|uint64_t|MultiBeatData, force_single_beat?: boolean)
----@field set_index_bitfield fun(self: CallableHDL, index: integer, s: integer, e: integer, v: integer)
----@field set_index_bitfield_hex_str fun(self: CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
----@field set_index_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
----@field set_index_unsafe_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
----@field set_imm_index fun(self: CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_index_unsafe fun(self: CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_index_bitfield fun(self: CallableHDL, index: integer, s: integer, e: integer, v: integer)
----@field set_imm_index_bitfield_hex_str fun(self: CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
----@field set_imm_index_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
----@field set_imm_index_unsafe_all fun(self: CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field at fun(self: verilua.handles.CallableHDL, index: integer): verilua.handles.CallableHDL
+---@field get_index fun(self: verilua.handles.CallableHDL, index: integer, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
+---@field get_index_all fun(self: verilua.handles.CallableHDL, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
+---@field get_index_bitvec fun(self: verilua.handles.CallableHDL, index: integer): verilua.utils.BitVec
+---@field set_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|verilua.handles.MultiBeatData, force_single_beat?: boolean)
+---@field set_index_bitfield fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, v: integer)
+---@field set_index_bitfield_hex_str fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
+---@field set_index_all fun(self: verilua.handles.CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_imm_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_index_unsafe fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm_index_bitfield fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, v: integer)
+---@field set_imm_index_bitfield_hex_str fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
+---@field set_imm_index_all fun(self: verilua.handles.CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_imm_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
 ---
----@field get_str fun(self: CallableHDL, fmt: integer): string
----@field get_hex_str fun(self: CallableHDL): string
----@field get_bin_str fun(self: CallableHDL): string
----@field get_dec_str fun(self: CallableHDL): string
----@field set_str fun(self: CallableHDL, str: string)
----@field set_hex_str fun(self: CallableHDL, str: string)
----@field set_bin_str fun(self: CallableHDL, str: string)
----@field set_dec_str fun(self: CallableHDL, str: string)
----@field set_freeze fun(self: CallableHDL)
----@field set_imm_str fun(self: CallableHDL, str: string)
----@field set_imm_hex_str fun(self: CallableHDL, str: string)
----@field set_imm_bin_str fun(self: CallableHDL, str: string)
----@field set_imm_dec_str fun(self: CallableHDL, str: string)
----@field set_imm_freeze fun(self: CallableHDL)
+---@field get_str fun(self: verilua.handles.CallableHDL, fmt: integer): string
+---@field get_hex_str fun(self: verilua.handles.CallableHDL): string
+---@field get_bin_str fun(self: verilua.handles.CallableHDL): string
+---@field get_dec_str fun(self: verilua.handles.CallableHDL): string
+---@field set_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_hex_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_bin_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_dec_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_freeze fun(self: verilua.handles.CallableHDL)
+---@field set_imm_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_imm_hex_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_imm_bin_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_imm_dec_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field set_imm_freeze fun(self: verilua.handles.CallableHDL)
 ---
----@field set_shuffled fun(self: CallableHDL) Randomly set the value according to the shuffled range(if shuffled range is set) or bitwidth
----@field set_imm_shuffled fun(self: CallableHDL)
----@field shuffled_range_u32 fun(self: CallableHDL, u32_vec: table<integer, integer>)
----@field shuffled_range_u64 fun(self: CallableHDL, u64_vec: table<integer, integer|uint64_t>)
----@field shuffled_range_hex_str fun(self: CallableHDL, hex_str_vec: table<integer, string>)
----@field reset_shuffled_range fun(self: CallableHDL)
+---@field set_shuffled fun(self: verilua.handles.CallableHDL) Randomly set the value according to the shuffled range(if shuffled range is set) or bitwidth
+---@field set_imm_shuffled fun(self: verilua.handles.CallableHDL)
+---@field shuffled_range_u32 fun(self: verilua.handles.CallableHDL, u32_vec: table<integer, integer>)
+---@field shuffled_range_u64 fun(self: verilua.handles.CallableHDL, u64_vec: table<integer, integer|uint64_t>)
+---@field shuffled_range_hex_str fun(self: verilua.handles.CallableHDL, hex_str_vec: table<integer, string>)
+---@field reset_shuffled_range fun(self: verilua.handles.CallableHDL)
 ---
----@field get_index_str fun(self: CallableHDL, index: integer, fmt: integer): string
----@field get_index_hex_str fun(self: CallableHDL, index: integer): string
----@field set_index_str fun(self: CallableHDL, index: integer, str: string)
----@field set_index_hex_str fun(self: CallableHDL, index: integer, str: string)
----@field set_index_bin_str fun(self: CallableHDL, index: integer, str: string)
----@field set_index_dec_str fun(self: CallableHDL, index: integer, str: string)
+---@field get_index_str fun(self: verilua.handles.CallableHDL, index: integer, fmt: integer): string
+---@field get_index_hex_str fun(self: verilua.handles.CallableHDL, index: integer): string
+---@field set_index_str fun(self: verilua.handles.CallableHDL, index: integer, str: string)
+---@field set_index_hex_str fun(self: verilua.handles.CallableHDL, index: integer, str: string)
+---@field set_index_bin_str fun(self: verilua.handles.CallableHDL, index: integer, str: string)
+---@field set_index_dec_str fun(self: verilua.handles.CallableHDL, index: integer, str: string)
 ---
----@field posedge fun(self: CallableHDL, cycles?: integer, action_func?: fun(count: integer))
----@field negedge fun(self: CallableHDL, cycles?: integer, action_func?: fun(count: integer))
----@field always_posedge fun(self: CallableHDL)
----@field posedge_until fun(self: CallableHDL, max_limit: integer, func: fun(count: integer): boolean): boolean
----@field negedge_until fun(self: CallableHDL, max_limit: integer, func: fun(count: integer): boolean): boolean
+---@field posedge fun(self: verilua.handles.CallableHDL, cycles?: integer, action_func?: fun(count: integer))
+---@field negedge fun(self: verilua.handles.CallableHDL, cycles?: integer, action_func?: fun(count: integer))
+---@field always_posedge fun(self: verilua.handles.CallableHDL)
+---@field posedge_until fun(self: verilua.handles.CallableHDL, max_limit: integer, func: fun(count: integer): boolean): boolean
+---@field negedge_until fun(self: verilua.handles.CallableHDL, max_limit: integer, func: fun(count: integer): boolean): boolean
 ---
----@field dump_str fun(self: CallableHDL): string
----@field dump fun(self: CallableHDL)
----@field get_width fun(self: CallableHDL): integer
----@field expect fun(self: CallableHDL, value: integer|ffi.cdata*)
----@field expect_not fun(self: CallableHDL, value: integer|ffi.cdata*)
----@field expect_hex_str fun(self: CallableHDL, hex_value_str: string)
----@field expect_bin_str fun(self: CallableHDL, bin_value_str: string)
----@field expect_dec_str fun(self: CallableHDL, dec_value_str: string)
----@field expect_not_hex_str fun(self: CallableHDL, hex_value_str: string)
----@field expect_not_bin_str fun(self: CallableHDL, bin_value_str: string)
----@field expect_not_dec_str fun(self: CallableHDL, dec_value_str: string)
----@field is fun(self: CallableHDL, value: integer|ffi.cdata*): boolean
----@field is_not fun(self: CallableHDL, value: integer|ffi.cdata*): boolean
----@field is_hex_str fun(self: CallableHDL, hex_value_str: string): boolean
----@field is_bin_str fun(self: CallableHDL, bin_value_str: string): boolean
----@field is_dec_str fun(self: CallableHDL, dec_value_str: string): boolean
----@field _if fun(self: CallableHDL, condition_func: fun(): boolean): CallableHDL
+---@field dump_str fun(self: verilua.handles.CallableHDL): string
+---@field dump fun(self: verilua.handles.CallableHDL)
+---@field get_width fun(self: verilua.handles.CallableHDL): integer
+---@field expect fun(self: verilua.handles.CallableHDL, value: integer|ffi.cdata*)
+---@field expect_not fun(self: verilua.handles.CallableHDL, value: integer|ffi.cdata*)
+---@field expect_hex_str fun(self: verilua.handles.CallableHDL, hex_value_str: string)
+---@field expect_bin_str fun(self: verilua.handles.CallableHDL, bin_value_str: string)
+---@field expect_dec_str fun(self: verilua.handles.CallableHDL, dec_value_str: string)
+---@field expect_not_hex_str fun(self: verilua.handles.CallableHDL, hex_value_str: string)
+---@field expect_not_bin_str fun(self: verilua.handles.CallableHDL, bin_value_str: string)
+---@field expect_not_dec_str fun(self: verilua.handles.CallableHDL, dec_value_str: string)
+---@field is fun(self: verilua.handles.CallableHDL, value: integer|ffi.cdata*): boolean
+---@field is_not fun(self: verilua.handles.CallableHDL, value: integer|ffi.cdata*): boolean
+---@field is_hex_str fun(self: verilua.handles.CallableHDL, hex_value_str: string): boolean
+---@field is_bin_str fun(self: verilua.handles.CallableHDL, bin_value_str: string): boolean
+---@field is_dec_str fun(self: verilua.handles.CallableHDL, dec_value_str: string): boolean
+---@field _if fun(self: verilua.handles.CallableHDL, condition_func: fun(): boolean): verilua.handles.CallableHDL
 ---
 ---@field private __vpi_get function
 ---@field private __dpi_get function
@@ -402,7 +431,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     -- Check if DPI exporter is enabled
     -- Notice: Call `DpiExporter:init()` before creating any `CallableHDL` if you want to access the signal by dpi_exporter API.
     if cfg.enable_dpi_exporter then
-        ---@cast DpiExporter DpiExporter
+        ---@cast DpiExporter verilua.utils.DpiExporter
         local is_exported = DpiExporter:is_exported(self.fullpath)
         if is_exported then
             verilua_debug(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
@@ -423,7 +452,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                     self.get = function(this, force_multi_beat)
                         if force_multi_beat then
                             this.__dpi_get_vec(this.c_results)
-                            return this.c_results --[[@as MultiBeatData]]
+                            return this.c_results --[[@as verilua.handles.MultiBeatData]]
                         else
                             return this.__dpi_get64()
                         end
@@ -431,7 +460,7 @@ function CallableHDL:_init(fullpath, name, hdl)
                 else
                     self.get = function(this)
                         this.__dpi_get_vec(this.c_results)
-                        return this.c_results --[[@as MultiBeatData]]
+                        return this.c_results --[[@as verilua.handles.MultiBeatData]]
                     end
                 end
 
@@ -617,6 +646,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         return this.width
     end
 
+    -- TODO：generate using gen_chdl_access.tl
     self.expect = function(this, value)
         local typ = type(value)
         assert(typ == "number" or typ == "cdata")
@@ -723,6 +753,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
+    -- TODO：generate using gen_chdl_access.tl
     if self.is_multi_beat and self.beat_num > 2 then
         self.is = function(this, value)
             ---@diagnostic disable-next-line: missing-return
@@ -784,6 +815,10 @@ function CallableHDL:__call(force_multi_beat)
         return vpiml.vpiml_get_value(self.hdl)
     end
 end
+
+-- function CallableHDL:__index(k)
+--     print("__index", tostring(self), k)
+-- end
 
 --
 -- Handles assignment to CallableHDL objects. If key is "value".

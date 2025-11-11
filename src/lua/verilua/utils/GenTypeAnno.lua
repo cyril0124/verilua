@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local putils = require "pl.utils"
 local texpect = require "TypeExpect"
 
@@ -28,21 +30,21 @@ local f = string.format
 ---      After that, you are able to get type suggestions for your handles.
 --- ```
 
----@class (exact) GenTypeAnno.bundle_seq
+---@class (exact) verilua.utils.GenTypeAnno.bundle_seq
 ---@field [1] string name
----@field [2] Bundle|AliasBundle value
+---@field [2] verilua.handles.Bundle|verilua.handles.AliasBundle value
 
----@class (exact) GenTypeAnno.params
+---@class (exact) verilua.utils.GenTypeAnno.params
 ---@field filename string
----@field handles table<integer, Bundle|AliasBundle|GenTypeAnno.bundle_seq>
+---@field handles table<integer, verilua.handles.Bundle|verilua.handles.AliasBundle|verilua.utils.GenTypeAnno.bundle_seq>
 
----@class (exact) GenTypeAnno
----@field gen_type_anno fun(self: GenTypeAnno, params: GenTypeAnno.params)
+---@class (exact) verilua.utils.GenTypeAnno
+---@field gen_type_anno fun(self: verilua.utils.GenTypeAnno, params: verilua.utils.GenTypeAnno.params)
 local GenTypeAnno = {}
 
 local unique_name_map = {}
 ---@param name string
----@param bundle Bundle
+---@param bundle verilua.handles.Bundle
 ---@return string
 local function gen_type_anno_bundle(name, bundle)
     assert(not unique_name_map[name], "[gen_type_anno_bundle] Duplicate bundle name: " .. name)
@@ -57,7 +59,7 @@ local function gen_type_anno_bundle(name, bundle)
             local hierpath = bundle.hierarchy .. "." .. bundle.prefix .. "bits_" .. field_name
             local width = chdl:get_width()
             bits_content_vec[#bits_content_vec + 1] = f(
-                "---@field %s CallableHDL hierpath: %s width: %d",
+                "---@field %s verilua.handles.CallableHDL hierpath: %s width: %d",
                 field_name,
                 hierpath,
                 width
@@ -74,7 +76,7 @@ local function gen_type_anno_bundle(name, bundle)
             local hierpath = bundle.hierarchy .. "." .. bundle.prefix .. field_name
             local width = bundle[field_name]:get_width()
             content_vec[#content_vec + 1] = f(
-                "---@field %s CallableHDL hierpath: %s width: %d",
+                "---@field %s verilua.handles.CallableHDL hierpath: %s width: %d",
                 field_name,
                 hierpath,
                 width
@@ -86,7 +88,7 @@ local function gen_type_anno_bundle(name, bundle)
 end
 
 ---@param name string
----@param alias_bundle AliasBundle
+---@param alias_bundle verilua.handles.AliasBundle
 ---@return string
 local function gen_type_anno_alias_bundle(name, alias_bundle)
     assert(not unique_name_map[name], "[gen_type_anno_bundle] Duplicate alias_bundle name: " .. name)
@@ -99,7 +101,7 @@ local function gen_type_anno_alias_bundle(name, alias_bundle)
         local hierpath = alias_bundle.hierarchy .. "." .. alias_bundle.prefix .. alias_bundle.signals_tbl[i]
         local width = alias_bundle[field_name]:get_width()
         content_vec[#content_vec + 1] = f(
-            "---@field %s CallableHDL hierpath: %s width: %d",
+            "---@field %s verilua.handles.CallableHDL hierpath: %s width: %d",
             field_name,
             hierpath,
             width
@@ -127,21 +129,21 @@ function GenTypeAnno:gen_type_anno(params)
             local value = handle[2]
             texpect.expect_string(name, "params.handles[" .. i .. "][1]")
             texpect.expect_table(value, "params.handles[" .. i .. "][2]")
-            if value.__type == "Bundle" then
-                ---@cast value Bundle
+            if value.__type == "verilua.handles.Bundle" then
+                ---@cast value verilua.handles.Bundle
                 content_vec[#content_vec + 1] = gen_type_anno_bundle(name, value)
             elseif value.__type == "AliasBundle" then
-                ---@cast value AliasBundle
+                ---@cast value verilua.handles.AliasBundle
                 content_vec[#content_vec + 1] = gen_type_anno_alias_bundle(name, value)
             else
                 assert(false, "params.handles[" .. i .. "][2]" .. " is not a `Bundle` or `AliasBundle`")
             end
         else
             if handle.__type == "Bundle" then
-                ---@cast handle Bundle
+                ---@cast handle verilua.handles.Bundle
                 content_vec[#content_vec + 1] = gen_type_anno_bundle(handle.name, handle)
             elseif handle.__type == "AliasBundle" then
-                ---@cast handle AliasBundle
+                ---@cast handle verilua.handles.AliasBundle
                 content_vec[#content_vec + 1] = gen_type_anno_alias_bundle(handle.name, handle)
             else
                 assert(false, "params.handles[" .. i .. "]" .. " is not a `Bundle` or `AliasBundle`")

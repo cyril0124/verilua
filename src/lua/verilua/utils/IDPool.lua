@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local class = require "pl.class"
 local utils = require "LuaUtils"
 local table_new = require "table.new"
@@ -6,29 +8,29 @@ local type = type
 local assert = assert
 local f = string.format
 
----@class (exact) IDPool.params
+---@class (exact) verilua.utils.IDPool.params
 ---@field size integer
 ---@field start_value? integer
 ---@field shuffle? boolean
 
----@class (exact) IDPool
----@overload fun(params: IDPool.params): IDPool
----@overload fun(pool_size_or_params: integer, shuffle?: boolean): IDPool
+---@class (exact) verilua.utils.IDPool
+---@overload fun(params: verilua.utils.IDPool.params): verilua.utils.IDPool
+---@overload fun(pool_size_or_params: integer, shuffle?: boolean): verilua.utils.IDPool
 ---@field private pool_size integer
 ---@field private start_value integer
 ---@field private end_value integer
 ---@field private shuffle boolean
 ---@field private pool integer[]
 ---@field private size integer
----@field alloc fun(self: IDPool): integer
----@field release fun(self: IDPool, id: integer)
----@field is_full fun(self: IDPool): boolean Check if the pool is full (all IDs are available)
----@field is_empty fun(self: IDPool): boolean Check if the pool is empty(all IDs are allocated, none left in pool)
----@field used_count fun(self: IDPool): integer
----@field free_count fun(self: IDPool): integer
----@field reset fun(self: IDPool)
+---@field alloc fun(self: verilua.utils.IDPool): integer
+---@field release fun(self: verilua.utils.IDPool, id: integer)
+---@field is_full fun(self: verilua.utils.IDPool): boolean Check if the pool is full (all IDs are available)
+---@field is_empty fun(self: verilua.utils.IDPool): boolean Check if the pool is empty(all IDs are allocated, none left in pool)
+---@field used_count fun(self: verilua.utils.IDPool): integer
+---@field free_count fun(self: verilua.utils.IDPool): integer
+---@field reset fun(self: verilua.utils.IDPool)
 ---@operator len: integer
-local IDPool = class() --[[@as IDPool]]
+local IDPool = class() --[[@as verilua.utils.IDPool]]
 
 --
 -- Example:
@@ -41,15 +43,15 @@ local IDPool = class() --[[@as IDPool]]
 --      idpool:release(id)
 --
 
----@param params number|IDPool.params
+---@param params number|verilua.utils.IDPool.params
 ---@param shuffle boolean?
 function IDPool:_init(params, shuffle)
-    ---@cast self IDPool
+    ---@cast self verilua.utils.IDPool
     local self = self
 
     local _shuffle = false
     if type(params) == "table" then
-        ---@cast params IDPool.params
+        ---@cast params verilua.utils.IDPool.params
         _shuffle = params.shuffle or false
 
         self.pool_size = assert(params.size, "[IDPool] size is required")

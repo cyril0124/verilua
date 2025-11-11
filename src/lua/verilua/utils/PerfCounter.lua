@@ -1,11 +1,11 @@
----@class (exact) PerfCounter.state
+---@class (exact) verilua.utils.PerfCounter.state
 ---@field calls integer
 ---@field total number
 
----@class (exact) PerfCounter
----@field private perf_map table<string, PerfCounter.state>
----@field wrap_func fun(self: PerfCounter, name: string, func: function): function
----@field print_perf fun(self: PerfCounter, name: string?)
+---@class (exact) verilua.utils.PerfCounter
+---@field private perf_map table<string, verilua.utils.PerfCounter.state>
+---@field wrap_func fun(self: verilua.utils.PerfCounter, name: string, func: function): function
+---@field print_perf fun(self: verilua.utils.PerfCounter, name: string?)
 local PerfCounter = {
     perf_map = {},
 }

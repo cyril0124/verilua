@@ -50,22 +50,22 @@ local function sqlite3_bind_values(stmt, ...)
     end
 end
 
----@alias LuaDataBaseV2.elements.type "integer" | "text" | "INTEGER" | "TEXT"
+---@alias verilua.utils.LuaDataBase.elements.type "integer" | "text" | "INTEGER" | "TEXT"
 
----@class LuaDataBaseV2.elements.entry
+---@class verilua.utils.LuaDataBase.elements.entry
 ---@field name string
----@field type LuaDataBaseV2.elements.type
+---@field type verilua.utils.LuaDataBase.elements.type
 
----@class LuaDataBaseV2.pragmas
+---@class verilua.utils.LuaDataBase.pragmas
 ---@field journal_mode? "MEMORY" | "DELETE" | "TRUNCATE" | "PERSIST" | "WAL" | "OFF" Default: OFF
 ---@field synchronous? "OFF" | "FULL" | "NORMAL" Default: OFF
 ---@field locking_mode? "NORMAL" | "EXCLUSIVE" Default: EXCLUSIVE
 ---@field foreign_keys? "ON" | "OFF" Default: OFF
 ---@field cache_size? string Default: -1000000(1GB)
 
----@class (exact) LuaDataBaseV2.params
+---@class (exact) verilua.utils.LuaDataBase.params
 ---@field table_name string
----@field elements string[] | LuaDataBaseV2.elements.entry[]
+---@field elements string[] | verilua.utils.LuaDataBase.elements.entry[]
 ---@field path string
 ---@field file_name string
 ---@field save_cnt_max? integer Default: 10000
@@ -76,10 +76,10 @@ end
 ---@field backend? "sqlite3" | "duckdb"
 ---@field lib_name? string Default: sqlite3/duckdb
 ---@field lib_path? string Default: nil
----@field pragmas? LuaDataBaseV2.pragmas
+---@field pragmas? verilua.utils.LuaDataBase.pragmas
 
----@class (exact) LuaDataBaseV2
----@overload fun(params: LuaDataBaseV2.params): LuaDataBaseV2
+---@class (exact) verilua.utils.LuaDataBase
+---@overload fun(params: verilua.utils.LuaDataBase.params): verilua.utils.LuaDataBase
 ---@field private db any
 ---@field private duckdb_config verilua.utils.duckdb.duckdb_config
 ---@field private duckdb_conn verilua.utils.duckdb.duckdb_connection
@@ -93,7 +93,7 @@ end
 ---@field private table_name_template string
 ---@field private fullpath_name string
 ---@field private available_files table<integer, string>
----@field private entries LuaDataBaseV2.elements.entry[]
+---@field private entries verilua.utils.LuaDataBase.elements.entry[]
 ---@field private stmt any
 ---@field private finished boolean
 ---@field private verbose boolean
@@ -105,17 +105,17 @@ end
 ---@field private prepare_cmd_template string
 ---@field private prepare_cmd string
 ---@field private pragma_cmd string
----@field private save_cnt_max integer Call `<LuaDataBaseV2>:commit()` when the `save_cnt` exceeds this value
+---@field private save_cnt_max integer Call `<verilua.utils.LuaDataBase>:commit()` when the `save_cnt` exceeds this value
 ---@field private save_cnt integer The count of data saved without calling commit
 ---@field private table_cnt_max? integer Default: nil, the max count of table entries, once the table count exceeds this value, new table will be created
 ---@field private table_cnt integer
 ---@field private table_idx integer
 ---@field private cache table
----@field private _log fun(self: LuaDataBaseV2, ...)
----@field private create_db fun(self: LuaDataBaseV2)
----@field private create_table fun(self: LuaDataBaseV2)
----@field save  fun(self: LuaDataBaseV2, ...)
----@field commit fun(self: LuaDataBaseV2,...)
+---@field private _log fun(self: verilua.utils.LuaDataBase, ...)
+---@field private create_db fun(self: verilua.utils.LuaDataBase)
+---@field private create_table fun(self: verilua.utils.LuaDataBase)
+---@field save  fun(self: verilua.utils.LuaDataBase, ...)
+---@field commit fun(self: verilua.utils.LuaDataBase,...)
 local LuaDataBaseV2 = class()
 
 --- e.g.
@@ -153,7 +153,7 @@ local LuaDataBaseV2 = class()
 ---      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the `same order` and same number as the elements in the table
 --- ```
 
----@param params LuaDataBaseV2.params
+---@param params verilua.utils.LuaDataBase.params
 function LuaDataBaseV2:_init(params)
     texpect.expect_table(params, "init_tbl")
 
@@ -165,7 +165,7 @@ function LuaDataBaseV2:_init(params)
     local file_name     = params.file_name
     local path_name     = params.path
     local size_limit    = params.size_limit -- Size in bytes
-    local pragmas       = params.pragmas or {} --[[@as LuaDataBaseV2.pragmas]]
+    local pragmas       = params.pragmas or {} --[[@as verilua.utils.LuaDataBase.pragmas]]
 
     local backend       = params.backend or "sqlite3"
     self.backend        = backend
@@ -244,7 +244,7 @@ function LuaDataBaseV2:_init(params)
         local key, data_type
         local t = type(kv_str)
         if t == "table" then
-            ---@cast kv_str LuaDataBaseV2.elements.entry
+            ---@cast kv_str verilua.utils.LuaDataBase.elements.entry
             key = kv_str.name
             data_type = kv_str.type
         elseif t == "string" then

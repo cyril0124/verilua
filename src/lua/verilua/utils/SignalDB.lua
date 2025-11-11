@@ -1,4 +1,4 @@
----@diagnostic disable: unnecessary-if
+---@diagnostic disable: unnecessary-if, unnecessary-assert
 
 local ffi = require "ffi"
 local path = require "pl.path"
@@ -15,18 +15,18 @@ local table_insert = table.insert
 
 local cfg = _G.cfg
 
----@alias SignalInfo.signal_name string
----@alias SignalInfo.bitwidth number
----@alias SignalInfo.vpi_type "vpiNet" | "vpiReg"
+---@alias verilua.utils.SignalInfo.signal_name string
+---@alias verilua.utils.SignalInfo.bitwidth number
+---@alias verilua.utils.SignalInfo.vpi_type "vpiNet" | "vpiReg"
 
----@class (exact) SignalInfo
----@field [1] SignalInfo.signal_name
----@field [2] SignalInfo.bitwidth
----@field [3] SignalInfo.vpi_type
+---@class (exact) verilua.utils.SignalInfo
+---@field [1] verilua.utils.SignalInfo.signal_name
+---@field [2] verilua.utils.SignalInfo.bitwidth
+---@field [3] verilua.utils.SignalInfo.vpi_type
 
----@alias SignalDB.data.hier_path string
+---@alias verilua.utils.SignalDB.data.hier_path string
 
----@class (exact) SignalDB.data
+---@class (exact) verilua.utils.SignalDB.data
 ---
 --- Example json file:
 --- ```json
@@ -47,19 +47,19 @@ local cfg = _G.cfg
 ---     }
 --- }
 --- ```
----@field [SignalDB.data.hier_path] SignalDB.data
----@field [integer] SignalInfo
+---@field [verilua.utils.SignalDB.data.hier_path] verilua.utils.SignalDB.data
+---@field [integer] verilua.utils.SignalInfo
 
----@class (exact) SignalDB.auto_bundle.params
+---@class (exact) verilua.utils.SignalDB.auto_bundle.params
 ---@field name? string
----@field filter? fun(SignalInfo.signal_name, SignalInfo.bitwidth): boolean
+---@field filter? fun(verilua.utils.SignalInfo.signal_name, verilua.utils.SignalInfo.bitwidth): boolean
 ---@field matches? string
 ---@field wildmatch? string
 ---@field startswith? string
 ---@field endswith? string
 ---@field prefix? string
 
----@class (exact) SignalDB
+---@class (exact) verilua.utils.SignalDB
 ---@field private db_data table
 ---@field private top string?
 ---@field private check_file string?
@@ -68,24 +68,24 @@ local cfg = _G.cfg
 ---@field private extra_signal_db_gen_args string
 ---@field private initialized boolean
 ---@field private regenerate boolean
----@field init fun(self: SignalDB, params?: table): SignalDB
----@field set_extra_args fun(self: SignalDB, args_str: string): SignalDB
----@field add_extra_args fun(self: SignalDB, args_str: string): SignalDB
----@field set_regenerate fun(self: SignalDB, regenerate: boolean): SignalDB
----@field set_target_file fun(self: SignalDB, file_path: string): SignalDB
----@field set_rtl_filelist fun(self: SignalDB, file_path: string): SignalDB
----@field try_load_db fun(self: SignalDB): SignalDB
----@field set_enable_modules fun(self: SignalDB, modules: table<integer, string>): SignalDB
----@field set_disable_modules fun(self: SignalDB, modules: table<integer, string>): SignalDB
----@field private load_db fun(self: SignalDB, file_path: string)
----@field private generate_db fun(self: SignalDB, args_str: string)
----@field get_db_data fun(self: SignalDB): SignalDB.data
----@field get_top_module fun(self: SignalDB): string
----@field get_signal_info fun(self: SignalDB, hier_path: SignalDB.data.hier_path): SignalInfo?
----@field find_all fun(self: SignalDB, pattern: string): string[]
----@field find_hier fun(self: SignalDB, hier_pattern: string): string[]
----@field find_signal fun(self: SignalDB, signal_pattern: string, hier_pattern?: string, full_info?: boolean): string[] | SignalInfo[]
----@field auto_bundle fun(self: SignalDB, hier_path: string, params: SignalDB.auto_bundle.params): Bundle
+---@field init fun(self: verilua.utils.SignalDB, params?: table): verilua.utils.SignalDB
+---@field set_extra_args fun(self: verilua.utils.SignalDB, args_str: string): verilua.utils.SignalDB
+---@field add_extra_args fun(self: verilua.utils.SignalDB, args_str: string): verilua.utils.SignalDB
+---@field set_regenerate fun(self: verilua.utils.SignalDB, regenerate: boolean): verilua.utils.SignalDB
+---@field set_target_file fun(self: verilua.utils.SignalDB, file_path: string): verilua.utils.SignalDB
+---@field set_rtl_filelist fun(self: verilua.utils.SignalDB, file_path: string): verilua.utils.SignalDB
+---@field try_load_db fun(self: verilua.utils.SignalDB): verilua.utils.SignalDB
+---@field set_enable_modules fun(self: verilua.utils.SignalDB, modules: table<integer, string>): verilua.utils.SignalDB
+---@field set_disable_modules fun(self: verilua.utils.SignalDB, modules: table<integer, string>): verilua.utils.SignalDB
+---@field private load_db fun(self: verilua.utils.SignalDB, file_path: string)
+---@field private generate_db fun(self: verilua.utils.SignalDB, args_str: string)
+---@field get_db_data fun(self: verilua.utils.SignalDB): verilua.utils.SignalDB.data
+---@field get_top_module fun(self: verilua.utils.SignalDB): string
+---@field get_signal_info fun(self: verilua.utils.SignalDB, hier_path: verilua.utils.SignalDB.data.hier_path): verilua.utils.SignalInfo?
+---@field find_all fun(self: verilua.utils.SignalDB, pattern: string): string[]
+---@field find_hier fun(self: verilua.utils.SignalDB, hier_pattern: string): string[]
+---@field find_signal fun(self: verilua.utils.SignalDB, signal_pattern: string, hier_pattern?: string, full_info?: boolean): string[] | verilua.utils.SignalInfo[]
+---@field auto_bundle fun(self: verilua.utils.SignalDB, hier_path: string, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle
 local SignalDB = {
     db_data = {},
     top = os.getenv("DUT_TOP"),
@@ -324,7 +324,7 @@ function SignalDB:get_signal_info(hier_path)
         if i == end_idx then
             -- @signal_info = { <signal_name>, <bitwidth>, <vpi_type> }
             for _, signal_info in ipairs(curr) do
-                ---@cast signal_info SignalInfo
+                ---@cast signal_info verilua.utils.SignalInfo
                 if signal_info[1] == v then
                     return signal_info
                 end
@@ -353,7 +353,7 @@ local function wildmatch(pattern, str)
     end
 end
 
----@param hiers SignalDB.data
+---@param hiers verilua.utils.SignalDB.data
 ---@param ret string[] result table
 ---@param path string hierarchy path
 ---@param pattern string wildcard string to match
@@ -366,7 +366,7 @@ local function _find_all(hiers, ret, path, pattern)
             end
 
             if type(v) == "table" then
-                ---@cast v SignalDB.data
+                ---@cast v verilua.utils.SignalDB.data
                 _find_all(v, ret, path .. "." .. k, pattern)
             end
         elseif k_type == "number" then
@@ -380,7 +380,7 @@ local function _find_all(hiers, ret, path, pattern)
     end
 end
 
----@param hiers SignalDB.data
+---@param hiers verilua.utils.SignalDB.data
 ---@param ret string[] result table
 ---@param path string hierarchy path
 ---@param hier_pattern string wildcard string to match
@@ -393,15 +393,15 @@ local function _find_hier(hiers, ret, path, hier_pattern)
             end
 
             if type(v) == "table" then
-                ---@cast v SignalDB.data
+                ---@cast v verilua.utils.SignalDB.data
                 _find_hier(v, ret, path .. "." .. k, hier_pattern)
             end
         end
     end
 end
 
----@param hiers SignalDB.data
----@param ret string[] | SignalInfo[] result table
+---@param hiers verilua.utils.SignalDB.data
+---@param ret string[] | verilua.utils.SignalInfo[] result table
 ---@param path string hierarchy path
 ---@param signal_pattern string wildcard string to match
 ---@param hier_pattern string? hierarchy wildcard string to match if not nil
@@ -411,7 +411,7 @@ local function _find_signal(hiers, ret, path, signal_pattern, hier_pattern, full
         local k_type = type(k)
         if k_type == "string" then
             if type(v) == "table" then
-                ---@cast v SignalDB.data
+                ---@cast v verilua.utils.SignalDB.data
                 _find_signal(v, ret, path .. "." .. k, signal_pattern, hier_pattern, full_info)
             end
         elseif k_type == "number" then
@@ -502,13 +502,13 @@ function SignalDB:auto_bundle(hier_path, params)
     end
     assert(curr ~= nil, "[auto_bundle] No such hierarchy! => " .. hier_path)
 
-    ---@cast curr SignalDB.data
+    ---@cast curr verilua.utils.SignalDB.data
 
     local filter = params.filter or default_filter
 
     -- Remove hash part from the signal_db table
     for i = 1, #curr do
-        ---@type SignalInfo
+        ---@type verilua.utils.SignalInfo
         local signal_info = curr[i]
         local signal_name = signal_info[1]
         local signal_bitwidth = signal_info[2]

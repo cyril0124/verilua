@@ -60,22 +60,22 @@ else
     end
 end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 local await_posedge_hdl = function(signal_hdl)
     coro_yield(PosedgeHDL, signal_hdl)
 end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 local always_await_posedge_hdl = function(signal_hdl)
     coro_yield(PosedgeAlwaysHDL, signal_hdl)
 end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 local await_negedge_hdl = function(signal_hdl)
     coro_yield(NegedgeHDL, signal_hdl)
 end
 
----@param signal_hdl ComplexHandleRaw
+---@param signal_hdl verilua.handles.ComplexHandleRaw
 local await_edge_hdl = function(signal_hdl)
     coro_yield(EdgeHDL, signal_hdl)
 end

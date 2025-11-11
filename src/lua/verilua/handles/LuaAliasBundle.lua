@@ -15,12 +15,12 @@ local table_concat = table.concat
 
 local verilua_debug = _G.verilua_debug
 
----@class (exact) AliasBundle.alias_signal_pair
+---@class (exact) verilua.handles.AliasBundle.alias_signal_pair
 ---@field [1] string
 ---@field [2] string
 
----@class (exact) AliasBundle
----@overload fun(alias_signal_tbl: AliasBundle.alias_signal_pair[], prefix: string, hierarchy: string, name: string, optional_signals?: table<string>): AliasBundle
+---@class (exact) verilua.handles.AliasBundle
+---@overload fun(alias_signal_tbl: verilua.handles.AliasBundle.alias_signal_pair[], prefix: string, hierarchy: string, name: string, optional_signals?: table<string>): verilua.handles.AliasBundle
 ---@field __type string
 ---@field prefix string
 ---@field hierarchy string
@@ -28,13 +28,13 @@ local verilua_debug = _G.verilua_debug
 ---@field signals_tbl table<integer, string>
 ---@field alias_tbl table<integer, string>
 ---@field __dump_parts table<integer, string>
----@field valid CallableHDL
----@field ready CallableHDL
----@field dump_str fun(self: AliasBundle): string
----@field format_dump_str fun(self: AliasBundle, format_func: fun(chdl: CallableHDL, name: string, alias_name: string): string): string
----@field dump fun(self: AliasBundle)
----@field format_dump fun(self: AliasBundle, format_func: fun(chdl: CallableHDL, name: string, alias_name: string): string)
----@field [string] CallableHDL
+---@field valid verilua.handles.CallableHDL
+---@field ready verilua.handles.CallableHDL
+---@field dump_str fun(self: verilua.handles.AliasBundle): string
+---@field format_dump_str fun(self: verilua.handles.AliasBundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string, alias_name: string): string): string
+---@field dump fun(self: verilua.handles.AliasBundle)
+---@field format_dump fun(self: verilua.handles.AliasBundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string, alias_name: string): string)
+---@field [string] verilua.handles.CallableHDL
 local AliasBundle = class()
 
 --

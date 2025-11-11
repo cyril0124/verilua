@@ -5,12 +5,12 @@ local assert = assert
 local f = string.format
 local random = math.random
 
----@class (exact) CounterDelayer
----@overload fun(min_delay: integer, max_delay: integer): CounterDelayer
+---@class (exact) verilua.random.CounterDelayer
+---@overload fun(min_delay: integer, max_delay: integer): verilua.random.CounterDelayer
 ---@field private min_delay integer
 ---@field private max_delay integer
 ---@field private cnt integer
----@field fire fun(self: CounterDelayer): boolean Check if it is time to fire, return `true` if it is time to fire
+---@field fire fun(self: verilua.random.CounterDelayer): boolean Check if it is time to fire, return `true` if it is time to fire
 local CounterDelayer = class()
 
 ---@param min_delay integer

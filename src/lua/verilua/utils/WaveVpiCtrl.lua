@@ -12,7 +12,7 @@ local function try_ffi_cast(type_str, type_str_ffi, value)
     end
 end
 
----@alias verilua.WaveVpiJitOptionNames
+---@alias verilua.utils.WaveVpiJitOptionNames
 --- | "enable"
 --- | "verbose"
 --- | "max_opt_threads"
@@ -20,20 +20,20 @@ end
 --- | "compile_window_size"
 --- | "recompile_window_size"
 
----@class (exact) verilua.WaveVpiJitOptions
----@field set fun(self: verilua.WaveVpiJitOptions, opt_name: verilua.WaveVpiJitOptionNames, value: integer|boolean)
----@field get fun(self: verilua.WaveVpiJitOptions, opt_name: verilua.WaveVpiJitOptionNames): integer|boolean
+---@class (exact) verilua.utils.WaveVpiJitOptions
+---@field set fun(self: verilua.utils.WaveVpiJitOptions, opt_name: verilua.utils.WaveVpiJitOptionNames, value: integer|boolean)
+---@field get fun(self: verilua.utils.WaveVpiJitOptions, opt_name: verilua.utils.WaveVpiJitOptionNames): integer|boolean
 ---@field protected set_jit_options_cfunc? fun(opt_name: string, value: integer)
 ---@field protected get_jit_options_cfunc? fun(opt_name: string): integer
 
----@class (exact) verilua.WaveVpiCtrl
+---@class (exact) verilua.utils.WaveVpiCtrl
 --- WaveVpiCtrl is a singleton class that provides control over the wave_vpi simulator, which is used by verilua to simulate waveform file.
 ---
----@field get_max_cursor_index fun(self: verilua.WaveVpiCtrl): integer
----@field set_cursor_index fun(self: verilua.WaveVpiCtrl, index: integer)
----@field jit_options verilua.WaveVpiJitOptions
----@field to_end fun(self: verilua.WaveVpiCtrl) Move the cursor to the end of the waveform file .
----@field to_percent fun(self: verilua.WaveVpiCtrl, percent: number) Move the cursor to the specified percent of the waveform file .
+---@field get_max_cursor_index fun(self: verilua.utils.WaveVpiCtrl): integer
+---@field set_cursor_index fun(self: verilua.utils.WaveVpiCtrl, index: integer)
+---@field jit_options verilua.utils.WaveVpiJitOptions
+---@field to_end fun(self: verilua.utils.WaveVpiCtrl) Move the cursor to the end of the waveform file .
+---@field to_percent fun(self: verilua.utils.WaveVpiCtrl, percent: number) Move the cursor to the specified percent of the waveform file .
 ---@field protected get_max_cursor_index_cfunc fun(): integer
 ---@field protected set_cursor_index_cfunc fun(index: integer)
 ---@field protected set_cursor_index_percent_cfunc fun(percent: number)

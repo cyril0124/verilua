@@ -1,4 +1,4 @@
----@diagnostic disable: assign-type-mismatch
+---@diagnostic disable: assign-type-mismatch, unnecessary-assert
 
 local io = require "io"
 local os = require "os"
@@ -59,10 +59,10 @@ local initialize_trace = function(trace_file_path)
 
         dut.simulation_initializeTrace = 1
         dut.simulation_initializeTrace_latch = 0
-    elseif cfg.simulator == "wave_vpi" then
+    elseif simulator == "wave_vpi" then
         assert(false, "[initialize_trace] not support for wave_vpi now")
     else
-        assert(false, "Unknown simulator => " .. cfg.simulator)
+        assert(false, "Unknown simulator => " .. simulator)
     end
 end
 
@@ -79,7 +79,7 @@ local enable_trace = function()
     elseif simulator == "wave_vpi" then
         assert(false, "[enable_trace] not support for wave_vpi now")
     else
-        assert(false, "Unknown simulator => " .. cfg.simulator)
+        assert(false, "Unknown simulator => " .. simulator)
     end
 end
 
@@ -114,7 +114,7 @@ local dump_wave = function(trace_file_path)
     enable_trace()
 end
 
----@enum SimCtrl
+---@enum verilua.SimCtrl
 local SimCtrl = {
     STOP = 66,
     FINISH = 67,
@@ -158,7 +158,8 @@ end
 ---@type any
 local print_hierarchy_lib
 local print_hierarchy = function(max_level)
-    local max_level = max_level or 0
+    max_level = max_level or 0
+
     if not print_hierarchy_lib then
         local VERILUA_HOME = assert(os.getenv("VERILUA_HOME"), "[LuaSimulator] VERILUA_HOME is not set")
         print_hierarchy_lib = (utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c"))
@@ -176,18 +177,18 @@ local iterate_vpi_type = function(module_name, type)
     ffi.C.vpiml_iterate_vpi_type(module_name, type)
 end
 
----@class (exact) LuaSimulator
----@field SimCtrl table<string, number>
+---@class (exact) verilua.LuaSimulator
+---@field SimCtrl table<string, integer>
 ---@field initialize_trace fun(trace_file_path: string)
 ---@field enable_trace fun()
 ---@field disable_trace fun()
 ---@field dump_wave fun(trace_file_path?: string)
----@field simulator_control fun(sim_crtl: SimCtrl)
+---@field simulator_control fun(sim_crtl: verilua.SimCtrl)
 ---@field finish fun()
 ---@field bypass_initial fun()
----@field get_mode fun(): number
----@field print_hierarchy fun(max_level?: number)
----@field iterate_vpi_type fun(module_name: string, type: number)
+---@field get_mode fun(): integer
+---@field print_hierarchy fun(max_level?: integer)
+---@field iterate_vpi_type fun(module_name: string, type: integer)
 local LuaSimulator = {
     initialize_trace  = initialize_trace,
     enable_trace      = enable_trace,

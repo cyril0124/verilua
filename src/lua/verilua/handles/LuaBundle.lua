@@ -15,25 +15,25 @@ local table_insert = table.insert
 
 local verilua_debug = _G.verilua_debug
 
----@class (exact) Bundle
+---@class (exact) verilua.handles.Bundle
 ---@field __type string
 ---@field signals_table table<integer, string>
 ---@field prefix string
 ---@field hierarchy string
 ---@field name string
 ---@field is_decoupled boolean
----@field bits table<string, CallableHDL>
----@field valid CallableHDL
----@field ready CallableHDL
----@field fire fun(self: Bundle): boolean
----@field get_all fun(self: Bundle): table<integer, integer|MultiBeatData>
----@field set_all fun(self: Bundle, values_tbl: table<integer, integer|integer[]>)
+---@field bits table<string, verilua.handles.CallableHDL>
+---@field valid verilua.handles.CallableHDL
+---@field ready verilua.handles.CallableHDL
+---@field fire fun(self: verilua.handles.Bundle): boolean
+---@field get_all fun(self: verilua.handles.Bundle): table<integer, integer|verilua.handles.MultiBeatData>
+---@field set_all fun(self: verilua.handles.Bundle, values_tbl: table<integer, integer|integer[]>)
 ---@field private __dump_parts table<integer, string>
----@field dump_str fun(self: Bundle): string
----@field format_dump_str fun(self: Bundle, format_func: fun(chdl: CallableHDL, name: string): string): string
----@field dump fun(self: Bundle)
----@field format_dump fun(self: Bundle, format_func: fun(chdl: CallableHDL, name: string): string)
----@field [string] CallableHDL
+---@field dump_str fun(self: verilua.handles.Bundle): string
+---@field format_dump_str fun(self: verilua.handles.Bundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string): string): string
+---@field dump fun(self: verilua.handles.Bundle)
+---@field format_dump fun(self: verilua.handles.Bundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string): string)
+---@field [string] verilua.handles.CallableHDL
 local Bundle = class()
 
 function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, optional_signals)

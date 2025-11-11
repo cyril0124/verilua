@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 -- jit.opt.start(3)
 -- jit.opt.start("loopunroll=100", "minstitch=0", "hotloop=1", "tryside=100")
 
@@ -678,7 +680,7 @@ do
     ---          end
     ---      }
     --- ```
-    ---@param task_table table<TaskName|number, TaskFunction>
+    ---@param task_table table<verilua.scheduler.TaskName|number, verilua.scheduler.TaskFunction>
     _G.fork = function(task_table)
         assert(type(task_table) == "table")
         for name, func in pairs(task_table) do
@@ -720,12 +722,12 @@ do
     ---      }
     ---      join(ehdl1, ehdl2) -- Wait here until both tasks finished
     --- ```
-    ---@param one_task_table table<TaskName|number, TaskFunction>
-    ---@return EventHandle, TaskID
+    ---@param one_task_table table<verilua.scheduler.TaskName|number, verilua.scheduler.TaskFunction>
+    ---@return verilua.handles.EventHandle, verilua.scheduler.TaskID
     _G.jfork = function(one_task_table)
-        ---@type EventHandle
+        ---@type verilua.handles.EventHandle
         local ehdl
-        ---@type TaskID
+        ---@type verilua.scheduler.TaskID
         local task_id
         local cnt = 0
         assert(type(one_task_table) == "table")
@@ -788,7 +790,7 @@ do
     ---      join(ehdl1) -- Wait here until `ehdl1` finished
     ---      join(ehdl2) -- Wait here until `ehdl2` finished
     --- ```
-    ---@param ehdl_or_ehdl_tbl EventHandle|table<integer, EventHandle>
+    ---@param ehdl_or_ehdl_tbl verilua.handles.EventHandle|table<integer, verilua.handles.EventHandle>
     _G.join = function(ehdl_or_ehdl_tbl)
         assert(type(ehdl_or_ehdl_tbl) == "table")
         if ehdl_or_ehdl_tbl.event_id ~= nil then
@@ -796,10 +798,10 @@ do
                 -- If the event is already finished, just return
                 return
             end
-            ---@cast ehdl_or_ehdl_tbl EventHandle
+            ---@cast ehdl_or_ehdl_tbl verilua.handles.EventHandle
             ehdl_or_ehdl_tbl:wait()
         else
-            ---@cast ehdl_or_ehdl_tbl EventHandle[]
+            ---@cast ehdl_or_ehdl_tbl verilua.handles.EventHandle[]
             local expect_finished_cnt = 0
             local already_finished_cnt = 0
             local finished_ehdl_vec = {}
@@ -855,7 +857,7 @@ do
     ---          end
     ---      }
     --- ```
-    ---@param task_table table<TaskName|integer, TaskFunction>
+    ---@param task_table table<verilua.scheduler.TaskName|integer, verilua.scheduler.TaskFunction>
     _G.initial = function(task_table)
         assert(type(task_table) == "table")
         for k, func in pairs(task_table) do
@@ -879,7 +881,7 @@ do
     ---      }
     --- ```
     --- `final` is useful when user want to do any cleanup work for the simulation environment.
-    ---@param task_table table<TaskName|integer, TaskFunction>
+    ---@param task_table table<verilua.scheduler.TaskName|integer, verilua.scheduler.TaskFunction>
     _G.final = function(task_table)
         assert(type(task_table) == "table")
         for k, func in pairs(task_table) do
@@ -914,5 +916,5 @@ end
 _G.sim = require "LuaSimulator"
 _G.scheduler = scheduler
 
----@type ProxyTableHandle
+---@type verilua.handles.ProxyTableHandle
 _G.dut = (require "LuaDut").create_proxy(cfg.top)

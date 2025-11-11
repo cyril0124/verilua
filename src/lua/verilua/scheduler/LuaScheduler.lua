@@ -1,63 +1,67 @@
 local cfg = _G.cfg
 
----@alias TaskID integer
----@alias EventID integer
----@alias TaskCallbackType verilua.scheduler.YieldType
----@alias FunctionTaskBody fun(): boolean?
----@alias CoroutineYieldInfo [integer, string, integer]
----@alias CoroutineTaskBody fun()
+---@alias verilua.scheduler.TaskID integer
+---@alias verilua.scheduler.EventID integer
+---@class verilua.scheduler.TaskName: string
+---@alias verilua.scheduler.TaskCallbackType verilua.scheduler.YieldType
+---@alias verilua.scheduler.CoroutineYieldInfo [integer, string, integer]
+---@alias verilua.scheduler.CoroutineTaskBody fun()
 
----@class (exact) EventHandle
----@field __type "EventHandle" | "EventHandleForJFork"
----@field _scheduler verilua.LuaScheduler
+--- Task function used in `fork`, `jfork`, `initial`, `final`.
+--- It should be a function without parameters and return value.
+---@alias verilua.scheduler.TaskFunction fun()
+
+---@class (exact) verilua.handles.EventHandle
+---@field __type "verilua.handles.EventHandle" | "EventHandleForJFork"
+---@field _scheduler verilua.scheduler.LuaScheduler
 ---@field name string
----@field event_id EventID
----@field has_pending_wait fun(self: EventHandle): boolean Check if there are pending tasks waiting for this event
----@field wait fun(self: EventHandle)
----@field send fun(self: EventHandle)
----@field remove fun(self: EventHandle) Mark this EventHandle as removed
+---@field event_id verilua.scheduler.EventID
+---@field has_pending_wait fun(self: verilua.handles.EventHandle): boolean Check if there are pending tasks waiting for this event
+---@field wait fun(self: verilua.handles.EventHandle)
+---@field send fun(self: verilua.handles.EventHandle)
+---@field remove fun(self: verilua.handles.EventHandle) Mark this EventHandle as removed
 
----@class (exact) verilua.LuaScheduler
----@field private task_yield_info_map table<TaskID, CoroutineYieldInfo> Map of task IDs to coroutine yield info
----@field private task_coroutine_map table<TaskID, thread> Map of task IDs to coroutine threads
----@field private task_body_map table<TaskID, CoroutineTaskBody> Map of task IDs to coroutine task bodies
----@field private task_name_map_running table<TaskID, string> Map of running task IDs to task names
----@field private task_name_map_archived table<TaskID, string> Map of archived task IDs to task names
----@field private task_fired_status_map table<TaskID, boolean> Map of task IDs to their fired status
----@field private task_execution_count_map table<TaskID, integer> Map of task IDs to their execution count
----@field private pending_removal_tasks TaskID[] List of task IDs pending removal
----@field private user_removal_tasks TaskID[] List of user specified task IDs to be removed
----@field private posedge_tasks table<TaskID, boolean> Available only when EDGE_STEP is enabled)
----@field private negedge_tasks table<TaskID, boolean> Available only when EDGE_STEP is enabled)
----@field private next_task_id TaskID Next available task ID
----@field private next_event_id EventID Next available event ID
----@field event_task_id_list_map table<EventID, TaskID[]> Map of event IDs to lists of task IDs
----@field event_name_map table<EventID, string> Map of event IDs to event names
+---@class (exact) verilua.scheduler.LuaScheduler
+---@field private task_yield_info_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineYieldInfo> Map of task IDs to coroutine yield info
+---@field private task_coroutine_map table<verilua.scheduler.TaskID, thread> Map of task IDs to coroutine threads
+---@field private task_body_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineTaskBody> Map of task IDs to coroutine task bodies
+---@field private task_name_map_running table<verilua.scheduler.TaskID, string> Map of running task IDs to task names
+---@field private task_name_map_archived table<verilua.scheduler.TaskID, string> Map of archived task IDs to task names
+---@field private task_fired_status_map table<verilua.scheduler.TaskID, boolean> Map of task IDs to their fired status
+---@field private task_execution_count_map table<verilua.scheduler.TaskID, integer> Map of task IDs to their execution count
+---@field private pending_removal_tasks verilua.scheduler.TaskID[] List of task IDs pending removal
+---@field private user_removal_tasks verilua.scheduler.TaskID[] List of user specified task IDs to be removed
+---@field private posedge_tasks table<verilua.scheduler.TaskID, boolean> Available only when EDGE_STEP is enabled)
+---@field private negedge_tasks table<verilua.scheduler.TaskID, boolean> Available only when EDGE_STEP is enabled)
+---@field private next_task_id verilua.scheduler.TaskID Next available task ID
+---@field private next_event_id verilua.scheduler.EventID Next available event ID
+---@field event_task_id_list_map table<verilua.scheduler.EventID, verilua.scheduler.TaskID[]> Map of event IDs to lists of task IDs
+---@field event_name_map table<verilua.scheduler.EventID, string> Map of event IDs to event names
 ---@field private has_wakeup_event boolean Indicates if there is a wakeup event
----@field private pending_wakeup_event table<EventID, any> List of pending wakeup event IDs
+---@field private pending_wakeup_event table<verilua.scheduler.EventID, any> List of pending wakeup event IDs
 ---@field private acc_time_table table<string, number> Accumulated time table
----@field private _is_valid_task_id fun(self: verilua.LuaScheduler, task_id: TaskID): boolean Checks if a task ID is valid
----@field private _is_valid_event_id fun(self: verilua.LuaScheduler, event_id: EventID): boolean Checks if an event ID is valid
----@field private _alloc_task_id fun(self: verilua.LuaScheduler): TaskID Allocates a new task ID
----@field private _alloc_event_id fun(self: verilua.LuaScheduler): EventID Allocates a new event ID
----@field private _remove_task fun(self: verilua.LuaScheduler, task_id: TaskID) Removes a task by ID
----@field private _register_callback fun(self: verilua.LuaScheduler, task_id: TaskID, callback_type: TaskCallbackType, integer_value: integer) Registers a callback for a task
----@field curr_task_id TaskID Current task ID
----@field curr_wakeup_event_id EventID Current wakeup event ID
----@field private new_event_hdl fun(self: verilua.LuaScheduler, event_name: string, user_event_id?: EventID): EventHandle Creates a new event handle
----@field private get_event_hdl fun(self: verilua.LuaScheduler, event_name: string, user_event_id?: EventID): EventHandle Alias for new_event_hdl
----@field private send_event fun(self: verilua.LuaScheduler, event_id: EventID) Sends an event
----@field remove_task fun(self: verilua.LuaScheduler, task_id: TaskID) Removes a task by ID
----@field check_task_exists fun(self: verilua.LuaScheduler, task_id: TaskID): boolean Checks if a task exists
----@field append_task fun(self: verilua.LuaScheduler, task_id?: TaskID, task_name: string, task_body: CoroutineTaskBody, start_now?: boolean): TaskID Appends or registers a new task
----@field wakeup_task fun(self: verilua.LuaScheduler, task_id: TaskID) Wakes up a registered task
----@field try_wakeup_task fun(self: verilua.LuaScheduler, task_id: TaskID) Tries to wake up a registered task, does nothing if the task is still running
----@field schedule_task fun(self: verilua.LuaScheduler, task_id: TaskID) Schedules a specific task
----@field schedule_tasks fun(self: verilua.LuaScheduler, task_id: TaskID) Schedules multiple tasks
----@field schedule_all_tasks fun(self: verilua.LuaScheduler) Schedules all tasks
----@field schedule_posedge_tasks fun(self: verilua.LuaScheduler)|nil Schedules positive edge tasks (available only when EDGE_STEP is enabled)
----@field schedule_negedge_tasks fun(self: verilua.LuaScheduler)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
----@field list_tasks fun(self: verilua.LuaScheduler) List all running tasks
+---@field private _is_valid_task_id fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID): boolean Checks if a task ID is valid
+---@field private _is_valid_event_id fun(self: verilua.scheduler.LuaScheduler, event_id: verilua.scheduler.EventID): boolean Checks if an event ID is valid
+---@field private _alloc_task_id fun(self: verilua.scheduler.LuaScheduler): verilua.scheduler.TaskID Allocates a new task ID
+---@field private _alloc_event_id fun(self: verilua.scheduler.LuaScheduler): verilua.scheduler.EventID Allocates a new event ID
+---@field private _remove_task fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Removes a task by ID
+---@field private _register_callback fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID, callback_type: verilua.scheduler.TaskCallbackType, integer_value: integer) Registers a callback for a task
+---@field curr_task_id verilua.scheduler.TaskID Current task ID
+---@field curr_wakeup_event_id verilua.scheduler.EventID Current wakeup event ID
+---@field private new_event_hdl fun(self: verilua.scheduler.LuaScheduler, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Creates a new event handle
+---@field private get_event_hdl fun(self: verilua.scheduler.LuaScheduler, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Alias for new_event_hdl
+---@field private send_event fun(self: verilua.scheduler.LuaScheduler, event_id: verilua.scheduler.EventID) Sends an event
+---@field remove_task fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Removes a task by ID
+---@field check_task_exists fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID): boolean Checks if a task exists
+---@field append_task fun(self: verilua.scheduler.LuaScheduler, task_id?: verilua.scheduler.TaskID, task_name: string, task_body: verilua.scheduler.CoroutineTaskBody, start_now?: boolean): verilua.scheduler.TaskID Appends or registers a new task
+---@field wakeup_task fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Wakes up a registered task
+---@field try_wakeup_task fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Tries to wake up a registered task, does nothing if the task is still running
+---@field schedule_task fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Schedules a specific task
+---@field schedule_tasks fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Schedules multiple tasks
+---@field schedule_all_tasks fun(self: verilua.scheduler.LuaScheduler) Schedules all tasks
+---@field schedule_posedge_tasks fun(self: verilua.scheduler.LuaScheduler)|nil Schedules positive edge tasks (available only when EDGE_STEP is enabled)
+---@field schedule_negedge_tasks fun(self: verilua.scheduler.LuaScheduler)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
+---@field list_tasks fun(self: verilua.scheduler.LuaScheduler) List all running tasks
 
 local scheduler
 do
@@ -80,5 +84,5 @@ do
     verilua_debug("Scheduler mode: %s", scheduler_mode)
 end
 
----@cast scheduler verilua.LuaScheduler
+---@cast scheduler verilua.scheduler.LuaScheduler
 return scheduler

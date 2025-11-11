@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local ffi = require "ffi"
 local bit = require "bit"
 local math = require "math"
@@ -20,49 +22,49 @@ local string_rep = string.rep
 local setmetatable = setmetatable
 local to_hex_str = utils.to_hex_str
 
----@class (exact) SubBitVec
+---@class (exact) verilua.utils.SubBitVec
 ---@field __type string
 ---@field _s number
 ---@field _e number
----@field set fun(self: SubBitVec, v: number|uint64_t)
----@field set_hex_str fun(self: SubBitVec, hex_str: string)
----@field set_vec fun(self: SubBitVec, v: table<number>)
----@field get fun(self: SubBitVec): uint64_t
----@field get_hex_str fun(self: SubBitVec): string
----@field get_vec fun(self: SubBitVec): table<number>
----@field dump_str fun(self: SubBitVec): string
----@field dump fun(self: SubBitVec)
+---@field set fun(self: verilua.utils.SubBitVec, v: number|uint64_t)
+---@field set_hex_str fun(self: verilua.utils.SubBitVec, hex_str: string)
+---@field set_vec fun(self: verilua.utils.SubBitVec, v: table<number>)
+---@field get fun(self: verilua.utils.SubBitVec): uint64_t
+---@field get_hex_str fun(self: verilua.utils.SubBitVec): string
+---@field get_vec fun(self: verilua.utils.SubBitVec): table<number>
+---@field dump_str fun(self: verilua.utils.SubBitVec): string
+---@field dump fun(self: verilua.utils.SubBitVec)
 ---@field value integer|ffi.cdata*|string
 
----@alias BitVec.HexStr string
+---@alias verilua.utils.BitVec.HexStr string
 
----@class (exact) BitVec
----@overload fun(data: table<integer, integer>|ffi.cdata*|integer|string, bit_width?: integer): BitVecInst
+---@class (exact) verilua.utils.BitVec
+---@overload fun(data: table<integer, integer>|ffi.cdata*|integer|string, bit_width?: integer): verilua.utils.BitVecInst
 ---@field __type string
----@field _call_cache table<string, SubBitVec>
+---@field _call_cache table<string, verilua.utils.SubBitVec>
 ---@field u32_vec table<integer, integer>
 ---@field bit_width integer
 ---@field beat_size integer
----@field _update_u32_vec fun(self: BitVec, data: integer|integer[])
----@field update_value fun(self: BitVec, data: integer[]|integer|uint64_t|BitVec.HexStr)
----@field get_bitfield fun(self: BitVec, s: integer, e: integer): uint64_t
----@field get_bitfield_hex_str fun(self: BitVec, s: integer, e: integer): string
----@field get_bitfield_vec fun(self: BitVec, s: integer, e: integer): table<integer, integer>
----@field set_bitfield fun(self: BitVec, s: integer, e: integer, v: integer|uint64_t)
----@field set_bitfield_hex_str fun(self: BitVec, s: integer, e: integer, hex_str: BitVec.HexStr)
----@field set_bitfield_vec fun(self: BitVec, s: integer, e: integer, v: table<integer, integer>)
----@field _set_bitfield fun(self: BitVec, s: integer, e: integer, v: integer|uint64_t): BitVec
----@field _set_bitfield_hex_str fun(self: BitVec, s: integer, e: integer, hex_str: BitVec.HexStr): BitVec
----@field _set_bitfield_vec fun(self: BitVec, s: integer, e: integer, v: table<integer, integer>): BitVec
----@field dump_str fun(self: BitVec): string
----@field dump fun(self: BitVec)
----@field to_hex_str fun(self: BitVec): BitVec.HexStr
----@field tonumber fun(self: BitVec): integer
----@field tonumber64 fun(self: BitVec): integer
+---@field _update_u32_vec fun(self: verilua.utils.BitVec, data: integer|integer[])
+---@field update_value fun(self: verilua.utils.BitVec, data: integer[]|integer|uint64_t|verilua.utils.BitVec.HexStr)
+---@field get_bitfield fun(self: verilua.utils.BitVec, s: integer, e: integer): uint64_t
+---@field get_bitfield_hex_str fun(self: verilua.utils.BitVec, s: integer, e: integer): string
+---@field get_bitfield_vec fun(self: verilua.utils.BitVec, s: integer, e: integer): table<integer, integer>
+---@field set_bitfield fun(self: verilua.utils.BitVec, s: integer, e: integer, v: integer|uint64_t)
+---@field set_bitfield_hex_str fun(self: verilua.utils.BitVec, s: integer, e: integer, hex_str: verilua.utils.BitVec.HexStr)
+---@field set_bitfield_vec fun(self: verilua.utils.BitVec, s: integer, e: integer, v: table<integer, integer>)
+---@field _set_bitfield fun(self: verilua.utils.BitVec, s: integer, e: integer, v: integer|uint64_t): verilua.utils.BitVec
+---@field _set_bitfield_hex_str fun(self: verilua.utils.BitVec, s: integer, e: integer, hex_str: verilua.utils.BitVec.HexStr): verilua.utils.BitVec
+---@field _set_bitfield_vec fun(self: verilua.utils.BitVec, s: integer, e: integer, v: table<integer, integer>): verilua.utils.BitVec
+---@field dump_str fun(self: verilua.utils.BitVec): string
+---@field dump fun(self: verilua.utils.BitVec)
+---@field to_hex_str fun(self: verilua.utils.BitVec): verilua.utils.BitVec.HexStr
+---@field tonumber fun(self: verilua.utils.BitVec): integer
+---@field tonumber64 fun(self: verilua.utils.BitVec): integer
 local BitVec = class()
 
----@class (exact) BitVecInst: BitVec
----@overload fun(s: integer, e: integer): SubBitVec
+---@class (exact) verilua.utils.BitVecInst: verilua.utils.BitVec
+---@overload fun(s: integer, e: integer): verilua.utils.SubBitVec
 
 local function hex_str_to_u32_vec(hex_str)
     local hex_length = #hex_str
@@ -593,7 +595,7 @@ function BitVec:__call(s, e)
     local key = s .. "_" .. e
 
     if not self._call_cache[key] then
-        ---@type SubBitVec
+        ---@type verilua.utils.SubBitVec
         local sub_bit_vec = setmetatable({
             __type = "SubBitVec",
             _s = s,

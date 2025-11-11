@@ -5,13 +5,13 @@ local assert = assert
 local random = math.random
 local randomseed = math.randomseed
 
----@class (exact) CyclicRandom
----@overload fun(start_value: integer, end_value: integer): CyclicRandom
+---@class (exact) verilua.random.CyclicRandom
+---@overload fun(start_value: integer, end_value: integer): verilua.random.CyclicRandom
 ---@field private gen_idx integer
 ---@field private values table<integer, integer>
 ---@field size integer
----@field shuffle fun(self: CyclicRandom, seed: integer)
----@field gen fun(self: CyclicRandom, seed?: integer): integer
+---@field shuffle fun(self: verilua.random.CyclicRandom, seed: integer)
+---@field gen fun(self: verilua.random.CyclicRandom, seed?: integer): integer
 local CyclicRandom = class()
 
 ---@param start_value integer

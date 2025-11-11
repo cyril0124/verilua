@@ -8,32 +8,32 @@ local f = string.format
 local tostring = tostring
 local setmetatable = setmetatable
 
----@class SVAContext.property
+---@class verilua.sva.SVAContext.property
 ---@field __type "Property"
 ---@field name string
 
----@class SVAContext.sequence
+---@class verilua.sva.SVAContext.sequence
 ---@field __type "Sequence"
 ---@field name string
 
----@class SVAContext.add.params
+---@class verilua.sva.SVAContext.add.params
 ---@field name string
 ---@field expr string
 ---@field cov_type? "sequence" | "property"
 ---@field envs? table<string, any>
 
----@class (exact) SVAContext
+---@class (exact) verilua.sva.SVAContext
 ---@field private default_clocking_expr string
 ---@field private unique_stmt_name_map table<string, boolean>
 ---@field private global_envs table<string, any>
 ---@field private sequence_vec string[]
 ---@field private property_vec string[]
 ---@field private content_vec string[]
----@field with_global_envs fun(self: SVAContext, envs: table<string, any>): SVAContext
----@field add fun(self: SVAContext, typ: "cover" | "assert" | "property" | "sequence"): fun(params: SVAContext.add.params): SVAContext.property | SVAContext.sequence | nil
----@field default_clocking fun(self: SVAContext, signal: CallableHDL|ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): SVAContext
----@field clean fun(self: SVAContext): SVAContext
----@field generate fun(self: SVAContext): string
+---@field with_global_envs fun(self: verilua.sva.SVAContext, envs: table<string, any>): verilua.sva.SVAContext
+---@field add fun(self: verilua.sva.SVAContext, typ: "cover" | "assert" | "property" | "sequence"): fun(params: verilua.sva.SVAContext.add.params): verilua.sva.SVAContext.property | verilua.sva.SVAContext.sequence | nil
+---@field default_clocking fun(self: verilua.sva.SVAContext, signal: verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sva.SVAContext
+---@field clean fun(self: verilua.sva.SVAContext): verilua.sva.SVAContext
+---@field generate fun(self: verilua.sva.SVAContext): string
 local SVAContext = {
     default_clocking_expr = "",
     unique_stmt_name_map = {},
@@ -101,7 +101,7 @@ function SVAContext:add(typ)
         end
     })
 
-    ---@param params SVAContext.add.params
+    ---@param params verilua.sva.SVAContext.add.params
     return function(params)
         assert(type(params) == "table", "[SVAContext] add error: `params` should be a table")
         assert(type(params.name) == "string", "[SVAContext] add error: `params.name` should be a string")
@@ -111,13 +111,13 @@ function SVAContext:add(typ)
         for _, v in pairs(final_envs) do
             if type(v) == "table" and v.__type then
                 if v.__type == "Sequence" then
-                    ---@cast v SVAContext.sequence
+                    ---@cast v verilua.sva.SVAContext.sequence
                     assert(
                         self.unique_stmt_name_map[v.name],
                         "[SVAContext] add error: `params.envs` contains a `Sequence` that is not in the current context"
                     )
                 elseif v.__type == "Property" then
-                    ---@cast v SVAContext.property
+                    ---@cast v verilua.sva.SVAContext.property
                     assert(
                         self.unique_stmt_name_map[v.name],
                         "[SVAContext] add error: `params.envs` contains a `Property` that is not in the current context"
@@ -170,7 +170,7 @@ function SVAContext:add(typ)
             local content = f("property %s(); %s; endproperty", params.name, ret)
             self.property_vec[#self.property_vec + 1] = process_content(content)
 
-            ---@type SVAContext.property
+            ---@type verilua.sva.SVAContext.property
             local property = {
                 __type = "Property",
                 name = params.name,
@@ -181,7 +181,7 @@ function SVAContext:add(typ)
             local content = f("sequence %s(); %s; endsequence", params.name, ret)
             self.sequence_vec[#self.sequence_vec + 1] = process_content(content)
 
-            ---@type SVAContext.sequence
+            ---@type verilua.sva.SVAContext.sequence
             local sequence = {
                 __type = "Sequence",
                 name = params.name,
@@ -212,13 +212,13 @@ function SVAContext:default_clocking(signal, edge_type, overwrite)
         tostring(handle_t)
     )
 
-    ---@type CallableHDL
+    ---@type verilua.handles.CallableHDL
     local chdl
     if is_chdl then
-        ---@cast signal CallableHDL
+        ---@cast signal verilua.handles.CallableHDL
         chdl = signal
     elseif is_dut then
-        ---@cast signal ProxyTableHandle
+        ---@cast signal verilua.handles.ProxyTableHandle
         chdl = signal:chdl()
     else
         assert(false, "Should not reach here")

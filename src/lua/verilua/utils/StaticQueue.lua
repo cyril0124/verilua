@@ -7,34 +7,34 @@ local f = string.format
 local assert = assert
 local math_random = math.random
 
----@alias StaticQueue.success 0
----@alias StaticQueue.failed 1
----@alias StaticQueue.data any
+---@alias verilua.utils.StaticQueue.success 0
+---@alias verilua.utils.StaticQueue.failed 1
+---@alias verilua.utils.StaticQueue.data any
 
----@class (exact) StaticQueue
----@overload fun(size: integer, name?: string): StaticQueue
+---@class (exact) verilua.utils.StaticQueue
+---@overload fun(size: integer, name?: string): verilua.utils.StaticQueue
 ---@field private name string
 ---@field private first_ptr integer
 ---@field private last_ptr integer
 ---@field private _size integer
 ---@field private data table
 ---@field count integer
----@field push fun(self: StaticQueue, value: StaticQueue.data): StaticQueue.success|StaticQueue.failed
----@field pop fun(self: StaticQueue): StaticQueue.data
----@field query_first fun(self: StaticQueue): StaticQueue.data
----@field front fun(self: StaticQueue): StaticQueue.data Alias of query_first
----@field last fun(self: StaticQueue): StaticQueue.data
----@field is_empty fun(self: StaticQueue): boolean
----@field is_full fun(self: StaticQueue): boolean
----@field size fun(self: StaticQueue): integer
----@field used_count fun(self: StaticQueue): integer
----@field free_count fun(self: StaticQueue): integer
----@field reset fun(self: StaticQueue)
----@field shuffle fun(self: StaticQueue)
----@field get_all_data fun(self: StaticQueue): StaticQueue.data[]
----@field list_data fun(self: StaticQueue)
+---@field push fun(self: verilua.utils.StaticQueue, value: verilua.utils.StaticQueue.data): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed
+---@field pop fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data
+---@field query_first fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data
+---@field front fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data Alias of query_first
+---@field last fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data
+---@field is_empty fun(self: verilua.utils.StaticQueue): boolean
+---@field is_full fun(self: verilua.utils.StaticQueue): boolean
+---@field size fun(self: verilua.utils.StaticQueue): integer
+---@field used_count fun(self: verilua.utils.StaticQueue): integer
+---@field free_count fun(self: verilua.utils.StaticQueue): integer
+---@field reset fun(self: verilua.utils.StaticQueue)
+---@field shuffle fun(self: verilua.utils.StaticQueue)
+---@field get_all_data fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data[]
+---@field list_data fun(self: verilua.utils.StaticQueue)
 ---@operator len: integer
-local StaticQueue = class() --[[@as StaticQueue]]
+local StaticQueue = class() --[[@as verilua.utils.StaticQueue]]
 
 function StaticQueue:_init(size, name)
     self.name = name or "Unknown_StaticQueue"

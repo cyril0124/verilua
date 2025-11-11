@@ -1,10 +1,12 @@
+---@diagnostic disable: unnecessary-assert
+
 local SignalDB = require("SignalDB"):init()
 
 local f = string.format
 
 local vpiml = {}
 
--- @signal_info = { <signal_name>, <bitwidth>, <vpi_type> }
+---@type table<integer, verilua.utils.SignalInfo>
 local handle_to_signal_info_map = {}
 local handle_allocator = 0
 
@@ -53,7 +55,7 @@ vpiml.vpiml_get_signal_width = function(handle)
 end
 
 return setmetatable(vpiml, {
-    __index = function(t, k)
+    __index = function(_t, k)
         return function(...)
             assert(false, f("[VpimlNosim] `%s` is not implemented", k))
         end

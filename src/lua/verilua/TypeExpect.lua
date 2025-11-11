@@ -1,8 +1,8 @@
 ---@diagnostic disable: unnecessary-if
+
 local inspect = require "inspect"
 
 local type = type
-local error = error
 local pairs = pairs
 local assert = assert
 local tostring = tostring
@@ -160,7 +160,7 @@ function texpect.expect_struct(value, name)
     end
 end
 
----@param value CallableHDL
+---@param value verilua.handles.CallableHDL
 ---@param name string
 ---@param width_or_width_min number?
 ---@param width_max number?
@@ -224,7 +224,7 @@ function texpect.expect_chdl(value, name, width_or_width_min, width_max)
     end
 end
 
----@param value Bundle
+---@param value verilua.handles.Bundle
 ---@param name string
 function texpect.expect_bdl(value, name)
     if type(value) ~= "table" then
@@ -285,15 +285,15 @@ Throws:
   does not match the corresponding signal in `value`.
 
 --]]
----@class (exact) texpect.expect_abdl.params
+---@class (exact) verilua.texpect.expect_abdl.params
 ---@field name string
 ---@field width? integer
 ---@field width_min? integer
 ---@field width_max? integer
 
----@param value AliasBundle
+---@param value verilua.handles.AliasBundle
 ---@param name string
----@param params table<integer, string|texpect.expect_abdl.params>
+---@param params table<integer, string|verilua.texpect.expect_abdl.params>
 function texpect.expect_abdl(value, name, params)
     if type(value) ~= "table" then
         error(
@@ -414,7 +414,7 @@ function texpect.expect_abdl(value, name, params)
     end
 end
 
----@param value LuaDataBase|LuaDataBaseV2
+---@param value verilua.utils.LuaDataBase|verilua.utils.LuaDataBase
 ---@param name string
 ---@param elements_table string[]
 function texpect.expect_database(value, name, elements_table)

@@ -63,7 +63,7 @@ end
 ---      assert(false, path)
 --- ```
 ---
----@class (exact) SymbolHelper
+---@class (exact) verilua.utils.SymbolHelper
 ---@field get_executable_name fun(): string
 ---@field get_self_cmdline fun(): string
 ---@field get_global_symbol_addr fun(symbol_name: string): integer

@@ -4,23 +4,23 @@ if not success then
     isempty = function(t) return next(t) == nil end
 end
 
----@alias Queue.data any
+---@alias verilua.utils.Queue.data any
 
----@class (exact) Queue
----@overload fun(): Queue
----@field private data table<integer, Queue.data>
+---@class (exact) verilua.utils.Queue
+---@overload fun(): verilua.utils.Queue
+---@field private data table<integer, verilua.utils.Queue.data>
 ---@field private first_ptr integer
 ---@field private last_ptr integer
----@field push fun(self: Queue, value: Queue.data)
----@field pop fun(self: Queue): Queue.data
----@field query_first_ptr fun(self: Queue): Queue.data
----@field front fun(self: Queue): Queue.data Alias of query_first_ptr
----@field last fun(self: Queue): Queue.data
----@field is_empty fun(self: Queue): boolean
----@field size fun(self: Queue): integer
----@field reset fun(self: Queue)
+---@field push fun(self: verilua.utils.Queue, value: verilua.utils.Queue.data)
+---@field pop fun(self: verilua.utils.Queue): verilua.utils.Queue.data
+---@field query_first_ptr fun(self: verilua.utils.Queue): verilua.utils.Queue.data
+---@field front fun(self: verilua.utils.Queue): verilua.utils.Queue.data Alias of query_first_ptr
+---@field last fun(self: verilua.utils.Queue): verilua.utils.Queue.data
+---@field is_empty fun(self: verilua.utils.Queue): boolean
+---@field size fun(self: verilua.utils.Queue): integer
+---@field reset fun(self: verilua.utils.Queue)
 ---@operator len: integer
-local Queue = class() --[[@as Queue]]
+local Queue = class() --[[@as verilua.utils.Queue]]
 
 function Queue:_init()
     self.data = {}

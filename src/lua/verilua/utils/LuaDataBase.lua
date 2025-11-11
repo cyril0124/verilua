@@ -27,32 +27,32 @@ ffi.cdef [[
 ]]
 
 
----@alias LuaDataBase.elements.type "integer" | "text" | "INTEGER" | "TEXT"
+---@alias verilua.utils.LuaDataBase.elements.type "integer" | "text" | "INTEGER" | "TEXT"
 
----@class LuaDataBase.elements.entry
+---@class verilua.utils.LuaDataBase.elements.entry
 ---@field name string
----@field type LuaDataBase.elements.type
+---@field type verilua.utils.LuaDataBase.elements.type
 
----@class LuaDataBase.pragmas
+---@class verilua.utils.LuaDataBase.pragmas
 ---@field journal_mode? "MEMORY" | "DELETE" | "TRUNCATE" | "PERSIST" | "WAL" | "OFF" Default: OFF
 ---@field synchronous? "OFF" | "FULL" | "NORMAL" Default: OFF
 ---@field locking_mode? "NORMAL" | "EXCLUSIVE" Default: EXCLUSIVE
 ---@field foreign_keys? "ON" | "OFF" Default: OFF
 ---@field cache_size? string Default: -1000000(1GB)
 
----@class (exact) LuaDataBase.params
+---@class (exact) verilua.utils.LuaDataBase.params
 ---@field table_name string
----@field elements string[] | LuaDataBase.elements.entry[]
+---@field elements string[] | verilua.utils.LuaDataBase.elements.entry[]
 ---@field path? string
 ---@field file_name string
 ---@field save_cnt_max? integer Default: 10000
 ---@field size_limit? integer Default: nil, in bytes
 ---@field table_cnt_max? integer Default: nil
 ---@field verbose? boolean Default: false
----@field pragmas? LuaDataBase.pragmas
+---@field pragmas? verilua.utils.LuaDataBase.pragmas
 
----@class (exact) LuaDataBase
----@overload fun(params: LuaDataBase.params): LuaDataBase
+---@class (exact) verilua.utils.LuaDataBase
+---@overload fun(params: verilua.utils.LuaDataBase.params): verilua.utils.LuaDataBase
 ---@field private db any
 ---@field private size_limit? integer
 ---@field private file_count integer
@@ -62,7 +62,7 @@ ffi.cdef [[
 ---@field private table_name_template string
 ---@field private fullpath_name string
 ---@field private available_files table<integer, string>
----@field private entries LuaDataBase.elements.entry[]
+---@field private entries verilua.utils.LuaDataBase.elements.entry[]
 ---@field private stmt any
 ---@field private finished boolean
 ---@field private verbose boolean
@@ -74,17 +74,17 @@ ffi.cdef [[
 ---@field private prepare_cmd_template string
 ---@field private prepare_cmd string
 ---@field private pragma_cmd string
----@field private save_cnt_max integer Call `<LuaDataBase>:commit()` when the `save_cnt` exceeds this value
+---@field private save_cnt_max integer Call `<verilua.utils.LuaDataBase>:commit()` when the `save_cnt` exceeds this value
 ---@field private save_cnt integer The count of data saved without calling commit
 ---@field private table_cnt_max? integer Default: nil, the max count of table entries, once the table count exceeds this value, new table will be created
 ---@field private table_cnt integer
 ---@field private table_idx integer
 ---@field private cache table
----@field private _log fun(self: LuaDataBase, ...)
----@field private create_db fun(self: LuaDataBase)
----@field private create_table fun(self: LuaDataBase)
----@field save  fun(self: LuaDataBase, ...)
----@field commit fun(self: LuaDataBase,...)
+---@field private _log fun(self: verilua.utils.LuaDataBase, ...)
+---@field private create_db fun(self: verilua.utils.LuaDataBase)
+---@field private create_table fun(self: verilua.utils.LuaDataBase)
+---@field save  fun(self: verilua.utils.LuaDataBase, ...)
+---@field commit fun(self: verilua.utils.LuaDataBase,...)
 local LuaDataBase = class()
 
 --- e.g.
@@ -122,7 +122,7 @@ local LuaDataBase = class()
 ---      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the `same order` and same number as the elements in the table
 --- ```
 
----@param params LuaDataBase.params
+---@param params verilua.utils.LuaDataBase.params
 function LuaDataBase:_init(params)
     texpect.expect_table(params, "init_tbl")
 
@@ -134,7 +134,7 @@ function LuaDataBase:_init(params)
     local file_name     = params.file_name
     local path_name     = params.path
     local size_limit    = params.size_limit -- Size in bytes
-    local pragmas       = params.pragmas or {} --[[@as LuaDataBase.pragmas]]
+    local pragmas       = params.pragmas or {} --[[@as verilua.utils.LuaDataBase.pragmas]]
 
     ---@diagnostic disable-next-line: undefined-field
     if type(params.backend) == "string" and params.backend ~= "sqlite3" then
@@ -192,7 +192,7 @@ function LuaDataBase:_init(params)
         local key, data_type
         local t = type(kv_str)
         if t == "table" then
-            ---@cast kv_str LuaDataBase.elements.entry
+            ---@cast kv_str verilua.utils.LuaDataBase.elements.entry
             key = kv_str.name
             data_type = kv_str.type
         elseif t == "string" then

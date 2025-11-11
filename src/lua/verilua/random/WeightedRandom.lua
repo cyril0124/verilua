@@ -5,18 +5,18 @@ local assert = assert
 local ipairs = ipairs
 local random = math.random
 
----@class (exact) WeightedRandom.weighted_random_table
+---@class (exact) verilua.random.WeightedRandom.weighted_random_table
 ---@field [1] integer weight
 ---@field [2] integer start
 ---@field [3] integer end
 
----@class (exact) WeightedRandom
----@overload fun(weighted_random_table: WeightedRandom.weighted_random_table[]): WeightedRandom
----@field private weighted_random_table WeightedRandom.weighted_random_table[]
----@field gen fun(self: WeightedRandom): number
+---@class (exact) verilua.random.WeightedRandom
+---@overload fun(weighted_random_table: verilua.random.WeightedRandom.weighted_random_table[]): verilua.random.WeightedRandom
+---@field private weighted_random_table verilua.random.WeightedRandom.weighted_random_table[]
+---@field gen fun(self: verilua.random.WeightedRandom): number
 local WeightedRandom = class()
 
----@param weighted_random_table WeightedRandom.weighted_random_table[]
+---@param weighted_random_table verilua.random.WeightedRandom.weighted_random_table[]
 function WeightedRandom:_init(weighted_random_table)
     texpect.expect_table(weighted_random_table, "weighted_random_table")
 

@@ -26,14 +26,14 @@ local scheduler = require "verilua.scheduler.LuaScheduler"
 ---@field ptr string
 
 ---@class string.fake_chdl.overload_func_tbl
----@field get? fun(self: CallableHDL, force_multi_beat?: boolean): number|MultiBeatData
----@field get64? fun(self: CallableHDL): uint64_t
----@field set? fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_force? fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_imm? fun(self: CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field get_hex_str? fun(self: CallableHDL): string
----@field is? fun(self: CallableHDL, value: number|ffi.cdata*): boolean
----@field is_not? fun(self: CallableHDL, value: number|ffi.cdata*): boolean
+---@field get? fun(self: verilua.handles.CallableHDL, force_multi_beat?: boolean): number|verilua.handles.MultiBeatData
+---@field get64? fun(self: verilua.handles.CallableHDL): uint64_t
+---@field set? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field set_force? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field set_imm? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field get_hex_str? fun(self: verilua.handles.CallableHDL): string
+---@field is? fun(self: verilua.handles.CallableHDL, value: number|ffi.cdata*): boolean
+---@field is_not? fun(self: verilua.handles.CallableHDL, value: number|ffi.cdata*): boolean
 
 ---@class string.ext
 ---
@@ -43,18 +43,18 @@ local scheduler = require "verilua.scheduler.LuaScheduler"
 ---@field number fun(str: string): integer
 ---@field contains fun(str: string, target: string): boolean
 ---@field tcc_compile fun(str: string, sym_ptr_tbls: string.tcc_compile.sym_ptr_tbl[]): table<any, any>
----@field bv fun(init_hex_str: string, bitwidth?: integer): BitVec
----@field bit_vec fun(init_hex_str: string, bitwidth?: integer): BitVec
+---@field bv fun(init_hex_str: string, bitwidth?: integer): verilua.utils.BitVec
+---@field bit_vec fun(init_hex_str: string, bitwidth?: integer): verilua.utils.BitVec
 ---
----@field hdl fun(hierpath: string): ComplexHandleRaw
----@field hdl_safe fun(hierpath: string): ComplexHandleRaw
----@field chdl fun(hierpath: string, hdl?: ComplexHandleRaw): CallableHDL
----@field fake_chdl fun(hierpath: string, overload_func_tbl: string.fake_chdl.overload_func_tbl): CallableHDL
----@field bundle fun(str: string, params: string.bdl.params): Bundle
----@field bdl fun(str: string, params: string.bdl.params): Bundle
----@field abdl fun(str: string, params_table: string.bdl.params): AliasBundle
----@field ehdl fun(this: string, event_id_integer?: integer): EventHandle
----@field auto_bundle fun(str: string, params: SignalDB.auto_bundle.params): Bundle
+---@field hdl fun(hierpath: string): verilua.handles.ComplexHandleRaw
+---@field hdl_safe fun(hierpath: string): verilua.handles.ComplexHandleRaw
+---@field chdl fun(hierpath: string, hdl?: verilua.handles.ComplexHandleRaw): verilua.handles.CallableHDL
+---@field fake_chdl fun(hierpath: string, overload_func_tbl: string.fake_chdl.overload_func_tbl): verilua.handles.CallableHDL
+---@field bundle fun(str: string, params: string.bdl.params): verilua.handles.Bundle
+---@field bdl fun(str: string, params: string.bdl.params): verilua.handles.Bundle
+---@field abdl fun(str: string, params_table: string.bdl.params): verilua.handles.AliasBundle
+---@field ehdl fun(this: string, event_id_integer?: integer): verilua.handles.EventHandle
+---@field auto_bundle fun(str: string, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle
 
 ---@class string: string.ext Compatible with EmmyluaLS
 ---@class stringlib: string.ext
@@ -342,7 +342,7 @@ end
 --- Note: Accessing any method or property not defined in `overload_func_tbl` will
 --- raise an assertion error.
 string.fake_chdl = function(hierpath, overload_func_tbl)
-    ---@type CallableHDL
+    ---@type verilua.handles.CallableHDL
     ---@diagnostic disable-next-line: missing-fields
     local chdl = {
         __type = "CallableHDL",
@@ -409,7 +409,7 @@ end
 --- ```
 ---@param str string
 ---@param params_table string.bdl.params
----@return Bundle
+---@return verilua.handles.Bundle
 local process_bundle = function(str, params_table)
     local signals_table = stringx.split(str, "|")
     local will_remove_idx = {}

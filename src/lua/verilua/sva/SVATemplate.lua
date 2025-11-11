@@ -218,16 +218,16 @@ function template.compile(str, opts)
     local env = { __tostring = function (n, v)
         if type(v) == "table" then
             if v.__type == "CallableHDL" then
-                ---@cast v CallableHDL
+                ---@cast v verilua.handles.CallableHDL
                 return v.fullpath
             elseif v.__type == "ProxyTableHandle" then
-                ---@cast v ProxyTableHandle
+                ---@cast v verilua.handles.ProxyTableHandle
                 return v:chdl().fullpath
             elseif v.__type == "Sequence" then
-                ---@cast v SVAContext.sequence
+                ---@cast v verilua.sva.SVAContext.sequence
                 return v.name
             elseif v.__type == "Property" then
-                ---@cast v SVAContext.property
+                ---@cast v verilua.sva.SVAContext.property
                 return v.name
             end
         end

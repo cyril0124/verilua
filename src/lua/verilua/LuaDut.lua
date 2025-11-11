@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-if, unnecessary-assert, need-check-nil
+
 local vpiml = require "vpiml"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
@@ -20,7 +22,7 @@ local await_negedge_hdl = _G.await_negedge_hdl
 local set_force_enable = false
 local force_path_table = {}
 
----@class ProxyTableHandle
+---@class verilua.handles.ProxyTableHandle
 ---@field __type "ProxyTableHandle"
 ---
 --- Set value into the signal, the value must be an integer(32-bit value).
@@ -28,21 +30,21 @@ local force_path_table = {}
 --- ```lua
 --- dut.path.to.signal:set(123)
 --- ```
----@field set fun(self: ProxyTableHandle, v: integer)
+---@field set fun(self: verilua.handles.ProxyTableHandle, v: integer)
 ---
 --- Immediately set value into the signal, bypassing any delay.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:set_imm(123)
 --- ```
----@field set_imm fun(self: ProxyTableHandle, v: integer)
+---@field set_imm fun(self: verilua.handles.ProxyTableHandle, v: integer)
 ---
 --- Randomly set value into the signal.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:set_shuffled()
 --- ```
----@field set_shuffled fun(self: ProxyTableHandle)
+---@field set_shuffled fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Freeze the current value of the signal.
 --- e.g.
@@ -52,7 +54,7 @@ local force_path_table = {}
 --- -- ...
 --- assert(dut.path.to.signal:get() == 123)
 --- ```
----@field set_freeze fun(self: ProxyTableHandle)
+---@field set_freeze fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Forcely set value into the signal, the value must be an integer(32-bit value).
 --- e.g.
@@ -62,7 +64,7 @@ local force_path_table = {}
 --- -- ...
 --- assert(dut.path.to.signal:get() == 123)
 --- ```
----@field set_force fun(self: ProxyTableHandle, v: integer)
+---@field set_force fun(self: verilua.handles.ProxyTableHandle, v: integer)
 ---
 --- Release the `set_force` operation.
 --- e.g.
@@ -75,7 +77,7 @@ local force_path_table = {}
 --- -- ...
 --- assert(dut.path.to.signal:get() == 111)
 --- ```
----@field set_release fun(self: ProxyTableHandle)
+---@field set_release fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Enable force mode for all subsequent set operations.
 --- e.g.
@@ -84,7 +86,7 @@ local force_path_table = {}
 --- dut.cycles:set(1)
 --- dut.path.to.signal:set(1)
 --- ```
----@field force_all fun(self: ProxyTableHandle)
+---@field force_all fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Release all forced signals, disabling force mode.
 --- e.g.
@@ -93,7 +95,7 @@ local force_path_table = {}
 --- dut.clock:posedge()
 --- dut:release_all()
 --- ```
----@field release_all fun(self: ProxyTableHandle)
+---@field release_all fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Execute a code block where all set operations are treated as force operations.
 --- Automatically releases forced signals after execution.
@@ -104,14 +106,14 @@ local force_path_table = {}
 ---     dut.cycles:set(1)
 --- end)
 --- ```
----@field force_region fun(self: ProxyTableHandle, code_func: fun())
+---@field force_region fun(self: verilua.handles.ProxyTableHandle, code_func: fun())
 ---
 --- Get the current value of the signal as an integer.
 --- e.g.
 --- ```lua
 --- local value = dut.cycles:get()
 --- ```
----@field get fun(self: ProxyTableHandle): integer
+---@field get fun(self: verilua.handles.ProxyTableHandle): integer
 ---
 --- Get the signal value as a formatted string (hex, binary, or decimal).
 --- e.g.
@@ -120,7 +122,7 @@ local force_path_table = {}
 --- local dec_str = dut.cycles:get_str(DecStr)
 --- local hex_str = dut.cycles:get_str(HexStr)
 --- ```
----@field get_str fun(self: ProxyTableHandle, fmt: integer): string
+---@field get_str fun(self: verilua.handles.ProxyTableHandle, fmt: integer): string
 ---
 --- Get the signal value as a hexadecimal string.
 --- e.g.
@@ -128,7 +130,7 @@ local force_path_table = {}
 --- local hex_str = dut.cycles:get_hex_str()
 --- assert(hex_str == "123")
 --- ```
----@field get_hex_str fun(self: ProxyTableHandle): string
+---@field get_hex_str fun(self: verilua.handles.ProxyTableHandle): string
 ---
 --- Set the signal value using a string (hex or binary with prefix).
 --- e.g.
@@ -136,21 +138,21 @@ local force_path_table = {}
 --- dut.cycles:set_str("0x123")    -- for hex string
 --- dut.cycles:set_str("0b101010") -- for binary string
 --- ```
----@field set_str fun(self: ProxyTableHandle, str: string)
+---@field set_str fun(self: verilua.handles.ProxyTableHandle, str: string)
 ---
 --- Set the signal value using a hexadecimal string (no prefix required).
 --- e.g.
 --- ```lua
 --- dut.cycles:set_hex_str("123")
 --- ```
----@field set_hex_str fun(self: ProxyTableHandle, str: string)
+---@field set_hex_str fun(self: verilua.handles.ProxyTableHandle, str: string)
 ---
 --- Forcefully set the signal value using a string.
 --- e.g.
 --- ```lua
 --- dut.cycles:set_force_str("0x123")
 --- ```
----@field set_force_str fun(self: ProxyTableHandle, str: string)
+---@field set_force_str fun(self: verilua.handles.ProxyTableHandle, str: string)
 ---
 --- Wait for positive edge(s) on the signal, optionally executing a callback.
 --- e.g.
@@ -159,7 +161,7 @@ local force_path_table = {}
 --- dut.reset:posedge(10)
 --- dut.clock:posedge(10, function(c) print("current count is " .. c) end)
 --- ```
----@field posedge fun(self: ProxyTableHandle, v?: integer, func?: fun(c: integer))
+---@field posedge fun(self: verilua.handles.ProxyTableHandle, v?: integer, func?: fun(c: integer))
 ---
 --- Wait for negative edge(s) on the signal, optionally executing a callback.
 --- e.g.
@@ -168,7 +170,7 @@ local force_path_table = {}
 --- dut.reset:negedge(10)
 --- dut.clock:negedge(10, function(c) print("current count is " .. c) end)
 --- ```
----@field negedge fun(self: ProxyTableHandle, v?: integer, func?: fun(c: integer))
+---@field negedge fun(self: verilua.handles.ProxyTableHandle, v?: integer, func?: fun(c: integer))
 ---
 --- Wait for positive edges until a condition is met or max limit is reached.
 --- e.g.
@@ -177,7 +179,7 @@ local force_path_table = {}
 ---     return dut.cycles:get() >= 100
 --- end)
 --- ```
----@field posedge_until fun(self: ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
+---@field posedge_until fun(self: verilua.handles.ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
 ---
 --- Wait for negative edges until a condition is met or max limit is reached.
 --- e.g.
@@ -186,14 +188,14 @@ local force_path_table = {}
 ---     return dut.cycles:get() >= 100
 --- end)
 --- ```
----@field negedge_until fun(self: ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
+---@field negedge_until fun(self: verilua.handles.ProxyTableHandle, max_limit: integer, func: fun(c: integer): boolean): boolean
 ---
 --- Get the raw handle(ComplexHandleRaw) for the signal.
 --- e.g.
 --- ```lua
 --- local hdl = dut.cycles:hdl()
 --- ```
----@field hdl fun(self: ProxyTableHandle): ComplexHandleRaw
+---@field hdl fun(self: verilua.handles.ProxyTableHandle): verilua.handles.ComplexHandleRaw
 ---
 --- Get a CallableHDL for the signal.
 --- e.g.
@@ -202,7 +204,7 @@ local force_path_table = {}
 --- print("value of cycles is " .. cycles_chdl:get())
 --- cycles_chdl:set(123)
 --- ```
----@field chdl fun(self: ProxyTableHandle): CallableHDL
+---@field chdl fun(self: verilua.handles.ProxyTableHandle): verilua.handles.CallableHDL
 ---
 --- Get the full path name of the signal.
 --- e.g.
@@ -210,7 +212,7 @@ local force_path_table = {}
 --- local path = dut.path.to.signal:name()
 --- assert(path == "tb_top.path.to.signal")
 --- ```
----@field name fun(self: ProxyTableHandle): string
+---@field name fun(self: verilua.handles.ProxyTableHandle): string
 ---
 --- Get the bit width of the signal.
 --- e.g.
@@ -218,7 +220,7 @@ local force_path_table = {}
 --- local width = dut.cycles:get_width()
 --- assert(width == 64)
 --- ```
----@field get_width fun(self: ProxyTableHandle): integer
+---@field get_width fun(self: verilua.handles.ProxyTableHandle): integer
 ---
 --- Get a string representation of the signal value with its path.
 --- e.g.
@@ -226,7 +228,7 @@ local force_path_table = {}
 --- local str = dut.path.to.signal:dump_str()
 --- -- Returns: "[tb_top.path.to.signal] => 0x1234"
 --- ```
----@field dump_str fun(self: ProxyTableHandle): string
+---@field dump_str fun(self: verilua.handles.ProxyTableHandle): string
 ---
 --- Print the signal value with its path.
 --- e.g.
@@ -234,108 +236,108 @@ local force_path_table = {}
 --- dut.path.to.signal:dump()
 --- -- Prints: [tb_top.path.to.signal] => 0x1234
 --- ```
----@field dump fun(self: ProxyTableHandle)
+---@field dump fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Assert that the signal value equals the specified value.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect(1)
 --- ```
----@field expect fun(self: ProxyTableHandle, value: integer)
+---@field expect fun(self: verilua.handles.ProxyTableHandle, value: integer)
 ---
 --- Assert that the signal value does not equal the specified value.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_not(1)
 --- ```
----@field expect_not fun(self: ProxyTableHandle, value: integer)
+---@field expect_not fun(self: verilua.handles.ProxyTableHandle, value: integer)
 ---
 --- Assert that the signal value matches the specified hexadecimal string.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_hex_str("1234abc")
 --- ```
----@field expect_hex_str fun(self: ProxyTableHandle, hex_value_str: string)
+---@field expect_hex_str fun(self: verilua.handles.ProxyTableHandle, hex_value_str: string)
 ---
 --- Assert that the signal value matches the specified binary string.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_bin_str("10101010")
 --- ```
----@field expect_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
+---@field expect_bin_str fun(self: verilua.handles.ProxyTableHandle, bin_value_str: string)
 ---
 --- Assert that the signal value matches the specified decimal string.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_dec_str("1234")
 --- ```
----@field expect_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
+---@field expect_dec_str fun(self: verilua.handles.ProxyTableHandle, dec_value_str: string)
 ---
 --- Assert that the signal value does not match the specified hexadecimal string.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_not_hex_str("1234abc")
 --- ```
----@field expect_not_hex_str fun(self: ProxyTableHandle, hex_value_str: string)
+---@field expect_not_hex_str fun(self: verilua.handles.ProxyTableHandle, hex_value_str: string)
 ---
 --- Assert that the signal value does not match the specified binary string.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_not_bin_str("10101010")
 --- ```
----@field expect_not_bin_str fun(self: ProxyTableHandle, bin_value_str: string)
+---@field expect_not_bin_str fun(self: verilua.handles.ProxyTableHandle, bin_value_str: string)
 ---
 --- Assert that the signal value does not match the specified decimal string.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_not_dec_str("1234")
 --- ```
----@field expect_not_dec_str fun(self: ProxyTableHandle, dec_value_str: string)
+---@field expect_not_dec_str fun(self: verilua.handles.ProxyTableHandle, dec_value_str: string)
 ---
 --- TODO:
----@field _if fun(self: ProxyTableHandle, condition: fun(): boolean): ProxyTableHandle
+---@field _if fun(self: verilua.handles.ProxyTableHandle, condition: fun(): boolean): verilua.handles.ProxyTableHandle
 ---
 --- Check if the signal value equals the specified value.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:is(1))
 --- ```
----@field is fun(self: ProxyTableHandle, value: integer): boolean
+---@field is fun(self: verilua.handles.ProxyTableHandle, value: integer): boolean
 ---
 --- Check if the signal value does not equal the specified value.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:is_not(1))
 --- ```
----@field is_not fun(self: ProxyTableHandle, value: integer): boolean
+---@field is_not fun(self: verilua.handles.ProxyTableHandle, value: integer): boolean
 ---
 --- Check if the signal value matches the specified hexadecimal string.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:is_hex_str("abcd"))
 --- ```
----@field is_hex_str fun(self: ProxyTableHandle, hex_value_str: string): boolean
+---@field is_hex_str fun(self: verilua.handles.ProxyTableHandle, hex_value_str: string): boolean
 ---
 --- Check if the signal value matches the specified binary string.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:is_bin_str("10101010"))
 --- ```
----@field is_bin_str fun(self: ProxyTableHandle, bin_value_str: string): boolean
+---@field is_bin_str fun(self: verilua.handles.ProxyTableHandle, bin_value_str: string): boolean
 ---
 --- Check if the signal value matches the specified decimal string.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:is_dec_str("1234"))
 --- ```
----@field is_dec_str fun(self: ProxyTableHandle, dec_value_str: string): boolean
+---@field is_dec_str fun(self: verilua.handles.ProxyTableHandle, dec_value_str: string): boolean
 ---
 --- --- Get the string representation of the signal's path.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:tostring() == "tb_top.path.to.signal")
 --- ```
----@field tostring fun(self: ProxyTableHandle): string
+---@field tostring fun(self: verilua.handles.ProxyTableHandle): string
 ---
 --- Create a new proxy with a prefixed path.
 --- e.g.
@@ -343,7 +345,7 @@ local force_path_table = {}
 --- local io_in = dut.path.to.mod:with_prefix("io_in_")
 --- assert(io_in.value:tostring() == "top.path.to.mod.io_in_value")
 --- ```
----@field with_prefix fun(self: ProxyTableHandle, prefix_str: string): ProxyTableHandle
+---@field with_prefix fun(self: verilua.handles.ProxyTableHandle, prefix_str: string): verilua.handles.ProxyTableHandle
 ---
 --- Automatically create a `Bundle` by filtering signals in the design based on specified criteria.
 --- The `params` table can contain the following fields:
@@ -377,19 +379,19 @@ local force_path_table = {}
 ---      - prefix + filter
 ---      - startswith + filter
 ---      - endswith + filter
----@field auto_bundle fun(self, params: SignalDB.auto_bundle.params): Bundle
+---@field auto_bundle fun(self, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle
 ---
----@overload fun(self: ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): integer|string|ComplexHandleRaw `__call` metamethod, deprecated
----@field [string] ProxyTableHandle
+---@overload fun(self: verilua.handles.ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): integer|string|verilua.handles.ComplexHandleRaw `__call` metamethod, deprecated
+---@field [string] verilua.handles.ProxyTableHandle
 
 ---@param path string
 ---@param use_prefix? boolean
----@return ProxyTableHandle
+---@return verilua.handles.ProxyTableHandle
 local function create_proxy(path, use_prefix)
     local local_path = path
     use_prefix = use_prefix or false
 
-    ---@type ProxyTableHandle
+    ---@type verilua.handles.ProxyTableHandle
     local mt = setmetatable({
         __type = "ProxyTableHandle",
         get_local_path = function(this) return local_path end,
@@ -448,8 +450,8 @@ local function create_proxy(path, use_prefix)
             assert(set_force_enable == true)
             set_force_enable = false
 
-            for i, path in ipairs(force_path_table) do
-                vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(path))
+            for i, _path in ipairs(force_path_table) do
+                vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(_path))
             end
         end,
 
@@ -720,7 +722,7 @@ local function create_proxy(path, use_prefix)
                 return t
             else
                 return setmetatable({}, {
-                    __index = function(t, k)
+                    __index = function(_t, k)
                         return function()
                             -- an empty function
                         end

@@ -1,4 +1,5 @@
 ---@diagnostic disable: need-check-nil
+
 local os = require "os"
 local scheduler = require "verilua.scheduler.LuaScheduler"
 

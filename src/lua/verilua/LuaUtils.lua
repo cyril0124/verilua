@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local io = require "io"
 local os = require "os"
 local bit = require "bit"
@@ -37,7 +39,7 @@ local utils = {}
 ---@return string The serialized string
 function utils.serialize(t, conn)
     local serialized = t
-    local conn = conn or "_"
+    conn = conn or "_"
     -- for k, v in pairs(t) do
     --     table.insert(serialized, tostring(k) .. "=" .. tostring(v))
     -- end
@@ -77,7 +79,7 @@ do
     ---@param separator? string The separator for the hexadecimal string, defaults to ""
     ---@return string -- The hexadecimal string, MSB <=> LSB
     function utils.to_hex_str(t, separator)
-        local separator = separator or ""
+        separator = separator or ""
         local result = ""
         local t_len = 0
         local t_type = type(t)
@@ -127,7 +129,7 @@ end
 ---@return integer The processed value
 function utils.bitfield32(begin, endd, val)
     local mask = bit_lshift(1ULL, endd - begin + 1) - 1
-    return tonumber(bit.band(bit_rshift(val + 0ULL, begin), mask)) --[[@as integer]]
+    return tonumber(bit_band(bit_rshift(val + 0ULL, begin), mask)) --[[@as integer]]
 end
 
 ---@param begin integer The start bit
@@ -153,7 +155,7 @@ end
 function utils.to_hex(hex_table)
     local ret = ""
     if type(hex_table) == "table" then
-        for index, value in ipairs(hex_table) do
+        for _index, value in ipairs(hex_table) do
             ret = ret .. f("%x ", value)
         end
     else
@@ -170,13 +172,13 @@ end
 ---@param num integer The number to be converted to binary string
 ---@return string The binary string
 function utils.num_to_binstr(num)
-    local num = tonumber(num)
+    num = tonumber(num) --[[@as integer]]
     if num == 0 then return "0" end
     local binstr = ""
     while num > 0 do
         ---@diagnostic disable-next-line: need-check-nil
-        local bit = num % 2
-        binstr = tostring(bit) .. binstr
+        local bit_v = num % 2
+        binstr = tostring(bit_v) .. binstr
         ---@diagnostic disable-next-line: need-check-nil
         num = math_floor(num / 2)
     end
@@ -426,7 +428,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
         v[i] = 0ULL
     end
 
-    for i, bitpat in ipairs(bitpat_tbl) do
+    for _i, bitpat in ipairs(bitpat_tbl) do
         assert(bitpat.s ~= nil, "bitpat.s is required")
         assert(bitpat.e ~= nil, "bitpat.e is required")
         assert(bitpat.v ~= nil, "bitpat.v is required")
@@ -464,7 +466,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
             else
                 mask = bit_lshift(1ULL, num_bits) - 1
             end
-            local shifted_value = bit_lshift(bit.band(bitpat.v --[[@as integer]], mask), start_pos)
+            local shifted_value = bit_lshift(bit_band(bitpat.v --[[@as integer]], mask), start_pos)
             v[start_block] = bit.bor(v[start_block], shifted_value)
         else
             -- The bit pattern spans across multiple blocks
@@ -473,7 +475,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
 
             -- Lower part in the start block
             local lower_mask = bit_lshift(1ULL, lower_bits) - 1
-            local lower_value = bit.band(bitpat.v --[[@as integer]], lower_mask)
+            local lower_value = bit_band(bitpat.v --[[@as integer]], lower_mask)
             v[start_block] = bit.bor(v[start_block], bit_lshift(lower_value, start_pos))
 
             -- Upper part in the end block
@@ -594,7 +596,8 @@ end
 ---@return string
 function utils.str_sep(str, step, separator)
     local result = ""
-    local separator = separator or " "
+    separator = separator or " "
+
     for i = 1, #str, step do
         local chunk = str:sub(i, i + step - 1)
         result = result .. chunk .. separator
@@ -762,8 +765,8 @@ function utils.get_env_or_else(key, value_type, default)
             )
         elseif value_type == "number" or value_type == "integer" then
             local should_check_cdata = default_type == "cdata"
-            local cdata_is_uint64 = ffi.istype("uint64_t", default)
-            local cdata_is_int64 = ffi.istype("int64_t", default)
+            local cdata_is_uint64 = ffi_istype("uint64_t", default)
+            local cdata_is_int64 = ffi_istype("int64_t", default)
             assert(
                 default_type == "number" or (should_check_cdata and (cdata_is_int64 or cdata_is_uint64)),
                 "[utils.get_env_or_else] default value must be `number`/ `cdata(uint64_t)`" ..
