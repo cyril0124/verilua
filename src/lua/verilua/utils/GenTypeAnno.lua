@@ -129,7 +129,7 @@ function GenTypeAnno:gen_type_anno(params)
             local value = handle[2]
             texpect.expect_string(name, "params.handles[" .. i .. "][1]")
             texpect.expect_table(value, "params.handles[" .. i .. "][2]")
-            if value.__type == "verilua.handles.Bundle" then
+            if value.__type == "Bundle" then
                 ---@cast value verilua.handles.Bundle
                 content_vec[#content_vec + 1] = gen_type_anno_bundle(name, value)
             elseif value.__type == "AliasBundle" then
@@ -146,7 +146,8 @@ function GenTypeAnno:gen_type_anno(params)
                 ---@cast handle verilua.handles.AliasBundle
                 content_vec[#content_vec + 1] = gen_type_anno_alias_bundle(handle.name, handle)
             else
-                assert(false, "params.handles[" .. i .. "]" .. " is not a `Bundle` or `AliasBundle`")
+                local __type = tostring(handle.__type)
+                assert(false, "params.handles[" .. i .. "]" .. " is not a `Bundle` or `AliasBundle`, but " .. __type)
             end
         end
 
