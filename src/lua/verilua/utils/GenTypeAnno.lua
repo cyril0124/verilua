@@ -68,10 +68,10 @@ local function gen_type_anno_bundle(name, bundle)
 
         content_vec[#content_vec + 1] = table.concat(bits_content_vec, "\n")
         content_vec[#content_vec + 1] = ""
-        content_vec[#content_vec + 1] = f("---@class %s", name)
+        content_vec[#content_vec + 1] = f("---@class %s: verilua.handles.Bundle", name)
         content_vec[#content_vec + 1] = f("---@field bits %s.bits", name)
     else
-        content_vec[1] = f("---@class %s", name)
+        content_vec[1] = f("---@class %s: verilua.handles.Bundle", name)
         for _, field_name in ipairs(bundle.signals_table) do
             local hierpath = bundle.hierarchy .. "." .. bundle.prefix .. field_name
             local width = bundle[field_name]:get_width()
@@ -95,7 +95,7 @@ local function gen_type_anno_alias_bundle(name, alias_bundle)
     unique_name_map[name] = true
 
     local content_vec = {
-        f("---@class %s", name)
+        f("---@class %s: verilua.handles.AliasBundle", name)
     }
     for i, field_name in ipairs(alias_bundle.alias_tbl) do
         local hierpath = alias_bundle.hierarchy .. "." .. alias_bundle.prefix .. alias_bundle.signals_tbl[i]
