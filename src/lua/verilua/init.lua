@@ -26,11 +26,21 @@ require "strict"
 
 _G.inspect           = require "inspect"
 
+local no_mt_process  = function(item, path)
+    if path[#path] ~= inspect.METATABLE then
+        return item
+    end
+end
+
 --- Print any lua object using `inspect.lua`
 ---@param ... any
 _G.dbg               = function(...) print(inspect(...)) end
-_G.pp                = _G.dbg -- Alias for dbg
-_G.dump              = _G.pp  -- Alias for dbg
+
+--- Print any lua object using `inspect.lua` without metatable
+---@param ... any
+_G.dump              = function(...) print(inspect(..., { process = no_mt_process })) end
+_G.pp                = _G.dump -- Alias for dump
+
 _G.printf            = function(s, ...) io.write(f(s, ...)) end
 
 -- Convert to hex for pretty printing
