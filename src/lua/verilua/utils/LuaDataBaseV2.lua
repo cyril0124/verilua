@@ -66,7 +66,7 @@ end
 ---@class (exact) verilua.utils.LuaDataBase.params
 ---@field table_name string
 ---@field elements string[] | verilua.utils.LuaDataBase.elements.entry[]
----@field path string
+---@field path? string
 ---@field file_name string
 ---@field save_cnt_max? integer Default: 10000
 ---@field size_limit? integer Default: nil, in bytes
