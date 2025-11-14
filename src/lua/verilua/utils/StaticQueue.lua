@@ -9,21 +9,21 @@ local math_random = math.random
 
 ---@alias verilua.utils.StaticQueue.success 0
 ---@alias verilua.utils.StaticQueue.failed 1
----@alias verilua.utils.StaticQueue.data any
 
----@class (exact) verilua.utils.StaticQueue
+---@generic T
+---@class (exact) verilua.utils.StaticQueue<T>
 ---@overload fun(size: integer, name?: string): verilua.utils.StaticQueue
 ---@field private name string
 ---@field private first_ptr integer
 ---@field private last_ptr integer
 ---@field private _size integer
----@field private data table
+---@field private data table<integer, T>
 ---@field count integer
----@field push fun(self: verilua.utils.StaticQueue, value: verilua.utils.StaticQueue.data): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed
----@field pop fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data
----@field query_first fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data
----@field front fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data Alias of query_first
----@field last fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data
+---@field push fun(self: verilua.utils.StaticQueue, value: T): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed
+---@field pop fun(self: verilua.utils.StaticQueue): T
+---@field query_first fun(self: verilua.utils.StaticQueue): T
+---@field front fun(self: verilua.utils.StaticQueue): T Alias of query_first
+---@field last fun(self: verilua.utils.StaticQueue): T
 ---@field is_empty fun(self: verilua.utils.StaticQueue): boolean
 ---@field is_full fun(self: verilua.utils.StaticQueue): boolean
 ---@field size fun(self: verilua.utils.StaticQueue): integer
@@ -31,7 +31,7 @@ local math_random = math.random
 ---@field free_count fun(self: verilua.utils.StaticQueue): integer
 ---@field reset fun(self: verilua.utils.StaticQueue)
 ---@field shuffle fun(self: verilua.utils.StaticQueue)
----@field get_all_data fun(self: verilua.utils.StaticQueue): verilua.utils.StaticQueue.data[]
+---@field get_all_data fun(self: verilua.utils.StaticQueue): T[]
 ---@field list_data fun(self: verilua.utils.StaticQueue)
 ---@operator len: integer
 local StaticQueue = class() --[[@as verilua.utils.StaticQueue]]

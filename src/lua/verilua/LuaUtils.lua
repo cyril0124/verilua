@@ -32,6 +32,7 @@ local table_insert = table.insert
 local table_concat = table.concat
 local setmetatable = setmetatable
 
+---@class (exact) verilua.LuaUtils
 local utils = {}
 
 ---@param t table The table to be serialized
@@ -402,12 +403,12 @@ function utils.bitfield_str(str, s, e, width)
     return ret == "" and "0" or ret
 end
 
----@class (exact) bitpat_to_hexstr.BitPattern
+---@class (exact) verilua.LuaUtils.BitPattern
 ---@field s integer
 ---@field e integer
 ---@field v integer|uint64_t
 
----@param bitpat_tbl bitpat_to_hexstr.BitPattern[] The bit pattern table
+---@param bitpat_tbl verilua.LuaUtils.BitPattern[] The bit pattern table
 ---@param width number The width of the bit pattern (optional)
 ---@return string The hexadecimal string
 function utils.bitpat_to_hexstr(bitpat_tbl, width)
@@ -738,10 +739,11 @@ local false_values = {
     ["disable"] = true,
     ["off"] = true,
 }
+---@generic T: string|number|integer|boolean
 ---@param key string Environment variable name
 ---@param value_type "string" | "boolean" | "number" | "integer"
----@param default string|number|integer|boolean Default value if the environment variable is not set
----@return string|number|integer|boolean The value of the environment variable or the default value
+---@param default T Default value if the environment variable is not set
+---@return T The value of the environment variable or the default value
 function utils.get_env_or_else(key, value_type, default)
     assert(type(key) == "string")
     local v = os.getenv(key)
@@ -802,12 +804,12 @@ function utils.get_env_or_else(key, value_type, default)
     return value --[[@as string|number|boolean]]
 end
 
----@class matrix_call.single_func: function
----@class matrix_call.seq_funcs: { [integer]: function }
----@class matrix_call.single_func_with_args: { func: function, args: table, before?: function, after?: function }
----@class matrix_call.single_func_with_muti_args: { func: function, multi_args: table[], before?: function, after?: function }
----@class matrix_call.func_blocks: { [integer]: matrix_call.single_func | matrix_call.seq_funcs | matrix_call.single_func_with_args | matrix_call.single_func_with_muti_args }
----@class matrix_call.params: { [integer]: matrix_call.func_blocks }
+---@class verilua.LuaUtils.matrix_call.single_func: function
+---@class verilua.LuaUtils.matrix_call.seq_funcs: { [integer]: function }
+---@class verilua.LuaUtils.matrix_call.single_func_with_args: { func: function, args: table, before?: function, after?: function }
+---@class verilua.LuaUtils.matrix_call.single_func_with_muti_args: { func: function, multi_args: table[], before?: function, after?: function }
+---@class verilua.LuaUtils.matrix_call.func_blocks: { [integer]: verilua.LuaUtils.matrix_call.single_func | verilua.LuaUtils.matrix_call.seq_funcs | verilua.LuaUtils.matrix_call.single_func_with_args | verilua.LuaUtils.matrix_call.single_func_with_muti_args }
+---@class verilua.LuaUtils.matrix_call.params: { [integer]: verilua.LuaUtils.matrix_call.func_blocks }
 
 --- Example usage:
 --- 1. Basic matrix call (2D):
@@ -879,7 +881,7 @@ end
 ---     Product: 6
 ---     Product: 20
 --- ```
----@param func_table matrix_call.params
+---@param func_table verilua.LuaUtils.matrix_call.params
 function utils.matrix_call(func_table)
     local dimensions = #func_table
 
@@ -891,13 +893,13 @@ function utils.matrix_call(func_table)
         max_indices[i] = #func_table[i]
     end
 
-    ---@alias matrix_call.func_block_type
+    ---@alias verilua.LuaUtils.matrix_call.func_block_type
     ---| "single_func"
     ---| "seq_funcs"
     ---| "single_func_with_args"
     ---| "single_func_with_muti_args"
 
-    ---@type table<number, table<number, matrix_call.func_block_type>>
+    ---@type table<number, table<number, verilua.LuaUtils.matrix_call.func_block_type>>
     local func_table_meta = {}
     for i = 1, dimensions do
         for j = 1, max_indices[i] do
@@ -943,13 +945,13 @@ function utils.matrix_call(func_table)
         end
     end
 
-    ---@alias matrix_call.current_dim integer
-    ---@alias matrix_call.dim_and_idx { [1]: matrix_call.current_dim, [2]: integer }
-    ---@alias matrix_call.combination { [integer]: matrix_call.dim_and_idx }
+    ---@alias verilua.LuaUtils.matrix_call.current_dim integer
+    ---@alias verilua.LuaUtils.matrix_call.dim_and_idx { [1]: verilua.LuaUtils.matrix_call.current_dim, [2]: integer }
+    ---@alias verilua.LuaUtils.matrix_call.combination { [integer]: verilua.LuaUtils.matrix_call.dim_and_idx }
 
     -- Recursive function to generate all combinations
-    ---@param current_dim matrix_call.current_dim
-    ---@param combination matrix_call.combination
+    ---@param current_dim verilua.LuaUtils.matrix_call.current_dim
+    ---@param combination verilua.LuaUtils.matrix_call.combination
     local function generate_combinations(current_dim, combination)
         if current_dim > dimensions then
             -- Execute the current combination of functions
@@ -993,14 +995,14 @@ function utils.matrix_call(func_table)
         -- For each function in the current dimension
         for i = 1, max_indices[current_dim] do
             -- Create a new combination by copying the current one
-            ---@type matrix_call.combination
+            ---@type verilua.LuaUtils.matrix_call.combination
             local new_combination = table_new(#combination + 1, 0)
             for j = 1, #combination do
                 new_combination[j] = combination[j]
             end
 
             -- Add the current dimension and index to the combination
-            ---@type matrix_call.dim_and_idx
+            ---@type verilua.LuaUtils.matrix_call.dim_and_idx
             local dim_and_idx = { current_dim, i }
             new_combination[#new_combination + 1] = dim_and_idx
 
