@@ -22,7 +22,7 @@ local await_negedge_hdl = _G.await_negedge_hdl
 local set_force_enable = false
 local force_path_table = {}
 
----@class verilua.handles.ProxyTableHandle
+---@class (partial) verilua.handles.ProxyTableHandle
 ---@field __type "ProxyTableHandle"
 ---
 --- Set value into the signal, the value must be an integer(32-bit value).
@@ -381,7 +381,7 @@ local force_path_table = {}
 ---      - endswith + filter
 ---@field auto_bundle fun(self, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle
 ---
----@overload fun(self: verilua.handles.ProxyTableHandle, v: "integer"|"hex"|"name"|"hdl"): integer|string|verilua.handles.ComplexHandleRaw `__call` metamethod, deprecated
+---@overload fun(v: "integer"|"hex"|"name"|"hdl"): integer|string|verilua.handles.ComplexHandleRaw `__call` metamethod, deprecated
 ---@field [string] verilua.handles.ProxyTableHandle
 
 ---@param path string

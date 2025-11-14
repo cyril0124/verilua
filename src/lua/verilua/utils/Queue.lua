@@ -4,18 +4,17 @@ if not success then
     isempty = function(t) return next(t) == nil end
 end
 
----@alias verilua.utils.Queue.data any
-
----@class (exact) verilua.utils.Queue
+---@generic T
+---@class (exact) verilua.utils.Queue<T>
 ---@overload fun(): verilua.utils.Queue
----@field private data table<integer, verilua.utils.Queue.data>
+---@field private data table<integer, T>
 ---@field private first_ptr integer
 ---@field private last_ptr integer
----@field push fun(self: verilua.utils.Queue, value: verilua.utils.Queue.data)
----@field pop fun(self: verilua.utils.Queue): verilua.utils.Queue.data
----@field query_first_ptr fun(self: verilua.utils.Queue): verilua.utils.Queue.data
----@field front fun(self: verilua.utils.Queue): verilua.utils.Queue.data Alias of query_first_ptr
----@field last fun(self: verilua.utils.Queue): verilua.utils.Queue.data
+---@field push fun(self: verilua.utils.Queue, value: T)
+---@field pop fun(self: verilua.utils.Queue): T
+---@field query_first_ptr fun(self: verilua.utils.Queue): T
+---@field front fun(self: verilua.utils.Queue): T Alias of query_first_ptr
+---@field last fun(self: verilua.utils.Queue): T
 ---@field is_empty fun(self: verilua.utils.Queue): boolean
 ---@field size fun(self: verilua.utils.Queue): integer
 ---@field reset fun(self: verilua.utils.Queue)

@@ -32,6 +32,7 @@ local table_insert = table.insert
 local table_concat = table.concat
 local setmetatable = setmetatable
 
+---@class (exact) verilua.LuaUtils
 local utils = {}
 
 ---@param t table The table to be serialized
@@ -738,10 +739,11 @@ local false_values = {
     ["disable"] = true,
     ["off"] = true,
 }
+---@generic T: string|number|integer|boolean
 ---@param key string Environment variable name
 ---@param value_type "string" | "boolean" | "number" | "integer"
----@param default string|number|integer|boolean Default value if the environment variable is not set
----@return string|number|integer|boolean The value of the environment variable or the default value
+---@param default T Default value if the environment variable is not set
+---@return T The value of the environment variable or the default value
 function utils.get_env_or_else(key, value_type, default)
     assert(type(key) == "string")
     local v = os.getenv(key)
