@@ -760,7 +760,7 @@ rule("verilua", function()
             --- ```
             --- For more information about `testbench_gen`, please refer to `testbench_gen --help`
             local u_tb_gen_flags = target:values("cfg.tb_gen_flags")
-            local tb_gen_flags = { "--top", top, "--tbtop", tb_top, "--nodpi", "--verbose", "--out-dir", build_dir }
+            local tb_gen_flags = { "--top", top, "--tbtop", tb_top, "--nodpi", "--verbose", "--out-dir", build_dir, "--lua-meta-file", path.join("build", "meta.lua") }
             if u_tb_gen_flags then
                 tb_gen_flags = table.join2(tb_gen_flags, u_tb_gen_flags)
             end
