@@ -6,12 +6,12 @@ local assert, print, format = assert, print, string.format
 
 lester.parse_args()
 
-describe("WeightRandom test", function ()
+describe("WeightRandom test", function()
     it("should work properly", function()
         local rand = WeightedRandom({
-            {10, 0, 100},
-            {20, 101, 200},
-            {70, 201, 300}
+            { 10, 0,   100 },
+            { 20, 101, 200 },
+            { 70, 201, 300 }
         })
 
         local cnt_10 = 0
@@ -34,16 +34,15 @@ describe("WeightRandom test", function ()
                 assert(false, v)
             end
         end
-        
+
         local cnt_total = cnt_10 + cnt_20 + cnt_70
         local cnt_10_freq = (cnt_10 / cnt_total) * 100
         local cnt_20_freq = (cnt_20 / cnt_total) * 100
         local cnt_70_freq = (cnt_70 / cnt_total) * 100
         -- print(format("10: %.2f  20: %.2f  70: %.2f", cnt_10_freq, cnt_20_freq, cnt_70_freq))
 
-        assert(cnt_10_freq >= 5  and cnt_10_freq <= 15)
+        assert(cnt_10_freq >= 5 and cnt_10_freq <= 15)
         assert(cnt_20_freq >= 15 and cnt_20_freq <= 25)
         assert(cnt_70_freq >= 65 and cnt_10_freq <= 75)
-      end)
+    end)
 end)
-

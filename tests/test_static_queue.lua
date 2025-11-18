@@ -7,12 +7,12 @@ local StaticQueue = require "StaticQueue"
 
 lester.parse_args()
 
-describe("StaticQueue test", function ()
+describe("StaticQueue test", function()
     it("should work properly", function()
         local q = StaticQueue(4)
 
         expect.truthy(q:is_empty())
-        expect.fail(function () q:pop() end)
+        expect.fail(function() q:pop() end)
 
         q:push(11)
         q:push(22)
@@ -31,6 +31,6 @@ describe("StaticQueue test", function ()
         expect.equal(q:pop(), 22)
         expect.equal(q:pop(), 33)
         expect.equal(q:pop(), 44)
-        expect.fail(function () q:pop() end)
+        expect.fail(function() q:pop() end)
     end)
 end)

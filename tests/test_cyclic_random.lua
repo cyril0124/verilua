@@ -6,7 +6,7 @@ local CyclicRandom = require "CyclicRandom"
 
 lester.parse_args()
 
-describe("CyclicRandom test", function ()
+describe("CyclicRandom test", function()
     it("should work properly", function()
         local rand = CyclicRandom(1, 5)
 
