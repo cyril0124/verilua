@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local f = string.format
 local vpiml = require "vpiml"
 local stringx = require "pl.stringx"
@@ -289,6 +291,7 @@ end
 ---      local hdl = ("top.module.signal"):hdl()
 --- ```
 string.hdl = function(str)
+    ---@diagnostic disable-next-line: need-check-nil
     local hdl = vpiml.vpiml_handle_by_name_safe(str)
 
     if hdl == -1 then
@@ -305,6 +308,7 @@ end
 ---      local hdl = ("top.module.signal"):hdl_safe()
 --- ```
 string.hdl_safe = function(str)
+    ---@diagnostic disable-next-line: need-check-nil
     local hdl = vpiml.vpiml_handle_by_name_safe(str)
     return hdl
 end
@@ -355,7 +359,7 @@ string.fake_chdl = function(hierpath, overload_func_tbl)
     end
 
     setmetatable(chdl, {
-        __index = function(self, key)
+        __index = function(_self, key)
             assert(false, f("[fake_chdl] Cannot access key: %s, key no found!", key))
         end,
     })
@@ -368,7 +372,7 @@ end
 ---@return table<integer, T>
 local function to_normal_table(org_tbl)
     local ret = {}
-    for key, value in pairs(org_tbl) do
+    for _key, value in pairs(org_tbl) do
         table.insert(ret, value)
     end
     return ret
@@ -427,7 +431,7 @@ local process_bundle = function(str, params_table)
     end
 
     -- remove invalid signal
-    for index, value in ipairs(will_remove_idx) do
+    for _, value in ipairs(will_remove_idx) do
         signals_table[value] = nil
     end
 
@@ -437,7 +441,7 @@ local process_bundle = function(str, params_table)
     local _signals_table = to_normal_table(signals_table)
 
     local hier = params_table.hier
-    local hier_type = type(params_table.hier)
+    local hier_type = type(hier)
 
     assert(hier ~= nil, "[bundle] hierachy is not set! please set by `hier` field ")
     assert(hier_type == "string", "[bundle] invalid hierarchy type => " .. hier_type)
@@ -495,6 +499,15 @@ string.bdl = process_bundle
 ---      local value = abdl.alias_name:get()    -- real signal is <path.to.hier.some_prefix_origin_signal_name>
 ---      abdl.alias_name_1:set(123)
 ---
+---      -- Multiple alias name, seperate by `/`
+---      local abdl = ([[
+---          | origin_signal_name => alias_name/alias_name_1/alias_name_2
+---      ]]):abdl {hier = "path.to.hier", perfix = "some_prefix_", name = "name of alias bundle"}
+---      local value = abdl.alias_name:get()     -- real signal is <path.to.hier.some_prefix_origin_signal_name>
+---      local value_1 = abdl.alias_name_1:get() -- using another alias name to access the same signal
+---      assert(value == value_1)
+---
+---      abdl.alias_name_1:set(123)
 ---      local abdl = ([[
 ---          | origin_signal_name
 ---          | origin_signal_name_1 => alias_name_1
@@ -527,7 +540,7 @@ string.abdl = function(str, params_table)
     end
 
     -- remove invalid signal
-    for index, value in ipairs(will_remove_idx) do
+    for _, value in ipairs(will_remove_idx) do
         signals_table[value] = nil
     end
 
@@ -552,14 +565,25 @@ string.abdl = function(str, params_table)
 
     local alias_tbl = {}
     for i = 1, #_signals_table do
-        local tmp = stringx.split(_signals_table[i], "=>")
-        assert(tmp[1] ~= nil)
-        assert(type(tmp[1]) == "string")
-        if tmp[2] ~= nil then
-            assert(type(tmp[2]) == "string")
-            table.insert(alias_tbl, { tmp[1], tmp[2] })
+        local alias_name_vec = stringx.split(_signals_table[i], "=>")
+        assert(type(alias_name_vec[1]) == "string")
+
+        if alias_name_vec[2] ~= nil then
+            assert(#alias_name_vec == 2)
+            assert(type(alias_name_vec[2]) == "string")
+
+            local maybe_multiple_alias_name_vec = stringx.split(alias_name_vec[2], "/")
+            local n = #maybe_multiple_alias_name_vec
+            assert(n >= 1)
+
+            local final_alias_name_vec = { alias_name_vec[1] }
+            for _, v in ipairs(maybe_multiple_alias_name_vec) do
+                table.insert(final_alias_name_vec, v)
+            end
+            table.insert(alias_tbl, final_alias_name_vec)
         else
-            table.insert(alias_tbl, { tmp[1] })
+            assert(#alias_name_vec == 1)
+            table.insert(alias_tbl, { alias_name_vec[1] })
         end
     end
 

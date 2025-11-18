@@ -18,6 +18,7 @@ local verilua_debug = _G.verilua_debug
 ---@class (exact) verilua.handles.AliasBundle.alias_signal_pair
 ---@field [1] string
 ---@field [2] string
+---@field [integer] string other alias name
 
 ---@class (exact) verilua.handles.AliasBundle
 ---@overload fun(alias_signal_tbl: verilua.handles.AliasBundle.alias_signal_pair[], prefix: string, hierarchy: string, name: string, optional_signals?: table<string>): verilua.handles.AliasBundle
@@ -26,7 +27,7 @@ local verilua_debug = _G.verilua_debug
 ---@field hierarchy string
 ---@field name string
 ---@field signals_tbl table<integer, string>
----@field alias_tbl table<integer, string>
+---@field alias_tbl table<integer, table<integer, string>>
 ---@field __dump_parts table<integer, string>
 ---@field valid verilua.handles.CallableHDL
 ---@field ready verilua.handles.CallableHDL
@@ -41,7 +42,7 @@ local AliasBundle = class()
 -- Access signal using alias name
 --
 -- @alias_signal_tbl: {
---      {<org_name>, <alias_name>}, -- alias_name can be set as `nil`, then no alias name available for signal accessing
+--      {<org_name>, <alias_name_0>, <alias_name_1>, ...}, -- alias_name can be set as `nil`, then no alias name available for signal accessing
 --      ...
 -- }
 --
@@ -65,9 +66,14 @@ local AliasBundle = class()
 --      local value = abdl.alias_name:get()
 --      abdl.alias_name_1:set(123)
 --
+---@param alias_signal_tbl verilua.handles.AliasBundle.alias_signal_pair[]
+---@param prefix string
+---@param hierarchy string
+---@param name string
+---@param optional_signals? table<string>
 function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_signals)
     texpect.expect_table(alias_signal_tbl, "alias_signal_tbl")
-    texpect.expect_table(alias_signal_tbl[1], "alias_signal_tbl[1]")
+    texpect.expect_table(alias_signal_tbl[1] --[[@as table]], "alias_signal_tbl[1]")
     texpect.expect_string(prefix, "prefix")
     texpect.expect_string(hierarchy, "hierarchy")
 
@@ -87,14 +93,23 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
     if optional_signals then
         texpect.expect_table(optional_signals, "optional_signals")
     end
-    local optional_signals = optional_signals or {} -- optional signals are allowed to be empty
+    ---@cast optional_signals table
+    optional_signals = optional_signals or {} -- optional signals are allowed to be empty
 
-    self.alias_tbl = table_new(#alias_signal_tbl, 0) --[[@as table<integer, string>]]
-    for _, x in ipairs(alias_signal_tbl) do
-        if x[2] == nil then
-            table_insert(self.alias_tbl, x[1])
-        else
-            table_insert(self.alias_tbl, x[2])
+    self.alias_tbl = table_new(#alias_signal_tbl, 0) --[[@as table<integer, table<integer, string>>]]
+    for i, alias_name_vec in ipairs(alias_signal_tbl) do
+        local nr_alias_name = #alias_name_vec
+
+        if not self.alias_tbl[i] then
+            self.alias_tbl[i] = {} --[[@as table<integer, string>]]
+        end
+
+        if nr_alias_name == 1 then
+            table_insert(self.alias_tbl[i], alias_name_vec[1])
+        end
+
+        for j = 2, nr_alias_name do
+            table_insert(self.alias_tbl[i], alias_name_vec[j])
         end
     end
 
@@ -110,17 +125,28 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
     -- Construct CallableHDL bundle
     local num_signals = #self.signals_tbl
     for i = 1, num_signals do
-        local alias_name = self.alias_tbl[i]
+        local alias_name_vec = self.alias_tbl[i]
         local real_name = self.signals_tbl[i]
         local fullpath = hierarchy .. "." .. prefix .. real_name
 
-        if not tablex.find(optional_signals, alias_name) then
-            rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))
-        else
-            local hdl = vpiml.vpiml_handle_by_name_safe(fullpath)
-            if hdl ~= -1 then
-                -- optional are allowed to be empty
-                rawset(self, alias_name, CallableHDL(fullpath, real_name, nil))
+        ---@type verilua.handles.CallableHDL
+        local chdl
+        for _, alias_name in ipairs(alias_name_vec) do
+            if not tablex.find(optional_signals, alias_name) then
+                if not chdl then
+                    chdl = CallableHDL(fullpath, real_name, nil)
+                end
+                rawset(self, alias_name, chdl)
+            else
+                ---@diagnostic disable-next-line: need-check-nil
+                local hdl = vpiml.vpiml_handle_by_name_safe(fullpath)
+                if hdl ~= -1 then
+                    if not chdl then
+                        chdl = CallableHDL(fullpath, real_name, nil)
+                    end
+                    -- optional are allowed to be empty
+                    rawset(self, alias_name, chdl)
+                end
             end
         end
     end
@@ -145,13 +171,14 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
         end
 
         for i = 1, #self.signals_tbl do
-            local alias_name = self.alias_tbl[i]
+            local alias_name_vec = self.alias_tbl[i]
+            local alias_name_1 = alias_name_vec[1]
             local real_name = self.signals_tbl[i]
             if real_name ~= "valid" and real_name ~= "ready" then
                 table_insert(parts, f("%s -> %s: 0x%s",
                     real_name,
-                    alias_name,
-                    this[alias_name]:get_hex_str()
+                    table_concat(alias_name_vec, "/"),
+                    this[alias_name_1]:get_hex_str()
                 ))
             end
         end
@@ -176,13 +203,14 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
         end
 
         for i = 1, #self.signals_tbl do
-            local alias_name = self.alias_tbl[i]
+            local alias_name_vec = self.alias_tbl[i]
+            local alias_name_1 = alias_name_vec[1]
             local real_name = self.signals_tbl[i]
             if real_name ~= "valid" and real_name ~= "ready" then
-                table_insert(parts, format_func(this[alias_name], real_name, alias_name) or f("%s -> %s: 0x%s",
+                table_insert(parts, format_func(this[alias_name_1], real_name, alias_name_1) or f("%s -> %s: 0x%s",
                     real_name,
-                    alias_name,
-                    this[alias_name]:get_hex_str()
+                    table_concat(alias_name_vec, "/"),
+                    this[alias_name_1]:get_hex_str()
                 ))
             end
         end

@@ -1,4 +1,4 @@
----@diagnostic disable: unnecessary-if
+---@diagnostic disable: unnecessary-if, global-in-non-module
 
 local inspect = require "inspect"
 
@@ -14,6 +14,7 @@ local error = function(...)
     error(...)
 end
 
+---@class verilua.TypeExpect
 local texpect = {}
 
 ---@param value string
@@ -285,15 +286,16 @@ Throws:
   does not match the corresponding signal in `value`.
 
 --]]
----@class (exact) verilua.texpect.expect_abdl.params
----@field name string
+---@class (exact) verilua.TypeExpect.expect_abdl.params
+---@field name? string
+---@field names? table<integer, string> If `names`(can be used to specify multiple alias names) is provided, then `name` is ignored
 ---@field width? integer
 ---@field width_min? integer
 ---@field width_max? integer
 
 ---@param value verilua.handles.AliasBundle
 ---@param name string
----@param params table<integer, string|verilua.texpect.expect_abdl.params>
+---@param params table<integer, string|verilua.TypeExpect.expect_abdl.params>
 function texpect.expect_abdl(value, name, params)
     if type(value) ~= "table" then
         error(
@@ -324,6 +326,7 @@ function texpect.expect_abdl(value, name, params)
         --      { name = "signal",  width = 10 },   -- or { name = "signal", width_min = 10, width_max = 100 }
         --      { name = "another", width = 32 },
         --      { name = "abc" },
+        --      { names = { "abc", "def" } }, -- abc and def are alias names of the same signal
         --      "cde",
         --      "clock",
         --      "reset"
@@ -335,67 +338,94 @@ function texpect.expect_abdl(value, name, params)
             if type(params) == "table" then
                 for _, sig_info in pairs(params) do
                     if type(sig_info) == "table" then
-                        if sig_info.name == nil then
-                            error(f("[expect_abdl] params item must have `name` field"), 0)
+                        ---@cast sig_info verilua.TypeExpect.expect_abdl.params
+                        if not sig_info.name and not sig_info.names then
+                            error(f("[expect_abdl] params item must have `name` or `names` field"), 0)
                         end
 
-                        local sig = value[sig_info.name]
-                        _G.debug_level = 5                      -- Temporary set debug level
-                        texpect.expect_chdl(sig, sig_info.name) -- Each element of AliasBundle must be a CallableHDL
-                        _G.debug_level = _G.default_debug_level
+                        ---@type verilua.handles.CallableHDL
+                        local first_sig
+                        ---@type string
+                        local first_sig_name
 
-                        if sig_info.width then
-                            if sig:get_width() ~= sig_info.width then
-                                error(
-                                    f(
-                                        "[expect_abdl] signal `%s`'s width is %d, but expected %d",
-                                        sig_info.name,
-                                        sig:get_width(),
-                                        sig_info.width
-                                    ),
-                                    0
-                                )
+                        local sig_names = sig_info.names or { sig_info.name }
+                        for _, sig_name in ipairs(sig_names) do
+                            local sig = value[sig_name]
+                            if not first_sig then
+                                first_sig = sig
+                                first_sig_name = sig_name
                             end
-                        elseif sig_info.width_min and sig_info.width_max then
-                            local width = sig:get_width()
-                            if not (width >= sig_info.width_min and width <= sig_info.width_max) then
-                                error(
-                                    f(
-                                        "[expect_abdl] signal `%s`'s width is %d, but expected in range [%d, %d]",
-                                        sig_info.name,
-                                        width,
-                                        sig_info.width_min,
-                                        sig_info.width_max
-                                    ),
-                                    0
-                                )
+
+                            _G.debug_level = 5                 -- Temporary set debug level
+                            texpect.expect_chdl(sig, sig_name) -- Each element of AliasBundle must be a CallableHDL
+                            _G.debug_level = _G.default_debug_level
+
+                            ---@diagnostic disable-next-line: access-invisible
+                            if first_sig.hdl ~= sig.hdl then
+                                error(f(
+                                    "[expect_abdl] signal `%s`(1) and `%s`(2) are not the same signal, (1).hierarchy: %s, (2).hierarchy: %s, names: {%s}",
+                                    first_sig_name,
+                                    sig_name,
+                                    first_sig.fullpath,
+                                    sig.fullpath,
+                                    table.concat(sig_names, ", ")
+                                ))
                             end
-                        elseif sig_info.width_min then
-                            if sig:get_width() < sig_info.width_min then
-                                error(
-                                    f(
-                                        "[expect_abdl] signal `%s`'s width is %d, but expected >= %d",
-                                        sig_info.name,
-                                        sig:get_width(),
-                                        sig_info.width_min
-                                    ),
-                                    0
-                                )
-                            end
-                        elseif sig_info.width_max then
-                            if sig:get_width() > sig_info.width_max then
-                                error(
-                                    f(
-                                        "[expect_abdl] signal `%s`'s width is %d, but expected <= %d",
-                                        sig_info.name,
-                                        sig:get_width(),
-                                        sig_info.width_max
-                                    ),
-                                    0
-                                )
+
+                            if sig_info.width then
+                                if sig:get_width() ~= sig_info.width then
+                                    error(
+                                        f(
+                                            "[expect_abdl] signal `%s`'s width is %d, but expected %d",
+                                            sig_name,
+                                            sig:get_width(),
+                                            sig_info.width
+                                        ),
+                                        0
+                                    )
+                                end
+                            elseif sig_info.width_min and sig_info.width_max then
+                                local width = sig:get_width()
+                                if not (width >= sig_info.width_min and width <= sig_info.width_max) then
+                                    error(
+                                        f(
+                                            "[expect_abdl] signal `%s`'s width is %d, but expected in range [%d, %d]",
+                                            sig_name,
+                                            width,
+                                            sig_info.width_min,
+                                            sig_info.width_max
+                                        ),
+                                        0
+                                    )
+                                end
+                            elseif sig_info.width_min then
+                                if sig:get_width() < sig_info.width_min then
+                                    error(
+                                        f(
+                                            "[expect_abdl] signal `%s`'s width is %d, but expected >= %d",
+                                            sig_name,
+                                            sig:get_width(),
+                                            sig_info.width_min
+                                        ),
+                                        0
+                                    )
+                                end
+                            elseif sig_info.width_max then
+                                if sig:get_width() > sig_info.width_max then
+                                    error(
+                                        f(
+                                            "[expect_abdl] signal `%s`'s width is %d, but expected <= %d",
+                                            sig_name,
+                                            sig:get_width(),
+                                            sig_info.width_max
+                                        ),
+                                        0
+                                    )
+                                end
                             end
                         end
                     elseif type(sig_info) == "string" then
+                        ---@cast sig_info string
                         _G.debug_level = 5                             -- Temporary set debug level
                         texpect.expect_chdl(value[sig_info], sig_info) -- Each element of AliasBundle must be a CallableHDL
                         _G.debug_level = _G.default_debug_level
