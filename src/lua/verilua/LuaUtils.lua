@@ -32,6 +32,9 @@ local table_insert = table.insert
 local table_concat = table.concat
 local setmetatable = setmetatable
 
+local srep = string.rep
+local ssub = string.sub
+
 ---@class (exact) verilua.LuaUtils
 local utils = {}
 
@@ -193,7 +196,7 @@ function utils.get_progress_bar(progress, length)
     -- https://cn.piliapp.com/symbol/
     local completed = math_floor(progress * length)
     local remaining = length - completed
-    local progressBar = "┃" .. string.rep("█", completed) .. "▉" .. string.rep("▒", remaining) .. "┃"
+    local progressBar = "┃" .. srep("█", completed) .. "▉" .. srep("▒", remaining) .. "┃"
     return progressBar
 end
 
@@ -391,7 +394,7 @@ function utils.bitfield_str(str, s, e, width)
 
     -- Ensure the binary string meets the desired width by padding with leading zeros
     if width and width > #bin_str then
-        bin_str = string.rep("0", width - #bin_str) .. bin_str
+        bin_str = srep("0", width - #bin_str) .. bin_str
     end
 
     local len = #bin_str
@@ -681,7 +684,17 @@ end
 function utils.expand_hex_str(value_hex_str, bitwidth)
     local len = #value_hex_str
     local target_len = utils.cover_with_n(bitwidth, 4)
-    return string.rep("0", target_len - len) .. value_hex_str
+    return srep("0", target_len - len) .. value_hex_str
+end
+
+---@param bin_or_hex_str string
+---@return string
+function utils.trim_leading_zeros(bin_or_hex_str)
+    local ret = bin_or_hex_str:gsub("^0+", "")
+    if ret == "" then
+        ret = "0"
+    end
+    return ret
 end
 
 local hex_to_bin_map = {
@@ -717,6 +730,133 @@ function utils.hex_to_bin(hex_str)
         bin_parts[i] = (hex_to_bin_map[nibble] or error("Invalid hex character: " .. nibble))
     end
     return table_concat(bin_parts)
+end
+
+local bin_to_hex_map = {
+    ["0000"] = "0",
+    ["0001"] = "1",
+    ["0010"] = "2",
+    ["0011"] = "3",
+    ["0100"] = "4",
+    ["0101"] = "5",
+    ["0110"] = "6",
+    ["0111"] = "7",
+    ["1000"] = "8",
+    ["1001"] = "9",
+    ["1010"] = "a",
+    ["1011"] = "b",
+    ["1100"] = "c",
+    ["1101"] = "d",
+    ["1110"] = "e",
+    ["1111"] = "f"
+}
+
+---@param bin_str string
+---@return string
+function utils.bin_str_to_hex_str(bin_str)
+    local remainder = #bin_str % 4
+    if remainder ~= 0 then
+        bin_str = srep("0", 4 - remainder) .. bin_str
+    end
+
+    local len = #bin_str
+    local output_len = len / 4
+    local hex_parts = {}
+
+    for i = 1, output_len do
+        local start_pos = (i - 1) * 4 + 1
+        local four_bits = ssub(bin_str, start_pos, start_pos + 3)
+        hex_parts[i] = bin_to_hex_map[four_bits]
+    end
+
+    return table_concat(hex_parts)
+end
+
+-- Helper: Adjust binary string to specific bitwidth (truncate MSB or pad MSB)
+---@param bin_str string
+---@param bitwidth? integer
+---@return string
+local function adjust_bitwidth(bin_str, bitwidth)
+    if not bitwidth then return bin_str end
+
+    local len = #bin_str
+    if len > bitwidth then
+        -- Truncate MSB (overflow behavior: keep the lower 'bitwidth' bits)
+        return ssub(bin_str, -bitwidth)
+    elseif len < bitwidth then
+        -- Pad MSB with zeros (extend to register size)
+        return srep("0", bitwidth - len) .. bin_str
+    end
+    return bin_str
+end
+
+--- Left shift a hexadecimal string representation.
+--- Mimics the behavior of `val << n`.
+---@param hex_str string: The input hexadecimal string.
+---@param n integer: The number of bits to shift.
+---@param bitwidth? integer: (Optional) Simulates a fixed-width register. Truncates overflow if set.
+---@return string hex_str
+function utils.lshift_hex_str(hex_str, n, bitwidth)
+    -- Optimization: If shift is 0, just handle bitwidth adjustment
+    if n == 0 then
+        if bitwidth then
+            local bin_str = utils.hex_to_bin(hex_str)
+            bin_str = adjust_bitwidth(bin_str, bitwidth)
+            return utils.trim_leading_zeros(utils.bin_str_to_hex_str(bin_str))
+        else
+            return hex_str
+        end
+    end
+
+    local bin_str = utils.hex_to_bin(hex_str)
+
+    -- LShift adds '0's to the LSB (Least Significant Bits)
+    local shifted_bin = bin_str .. srep("0", n)
+
+    -- Handle truncation if bitwidth is specified
+    if bitwidth then
+        shifted_bin = adjust_bitwidth(shifted_bin, bitwidth)
+    end
+
+    -- Convert back to hex and clean up
+    return utils.trim_leading_zeros(utils.bin_str_to_hex_str(shifted_bin))
+end
+
+--- Logical right shift a hexadecimal string representation.
+--- Mimics the behavior of `val >> n` (Logical Shift, zero-filling MSB).
+---@param hex_str string: The input hexadecimal string.
+---@param n integer: The number of bits to shift.
+---@param bitwidth? integer: (Optional) Simulates a fixed-width register. Used for MSB padding.
+---@return string hex_str
+function utils.rshift_hex_str(hex_str, n, bitwidth)
+    local bin_str = utils.hex_to_bin(hex_str)
+
+    -- If bitwidth is provided, ensure input is conformant BEFORE shifting
+    -- (e.g., shifting a 32-bit value inside an 8-bit register context)
+    if bitwidth then
+        bin_str = adjust_bitwidth(bin_str, bitwidth)
+    end
+
+    local len = #bin_str
+
+    -- Edge Case: If shift amount >= length, the result is 0
+    if n >= len then
+        return "0"
+    end
+
+    -- RShift truncates the LSB (Least Significant Bits).
+    -- We keep the substring from index 1 to (length - n).
+    -- Note: Logical right shift naturally pads MSB with 0, which is implicit here
+    -- because we are removing bits from the end.
+    local shifted_bin = ssub(bin_str, 1, len - n)
+
+    -- If bitwidth is strictly required for the output format (e.g. fixed width return),
+    -- we pad the now-shorter string with leading zeros.
+    if bitwidth then
+        shifted_bin = adjust_bitwidth(shifted_bin, bitwidth)
+    end
+
+    return utils.trim_leading_zeros(utils.bin_str_to_hex_str(shifted_bin))
 end
 
 local truth_values = {

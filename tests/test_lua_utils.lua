@@ -1,10 +1,12 @@
+---@diagnostic disable: unnecessary-assert
+
 local ffi = require "ffi"
 local inspect = require "inspect"
 local lester = require "lester"
 local utils = require "LuaUtils"
 
 local describe, it, expect = lester.describe, lester.it, lester.expect
-local assert, print, f = assert, print, string.format
+local assert, f = assert, string.format
 
 describe("LuaUtils test", function()
     it("should work for bitfield32() and bitfiled64()", function()
@@ -115,7 +117,7 @@ describe("LuaUtils test", function()
 
     it("should work properly for urandom64() and urandom64_range()", function()
         local success = false
-        for i = 1, 10000 do
+        for _ = 1, 10000 do
             local v = utils.urandom64()
             assert(type(v) == "cdata")
             if v >= 0xFFFFFFFULL then
@@ -129,22 +131,22 @@ describe("LuaUtils test", function()
             { MIN = 0xFFFFFFFFULL, MAX = 0xFFFFFFFFFULL },
             { MIN = 0,             MAX = 0xFFFFFFFFFFFFFFFFULL }
         }
-        for i, v in ipairs(tests) do
+        for _, v in ipairs(tests) do
             local MIN = v.MIN
             local MAX = v.MAX
 
             local random_count = 0
             local random_count_tbl = {}
-            for i = 1, 10000 do
-                local v = utils.urandom64_range(MIN, MAX)
-                random_count_tbl[utils.to_hex_str(v)] = v
-                assert(type(v) == "cdata")
-                if v > MAX or v < MIN then
+            for _ = 1, 10000 do
+                local vv = utils.urandom64_range(MIN, MAX)
+                random_count_tbl[utils.to_hex_str(vv)] = vv
+                assert(type(vv) == "cdata")
+                if vv > MAX or vv < MIN then
                     assert(false)
                 end
             end
 
-            for _, v in pairs(random_count_tbl) do
+            for _, _ in pairs(random_count_tbl) do
                 random_count = random_count + 1
             end
             assert(random_count > 100,
@@ -364,13 +366,115 @@ describe("LuaUtils test", function()
         end
     end)
 
+    it("should work properly for trim_leading_zeros", function()
+        local tests = {
+            { "0",            "0" },
+            { "1",            "1" },
+            { "10",           "10" },
+            { "010",          "10" },
+            { "0000100",      "100" },
+            { "000000000010", "10" },
+
+            { "abcd",         "abcd" },
+            { "00abcd",       "abcd" },
+            { "0000abcd",     "abcd" },
+        }
+        for _, test in ipairs(tests) do
+            local str = test[1]
+            local expected = test[2]
+            local result = utils.trim_leading_zeros(str)
+            expect.equal(result, expected)
+        end
+    end)
+
+    it("should work properly for bin_str_to_hex_str", function()
+        local tests = {
+            { "0",            "0" },
+            { "1",            "1" },
+            { "10",           "2" },
+            { "010",          "2" },
+            { "1000",         "8" },
+            { "1111",         "f" },
+            { "10000100",     "84" },
+            { "000000000010", "002" },
+        }
+        for _, test in ipairs(tests) do
+            local bin_str = test[1]
+            local expected = test[2]
+            local result = utils.bin_str_to_hex_str(bin_str)
+            expect.equal(result, expected)
+        end
+    end)
+
+    it("should work properly for lshift_hex_str", function()
+        local tests = {
+            { "0",    1,  nil, "0" },
+            { "1",    0,  nil, "1" },
+            { "1",    1,  nil, "2" },
+            { "1",    2,  nil, "4" },
+            { "1",    3,  nil, "8" },
+            { "1",    4,  nil, "10" },
+            { "f",    4,  nil, "f0" },
+            { "ff",   4,  nil, "ff0" },
+            { "abc",  4,  nil, "abc0" },
+            { "1",    64, nil, "10000000000000000" },
+            { "f",    1,  4,   "e" },
+            { "f",    2,  4,   "c" },
+            { "f",    3,  4,   "8" },
+            { "f",    4,  4,   "0" },
+            { "80",   1,  8,   "0" },
+            { "7f",   1,  8,   "fe" },
+            { "abc",  4,  12,  "bc0" },
+            { "ffff", 8,  16,  "ff00" },
+            { "1",    0,  8,   "1" },
+            { "11",   4,  4,   "0" },
+        }
+        for _, test in ipairs(tests) do
+            local hex_str = test[1]
+            local n = test[2]
+            local bitwidth = test[3]
+            local expected = test[4]
+            local result = utils.lshift_hex_str(hex_str, n, bitwidth)
+            expect.equal(result, expected)
+        end
+    end)
+
+    it("should work properly for rshift_hex_str", function()
+        local tests = {
+            { "0",     1, nil, "0" },
+            { "1",     0, nil, "1" },
+            { "1",     1, nil, "0" },
+            { "2",     1, nil, "1" },
+            { "f",     1, nil, "7" },
+            { "f",     2, nil, "3" },
+            { "f",     4, nil, "0" },
+            { "10",    1, nil, "8" },
+            { "100",   4, nil, "10" },
+            { "100",   8, nil, "1" },
+            { "abc",   4, nil, "ab" },
+            { "abc",   8, nil, "a" },
+            { "f",     1, 4,   "7" },
+            { "1f",    1, 4,   "7" },
+            { "100",   1, 8,   "0" },
+            { "180",   1, 8,   "40" },
+            { "abc",   4, 8,   "b" },
+            { "ffff",  8, 16,  "ff" },
+            { "1ffff", 8, 16,  "ff" },
+        }
+        for _, test in ipairs(tests) do
+            local hex_str = test[1]
+            local n = test[2]
+            local bitwidth = test[3]
+            local expected = test[4]
+            local result = utils.rshift_hex_str(hex_str, n, bitwidth)
+            expect.equal(result, expected)
+        end
+    end)
+
     it("should work properly for matrix_call()", function()
         local matrix_call = utils.matrix_call
 
-        local inspect = require "inspect"
-        local pp = function(...)
-            print(inspect(...))
-        end
+        local print = function(...) end
 
         -- Create a table to track execution order
         local execution_order = {}
