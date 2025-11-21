@@ -15,7 +15,7 @@ luajit gen_scheduler.lua
 mv ./out/gen_scheduler.lua ./out/$scheduler_name.lua
 cp ./out/$scheduler_name.lua $file
 sed -i "1i\\$info_str" $file
-sed -i "s/verilua\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
+sed -i "s/verilua\.scheduler\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
 
 export ACC_TIME=0
 export NORMAL=0
@@ -27,7 +27,7 @@ luajit gen_scheduler.lua
 mv ./out/gen_scheduler.lua ./out/$scheduler_name.lua
 cp ./out/$scheduler_name.lua $file
 sed -i "1i\\$info_str" $file
-sed -i "s/verilua\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
+sed -i "s/verilua\.scheduler\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
 
 export ACC_TIME=0
 export NORMAL=0
@@ -39,7 +39,7 @@ luajit gen_scheduler.lua
 mv ./out/gen_scheduler.lua ./out/$scheduler_name.lua
 cp ./out/$scheduler_name.lua $file
 sed -i "1i\\$info_str" $file
-sed -i "s/verilua\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
+sed -i "s/verilua\.scheduler\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
 
 export ACC_TIME=1
 export NORMAL=1
@@ -51,7 +51,7 @@ luajit gen_scheduler.lua
 mv ./out/gen_scheduler.lua ./out/$scheduler_name.lua
 cp ./out/$scheduler_name.lua $file
 sed -i "1i\\$info_str" $file
-sed -i "s/verilua\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
+sed -i "s/verilua\.scheduler\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
 
 export ACC_TIME=1
 export NORMAL=0
@@ -63,7 +63,7 @@ luajit gen_scheduler.lua
 mv ./out/gen_scheduler.lua ./out/$scheduler_name.lua
 cp ./out/$scheduler_name.lua $file
 sed -i "1i\\$info_str" $file
-sed -i "s/verilua\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
+sed -i "s/verilua\.scheduler\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
 
 export ACC_TIME=1
 export NORMAL=0
@@ -75,5 +75,5 @@ luajit gen_scheduler.lua
 mv ./out/gen_scheduler.lua ./out/$scheduler_name.lua
 cp ./out/$scheduler_name.lua $file
 sed -i "1i\\$info_str" $file
-sed -i "s/verilua\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
+sed -i "s/verilua\.scheduler\.LuaScheduler_gen/verilua.LuaScheduler_gen_$scheduler_name/g" $file
 
