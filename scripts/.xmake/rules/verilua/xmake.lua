@@ -18,6 +18,33 @@ local luajitpro_home = path.join(verilua_home, "luajit-pro", "luajit2.1")
 ---@field config CovExporterConfig TODO: Other config
 ---@field extra_args string[] Extra arguments for the instrumentation tool
 
+local function get_simulator_type(target)
+    if target:toolchain("verilator") then
+        return "verilator"
+    elseif target:toolchain("iverilog") then
+        return "iverilog"
+    elseif target:toolchain("vcs") then
+        return "vcs"
+    elseif target:toolchain("wave_vpi") ~= nil then
+        return "wave_vpi"
+    elseif target:toolchain("nosim") ~= nil then
+        return "nosim"
+    else
+        return nil
+    end
+end
+
+local function get_build_dir(target, sim)
+    local cfg_build_dir = target:values("cfg.build_dir")
+    local cfg_build_dir_name = target:values("cfg.build_dir_name")
+    local cfg_build_dir_path = target:values("cfg.build_dir_path")
+    local top = target:values("cfg.top") or target:name()
+    local build_dir_name = cfg_build_dir_name or top --[[@as string]]
+    local build_dir_path = cfg_build_dir_path or path.join("build", sim) --[[@as string]]
+    local build_dir = cfg_build_dir or path.absolute(path.join(build_dir_path, build_dir_name)) --[[@as string]]
+    return build_dir, build_dir_name, build_dir_path
+end
+
 local function before_build_or_run(target)
     --- Check if any of the valid toolchains is set. If not, raise an error.
     --- You should set the toolchain using add_toolchains(<...>).
@@ -33,14 +60,18 @@ local function before_build_or_run(target)
     ---     -- or
     ---     add_toolchains("@nosim")
     --- ```
-    local sim
-    if target:toolchain("verilator") then
-        sim = "verilator"
-    elseif target:toolchain("iverilog") then
-        sim = "iverilog"
-    elseif target:toolchain("vcs") then
-        sim = "vcs"
+    local sim = get_simulator_type(target)
+    assert(sim, [[
+        [before_build_or_run] Unknown toolchain!
+            Please use one of the following toolchains:
+                - add_toolchains("@verilator")
+                - add_toolchains("@iverilog")
+                - add_toolchains("@vcs")
+                - add_toolchains("@wave_vpi") => For waveform simulation only
+                - add_toolchains("@nosim") => For no simulation
+    ]])
 
+    if sim == "vcs" then
         --- Disable vcs reg initialization, verilua use `+vcs+initreg+0` by default.
         --- e.g. (in your xmake.lua)
         --- ```lua
@@ -49,20 +80,6 @@ local function before_build_or_run(target)
         if target:values("cfg.vcs_no_initreg") == "1" then
             target:add("vcs_no_initreg", true)
         end
-    elseif target:toolchain("wave_vpi") ~= nil then
-        sim = "wave_vpi"
-    elseif target:toolchain("nosim") ~= nil then
-        sim = "nosim"
-    else
-        raise([[
-            [before_build_or_run] Unknown toolchain!
-                Please use one of the following toolchains:
-                    - add_toolchains("@verilator")
-                    - add_toolchains("@iverilog")
-                    - add_toolchains("@vcs")
-                    - add_toolchains("@wave_vpi") => For waveform simulation only
-                    - add_toolchains("@nosim") => For no simulation
-        ]])
     end
 
     -- Used in `on_build` or `on_run` phase
@@ -127,13 +144,11 @@ local function before_build_or_run(target)
     ---        set_values("cfg.build_dir_path", "/path/to/your/build")
     ---        set_values("cfg.build_dir_name", "my_build")
     ---    ```
+    local build_dir = get_build_dir(target, sim)
+    local sim_build_dir = path.join(build_dir, "sim_build") --[[@as string]]
+    local cfg_build_dir = target:values("cfg.build_dir")
     local cfg_build_dir_name = target:values("cfg.build_dir_name")
     local cfg_build_dir_path = target:values("cfg.build_dir_path")
-    local cfg_build_dir = target:values("cfg.build_dir")
-    local build_dir_name = cfg_build_dir_name or top --[[@as string]]
-    local build_dir_path = cfg_build_dir_path or path.join("build", sim) --[[@as string]]
-    local build_dir = cfg_build_dir or path.absolute(path.join(build_dir_path, build_dir_name)) --[[@as string]]
-    local sim_build_dir = path.join(build_dir, "sim_build") --[[@as string]]
     if cfg_build_dir ~= nil then
         assert(
             cfg_build_dir_name == nil,
@@ -1275,15 +1290,20 @@ verdi -f filelist.f -sv -nologo $@]]
     end)
 
     on_clean(function(target)
-        local build_dir = target:get("build_dir")
-        if not os.isfile(build_dir) then
+        local sim = get_simulator_type(target)
+        assert(sim, "[on_clean] [%s] simulator type not found!", target:name())
+
+        local build_dir = get_build_dir(target, sim)
+        if build_dir ~= "" and os.isdir(build_dir) then
             os.rmdir(build_dir)
         end
+        print("[verilua-xmake] [%s] clean build dir: %s", target:name(), build_dir)
 
         try {
             function()
-                if not os.isfile(target:targetdir()) then
-                    os.rmdir(target:targetdir())
+                local tdir = target:targetdir()
+                if tdir and tdir ~= "" and os.isdir(tdir) then
+                    os.rmdir(tdir)
                 end
             end
         }
