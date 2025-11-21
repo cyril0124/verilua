@@ -403,7 +403,7 @@ Self {
     #[cfg(not(feature = "chunk_task"))]
     pending_edge_cb_map: HashMap::new(),
 
-    edge_cb_idpool: IDPool::new(10000),
+    edge_cb_idpool: IDPool::new(100000), // The maximum number of edge callbacks is controlled by this value
     edge_cb_hdl_map: HashMap::new(),
 
     resolve_x_as_zero: false,
