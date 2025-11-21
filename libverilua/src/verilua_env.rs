@@ -47,7 +47,10 @@ pub fn get_verilua_env_no_init() -> &'static mut VeriluaEnv {
 }
 
 pub struct IDPool {
-    available_ids: HashSet<EdgeCallbackID>,
+    available_ids: Vec<EdgeCallbackID>,
+
+    #[cfg(feature = "debug")]
+    allocated_ids: HashSet<EdgeCallbackID>,
 }
 
 impl Debug for IDPool {
@@ -58,29 +61,36 @@ impl Debug for IDPool {
 
 impl IDPool {
     pub fn new(size: u64) -> Self {
-        let available_ids = (0..size as EdgeCallbackID).collect::<HashSet<EdgeCallbackID>>();
-        IDPool { available_ids }
+        IDPool {
+            available_ids: (0..size as EdgeCallbackID).rev().collect(),
+
+            #[cfg(feature = "debug")]
+            allocated_ids: HashSet::new(),
+        }
     }
 
     #[inline(always)]
     pub fn alloc_id(&mut self) -> EdgeCallbackID {
-        let id = *self
-            .available_ids
-            .iter()
-            .next()
-            .expect("No more IDs available");
-        self.available_ids.remove(&id);
+        let id = self.available_ids.pop().expect("No more IDs available");
+
+        #[cfg(feature = "debug")]
+        self.allocated_ids.insert(id);
 
         id
     }
 
     #[inline(always)]
     pub fn release_id(&mut self, id: EdgeCallbackID) {
-        assert!(
-            self.available_ids.insert(id),
-            "id {} is already available",
-            id
-        );
+        #[cfg(feature = "debug")]
+        {
+            assert!(
+                self.allocated_ids.remove(&id),
+                "id {} is not currently allocated",
+                id
+            );
+        }
+
+        self.available_ids.push(id);
     }
 }
 
