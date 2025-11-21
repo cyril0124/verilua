@@ -7,7 +7,8 @@ local shared_dir = path.join(prj_dir, "shared")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
 
-local common_features = "debug acc_time"
+local common_features = "acc_time"
+-- local common_features = "debug acc_time"
 
 local verilator_features = "chunk_task verilator_inner_step_callback " .. common_features
 local vcs_features = "chunk_task merge_cb " .. common_features
@@ -97,6 +98,7 @@ for _, simulator in ipairs({
     -- libverilua_vcs_dpi
     -- libverilua_iverilog
     -- libverilua_wave_vpi
+    -- libverilua_nosim
     local target_name = "libverilua_" .. simulator
     all_libverilua_targets[#all_libverilua_targets + 1] = target_name
     target(target_name, function()
