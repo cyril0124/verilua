@@ -56,7 +56,8 @@ impl VeriluaEnv {
         if cfg!(feature = "iverilog") {
             let resolve_x_as_zero = self.resolve_x_as_zero;
             for i in 1..(len + 1) {
-                if resolve_x_as_zero && unsafe { v.value.vector.read().bval } != 0 {
+                if resolve_x_as_zero && unsafe { v.value.vector.add((i - 1) as _).read().bval } != 0
+                {
                     unsafe { ret.add(i as _).write(0) };
                 } else {
                     unsafe {
