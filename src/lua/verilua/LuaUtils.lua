@@ -797,6 +797,8 @@ end
 ---@param bitwidth? integer: (Optional) Simulates a fixed-width register. Truncates overflow if set.
 ---@return string hex_str
 function utils.lshift_hex_str(hex_str, n, bitwidth)
+    n = tonumber(n) --[[@as integer]]
+
     -- Optimization: If shift is 0, just handle bitwidth adjustment
     if n == 0 then
         if bitwidth then
@@ -829,6 +831,8 @@ end
 ---@param bitwidth? integer: (Optional) Simulates a fixed-width register. Used for MSB padding.
 ---@return string hex_str
 function utils.rshift_hex_str(hex_str, n, bitwidth)
+    n = tonumber(n) --[[@as integer]]
+
     local bin_str = utils.hex_to_bin(hex_str)
 
     -- If bitwidth is provided, ensure input is conformant BEFORE shifting
