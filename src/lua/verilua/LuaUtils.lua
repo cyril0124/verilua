@@ -19,7 +19,12 @@ local rawset = rawset
 local f = string.format
 local tonumber = tonumber
 local tostring = tostring
+local math_ceil = math.ceil
+local math_floor = math.floor
 local ffi_istype = ffi.istype
+local math_random = math.random
+local table_insert = table.insert
+local table_concat = table.concat
 local setmetatable = setmetatable
 
 local bit_bor = bit.bor
@@ -869,7 +874,578 @@ function utils.rshift_hex_str(hex_str, n, bitwidth)
         shifted_bin = adjust_bitwidth(shifted_bin, bitwidth)
     end
 
-    return utils.trim_leading_zeros(utils.bin_str_to_hex_str(shifted_bin))
+    local result = utils.bin_str_to_hex_str(shifted_bin)
+    if bitwidth then
+        return result
+    else
+        return utils.trim_leading_zeros(result)
+    end
+end
+
+--- Helper function to convert hex string to uint64_t safely
+--- Handles strings up to 16 hex characters (64 bits)
+---@param hex_str string
+---@return integer uint64_t value
+local function hex_str_to_ull(hex_str)
+    local len = #hex_str
+    if len <= 13 then
+        -- Safe to use tonumber for up to 13 hex characters (52 bits)
+        return (tonumber(hex_str, 16) or 0) + 0ULL
+    else
+        -- For longer strings, split into high and low parts
+        local split_pos = len - 13
+        local high_str = ssub(hex_str, 1, split_pos)
+        local low_str = ssub(hex_str, split_pos + 1)
+
+        local high = (tonumber(high_str, 16) or 0) + 0ULL
+        local low = (tonumber(low_str, 16) or 0) + 0ULL
+
+        -- Shift high part left and add low part
+        local shift_amount = #low_str * 4 -- 4 bits per hex character
+        return bit_lshift(high, shift_amount) + low
+    end
+end
+
+--- Mask hex string inputs to fit within specified bitwidth
+--- @param hex_str string The hex string to mask
+--- @param bitwidth number The target bitwidth
+--- @return string The masked hex string
+local function mask_hex_str_to_bitwidth(hex_str, bitwidth)
+    local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+
+    -- Truncate if input exceeds bitwidth
+    if #hex_str > bitwidth_hex_chars then
+        hex_str = ssub(hex_str, -bitwidth_hex_chars)
+    end
+
+    -- Pad to bitwidth_hex_chars if shorter
+    if #hex_str < bitwidth_hex_chars then
+        hex_str = srep("0", bitwidth_hex_chars - #hex_str) .. hex_str
+    end
+
+    -- Mask off extra bits in MSB nibble if bitwidth is not a multiple of 4
+    local bitwidth_mod4 = bitwidth % 4
+    if bitwidth_mod4 ~= 0 then
+        local mask = bit_lshift(1, bitwidth_mod4 --[[@as integer]]) - 1
+        local first_nibble = tonumber(ssub(hex_str, 1, 1), 16) or 0
+        local masked_nibble = bit_band(first_nibble, mask)
+        hex_str = f("%x", masked_nibble) .. ssub(hex_str, 2)
+    end
+
+    return hex_str
+end
+
+--- Perform bitwise OR operation on two hexadecimal strings.
+--- Returns a hexadecimal string representing the result.
+---@param hex_str1 string: First hexadecimal string (without 0x prefix)
+---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
+---@param bitwidth integer?: Optional target bit width (result is truncated/padded to this width)
+---@return string: Result as hexadecimal string (without 0x prefix)
+function utils.bor_hex_str(hex_str1, hex_str2, bitwidth)
+    -- Calculate target length based on inputs and bitwidth
+    local len1, len2 = #hex_str1, #hex_str2
+    local max_len = len1 > len2 and len1 or len2
+
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+        -- Mask inputs to fit within bitwidth
+        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
+        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        -- Update lengths after masking
+        len1, len2 = #hex_str1, #hex_str2
+        max_len = len1 > len2 and len1 or len2
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+    end
+
+    -- Pad both strings to the same length
+    if len1 < max_len then
+        hex_str1 = srep("0", max_len - len1) .. hex_str1
+    elseif len2 < max_len then
+        hex_str2 = srep("0", max_len - len2) .. hex_str2
+    end
+
+    -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
+    local result_parts = {}
+    local chunk_size = 16
+    local num_chunks = math_ceil(max_len / chunk_size)
+
+    for i = 1, num_chunks do
+        local end_pos = max_len - (i - 1) * chunk_size
+        local start_pos = end_pos - chunk_size + 1
+        if start_pos < 1 then start_pos = 1 end
+
+        local chunk1 = ssub(hex_str1, start_pos, end_pos)
+        local chunk2 = ssub(hex_str2, start_pos, end_pos)
+
+        -- Convert to numbers and perform bitwise OR
+        local num1 = hex_str_to_ull(chunk1)
+        local num2 = hex_str_to_ull(chunk2)
+        local result = bit_bor(num1, num2)
+
+        -- Format back to hex string with proper padding
+        local chunk_len = end_pos - start_pos + 1
+        local hex_result = f("%x", result):lower()
+        -- Pad to chunk_len if necessary
+        if #hex_result < chunk_len then
+            hex_result = srep("0", chunk_len - #hex_result) .. hex_result
+        end
+        result_parts[num_chunks - i + 1] = hex_result
+    end
+
+    local result = table_concat(result_parts)
+
+    -- Handle bitwidth truncation/padding if specified
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        local result_len = #result
+        if result_len > bitwidth_hex_chars then
+            result = ssub(result, -bitwidth_hex_chars)
+        elseif result_len < bitwidth_hex_chars then
+            result = srep("0", bitwidth_hex_chars - result_len) .. result
+        end
+
+        -- Mask off extra bits in MSB nibble if bitwidth is not a multiple of 4
+        local bitwidth_mod4 = bitwidth % 4
+        if bitwidth_mod4 ~= 0 then
+            local mask = bit_lshift(1, bitwidth_mod4) - 1
+            local first_nibble = tonumber(ssub(result, 1, 1), 16) or 0
+            local masked_nibble = bit_band(first_nibble, mask)
+            result = f("%x", masked_nibble) .. ssub(result, 2)
+        end
+    end
+
+    if bitwidth then
+        return result
+    else
+        return utils.trim_leading_zeros(result)
+    end
+end
+
+--- Perform bitwise XOR operation on two hexadecimal strings.
+--- Returns a hexadecimal string representing the result.
+---@param hex_str1 string: First hexadecimal string (without 0x prefix)
+---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
+---@param bitwidth integer?: Optional target bit width (result is truncated/padded to this width)
+---@return string: Result as hexadecimal string (without 0x prefix)
+function utils.bxor_hex_str(hex_str1, hex_str2, bitwidth)
+    -- Calculate target length based on inputs and bitwidth
+    local len1, len2 = #hex_str1, #hex_str2
+    local max_len = len1 > len2 and len1 or len2
+
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+        -- Mask inputs to fit within bitwidth
+        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
+        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        -- Update lengths after masking
+        len1, len2 = #hex_str1, #hex_str2
+        max_len = len1 > len2 and len1 or len2
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+    end
+
+    -- Pad both strings to the same length
+    if len1 < max_len then
+        hex_str1 = srep("0", max_len - len1) .. hex_str1
+    elseif len2 < max_len then
+        hex_str2 = srep("0", max_len - len2) .. hex_str2
+    end
+
+    -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
+    local result_parts = {}
+    local chunk_size = 16
+    local num_chunks = math_ceil(max_len / chunk_size)
+
+    for i = 1, num_chunks do
+        local end_pos = max_len - (i - 1) * chunk_size
+        local start_pos = end_pos - chunk_size + 1
+        if start_pos < 1 then start_pos = 1 end
+
+        local chunk1 = ssub(hex_str1, start_pos, end_pos)
+        local chunk2 = ssub(hex_str2, start_pos, end_pos)
+
+        -- Convert to numbers and perform bitwise XOR
+        local num1 = hex_str_to_ull(chunk1)
+        local num2 = hex_str_to_ull(chunk2)
+        local result = bit_bxor(num1, num2)
+
+        -- Format back to hex string with proper padding
+        local chunk_len = end_pos - start_pos + 1
+        local hex_result = f("%x", result):lower()
+        -- Pad to chunk_len if necessary
+        if #hex_result < chunk_len then
+            hex_result = srep("0", chunk_len - #hex_result) .. hex_result
+        end
+        result_parts[num_chunks - i + 1] = hex_result
+    end
+
+    local result = table_concat(result_parts)
+
+    -- Handle bitwidth truncation/padding if specified
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        local result_len = #result
+        if result_len > bitwidth_hex_chars then
+            result = ssub(result, -bitwidth_hex_chars)
+        elseif result_len < bitwidth_hex_chars then
+            result = srep("0", bitwidth_hex_chars - result_len) .. result
+        end
+
+        -- Mask off extra bits in MSB nibble if bitwidth is not a multiple of 4
+        local bitwidth_mod4 = bitwidth % 4
+        if bitwidth_mod4 ~= 0 then
+            local mask = bit_lshift(1, bitwidth_mod4) - 1
+            local first_nibble = tonumber(ssub(result, 1, 1), 16) or 0
+            local masked_nibble = bit_band(first_nibble, mask)
+            result = f("%x", masked_nibble) .. ssub(result, 2)
+        end
+    end
+
+    if bitwidth then
+        return result
+    else
+        return utils.trim_leading_zeros(result)
+    end
+end
+
+--- Perform bitwise AND operation on two hexadecimal strings.
+--- Returns a hexadecimal string representing the result.
+---@param hex_str1 string: First hexadecimal string (without 0x prefix)
+---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
+---@param bitwidth integer?: Optional target bit width (result is truncated/padded to this width)
+---@return string: Result as hexadecimal string (without 0x prefix)
+function utils.band_hex_str(hex_str1, hex_str2, bitwidth)
+    -- Calculate target length based on inputs and bitwidth
+    local len1, len2 = #hex_str1, #hex_str2
+    local max_len = len1 > len2 and len1 or len2
+
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+        -- Mask inputs to fit within bitwidth
+        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
+        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        -- Update lengths after masking
+        len1, len2 = #hex_str1, #hex_str2
+        max_len = len1 > len2 and len1 or len2
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+    end
+
+    -- Pad both strings to the same length
+    if len1 < max_len then
+        hex_str1 = srep("0", max_len - len1) .. hex_str1
+    elseif len2 < max_len then
+        hex_str2 = srep("0", max_len - len2) .. hex_str2
+    end
+
+    -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
+    local result_parts = {}
+    local chunk_size = 16
+    local num_chunks = math_ceil(max_len / chunk_size)
+
+    for i = 1, num_chunks do
+        local end_pos = max_len - (i - 1) * chunk_size
+        local start_pos = end_pos - chunk_size + 1
+        if start_pos < 1 then start_pos = 1 end
+
+        local chunk1 = ssub(hex_str1, start_pos, end_pos)
+        local chunk2 = ssub(hex_str2, start_pos, end_pos)
+
+        -- Convert to numbers and perform bitwise AND
+        local num1 = hex_str_to_ull(chunk1)
+        local num2 = hex_str_to_ull(chunk2)
+        local result = bit_band(num1, num2)
+
+        -- Format back to hex string with proper padding
+        local chunk_len = end_pos - start_pos + 1
+        local hex_result = f("%x", result):lower()
+        -- Pad to chunk_len if necessary
+        if #hex_result < chunk_len then
+            hex_result = srep("0", chunk_len - #hex_result) .. hex_result
+        end
+        result_parts[num_chunks - i + 1] = hex_result
+    end
+
+    local result = table_concat(result_parts)
+
+    -- Handle bitwidth truncation/padding if specified
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        local result_len = #result
+        if result_len > bitwidth_hex_chars then
+            result = ssub(result, -bitwidth_hex_chars)
+        elseif result_len < bitwidth_hex_chars then
+            result = srep("0", bitwidth_hex_chars - result_len) .. result
+        end
+
+        -- Mask off extra bits in MSB nibble if bitwidth is not a multiple of 4
+        local bitwidth_mod4 = bitwidth % 4
+        if bitwidth_mod4 ~= 0 then
+            local mask = bit_lshift(1, bitwidth_mod4) - 1
+            local first_nibble = tonumber(ssub(result, 1, 1), 16) or 0
+            local masked_nibble = bit_band(first_nibble, mask)
+            result = f("%x", masked_nibble) .. ssub(result, 2)
+        end
+    end
+
+    if bitwidth then
+        return result
+    else
+        return utils.trim_leading_zeros(result)
+    end
+end
+
+--- Perform bitwise NOT operation on a hexadecimal string.
+--- Returns a hexadecimal string representing the result.
+--- If bitwidth is not specified, the function assumes the bitwidth based on the input hex string length.
+---@param hex_str string: Hexadecimal string (without 0x prefix)
+---@param bitwidth integer?: Optional bit width (result is masked to this width)
+---@return string: Result as hexadecimal string (without 0x prefix)
+function utils.bnot_hex_str(hex_str, bitwidth)
+    -- Determine effective bitwidth
+    local effective_bitwidth
+    if bitwidth then
+        effective_bitwidth = bitwidth
+        -- Mask input to fit within specified bitwidth
+        hex_str = mask_hex_str_to_bitwidth(hex_str, bitwidth)
+    else
+        -- Infer bitwidth from hex string length
+        effective_bitwidth = #hex_str * 4
+    end
+
+    local hex_len = #hex_str
+    local bitwidth_hex_chars = math_ceil(effective_bitwidth / 4)
+
+    -- Pad input to match bitwidth if necessary
+    if hex_len < bitwidth_hex_chars then
+        hex_str = srep("0", bitwidth_hex_chars - hex_len) .. hex_str
+        hex_len = bitwidth_hex_chars
+    end
+
+    -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
+    local result_parts = {}
+    local chunk_size = 16
+    local num_chunks = math_ceil(hex_len / chunk_size)
+
+    for i = 1, num_chunks do
+        local end_pos = hex_len - (i - 1) * chunk_size
+        local start_pos = end_pos - chunk_size + 1
+        if start_pos < 1 then start_pos = 1 end
+
+        local chunk = ssub(hex_str, start_pos, end_pos)
+
+        -- Convert to number and perform bitwise NOT
+        local num = hex_str_to_ull(chunk)
+        local result = bit_bnot(num)
+
+        -- Format back to hex string with proper padding
+        local chunk_len = end_pos - start_pos + 1
+        local hex_result = f("%x", result):lower()
+
+        -- Truncate to chunk_len (bnot creates 64-bit result, we need only chunk_len)
+        if #hex_result > chunk_len then
+            hex_result = ssub(hex_result, -chunk_len)
+        elseif #hex_result < chunk_len then
+            hex_result = srep("0", chunk_len - #hex_result) .. hex_result
+        end
+
+        result_parts[num_chunks - i + 1] = hex_result
+    end
+
+    local result = table_concat(result_parts)
+
+    -- Mask off extra bits in MSB nibble if bitwidth is not a multiple of 4
+    local bitwidth_mod4 = effective_bitwidth % 4
+    if bitwidth_mod4 ~= 0 then
+        local mask = bit_lshift(1, bitwidth_mod4) - 1
+        local first_nibble = tonumber(ssub(result, 1, 1), 16) or 0
+        local masked_nibble = bit_band(first_nibble, mask)
+        result = f("%x", masked_nibble) .. ssub(result, 2)
+    end
+
+    -- Handle result formatting based on bitwidth parameter
+    if bitwidth then
+        -- Ensure result matches bitwidth_hex_chars exactly
+        local result_len = #result
+        if result_len > bitwidth_hex_chars then
+            result = ssub(result, -bitwidth_hex_chars)
+        elseif result_len < bitwidth_hex_chars then
+            result = srep("0", bitwidth_hex_chars - result_len) .. result
+        end
+        return result
+    else
+        return utils.trim_leading_zeros(result)
+    end
+end
+
+--- Perform addition operation on two hexadecimal strings.
+--- Returns the result as a hexadecimal string and a carry flag.
+---@param hex_str1 string: First hexadecimal string (without 0x prefix)
+---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
+---@param bitwidth integer?: Optional target bit width (if specified, result is truncated to this width)
+---@return string result: Result as hexadecimal string (without 0x prefix)
+---@return boolean carry: Whether there was a carry out from the MSB
+function utils.add_hex_str(hex_str1, hex_str2, bitwidth)
+    -- Calculate target length based on inputs and bitwidth
+    local len1, len2 = #hex_str1, #hex_str2
+    local max_len = len1 > len2 and len1 or len2
+
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+        -- Mask inputs to fit within bitwidth
+        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
+        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        -- Update lengths after masking
+        len1, len2 = #hex_str1, #hex_str2
+        max_len = len1 > len2 and len1 or len2
+        if bitwidth_hex_chars > max_len then
+            max_len = bitwidth_hex_chars
+        end
+    end
+
+    -- Pad both strings to the same length
+    if len1 < max_len then
+        hex_str1 = srep("0", max_len - len1) .. hex_str1
+    elseif len2 < max_len then
+        hex_str2 = srep("0", max_len - len2) .. hex_str2
+    end
+
+    -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
+    local result_parts = {}
+    local chunk_size = 16
+    local num_chunks = math_ceil(max_len / chunk_size)
+
+    local carry = 0ULL
+    -- local msb_chunk_len = ((max_len - 1) % chunk_size) + 1 -- Length of MSB chunk
+
+    -- Process from LSB to MSB (right to left)
+    for i = num_chunks, 1, -1 do
+        local end_pos = max_len - (num_chunks - i) * chunk_size
+        local start_pos = end_pos - chunk_size + 1
+        if start_pos < 1 then start_pos = 1 end
+
+        local chunk1 = ssub(hex_str1, start_pos, end_pos)
+        local chunk2 = ssub(hex_str2, start_pos, end_pos)
+
+        -- Convert to numbers and perform addition with carry
+        local num1 = hex_str_to_ull(chunk1)
+        local num2 = hex_str_to_ull(chunk2)
+        local sum = num1 + num2 + carry
+
+        -- Determine chunk length and max value for this chunk
+        local chunk_len = end_pos - start_pos + 1
+        local max_chunk_val = (chunk_len >= 16) and 0xFFFFFFFFFFFFFFFFULL or bit_lshift(1ULL, chunk_len * 4) - 1ULL
+
+        -- Check for carry out from this chunk
+        -- For uint64_t, overflow wraps, so we detect it by checking if sum < num1
+        -- (adding positive numbers should increase the value, if it decreased, we overflowed)
+        local has_overflow = false
+        if chunk_len >= 16 then
+            -- For full 64-bit chunks, check if sum wrapped around
+            if sum < num1 or (carry > 0ULL and sum <= num1) then
+                has_overflow = true
+            end
+        else
+            -- For partial chunks, check against max value
+            if sum > max_chunk_val then
+                has_overflow = true
+            end
+        end
+
+        if has_overflow then
+            carry = 1ULL
+            if chunk_len >= 16 then
+                -- For full chunks, sum is already wrapped, use it as-is
+                -- (sum already contains the lower 64 bits)
+            else
+                -- For partial chunks, subtract to get the wrapped value
+                sum = sum - bit_lshift(1ULL, chunk_len * 4)
+            end
+        else
+            carry = 0ULL
+        end
+
+        -- Format back to hex string with proper padding
+        local hex_result = f("%x", sum):lower()
+        -- Pad to chunk_len if necessary
+        if #hex_result < chunk_len then
+            hex_result = srep("0", chunk_len - #hex_result) .. hex_result
+        end
+        result_parts[i] = hex_result
+    end
+
+    -- If there's a final carry, prepend it
+    local result
+    local final_carry = carry > 0ULL
+    if final_carry then
+        result = "1" .. table_concat(result_parts)
+    else
+        result = table_concat(result_parts)
+    end
+
+    -- Handle bitwidth truncation if specified
+    if bitwidth then
+        local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+        local result_len = #result
+
+        -- Check if result exceeds bitwidth
+        -- This happens either when final_carry is set, or when result is longer than bitwidth allows
+        local bitwidth_carry = false
+
+        if final_carry then
+            -- If we had a carry, the sum definitely exceeds bitwidth
+            bitwidth_carry = true
+            -- Remove the leading "1" from carry and truncate to bitwidth
+            result = ssub(result, 2) -- Remove leading "1"
+            if #result > bitwidth_hex_chars then
+                result = ssub(result, -bitwidth_hex_chars)
+            end
+        elseif result_len > bitwidth_hex_chars then
+            -- Result is longer than bitwidth even without explicit carry
+            bitwidth_carry = true
+            result = ssub(result, -bitwidth_hex_chars)
+        end
+
+        -- Now check if the truncated result still has bits beyond bitwidth
+        -- We need to mask off any extra bits in the MSB nibble
+        local bitwidth_mod4 = bitwidth % 4
+        if bitwidth_mod4 ~= 0 then
+            -- Need to mask the MSB nibble
+            local first_nibble = tonumber(ssub(result, 1, 1), 16) or 0
+            local mask = bit_lshift(1, bitwidth_mod4) - 1
+            local masked_nibble = bit_band(first_nibble, mask)
+            if first_nibble ~= masked_nibble then
+                bitwidth_carry = true
+            end
+            result = f("%x", masked_nibble) .. ssub(result, 2)
+        end
+
+        -- Pad to bitwidth hex chars if needed
+        if #result < bitwidth_hex_chars then
+            result = srep("0", bitwidth_hex_chars - #result) .. result
+        end
+
+        return result, bitwidth_carry
+    end
+
+    -- Without bitwidth parameter, we extend the result naturally, so carry is always false
+    return utils.trim_leading_zeros(result), false
 end
 
 local truth_values = {
