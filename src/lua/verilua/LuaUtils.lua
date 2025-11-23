@@ -6,6 +6,7 @@ local bit = require "bit"
 local ffi = require "ffi"
 local math = require "math"
 local path = require "pl.path"
+local stringx = require "pl.stringx"
 local table_new = require "table.new"
 
 local type = type
@@ -1446,6 +1447,14 @@ function utils.add_hex_str(hex_str1, hex_str2, bitwidth)
 
     -- Without bitwidth parameter, we extend the result naturally, so carry is always false
     return utils.trim_leading_zeros(result), false
+end
+
+--- Count the number of '1' bits in a hexadecimal string.
+---@param hex_str string
+---@return integer
+function utils.popcount_hex_str(hex_str)
+    local bin_str = utils.hex_to_bin(hex_str)
+    return stringx.count(bin_str, "1")
 end
 
 local truth_values = {
