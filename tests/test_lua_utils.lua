@@ -67,6 +67,83 @@ describe("LuaUtils test", function()
         expect.equal(utils.bitfield_str("0x8000000000000000", 63, 63), "1")
     end)
 
+    it("should work properly for bitfield_hex_str()", function()
+        expect.equal(utils.bitfield_hex_str("123", 0, 3), string.format("%x", utils.bitfield64(0, 3, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("123", 4, 7), string.format("%x", utils.bitfield64(4, 7, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("123", 8, 11), string.format("%x", utils.bitfield64(8, 11, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("1234", 0, 15), string.format("%x", utils.bitfield64(0, 15, 0x1234ULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 0, 3), string.format("%x", utils.bitfield64(0, 3, 0xabcdULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 4, 7), string.format("%x", utils.bitfield64(4, 7, 0xabcdULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 8, 11), string.format("%x", utils.bitfield64(8, 11, 0xabcdULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 12, 15), string.format("%x", utils.bitfield64(12, 15, 0xabcdULL)))
+        
+        expect.equal(utils.bitfield_hex_str("123", 0, 3, 12), string.format("%x", utils.bitfield64(0, 3, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("123", 4, 7, 12), string.format("%x", utils.bitfield64(4, 7, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("123", 8, 11, 12), string.format("%x", utils.bitfield64(8, 11, 0x123ULL)))
+        
+        expect.equal(utils.bitfield_hex_str("0", 0, 0), string.format("%x", utils.bitfield64(0, 0, 0x0ULL)))
+        expect.equal(utils.bitfield_hex_str("1", 0, 0), string.format("%x", utils.bitfield64(0, 0, 0x1ULL)))
+        expect.equal(utils.bitfield_hex_str("f", 0, 3), string.format("%x", utils.bitfield64(0, 3, 0xfULL)))
+        expect.equal(utils.bitfield_hex_str("ff", 0, 7), string.format("%x", utils.bitfield64(0, 7, 0xffULL)))
+        
+        expect.equal(utils.bitfield_hex_str("ffffffff", 0, 31), string.format("%x", utils.bitfield64(0, 31, 0xffffffffULL)))
+        expect.equal(utils.bitfield_hex_str("ffffffffffffffff", 0, 63), string.format("%x", utils.bitfield64(0, 63, 0xffffffffffffffffULL)))
+        
+        expect.equal(utils.bitfield_hex_str("1234", 2, 5), string.format("%x", utils.bitfield64(2, 5, 0x1234ULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 6, 9), string.format("%x", utils.bitfield64(6, 9, 0xabcdULL)))
+        
+        expect.equal(utils.bitfield_hex_str("f", 0, 0), string.format("%x", utils.bitfield64(0, 0, 0xfULL)))
+        expect.equal(utils.bitfield_hex_str("f", 1, 1), string.format("%x", utils.bitfield64(1, 1, 0xfULL)))
+        expect.equal(utils.bitfield_hex_str("f", 2, 2), string.format("%x", utils.bitfield64(2, 2, 0xfULL)))
+        expect.equal(utils.bitfield_hex_str("f", 3, 3), string.format("%x", utils.bitfield64(3, 3, 0xfULL)))
+        
+        expect.equal(utils.bitfield_hex_str("a", 0, 3), string.format("%x", utils.bitfield64(0, 3, 0xaULL)))
+        expect.equal(utils.bitfield_hex_str("5", 0, 2), string.format("%x", utils.bitfield64(0, 2, 0x5ULL)))
+        expect.equal(utils.bitfield_hex_str("5", 1, 2), string.format("%x", utils.bitfield64(1, 2, 0x5ULL)))
+        expect.equal(utils.bitfield_hex_str("5", 0, 1), string.format("%x", utils.bitfield64(0, 1, 0x5ULL)))
+        expect.equal(utils.bitfield_hex_str("5", 2, 3), string.format("%x", utils.bitfield64(2, 3, 0x5ULL)))
+        
+        expect.equal(utils.bitfield_hex_str("12345678", 0, 31), string.format("%x", utils.bitfield64(0, 31, 0x12345678ULL)))
+        expect.equal(utils.bitfield_hex_str("12345678", 4, 19), string.format("%x", utils.bitfield64(4, 19, 0x12345678ULL)))
+        expect.equal(utils.bitfield_hex_str("12345678", 8, 23), string.format("%x", utils.bitfield64(8, 23, 0x12345678ULL)))
+        expect.equal(utils.bitfield_hex_str("12345678", 12, 27), string.format("%x", utils.bitfield64(12, 27, 0x12345678ULL)))
+        
+        expect.equal(utils.bitfield_hex_str("12345678", 4, 11), string.format("%x", utils.bitfield64(4, 11, 0x12345678ULL)))
+        expect.equal(utils.bitfield_hex_str("12345678", 12, 19), string.format("%x", utils.bitfield64(12, 19, 0x12345678ULL)))
+        expect.equal(utils.bitfield_hex_str("12345678", 20, 27), string.format("%x", utils.bitfield64(20, 27, 0x12345678ULL)))
+        
+        expect.equal(utils.bitfield_hex_str("123", 12, 15, 16), string.format("%x", utils.bitfield64(12, 15, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("123", 8, 11, 16), string.format("%x", utils.bitfield64(8, 11, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("123", 0, 3, 16), string.format("%x", utils.bitfield64(0, 3, 0x123ULL)))
+        expect.equal(utils.bitfield_hex_str("f", 4, 7, 8), string.format("%x", utils.bitfield64(4, 7, 0xfULL)))
+        expect.equal(utils.bitfield_hex_str("f", 0, 3, 8), string.format("%x", utils.bitfield64(0, 3, 0xfULL)))
+        
+        expect.equal(utils.bitfield_hex_str("abcd", 0, 7), string.format("%x", utils.bitfield64(0, 7, 0xabcdULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 8, 15), string.format("%x", utils.bitfield64(8, 15, 0xabcdULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 4, 11), string.format("%x", utils.bitfield64(4, 11, 0xabcdULL)))
+        
+        expect.equal(utils.bitfield_hex_str("1", 31, 31, 32), string.format("%x", utils.bitfield64(31, 31, 0x1ULL)))
+        expect.equal(utils.bitfield_hex_str("80000000", 31, 31, 32), string.format("%x", utils.bitfield64(31, 31, 0x80000000ULL)))
+        expect.equal(utils.bitfield_hex_str("1", 63, 63, 64), string.format("%x", utils.bitfield64(63, 63, 0x1ULL)))
+        expect.equal(utils.bitfield_hex_str("8000000000000000", 63, 63, 64), string.format("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL)))
+        
+        expect.equal(utils.bitfield_hex_str("5555", 0, 15), string.format("%x", utils.bitfield64(0, 15, 0x5555ULL)))
+        expect.equal(utils.bitfield_hex_str("aaaa", 0, 15), string.format("%x", utils.bitfield64(0, 15, 0xaaaaULL)))
+        expect.equal(utils.bitfield_hex_str("5555", 1, 14), string.format("%x", utils.bitfield64(1, 14, 0x5555ULL)))
+        expect.equal(utils.bitfield_hex_str("aaaa", 1, 14), string.format("%x", utils.bitfield64(1, 14, 0xaaaaULL)))
+        
+        expect.equal(utils.bitfield_hex_str("12345678", 4, 11), string.format("%x", utils.bitfield64(4, 11, 0x12345678ULL)))
+        expect.equal(utils.bitfield_hex_str("abcd", 4, 7), string.format("%x", utils.bitfield64(4, 7, 0xabcdULL)))
+        expect.equal(utils.bitfield_hex_str("ffff", 0, 15), string.format("%x", utils.bitfield64(0, 15, 0xffffULL)))
+        expect.equal(utils.bitfield_hex_str("1", 0, 0), string.format("%x", utils.bitfield64(0, 0, 0x1ULL)))
+        expect.equal(utils.bitfield_hex_str("8000000000000000", 63, 63), string.format("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL)))
+        
+        expect.equal(utils.bitfield_hex_str("1234567890abcdef1234567890abcdef", 4, 19), "bcde")
+        expect.equal(utils.bitfield_hex_str("ffffffffffffffffffffffffffffffff", 32, 63), "ffffffff")
+        expect.equal(utils.bitfield_hex_str("abcdabcdabcdabcdabcdabcdabcdabcd", 60, 79), "abcda")
+        expect.equal(utils.bitfield_hex_str("1234567890abcdef1234567890abcdef1234567890abcdef", 10, 35), "2242af3")
+    end)
+
     it("should work properly for bitpat_to_hexstr()", function()
         assert(utils.bitpat_to_hexstr({
             { s = 0,  e = 1,  v = 2 },

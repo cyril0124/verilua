@@ -35,6 +35,50 @@ local setmetatable = setmetatable
 local srep = string.rep
 local ssub = string.sub
 
+local bin_to_hex_map = {
+    ["0000"] = "0",
+    ["0001"] = "1",
+    ["0010"] = "2",
+    ["0011"] = "3",
+    ["0100"] = "4",
+    ["0101"] = "5",
+    ["0110"] = "6",
+    ["0111"] = "7",
+    ["1000"] = "8",
+    ["1001"] = "9",
+    ["1010"] = "a",
+    ["1011"] = "b",
+    ["1100"] = "c",
+    ["1101"] = "d",
+    ["1110"] = "e",
+    ["1111"] = "f"
+}
+
+local hex_to_bin_map = {
+    ["0"] = "0000",
+    ["1"] = "0001",
+    ["2"] = "0010",
+    ["3"] = "0011",
+    ["4"] = "0100",
+    ["5"] = "0101",
+    ["6"] = "0110",
+    ["7"] = "0111",
+    ["8"] = "1000",
+    ["9"] = "1001",
+    ["A"] = "1010",
+    ["B"] = "1011",
+    ["C"] = "1100",
+    ["D"] = "1101",
+    ["E"] = "1110",
+    ["F"] = "1111",
+    ["a"] = "1010",
+    ["b"] = "1011",
+    ["c"] = "1100",
+    ["d"] = "1101",
+    ["e"] = "1110",
+    ["f"] = "1111"
+}
+
 ---@class (exact) verilua.LuaUtils
 local utils = {}
 
@@ -344,30 +388,6 @@ end
 
 local function hex_to_bin(hex)
     local bin = ""
-    local hex_to_bin_map = {
-        ["0"] = "0000",
-        ["1"] = "0001",
-        ["2"] = "0010",
-        ["3"] = "0011",
-        ["4"] = "0100",
-        ["5"] = "0101",
-        ["6"] = "0110",
-        ["7"] = "0111",
-        ["8"] = "1000",
-        ["9"] = "1001",
-        ["A"] = "1010",
-        ["B"] = "1011",
-        ["C"] = "1100",
-        ["D"] = "1101",
-        ["E"] = "1110",
-        ["F"] = "1111",
-        ["a"] = "1010",
-        ["b"] = "1011",
-        ["c"] = "1100",
-        ["d"] = "1101",
-        ["e"] = "1110",
-        ["f"] = "1111"
-    }
     for i = 3, #hex do
         local nibble = hex:sub(i, i)
         bin = bin .. (hex_to_bin_map[nibble] or error("Invalid hex character: " .. nibble))
@@ -404,6 +424,35 @@ function utils.bitfield_str(str, s, e, width)
 
     local ret = bin_str:sub(len - e, len - s)
     return ret == "" and "0" or ret
+end
+
+---@param hex_str string The hexadecimal string without "0x" prefix
+---@param s integer The start bit
+---@param e integer The end bit
+---@param width integer? The width of the input string (optional)
+---@return string The hexadecimal string representation of the extracted bitfield
+function utils.bitfield_hex_str(hex_str, s, e, width)
+    -- Convert hex string to binary string
+    local bin_str = utils.hex_to_bin(hex_str)
+
+    -- Ensure the binary string meets the desired width by padding with leading zeros
+    if width and width > #bin_str then
+        bin_str = srep("0", width - #bin_str) .. bin_str
+    end
+
+    local len = #bin_str
+    if s < 0 or e < 0 or s > len or e > len or s > e then
+        error(f("Invalid bitfield range. s:%d, e:%d, len:%d", s, e, len))
+    end
+
+    -- Extract the bitfield as a binary string
+    local bin_result = bin_str:sub(len - e, len - s)
+    if bin_result == "" then
+        bin_result = "0"
+    end
+
+    -- Convert binary result to hexadecimal string
+    return utils.bin_str_to_hex_str(bin_result)
 end
 
 ---@class (exact) verilua.LuaUtils.BitPattern
@@ -697,30 +746,6 @@ function utils.trim_leading_zeros(bin_or_hex_str)
     return ret
 end
 
-local hex_to_bin_map = {
-    ["0"] = "0000",
-    ["1"] = "0001",
-    ["2"] = "0010",
-    ["3"] = "0011",
-    ["4"] = "0100",
-    ["5"] = "0101",
-    ["6"] = "0110",
-    ["7"] = "0111",
-    ["8"] = "1000",
-    ["9"] = "1001",
-    ["A"] = "1010",
-    ["B"] = "1011",
-    ["C"] = "1100",
-    ["D"] = "1101",
-    ["E"] = "1110",
-    ["F"] = "1111",
-    ["a"] = "1010",
-    ["b"] = "1011",
-    ["c"] = "1100",
-    ["d"] = "1101",
-    ["e"] = "1110",
-    ["f"] = "1111"
-}
 ---@param hex_str string
 ---@return string
 function utils.hex_to_bin(hex_str)
@@ -731,25 +756,6 @@ function utils.hex_to_bin(hex_str)
     end
     return table_concat(bin_parts)
 end
-
-local bin_to_hex_map = {
-    ["0000"] = "0",
-    ["0001"] = "1",
-    ["0010"] = "2",
-    ["0011"] = "3",
-    ["0100"] = "4",
-    ["0101"] = "5",
-    ["0110"] = "6",
-    ["0111"] = "7",
-    ["1000"] = "8",
-    ["1001"] = "9",
-    ["1010"] = "a",
-    ["1011"] = "b",
-    ["1100"] = "c",
-    ["1101"] = "d",
-    ["1110"] = "e",
-    ["1111"] = "f"
-}
 
 ---@param bin_str string
 ---@return string
