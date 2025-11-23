@@ -19,18 +19,16 @@ local rawset = rawset
 local f = string.format
 local tonumber = tonumber
 local tostring = tostring
+local ffi_istype = ffi.istype
+local setmetatable = setmetatable
+
+local bit_bor = bit.bor
+local bit_bxor = bit.bxor
 local bit_bnot = bit.bnot
 local bit_band = bit.band
-local math_ceil = math.ceil
 local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
-local math_floor = math.floor
-local ffi_istype = ffi.istype
-local math_random = math.random
-local table_insert = table.insert
-local table_concat = table.concat
-local setmetatable = setmetatable
 
 local srep = string.rep
 local ssub = string.sub
@@ -142,7 +140,7 @@ do
                 -- if <t> is a LuaBundle multibeat data, then <t[0]> (type of <t> is uint64_t or cdata in LuaJIT) is the beat len of the multibeat data(i.e. beat len).
                 -- Otherwise, if <t> is a normal cdata, there is no such concept of beat len, hence t_len == 1
                 --
-                t_len = t[0]
+                t_len = t[0] --[[@as integer]]
                 result = get_result(t_len, t, separator)
             end
         else
@@ -508,7 +506,7 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
         local start_block = math_floor(bitpat.s / 64) + 1
         local end_block = math_floor(bitpat.e / 64) + 1
         local start_pos = bitpat.s % 64
-        local end_pos = bitpat.e % 64
+        -- local end_pos = bitpat.e % 64
 
         if start_block == end_block then
             -- The bit pattern fits within a single block
@@ -520,20 +518,20 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
                 mask = bit_lshift(1ULL, num_bits) - 1
             end
             local shifted_value = bit_lshift(bit_band(bitpat.v --[[@as integer]], mask), start_pos)
-            v[start_block] = bit.bor(v[start_block], shifted_value)
+            v[start_block] = bit_bor(v[start_block], shifted_value)
         else
             -- The bit pattern spans across multiple blocks
             local lower_bits = 64 - start_pos
-            local upper_bits = num_bits - lower_bits
+            -- local upper_bits = num_bits - lower_bits
 
             -- Lower part in the start block
             local lower_mask = bit_lshift(1ULL, lower_bits) - 1
             local lower_value = bit_band(bitpat.v --[[@as integer]], lower_mask)
-            v[start_block] = bit.bor(v[start_block], bit_lshift(lower_value, start_pos))
+            v[start_block] = bit_bor(v[start_block], bit_lshift(lower_value, start_pos))
 
             -- Upper part in the end block
             local upper_value = bit_rshift(bitpat.v --[[@as integer]], lower_bits)
-            v[end_block] = bit.bor(v[end_block], upper_value)
+            v[end_block] = bit_bor(v[end_block], upper_value)
         end
     end
 
@@ -715,7 +713,7 @@ function utils.shuffle_bits_hex_str(bitwidth)
         local u32_chunk = utils.cover_with_n(bitwidth, 32)
         local result = ""
         local total_bits = bitwidth
-        for i = 1, u32_chunk do
+        for _i = 1, u32_chunk do
             if total_bits >= 32 then
                 result = bit_tohex(utils.shuffle_bits(32) --[[@as integer]]) .. result
             else
@@ -810,7 +808,7 @@ function utils.lshift_hex_str(hex_str, n, bitwidth)
         if bitwidth then
             local bin_str = utils.hex_to_bin(hex_str)
             bin_str = adjust_bitwidth(bin_str, bitwidth)
-            return utils.trim_leading_zeros(utils.bin_str_to_hex_str(bin_str))
+            return utils.bin_str_to_hex_str(bin_str)
         else
             return hex_str
         end
@@ -827,7 +825,12 @@ function utils.lshift_hex_str(hex_str, n, bitwidth)
     end
 
     -- Convert back to hex and clean up
-    return utils.trim_leading_zeros(utils.bin_str_to_hex_str(shifted_bin))
+    local result = utils.bin_str_to_hex_str(shifted_bin)
+    if bitwidth then
+        return result
+    else
+        return utils.trim_leading_zeros(result)
+    end
 end
 
 --- Logical right shift a hexadecimal string representation.
