@@ -2143,4 +2143,119 @@ describe("LuaUtils test", function()
 
         print("\nAll bnot_hex_str tests passed!")
     end)
+
+    it("should work properly for set_bitfield_hex_str()", function()
+        -- Basic tests
+        expect.equal(utils.set_bitfield_hex_str("0", 0, 3, "f"), "f")
+        expect.equal(utils.set_bitfield_hex_str("0", 4, 7, "f"), "f0")
+        expect.equal(utils.set_bitfield_hex_str("ffff", 4, 7, "0"), "ff0f")
+        expect.equal(utils.set_bitfield_hex_str("ffff", 0, 3, "0"), "fff0")
+        
+        -- With width
+        expect.equal(utils.set_bitfield_hex_str("0", 0, 3, "f", 8), "0f")
+        expect.equal(utils.set_bitfield_hex_str("0", 4, 7, "f", 8), "f0")
+        
+        -- Auto-expand
+        expect.equal(utils.set_bitfield_hex_str("0", 8, 11, "f"), "f00")
+        
+        -- Cross-verification with bitfield64 for 0-64 bits
+        print("\nTesting set_bitfield_hex_str with bitfield64 verification (0-64 bits)...")
+        for bits = 1, 64 do
+            for _ = 1, 5 do
+                -- Generate random initial value
+                local init_val = utils.urandom64_range(0, utils.bitmask(bits)) --[[@as integer]]
+                local init_hex = utils.to_hex_str(init_val)
+                
+                -- Generate random range [s, e] within [0, bits-1]
+                local s = math.random(0, bits - 1)
+                local e = math.random(s, bits - 1)
+                
+                -- Generate random value to set
+                local width = e - s + 1
+                local set_val = utils.urandom64_range(0, utils.bitmask(width))
+                local set_hex = utils.to_hex_str(set_val)
+                
+                -- Apply set_bitfield_hex_str
+                -- We pass 'bits' as width to ensure consistent length
+                local result_hex = utils.set_bitfield_hex_str(init_hex, s, e, set_hex, bits)
+                
+                -- Safe hex to uint64_t conversion
+                local function hex_to_ull(hex)
+                    if #hex > 16 then hex = hex:sub(-16) end -- Truncate to 64 bits
+                    local len = #hex
+                    if len <= 12 then
+                        return (tonumber(hex, 16) or 0) + 0ULL
+                    else
+                        local split = len - 12
+                        local high_str = hex:sub(1, split)
+                        local low_str = hex:sub(split + 1)
+                        local high = (tonumber(high_str, 16) or 0) + 0ULL
+                        local low = (tonumber(low_str, 16) or 0) + 0ULL
+                        return bit.lshift(high, 48) + low
+                    end
+                end
+
+                -- Verify with bitfield64
+                -- 1. Check the set bits
+                local result_val = hex_to_ull(result_hex) --[[@as integer]]
+                local extracted = utils.bitfield64(s, e, result_val)
+                expect.equal(extracted, set_val, f("Verification failed for bits=%d, s=%d, e=%d", bits, s, e))
+                
+                -- 2. Check other bits are unchanged
+                -- We can check bits [0, s-1] and [e+1, bits-1]
+                if s > 0 then
+                    local low_part_orig = utils.bitfield64(0, s - 1, init_val)
+                    local low_part_new = utils.bitfield64(0, s - 1, result_val)
+                    expect.equal(low_part_new, low_part_orig, "Low part changed")
+                end
+                
+                if e < bits - 1 then
+                    local high_part_orig = utils.bitfield64(e + 1, bits - 1, init_val)
+                    local high_part_new = utils.bitfield64(e + 1, bits - 1, result_val)
+                    expect.equal(high_part_new, high_part_orig, "High part changed")
+                end
+            end
+        end
+        
+        -- Test cases > 64 bits
+        print("\nTesting set_bitfield_hex_str for > 64 bits...")
+        local large_bits = 128
+        local all_zeros = string.rep("0", large_bits / 4)
+        local all_ones = string.rep("f", large_bits / 4)
+        
+        -- Set a bitfield in the middle of 128 bits
+        -- s=60, e=67 (8 bits), crossing 64-bit boundary
+        local result = utils.set_bitfield_hex_str(all_zeros, 60, 67, "ff", large_bits)
+        -- Expected: ...000000f000000000000000...
+        -- bit 60-63 (4 bits) = f (lower part of ff) -> index len-60...
+        -- bit 64-67 (4 bits) = f (upper part of ff)
+        -- 60 is 0x3c. 67 is 0x43.
+        -- 1ULL << 60 is 1000...000 (60 zeros) -> hex 1000000000000000
+        -- We are setting 8 bits to 1s.
+        -- Let's verify by reading back with bitfield_hex_str
+        local read_back = utils.bitfield_hex_str(result, 60, 67, large_bits)
+        expect.equal(read_back, "ff")
+        
+        -- Verify other bits are 0
+        expect.equal(utils.trim_leading_zeros(utils.bitfield_hex_str(result, 0, 59, large_bits)), "0")
+        expect.equal(utils.trim_leading_zeros(utils.bitfield_hex_str(result, 68, 127, large_bits)), "0")
+        
+        -- Set bits in all_ones to 0
+        result = utils.set_bitfield_hex_str(all_ones, 100, 103, "0", large_bits)
+        read_back = utils.bitfield_hex_str(result, 100, 103, large_bits)
+        expect.equal(read_back, "0")
+        
+        -- Verify surrounding bits are still 1 (f)
+        expect.equal(utils.bitfield_hex_str(result, 96, 99, large_bits), "f")
+        expect.equal(utils.bitfield_hex_str(result, 104, 107, large_bits), "f")
+        
+        -- Test 256 bits
+        local huge_bits = 256
+        local huge_zeros = string.rep("0", huge_bits / 4)
+        result = utils.set_bitfield_hex_str(huge_zeros, 250, 255, "3f", huge_bits)
+        read_back = utils.bitfield_hex_str(result, 250, 255, huge_bits)
+        expect.equal(read_back, "3f")
+        
+        print("set_bitfield_hex_str tests passed!")
+    end)
 end)

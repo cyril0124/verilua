@@ -463,6 +463,67 @@ function utils.bitfield_hex_str(hex_str, s, e, bitwidth)
     return utils.bin_str_to_hex_str(bin_result)
 end
 
+---@param hex_str string The original hexadecimal string without "0x" prefix
+---@param s integer The start bit
+---@param e integer The end bit
+---@param val_hex_str string The value to set in hexadecimal string format without "0x" prefix
+---@param bitwidth integer? The bitwidth of the original string (optional)
+---@return string The new hexadecimal string
+function utils.set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth)
+    -- Convert hex string to binary string
+    local bin_str = utils.hex_to_bin(hex_str)
+
+    bitwidth = tonumber(bitwidth) --[[@as integer]]
+
+    -- Ensure the binary string meets the desired bitwidth by padding with leading zeros
+    if bitwidth and bitwidth > #bin_str then
+        bin_str = srep("0", bitwidth - #bin_str) .. bin_str
+    end
+
+    local len = #bin_str
+
+    s = tonumber(s) --[[@as integer]]
+    e = tonumber(e) --[[@as integer]]
+
+    -- Auto-expand if bitwidth is not provided and range exceeds current length
+    if not bitwidth and e >= len then
+        bin_str = srep("0", e - len + 1) .. bin_str
+        len = #bin_str
+    end
+
+    if s < 0 or e < 0 or s >= len or e >= len or s > e then
+        error(f("Invalid bitfield range. s:%d, e:%d, len:%d", s, e, len))
+    end
+
+    -- Convert value to binary
+    local val_bin_str = utils.hex_to_bin(val_hex_str)
+    local val_width = e - s + 1
+
+    -- Pad or truncate value to fit the range
+    if #val_bin_str < val_width then
+        val_bin_str = srep("0", val_width - #val_bin_str) .. val_bin_str
+    elseif #val_bin_str > val_width then
+        val_bin_str = val_bin_str:sub(-val_width)
+    end
+
+    -- Replace bits
+    -- s is LSB (0-based), e is MSB (0-based)
+    -- string index 1 is MSB. string index len is LSB.
+    -- bit s is at index len - s
+    -- bit e is at index len - e
+    -- range in string is [len - e, len - s]
+
+    local start_idx = len - e
+    local end_idx = len - s
+
+    local prefix = bin_str:sub(1, start_idx - 1)
+    local suffix = bin_str:sub(end_idx + 1)
+
+    local new_bin_str = prefix .. val_bin_str .. suffix
+
+    return utils.bin_str_to_hex_str(new_bin_str)
+end
+
 ---@class (exact) verilua.LuaUtils.BitPattern
 ---@field s integer
 ---@field e integer
