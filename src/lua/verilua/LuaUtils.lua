@@ -1,4 +1,4 @@
----@diagnostic disable: unnecessary-assert
+---@diagnostic disable: unnecessary-assert, unnecessary-if
 
 local io = require "io"
 local os = require "os"
@@ -433,21 +433,25 @@ end
 ---@param hex_str string The hexadecimal string without "0x" prefix
 ---@param s integer The start bit
 ---@param e integer The end bit
----@param width integer? The width of the input string (optional)
+---@param bitwidth integer? The bitwidth of the input string (optional)
 ---@return string The hexadecimal string representation of the extracted bitfield
-function utils.bitfield_hex_str(hex_str, s, e, width)
+function utils.bitfield_hex_str(hex_str, s, e, bitwidth)
     -- Convert hex string to binary string
     local bin_str = utils.hex_to_bin(hex_str)
 
     -- Ensure the binary string meets the desired width by padding with leading zeros
-    if width and width > #bin_str then
-        bin_str = srep("0", width - #bin_str) .. bin_str
+    if bitwidth and bitwidth > #bin_str then
+        bitwidth = tonumber(bitwidth) --[[@as integer]]
+        bin_str = srep("0", bitwidth - #bin_str) .. bin_str
     end
 
     local len = #bin_str
     if s < 0 or e < 0 or s > len or e > len or s > e then
         error(f("Invalid bitfield range. s:%d, e:%d, len:%d", s, e, len))
     end
+
+    e = tonumber(e) --[[@as integer]]
+    s = tonumber(s) --[[@as integer]]
 
     -- Extract the bitfield as a binary string
     local bin_result = bin_str:sub(len - e, len - s)
@@ -1219,6 +1223,7 @@ function utils.bnot_hex_str(hex_str, bitwidth)
     -- Determine effective bitwidth
     local effective_bitwidth
     if bitwidth then
+        bitwidth = tonumber(bitwidth) --[[@as integer]]
         effective_bitwidth = bitwidth
         -- Mask input to fit within specified bitwidth
         hex_str = mask_hex_str_to_bitwidth(hex_str, bitwidth)
@@ -1305,6 +1310,8 @@ function utils.add_hex_str(hex_str1, hex_str2, bitwidth)
     local max_len = len1 > len2 and len1 or len2
 
     if bitwidth then
+        bitwidth = tonumber(bitwidth) --[[@as integer]]
+
         local bitwidth_hex_chars = math_ceil(bitwidth / 4)
         if bitwidth_hex_chars > max_len then
             max_len = bitwidth_hex_chars
@@ -1703,12 +1710,14 @@ function utils.matrix_call(func_table)
                     func_or_funcs()
                 elseif func_type == "seq_funcs" then
                     for j = 1, #func_or_funcs do
+                        ---@diagnostic disable-next-line: need-check-nil
                         func_or_funcs[j]()
                     end
                 elseif func_type == "single_func_with_args" then
                     if func_or_funcs.before and type(func_or_funcs.before) == "function" then
                         func_or_funcs.before()
                     end
+                    ---@diagnostic disable-next-line: need-check-nil
                     func_or_funcs.func(table.unpack(func_or_funcs.args))
                     if func_or_funcs.after and type(func_or_funcs.after) == "function" then
                         func_or_funcs.after()
@@ -1718,6 +1727,7 @@ function utils.matrix_call(func_table)
                         if func_or_funcs.before and type(func_or_funcs.before) == "function" then
                             func_or_funcs.before()
                         end
+                        ---@diagnostic disable-next-line: need-check-nil
                         func_or_funcs.func(table.unpack(func_or_funcs.multi_args[j]))
                         if func_or_funcs.after and type(func_or_funcs.after) == "function" then
                             func_or_funcs.after()
