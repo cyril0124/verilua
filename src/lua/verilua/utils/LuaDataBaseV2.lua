@@ -185,7 +185,8 @@ function LuaDataBaseV2:_init(params)
         local lib_name = params.lib_name or "duckdb"
         local lib_path = params.lib_path
         do
-            duckdb = require("verilua.utils.duckdb") {
+            duckdb = require("verilua.utils.duckdb")
+            duckdb:init {
                 name = lib_name,
                 path = lib_path,
             }

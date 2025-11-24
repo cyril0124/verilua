@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local ffi = require "ffi"
 
 ---@class (exact) verilua.utils.duckdb.params
@@ -39,7 +41,7 @@ local ffi = require "ffi"
 ---@field private err_msg_ptr table<integer, ffi.cdata*>
 ---@field new_config fun(): verilua.utils.duckdb.const, verilua.utils.duckdb.duckdb_config
 ---@field open fun(filename: string, config: verilua.utils.duckdb.duckdb_config?): verilua.utils.duckdb.const, verilua.utils.duckdb.duckdb_database
----@overload fun(params: verilua.utils.duckdb.params): verilua.utils.duckdb
+---@field init fun(params: verilua.utils.duckdb.params): verilua.utils.duckdb
 local duckdb = {
     const = {
         OK = 0,
@@ -81,9 +83,8 @@ function duckdb.open(filename, config)
     return ret_state, db_handle
 end
 
----@param self verilua.utils.duckdb
 ---@param params verilua.utils.duckdb.params
-function duckdb.__call(self, params)
+function duckdb:init(params)
     if self.clib then
         -- duckdb already initialized
         return self
@@ -303,9 +304,5 @@ function duckdb.__call(self, params)
 
     return self
 end
-
-setmetatable(duckdb, {
-    __call = duckdb.__call
-})
 
 return duckdb
