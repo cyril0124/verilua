@@ -25,22 +25,24 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
     
     - 对于 HVL 场景，可以是 Verilog/SystemVerilog 文件、Lua 文件。
         ```lua title="xmake.lua" hl_lines="4 5"
-        target("test")
+        target("test", function()
             add_rules("verilua")
             add_toolchains("@verilator")
             add_files("src/main.sv", "src/main.lua")
             add_files("src/other.v")
 
             -- ...
+        end)
         ```
     - 对于 WAL 场景，可以是波形文件、Lua文件。
         ```lua title="xmake.lua"
-        target("test")
+        target("test", function()
             add_rules("verilua")
             add_toolchains("@wave_vpi")
             add_files("./test.vcd", "test.lua")
 
             -- ...
+        end)
         ```
 
         !!! warning "此时 `add_files` 只能添加**一个**波形文件"
@@ -145,3 +147,54 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
     !!! note "构建目录生成的位置"
         默认情况下为：`./build/<simulator>/<top module name>`，如果使用了 `set_values("cfg.build_dir_name", "SomeName")`，那么会使用用户自定义的名称：`./build/<simulator>/SomeName`。不过请注意，`./build/<simulator>` 是必须存在的，不支持更改。
+
+7. `#!lua set_values("cfg.build_dir_path", <build directory path>)`
+
+    设置构建目录的父路径。例如：
+    ```lua
+    set_values("cfg.build_dir_path", "/tmp/builds")
+    ```
+    最终构建目录为 `<build_dir_path>/<build_dir_name>`，如未设置 `build_dir_name`，则默认为顶层模块名。
+
+8. `#!lua set_values("cfg.version_required", "<version constraint>")`
+
+    指定最低 Verilua 版本要求。例如：
+    ```lua
+    set_values("cfg.version_required", ">=1.0.0")
+    ```
+    构建时会自动校验当前 Verilua 版本是否满足要求。
+
+9. `#!lua set_values("cfg.no_internal_clock", "1")`
+
+    禁用自动时钟生成，适用于需要自定义时钟的场景。此时需在主 Lua 文件中手动生成时钟信号。
+
+    示例：
+    ```lua title="xmake.lua"
+    target("my_test", function()
+        add_rules("verilua")
+        add_toolchains("@verilator")
+        set_values("cfg.top", "Top")
+        set_values("cfg.lua_main", "main.lua")
+        add_files("Top.v", "main.lua")
+        set_values("cfg.no_internal_clock", "1") -- 禁用自动时钟生成
+    end)
+    ```
+    
+    对应的 main.lua 需手动生成时钟信号：
+    ```lua title="main.lua"
+    fork {
+        clock_gen_task = function()
+            local clock = dut.clock:chdl()
+            while true do
+                clock:set(1)
+                await_time(2)
+                clock:set(0)
+                await_time(2)
+            end
+        end,
+        
+        another_task = function()
+            -- ...
+        end
+    }
+    ```
