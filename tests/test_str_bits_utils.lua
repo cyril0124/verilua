@@ -1,5 +1,5 @@
 local utils = require "verilua.LuaUtils"
-local hsb = require "verilua.utils.HexStrBits"
+local sbu = require "verilua.utils.StrBitsUtils"
 local lester = require "lester"
 
 local describe, it, expect = lester.describe, lester.it, lester.expect
@@ -7,93 +7,93 @@ local assert, f = assert, string.format
 
 describe("LuaUtils test", function()
     it("should work properly for bitfield_hex_str()", function()
-        expect.equal(hsb.bitfield_hex_str("123", 0, 3), f("%x", utils.bitfield64(0, 3, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("123", 4, 7), f("%x", utils.bitfield64(4, 7, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("123", 8, 11), f("%x", utils.bitfield64(8, 11, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("1234", 0, 15), f("%x", utils.bitfield64(0, 15, 0x1234ULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 0, 3), f("%x", utils.bitfield64(0, 3, 0xabcdULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 4, 7), f("%x", utils.bitfield64(4, 7, 0xabcdULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 8, 11), f("%x", utils.bitfield64(8, 11, 0xabcdULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 12, 15), f("%x", utils.bitfield64(12, 15, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 0, 3), f("%x", utils.bitfield64(0, 3, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 4, 7), f("%x", utils.bitfield64(4, 7, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 8, 11), f("%x", utils.bitfield64(8, 11, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("1234", 0, 15), f("%x", utils.bitfield64(0, 15, 0x1234ULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 0, 3), f("%x", utils.bitfield64(0, 3, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 4, 7), f("%x", utils.bitfield64(4, 7, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 8, 11), f("%x", utils.bitfield64(8, 11, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 12, 15), f("%x", utils.bitfield64(12, 15, 0xabcdULL)))
 
-        expect.equal(hsb.bitfield_hex_str("123", 0, 3, 12), f("%x", utils.bitfield64(0, 3, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("123", 4, 7, 12), f("%x", utils.bitfield64(4, 7, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("123", 8, 11, 12), f("%x", utils.bitfield64(8, 11, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 0, 3, 12), f("%x", utils.bitfield64(0, 3, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 4, 7, 12), f("%x", utils.bitfield64(4, 7, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 8, 11, 12), f("%x", utils.bitfield64(8, 11, 0x123ULL)))
 
-        expect.equal(hsb.bitfield_hex_str("0", 0, 0), f("%x", utils.bitfield64(0, 0, 0x0ULL)))
-        expect.equal(hsb.bitfield_hex_str("1", 0, 0), f("%x", utils.bitfield64(0, 0, 0x1ULL)))
-        expect.equal(hsb.bitfield_hex_str("f", 0, 3), f("%x", utils.bitfield64(0, 3, 0xfULL)))
-        expect.equal(hsb.bitfield_hex_str("ff", 0, 7), f("%x", utils.bitfield64(0, 7, 0xffULL)))
+        expect.equal(sbu.bitfield_hex_str("0", 0, 0), f("%x", utils.bitfield64(0, 0, 0x0ULL)))
+        expect.equal(sbu.bitfield_hex_str("1", 0, 0), f("%x", utils.bitfield64(0, 0, 0x1ULL)))
+        expect.equal(sbu.bitfield_hex_str("f", 0, 3), f("%x", utils.bitfield64(0, 3, 0xfULL)))
+        expect.equal(sbu.bitfield_hex_str("ff", 0, 7), f("%x", utils.bitfield64(0, 7, 0xffULL)))
 
-        expect.equal(hsb.bitfield_hex_str("ffffffff", 0, 31),
+        expect.equal(sbu.bitfield_hex_str("ffffffff", 0, 31),
             f("%x", utils.bitfield64(0, 31, 0xffffffffULL)))
-        expect.equal(hsb.bitfield_hex_str("ffffffffffffffff", 0, 63),
+        expect.equal(sbu.bitfield_hex_str("ffffffffffffffff", 0, 63),
             f("%x", utils.bitfield64(0, 63, 0xffffffffffffffffULL)))
 
-        expect.equal(hsb.bitfield_hex_str("1234", 2, 5), f("%x", utils.bitfield64(2, 5, 0x1234ULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 6, 9), f("%x", utils.bitfield64(6, 9, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("1234", 2, 5), f("%x", utils.bitfield64(2, 5, 0x1234ULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 6, 9), f("%x", utils.bitfield64(6, 9, 0xabcdULL)))
 
-        expect.equal(hsb.bitfield_hex_str("f", 0, 0), f("%x", utils.bitfield64(0, 0, 0xfULL)))
-        expect.equal(hsb.bitfield_hex_str("f", 1, 1), f("%x", utils.bitfield64(1, 1, 0xfULL)))
-        expect.equal(hsb.bitfield_hex_str("f", 2, 2), f("%x", utils.bitfield64(2, 2, 0xfULL)))
-        expect.equal(hsb.bitfield_hex_str("f", 3, 3), f("%x", utils.bitfield64(3, 3, 0xfULL)))
+        expect.equal(sbu.bitfield_hex_str("f", 0, 0), f("%x", utils.bitfield64(0, 0, 0xfULL)))
+        expect.equal(sbu.bitfield_hex_str("f", 1, 1), f("%x", utils.bitfield64(1, 1, 0xfULL)))
+        expect.equal(sbu.bitfield_hex_str("f", 2, 2), f("%x", utils.bitfield64(2, 2, 0xfULL)))
+        expect.equal(sbu.bitfield_hex_str("f", 3, 3), f("%x", utils.bitfield64(3, 3, 0xfULL)))
 
-        expect.equal(hsb.bitfield_hex_str("a", 0, 3), f("%x", utils.bitfield64(0, 3, 0xaULL)))
-        expect.equal(hsb.bitfield_hex_str("5", 0, 2), f("%x", utils.bitfield64(0, 2, 0x5ULL)))
-        expect.equal(hsb.bitfield_hex_str("5", 1, 2), f("%x", utils.bitfield64(1, 2, 0x5ULL)))
-        expect.equal(hsb.bitfield_hex_str("5", 0, 1), f("%x", utils.bitfield64(0, 1, 0x5ULL)))
-        expect.equal(hsb.bitfield_hex_str("5", 2, 3), f("%x", utils.bitfield64(2, 3, 0x5ULL)))
+        expect.equal(sbu.bitfield_hex_str("a", 0, 3), f("%x", utils.bitfield64(0, 3, 0xaULL)))
+        expect.equal(sbu.bitfield_hex_str("5", 0, 2), f("%x", utils.bitfield64(0, 2, 0x5ULL)))
+        expect.equal(sbu.bitfield_hex_str("5", 1, 2), f("%x", utils.bitfield64(1, 2, 0x5ULL)))
+        expect.equal(sbu.bitfield_hex_str("5", 0, 1), f("%x", utils.bitfield64(0, 1, 0x5ULL)))
+        expect.equal(sbu.bitfield_hex_str("5", 2, 3), f("%x", utils.bitfield64(2, 3, 0x5ULL)))
 
-        expect.equal(hsb.bitfield_hex_str("12345678", 0, 31),
+        expect.equal(sbu.bitfield_hex_str("12345678", 0, 31),
             f("%x", utils.bitfield64(0, 31, 0x12345678ULL)))
-        expect.equal(hsb.bitfield_hex_str("12345678", 4, 19),
+        expect.equal(sbu.bitfield_hex_str("12345678", 4, 19),
             f("%x", utils.bitfield64(4, 19, 0x12345678ULL)))
-        expect.equal(hsb.bitfield_hex_str("12345678", 8, 23),
+        expect.equal(sbu.bitfield_hex_str("12345678", 8, 23),
             f("%x", utils.bitfield64(8, 23, 0x12345678ULL)))
-        expect.equal(hsb.bitfield_hex_str("12345678", 12, 27),
+        expect.equal(sbu.bitfield_hex_str("12345678", 12, 27),
             f("%x", utils.bitfield64(12, 27, 0x12345678ULL)))
 
-        expect.equal(hsb.bitfield_hex_str("12345678", 4, 11),
+        expect.equal(sbu.bitfield_hex_str("12345678", 4, 11),
             f("%x", utils.bitfield64(4, 11, 0x12345678ULL)))
-        expect.equal(hsb.bitfield_hex_str("12345678", 12, 19),
+        expect.equal(sbu.bitfield_hex_str("12345678", 12, 19),
             f("%x", utils.bitfield64(12, 19, 0x12345678ULL)))
-        expect.equal(hsb.bitfield_hex_str("12345678", 20, 27),
+        expect.equal(sbu.bitfield_hex_str("12345678", 20, 27),
             f("%x", utils.bitfield64(20, 27, 0x12345678ULL)))
 
-        expect.equal(hsb.bitfield_hex_str("123", 12, 15, 16), f("%x", utils.bitfield64(12, 15, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("123", 8, 11, 16), f("%x", utils.bitfield64(8, 11, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("123", 0, 3, 16), f("%x", utils.bitfield64(0, 3, 0x123ULL)))
-        expect.equal(hsb.bitfield_hex_str("f", 4, 7, 8), f("%x", utils.bitfield64(4, 7, 0xfULL)))
-        expect.equal(hsb.bitfield_hex_str("f", 0, 3, 8), f("%x", utils.bitfield64(0, 3, 0xfULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 12, 15, 16), f("%x", utils.bitfield64(12, 15, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 8, 11, 16), f("%x", utils.bitfield64(8, 11, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("123", 0, 3, 16), f("%x", utils.bitfield64(0, 3, 0x123ULL)))
+        expect.equal(sbu.bitfield_hex_str("f", 4, 7, 8), f("%x", utils.bitfield64(4, 7, 0xfULL)))
+        expect.equal(sbu.bitfield_hex_str("f", 0, 3, 8), f("%x", utils.bitfield64(0, 3, 0xfULL)))
 
-        expect.equal(hsb.bitfield_hex_str("abcd", 0, 7), f("%x", utils.bitfield64(0, 7, 0xabcdULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 8, 15), f("%x", utils.bitfield64(8, 15, 0xabcdULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 4, 11), f("%x", utils.bitfield64(4, 11, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 0, 7), f("%x", utils.bitfield64(0, 7, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 8, 15), f("%x", utils.bitfield64(8, 15, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("abcd", 4, 11), f("%x", utils.bitfield64(4, 11, 0xabcdULL)))
 
-        expect.equal(hsb.bitfield_hex_str("1", 31, 31, 32), f("%x", utils.bitfield64(31, 31, 0x1ULL)))
-        expect.equal(hsb.bitfield_hex_str("80000000", 31, 31, 32),
+        expect.equal(sbu.bitfield_hex_str("1", 31, 31, 32), f("%x", utils.bitfield64(31, 31, 0x1ULL)))
+        expect.equal(sbu.bitfield_hex_str("80000000", 31, 31, 32),
             f("%x", utils.bitfield64(31, 31, 0x80000000ULL)))
-        expect.equal(hsb.bitfield_hex_str("1", 63, 63, 64), f("%x", utils.bitfield64(63, 63, 0x1ULL)))
-        expect.equal(hsb.bitfield_hex_str("8000000000000000", 63, 63, 64),
+        expect.equal(sbu.bitfield_hex_str("1", 63, 63, 64), f("%x", utils.bitfield64(63, 63, 0x1ULL)))
+        expect.equal(sbu.bitfield_hex_str("8000000000000000", 63, 63, 64),
             f("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL)))
 
-        expect.equal(hsb.bitfield_hex_str("5555", 0, 15), f("%x", utils.bitfield64(0, 15, 0x5555ULL)))
-        expect.equal(hsb.bitfield_hex_str("aaaa", 0, 15), f("%x", utils.bitfield64(0, 15, 0xaaaaULL)))
-        expect.equal(hsb.bitfield_hex_str("5555", 1, 14), f("%x", utils.bitfield64(1, 14, 0x5555ULL)))
-        expect.equal(hsb.bitfield_hex_str("aaaa", 1, 14), f("%x", utils.bitfield64(1, 14, 0xaaaaULL)))
+        expect.equal(sbu.bitfield_hex_str("5555", 0, 15), f("%x", utils.bitfield64(0, 15, 0x5555ULL)))
+        expect.equal(sbu.bitfield_hex_str("aaaa", 0, 15), f("%x", utils.bitfield64(0, 15, 0xaaaaULL)))
+        expect.equal(sbu.bitfield_hex_str("5555", 1, 14), f("%x", utils.bitfield64(1, 14, 0x5555ULL)))
+        expect.equal(sbu.bitfield_hex_str("aaaa", 1, 14), f("%x", utils.bitfield64(1, 14, 0xaaaaULL)))
 
-        expect.equal(hsb.bitfield_hex_str("12345678", 4, 11),
+        expect.equal(sbu.bitfield_hex_str("12345678", 4, 11),
             f("%x", utils.bitfield64(4, 11, 0x12345678ULL)))
-        expect.equal(hsb.bitfield_hex_str("abcd", 4, 7), f("%x", utils.bitfield64(4, 7, 0xabcdULL)))
-        expect.equal(hsb.bitfield_hex_str("ffff", 0, 15), f("%x", utils.bitfield64(0, 15, 0xffffULL)))
-        expect.equal(hsb.bitfield_hex_str("1", 0, 0), f("%x", utils.bitfield64(0, 0, 0x1ULL)))
-        expect.equal(hsb.bitfield_hex_str("8000000000000000", 63, 63),
+        expect.equal(sbu.bitfield_hex_str("abcd", 4, 7), f("%x", utils.bitfield64(4, 7, 0xabcdULL)))
+        expect.equal(sbu.bitfield_hex_str("ffff", 0, 15), f("%x", utils.bitfield64(0, 15, 0xffffULL)))
+        expect.equal(sbu.bitfield_hex_str("1", 0, 0), f("%x", utils.bitfield64(0, 0, 0x1ULL)))
+        expect.equal(sbu.bitfield_hex_str("8000000000000000", 63, 63),
             f("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL)))
 
-        expect.equal(hsb.bitfield_hex_str("1234567890abcdef1234567890abcdef", 4, 19), "bcde")
-        expect.equal(hsb.bitfield_hex_str("ffffffffffffffffffffffffffffffff", 32, 63), "ffffffff")
-        expect.equal(hsb.bitfield_hex_str("abcdabcdabcdabcdabcdabcdabcdabcd", 60, 79), "abcda")
-        expect.equal(hsb.bitfield_hex_str("1234567890abcdef1234567890abcdef1234567890abcdef", 10, 35), "2242af3")
+        expect.equal(sbu.bitfield_hex_str("1234567890abcdef1234567890abcdef", 4, 19), "bcde")
+        expect.equal(sbu.bitfield_hex_str("ffffffffffffffffffffffffffffffff", 32, 63), "ffffffff")
+        expect.equal(sbu.bitfield_hex_str("abcdabcdabcdabcdabcdabcdabcdabcd", 60, 79), "abcda")
+        expect.equal(sbu.bitfield_hex_str("1234567890abcdef1234567890abcdef1234567890abcdef", 10, 35), "2242af3")
     end)
 
     it("should work properly for trim_leading_zeros", function()
@@ -112,7 +112,7 @@ describe("LuaUtils test", function()
         for _, test in ipairs(tests) do
             local str = test[1]
             local expected = test[2]
-            local result = hsb.trim_leading_zeros(str)
+            local result = sbu.trim_leading_zeros(str)
             expect.equal(result, expected)
         end
     end)
@@ -145,7 +145,7 @@ describe("LuaUtils test", function()
             local n = test[2]
             local bitwidth = test[3]
             local expected = test[4]
-            local result = hsb.lshift_hex_str(hex_str, n, bitwidth)
+            local result = sbu.lshift_hex_str(hex_str, n, bitwidth)
             expect.equal(result, expected)
         end
     end)
@@ -177,7 +177,7 @@ describe("LuaUtils test", function()
             local n = test[2]
             local bitwidth = test[3]
             local expected = test[4]
-            local result = hsb.rshift_hex_str(hex_str, n, bitwidth)
+            local result = sbu.rshift_hex_str(hex_str, n, bitwidth)
             expect.equal(result, expected)
         end
     end)
@@ -217,11 +217,11 @@ describe("LuaUtils test", function()
 
             local actual
             if op_name == "bor" then
-                actual = hsb.bor_hex_str(hex1, hex2)
+                actual = sbu.bor_hex_str(hex1, hex2)
             elseif op_name == "bxor" then
-                actual = hsb.bxor_hex_str(hex1, hex2)
+                actual = sbu.bxor_hex_str(hex1, hex2)
             elseif op_name == "band" then
-                actual = hsb.band_hex_str(hex1, hex2)
+                actual = sbu.band_hex_str(hex1, hex2)
             end
 
             expect.equal(actual, expected_hex,
@@ -250,22 +250,22 @@ describe("LuaUtils test", function()
             local all_ones = string.rep("f", hex_chars)
 
             -- Test OR operations
-            expect.equal(hsb.bor_hex_str(all_zeros, all_zeros), "0")
-            expect.equal(hsb.bor_hex_str(all_zeros, all_ones), all_ones)
-            expect.equal(hsb.bor_hex_str(all_ones, all_zeros), all_ones)
-            expect.equal(hsb.bor_hex_str(all_ones, all_ones), all_ones)
+            expect.equal(sbu.bor_hex_str(all_zeros, all_zeros), "0")
+            expect.equal(sbu.bor_hex_str(all_zeros, all_ones), all_ones)
+            expect.equal(sbu.bor_hex_str(all_ones, all_zeros), all_ones)
+            expect.equal(sbu.bor_hex_str(all_ones, all_ones), all_ones)
 
             -- Test XOR operations
-            expect.equal(hsb.bxor_hex_str(all_zeros, all_zeros), "0")
-            expect.equal(hsb.bxor_hex_str(all_zeros, all_ones), all_ones)
-            expect.equal(hsb.bxor_hex_str(all_ones, all_zeros), all_ones)
-            expect.equal(hsb.bxor_hex_str(all_ones, all_ones), "0")
+            expect.equal(sbu.bxor_hex_str(all_zeros, all_zeros), "0")
+            expect.equal(sbu.bxor_hex_str(all_zeros, all_ones), all_ones)
+            expect.equal(sbu.bxor_hex_str(all_ones, all_zeros), all_ones)
+            expect.equal(sbu.bxor_hex_str(all_ones, all_ones), "0")
 
             -- Test AND operations
-            expect.equal(hsb.band_hex_str(all_zeros, all_zeros), "0")
-            expect.equal(hsb.band_hex_str(all_zeros, all_ones), "0")
-            expect.equal(hsb.band_hex_str(all_ones, all_zeros), "0")
-            expect.equal(hsb.band_hex_str(all_ones, all_ones), all_ones)
+            expect.equal(sbu.band_hex_str(all_zeros, all_zeros), "0")
+            expect.equal(sbu.band_hex_str(all_zeros, all_ones), "0")
+            expect.equal(sbu.band_hex_str(all_ones, all_zeros), "0")
+            expect.equal(sbu.band_hex_str(all_ones, all_ones), all_ones)
         end
 
         -- Test specific bit patterns
@@ -292,26 +292,26 @@ describe("LuaUtils test", function()
             local hex1, hex2 = test[1], test[2]
             local exp_or, exp_xor, exp_and = test[3], test[4], test[5]
 
-            expect.equal(hsb.bor_hex_str(hex1, hex2), exp_or,
+            expect.equal(sbu.bor_hex_str(hex1, hex2), exp_or,
                 f("bor(%s, %s)", hex1, hex2))
-            expect.equal(hsb.bxor_hex_str(hex1, hex2), exp_xor,
+            expect.equal(sbu.bxor_hex_str(hex1, hex2), exp_xor,
                 f("bxor(%s, %s)", hex1, hex2))
-            expect.equal(hsb.band_hex_str(hex1, hex2), exp_and,
+            expect.equal(sbu.band_hex_str(hex1, hex2), exp_and,
                 f("band(%s, %s)", hex1, hex2))
         end
 
         -- Test different lengths
         print("\nTesting different length strings...")
-        expect.equal(hsb.bor_hex_str("1", "ff"), "ff")
-        expect.equal(hsb.bor_hex_str("ff", "1"), "ff")
-        expect.equal(hsb.bxor_hex_str("1", "ff"), "fe")
-        expect.equal(hsb.bxor_hex_str("ff", "1"), "fe")
-        expect.equal(hsb.band_hex_str("1", "ff"), "1")
-        expect.equal(hsb.band_hex_str("ff", "1"), "1")
+        expect.equal(sbu.bor_hex_str("1", "ff"), "ff")
+        expect.equal(sbu.bor_hex_str("ff", "1"), "ff")
+        expect.equal(sbu.bxor_hex_str("1", "ff"), "fe")
+        expect.equal(sbu.bxor_hex_str("ff", "1"), "fe")
+        expect.equal(sbu.band_hex_str("1", "ff"), "1")
+        expect.equal(sbu.band_hex_str("ff", "1"), "1")
 
-        expect.equal(hsb.bor_hex_str("1234", "ff"), "12ff")
-        expect.equal(hsb.bxor_hex_str("1234", "ff"), "12cb")
-        expect.equal(hsb.band_hex_str("1234", "ff"), "34")
+        expect.equal(sbu.bor_hex_str("1234", "ff"), "12ff")
+        expect.equal(sbu.bxor_hex_str("1234", "ff"), "12cb")
+        expect.equal(sbu.band_hex_str("1234", "ff"), "34")
 
         -- Test large bit widths (65-256 bits)
         print("\nTesting large bit widths (65-256 bits)...")
@@ -322,9 +322,9 @@ describe("LuaUtils test", function()
             local pattern1 = string.rep("a", hex_chars) -- 1010...
             local pattern2 = string.rep("5", hex_chars) -- 0101...
 
-            expect.equal(hsb.bor_hex_str(pattern1, pattern2), string.rep("f", hex_chars))
-            expect.equal(hsb.bxor_hex_str(pattern1, pattern2), string.rep("f", hex_chars))
-            expect.equal(hsb.band_hex_str(pattern1, pattern2), "0")
+            expect.equal(sbu.bor_hex_str(pattern1, pattern2), string.rep("f", hex_chars))
+            expect.equal(sbu.bxor_hex_str(pattern1, pattern2), string.rep("f", hex_chars))
+            expect.equal(sbu.band_hex_str(pattern1, pattern2), "0")
 
             -- Test with random values
             for _ = 1, 3 do
@@ -332,32 +332,32 @@ describe("LuaUtils test", function()
                 local hex2 = random_hex_str(bits)
 
                 -- Verify properties: OR >= max(a,b), AND <= min(a,b), XOR symmetric
-                local or_result = hsb.bor_hex_str(hex1, hex2)
-                local xor_result1 = hsb.bxor_hex_str(hex1, hex2)
-                local xor_result2 = hsb.bxor_hex_str(hex2, hex1)
-                local and_result = hsb.band_hex_str(hex1, hex2)
+                local or_result = sbu.bor_hex_str(hex1, hex2)
+                local xor_result1 = sbu.bxor_hex_str(hex1, hex2)
+                local xor_result2 = sbu.bxor_hex_str(hex2, hex1)
+                local and_result = sbu.band_hex_str(hex1, hex2)
 
                 -- XOR should be commutative
                 expect.equal(xor_result1, xor_result2)
 
                 -- OR should be commutative
-                expect.equal(hsb.bor_hex_str(hex1, hex2), hsb.bor_hex_str(hex2, hex1))
+                expect.equal(sbu.bor_hex_str(hex1, hex2), sbu.bor_hex_str(hex2, hex1))
 
                 -- AND should be commutative
-                expect.equal(hsb.band_hex_str(hex1, hex2), hsb.band_hex_str(hex2, hex1))
+                expect.equal(sbu.band_hex_str(hex1, hex2), sbu.band_hex_str(hex2, hex1))
             end
         end
 
         -- Test boundary values
         print("\nTesting boundary values...")
         -- 128-bit boundaries
-        expect.equal(hsb.bor_hex_str("0", string.rep("f", 32)), string.rep("f", 32))
-        expect.equal(hsb.bxor_hex_str(string.rep("f", 32), string.rep("f", 32)), "0")
-        expect.equal(hsb.band_hex_str(string.rep("f", 32), "0"), "0")
+        expect.equal(sbu.bor_hex_str("0", string.rep("f", 32)), string.rep("f", 32))
+        expect.equal(sbu.bxor_hex_str(string.rep("f", 32), string.rep("f", 32)), "0")
+        expect.equal(sbu.band_hex_str(string.rep("f", 32), "0"), "0")
 
         -- 256-bit boundaries
-        expect.equal(hsb.bor_hex_str("1", string.rep("0", 63) .. "1"), "1")
-        expect.equal(hsb.bxor_hex_str(string.rep("f", 64), string.rep("a", 64)),
+        expect.equal(sbu.bor_hex_str("1", string.rep("0", 63) .. "1"), "1")
+        expect.equal(sbu.bxor_hex_str(string.rep("f", 64), string.rep("a", 64)),
             string.rep("5", 64))
 
         -- Test with single bit set at various positions
@@ -370,15 +370,15 @@ describe("LuaUtils test", function()
             end
 
             -- OR with zero should give original
-            local result = hsb.bor_hex_str(hex_val, "0")
-            expect.equal(result, hsb.trim_leading_zeros(hex_val))
+            local result = sbu.bor_hex_str(hex_val, "0")
+            expect.equal(result, sbu.trim_leading_zeros(hex_val))
 
             -- XOR with itself should give zero
-            expect.equal(hsb.bxor_hex_str(hex_val, hex_val), "0")
+            expect.equal(sbu.bxor_hex_str(hex_val, hex_val), "0")
 
             -- AND with all ones should give original
             local all_ones = string.rep("f", hex_chars)
-            expect.equal(hsb.band_hex_str(hex_val, all_ones), hsb.trim_leading_zeros(hex_val))
+            expect.equal(sbu.band_hex_str(hex_val, all_ones), sbu.trim_leading_zeros(hex_val))
         end
 
         print("\nAll bitwise operation tests passed!")
@@ -418,7 +418,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(test_cases_no_carry) do
             local hex1, hex2, expected, exp_carry = test[1], test[2], test[3], test[4]
-            local result, carry = hsb.add_hex_str(hex1, hex2)
+            local result, carry = sbu.add_hex_str(hex1, hex2)
             expect.equal(result, expected,
                 f("add_hex_str(%s, %s) result", hex1, hex2))
             expect.equal(carry, exp_carry,
@@ -445,7 +445,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(test_cases_with_carry) do
             local hex1, hex2, expected, exp_carry = test[1], test[2], test[3], test[4]
-            local result, carry = hsb.add_hex_str(hex1, hex2)
+            local result, carry = sbu.add_hex_str(hex1, hex2)
             expect.equal(result, expected,
                 f("add_hex_str(%s, %s) result", hex1, hex2))
             expect.equal(carry, exp_carry,
@@ -464,7 +464,7 @@ describe("LuaUtils test", function()
         for bits = 1, 8 do
             local hex_chars = math.ceil(bits / 4)
             local max_val = string.rep("f", hex_chars)
-            local result, carry = hsb.add_hex_str(max_val, "1")
+            local result, carry = sbu.add_hex_str(max_val, "1")
             -- Result should wrap around, but we don't truncate, so it becomes max_val + 1
             expect.equal(carry, false) -- No carry flag since we extended the result
         end
@@ -473,7 +473,7 @@ describe("LuaUtils test", function()
         for bits = 4, 64, 4 do
             local hex_chars = math.ceil(bits / 4)
             local max_val = string.rep("f", hex_chars)
-            local result, carry = hsb.add_hex_str(max_val, max_val)
+            local result, carry = sbu.add_hex_str(max_val, max_val)
             local expected = "1" .. string.rep("f", hex_chars - 1) .. "e"
             expect.equal(result, expected)
             -- Without bitwidth parameter, carry is always false (result extends naturally)
@@ -494,7 +494,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(diff_len_cases) do
             local hex1, hex2, expected, exp_carry = test[1], test[2], test[3], test[4]
-            local result, carry = hsb.add_hex_str(hex1, hex2)
+            local result, carry = sbu.add_hex_str(hex1, hex2)
             expect.equal(result, expected,
                 f("add_hex_str(%s, %s) result", hex1, hex2))
             expect.equal(carry, exp_carry,
@@ -508,8 +508,8 @@ describe("LuaUtils test", function()
             local hex1 = random_hex_str(bits)
             local hex2 = random_hex_str(bits)
 
-            local result1, carry1 = hsb.add_hex_str(hex1, hex2)
-            local result2, carry2 = hsb.add_hex_str(hex2, hex1)
+            local result1, carry1 = sbu.add_hex_str(hex1, hex2)
+            local result2, carry2 = sbu.add_hex_str(hex2, hex1)
 
             expect.equal(result1, result2,
                 f("commutativity: %s + %s vs %s + %s", hex1, hex2, hex2, hex1))
@@ -521,12 +521,12 @@ describe("LuaUtils test", function()
         print("\nTesting identity property...")
         for bits = 1, 128, 8 do
             local hex = random_hex_str(bits)
-            local result, carry = hsb.add_hex_str(hex, "0")
-            expect.equal(result, hsb.trim_leading_zeros(hex))
+            local result, carry = sbu.add_hex_str(hex, "0")
+            expect.equal(result, sbu.trim_leading_zeros(hex))
             expect.equal(carry, false)
 
-            result, carry = hsb.add_hex_str("0", hex)
-            expect.equal(result, hsb.trim_leading_zeros(hex))
+            result, carry = sbu.add_hex_str("0", hex)
+            expect.equal(result, sbu.trim_leading_zeros(hex))
             expect.equal(carry, false)
         end
 
@@ -538,7 +538,7 @@ describe("LuaUtils test", function()
                 local hex2 = random_hex_str(bits)
 
                 -- Test addition with bitwidth
-                local result, carry = hsb.add_hex_str(hex1, hex2, bits)
+                local result, carry = sbu.add_hex_str(hex1, hex2, bits)
 
                 -- Result should be truncated to bitwidth - check the numeric value fits
                 local result_val = tonumber(result, 16) or 0
@@ -577,7 +577,7 @@ describe("LuaUtils test", function()
 
             -- Test max value + 1
             local max_val = string.rep("f", hex_chars)
-            local result, carry = hsb.add_hex_str(max_val, "1")
+            local result, carry = sbu.add_hex_str(max_val, "1")
             local expected = "1" .. string.rep("0", hex_chars)
             expect.equal(result, expected)
             expect.equal(carry, false)
@@ -587,8 +587,8 @@ describe("LuaUtils test", function()
                 local hex1 = random_hex_str(bits)
                 local hex2 = random_hex_str(bits)
 
-                local result1, carry1 = hsb.add_hex_str(hex1, hex2)
-                local result2, carry2 = hsb.add_hex_str(hex2, hex1)
+                local result1, carry1 = sbu.add_hex_str(hex1, hex2)
+                local result2, carry2 = sbu.add_hex_str(hex2, hex1)
 
                 expect.equal(result1, result2)
                 expect.equal(carry1, carry2)
@@ -602,14 +602,14 @@ describe("LuaUtils test", function()
 
             -- Test max value + 1
             local max_val = string.rep("f", hex_chars)
-            local result, carry = hsb.add_hex_str(max_val, "1")
+            local result, carry = sbu.add_hex_str(max_val, "1")
             local expected = "1" .. string.rep("0", hex_chars)
             expect.equal(result, expected)
             expect.equal(carry, false)
 
             -- Test half max + half max (should not overflow)
             local half_max = "7" .. string.rep("f", hex_chars - 1)
-            result, carry = hsb.add_hex_str(half_max, half_max)
+            result, carry = sbu.add_hex_str(half_max, half_max)
             expect.equal(carry, false)
 
             -- Test random values
@@ -617,8 +617,8 @@ describe("LuaUtils test", function()
                 local hex1 = random_hex_str(bits)
                 local hex2 = random_hex_str(bits)
 
-                local result1, carry1 = hsb.add_hex_str(hex1, hex2)
-                local result2, carry2 = hsb.add_hex_str(hex2, hex1)
+                local result1, carry1 = sbu.add_hex_str(hex1, hex2)
+                local result2, carry2 = sbu.add_hex_str(hex2, hex1)
 
                 expect.equal(result1, result2)
                 expect.equal(carry1, carry2)
@@ -634,20 +634,20 @@ describe("LuaUtils test", function()
             local one = "1"
 
             -- max + 1 should give 1 followed by zeros
-            local result, carry = hsb.add_hex_str(max_val, one)
+            local result, carry = sbu.add_hex_str(max_val, one)
             expect.equal(result, "1" .. string.rep("0", hex_chars))
             -- Without bitwidth parameter, carry is always false (result extends naturally)
             expect.equal(carry, false)
 
             -- max + max should give 1 followed by f...fe
-            result, carry = hsb.add_hex_str(max_val, max_val)
+            result, carry = sbu.add_hex_str(max_val, max_val)
             expect.equal(result, "1" .. string.rep("f", hex_chars - 1) .. "e")
             -- Without bitwidth parameter, carry is always false (result extends naturally)
             expect.equal(carry, false)
 
             -- Test power of 2 additions
             local power_of_2 = "1" .. string.rep("0", hex_chars - 1)
-            result, carry = hsb.add_hex_str(power_of_2, power_of_2)
+            result, carry = sbu.add_hex_str(power_of_2, power_of_2)
             expect.equal(result, "2" .. string.rep("0", hex_chars - 1))
             expect.equal(carry, false)
         end
@@ -667,7 +667,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(carry_prop_cases) do
             local hex1, hex2, expected, exp_carry = test[1], test[2], test[3], test[4]
-            local result, carry = hsb.add_hex_str(hex1, hex2)
+            local result, carry = sbu.add_hex_str(hex1, hex2)
             expect.equal(result, expected,
                 f("carry propagation: %s + %s", hex1, hex2))
             expect.equal(carry, exp_carry)
@@ -680,7 +680,7 @@ describe("LuaUtils test", function()
             local pattern_a = string.rep("a", hex_chars) -- 1010...
             local pattern_5 = string.rep("5", hex_chars) -- 0101...
 
-            local result, carry = hsb.add_hex_str(pattern_a, pattern_5)
+            local result, carry = sbu.add_hex_str(pattern_a, pattern_5)
             expect.equal(result, string.rep("f", hex_chars))
             expect.equal(carry, false)
         end
@@ -694,12 +694,12 @@ describe("LuaUtils test", function()
             local hex3 = random_hex_str(bits)
 
             -- (a + b) + c
-            local temp1, _ = hsb.add_hex_str(hex1, hex2)
-            local result1, carry1 = hsb.add_hex_str(temp1, hex3)
+            local temp1, _ = sbu.add_hex_str(hex1, hex2)
+            local result1, carry1 = sbu.add_hex_str(temp1, hex3)
 
             -- a + (b + c)
-            local temp2, _ = hsb.add_hex_str(hex2, hex3)
-            local result2, carry2 = hsb.add_hex_str(hex1, temp2)
+            local temp2, _ = sbu.add_hex_str(hex2, hex3)
+            local result2, carry2 = sbu.add_hex_str(hex1, temp2)
 
             expect.equal(result1, result2,
                 f("associativity: (%s + %s) + %s vs %s + (%s + %s)",
@@ -715,7 +715,7 @@ describe("LuaUtils test", function()
                 local hex2 = f("%x", j)
                 local expected = f("%x", i + j)
 
-                local result, carry = hsb.add_hex_str(hex1, hex2)
+                local result, carry = sbu.add_hex_str(hex1, hex2)
                 expect.equal(result, expected,
                     f("%x + %x", i, j))
                 expect.equal(carry, false)
@@ -728,8 +728,8 @@ describe("LuaUtils test", function()
             local large = random_hex_str(bits)
             local small = random_hex_str(8) -- 8 bits = 2 hex chars
 
-            local result1, carry1 = hsb.add_hex_str(large, small)
-            local result2, carry2 = hsb.add_hex_str(small, large)
+            local result1, carry1 = sbu.add_hex_str(large, small)
+            local result2, carry2 = sbu.add_hex_str(small, large)
 
             expect.equal(result1, result2)
             expect.equal(carry1, carry2)
@@ -739,12 +739,12 @@ describe("LuaUtils test", function()
         print("\nTesting carry flag behavior...")
         -- Without bitwidth parameter, carry is always false since result extends naturally
         local max_64bit = string.rep("f", 16)
-        local result, carry = hsb.add_hex_str(max_64bit, max_64bit)
+        local result, carry = sbu.add_hex_str(max_64bit, max_64bit)
         -- Result is 1ffffffffffffff (17 hex chars), carry is false (no bitwidth constraint)
         expect.equal(carry, false)
 
         -- With bitwidth parameter, carry indicates overflow
-        result, carry = hsb.add_hex_str(max_64bit, max_64bit, 64)
+        result, carry = sbu.add_hex_str(max_64bit, max_64bit, 64)
         -- Result wraps to fit in 64 bits, carry is true
         expect.equal(carry, true)
 
@@ -756,7 +756,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(no_bitwidth_cases) do
             local hex1, hex2, expected, exp_carry = test[1], test[2], test[3], test[4]
-            local result, carry = hsb.add_hex_str(hex1, hex2)
+            local result, carry = sbu.add_hex_str(hex1, hex2)
             expect.equal(result, expected,
                 f("no bitwidth: %s + %s",
                     hex1:sub(1, 10) .. "...", hex2:sub(1, 10) .. "..."))
@@ -801,7 +801,7 @@ describe("LuaUtils test", function()
 
             for _, test in ipairs(add_test_cases) do
                 local hex1, hex2, bw, expected, exp_carry = test[1], test[2], test[3], test[4], test[5]
-                local result, carry = hsb.add_hex_str(hex1, hex2, bw)
+                local result, carry = sbu.add_hex_str(hex1, hex2, bw)
                 expect.equal(result, expected,
                     f("add_hex_str(%s, %s, %d)", hex1, hex2, bw))
                 expect.equal(carry, exp_carry,
@@ -813,14 +813,14 @@ describe("LuaUtils test", function()
                 local max_val = string.rep("f", math.ceil(bits / 4))
 
                 -- max + max with bitwidth should wrap
-                local result, carry = hsb.add_hex_str(max_val, max_val, bits)
+                local result, carry = sbu.add_hex_str(max_val, max_val, bits)
                 local expected = string.rep("f", math.ceil(bits / 4) - 1) .. "e"
                 expect.equal(result, expected,
                     f("max + max with bitwidth %d", bits))
                 expect.equal(carry, true)
 
                 -- max + 1 with bitwidth should wrap to 0
-                result, carry = hsb.add_hex_str(max_val, "1", bits)
+                result, carry = sbu.add_hex_str(max_val, "1", bits)
                 local expected_zero = string.rep("0", math.ceil(bits / 4))
                 expect.equal(result, expected_zero,
                     f("max + 1 with bitwidth %d", bits))
@@ -845,7 +845,7 @@ describe("LuaUtils test", function()
 
             for _, test in ipairs(bor_test_cases) do
                 local hex1, hex2, bw, expected = test[1], test[2], test[3], test[4]
-                local result = hsb.bor_hex_str(hex1, hex2, bw)
+                local result = sbu.bor_hex_str(hex1, hex2, bw)
                 expect.equal(result, expected,
                     f("bor_hex_str(%s, %s, %d)", hex1, hex2, bw))
             end
@@ -873,13 +873,13 @@ describe("LuaUtils test", function()
                 end
 
                 -- all_ones OR all_zeros should be all_ones
-                local result = hsb.bor_hex_str(all_ones, all_zeros, bits)
+                local result = sbu.bor_hex_str(all_ones, all_zeros, bits)
                 expect.equal(result, all_ones)
 
                 -- Test with larger input that needs truncation
                 local larger_ones = string.rep("f", hex_chars) -- Unmasked all hex digits are 'f'
                 local larger = "1" .. larger_ones
-                result = hsb.bor_hex_str(larger, all_zeros, bits)
+                result = sbu.bor_hex_str(larger, all_zeros, bits)
                 expect.equal(result, all_ones,
                     f("bor truncation for %d bits", bits))
             end
@@ -902,7 +902,7 @@ describe("LuaUtils test", function()
 
             for _, test in ipairs(bxor_test_cases) do
                 local hex1, hex2, bw, expected = test[1], test[2], test[3], test[4]
-                local result = hsb.bxor_hex_str(hex1, hex2, bw)
+                local result = sbu.bxor_hex_str(hex1, hex2, bw)
                 expect.equal(result, expected,
                     f("bxor_hex_str(%s, %s, %d)", hex1, hex2, bw))
             end
@@ -913,19 +913,19 @@ describe("LuaUtils test", function()
                 local all_ones = string.rep("f", hex_chars)
 
                 -- XOR with self should be 0
-                local result = hsb.bxor_hex_str(all_ones, all_ones, bits)
+                local result = sbu.bxor_hex_str(all_ones, all_ones, bits)
                 local expected_zero = string.rep("0", hex_chars)
                 expect.equal(result, expected_zero,
                     f("XOR self = 0 for %d bits", bits))
 
                 -- XOR with 0 should be identity
-                result = hsb.bxor_hex_str(all_ones, "0", bits)
+                result = sbu.bxor_hex_str(all_ones, "0", bits)
                 expect.equal(result, all_ones,
                     f("XOR with 0 = identity for %d bits", bits))
 
                 -- Test with truncation
                 local larger = "1" .. all_ones
-                result = hsb.bxor_hex_str(larger, "0", bits)
+                result = sbu.bxor_hex_str(larger, "0", bits)
                 expect.equal(result, all_ones,
                     f("bxor truncation for %d bits", bits))
             end
@@ -948,7 +948,7 @@ describe("LuaUtils test", function()
 
             for _, test in ipairs(band_test_cases) do
                 local hex1, hex2, bw, expected = test[1], test[2], test[3], test[4]
-                local result = hsb.band_hex_str(hex1, hex2, bw)
+                local result = sbu.band_hex_str(hex1, hex2, bw)
                 expect.equal(result, expected,
                     f("band_hex_str(%s, %s, %d)", hex1, hex2, bw))
             end
@@ -960,20 +960,20 @@ describe("LuaUtils test", function()
                 local all_zeros = "0"
 
                 -- AND with 0 should be 0
-                local result = hsb.band_hex_str(all_ones, all_zeros, bits)
+                local result = sbu.band_hex_str(all_ones, all_zeros, bits)
                 local expected_zero = string.rep("0", hex_chars)
                 expect.equal(result, expected_zero,
                     f("AND with 0 = 0 for %d bits", bits))
 
                 -- AND with all_ones should be identity
-                result = hsb.band_hex_str(all_ones, all_ones, bits)
+                result = sbu.band_hex_str(all_ones, all_ones, bits)
                 expect.equal(result, all_ones,
                     f("AND with all_ones = identity for %d bits", bits))
 
                 -- Test with truncation
                 local larger1 = "1" .. all_ones
                 local larger2 = "1" .. string.rep("0", hex_chars)
-                result = hsb.band_hex_str(larger1, larger2, bits)
+                result = sbu.band_hex_str(larger1, larger2, bits)
                 local expected_zero = string.rep("0", hex_chars)
                 expect.equal(result, expected_zero,
                     f("band truncation for %d bits", bits))
@@ -986,10 +986,10 @@ describe("LuaUtils test", function()
                 local hex2 = random_hex_str(bits)
 
                 -- (a OR b) + (a AND b) should equal a + b (with carry consideration)
-                local or_result = hsb.bor_hex_str(hex1, hex2, bits)
-                local and_result = hsb.band_hex_str(hex1, hex2, bits)
-                local sum1, carry1 = hsb.add_hex_str(or_result, and_result, bits)
-                local sum2, carry2 = hsb.add_hex_str(hex1, hex2, bits)
+                local or_result = sbu.bor_hex_str(hex1, hex2, bits)
+                local and_result = sbu.band_hex_str(hex1, hex2, bits)
+                local sum1, carry1 = sbu.add_hex_str(or_result, and_result, bits)
+                local sum2, carry2 = sbu.add_hex_str(hex1, hex2, bits)
 
                 expect.equal(sum1, sum2,
                     f("(a OR b) + (a AND b) = a + b for %d bits", bits))
@@ -1016,20 +1016,20 @@ describe("LuaUtils test", function()
                 end
 
                 -- OR: max OR max = max
-                local result = hsb.bor_hex_str(max_val, max_val, bits)
+                local result = sbu.bor_hex_str(max_val, max_val, bits)
                 expect.equal(result, max_val)
 
                 -- XOR: max XOR max = 0
-                result = hsb.bxor_hex_str(max_val, max_val, bits)
+                result = sbu.bxor_hex_str(max_val, max_val, bits)
                 local expected_zero = string.rep("0", hex_chars)
                 expect.equal(result, expected_zero)
 
                 -- AND: max AND max = max
-                result = hsb.band_hex_str(max_val, max_val, bits)
+                result = sbu.band_hex_str(max_val, max_val, bits)
                 expect.equal(result, max_val)
 
                 -- ADD: max + max with truncation
-                local add_result, carry = hsb.add_hex_str(max_val, max_val, bits)
+                local add_result, carry = sbu.add_hex_str(max_val, max_val, bits)
                 -- max + max = 2*max which overflows for any bitwidth
                 -- Calculate expected result: For N-bit max value (all 1s), max + max = 2*max = all 1s << 1 = all 1s followed by 0
                 -- After masking to N bits: lowest N bits of (2*max) = all 1s except LSB = 0
@@ -1060,17 +1060,17 @@ describe("LuaUtils test", function()
                 local half_max = "7" .. string.rep("f", hex_chars - 1)
 
                 -- Test all operations
-                local result = hsb.bor_hex_str(half_max, half_max, bits)
+                local result = sbu.bor_hex_str(half_max, half_max, bits)
                 expect.equal(result, half_max)
 
-                result = hsb.bxor_hex_str(half_max, half_max, bits)
+                result = sbu.bxor_hex_str(half_max, half_max, bits)
                 local expected_zero = string.rep("0", hex_chars)
                 expect.equal(result, expected_zero)
 
-                result = hsb.band_hex_str(half_max, half_max, bits)
+                result = sbu.band_hex_str(half_max, half_max, bits)
                 expect.equal(result, half_max)
 
-                local add_result, carry = hsb.add_hex_str(half_max, half_max, bits)
+                local add_result, carry = sbu.add_hex_str(half_max, half_max, bits)
                 -- half_max + half_max should not overflow for these bit widths
                 expect.equal(carry, false)
             end
@@ -1087,13 +1087,13 @@ describe("LuaUtils test", function()
             for _, test in ipairs(padding_tests) do
                 local result
                 if test.op == "bor" then
-                    result = hsb.bor_hex_str(test.hex1, test.hex2, test.bitwidth)
+                    result = sbu.bor_hex_str(test.hex1, test.hex2, test.bitwidth)
                 elseif test.op == "bxor" then
-                    result = hsb.bxor_hex_str(test.hex1, test.hex2, test.bitwidth)
+                    result = sbu.bxor_hex_str(test.hex1, test.hex2, test.bitwidth)
                 elseif test.op == "band" then
-                    result = hsb.band_hex_str(test.hex1, test.hex2, test.bitwidth)
+                    result = sbu.band_hex_str(test.hex1, test.hex2, test.bitwidth)
                 elseif test.op == "add" then
-                    result = hsb.add_hex_str(test.hex1, test.hex2, test.bitwidth)
+                    result = sbu.add_hex_str(test.hex1, test.hex2, test.bitwidth)
                 end
 
                 -- Result should be valid hex string
@@ -1114,13 +1114,13 @@ describe("LuaUtils test", function()
             for _, test in ipairs(compat_tests) do
                 local result
                 if test.op == "bor" then
-                    result = hsb.bor_hex_str(test.hex1, test.hex2)
+                    result = sbu.bor_hex_str(test.hex1, test.hex2)
                 elseif test.op == "bxor" then
-                    result = hsb.bxor_hex_str(test.hex1, test.hex2)
+                    result = sbu.bxor_hex_str(test.hex1, test.hex2)
                 elseif test.op == "band" then
-                    result = hsb.band_hex_str(test.hex1, test.hex2)
+                    result = sbu.band_hex_str(test.hex1, test.hex2)
                 elseif test.op == "add" then
-                    result = hsb.add_hex_str(test.hex1, test.hex2)
+                    result = sbu.add_hex_str(test.hex1, test.hex2)
                 end
 
                 expect.equal(result, test.expected,
@@ -1169,7 +1169,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(basic_tests) do
             local input, expected = test[1], test[2]
-            local result = hsb.bnot_hex_str(input)
+            local result = sbu.bnot_hex_str(input)
             expect.equal(result, expected,
                 f("bnot_hex_str(%s) without bitwidth", input))
         end
@@ -1203,7 +1203,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(bitwidth_tests) do
             local input, bitwidth, expected = test[1], test[2], test[3]
-            local result = hsb.bnot_hex_str(input, bitwidth)
+            local result = sbu.bnot_hex_str(input, bitwidth)
             expect.equal(result, expected,
                 f("bnot_hex_str(%s, %d)", input, bitwidth))
         end
@@ -1213,8 +1213,8 @@ describe("LuaUtils test", function()
         -- Test double negation: NOT(NOT(x)) = x
         for bits = 4, 64, 4 do
             local hex = random_hex_str(bits)
-            local not1 = hsb.bnot_hex_str(hex, bits)
-            local not2 = hsb.bnot_hex_str(not1, bits)
+            local not1 = sbu.bnot_hex_str(hex, bits)
+            local not2 = sbu.bnot_hex_str(not1, bits)
 
             -- Expand original hex to match bitwidth for comparison
             local expected = utils.expand_hex_str(hex, bits)
@@ -1229,7 +1229,7 @@ describe("LuaUtils test", function()
             -- Test a few values per bitwidth
             for _ = 1, 3 do
                 local hex = random_hex_str(bits)
-                local result = hsb.bnot_hex_str(hex, bits)
+                local result = sbu.bnot_hex_str(hex, bits)
 
                 -- For small values, verify with bit library
                 if bits <= 30 then
@@ -1252,7 +1252,7 @@ describe("LuaUtils test", function()
         -- Test all single hex digits
         for i = 0, 15 do
             local hex = f("%x", i)
-            local result = hsb.bnot_hex_str(hex, 4)
+            local result = sbu.bnot_hex_str(hex, 4)
             local expected_num = bit.band(bit.bnot(i), 0xF)
             local expected = f("%x", expected_num)
             expect.equal(result, expected,
@@ -1269,7 +1269,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(pattern_tests) do
             local input, bitwidth, expected = test[1], test[2], test[3]
-            local result = hsb.bnot_hex_str(input, bitwidth)
+            local result = sbu.bnot_hex_str(input, bitwidth)
             expect.equal(result, expected,
                 f("bnot pattern %s", input))
         end
@@ -1282,7 +1282,7 @@ describe("LuaUtils test", function()
 
             -- Test all zeros -> all ones
             local all_zeros = "0"
-            local result = hsb.bnot_hex_str(all_zeros, bits)
+            local result = sbu.bnot_hex_str(all_zeros, bits)
             -- Calculate expected all ones for this bitwidth
             local expected_ones
             if bits % 4 == 0 then
@@ -1298,7 +1298,7 @@ describe("LuaUtils test", function()
 
             -- Test all ones -> all zeros
             local all_ones = string.rep("f", hex_chars)
-            result = hsb.bnot_hex_str(all_ones, bits)
+            result = sbu.bnot_hex_str(all_ones, bits)
             local expected_zeros = string.rep("0", hex_chars)
             expect.equal(result, expected_zeros,
                 f("bnot all ones for %d bits", bits))
@@ -1307,9 +1307,9 @@ describe("LuaUtils test", function()
             for _ = 1, 3 do
                 local hex = random_hex_str(bits)
                 -- Mask the input to ensure it fits within bitwidth
-                local masked_hex = hsb.bnot_hex_str(hsb.bnot_hex_str(hex, bits), bits)
-                local not1 = hsb.bnot_hex_str(hex, bits)
-                local not2 = hsb.bnot_hex_str(not1, bits)
+                local masked_hex = sbu.bnot_hex_str(sbu.bnot_hex_str(hex, bits), bits)
+                local not1 = sbu.bnot_hex_str(hex, bits)
+                local not2 = sbu.bnot_hex_str(not1, bits)
                 expect.equal(not2, masked_hex,
                     f("double negation for %d bits", bits))
             end
@@ -1325,21 +1325,21 @@ describe("LuaUtils test", function()
                 local hex2 = random_hex_str(bits)
 
                 -- NOT(A OR B) = (NOT A) AND (NOT B)
-                local or_result = hsb.bor_hex_str(hex1, hex2, bits)
-                local not_or = hsb.bnot_hex_str(or_result, bits)
+                local or_result = sbu.bor_hex_str(hex1, hex2, bits)
+                local not_or = sbu.bnot_hex_str(or_result, bits)
 
-                local not_a = hsb.bnot_hex_str(hex1, bits)
-                local not_b = hsb.bnot_hex_str(hex2, bits)
-                local not_a_and_not_b = hsb.band_hex_str(not_a, not_b, bits)
+                local not_a = sbu.bnot_hex_str(hex1, bits)
+                local not_b = sbu.bnot_hex_str(hex2, bits)
+                local not_a_and_not_b = sbu.band_hex_str(not_a, not_b, bits)
 
                 expect.equal(not_or, not_a_and_not_b,
                     f("De Morgan's law 1 for %d bits", bits))
 
                 -- NOT(A AND B) = (NOT A) OR (NOT B)
-                local and_result = hsb.band_hex_str(hex1, hex2, bits)
-                local not_and = hsb.bnot_hex_str(and_result, bits)
+                local and_result = sbu.band_hex_str(hex1, hex2, bits)
+                local not_and = sbu.bnot_hex_str(and_result, bits)
 
-                local not_a_or_not_b = hsb.bor_hex_str(not_a, not_b, bits)
+                local not_a_or_not_b = sbu.bor_hex_str(not_a, not_b, bits)
 
                 expect.equal(not_and, not_a_or_not_b,
                     f("De Morgan's law 2 for %d bits", bits))
@@ -1354,12 +1354,12 @@ describe("LuaUtils test", function()
 
             -- Test max value -> 0
             local max_val = string.rep("f", hex_chars)
-            local result = hsb.bnot_hex_str(max_val, bits)
+            local result = sbu.bnot_hex_str(max_val, bits)
             expect.equal(result, string.rep("0", hex_chars),
                 f("bnot max value for %d bits", bits))
 
             -- Test 0 -> max value
-            result = hsb.bnot_hex_str("0", bits)
+            result = sbu.bnot_hex_str("0", bits)
             local expected_max
             if bits % 4 == 0 then
                 expected_max = string.rep("f", hex_chars)
@@ -1374,7 +1374,7 @@ describe("LuaUtils test", function()
 
             -- Test MSB set
             local msb_set = "8" .. string.rep("0", hex_chars - 1)
-            result = hsb.bnot_hex_str(msb_set, bits)
+            result = sbu.bnot_hex_str(msb_set, bits)
             -- Expected: flip all bits
             -- For 32-bit 0x80000000 -> 0x7fffffff
         end
@@ -1383,8 +1383,8 @@ describe("LuaUtils test", function()
 
         for bits = 4, 64, 4 do
             local hex = random_hex_str(bits)
-            local not_hex = hsb.bnot_hex_str(hex, bits)
-            local xor_result = hsb.bxor_hex_str(hex, not_hex, bits)
+            local not_hex = sbu.bnot_hex_str(hex, bits)
+            local xor_result = sbu.bxor_hex_str(hex, not_hex, bits)
 
             -- Calculate expected all ones
             local hex_chars = math.ceil(bits / 4)
@@ -1406,8 +1406,8 @@ describe("LuaUtils test", function()
 
         for bits = 4, 64, 4 do
             local hex = random_hex_str(bits)
-            local not_hex = hsb.bnot_hex_str(hex, bits)
-            local and_result = hsb.band_hex_str(hex, not_hex, bits)
+            local not_hex = sbu.bnot_hex_str(hex, bits)
+            local and_result = sbu.band_hex_str(hex, not_hex, bits)
 
             local hex_chars = math.ceil(bits / 4)
             local expected_zeros = string.rep("0", hex_chars)
@@ -1429,7 +1429,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(truncation_tests) do
             local input, bitwidth, expected = test[1], test[2], test[3]
-            local result = hsb.bnot_hex_str(input, bitwidth)
+            local result = sbu.bnot_hex_str(input, bitwidth)
             expect.equal(result, expected,
                 f("bnot_hex_str(%s, %d) with truncation", input, bitwidth))
         end
@@ -1456,7 +1456,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(non_mult4_tests) do
             local input, bitwidth, expected = test[1], test[2], test[3]
-            local result = hsb.bnot_hex_str(input, bitwidth)
+            local result = sbu.bnot_hex_str(input, bitwidth)
             expect.equal(result, expected,
                 f("bnot_hex_str(%s, %d) non-multiple of 4", input, bitwidth))
         end
@@ -1476,7 +1476,7 @@ describe("LuaUtils test", function()
 
         for _, test in ipairs(compat_tests) do
             local input, expected = test[1], test[2]
-            local result = hsb.bnot_hex_str(input)
+            local result = sbu.bnot_hex_str(input)
             expect.equal(result, expected,
                 f("bnot_hex_str(%s) inferred bitwidth", input))
         end
@@ -1486,17 +1486,17 @@ describe("LuaUtils test", function()
 
     it("should work properly for set_bitfield_hex_str()", function()
         -- Basic tests
-        expect.equal(hsb.set_bitfield_hex_str("0", 0, 3, "f"), "f")
-        expect.equal(hsb.set_bitfield_hex_str("0", 4, 7, "f"), "f0")
-        expect.equal(hsb.set_bitfield_hex_str("ffff", 4, 7, "0"), "ff0f")
-        expect.equal(hsb.set_bitfield_hex_str("ffff", 0, 3, "0"), "fff0")
+        expect.equal(sbu.set_bitfield_hex_str("0", 0, 3, "f"), "f")
+        expect.equal(sbu.set_bitfield_hex_str("0", 4, 7, "f"), "f0")
+        expect.equal(sbu.set_bitfield_hex_str("ffff", 4, 7, "0"), "ff0f")
+        expect.equal(sbu.set_bitfield_hex_str("ffff", 0, 3, "0"), "fff0")
 
         -- With width
-        expect.equal(hsb.set_bitfield_hex_str("0", 0, 3, "f", 8), "0f")
-        expect.equal(hsb.set_bitfield_hex_str("0", 4, 7, "f", 8), "f0")
+        expect.equal(sbu.set_bitfield_hex_str("0", 0, 3, "f", 8), "0f")
+        expect.equal(sbu.set_bitfield_hex_str("0", 4, 7, "f", 8), "f0")
 
         -- Auto-expand
-        expect.equal(hsb.set_bitfield_hex_str("0", 8, 11, "f"), "f00")
+        expect.equal(sbu.set_bitfield_hex_str("0", 8, 11, "f"), "f00")
 
         -- Cross-verification with bitfield64 for 0-64 bits
         print("\nTesting set_bitfield_hex_str with bitfield64 verification (0-64 bits)...")
@@ -1517,7 +1517,7 @@ describe("LuaUtils test", function()
 
                 -- Apply set_bitfield_hex_str
                 -- We pass 'bits' as width to ensure consistent length
-                local result_hex = hsb.set_bitfield_hex_str(init_hex, s, e, set_hex, bits)
+                local result_hex = sbu.set_bitfield_hex_str(init_hex, s, e, set_hex, bits)
 
                 -- Safe hex to uint64_t conversion
                 local function hex_to_ull(hex)
@@ -1565,7 +1565,7 @@ describe("LuaUtils test", function()
 
         -- Set a bitfield in the middle of 128 bits
         -- s=60, e=67 (8 bits), crossing 64-bit boundary
-        local result = hsb.set_bitfield_hex_str(all_zeros, 60, 67, "ff", large_bits)
+        local result = sbu.set_bitfield_hex_str(all_zeros, 60, 67, "ff", large_bits)
         -- Expected: ...000000f000000000000000...
         -- bit 60-63 (4 bits) = f (lower part of ff) -> index len-60...
         -- bit 64-67 (4 bits) = f (upper part of ff)
@@ -1573,29 +1573,66 @@ describe("LuaUtils test", function()
         -- 1ULL << 60 is 1000...000 (60 zeros) -> hex 1000000000000000
         -- We are setting 8 bits to 1s.
         -- Let's verify by reading back with bitfield_hex_str
-        local read_back = hsb.bitfield_hex_str(result, 60, 67, large_bits)
+        local read_back = sbu.bitfield_hex_str(result, 60, 67, large_bits)
         expect.equal(read_back, "ff")
 
         -- Verify other bits are 0
-        expect.equal(hsb.trim_leading_zeros(hsb.bitfield_hex_str(result, 0, 59, large_bits)), "0")
-        expect.equal(hsb.trim_leading_zeros(hsb.bitfield_hex_str(result, 68, 127, large_bits)), "0")
+        expect.equal(sbu.trim_leading_zeros(sbu.bitfield_hex_str(result, 0, 59, large_bits)), "0")
+        expect.equal(sbu.trim_leading_zeros(sbu.bitfield_hex_str(result, 68, 127, large_bits)), "0")
 
         -- Set bits in all_ones to 0
-        result = hsb.set_bitfield_hex_str(all_ones, 100, 103, "0", large_bits)
-        read_back = hsb.bitfield_hex_str(result, 100, 103, large_bits)
+        result = sbu.set_bitfield_hex_str(all_ones, 100, 103, "0", large_bits)
+        read_back = sbu.bitfield_hex_str(result, 100, 103, large_bits)
         expect.equal(read_back, "0")
 
         -- Verify surrounding bits are still 1 (f)
-        expect.equal(hsb.bitfield_hex_str(result, 96, 99, large_bits), "f")
-        expect.equal(hsb.bitfield_hex_str(result, 104, 107, large_bits), "f")
+        expect.equal(sbu.bitfield_hex_str(result, 96, 99, large_bits), "f")
+        expect.equal(sbu.bitfield_hex_str(result, 104, 107, large_bits), "f")
 
         -- Test 256 bits
         local huge_bits = 256
         local huge_zeros = string.rep("0", huge_bits / 4)
-        result = hsb.set_bitfield_hex_str(huge_zeros, 250, 255, "3f", huge_bits)
-        read_back = hsb.bitfield_hex_str(result, 250, 255, huge_bits)
+        result = sbu.set_bitfield_hex_str(huge_zeros, 250, 255, "3f", huge_bits)
+        read_back = sbu.bitfield_hex_str(result, 250, 255, huge_bits)
         expect.equal(read_back, "3f")
 
         print("set_bitfield_hex_str tests passed!")
+    end)
+
+    it("should work properly for adjust_hex_bitwidth()", function()
+        local tests = {
+            -- Exact matches
+            { "1234",     16, "1234" },
+            { "abc",      12, "abc" },
+            { "ff",       8,  "ff" },
+
+            -- Truncation cases
+            { "1234",     8,  "34" },
+            { "1234",     12, "234" },
+            { "abcd",     8,  "cd" },
+            { "deadbeef", 16, "beef" },
+            { "ff",       4,  "f" },
+            { "1ff",      8,  "ff" },
+
+            -- Expansion cases
+            { "1234",     20, "01234" },
+            { "1234",     32, "00001234" },
+            { "abc",      16, "0abc" },
+            { "f",        8,  "0f" },
+            { "0",        8,  "00" },
+
+            -- Edge cases
+            { "abc",      7,  "3c" }, -- 7 bits = mask MSB of 'a' (1010 -> 0010)
+            { "f",        3,  "7" },  -- 3 bits = mask MSB of 'f' (1111 -> 0111)
+            { "deadbeef", 64, "00000000deadbeef" },
+        }
+
+        for _, test in ipairs(tests) do
+            local hex_str = test[1]
+            local bitwidth = test[2]
+            local expected = test[3]
+            local result = sbu.adjust_hex_bitwidth(hex_str, bitwidth)
+            expect.equal(result, expected)
+        end
     end)
 end)

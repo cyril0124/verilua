@@ -20,7 +20,7 @@ local srep = string.rep
 local ssub = string.sub
 local scount = stringx.count
 
----@class (exact) verilua.utils.HexStrBits
+---@class (exact) verilua.utils.StrBitsUtils
 local M = {}
 
 ---@param bin_or_hex_str string
