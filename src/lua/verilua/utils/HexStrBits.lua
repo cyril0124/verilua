@@ -3,7 +3,6 @@
 local bit = require "bit"
 local math = require "math"
 local stringx = require "pl.stringx"
-local table_new = require "table.new"
 local utils = require "LuaUtils"
 
 local f = string.format
@@ -824,13 +823,5 @@ function M.popcount_hex_str(hex_str)
     local bin_str = utils.hex_to_bin(hex_str)
     return scount(bin_str, "1")
 end
-
--- local s = os.clock()
--- for _ = 1, 10000 * 100 do
---     local ret = M.lshift_hex_str("1234", 10, 256)
---     -- assert(ret == "48d000")
--- end
--- local e = os.clock()
--- print(string.format("HSB time: %.2f", e - s))
 
 return M

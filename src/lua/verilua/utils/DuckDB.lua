@@ -2,47 +2,47 @@
 
 local ffi = require "ffi"
 
----@class (exact) verilua.utils.duckdb.params
+---@class (exact) verilua.utils.DuckDB.params
 ---@field path string? Path to the library, e.g. /usr/lib/lib?.so
----@field name string? Name of the library, e.g. duckdb
+---@field name string? Name of the library, e.g. DuckDB
 
----@class (exact) verilua.utils.duckdb.const
+---@class (exact) verilua.utils.DuckDB.const
 ---@field OK 0
 ---@field ERROR 1
 
----@class verilua.utils.duckdb.clib
+---@class verilua.utils.DuckDB.clib
 
----@class verilua.utils.duckdb.duckdb_config
----@field set fun(self: verilua.utils.duckdb.duckdb_config, key: string, value: string): verilua.utils.duckdb.const
----@field set_and_check fun(self: verilua.utils.duckdb.duckdb_config, key: string, value: string)
----@field destroy fun(self: verilua.utils.duckdb.duckdb_config)
+---@class verilua.utils.DuckDB.duckdb_config
+---@field set fun(self: verilua.utils.DuckDB.duckdb_config, key: string, value: string): verilua.utils.DuckDB.const
+---@field set_and_check fun(self: verilua.utils.DuckDB.duckdb_config, key: string, value: string)
+---@field destroy fun(self: verilua.utils.DuckDB.duckdb_config)
 
----@class verilua.utils.duckdb.duckdb_database
----@field errmsg fun(self: verilua.utils.duckdb.duckdb_database): string
----@field close fun(self: verilua.utils.duckdb.duckdb_database): verilua.utils.duckdb.const
----@field new_conn fun(self: verilua.utils.duckdb.duckdb_database): verilua.utils.duckdb.const, verilua.utils.duckdb.duckdb_connection
+---@class verilua.utils.DuckDB.duckdb_database
+---@field errmsg fun(self: verilua.utils.DuckDB.duckdb_database): string
+---@field close fun(self: verilua.utils.DuckDB.duckdb_database): verilua.utils.DuckDB.const
+---@field new_conn fun(self: verilua.utils.DuckDB.duckdb_database): verilua.utils.DuckDB.const, verilua.utils.DuckDB.duckdb_connection
 
----@class verilua.utils.duckdb.duckdb_connection
----@field exec fun(self: verilua.utils.duckdb.duckdb_connection, sql_str: string): verilua.utils.duckdb.const
----@field new_appender fun(self: verilua.utils.duckdb.duckdb_connection, table_name: string): verilua.utils.duckdb.const, verilua.utils.duckdb.duckdb_appender
+---@class verilua.utils.DuckDB.duckdb_connection
+---@field exec fun(self: verilua.utils.DuckDB.duckdb_connection, sql_str: string): verilua.utils.DuckDB.const
+---@field new_appender fun(self: verilua.utils.DuckDB.duckdb_connection, table_name: string): verilua.utils.DuckDB.const, verilua.utils.DuckDB.duckdb_appender
 
----@class verilua.utils.duckdb.duckdb_appender
----@field append_int64 fun(self: verilua.utils.duckdb.duckdb_appender, value: integer): verilua.utils.duckdb.const
----@field append_uint64 fun(self: verilua.utils.duckdb.duckdb_appender, value: integer): verilua.utils.duckdb.const
----@field append_string fun(self: verilua.utils.duckdb.duckdb_appender, value: string): verilua.utils.duckdb.const
----@field appand_values fun(self: verilua.utils.duckdb.duckdb_appender, ...: any)
----@field end_row fun(self: verilua.utils.duckdb.duckdb_appender): verilua.utils.duckdb.const
----@field flush fun(self: verilua.utils.duckdb.duckdb_appender): verilua.utils.duckdb.const
----@field destroy fun(self: verilua.utils.duckdb.duckdb_appender): verilua.utils.duckdb.const
+---@class verilua.utils.DuckDB.duckdb_appender
+---@field append_int64 fun(self: verilua.utils.DuckDB.duckdb_appender, value: integer): verilua.utils.DuckDB.const
+---@field append_uint64 fun(self: verilua.utils.DuckDB.duckdb_appender, value: integer): verilua.utils.DuckDB.const
+---@field append_string fun(self: verilua.utils.DuckDB.duckdb_appender, value: string): verilua.utils.DuckDB.const
+---@field appand_values fun(self: verilua.utils.DuckDB.duckdb_appender, ...: any)
+---@field end_row fun(self: verilua.utils.DuckDB.duckdb_appender): verilua.utils.DuckDB.const
+---@field flush fun(self: verilua.utils.DuckDB.duckdb_appender): verilua.utils.DuckDB.const
+---@field destroy fun(self: verilua.utils.DuckDB.duckdb_appender): verilua.utils.DuckDB.const
 
----@class verilua.utils.duckdb
----@field const verilua.utils.duckdb.const
+---@class verilua.utils.DuckDB
+---@field const verilua.utils.DuckDB.const
 ---@field clib any
 ---@field private err_msg_ptr table<integer, ffi.cdata*>
----@field new_config fun(): verilua.utils.duckdb.const, verilua.utils.duckdb.duckdb_config
----@field open fun(filename: string, config: verilua.utils.duckdb.duckdb_config?): verilua.utils.duckdb.const, verilua.utils.duckdb.duckdb_database
----@field init fun(params: verilua.utils.duckdb.params): verilua.utils.duckdb
-local duckdb = {
+---@field new_config fun(): verilua.utils.DuckDB.const, verilua.utils.DuckDB.duckdb_config
+---@field open fun(filename: string, config: verilua.utils.DuckDB.duckdb_config?): verilua.utils.DuckDB.const, verilua.utils.DuckDB.duckdb_database
+---@field init fun(params: verilua.utils.DuckDB.params): verilua.utils.DuckDB
+local M = {
     const = {
         OK = 0,
         ERROR = 1
@@ -50,6 +50,7 @@ local duckdb = {
     clib = nil,
     err_msg_ptr = ffi.new("char *[1]")
 }
+
 ---@type any
 local duckdb_clib
 
@@ -67,24 +68,24 @@ local function wrap_string(c_str)
     return nil
 end
 
-function duckdb.new_config()
+function M.new_config()
     assert(duckdb_clib ~= nil, "duckdb not initialized!")
     local config_ptr = ffi.new("duckdb_config[1]") --[[@as table<integer, ffi.cdata*>]]
     local ret_state = duckdb_clib.duckdb_create_config(config_ptr)
-    local config_handle = ffi.cast("duckdb_config_handle*", config_ptr[0]) --[[@as verilua.utils.duckdb.duckdb_config]]
+    local config_handle = ffi.cast("duckdb_config_handle*", config_ptr[0]) --[[@as verilua.utils.DuckDB.duckdb_config]]
     return ret_state, config_handle
 end
 
-function duckdb.open(filename, config)
+function M.open(filename, config)
     assert(duckdb_clib ~= nil, "duckdb not initialized!")
     local db_ptr = ffi.new("duckdb_database[1]") --[[@as table<integer, ffi.cdata*>]]
-    local ret_state = duckdb_clib.duckdb_open_ext(filename, db_ptr, config, duckdb.err_msg_ptr)
-    local db_handle = ffi.cast("duckdb_database_handle*", db_ptr[0]) --[[@as verilua.utils.duckdb.duckdb_database]]
+    local ret_state = duckdb_clib.duckdb_open_ext(filename, db_ptr, config, M.err_msg_ptr)
+    local db_handle = ffi.cast("duckdb_database_handle*", db_ptr[0]) --[[@as verilua.utils.DuckDB.duckdb_database]]
     return ret_state, db_handle
 end
 
----@param params verilua.utils.duckdb.params
-function duckdb:init(params)
+---@param params verilua.utils.DuckDB.params
+function M:init(params)
     if self.clib then
         -- duckdb already initialized
         return self
@@ -96,7 +97,7 @@ function duckdb:init(params)
                 local lib = package.searchpath(params.name, params.path)
                 assert(
                     lib,
-                    "[duckdb.lua] library not found, name: " ..
+                    "[DuckDB.lua] library not found, name: " ..
                     tostring(params.name) .. ", path: " .. tostring(params.path)
                 )
                 self.clib = ffi.load(package.searchpath(params.name, params.path))
@@ -203,13 +204,13 @@ function duckdb:init(params)
     do
         local duckdb_database_mt = new_class()
 
-        duckdb_database_mt.errmsg = function(this)
+        duckdb_database_mt.errmsg = function(_this)
             local err_msg = "<Empty>"
-            if duckdb.err_msg_ptr[0] == nil then
+            if M.err_msg_ptr[0] == nil then
                 return err_msg
             end
-            err_msg = wrap_string(duckdb.err_msg_ptr[0]) --[[@as string]]
-            duckdb_clib.duckdb_free(duckdb.err_msg_ptr[0])
+            err_msg = wrap_string(M.err_msg_ptr[0]) --[[@as string]]
+            duckdb_clib.duckdb_free(M.err_msg_ptr[0])
             return err_msg
         end
 
@@ -305,4 +306,4 @@ function duckdb:init(params)
     return self
 end
 
-return duckdb
+return M
