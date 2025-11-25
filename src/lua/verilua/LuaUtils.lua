@@ -436,7 +436,7 @@ end
 ---@param bitpat_tbl verilua.LuaUtils.BitPattern[] The bit pattern table
 ---@param width number The width of the bit pattern (optional)
 ---@return string The hexadecimal string
-function utils.bitpat_to_hexstr(bitpat_tbl, width)
+local function bitpat_to_hex_str(bitpat_tbl, width)
     assert(type(bitpat_tbl) == "table", "bitpat_tbl must be a table")
     assert(type(bitpat_tbl[1]) == "table", "bitpat_tbl must contain tables")
     if width ~= nil then
@@ -518,6 +518,16 @@ function utils.bitpat_to_hexstr(bitpat_tbl, width)
 
     return hexstr
 end
+
+---@deprecated use <utils.bitpat_to_hex_str>
+---@param bitpat_tbl verilua.LuaUtils.BitPattern[] The bit pattern table
+---@param width number The width of the bit pattern (optional)
+---@return string The hexadecimal string
+function utils.bitpat_to_hexstr(bitpat_tbl, width)
+    return bitpat_to_hex_str(bitpat_tbl, width)
+end
+
+utils.bitpat_to_hex_str = bitpat_to_hex_str
 
 ---@param uint_value integer The unsigned integer value to be converted to one-hot encoding
 ---@return integer The one-hot encoded value
@@ -700,6 +710,12 @@ function utils.shuffle_bits_hex_str(bitwidth)
     end
 end
 
+---@deprecated prefer use <adjust_hex_bitwidth> in StrBitsUtils.lua
+--- e.g.
+--- ```lua
+--- local sbu = require "verilua.utils.StrBitsUtils"
+--- local v = sbu.adjust_hex_bitwidth("1234", 10)
+--- ```
 ---@param value_hex_str string
 ---@param bitwidth integer
 ---@return string
