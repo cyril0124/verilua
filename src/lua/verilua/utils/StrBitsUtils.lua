@@ -77,30 +77,90 @@ local function hex_str_to_ull(hex_str)
     end
 end
 
+local HEX_VALS = {
+    ['0'] = 0,
+    ['1'] = 1,
+    ['2'] = 2,
+    ['3'] = 3,
+    ['4'] = 4,
+    ['5'] = 5,
+    ['6'] = 6,
+    ['7'] = 7,
+    ['8'] = 8,
+    ['9'] = 9,
+    ['a'] = 10,
+    ['b'] = 11,
+    ['c'] = 12,
+    ['d'] = 13,
+    ['e'] = 14,
+    ['f'] = 15,
+    ['A'] = 10,
+    ['B'] = 11,
+    ['C'] = 12,
+    ['D'] = 13,
+    ['E'] = 14,
+    ['F'] = 15
+}
+
+local VAL_HEXS = {
+    [0] = '0',
+    [1] = '1',
+    [2] = '2',
+    [3] = '3',
+    [4] = '4',
+    [5] = '5',
+    [6] = '6',
+    [7] = '7',
+    [8] = '8',
+    [9] = '9',
+    [10] = 'a',
+    [11] = 'b',
+    [12] = 'c',
+    [13] = 'd',
+    [14] = 'e',
+    [15] = 'f'
+}
+
 --- Mask hex string inputs to fit within specified bitwidth
 --- @param hex_str string The hex string to mask
 --- @param bitwidth number The target bitwidth
 --- @return string The masked hex string
 local function adjust_hex_bitwidth(hex_str, bitwidth)
+    -- Calculate the required number of hex characters
     local bitwidth_hex_chars = math_ceil(bitwidth / 4)
+    local len = #hex_str
 
-    -- Truncate if input exceeds bitwidth
-    if #hex_str > bitwidth_hex_chars then
+    -- Truncate: if input is longer than needed, keep the suffix (least significant bits)
+    if len > bitwidth_hex_chars then
         hex_str = ssub(hex_str, -bitwidth_hex_chars)
+        len = bitwidth_hex_chars -- Update length to reflect the new string
     end
 
-    -- Pad to bitwidth_hex_chars if shorter
-    if #hex_str < bitwidth_hex_chars then
-        hex_str = srep("0", bitwidth_hex_chars - #hex_str) .. hex_str
+    -- Pad: if input is shorter, add leading zeros
+    -- Only create a new string if padding is actually necessary
+    if len < bitwidth_hex_chars then
+        hex_str = srep("0", bitwidth_hex_chars - len) .. hex_str
     end
 
-    -- Mask off extra bits in MSB nibble if bitwidth is not a multiple of 4
+    -- Mask the Most Significant Nibble (first character) if bitwidth is not a multiple of 4
     local bitwidth_mod4 = bitwidth % 4
+    ---@cast bitwidth_mod4 integer
     if bitwidth_mod4 ~= 0 then
-        local mask = bit_lshift(1, bitwidth_mod4 --[[@as integer]]) - 1
-        local first_nibble = tonumber(ssub(hex_str, 1, 1), 16) or 0
-        local masked_nibble = bit_band(first_nibble, mask)
-        hex_str = f("%x", masked_nibble) .. ssub(hex_str, 2)
+        -- Extract the first character directly
+        local first_char = ssub(hex_str, 1, 1)
+        -- Fast lookup to get integer value (avoids tonumber conversion)
+        local first_val = HEX_VALS[first_char] or 0
+
+        -- Create mask: e.g., for mod 1 -> mask 1 (0x1); mod 3 -> mask 7 (0x7)
+        local mask = bit_lshift(1, bitwidth_mod4) - 1
+        local masked_val = bit_band(first_val, mask)
+
+        -- Optimization: Only construct a new string if the value actually changes.
+        -- This saves an allocation if the MSB bits were already zero.
+        if masked_val ~= first_val then
+            -- Fast char replacement using lookup table (avoids string.format)
+            hex_str = VAL_HEXS[masked_val] .. ssub(hex_str, 2)
+        end
     end
 
     return hex_str
