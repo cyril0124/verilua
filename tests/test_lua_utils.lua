@@ -665,4 +665,104 @@ describe("LuaUtils test", function()
 
         test()
     end)
+
+    it("should work properly for hex_str_to_ull()", function()
+        local tests = {
+            -- Basic cases
+            { "0",                      0ULL },
+            { "1",                      1ULL },
+            { "f",                      15ULL },
+            { "F",                      15ULL },
+            { "10",                     16ULL },
+            { "ff",                     255ULL },
+            { "FF",                     255ULL },
+            { "100",                    256ULL },
+            { "1234",                   0x1234ULL },
+            { "ABCD",                   0xABCDULL },
+            { "abcd",                   0xabcdULL },
+
+            -- 32-bit values
+            { "ffffffff",               0xFFFFFFFFULL },
+            { "FFFFFFFF",               0xFFFFFFFFULL },
+            { "12345678",               0x12345678ULL },
+
+            -- 64-bit values
+            { "ffffffffffffffff",       0xFFFFFFFFFFFFFFFFULL },
+            { "FFFFFFFFFFFFFFFF",       0xFFFFFFFFFFFFFFFFULL },
+            { "1234567890abcdef",       0x1234567890abcdefULL },
+            { "1234567890ABCDEF",       0x1234567890ABCDEFULL },
+            { "8000000000000000",       0x8000000000000000ULL },
+            { "7fffffffffffffff",       0x7fffffffffffffffULL },
+
+            -- Edge cases - should truncate to 64 bits (last 16 hex chars)
+            { "123456789abcdef0123456", 0x789abcdef0123456ULL }, -- Takes last 16 chars: 789abcdef0123456
+            { "00000000000000001234",   0x1234ULL },
+
+            -- Leading zeros
+            { "00000001",               1ULL },
+            { "0000ffff",               0xffffULL },
+        }
+
+        for _, test in ipairs(tests) do
+            local hex_str = test[1]
+            local expected = test[2]
+            local result = utils.hex_str_to_ull(hex_str)
+            expect.equal(result, expected,
+                f("hex_str_to_ull('%s') = %s, expected %s",
+                    hex_str, utils.to_hex_str(result), utils.to_hex_str(expected)))
+        end
+    end)
+
+    it("should work properly for hex_str_to_ll()", function()
+        local tests = {
+            -- Positive values (MSB = 0)
+            { "0",                      0LL },
+            { "1",                      1LL },
+            { "f",                      15LL },
+            { "F",                      15LL },
+            { "7f",                     127LL },
+            { "7fff",                   32767LL },
+            { "7fffffff",               0x7fffffffLL },
+            { "7fffffffffffffff",       0x7fffffffffffffffLL },
+
+            -- Negative values (MSB = 1, two's complement)
+            { "8000000000000000",       ffi.cast("int64_t", 0x8000000000000000ULL) }, -- Most negative: -2^63
+            { "ffffffffffffffff",       -1LL },
+            { "fffffffffffffffe",       -2LL },
+            { "fffffffffffffff0",       -16LL },
+            { "ffffffffffffff00",       -256LL },
+            { "ffffffffff000000",       ffi.cast("int64_t", 0xffffffffff000000ULL) },
+            { "ff00000000000000",       ffi.cast("int64_t", 0xff00000000000000ULL) },
+            { "8000000000000001",       ffi.cast("int64_t", 0x8000000000000001ULL) }, -- -2^63 + 1
+
+            -- Mid-range values
+            { "1234567890abcdef",       ffi.cast("int64_t", 0x1234567890abcdefULL) },
+            { "fedcba9876543210",       ffi.cast("int64_t", 0xfedcba9876543210ULL) },
+
+            -- Edge case around sign bit
+            { "7ffffffffffffffe",       0x7ffffffffffffffeLL },
+            { "7fffffffffffffff",       0x7fffffffffffffffLL },
+
+            -- Truncation test (should take last 16 hex chars)
+            { "123456789abcdef0123456", ffi.cast("int64_t", 0x789abcdef0123456ULL) },
+        }
+
+        for _, test in ipairs(tests) do
+            local hex_str = test[1]
+            local expected = test[2]
+            local result = utils.hex_str_to_ll(hex_str)
+
+            -- Compare as int64_t to handle negative values correctly
+            local result_i64 = ffi.cast("int64_t", result)
+            local expected_i64 = ffi.cast("int64_t", expected)
+
+            -- Convert to unsigned for hex display
+            local result_u64 = ffi.cast("uint64_t", result_i64)
+            local expected_u64 = ffi.cast("uint64_t", expected_i64)
+
+            expect.equal(result_i64, expected_i64,
+                f("hex_str_to_ll('%s') = 0x%s, expected 0x%s",
+                    hex_str, utils.to_hex_str(result_u64), utils.to_hex_str(expected_u64)))
+        end
+    end)
 end)

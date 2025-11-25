@@ -219,6 +219,33 @@ function utils.print_hex(hex_table)
     io.write(utils.to_hex(hex_table) .. "\n")
 end
 
+--- Convert a hexadecimal string to an unsigned long long
+---@param hex_str string The hexadecimal string to be converted to unsigned long long
+---@return integer
+function utils.hex_str_to_ull(hex_str)
+    if #hex_str > 16 then hex_str = hex_str:sub(-16) end -- Truncate to 64 bits
+    local len = #hex_str
+    if len <= 12 then
+        return (tonumber(hex_str, 16) or 0) + 0ULL
+    else
+        local split = len - 12
+        local high_str = hex_str:sub(1, split)
+        local low_str = hex_str:sub(split + 1)
+        local high = (tonumber(high_str, 16) or 0) + 0ULL
+        local low = (tonumber(low_str, 16) or 0) + 0ULL
+        return bit_lshift(high, 48) + low
+    end
+end
+
+--- Convert a hexadecimal string to a signed long long
+---@param hex_str string The hexadecimal string to be converted to signed long long
+---@return integer
+function utils.hex_str_to_ll(hex_str)
+    local ull = utils.hex_str_to_ull(hex_str)
+    -- Convert to signed by casting through ffi
+    return ffi.cast("int64_t", ull) --[[@as integer]]
+end
+
 ---@param num integer The number to be converted to binary string
 ---@return string The binary string
 function utils.num_to_binstr(num)
