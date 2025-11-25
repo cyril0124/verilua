@@ -96,11 +96,12 @@ target("install_other_libs", function()
         end
 
         local conan_cmd = "conan"
+        local build_dir = path.join(prj_dir, "build")
         local has_conan = try { function() return os.iorun("conan --version") end }
 
         if not has_conan then
-            os.mkdir(path.join(prj_dir, "build"))
-            os.cd(path.join(prj_dir, "build"))
+            os.mkdir(build_dir)
+            os.cd(build_dir)
             os.exec("wget https://github.com/conan-io/conan/releases/download/2.14.0/conan-2.14.0-linux-x86_64.tgz")
             os.mkdir("./conan")
             os.exec("tar -xvf conan-2.14.0-linux-x86_64.tgz -C ./conan")
@@ -123,6 +124,21 @@ target("install_other_libs", function()
 
         os.cd(prj_dir)
         os.exec(conan_cmd .. " install . --output-folder=%s --build=missing", libs_dir)
+
+        -- Install libgmp
+        local libgmp_dir = path.join(build_dir, "gmp-6.3.0")
+        os.cd(build_dir)
+        os.exec("wget https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz")
+        os.exec("tar xJf gmp-6.3.0.tar.xz")
+        os.cd(libgmp_dir)
+        os.exec("./configure --prefix=%s --disable-static", libs_dir)
+        os.exec("make -j" .. os.cpuinfo().ncpu)
+        os.exec("make install")
+
+        -- Copy libgmp into shared dir
+        local shared_dir = path.join(prj_dir, "shared/")
+        os.mkdir(shared_dir)
+        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), path.join(shared_dir))
     end)
 end)
 
