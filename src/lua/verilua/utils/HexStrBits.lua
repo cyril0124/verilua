@@ -4,6 +4,7 @@ local bit = require "bit"
 local math = require "math"
 local stringx = require "pl.stringx"
 local table_new = require "table.new"
+local utils = require "LuaUtils"
 
 local f = string.format
 local tonumber = tonumber
@@ -20,50 +21,6 @@ local srep = string.rep
 local ssub = string.sub
 local scount = stringx.count
 
-local bin_to_hex_map = {
-    ["0000"] = "0",
-    ["0001"] = "1",
-    ["0010"] = "2",
-    ["0011"] = "3",
-    ["0100"] = "4",
-    ["0101"] = "5",
-    ["0110"] = "6",
-    ["0111"] = "7",
-    ["1000"] = "8",
-    ["1001"] = "9",
-    ["1010"] = "a",
-    ["1011"] = "b",
-    ["1100"] = "c",
-    ["1101"] = "d",
-    ["1110"] = "e",
-    ["1111"] = "f",
-}
-
-local hex_to_bin_map = {
-    ["0"] = "0000",
-    ["1"] = "0001",
-    ["2"] = "0010",
-    ["3"] = "0011",
-    ["4"] = "0100",
-    ["5"] = "0101",
-    ["6"] = "0110",
-    ["7"] = "0111",
-    ["8"] = "1000",
-    ["9"] = "1001",
-    ["A"] = "1010",
-    ["B"] = "1011",
-    ["C"] = "1100",
-    ["D"] = "1101",
-    ["E"] = "1110",
-    ["F"] = "1111",
-    ["a"] = "1010",
-    ["b"] = "1011",
-    ["c"] = "1100",
-    ["d"] = "1101",
-    ["e"] = "1110",
-    ["f"] = "1111",
-}
-
 ---@class (exact) verilua.utils.HexStrBits
 local M = {}
 
@@ -77,43 +34,11 @@ function M.trim_leading_zeros(bin_or_hex_str)
     return ret
 end
 
----@param hex_str string
----@return string
-function M.hex_to_bin(hex_str)
-    local bin_parts = table_new(#hex_str, 0)
-    for i = 1, #hex_str do
-        local nibble = hex_str:sub(i, i)
-        bin_parts[i] = (hex_to_bin_map[nibble] or error("Invalid hex character: " .. nibble))
-    end
-    return table_concat(bin_parts)
-end
-
----@param bin_str string
----@return string
-function M.bin_str_to_hex_str(bin_str)
-    local remainder = #bin_str % 4
-    if remainder ~= 0 then
-        bin_str = srep("0", 4 - remainder) .. bin_str
-    end
-
-    local len = #bin_str
-    local output_len = len / 4
-    local hex_parts = {}
-
-    for i = 1, output_len do
-        local start_pos = (i - 1) * 4 + 1
-        local four_bits = ssub(bin_str, start_pos, start_pos + 3)
-        hex_parts[i] = bin_to_hex_map[four_bits]
-    end
-
-    return table_concat(hex_parts)
-end
-
 -- Helper: Adjust binary string to specific bitwidth (truncate MSB or pad MSB)
 ---@param bin_str string
 ---@param bitwidth? integer
 ---@return string
-local function adjust_bitwidth(bin_str, bitwidth)
+local function adjust_bin_bitwidth(bin_str, bitwidth)
     if not bitwidth then return bin_str end
 
     bitwidth = tonumber(bitwidth) --[[@as integer]]
@@ -157,7 +82,7 @@ end
 --- @param hex_str string The hex string to mask
 --- @param bitwidth number The target bitwidth
 --- @return string The masked hex string
-local function mask_hex_str_to_bitwidth(hex_str, bitwidth)
+local function adjust_hex_bitwidth(hex_str, bitwidth)
     local bitwidth_hex_chars = math_ceil(bitwidth / 4)
 
     -- Truncate if input exceeds bitwidth
@@ -182,6 +107,22 @@ local function mask_hex_str_to_bitwidth(hex_str, bitwidth)
     return hex_str
 end
 
+--- Adjust hex string to specified bitwidth with bit-level precision
+---@param hex_str string The input hex string (without "0x" prefix)
+---@param bitwidth integer The target bitwidth
+---@return string The adjusted hex string
+function M.adjust_hex_bitwidth(hex_str, bitwidth)
+    return adjust_hex_bitwidth(hex_str, bitwidth)
+end
+
+--- Adjust binary string to specified bitwidth with bit-level precision
+---@param bin_str string The input binary string
+---@param bitwidth integer The target bitwidth
+---@return string The adjusted binary string
+function M.adjust_bin_bitwidth(bin_str, bitwidth)
+    return adjust_bin_bitwidth(bin_str, bitwidth)
+end
+
 ---@param hex_str string The hexadecimal string without "0x" prefix
 ---@param s integer The start bit
 ---@param e integer The end bit
@@ -189,7 +130,7 @@ end
 ---@return string The hexadecimal string representation of the extracted bitfield
 function M.bitfield_hex_str(hex_str, s, e, bitwidth)
     -- Convert hex string to binary string
-    local bin_str = M.hex_to_bin(hex_str)
+    local bin_str = utils.hex_to_bin(hex_str)
 
     -- Ensure the binary string meets the desired width by padding with leading zeros
     if bitwidth and bitwidth > #bin_str then
@@ -212,7 +153,7 @@ function M.bitfield_hex_str(hex_str, s, e, bitwidth)
     end
 
     -- Convert binary result to hexadecimal string
-    return M.bin_str_to_hex_str(bin_result)
+    return utils.bin_str_to_hex_str(bin_result)
 end
 
 ---@param hex_str string The original hexadecimal string without "0x" prefix
@@ -223,7 +164,7 @@ end
 ---@return string The new hexadecimal string
 function M.set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth)
     -- Convert hex string to binary string
-    local bin_str = M.hex_to_bin(hex_str)
+    local bin_str = utils.hex_to_bin(hex_str)
 
     -- Ensure the binary string meets the desired bitwidth by padding with leading zeros
     if bitwidth and bitwidth > #bin_str then
@@ -247,7 +188,7 @@ function M.set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth)
     end
 
     -- Convert value to binary
-    local val_bin_str = M.hex_to_bin(val_hex_str)
+    local val_bin_str = utils.hex_to_bin(val_hex_str)
     local val_width = e - s + 1
 
     -- Pad or truncate value to fit the range
@@ -272,7 +213,7 @@ function M.set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth)
 
     local new_bin_str = prefix .. val_bin_str .. suffix
 
-    return M.bin_str_to_hex_str(new_bin_str)
+    return utils.bin_str_to_hex_str(new_bin_str)
 end
 
 --- Left shift a hexadecimal string representation.
@@ -287,26 +228,26 @@ function M.lshift_hex_str(hex_str, n, bitwidth)
     -- Optimization: If shift is 0, just handle bitwidth adjustment
     if n == 0 then
         if bitwidth then
-            local bin_str = M.hex_to_bin(hex_str)
-            bin_str = adjust_bitwidth(bin_str, bitwidth)
-            return M.bin_str_to_hex_str(bin_str)
+            local bin_str = utils.hex_to_bin(hex_str)
+            bin_str = adjust_bin_bitwidth(bin_str, bitwidth)
+            return utils.bin_str_to_hex_str(bin_str)
         else
             return hex_str
         end
     end
 
-    local bin_str = M.hex_to_bin(hex_str)
+    local bin_str = utils.hex_to_bin(hex_str)
 
     -- LShift adds '0's to the LSB (Least Significant Bits)
     local shifted_bin = bin_str .. srep("0", n)
 
     -- Handle truncation if bitwidth is specified
     if bitwidth then
-        shifted_bin = adjust_bitwidth(shifted_bin, bitwidth)
+        shifted_bin = adjust_bin_bitwidth(shifted_bin, bitwidth)
     end
 
     -- Convert back to hex and clean up
-    local result = M.bin_str_to_hex_str(shifted_bin)
+    local result = utils.bin_str_to_hex_str(shifted_bin)
     if bitwidth then
         return result
     else
@@ -323,12 +264,12 @@ end
 function M.rshift_hex_str(hex_str, n, bitwidth)
     n = tonumber(n) --[[@as integer]]
 
-    local bin_str = M.hex_to_bin(hex_str)
+    local bin_str = utils.hex_to_bin(hex_str)
 
     -- If bitwidth is provided, ensure input is conformant BEFORE shifting
     -- (e.g., shifting a 32-bit value inside an 8-bit register context)
     if bitwidth then
-        bin_str = adjust_bitwidth(bin_str, bitwidth)
+        bin_str = adjust_bin_bitwidth(bin_str, bitwidth)
     end
 
     local len = #bin_str
@@ -347,10 +288,10 @@ function M.rshift_hex_str(hex_str, n, bitwidth)
     -- If bitwidth is strictly required for the output format (e.g. fixed width return),
     -- we pad the now-shorter string with leading zeros.
     if bitwidth then
-        shifted_bin = adjust_bitwidth(shifted_bin, bitwidth)
+        shifted_bin = adjust_bin_bitwidth(shifted_bin, bitwidth)
     end
 
-    local result = M.bin_str_to_hex_str(shifted_bin)
+    local result = utils.bin_str_to_hex_str(shifted_bin)
     if bitwidth then
         return result
     else
@@ -377,8 +318,8 @@ function M.bor_hex_str(hex_str1, hex_str2, bitwidth)
             max_len = bitwidth_hex_chars
         end
         -- Mask inputs to fit within bitwidth
-        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
-        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        hex_str1 = adjust_hex_bitwidth(hex_str1, bitwidth)
+        hex_str2 = adjust_hex_bitwidth(hex_str2, bitwidth)
         -- Update lengths after masking
         len1, len2 = #hex_str1, #hex_str2
         max_len = len1 > len2 and len1 or len2
@@ -470,8 +411,8 @@ function M.bxor_hex_str(hex_str1, hex_str2, bitwidth)
             max_len = bitwidth_hex_chars
         end
         -- Mask inputs to fit within bitwidth
-        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
-        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        hex_str1 = adjust_hex_bitwidth(hex_str1, bitwidth)
+        hex_str2 = adjust_hex_bitwidth(hex_str2, bitwidth)
         -- Update lengths after masking
         len1, len2 = #hex_str1, #hex_str2
         max_len = len1 > len2 and len1 or len2
@@ -563,8 +504,8 @@ function M.band_hex_str(hex_str1, hex_str2, bitwidth)
             max_len = bitwidth_hex_chars
         end
         -- Mask inputs to fit within bitwidth
-        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
-        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        hex_str1 = adjust_hex_bitwidth(hex_str1, bitwidth)
+        hex_str2 = adjust_hex_bitwidth(hex_str2, bitwidth)
         -- Update lengths after masking
         len1, len2 = #hex_str1, #hex_str2
         max_len = len1 > len2 and len1 or len2
@@ -651,7 +592,7 @@ function M.bnot_hex_str(hex_str, bitwidth)
 
         effective_bitwidth = bitwidth
         -- Mask input to fit within specified bitwidth
-        hex_str = mask_hex_str_to_bitwidth(hex_str, bitwidth)
+        hex_str = adjust_hex_bitwidth(hex_str, bitwidth)
     else
         -- Infer bitwidth from hex string length
         effective_bitwidth = #hex_str * 4
@@ -742,8 +683,8 @@ function M.add_hex_str(hex_str1, hex_str2, bitwidth)
             max_len = bitwidth_hex_chars
         end
         -- Mask inputs to fit within bitwidth
-        hex_str1 = mask_hex_str_to_bitwidth(hex_str1, bitwidth)
-        hex_str2 = mask_hex_str_to_bitwidth(hex_str2, bitwidth)
+        hex_str1 = adjust_hex_bitwidth(hex_str1, bitwidth)
+        hex_str2 = adjust_hex_bitwidth(hex_str2, bitwidth)
         -- Update lengths after masking
         len1, len2 = #hex_str1, #hex_str2
         max_len = len1 > len2 and len1 or len2
@@ -880,8 +821,16 @@ end
 ---@param hex_str string
 ---@return integer
 function M.popcount_hex_str(hex_str)
-    local bin_str = M.hex_to_bin(hex_str)
+    local bin_str = utils.hex_to_bin(hex_str)
     return scount(bin_str, "1")
 end
+
+-- local s = os.clock()
+-- for _ = 1, 10000 * 100 do
+--     local ret = M.lshift_hex_str("1234", 10, 256)
+--     -- assert(ret == "48d000")
+-- end
+-- local e = os.clock()
+-- print(string.format("HSB time: %.2f", e - s))
 
 return M
