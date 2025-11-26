@@ -89,9 +89,14 @@ end)
 target("install_other_libs", function()
     set_kind("phony")
     on_run(function(target)
+        local shared_dir = path.join(prj_dir, "shared/")
+
         -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
         if os.getenv("CI_USE_CONAN_CACHE") then
             print("[xmake.lua] [install_other_libs] Using cached conan libs...")
+
+            os.mkdir(shared_dir)
+            os.cp(path.join(libs_dir, "lib", "libgmp.so*"), path.join(shared_dir))
             return
         end
 
@@ -136,7 +141,6 @@ target("install_other_libs", function()
         os.exec("make install")
 
         -- Copy libgmp into shared dir
-        local shared_dir = path.join(prj_dir, "shared/")
         os.mkdir(shared_dir)
         os.cp(path.join(libs_dir, "lib", "libgmp.so*"), path.join(shared_dir))
     end)

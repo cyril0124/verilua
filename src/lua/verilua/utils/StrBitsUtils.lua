@@ -884,4 +884,189 @@ function M.popcount_hex_str(hex_str)
     return scount(bin_str, "1")
 end
 
+-- Initialize the module to use libgmp for underlying operations
+function M.init_use_libgmp()
+    local g = require "verilua.utils.LibGMP"
+    g:init()
+
+    local _v_bitfield_hex_str = g.types.z()
+    M.bitfield_hex_str = function(hex_str, s, e, bitwidth)
+        -- If bitwidth is provided, ensure input is padded to bitwidth
+        if bitwidth then
+            hex_str = adjust_hex_bitwidth(hex_str, bitwidth)
+        end
+
+        _v_bitfield_hex_str:init_set_str(hex_str, 16)
+
+        local ret = _v_bitfield_hex_str:get_bitfield_hex_str(s, e)
+        -- Always trim leading zeros for the result
+        return M.trim_leading_zeros(ret)
+    end
+
+    local _v_set_bitfield_hex_str = g.types.z()
+    M.set_bitfield_hex_str = function(hex_str, s, e, val_hex_str, bitwidth)
+        _v_set_bitfield_hex_str:init_set_str(hex_str, 16)
+
+        local ret = _v_set_bitfield_hex_str:set_bitfield_hex_str(s, e, val_hex_str):get_hex_str()
+        if bitwidth then
+            return adjust_hex_bitwidth(ret, bitwidth)
+        else
+            return M.trim_leading_zeros(ret)
+        end
+    end
+
+    local _v_lshift_hex_str = g.types.z()
+    M.lshift_hex_str = function(hex_str, n, bitwidth)
+        _v_lshift_hex_str:init_set_str(hex_str, 16)
+
+        local ret = _v_lshift_hex_str:lshift(n):get_hex_str()
+        if bitwidth then
+            return adjust_hex_bitwidth(ret, bitwidth)
+        else
+            return M.trim_leading_zeros(ret)
+        end
+    end
+
+    local _v_rshift_hex_str = g.types.z()
+    M.rshift_hex_str = function(hex_str, n, bitwidth)
+        -- For rshift with bitwidth, we need to first adjust input to bitwidth
+        if bitwidth then
+            hex_str = adjust_hex_bitwidth(hex_str, bitwidth)
+        end
+
+        _v_rshift_hex_str:init_set_str(hex_str, 16)
+
+        local ret = _v_rshift_hex_str:rshift(n):get_hex_str()
+        if bitwidth then
+            return adjust_hex_bitwidth(ret, bitwidth)
+        else
+            return M.trim_leading_zeros(ret)
+        end
+    end
+
+    local _v_bor_hex_str = g.types.z()
+    M.bor_hex_str = function(hex_str1, hex_str2, bitwidth)
+        _v_bor_hex_str:init_set_str(hex_str1, 16)
+
+        local ret = _v_bor_hex_str:or_hex_str(hex_str2):get_hex_str()
+        if bitwidth then
+            return adjust_hex_bitwidth(ret, bitwidth)
+        else
+            return M.trim_leading_zeros(ret)
+        end
+    end
+
+    local _v_bxor_hex_str = g.types.z()
+    M.bxor_hex_str = function(hex_str1, hex_str2, bitwidth)
+        _v_bxor_hex_str:init_set_str(hex_str1, 16)
+
+        local ret = _v_bxor_hex_str:xor_hex_str(hex_str2):get_hex_str()
+        if bitwidth then
+            return adjust_hex_bitwidth(ret, bitwidth)
+        else
+            return M.trim_leading_zeros(ret)
+        end
+    end
+
+    local _v_band_hex_str = g.types.z()
+    M.band_hex_str = function(hex_str1, hex_str2, bitwidth)
+        _v_band_hex_str:init_set_str(hex_str1, 16)
+
+        local ret = _v_band_hex_str:and_hex_str(hex_str2):get_hex_str()
+        if bitwidth then
+            return adjust_hex_bitwidth(ret, bitwidth)
+        else
+            return M.trim_leading_zeros(ret)
+        end
+    end
+
+    local _v_bnot_hex_str = g.types.z()
+    local _v_bnot_mask = g.types.z()
+    M.bnot_hex_str = function(hex_str, bitwidth)
+        -- Determine effective bitwidth
+        local effective_bitwidth
+        if bitwidth then
+            bitwidth = tonumber(bitwidth) --[[@as integer]]
+            effective_bitwidth = bitwidth
+            -- Mask input to fit within specified bitwidth
+            hex_str = adjust_hex_bitwidth(hex_str, bitwidth)
+        else
+            -- Infer bitwidth from hex string length
+            effective_bitwidth = #hex_str * 4
+        end
+
+        -- Create a mask with all bits set for the effective bitwidth
+        -- mask = (1 << effective_bitwidth) - 1
+        _v_bnot_mask:init_set_str("1", 10)
+        _v_bnot_mask:lshift(effective_bitwidth)
+        _v_bnot_mask:sub_ui(1)
+
+        -- Load the input value
+        _v_bnot_hex_str:init_set_str(hex_str, 16)
+
+        -- Compute NOT as: result = mask XOR value
+        _v_bnot_hex_str:xor(_v_bnot_mask)
+
+        local ret = _v_bnot_hex_str:get_hex_str()
+
+        if bitwidth then
+            return adjust_hex_bitwidth(ret, bitwidth)
+        else
+            return M.trim_leading_zeros(ret)
+        end
+    end
+
+    local _v_add_hex_str1 = g.types.z()
+    local _v_add_hex_str2 = g.types.z()
+    local _v_add_threshold = g.types.z()
+    local _v_add_result_copy = g.types.z()
+    M.add_hex_str = function(hex_str1, hex_str2, bitwidth)
+        if bitwidth then
+            bitwidth = tonumber(bitwidth) --[[@as integer]]
+            -- Mask inputs to fit within bitwidth (same as original implementation)
+            hex_str1 = adjust_hex_bitwidth(hex_str1, bitwidth)
+            hex_str2 = adjust_hex_bitwidth(hex_str2, bitwidth)
+        end
+
+        _v_add_hex_str1:init_set_str(hex_str1, 16)
+        _v_add_hex_str2:init_set_str(hex_str2, 16)
+
+        -- Perform addition
+        _v_add_hex_str1:add(_v_add_hex_str2)
+
+        if bitwidth then
+            -- Calculate threshold for bitwidth: 1 << bitwidth
+            _v_add_threshold:init_set_str("1", 10)
+            _v_add_threshold:lshift(bitwidth)
+
+            -- Make a copy of the result
+            local ret_str = _v_add_hex_str1:get_hex_str()
+            _v_add_result_copy:init_set_str(ret_str, 16)
+
+            -- Calculate the mask: (1 << bitwidth) - 1
+            _v_add_threshold:sub_ui(1) -- Now _v_add_threshold = (1 << bitwidth) - 1
+
+            -- Apply mask to the copy
+            _v_add_result_copy:andd(_v_add_threshold)
+            local masked_result = _v_add_result_copy:get_hex_str()
+
+            -- If masked result differs from original, there was overflow
+            local carry = (ret_str ~= masked_result)
+
+            -- Return the masked result
+            local ret = adjust_hex_bitwidth(masked_result, bitwidth)
+            return ret, carry
+        else
+            local ret = _v_add_hex_str1:get_hex_str()
+            return M.trim_leading_zeros(ret), false
+        end
+    end
+
+    local _v_popcount = g.types.z()
+    M.popcount_hex_str = function(hex_str)
+        _v_popcount:init_set_str(hex_str, 16)
+        return _v_popcount:popcount()
+    end
+end
+
 return M
