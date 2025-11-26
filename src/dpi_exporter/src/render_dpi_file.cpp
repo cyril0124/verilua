@@ -161,11 +161,17 @@ extern "C" char *dpi_exporter_get_meta_info_file_path() {
 // Only available when `distributeDPI` is 0.
 #ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
 
+// The `DPI_EXP_USE_STRICT_STEP` macro controls error handling semantics for the Verilua step
+// invoked from the simulator:
+// - If `DPI_EXP_USE_STRICT_STEP` is defined, `verilua_main_step()` is used. In strict mode,
+//   any uncaught Lua error will cause an immediate termination of the whole simulation. Use this
+//   when you prefer fail-fast semantics and want simulation to stop on script errors.
+// - If `DPI_EXP_USE_STRICT_STEP` is NOT defined, `verilua_main_step_safe()` is used. In safe
+//   mode, Lua errors are caught/reported and the simulator continues running. Use this when you
+//   need resilience to scripting errors and prefer the simulator to keep running.
 #ifdef DPI_EXP_USE_STRICT_STEP
-// Strict step mode: when error occurs in lua scripts, the entire simulation will be terminated immediately.
 extern "C" void verilua_main_step();
 #else // DPI_EXP_USE_STRICT_STEP
-// Safe step mode: when error occurs in lua scripts, the simulation will still continue but the error will be reported.
 extern "C" void verilua_main_step_safe();
 #endif // DPI_EXP_USE_STRICT_STEP
 
