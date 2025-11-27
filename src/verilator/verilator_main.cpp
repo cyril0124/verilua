@@ -143,7 +143,7 @@ class Emulator final {
   public:
     EmuArgs args;
 #if VM_TRACE
-    verilated_trace_t *tfp;
+    std::unique_ptr<verilated_trace_t> tfp;
 #endif
     LightSSS *lightsss         = nullptr;
     uint32_t lasttime_snapshot = 0;
@@ -333,8 +333,8 @@ void Emulator::dump_wave() {
 #if VM_TRACE
     if (args.enable_wave && !args.wave_is_enable) {
         Verilated::traceEverOn(true);
-        tfp = new verilated_trace_t;
-        dut_ptr->trace(tfp, 99);
+        tfp = std::make_unique<verilated_trace_t>();
+        dut_ptr->trace(tfp.get(), 99);
         tfp->open(args.trace_file.c_str());
         args.wave_is_enable = true;
     }
@@ -343,7 +343,7 @@ void Emulator::dump_wave() {
 
 void Emulator::stop_dump_wave() {
 #if VM_TRACE
-    if (!args.wave_is_close) {
+    if (!args.wave_is_close && tfp) {
         tfp->close();
         args.wave_is_close = true;
     }
@@ -536,6 +536,10 @@ int Emulator::timing_mode_main() {
 }
 
 void Emulator::finalize(bool success = true) {
+    if (!dut_ptr) {
+        return;
+    }
+
     VL_INFO("finalize\n");
     fflush(stdout);
 
@@ -546,6 +550,8 @@ void Emulator::finalize(bool success = true) {
         Verilated::timeInc(5);
         tfp->dump(Verilated::time());
         tfp->flush();
+        tfp->close();
+        tfp.reset();
     }
 #endif
 
@@ -574,9 +580,7 @@ void Emulator::finalize(bool success = true) {
     }
 
     delete dut_ptr;
-#if VM_TRACE
-    delete tfp;
-#endif
+    dut_ptr = nullptr;
 }
 
 Emulator::~Emulator() {
@@ -605,8 +609,6 @@ int Emulator::run_main() {
 void signal_handler(int signal) {
     Verilated::threadContextp()->gotError(true);
     Verilated::threadContextp()->gotFinish(true);
-    Verilated::runFlushCallbacks();
-    Verilated::runExitCallbacks();
 
     switch (signal) {
     case SIGABRT:
