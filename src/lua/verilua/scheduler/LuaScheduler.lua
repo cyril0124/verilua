@@ -12,7 +12,7 @@ local cfg = _G.cfg
 ---@alias verilua.scheduler.TaskFunction fun()
 
 ---@class (exact) verilua.handles.EventHandle
----@field __type "verilua.handles.EventHandle" | "EventHandleForJFork"
+---@field __type "EventHandle" | "EventHandleForJFork"
 ---@field _scheduler verilua.scheduler.LuaScheduler
 ---@field name string
 ---@field event_id verilua.scheduler.EventID

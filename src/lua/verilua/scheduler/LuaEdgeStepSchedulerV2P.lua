@@ -349,8 +349,24 @@ function Scheduler:wakeup_task(id)
         assert(false, "[Scheduler] Task not registered! task_id: " .. id)
     end
 
+    local removal_task_id = 1
+    local found_in_removal_tasks = false
     if self.task_name_map_running[id] ~= nil then
-        assert(false, "[Scheduler] Task already running! task_id: " .. id .. ", task_name: " .. task_name)
+        for i, r_id in ipairs(self.pending_removal_tasks) do
+            if r_id == id then
+                removal_task_id = i
+                found_in_removal_tasks = true
+                break
+            end
+        end
+
+        if not found_in_removal_tasks then
+            assert(false, "[Scheduler] Task already running! task_id: " .. id .. ", task_name: " .. task_name)
+        end
+    end
+
+    if found_in_removal_tasks then
+        table_remove(self.pending_removal_tasks, removal_task_id)
     end
 
     self.task_name_map_running[id] = task_name
@@ -543,7 +559,7 @@ local _task_id, task_name =key:match("([^@]+)@(.*)")
         -- Sort the accumulated time table from small to large
         local sorted_keys = {} --[[@as table<integer, string>]]
         for key, _ in pairs(filtered_acc_time_table) do
-            table.insert(sorted_keys, key)
+            table_insert(sorted_keys, key)
         end
         table.sort(sorted_keys, function(a, b)
             ---@cast a string
