@@ -21,5 +21,4 @@ tools/signal_db_gen
 tools/wave_vpi_*
 tools/verilua_prebuild
 tools/nosim
-luajit-pro
 scripts/.xmake/linux

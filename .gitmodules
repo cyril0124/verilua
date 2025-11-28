@@ -16,3 +16,6 @@
 [submodule "extern/slang-common"]
 	path = extern/slang-common
 	url = https://github.com/cyril0124/slang-common.git
+[submodule "luajit-pro"]
+	path = luajit-pro
+	url = https://github.com/cyril0124/luajit-pro

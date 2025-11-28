@@ -26,15 +26,10 @@ target("install_luajit", function()
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
         local luarocks_version = "3.12.2"
 
-        -- Remove existing luajit-pro directory
-        os.exec("rm -rf " .. luajit_pro_dir)
-        os.exec("git clone https://github.com/cyril0124/luajit-pro.git " .. luajit_pro_dir)
-
         -- Build luajit_pro_helper
         os.cd(luajit_pro_dir)
         os.exec("git submodule update --init")
         os.exec("cargo build --release")
-
         -- Build luajit
         os.exec("bash init.sh")
         os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
@@ -44,6 +39,7 @@ target("install_luajit", function()
 
         -- Build luarocks
         do
+            os.cd(luajit_pro_dir)
             os.exec(
                 "wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz",
                 luajit_pro_dir,
