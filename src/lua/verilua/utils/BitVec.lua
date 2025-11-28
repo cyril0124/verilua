@@ -197,14 +197,14 @@ function BitVec:_init(data, bit_width)
 
     self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
     if self.beat_size == 1 then
-        self._update_u32_vec = function(t, data)
-            ---@cast data integer
-            t.u32_vec[1] = data
+        self._update_u32_vec = function(t, data1)
+            ---@cast data1 integer
+            t.u32_vec[1] = data1
         end
     elseif self.beat_size > 1 then
-        self._update_u32_vec = function(t, data)
+        self._update_u32_vec = function(t, data1)
             for i = 1, t.beat_size do
-                t.u32_vec[i] = data[i]
+                t.u32_vec[i] = data1[i]
             end
         end
     end
@@ -343,7 +343,7 @@ function BitVec:get_bitfield_hex_str(s, e)
     else
         local ss = s
         local ee = s + 31
-        for i = 1, beat_size - 1 do
+        for _i = 1, beat_size - 1 do
             result = bit_tohex(tonumber(self:get_bitfield(ss, ee)) --[[@as integer]]) .. result
             ss = ee + 1
             ee = ee + 32
@@ -629,7 +629,7 @@ function BitVec:__call(s, e)
                 return self:get_bitfield_hex_str(t._s, t._e)
             end,
 
-            dump = function(t)
+            dump = function(_t)
                 print(self:dump_str())
             end
         }, subbitvec_shared_mt)
