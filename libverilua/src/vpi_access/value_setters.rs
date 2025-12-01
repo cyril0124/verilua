@@ -336,7 +336,7 @@ macro_rules! impl_gen_set_value_str {
                     } else {
                         if complex_handle.try_put_value(self, &$flag, &$format as _) {
                             complex_handle.put_value_str =
-                                unsafe { CStr::from_ptr(value_str).to_str().unwrap().to_string() };
+                                unsafe { utils::c_char_to_str(value_str) }.to_string();
                             self.do_push_hdl_put_value(complex_handle_raw);
                         }
                     }
@@ -349,7 +349,7 @@ macro_rules! impl_gen_set_value_str {
                     if cfg!(feature = "inertial_put") {
                         let mut v = s_vpi_value {
                             format: $format as _,
-                            value: t_vpi_value__bindgen_ty_1 { str_: CString::new(value_str.as_str()).unwrap().into_raw() as _, },
+                            value: t_vpi_value__bindgen_ty_1 { str_: utils::string_to_c_char_owned(&value_str) as _, },
                         };
 
                         unsafe {
@@ -542,7 +542,7 @@ macro_rules! impl_gen_set_force_value_str {
                         };
 
                         if complex_handle.try_put_value(self, &$flag, &format as _) {
-                            complex_handle.put_value_str = unsafe { CStr::from_ptr(final_value_str).to_str().unwrap().to_string() };
+                            complex_handle.put_value_str = unsafe { utils::c_char_to_str(final_value_str) }.to_string();
                             self.do_push_hdl_put_value(complex_handle_raw);
                         }
                     }
@@ -969,7 +969,7 @@ pub unsafe extern "C" fn vpiml_shuffled_range_hex_str(
         vec: unsafe {
             std::slice::from_raw_parts(hex_str_vec, hex_str_vec_len)
                 .iter()
-                .map(|x| CStr::from_ptr(*x).to_string_lossy().into_owned())
+                .map(|x| utils::c_char_to_string(*x))
                 .collect()
         },
         len: hex_str_vec_len,

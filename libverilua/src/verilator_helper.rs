@@ -1,6 +1,7 @@
-use libc::{c_char, c_int, c_void};
+use libc::{c_char, c_void};
 use std::cell::UnsafeCell;
-use std::ffi::CStr;
+
+use crate::utils;
 
 type VerilatorFunc = Option<unsafe extern "C" fn(*mut c_void)>;
 
@@ -12,9 +13,7 @@ thread_local! {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn verilua_alloc_verilator_func(func: VerilatorFunc, name: *const c_char) {
-    let name = unsafe { CStr::from_ptr(name) }
-        .to_string_lossy()
-        .into_owned();
+    let name = unsafe { utils::c_char_to_str(name) }.to_owned();
 
     #[cfg(feature = "debug")]
     log::debug!("verilua_alloc_verilator_func: {}", name);
@@ -37,7 +36,7 @@ pub unsafe extern "C" fn verilua_alloc_verilator_func(func: VerilatorFunc, name:
 pub extern "C" fn verilator_simulation_initializeTrace(trace_file_path: *const c_char) {
     #[cfg(feature = "debug")]
     log::debug!("verilator_simulation_initializeTrace: {}", unsafe {
-        CStr::from_ptr(trace_file_path).to_str().unwrap()
+        utils::c_char_to_str(trace_file_path)
     });
 
     VERILATOR_SIMULATION_INITIALIZE_TRACE

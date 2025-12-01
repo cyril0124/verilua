@@ -1,7 +1,6 @@
 #![allow(dead_code, non_camel_case_types, unused_variables)]
-use hashbrown::{HashMap, HashSet};
-use libc::c_char;
-use std::cell::Cell;
+#[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
+use hashbrown::HashMap;
 
 use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
 use crate::verilua_env::{self, VeriluaEnv, get_verilua_env, get_verilua_env_no_init};

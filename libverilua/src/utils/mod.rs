@@ -12,6 +12,66 @@ use std::{fs::File, sync::Mutex};
 
 use crate::vpi_user::*;
 
+// FFI Conversion Utilities
+//
+// Naming: c_char_to_* (from C), *_to_c_char (to C), *_owned (caller frees)
+// Memory: *_owned functions allocate memory, use c_char_free to release
+
+/// Converts C string to owned String. Replaces invalid UTF-8 with U+FFFD.
+#[inline(always)]
+pub fn c_char_to_string(c_char: *const c_char) -> String {
+    debug_assert!(!c_char.is_null(), "c_char_to_string: null pointer");
+    unsafe { CStr::from_ptr(c_char).to_string_lossy().into_owned() }
+}
+
+/// Converts C string to &str. Panics on invalid UTF-8.
+#[inline(always)]
+pub unsafe fn c_char_to_str<'a>(c_char: *const c_char) -> &'a str {
+    debug_assert!(!c_char.is_null(), "c_char_to_str: null pointer");
+    unsafe { CStr::from_ptr(c_char).to_str().unwrap() }
+}
+
+/// Converts C string to Option<&str>. Returns None if null or invalid UTF-8.
+#[inline(always)]
+pub unsafe fn c_char_to_str_opt<'a>(c_char: *const c_char) -> Option<&'a str> {
+    if c_char.is_null() {
+        return None;
+    }
+    unsafe { CStr::from_ptr(c_char).to_str().ok() }
+}
+
+/// Converts &str to owned C string pointer. Caller must free.
+#[inline(always)]
+pub fn string_to_c_char_owned(string: &str) -> *mut c_char {
+    CString::new(string)
+        .expect("string_to_c_char_owned: string contains null byte")
+        .into_raw()
+}
+
+/// Converts owned String to C string pointer. Caller must free.
+#[inline(always)]
+pub fn owned_string_to_c_char(string: String) -> *mut c_char {
+    CString::new(string)
+        .expect("owned_string_to_c_char: string contains null byte")
+        .into_raw()
+}
+
+/// Frees C string allocated by Rust FFI functions.
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn c_char_free(ptr: *mut c_char) {
+    if !ptr.is_null() {
+        let _ = unsafe { CString::from_raw(ptr) };
+    }
+}
+
+/// Converts C string pointer to &CStr reference.
+#[inline(always)]
+pub unsafe fn c_char_to_cstr<'a>(c_char: *const c_char) -> &'a CStr {
+    debug_assert!(!c_char.is_null(), "c_char_to_cstr: null pointer");
+    unsafe { CStr::from_ptr(c_char) }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn get_executable_name() -> *const c_char {
     let mut path = [0; PATH_MAX as usize];
@@ -83,8 +143,8 @@ cpp::cpp! {{
 
 #[unsafe(no_mangle)]
 pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *const c_char) -> u64 {
-    let filename = unsafe { CStr::from_ptr(filename).to_string_lossy().into_owned() };
-    let symbol_name = unsafe { CStr::from_ptr(symbol_name).to_string_lossy().into_owned() };
+    let filename = c_char_to_string(filename);
+    let symbol_name = c_char_to_string(symbol_name);
 
     let offset = unsafe {
         cpp::cpp!([] -> u64 as "uint64_t" {
@@ -141,13 +201,12 @@ static EXECUTABLE_NAME: OnceCell<String> = OnceCell::new();
 pub extern "C" fn get_simulator_auto() -> *const c_char {
     let mut cached_result = CACHE_RESULT.lock().unwrap();
     if let Some(ref result) = *cached_result {
-        return CString::new(result.clone()).unwrap().into_raw();
+        return string_to_c_char_owned(result);
     }
 
     let executable_name = EXECUTABLE_NAME.get_or_init(|| {
         let ptr = get_executable_name();
-        let cstr = unsafe { CStr::from_ptr(ptr) };
-        cstr.to_string_lossy().into_owned()
+        c_char_to_string(ptr)
     });
 
     let mut file = File::open(executable_name).expect("Failed to open ELF file");
@@ -163,24 +222,24 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
             || string.contains("libverilua_verilator_dpi.so")
         {
             *cached_result = Some("verilator".to_string());
-            return CString::new("verilator").unwrap().into_raw();
+            return string_to_c_char_owned("verilator");
         } else if string.contains("libverilua_vcs.so") || string.contains("libverilua_vcs_dpi.so") {
             *cached_result = Some("vcs".to_string());
-            return CString::new("vcs").unwrap().into_raw();
+            return string_to_c_char_owned("vcs");
         } else if string.contains("liverilua_iverilog.so") {
             *cached_result = Some("iverilog".to_string());
-            return CString::new("iverilog").unwrap().into_raw();
+            return string_to_c_char_owned("iverilog");
         } else if string.contains("libverilua_wave_vpi.so") {
             *cached_result = Some("wave_vpi".to_string());
-            return CString::new("wave_vpi").unwrap().into_raw();
+            return string_to_c_char_owned("wave_vpi");
         } else if string.contains("libverilua_nosim.so") {
             *cached_result = Some("nosim".to_string());
-            return CString::new("nosim").unwrap().into_raw();
+            return string_to_c_char_owned("nosim");
         }
     }
 
     *cached_result = Some("unknown".to_string());
-    CString::new("unknown").unwrap().into_raw()
+    string_to_c_char_owned("unknown")
 }
 
 #[unsafe(no_mangle)]
@@ -200,9 +259,9 @@ pub unsafe extern "C" fn c_simulator_control(cmd: c_longlong) {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wildmatch(pattern: *const c_char, string: *const c_char) -> c_int {
-    let pattern = unsafe { CStr::from_ptr(pattern) };
-    let string = unsafe { CStr::from_ptr(string) };
-    wildmatch::WildMatch::new(pattern.to_str().unwrap()).matches(string.to_str().unwrap()) as c_int
+    let pattern = unsafe { c_char_to_cstr(pattern) }.to_str().unwrap();
+    let string = unsafe { c_char_to_cstr(string) }.to_str().unwrap();
+    wildmatch::WildMatch::new(pattern).matches(string) as c_int
 }
 
 #[unsafe(no_mangle)]
@@ -212,10 +271,9 @@ pub unsafe extern "C" fn acquire_lock(path: *const c_char) -> *mut c_void {
         return ptr::null_mut();
     }
 
-    let c_str = unsafe { CStr::from_ptr(path) };
-    let path_str = match c_str.to_str() {
-        Ok(s) => s,
-        Err(_) => return ptr::null_mut(),
+    let path_str = match unsafe { c_char_to_str_opt(path) } {
+        Some(s) => s,
+        None => return ptr::null_mut(),
     };
 
     let mut lockfile = match LockFile::open(path_str) {
@@ -258,10 +316,10 @@ pub extern "C" fn iorun(cmd: *const c_char) -> *const c_char {
         return std::ptr::null();
     }
 
-    let cmd_str = match unsafe { CStr::from_ptr(cmd) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            log::debug!("ERROR: Failed to convert C string to UTF-8: {}", e);
+    let cmd_str = match unsafe { c_char_to_str_opt(cmd) } {
+        Some(s) => s,
+        None => {
+            log::debug!("ERROR: Failed to convert C string to UTF-8");
             return std::ptr::null();
         }
     };
@@ -288,13 +346,14 @@ pub extern "C" fn iorun(cmd: *const c_char) -> *const c_char {
                 String::new()
             };
 
-            match CString::new(result.clone()) {
-                Ok(c_string) => c_string.into_raw(),
-                Err(e) => {
-                    log::debug!("ERROR: Failed to create CString from result: {}", e);
-                    std::ptr::null()
-                }
+            // Note: CString::new can fail if result contains null bytes
+            // Using owned_string_to_c_char which panics in that case
+            // For safety in FFI, we catch this case
+            if result.contains('\0') {
+                log::debug!("ERROR: Result contains null byte");
+                return std::ptr::null();
             }
+            owned_string_to_c_char(result)
         }
         Err(e) => {
             log::debug!("ERROR: Failed to execute command '{}': {}", cmd_str, e);

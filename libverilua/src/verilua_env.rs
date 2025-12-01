@@ -1,4 +1,6 @@
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashMap;
+#[cfg(feature = "debug")]
+use hashbrown::HashSet;
 use mlua::prelude::*;
 use std::cell::UnsafeCell;
 use std::ffi::{CStr, CString};

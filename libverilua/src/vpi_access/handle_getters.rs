@@ -7,7 +7,7 @@ impl VeriluaEnv {
         name: *mut PLI_BYTE8,
         scope: vpiHandle,
     ) -> ComplexHandleRaw {
-        let name_str = unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() };
+        let name_str = utils::c_char_to_string(name);
         if let Some(hdl) = self.hdl_cache.get(&name_str) {
             #[cfg(feature = "debug")]
             log::debug!("[complex_handle_by_name] hit cache => {}", name_str);
@@ -42,7 +42,7 @@ impl VeriluaEnv {
         assert!(
             !(chdl.vpi_handle as vpiHandle).is_null(),
             "[vpiml_handle_by_name] No handle found: {}",
-            unsafe { CStr::from_ptr(name).to_str().unwrap() }
+            unsafe { utils::c_char_to_str(name) }
         );
         handle
     }
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn vpiml_handle_by_name_safe(
     if (chdl.vpi_handle as vpiHandle).is_null() {
         log::info!(
             "[vpiml_handle_by_name_safe] get NULL vpiHandle => {}",
-            unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() }
+            utils::c_char_to_string(name)
         );
 
         -1

@@ -8,7 +8,7 @@ impl VeriluaEnv {
 
         println!(
             "[vpiml_iterate_vpi_type] start iterate on module_name => {} type => {}",
-            unsafe { CStr::from_ptr(module_name).to_str().unwrap() },
+            unsafe { utils::c_char_to_str(module_name) },
             match vpi_type {
                 vpiNet => "vpiNet",
                 vpiReg => "vpiReg",
@@ -29,8 +29,8 @@ impl VeriluaEnv {
 
             println!(
                 "[{count}] name => {} type => {}",
-                unsafe { CStr::from_ptr(name).to_str().unwrap() },
-                unsafe { CStr::from_ptr(typ).to_str().unwrap() }
+                unsafe { utils::c_char_to_str(name) },
+                unsafe { utils::c_char_to_str(typ) }
             );
             count += 1;
         }
@@ -76,7 +76,7 @@ pub unsafe extern "C" fn vpiml_get_top_module() -> *const c_char {
     let top_module_name = unsafe { vpi_get_str(vpiName as _, top_module) };
 
     if std::env::var("DUT_TOP").is_err() {
-        unsafe { std::env::set_var("DUT_TOP", CStr::from_ptr(top_module_name).to_str().unwrap()) };
+        unsafe { std::env::set_var("DUT_TOP", utils::c_char_to_str(top_module_name)) };
     }
 
     top_module_name as _

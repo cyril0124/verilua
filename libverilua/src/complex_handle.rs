@@ -1,10 +1,13 @@
-use hashbrown::{HashMap, HashSet};
-use std::ffi::CStr;
+#[cfg(feature = "merge_cb")]
+use hashbrown::HashMap;
 use std::fmt::{self, Debug};
 
-use crate::TaskID;
+use crate::utils;
 use crate::verilua_env::VeriluaEnv;
 use crate::vpi_user::*;
+
+#[cfg(feature = "merge_cb")]
+use crate::TaskID;
 
 pub type ComplexHandleRaw = libc::c_longlong;
 
@@ -71,7 +74,7 @@ impl ComplexHandle {
             "beat_num is too large: {}, width: {}, name: {}",
             beat_num,
             width,
-            unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() }
+            utils::c_char_to_string(name)
         );
 
         #[cfg(feature = "merge_cb")]
@@ -154,7 +157,7 @@ impl ComplexHandle {
 
     #[inline(always)]
     pub fn get_name(&self) -> String {
-        unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() }
+        utils::c_char_to_string(self.name)
     }
 
     #[inline(always)]
@@ -216,7 +219,7 @@ impl Debug for ComplexHandle {
                 f,
                 "ComplexHandle({}, name: {}, width: {}, beat_num: {}, posedge_cb_count: {:?}, negedge_cb_count: {:?}, edge_cb_count: {:?})",
                 self.vpi_handle as libc::c_longlong,
-                unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() },
+                utils::c_char_to_string(self.name),
                 self.width,
                 self.beat_num,
                 self.posedge_cb_count,
@@ -231,7 +234,7 @@ impl Debug for ComplexHandle {
                 f,
                 "ComplexHandle({}, name: {}, width: {}, beat_num: {})",
                 self.vpi_handle as libc::c_longlong,
-                unsafe { CStr::from_ptr(self.name).to_string_lossy().into_owned() },
+                utils::c_char_to_string(self.name),
                 self.width,
                 self.beat_num
             )
