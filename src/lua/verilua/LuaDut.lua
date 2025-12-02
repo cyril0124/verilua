@@ -384,12 +384,21 @@ local force_path_table = {}
 ---@overload fun(v: "integer"|"hex"|"name"|"hdl"): integer|string|verilua.handles.ComplexHandleRaw `__call` metamethod, deprecated
 ---@field [string] verilua.handles.ProxyTableHandle
 
+---@type table<string, verilua.handles.ProxyTableHandle>
+local proxy_handle_cache = {}
+
 ---@param path string
 ---@param use_prefix? boolean
 ---@return verilua.handles.ProxyTableHandle
 local function create_proxy(path, use_prefix)
     local local_path = path
     use_prefix = use_prefix or false
+
+    if not use_prefix then
+        if proxy_handle_cache[local_path] ~= nil then
+            return proxy_handle_cache[local_path]
+        end
+    end
 
     ---@type verilua.handles.ProxyTableHandle
     local mt = setmetatable({
@@ -811,6 +820,10 @@ local function create_proxy(path, use_prefix)
             return local_path
         end
     })
+
+    if not use_prefix then
+        proxy_handle_cache[local_path] = mt
+    end
 
     return mt
 end
