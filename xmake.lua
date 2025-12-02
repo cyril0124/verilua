@@ -209,6 +209,43 @@ target("build_all_tools", function()
     end)
 end)
 
+target("format", function()
+    set_kind("phony")
+    on_run(function(target)
+        cprint("${💥} ${yellow}Formatting C++ files...${reset}")
+
+        -- Find all C++ source and header files in src directory
+        local cpp_patterns = { "*.cpp", "*.hpp", "*.h", "*.cc", "*.cxx", "*.hxx" }
+        local files = {}
+
+        -- Try to use fd first, fallback to find
+        local use_fd = os.iorun("which fd") ~= nil
+
+        for _, pattern in ipairs(cpp_patterns) do
+            local found
+            if use_fd then
+                found = os.iorunv("fd", { "--glob", pattern, "src" })
+            else
+                found = os.iorunv("find", { "src", "-name", pattern, "-type", "f" })
+            end
+
+            if found then
+                for file in found:gmatch("[^\r\n]+") do
+                    table.insert(files, file)
+                end
+            end
+        end
+
+        -- Format each file with clang-format
+        for _, file in ipairs(files) do
+            cprint("${blue}Formatting: ${green}%s${reset}", file)
+            os.exec("clang-format -i %s", file)
+        end
+
+        cprint("${green}All C++ files have been formatted!${reset}")
+    end)
+end)
+
 target("setup_verilua", function()
     set_kind("phony")
     on_run(function(target)

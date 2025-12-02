@@ -2,9 +2,9 @@
 #include "wave_vpi.h"
 
 #include <argparse/argparse.hpp>
+#include <csignal>
 #include <filesystem>
 #include <iostream>
-#include <csignal>
 
 #ifdef USE_CPPTRACE
 #include <cpptrace/cpptrace.hpp>
