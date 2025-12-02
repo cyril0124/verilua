@@ -118,7 +118,8 @@ using PortInfo = struct {
     //      input logic [3:0] foo [7:0]
     //      output reg bar
     //      output reg bar [15:0][VAL-1:0][1:0]
-    std::string dir; // "input" or "output"
+    //      inout wire sda
+    std::string dir; // "input", "output", or "inout"
     std::string type;
     std::string name;
 
@@ -133,6 +134,7 @@ using PortInfo = struct {
 
     bool isInput() { return dir == "input"; }
     bool isOutput() { return dir == "output"; }
+    bool isInout() { return dir == "inout"; }
 
     std::string toDeclString() {
         auto _type = type;
@@ -143,6 +145,11 @@ using PortInfo = struct {
             // _type = replaceString(_type, "logic", "reg");
             _type = replaceString(_type, "wire", "reg");
             _type = replaceString(_type, "bit", "reg");
+        } else if (isInout()) {
+            // inout ports should always be wire type (tri-state)
+            _type = replaceString(_type, "reg", "wire");
+            _type = replaceString(_type, "bit", "wire");
+            _type = replaceString(_type, "logic", "wire");
         } else { // output
             _type = replaceString(_type, "reg", "wire");
             _type = replaceString(_type, "bit", "wire");

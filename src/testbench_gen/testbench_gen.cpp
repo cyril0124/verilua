@@ -208,23 +208,98 @@ int main(int argc, const char *argv[]) {
     // Check whether clock and reset signal has been matched
     bool clockSignalHasMatch = false;
     bool resetSignalHasMatch = false;
+    bool userSpecifiedClock  = _clockSignalName.has_value() && !_clockSignalName.value().empty();
+    bool userSpecifiedReset  = _resetSignalName.has_value() && !_resetSignalName.value().empty();
+
+    // Clock signal name patterns (case-insensitive)
+    // Patterns: clk, clock, clk_*, clock_*, *_clk, *_clock, i_clk, sys_clk, etc.
+    auto isClockSignal = [](const std::string &name) -> bool {
+        std::string lowerName = name;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+
+        // Exact matches
+        if (lowerName == "clk" || lowerName == "clock")
+            return true;
+
+        // Prefix patterns: clk_*, clock_*, i_clk*, i_clock*
+        if (lowerName.substr(0, 4) == "clk_" || lowerName.substr(0, 6) == "clock_")
+            return true;
+        if (lowerName.substr(0, 5) == "i_clk" || lowerName.substr(0, 7) == "i_clock")
+            return true;
+
+        // Suffix patterns: *_clk, *_clock
+        if (lowerName.length() > 4 && lowerName.substr(lowerName.length() - 4) == "_clk")
+            return true;
+        if (lowerName.length() > 6 && lowerName.substr(lowerName.length() - 6) == "_clock")
+            return true;
+
+        // Common patterns
+        if (lowerName == "sys_clk" || lowerName == "sys_clock")
+            return true;
+        if (lowerName == "clk_i" || lowerName == "clock_i")
+            return true;
+
+        return false;
+    };
+
+    // Reset signal name patterns (case-insensitive)
+    // Patterns: rst, reset, rst_*, reset_*, *_rst, *_reset, rst_n, reset_n, etc.
+    auto isResetSignal = [](const std::string &name) -> bool {
+        std::string lowerName = name;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+
+        // Exact matches (including active-low variants)
+        if (lowerName == "rst" || lowerName == "reset")
+            return true;
+        if (lowerName == "rst_n" || lowerName == "reset_n" || lowerName == "rstn" || lowerName == "resetn")
+            return true;
+
+        // Prefix patterns: rst_*, reset_*, i_rst*, i_reset*
+        if (lowerName.substr(0, 4) == "rst_" || lowerName.substr(0, 6) == "reset_")
+            return true;
+        if (lowerName.substr(0, 5) == "i_rst" || lowerName.substr(0, 7) == "i_reset")
+            return true;
+
+        // Suffix patterns: *_rst, *_reset, *_rst_n, *_reset_n
+        if (lowerName.length() > 4 && lowerName.substr(lowerName.length() - 4) == "_rst")
+            return true;
+        if (lowerName.length() > 6 && lowerName.substr(lowerName.length() - 6) == "_reset")
+            return true;
+        if (lowerName.length() > 6 && lowerName.substr(lowerName.length() - 6) == "_rst_n")
+            return true;
+        if (lowerName.length() > 8 && lowerName.substr(lowerName.length() - 8) == "_reset_n")
+            return true;
+
+        // Common patterns
+        if (lowerName == "sys_rst" || lowerName == "sys_reset")
+            return true;
+        if (lowerName == "sys_rst_n" || lowerName == "sys_reset_n")
+            return true;
+        if (lowerName == "rst_i" || lowerName == "reset_i")
+            return true;
+
+        return false;
+    };
+
     for (auto &port : portInfos) {
-        if (clockSignalName != "" && port.name == clockSignalName) {
+        // If user specified clock signal, check exact match
+        if (userSpecifiedClock && port.name == clockSignalName) {
             clockSignalHasMatch = true;
         }
 
-        if (resetSignalName != "" && port.name == resetSignalName) {
+        // If user specified reset signal, check exact match
+        if (userSpecifiedReset && port.name == resetSignalName) {
             resetSignalHasMatch = true;
         }
 
-        // If there are multiple clock signals, `clock` will be chosen as the matched clock signal.
-        if (clockSignalName != "clock" && (port.name == "clock" || port.name == "clock_i" || port.name == "clk" || port.name == "clk_i" || port.name == "i_clk")) {
+        // If user didn't specify clock signal, use smart detection
+        if (!userSpecifiedClock && !clockSignalHasMatch && isClockSignal(port.name)) {
             clockSignalHasMatch = true;
             clockSignalName     = port.name;
         }
 
-        // If there are multiple reset signals, `reset` will be chosen as the matched reset signal.
-        if (resetSignalName != "reset" && (port.name == "reset" || port.name == "reset_i" || port.name == "rst" || port.name == "rst_i" || port.name == "i_rst")) {
+        // If user didn't specify reset signal, use smart detection
+        if (!userSpecifiedReset && !resetSignalHasMatch && isResetSignal(port.name)) {
             resetSignalHasMatch = true;
             resetSignalName     = port.name;
         }

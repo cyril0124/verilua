@@ -2,7 +2,13 @@ module TopAnsi#(
     parameter integer VAL = 11,
     parameter MASK = 8'hff,
     parameter real RATIO = 0.75,
-    parameter string NAME = "default"
+    parameter string NAME = "default",
+    // Extended parameter types
+    parameter shortint SHORT_VAL = 16'h1234,
+    parameter longint LONG_VAL = 64'h123456789ABCDEF0,
+    parameter byte BYTE_VAL = 8'hAB,
+    parameter bit [7:0] BIT_PARAM = 8'hCD,
+    parameter logic [15:0] LOGIC_PARAM = 16'hEF01
 )
 (
     input wire clk,
@@ -49,7 +55,13 @@ module TopAnsi#(
 
     input wire [3:0] io_axi_cfg_awregion,
 
-    input bit i10
+    input bit i10,
+
+    // inout ports for bidirectional signals (e.g., I2C, SPI)
+    inout wire sda,
+    inout wire scl,
+    inout wire [7:0] bidir_data,
+    inout wire [15:0] bidir_bus
 );
 
 endmodule

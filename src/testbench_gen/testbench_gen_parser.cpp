@@ -21,6 +21,17 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                     typeStr = "real";
                 } else if (paramTypeStr == "TimeType") {
                     typeStr = "time";
+                } else if (paramTypeStr == "ShortIntType") {
+                    typeStr = "shortint";
+                } else if (paramTypeStr == "LongIntType") {
+                    typeStr = "longint";
+                } else if (paramTypeStr == "ByteType") {
+                    typeStr = "byte";
+                } else if (paramTypeStr == "ShortRealType") {
+                    typeStr = "shortreal";
+                } else if (paramTypeStr == "BitType" || paramTypeStr == "LogicType") {
+                    // For bit/logic types with optional width, use the full type string
+                    typeStr = paramDeclSyn.type->toString();
                 } else if (paramTypeStr == "ImplicitType") {
                     typeStr = "";
                 } else {
@@ -51,6 +62,9 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
             }
             if (port->direction == slang::ast::ArgumentDirection::Out) {
                 return "output";
+            }
+            if (port->direction == slang::ast::ArgumentDirection::InOut) {
+                return "inout";
             }
             PANIC("TODO: Unsupported port direction", toString(port->direction));
         };
@@ -180,8 +194,15 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
         }));
 
         // Check for PortDeclarationSyntax, for non-ansi ports
+        // Non-ansi ports are declared inside the module body, not in the port list
+        // e.g.:
+        //   module top(clk, reset, data);
+        //     input clk;           // PortDeclarationSyntax
+        //     input reset;         // PortDeclarationSyntax
+        //     output [7:0] data;   // PortDeclarationSyntax
+        //   endmodule
+        std::string lastNonAnsiPortTypeStr;
         ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::PortDeclarationSyntax &node) {
-            PANIC("TODO: Handle non-ansi ports");
             auto headerKind = node.header->kind;
 
             std::vector<PortInfo> ports;
@@ -199,22 +220,35 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                 // clang-format on
                 portIdAllocator++;
                 for (auto dim : declarator->dimensions) {
+                    std::string dimSizeStr;
+
                     ASSERT(dim->specifier->kind == slang::syntax::SyntaxKind::RangeDimensionSpecifier, "Expected RangeDimensionSpecifier", toString(dim->specifier->kind));
                     auto &specifier = dim->specifier->as<slang::syntax::RangeDimensionSpecifierSyntax>();
 
-                    ASSERT(specifier.selector->kind == slang::syntax::SyntaxKind::SimpleRangeSelect, "Expected SimpleRangeSelect", toString(specifier.selector->kind));
-                    auto &rangeSel = specifier.selector->as<slang::syntax::RangeSelectSyntax>();
-
-                    std::string dimSizeStr;
-                    bool gotZero = false;
-                    if (rangeSel.left->toString() == "0") {
-                        gotZero    = true;
-                        dimSizeStr = fmt::format("{} - {} + 1", rangeSel.right->toString(), rangeSel.left->toString());
-                    } else if (rangeSel.right->toString() == "0") {
-                        gotZero    = true;
-                        dimSizeStr = fmt::format("{} - {} + 1", rangeSel.left->toString(), rangeSel.right->toString());
+                    auto selectorKind = specifier.selector->kind;
+                    if (selectorKind == slang::syntax::SyntaxKind::SimpleRangeSelect) {
+                        // e.g.: logic a [3:0], logic a [WIDTH-1:0], logic a [0:WIDTH-1], etc
+                        auto &rangeSel = specifier.selector->as<slang::syntax::RangeSelectSyntax>();
+                        bool gotZero   = false;
+                        if (rangeSel.left->toString() == "0") {
+                            gotZero    = true;
+                            dimSizeStr = fmt::format("{} - {} + 1", rangeSel.right->toString(), rangeSel.left->toString());
+                        } else if (rangeSel.right->toString() == "0") {
+                            gotZero    = true;
+                            dimSizeStr = fmt::format("{} - {} + 1", rangeSel.left->toString(), rangeSel.right->toString());
+                        }
+                        ASSERT(gotZero, "Expected one side of range to be 0", rangeSel.left->toString(), rangeSel.right->toString());
+                    } else if (selectorKind == slang::syntax::SyntaxKind::BitSelect) {
+                        // e.g.: logic a[12], logic a[WIDTH], logic a[WIDTH*2], logic a[WIDTH-1], etc
+                        auto &bitSel = specifier.selector->as<slang::syntax::BitSelectSyntax>();
+                        if (bitSel.expr->toString() == "0") {
+                            dimSizeStr = "1";
+                        } else {
+                            dimSizeStr = bitSel.expr->toString();
+                        }
+                    } else {
+                        PANIC("TODO: Unsupported dimension specifier selector kind", toString(selectorKind));
                     }
-                    ASSERT(gotZero, "Expected one side of range to be 0", rangeSel.left->toString(), rangeSel.right->toString());
 
                     p.dimensions.push_back(dim->toString());
                     p.dimSizes.push_back(dimSizeStr);
@@ -226,21 +260,19 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                 auto &netPortHeader = node.header->as<slang::syntax::NetPortHeaderSyntax>();
                 auto dataTypeStr    = netPortHeader.dataType->toString();
                 for (auto &p : ports) {
-                    // fmt::println("[NetPortHeader] <{}> dataTypeStr: <{}> ", p.name, dataTypeStr);
                     if (dataTypeStr == "") {
                         if (getPortType(p.name) == "logic") {
                             // e.g.
-                            //      input clk, <--- no type
+                            //      input clk; <--- no type
                             // Here `clk` is `wire` type
                             dataTypeStr = "wire";
                         } else {
                             // e.g.
-                            //  input wire [3:0] foo,
-                            //                   bar, <--- no type
+                            //  input wire [3:0] foo, bar; <--- bar has no type
                             //
                             // Here `bar` has no type, so we use the type of `foo`
-                            ASSERT(lastAnsiPortTypeStr != "", "Expected lastAnsiPortTypeStr to be set", p.name, getPortType(p.name));
-                            dataTypeStr = lastAnsiPortTypeStr;
+                            ASSERT(lastNonAnsiPortTypeStr != "", "Expected lastNonAnsiPortTypeStr to be set", p.name, getPortType(p.name));
+                            dataTypeStr = lastNonAnsiPortTypeStr;
                         }
                     } else if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
                         // NetPortHeader has no `wire` prefix, so add it here
@@ -253,24 +285,22 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                 auto &varPortHeader = node.header->as<slang::syntax::VariablePortHeaderSyntax>();
                 auto dataTypeStr    = varPortHeader.dataType->toString();
                 for (auto &p : ports) {
-                    // fmt::println("[VariablePortHeader] <{}> dataTypeStr: <{}> ", p.name, dataTypeStr);
                     if (dataTypeStr == "") {
                         if (getPortType(p.name) == "logic") {
                             // e.g.
-                            //      output value, <--- no type
+                            //      output value; <--- no type
                             dataTypeStr = "wire";
                         } else {
                             // e.g.
-                            //      output reg [3:0] foo,
-                            //                       bar, <--- no type
+                            //      output reg [3:0] foo, bar; <--- bar has no type
                             // Here `bar` has no type, so we use the type of `foo`
-                            ASSERT(lastAnsiPortTypeStr != "", "Expected lastAnsiPortTypeStr to be set", p.name, getPortType(p.name));
-                            dataTypeStr = lastAnsiPortTypeStr;
+                            ASSERT(lastNonAnsiPortTypeStr != "", "Expected lastNonAnsiPortTypeStr to be set", p.name, getPortType(p.name));
+                            dataTypeStr = lastNonAnsiPortTypeStr;
                         }
                     } else if (!containsString(dataTypeStr, "reg") && !containsString(dataTypeStr, "wire") && !containsString(dataTypeStr, "logic") && !containsString(dataTypeStr, "bit")) {
                         // e.g.
-                        //      input [WIDTH-1:0] foo, <--- no type
-                        //      input [7:0] bar, <--- no type
+                        //      input [WIDTH-1:0] foo; <--- no type
+                        //      input [7:0] bar; <--- no type
                         dataTypeStr = "wire " + dataTypeStr;
                     }
                     p.dir  = getPortDir(p.name);
@@ -286,7 +316,7 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                 }
             }
 
-            lastAnsiPortTypeStr = ports[0].type;
+            lastNonAnsiPortTypeStr = ports[0].type;
 
             portInfos.insert(portInfos.end(), ports.begin(), ports.end());
         }));

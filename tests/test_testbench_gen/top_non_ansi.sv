@@ -2,7 +2,13 @@ module TopNonAnsi#(
     parameter integer VAL = 11,
     parameter MASK = 8'hff,
     parameter real RATIO = 0.75,
-    parameter string NAME = "default"
+    parameter string NAME = "default",
+    // Extended parameter types
+    parameter shortint SHORT_VAL = 16'h1234,
+    parameter longint LONG_VAL = 64'h123456789ABCDEF0,
+    parameter byte BYTE_VAL = 8'hAB,
+    parameter bit [7:0] BIT_PARAM = 8'hCD,
+    parameter logic [15:0] LOGIC_PARAM = 16'hEF01
 )
 (
     clk, reset,
@@ -10,7 +16,8 @@ module TopNonAnsi#(
     oo1, oo2, oo3, oo4, oo5,
     o, o3, o4, o5, o6, o7, o8, o9, o10,
     ii1, ii2, ii3, ii4, ii5, ii6, ii7,
-    i, i2, i3, i4, i5, i6, i7, i10, i11, i12
+    i, i2, i3, i4, i5, i6, i7, i10, i11, i12,
+    sda, scl, bidir_data, bidir_bus
 );
 
 input clk;
@@ -55,6 +62,12 @@ output [7:0] oo3;
 output [7:0] oo4;
 
 output oo5;
+
+// inout ports for bidirectional signals
+inout wire sda;
+inout wire scl;
+inout wire [7:0] bidir_data;
+inout wire [15:0] bidir_bus;
 
 reg [7:0] count0;
 reg [7:0] count1;
