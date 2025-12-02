@@ -34,7 +34,7 @@
 更具体的 xmake.lua 的介绍可以参考[这里](./simple_hvl_example.md#create-xmake-lua)的内容。
 
 ```lua title="xmake.lua"
-target("gen_wave")
+target("gen_wave", function()
     add_rules("verilua")
 
     -- 本节中的例子会使用 Verilator 来作为 HVL 的仿真后端
@@ -48,6 +48,7 @@ target("gen_wave")
 
     -- Verilator 需要添加一些额外的参数来生成波形
     set_values("verilator.flags", "--trace", "--no-trace-top")
+end)
 ```
 
 ### 1.4. 编译
@@ -113,7 +114,7 @@ WAL 的输入文件不是 Verilog/SystemVerilog，而是具体的波形文件（
 ### 2.3. 创建 xmake.lua 文件
 
 ```lua title="xmake.lua"
-target("sim_wave")
+target("sim_wave", function()
     add_rules("verilua")
 
     -- WAL 场景下这里必须是 @wave_vpi
@@ -130,6 +131,7 @@ target("sim_wave")
 
     -- 设计的顶层还是需要手动指定
     set_values("cfg.top", "Counter")
+end)
 ```
 
 ### 2.4. 编译

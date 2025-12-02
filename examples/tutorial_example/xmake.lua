@@ -1,4 +1,4 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 local sim = os.getenv("SIM") or "verilator"
 

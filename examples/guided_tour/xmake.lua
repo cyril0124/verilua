@@ -1,4 +1,4 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 target("test-top", function()
     add_rules("verilua")
