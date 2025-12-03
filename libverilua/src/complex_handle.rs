@@ -1,3 +1,27 @@
+//! # Complex Handle
+//!
+//! This module provides an enhanced VPI handle wrapper (`ComplexHandle`) that adds
+//! caching, metadata, and efficient value manipulation capabilities on top of raw VPI handles.
+//!
+//! ## Architecture
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────────┐
+//! │                       ComplexHandle                             │
+//! ├─────────────────────────────────────────────────────────────────┤
+//! │  ┌─────────────┐  ┌───────────────┐  ┌────────────────────────┐ │
+//! │  │ VPI Handle  │  │   Metadata    │  │   Pending Put Values   │ │
+//! │  │ (raw ptr)   │  │ (width, name) │  │ (format, flag, value)  │ │
+//! │  └─────────────┘  └───────────────┘  └────────────────────────┘ │
+//! │                                                                 │
+//! │  ┌─────────────────────────┐  ┌────────────────────────────┐    │
+//! │  │  Callback Count Maps    │  │   Random Value Generator   │    │
+//! │  │ (posedge/negedge/edge)  │  │  (shuffled value support)  │    │
+//! │  └─────────────────────────┘  └────────────────────────────┘    │
+//! └─────────────────────────────────────────────────────────────────┘
+//! ```
+//!
+
 #[cfg(feature = "merge_cb")]
 use hashbrown::HashMap;
 use std::fmt::{self, Debug};
@@ -9,10 +33,17 @@ use crate::vpi_user::*;
 #[cfg(feature = "merge_cb")]
 use crate::TaskID;
 
+/// Raw handle type for FFI boundary - a pointer cast to i64 for Lua compatibility
 pub type ComplexHandleRaw = libc::c_longlong;
 
+/// Maximum number of 32-bit words supported for vector values.
+/// Signals wider than 32 * MAX_VECTOR_SIZE bits will cause a panic.
 const MAX_VECTOR_SIZE: usize = 32;
 
+/// Container for pre-shuffled random values.
+///
+/// Used by `set_shuffled()` to efficiently pick random values from a predefined set.
+/// The random selection uses `libc::rand()` for performance.
 pub struct ShuffledValueVec<T> {
     pub vec: Vec<T>,
     pub len: usize,
@@ -22,6 +53,10 @@ impl<T> ShuffledValueVec<T>
 where
     T: Clone,
 {
+    /// Returns a random value from the shuffled pool.
+    ///
+    /// Uses modulo of `libc::rand()` for index selection.
+    /// This is faster than Rust's thread_rng but less random - acceptable for testbench use.
     #[inline]
     pub fn get_rand_value(&self) -> T {
         let idx = unsafe { libc::rand() } % self.len as i32;
@@ -29,29 +64,68 @@ where
     }
 }
 
+/// Indicates the type of random value pool configured for a handle
 #[derive(Debug, Clone, Copy)]
 pub enum ShuffledValueVecType {
+    /// No shuffle pool - generate truly random values
     None,
+    /// Pool of u32 values
     U32,
+    /// Pool of u64 values
     U64,
+    /// Pool of hex string values
     HexStr,
 }
 
+/// Enhanced VPI handle with caching and metadata.
+///
+/// `ComplexHandle` wraps a raw VPI handle and adds:
+/// - Cached signal metadata (width, name, beat count)
+/// - Pending value buffer for batched writes
+/// - Callback reference counting for merge optimization
+/// - Random value generation support
 #[repr(C)]
 pub struct ComplexHandle {
+    /// Back-reference to the owning VeriluaEnv instance
     pub env: *mut libc::c_void,
 
+    /// Raw VPI handle to the HDL signal
     pub vpi_handle: vpiHandle,
+
+    /// Signal name (C string, owned)
     pub name: *mut libc::c_char,
+
+    /// Signal bit width
     pub width: usize,
+
+    /// Number of 32-bit beats needed to represent the full value
+    /// Calculated as `ceil(width / 32)`
     pub beat_num: usize,
 
+    // ──────────────────────────────────────────────────────────────────────
+    // Pending Put Value Fields
+    // These fields buffer write operations for batched application
+    // ──────────────────────────────────────────────────────────────────────
+    /// VPI value format for pending write (e.g., vpiIntVal, vpiVectorVal)
     pub put_value_format: u32,
+
+    /// VPI flag for pending write (e.g., vpiNoDelay, vpiForceFlag)
+    /// None indicates no pending write
     pub put_value_flag: Option<u32>,
+
+    /// Integer value for single-beat signals
     pub put_value_integer: u32,
+
+    /// String value for string-format writes
     pub put_value_str: String,
+
+    /// Vector value buffer using SmallVec to avoid heap for common cases
     pub put_value_vectors: smallvec::SmallVec<[t_vpi_vecval; MAX_VECTOR_SIZE]>,
 
+    // ──────────────────────────────────────────────────────────────────────
+    // Callback Merge Tracking (feature = "merge_cb")
+    // Counts active callbacks per task to enable callback deduplication
+    // ──────────────────────────────────────────────────────────────────────
     #[cfg(feature = "merge_cb")]
     pub posedge_cb_count: HashMap<TaskID, u32>,
     #[cfg(feature = "merge_cb")]
@@ -59,6 +133,11 @@ pub struct ComplexHandle {
     #[cfg(feature = "merge_cb")]
     pub edge_cb_count: HashMap<TaskID, u32>,
 
+    // ──────────────────────────────────────────────────────────────────────
+    // Random Value Generation
+    // Pre-shuffled value pools for constrained random generation
+    // ──────────────────────────────────────────────────────────────────────
+    /// Type of shuffled value pool configured
     pub random_value_vec_type: ShuffledValueVecType,
     pub random_value_u32_vec: ShuffledValueVec<u32>,
     pub random_value_u64_vec: ShuffledValueVec<u64>,

@@ -1,128 +1,161 @@
-local MAX_CHUNK = 16
+--[[
+================================================================================
+  Verilua Code Generator
+================================================================================
+
+  This script generates Rust code for the libverilua library to support
+  "chunk task" callback optimization. The generator creates code that batches
+  multiple task callbacks into chunks for better performance.
+
+  Generated Files:
+  ┌─────────────────────────────────┬──────────────────────────────────────────┐
+  │ File                            │ Description                              │
+  ├─────────────────────────────────┼──────────────────────────────────────────┤
+  │ gen_callback_policy.rs          │ Callback dispatch logic for edge types   │
+  │ gen_register_callback_func.rs   │ Chunk callback registration functions    │
+  │ gen_verilua_env_struct.rs       │ VeriluaEnv struct field definitions      │
+  │ gen_verilua_env_init.rs         │ VeriluaEnv initialization code           │
+  │ gen_sim_event_chunk_init.rs     │ Lua function reference initialization    │
+  │ sim_event_chunk.lua             │ Lua scheduler dispatch functions         │
+  └─────────────────────────────────┴──────────────────────────────────────────┘
+
+  Data Flow (Chunk Task Optimization):
+  ┌──────────────┐     ┌───────────────────┐     ┌─────────────────────┐
+  │ VPI Callback │────>│ Callback Handler  │────>│ Lua sim_event_chunk │
+  │ (edge event) │     │ (Rust generated)  │     │ (batch scheduling)  │
+  └──────────────┘     └───────────────────┘     └─────────────────────┘
+                                │
+                                ▼
+                       ┌───────────────────┐
+                       │  Task Scheduler   │
+                       │  (schedule tasks) │
+                       └───────────────────┘
+
+  Usage:
+      cd libverilua/src/gen
+      luajit gen.lua
+
+  Configuration:
+      MAX_CHUNK: Maximum number of tasks per callback chunk (default: 16)
+
+================================================================================
+--]]
+
+--------------------------------------------------------------------------------
+-- Configuration
+--------------------------------------------------------------------------------
+
+local MAX_CHUNK = 16  -- Maximum tasks per callback chunk
+
+--------------------------------------------------------------------------------
+-- Utility Functions
+--------------------------------------------------------------------------------
 
 local f = string.format
+local concat = table.concat
+local insert = table.insert
 
+--- Template rendering: replaces {{key}} with values from vars table
+--- @param template string Template string with {{key}} placeholders
+--- @param vars table Key-value pairs for substitution
+--- @return string Rendered string
 getmetatable('').__index.render = function(template, vars)
     assert(type(template) == "string", "[render] template must be a `string`")
     assert(type(vars) == "table", "[render] vars must be a `table`")
     return (template:gsub("{{(.-)}}", function(key)
         if vars[key] == nil then
-            assert(false, string.format("[render] key not found: %s\n\ttemplate_str is: %s\n" , key, template))
+            assert(false, f("[render] key not found: %s\n\ttemplate_str is: %s\n", key, template))
         end
         return tostring(vars[key] or "")
     end))
 end
 
-local write_file = function (filename, content)
+--- Writes content to a file
+--- @param filename string Path to the output file
+--- @param content string Content to write
+local function write_file(filename, content)
     local file = io.open(filename, "w")
     if file then
         file:write(content)
         file:close()
-        print("[write_file] write file: ", filename)
+        print(f("[gen.lua] Generated: %s", filename))
     else
-        assert(false, string.format("[write_file] file open failed: %s", filename))
+        assert(false, f("[gen.lua] Failed to write file: %s", filename))
     end
 end
 
--- local gen_callback_policy = function (num)
---     local gen_register_callback = function (num, edge)
---         local params = ""
---         for i = 0, num - 1 do
---             params = params .. ("&task_id_vec[idx + %d]"):format(i) .. ","
---         end
---         params = params:sub(1, -2)
---         return "unsafe {" .. [[do_register_edge_callback_chunk_]] .. num .. f("(handle, %s, &%s, &edge_cb_id)", params, edge) .. "}; "
---     end
-    
---     local gen_chuk_schedule_body = function (num, edge)
---         local code = ""
---         for i = 1, num do
---             code = code .. ([[
---                     {{i}} => {
---                         let hdl = {{register_callback}}
---                         idx += {{i}};
---                         task_id_vec_size -= {{i}};
+--------------------------------------------------------------------------------
+-- Edge Type Mapping
+--------------------------------------------------------------------------------
 
---                         hdl
---                     },
---     ]]):render {i = i, register_callback = gen_register_callback(i, edge)}
---         end
---         return code
---     end
+--- Maps EdgeType enum to Rust variable name suffix
+--- @param edge_type string EdgeType enum value (e.g., "EdgeType::Posedge")
+--- @return string Suffix for variable names (e.g., "posedge")
+local function edge_type_to_suffix(edge_type)
+    local mapping = {
+        ["EdgeType::Posedge"] = "posedge",
+        ["EdgeType::Negedge"] = "negedge",
+        ["EdgeType::Edge"] = "edge"
+    }
+    return mapping[edge_type] or error("Unknown edge type: " .. edge_type)
+end
 
---     local code = ""
+local EDGE_TYPES = {"EdgeType::Posedge", "EdgeType::Negedge", "EdgeType::Edge"}
 
---     for _, edge in ipairs({"EdgeType::Posedge", "EdgeType::Negedge", "EdgeType::Edge"}) do
---         code = code .. ([[
---         for (handle, task_id_vec) in &env.pending_{{edge}}_cb_map {
---             let mut idx = 0;
---             let mut task_id_vec_size = task_id_vec.len();
-        
---             while task_id_vec_size > 0 {
---                 let edge_cb_id = env.edge_cb_idpool.alloc_id();
+--------------------------------------------------------------------------------
+-- Code Generators
+--------------------------------------------------------------------------------
 
---                 let hdl = match std::cmp::min(task_id_vec_size, {{MAX_CHUNK}}) {
---                 {{chuk_schedule_body}}
---                     _ => unreachable!()
---                 };
+--[[
+  Generates callback dispatch policy code.
 
---                 if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, hdl) {
---                     // TODO: Check ?
---                     // panic!("duplicate edge callback id => {}", edge_cb_id);
---                 };
---             }
---         }
+  This function creates the Rust code that dispatches edge callbacks to
+  the appropriate chunk handler based on the number of pending tasks.
 
---         ]]):render {MAX_CHUNK = num, chuk_schedule_body = gen_chuk_schedule_body(MAX_CHUNK, edge), edge = (function() 
---             if edge == "EdgeType::Posedge" then
---                 return "posedge"
---             elseif edge == "EdgeType::Negedge" then
---                 return "negedge"
---             else
---                 return "edge"
---             end
---         end)()}
---     end
-    
---     return "{" .. code .. "}"
--- end
-
-local gen_callback_policy = function (num)
-    local gen_register_callback = function (num, edge)
-        local params = ""
-        for i = 0, num - 1 do
-            params = params .. ("&chunk[%d]"):format(i) .. ","
+  Structure:
+      for each edge type (posedge, negedge, edge):
+          for each pending callback:
+              match chunk size -> call appropriate chunk handler
+--]]
+local function gen_callback_policy(max_chunk)
+    --- Generates the function call for registering a chunk callback
+    --- @param chunk_size number Number of tasks in the chunk
+    --- @param edge_type string EdgeType enum value
+    --- @return string Rust function call expression
+    local function gen_register_callback_call(chunk_size, edge_type)
+        local params = {}
+        for i = 0, chunk_size - 1 do
+            params[#params + 1] = f("&chunk[%d]", i)
         end
-        params = params:sub(1, -2)
-        return "do_register_edge_callback_chunk_" .. num .. f("(complex_handle, %s, &%s, &edge_cb_id)", params, edge)
-    end
-    
-    local gen_chuk_schedule_body = function (num, edge)
-        local code = ""
-        for i = 1, num do
-            code = code .. ([[
-                    {{i}} => {{register_callback}},
-    ]]):render {i = i, register_callback = gen_register_callback(i, edge)}
-        end
-        return code
+        return f("do_register_edge_callback_chunk_%d(complex_handle, %s, &%s, &edge_cb_id)",
+            chunk_size, concat(params, ","), edge_type)
     end
 
-    local code = ""
+    --- Generates match arms for chunk size dispatch
+    --- @param max_size number Maximum chunk size
+    --- @param edge_type string EdgeType enum value
+    --- @return string Rust match arms
+    local function gen_chunk_match_arms(max_size, edge_type)
+        local arms = {}
+        for i = 1, max_size do
+            arms[#arms + 1] = f("                    %d => %s,", i, gen_register_callback_call(i, edge_type))
+        end
+        return concat(arms, "\n")
+    end
 
-    for _, edge in ipairs({"EdgeType::Posedge", "EdgeType::Negedge", "EdgeType::Edge"}) do
-        code = code .. ([[
-        for (complex_handle, task_id_vec) in &env.pending_{{edge}}_cb_map {
+    local EDGE_LOOP_TEMPLATE = [[
+        for (complex_handle, task_id_vec) in &env.pending_{{suffix}}_cb_map {
             let mut idx = 0;
             let task_id_vec_size = task_id_vec.len();
-        
+
             while idx < task_id_vec_size {
-                let chunk_end = usize::min(idx + {{MAX_CHUNK}}, task_id_vec_size);
+                let chunk_end = usize::min(idx + {{max_chunk}}, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];
                 let edge_cb_id = env.edge_cb_idpool.alloc_id();
 
                 let cb_hdl = unsafe {
                     match chunk.len() {
-                    {{chuk_schedule_body}}
+{{match_arms}}
                         _ => unreachable!("{}", chunk.len()),
                     }
                 };
@@ -136,37 +169,40 @@ local gen_callback_policy = function (num)
             }
         }
 
-        ]]):render {MAX_CHUNK = num, chuk_schedule_body = gen_chuk_schedule_body(MAX_CHUNK, edge), edge = (function() 
-            if edge == "EdgeType::Posedge" then
-                return "posedge"
-            elseif edge == "EdgeType::Negedge" then
-                return "negedge"
-            else
-                return "edge"
-            end
-        end)()}
+]]
+
+    local code_parts = {}
+    for _, edge_type in ipairs(EDGE_TYPES) do
+        code_parts[#code_parts + 1] = EDGE_LOOP_TEMPLATE:render({
+            max_chunk = max_chunk,
+            match_arms = gen_chunk_match_arms(max_chunk, edge_type),
+            suffix = edge_type_to_suffix(edge_type)
+        })
     end
-    
-    return "{" .. code .. "}"
+
+    return "{" .. concat(code_parts, "") .. "}"
 end
 
-local gen_register_callback_func = function (num)
-    local code = ""
+--[[
+  Generates callback registration functions and callback handlers.
 
-    for i = 1, num do
-        local task_id_params = ""
-        local task_id_values = ""
-        local task_id_vec_values = ""
-        for j = 1, i do
-            task_id_params = task_id_params .. "task_id_" .. j .. ": &TaskID,"
-            task_id_values = task_id_values .. "*task_id_" .. j .. ","
-            task_id_vec_values = task_id_vec_values .. "user_data.task_id_vec[" .. (j - 1) .. "],"
-        end
-        task_id_params = task_id_params:sub(1, -2)
-        task_id_values = task_id_values:sub(1, -2)
-        task_id_vec_values = task_id_vec_values:sub(1, -2)
+  For each chunk size (1 to MAX_CHUNK), generates:
+    - EdgeCbDataChunk_N: Struct to hold callback data
+    - do_register_edge_callback_chunk_N: Function to register the callback
+    - edge_callback_chunk_N: Callback handler invoked by simulator
 
-        code = code .. ([[
+  Memory Layout:
+      EdgeCbDataChunk_N {
+          task_id_vec: [TaskID; N],     // Task IDs to schedule
+          complex_handle_raw: Raw,       // VPI handle reference
+          edge_type: EdgeType,           // Posedge/Negedge/Edge
+          callback_id: ID,               // For callback management
+          vpi_value: VPI value struct,   // Cached for reuse
+          vpi_time: VPI time struct      // Cached for reuse
+      }
+--]]
+local function gen_register_callback_func(max_chunk)
+    local CHUNK_TEMPLATE = [[
 struct EdgeCbDataChunk_{{i}} {
     pub task_id_vec: [TaskID; {{i}}],
     pub complex_handle_raw: ComplexHandleRaw,
@@ -180,7 +216,7 @@ unsafe fn do_register_edge_callback_chunk_{{i}}(complex_handle_raw: &ComplexHand
     let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
     let user_data = Box::into_raw(Box::new(EdgeCbDataChunk_{{i}} {
-        task_id_vec: [{{task_id_values}}],
+        task_id_vec: [{{task_id_deref_values}}],
         complex_handle_raw: *complex_handle_raw,
         callback_id: *edge_cb_id,
         edge_type: *edge_type,
@@ -225,7 +261,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
             .lua_sim_event_chunk_{{i}}
             .as_ref()
             .unwrap()
-            .call::<()>({{caller_params}})
+            .call::<()>({{lua_call_params}})
         {
             env.finalize();
             panic!("{}", e);
@@ -242,7 +278,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
 
             let mut any_task_finished = false;
             // let mut finished_tasks = Vec::with_capacity(user_data.task_id_vec.len());
-            let mut finished_tasks: smallvec::SmallVec<[TaskID; {{MAX_CHUNK}}]> = smallvec::SmallVec::new();
+            let mut finished_tasks: smallvec::SmallVec<[TaskID; {{max_chunk}}]> = smallvec::SmallVec::new();
 
             let (cb_count, pending_cb_chunk) = match user_data.edge_type {
                 EdgeType::Posedge => (&mut complex_handle.posedge_cb_count, &mut env.pending_posedge_cb_chunk),
@@ -262,7 +298,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
             if !any_task_finished {
                 // #[cfg(feature = "debug")]
                 // log::trace!("chunk_task[{{i}}] any_task_finished {:?}", user_data.task_id_vec);
-                
+
                 if !pending_cb_chunk.contains_key(&user_data.callback_id) {
                     pending_cb_chunk.insert(user_data.callback_id, (user_data.complex_handle_raw, user_data.task_id_vec.to_vec()));
                 }
@@ -270,7 +306,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
                 for task_id in finished_tasks {
                     cb_count.remove(&task_id);
                 }
-                
+
                 pending_cb_chunk.remove(&user_data.callback_id);
 
                 unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
@@ -287,36 +323,49 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
     0
 }
 
-]]):render {
-    i = i, 
-    MAX_CHUNK = num,
-    task_id_params = task_id_params, 
-    task_id_values = task_id_values, 
-    caller_params = (function() 
-        if i == 1 then
-            return task_id_vec_values
-        else
-            return "(" .. task_id_vec_values .. ")"
+]]
+
+    local code_parts = {}
+    for i = 1, max_chunk do
+        -- Generate parameter lists
+        local task_id_params = {}
+        local task_id_deref_values = {}
+        local task_id_vec_access = {}
+
+        for j = 1, i do
+            task_id_params[j] = f("task_id_%d: &TaskID", j)
+            task_id_deref_values[j] = f("*task_id_%d", j)
+            task_id_vec_access[j] = f("user_data.task_id_vec[%d]", j - 1)
         end
-    end)(),
-}
+
+        -- Lua call params: single value or tuple
+        local lua_call_params
+        if i == 1 then
+            lua_call_params = task_id_vec_access[1]
+        else
+            lua_call_params = "(" .. concat(task_id_vec_access, ",") .. ")"
+        end
+
+        code_parts[#code_parts + 1] = CHUNK_TEMPLATE:render({
+            i = i,
+            max_chunk = max_chunk,
+            task_id_params = concat(task_id_params, ","),
+            task_id_deref_values = concat(task_id_deref_values, ","),
+            lua_call_params = lua_call_params
+        })
     end
 
-    return code
+    return concat(code_parts, "")
 end
 
-local gen_verilua_env_struct = function (num)
-    local code = ""
+--[[
+  Generates VeriluaEnv struct definition with chunk task fields.
 
-    local lua_sim_event_chunk = ""
-    for i = 1, num do
-        lua_sim_event_chunk = lua_sim_event_chunk .. ([[
-        #[cfg(feature = "chunk_task")]
-        pub lua_sim_event_chunk_{{i}}: Option<LuaFunction>,
-        ]]):render {i = i}
-    end
-
-    return ([[
+  Adds lua_sim_event_chunk_N fields for each chunk size, conditionally
+  compiled with the "chunk_task" feature flag.
+--]]
+local function gen_verilua_env_struct(max_chunk)
+    local STRUCT_TEMPLATE = [[
 #[repr(C)]
 #[derive(Debug)]
 pub struct VeriluaEnv {
@@ -338,11 +387,11 @@ pub struct VeriluaEnv {
     pub pending_negedge_cb_chunk: HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
     #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
     pub pending_edge_cb_chunk: HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
-    
+
     #[cfg(not(feature = "chunk_task"))]
     pub pending_edge_cb_map: HashMap<ComplexHandleRaw, Vec<CallbackInfo>>,
 
-    {{lua_sim_event_chunk}}
+{{chunk_fields}}
 
     pub edge_cb_idpool: IDPool,
     pub edge_cb_hdl_map: HashMap<EdgeCallbackID, u64>,
@@ -365,21 +414,25 @@ pub struct VeriluaEnv {
     pub has_final_cb: bool,
     pub has_next_sim_time_cb: bool,
 }
-]]):render { lua_sim_event_chunk = lua_sim_event_chunk }
-end
+]]
 
-local gen_verilua_env_init = function (num)
-    local code = ""
-
-    local lua_sim_event_chunk_init = ""
-    for i = 1, num do
-        lua_sim_event_chunk_init = lua_sim_event_chunk_init .. ([[
-        #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_{{i}}: None,
-        ]]):render {i = i}
+    local chunk_fields = {}
+    for i = 1, max_chunk do
+        chunk_fields[#chunk_fields + 1] = f("    #[cfg(feature = \"chunk_task\")]\n    pub lua_sim_event_chunk_%d: Option<LuaFunction>,", i)
     end
 
-    return ([[
+    return STRUCT_TEMPLATE:render({
+        chunk_fields = concat(chunk_fields, "\n")
+    })
+end
+
+--[[
+  Generates VeriluaEnv initialization code.
+
+  Creates the Self { ... } expression used in Default::default() impl.
+--]]
+local function gen_verilua_env_init(max_chunk)
+    local INIT_TEMPLATE = [[
 Self {
     hdl_cache: HashMap::new(),
     hdl_put_value: Vec::new(),
@@ -423,63 +476,105 @@ Self {
     has_start_cb: false,
     has_final_cb: false,
     has_next_sim_time_cb: false,
-    
-    {{lua_sim_event_chunk_init}}
+
+{{chunk_init}}
 }
-]]):render { lua_sim_event_chunk_init = lua_sim_event_chunk_init }
+]]
+
+    local chunk_init = {}
+    for i = 1, max_chunk do
+        chunk_init[#chunk_init + 1] = f("    #[cfg(feature = \"chunk_task\")]\n    lua_sim_event_chunk_%d: None,", i)
+    end
+
+    return INIT_TEMPLATE:render({
+        chunk_init = concat(chunk_init, "\n")
+    })
 end
 
-local gen_sim_event_chunk_init = function (num)
-    local code = ""
+--[[
+  Generates Lua function reference initialization code.
 
-    for i = 1, num do
-        code = code .. ([[
+  Called during VeriluaEnv::initialize() to load references to
+  the sim_event_chunk_N functions from Lua globals.
+--]]
+local function gen_sim_event_chunk_init(max_chunk)
+    local INIT_ITEM_TEMPLATE = [[
         self.lua_sim_event_chunk_{{i}} = Some(
             self.lua
                 .globals()
                 .get("sim_event_chunk_{{i}}")
                 .expect("Failed to load sim_event_chunk_{{i}}")
-        );
-        ]]):render {i = i}
+        );]]
+
+    local init_items = {}
+    for i = 1, max_chunk do
+        init_items[#init_items + 1] = INIT_ITEM_TEMPLATE:render({i = i})
     end
 
-    return "#[cfg(feature = \"chunk_task\")]\n\t{" .. code .. "}"
+    return '#[cfg(feature = "chunk_task")]\n\t{' .. concat(init_items, "\n") .. "}"
 end
 
-local gen_lua_sim_event_chunk = function(num)
-    local code = ""
+--[[
+  Generates Lua sim_event_chunk functions.
 
-    for i = 1, num do
-        local task_id_params = ""
-        local schedule_tasks = ""
+  These functions are called from Rust to schedule multiple tasks
+  in a single Lua call, reducing cross-language overhead.
+
+  Example output:
+      _G.sim_event_chunk_2 = function(task_id_1, task_id_2)
+          scheduler:schedule_task(task_id_1)
+          scheduler:schedule_task(task_id_2)
+      end
+--]]
+local function gen_lua_sim_event_chunk(max_chunk)
+    local CHUNK_FUNC_TEMPLATE = [[
+
+_G.sim_event_chunk_{{i}} = function({{params}})
+{{body}}
+end]]
+
+    local code_parts = {}
+    for i = 1, max_chunk do
+        local params = {}
+        local body_lines = {}
+
         for j = 1, i do
-            task_id_params = task_id_params .. "task_id_" .. j .. ", "
-            schedule_tasks = schedule_tasks .. "\tscheduler:schedule_task(task_id_" .. j .. ")\n"
+            local param_name = f("task_id_%d", j)
+            params[#params + 1] = param_name
+            body_lines[#body_lines + 1] = f("\tscheduler:schedule_task(%s)", param_name)
         end
-        task_id_params = task_id_params:sub(1, -3)
-        schedule_tasks = schedule_tasks:sub(1, -2)
 
-        code = code .. ([[
-
-_G.sim_event_chunk_{{i}} = function ({{task_id_params}})
-{{schedule_tasks}}
-end
-]]):render {i = i, task_id_params = task_id_params, schedule_tasks = schedule_tasks}
+        code_parts[#code_parts + 1] = CHUNK_FUNC_TEMPLATE:render({
+            i = i,
+            params = concat(params, ", "),
+            body = concat(body_lines, "\n")
+        })
     end
 
-    return code
+    return concat(code_parts, "")
 end
 
-print(gen_callback_policy(MAX_CHUNK))
-print(gen_register_callback_func(MAX_CHUNK))
-print(gen_verilua_env_struct(MAX_CHUNK))
-print(gen_verilua_env_init(MAX_CHUNK))
-print(gen_sim_event_chunk_init(MAX_CHUNK))
-print(gen_lua_sim_event_chunk(MAX_CHUNK))
+--------------------------------------------------------------------------------
+-- Main Entry Point
+--------------------------------------------------------------------------------
 
-write_file("gen_callback_policy.rs", gen_callback_policy(MAX_CHUNK))
-write_file("gen_register_callback_func.rs", gen_register_callback_func(MAX_CHUNK))
-write_file("gen_verilua_env_struct.rs", gen_verilua_env_struct(MAX_CHUNK))
-write_file("gen_verilua_env_init.rs", gen_verilua_env_init(MAX_CHUNK))
-write_file("gen_sim_event_chunk_init.rs", gen_sim_event_chunk_init(MAX_CHUNK))
-write_file("sim_event_chunk.lua", gen_lua_sim_event_chunk(MAX_CHUNK))
+local function main()
+    print("================================================================================")
+    print("  Verilua Code Generator")
+    print(f("  MAX_CHUNK = %d", MAX_CHUNK))
+    print("================================================================================")
+
+    -- Generate and write all files
+    write_file("gen_callback_policy.rs", gen_callback_policy(MAX_CHUNK))
+    write_file("gen_register_callback_func.rs", gen_register_callback_func(MAX_CHUNK))
+    write_file("gen_verilua_env_struct.rs", gen_verilua_env_struct(MAX_CHUNK))
+    write_file("gen_verilua_env_init.rs", gen_verilua_env_init(MAX_CHUNK))
+    write_file("gen_sim_event_chunk_init.rs", gen_sim_event_chunk_init(MAX_CHUNK))
+    write_file("sim_event_chunk.lua", gen_lua_sim_event_chunk(MAX_CHUNK))
+
+    print("================================================================================")
+    print("  Generation complete!")
+    print("================================================================================")
+end
+
+main()

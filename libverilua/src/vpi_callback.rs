@@ -1,3 +1,97 @@
+//! # VPI Callback Module
+//!
+//! This module implements VPI callback registration and handling for Verilua.
+//! It provides the bridge between HDL simulation events and Lua coroutine scheduling.
+//!
+//! ## VPI Callback Types
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────────────────────┐
+//! │                        VPI Callback Categories                              │
+//! ├─────────────────────────────────────────────────────────────────────────────┤
+//! │                                                                             │
+//! │  ┌──────────────────────────────────────────────────────────────────────┐   │
+//! │  │ Simulation Lifecycle Callbacks                                       │   │
+//! │  │  • cbStartOfSimulation - Bootstrap verilua_init()                    │   │
+//! │  │  • cbEndOfSimulation   - Finalize and cleanup                        │   │
+//! │  └──────────────────────────────────────────────────────────────────────┘   │
+//! │                                                                             │
+//! │  ┌──────────────────────────────────────────────────────────────────────┐   │
+//! │  │ Time-based Callbacks                                                 │   │
+//! │  │  • cbNextSimTime  - Next simulation time tick (main driver)          │   │
+//! │  │  • cbAfterDelay   - Scheduled future events (timer)                  │   │
+//! │  └──────────────────────────────────────────────────────────────────────┘   │
+//! │                                                                             │
+//! │  ┌──────────────────────────────────────────────────────────────────────┐   │
+//! │  │ Synchronization Callbacks                                            │   │
+//! │  │  • cbReadWriteSynch - Apply pending put values (value settle)        │   │
+//! │  │  • cbReadOnlySynch  - Read-only sync point                           │   │
+//! │  └──────────────────────────────────────────────────────────────────────┘   │
+//! │                                                                             │
+//! │  ┌──────────────────────────────────────────────────────────────────────┐   │
+//! │  │ Signal Callbacks                                                     │   │
+//! │  │  • cbValueChange (posedge) - Rising edge detection                   │   │
+//! │  │  • cbValueChange (negedge) - Falling edge detection                  │   │
+//! │  │  • cbValueChange (edge)    - Any edge detection                      │   │
+//! │  └──────────────────────────────────────────────────────────────────────┘   │
+//! │                                                                             │
+//! └─────────────────────────────────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Edge Callback Optimization (chunk_task + merge_cb)
+//!
+//! When both `chunk_task` and `merge_cb` features are enabled, edge callbacks
+//! are batched and deduplicated for better performance:
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────────┐
+//! │                 Edge Callback Batching Flow                     │
+//! ├─────────────────────────────────────────────────────────────────┤
+//! │                                                                 │
+//! │  Lua: chdl:posedge_callback(task1)                              │
+//! │  Lua: chdl:posedge_callback(task2)  ─┐                          │
+//! │  Lua: chdl:posedge_callback(task1)   │  Multiple calls          │
+//! │         │                            │                          │
+//! │         ▼                            ▼                          │
+//! │  ┌─────────────────────────────────────┐                        │
+//! │  │ pending_posedge_cb_map              │  Accumulate tasks      │
+//! │  │ {chdl → [task1, task2, task1]}      │                        │
+//! │  └─────────────────────────────────────┘                        │
+//! │         │                                                       │
+//! │         ▼  (at NextSimTime)                                     │
+//! │  ┌─────────────────────────────────────┐                        │
+//! │  │ Merge: task1 appears twice          │                        │
+//! │  │ Register: 1 callback for task1 (×2) │  Count-based           │
+//! │  │ Register: 1 callback for task2 (×1) │                        │
+//! │  └─────────────────────────────────────┘                        │
+//! │                                                                 │
+//! └─────────────────────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Callback Handler Flow
+//!
+//! ```text
+//!   VPI Callback Triggered
+//!          │
+//!          ▼
+//!   ┌──────────────┐
+//!   │ Check edge   │  For edge callbacks only
+//!   │ type match   │
+//!   └──────────────┘
+//!          │ matches
+//!          ▼
+//!   ┌──────────────┐
+//!   │ Call Lua     │  env.lua_sim_event(task_id)
+//!   │ sim_event    │
+//!   └──────────────┘
+//!          │
+//!          ▼
+//!   ┌──────────────┐
+//!   │ Remove       │  For one-shot callbacks
+//!   │ callback     │
+//!   └──────────────┘
+//! ```
+
 #![allow(dead_code, non_camel_case_types, unused_variables)]
 #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
 use hashbrown::HashMap;
@@ -9,41 +103,87 @@ use crate::vpi_user::*;
 use crate::EdgeCallbackID;
 use crate::TaskID;
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Edge Type Definitions
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Types of signal edge that can trigger a callback.
+///
+/// Used to specify what kind of signal transition should wake up a waiting task.
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum EdgeType {
+    /// Rising edge: signal transitions from 0 to 1
     Posedge = 0,
+    /// Falling edge: signal transitions from 1 to 0
     Negedge = 1,
+    /// Any edge: signal transitions in either direction
     Edge = 2,
 }
 
+/// Signal value state for edge detection comparison.
+///
+/// Mapped from VPI integer values to determine if edge condition is met.
 #[derive(PartialEq, num_enum::TryFromPrimitive)]
 #[repr(u8)]
 pub enum EdgeValue {
+    /// Logic low (0)
     Low = 0,
+    /// Logic high (1)
     High = 1,
+    /// Match any value (for EdgeType::Edge)
     DontCare = 2,
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Callback Data Structures
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Information about a pending edge callback registration.
+///
+/// Used in the callback batching system to track what callbacks need
+/// to be registered at the next simulation time.
 #[derive(Debug)]
 pub struct CallbackInfo {
+    /// Type of edge to wait for
     pub edge_type: EdgeType,
+    /// Lua task to resume when edge occurs
     pub task_id: TaskID,
 }
 
+/// User data passed to VPI for edge callbacks.
+///
+/// Contains all information needed to:
+/// 1. Identify which task to resume
+/// 2. Clean up the callback after triggering
+/// 3. Provide time/value storage for VPI
 pub struct EdgeCbData {
+    /// Lua task ID to resume when edge is detected
     pub task_id: TaskID,
+    /// Handle to the signal being monitored
     pub complex_handle_raw: ComplexHandleRaw,
+    /// Type of edge that was registered
     pub edge_type: EdgeType,
+    /// Unique ID for callback management (removal, reference counting)
     pub callback_id: EdgeCallbackID,
+    /// VPI value structure for callback (required by VPI spec)
     pub vpi_value: t_vpi_value,
+    /// VPI time structure for callback (required by VPI spec)
     pub vpi_time: t_vpi_time,
 }
 
+/// User data for simple callbacks (time-based, synch points).
+///
+/// Simpler than EdgeCbData since these callbacks don't need edge detection.
 pub struct NormalCbData {
     pub task_id: TaskID,
 }
 
+/// Convert edge type to the expected signal value for comparison.
+///
+/// - Posedge expects High (signal went to 1)
+/// - Negedge expects Low (signal went to 0)
+/// - Edge matches DontCare (any transition)
 #[inline(always)]
 fn edge_type_to_value(edge_type: &EdgeType) -> EdgeValue {
     match edge_type {
@@ -53,9 +193,23 @@ fn edge_type_to_value(edge_type: &EdgeType) -> EdgeValue {
     }
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Chunk Task Generated Code
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Includes generated callback registration functions for chunk_task optimization.
+/// These functions batch multiple edge callbacks for the same signal type.
 #[cfg(feature = "chunk_task")]
 include!("./gen/gen_register_callback_func.rs");
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Simulation Lifecycle Callbacks
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Registers a callback for simulation start.
+///
+/// This is called during VPI startup (typically from vlog_startup_routines).
+/// The callback will trigger `verilua_init()` when simulation begins.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bootstrap_register_start_callback() {
     log::info!("bootstrap_register_start_callback");
@@ -81,6 +235,8 @@ pub unsafe extern "C" fn bootstrap_register_start_callback() {
     unsafe { vpi_free_object(handle) };
 }
 
+/// VPI callback handler for simulation start.
+/// Initializes the Verilua environment when simulation begins.
 unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     log::info!("start_callback");
 
@@ -88,6 +244,7 @@ unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     0
 }
 
+/// Internal helper to register final callback with proper environment reference.
 #[inline(always)]
 fn do_register_final_callback(env: &mut VeriluaEnv) {
     if env.has_final_cb {
@@ -110,6 +267,10 @@ fn do_register_final_callback(env: &mut VeriluaEnv) {
     unsafe { vpi_free_object(handle) };
 }
 
+/// Registers end-of-simulation callback (DPI variant).
+///
+/// When using DPI mode, the environment pointer must be passed explicitly
+/// since we may not be able to use global state.
 #[cfg(feature = "dpi")]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bootstrap_register_final_callback(env: *mut libc::c_void) {
@@ -119,6 +280,9 @@ pub unsafe extern "C" fn bootstrap_register_final_callback(env: *mut libc::c_voi
     do_register_final_callback(env);
 }
 
+/// Registers end-of-simulation callback (VPI variant).
+///
+/// Standard VPI mode uses global environment state.
 #[cfg(not(feature = "dpi"))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bootstrap_register_final_callback() {
@@ -128,6 +292,8 @@ pub unsafe extern "C" fn bootstrap_register_final_callback() {
     do_register_final_callback(env);
 }
 
+/// VPI callback handler for simulation end.
+/// Calls finalize to print statistics and cleanup.
 unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     log::info!("final_callback");
     let env = unsafe { &mut *((*_cb_data).user_data as *mut VeriluaEnv) };

@@ -1,3 +1,68 @@
+//! # Verilua Environment Module
+//!
+//! This module defines the global `VeriluaEnv` structure that manages the entire
+//! Verilua runtime state, including Lua VM, VPI handle cache, and callback management.
+//!
+//! ## Design Overview
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────────────────────┐
+//! │                            VeriluaEnv Lifecycle                             │
+//! ├─────────────────────────────────────────────────────────────────────────────┤
+//! │                                                                             │
+//! │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐                 │
+//! │  │   Created    │────>│ Initialized  │────>│  Finalized   │                 │
+//! │  │  (default)   │     │  (running)   │     │  (cleanup)   │                 │
+//! │  └──────────────┘     └──────────────┘     └──────────────┘                 │
+//! │         │                    │                    │                         │
+//! │         │                    │                    │                         │
+//! │         ▼                    ▼                    ▼                         │
+//! │  - Lua VM created     - Load init.lua      - Call finish_callback           │
+//! │  - Empty caches       - Load user script   - Print statistics               │
+//! │  - No callbacks       - Cache Lua funcs    - Release resources              │
+//! │                       - Start simulation                                    │
+//! │                                                                             │
+//! └─────────────────────────────────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Singleton Pattern
+//!
+//! `VeriluaEnv` uses a static singleton pattern for thread-safe access:
+//! - `get_verilua_env()`: Returns mutable reference, auto-initializes if needed
+//! - `get_verilua_env_no_init()`: Returns reference without initialization
+//!
+//! ## Pending Put Value Mechanism
+//!
+//! Signal writes are buffered and applied in batches at ReadWriteSynch time
+//! to ensure correct simulation semantics and better performance.
+//!
+//! ```text
+//! ┌───────────────────────────────────────────────────────────────┐
+//! │               Pending Put Value Flow                          │
+//! ├───────────────────────────────────────────────────────────────┤
+//! │                                                               │
+//! │  Lua: chdl:set(value)                                         │
+//! │         │                                                     │
+//! │         ▼                                                     │
+//! │  ┌─────────────────┐                                          │
+//! │  │ ComplexHandle   │  Buffer the value                        │
+//! │  │ put_value_XXX   │                                          │
+//! │  └─────────────────┘                                          │
+//! │         │                                                     │
+//! │         ▼                                                     │
+//! │  ┌─────────────────┐                                          │
+//! │  │ hdl_put_value   │  Add to pending list                     │
+//! │  │ (Vec<Raw>)      │                                          │
+//! │  └─────────────────┘                                          │
+//! │         │                                                     │
+//! │         ▼ (at ReadWriteSynch)                                 │
+//! │  ┌─────────────────┐                                          │
+//! │  │ vpi_put_value   │  Apply all pending values                │
+//! │  └─────────────────┘                                          │
+//! │                                                               │
+//! └───────────────────────────────────────────────────────────────┘
+//! ```
+
 use hashbrown::HashMap;
 #[cfg(feature = "debug")]
 use hashbrown::HashSet;
@@ -13,10 +78,22 @@ use crate::vpi_callback::{self, CallbackInfo};
 use crate::vpi_user::*;
 use crate::{EdgeCallbackID, TaskID};
 
-// Both `get_verilua_env()` and `get_verilua_env_no_init()` share the same `VERILUA_ENV`.
-// `get_verilua_env()` will initialize the `VERILUA_ENV` if it is not initialized.
+// ────────────────────────────────────────────────────────────────────────────────
+// Singleton Management
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Global singleton storage for VeriluaEnv.
+/// Both `get_verilua_env()` and `get_verilua_env_no_init()` share this instance.
 static mut VERILUA_ENV: Option<UnsafeCell<VeriluaEnv>> = None;
 
+/// Returns a mutable reference to the global VeriluaEnv, initializing if necessary.
+///
+/// This is the primary entry point for accessing the Verilua environment.
+/// If the environment doesn't exist, it will be created and initialized.
+///
+/// # Safety
+/// This function uses unsafe code for static mutable access. It's designed to be
+/// called from a single-threaded simulation context.
 #[inline(always)]
 pub fn get_verilua_env() -> &'static mut VeriluaEnv {
     unsafe {
@@ -35,6 +112,10 @@ pub fn get_verilua_env() -> &'static mut VeriluaEnv {
     }
 }
 
+/// Returns a mutable reference to the global VeriluaEnv without initialization.
+///
+/// Use this when you need to access the environment but don't want to trigger
+/// the full initialization sequence (e.g., during bootstrap callbacks).
 #[inline(always)]
 pub fn get_verilua_env_no_init() -> &'static mut VeriluaEnv {
     unsafe {
@@ -48,9 +129,19 @@ pub fn get_verilua_env_no_init() -> &'static mut VeriluaEnv {
     }
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// ID Pool for Callback Management
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Pool of pre-allocated IDs for edge callback management.
+///
+/// This provides O(1) allocation and deallocation of callback IDs,
+/// avoiding the overhead of dynamic ID generation.
 pub struct IDPool {
+    /// Stack of available IDs (LIFO for cache-friendliness)
     available_ids: Vec<EdgeCallbackID>,
 
+    /// Debug mode: track allocated IDs to detect double-free
     #[cfg(feature = "debug")]
     allocated_ids: HashSet<EdgeCallbackID>,
 }

@@ -1,3 +1,8 @@
+//! # Verilua Utility Functions
+//!
+//! This module provides FFI utilities, system interaction functions, and
+//! helper routines used throughout the Verilua codebase.
+
 use fslock::LockFile;
 use goblin::elf::Elf;
 use hashbrown::HashMap;
@@ -12,26 +17,45 @@ use std::{fs::File, sync::Mutex};
 
 use crate::vpi_user::*;
 
-// FFI Conversion Utilities
+// ────────────────────────────────────────────────────────────────────────────────
+// FFI String Conversion Functions
+// ────────────────────────────────────────────────────────────────────────────────
 //
-// Naming: c_char_to_* (from C), *_to_c_char (to C), *_owned (caller frees)
-// Memory: *_owned functions allocate memory, use c_char_free to release
+// Naming Convention:
+//   c_char_to_*    - Convert from C string to Rust type
+//   *_to_c_char    - Convert from Rust type to C string
+//   *_owned        - Caller is responsible for freeing the memory
+//
+// Memory Rules:
+//   - Functions returning *mut c_char allocate memory
+//   - Use c_char_free() to release Rust-allocated C strings
+//   - Functions taking *const c_char borrow from C (don't free)
 
-/// Converts C string to owned String. Replaces invalid UTF-8 with U+FFFD.
+/// Converts a C string to an owned Rust String.
+///
+/// Invalid UTF-8 sequences are replaced with U+FFFD (replacement character).
+/// This is safe for display purposes but may lose information.
 #[inline(always)]
 pub fn c_char_to_string(c_char: *const c_char) -> String {
     debug_assert!(!c_char.is_null(), "c_char_to_string: null pointer");
     unsafe { CStr::from_ptr(c_char).to_string_lossy().into_owned() }
 }
 
-/// Converts C string to &str. Panics on invalid UTF-8.
+/// Converts a C string to a borrowed &str reference.
+///
+/// # Safety
+/// - `c_char` must be a valid, null-terminated C string
+/// - The string must be valid UTF-8 (panics otherwise)
+/// - The returned reference is valid only while the C string is alive
 #[inline(always)]
 pub unsafe fn c_char_to_str<'a>(c_char: *const c_char) -> &'a str {
     debug_assert!(!c_char.is_null(), "c_char_to_str: null pointer");
     unsafe { CStr::from_ptr(c_char).to_str().unwrap() }
 }
 
-/// Converts C string to Option<&str>. Returns None if null or invalid UTF-8.
+/// Converts a C string to Option<&str>, returning None on null or invalid UTF-8.
+///
+/// This is the safest conversion function for potentially invalid input.
 #[inline(always)]
 pub unsafe fn c_char_to_str_opt<'a>(c_char: *const c_char) -> Option<&'a str> {
     if c_char.is_null() {
@@ -40,7 +64,13 @@ pub unsafe fn c_char_to_str_opt<'a>(c_char: *const c_char) -> Option<&'a str> {
     unsafe { CStr::from_ptr(c_char).to_str().ok() }
 }
 
-/// Converts &str to owned C string pointer. Caller must free.
+/// Converts a &str to an owned C string pointer.
+///
+/// # Memory
+/// The caller must free the returned pointer using `c_char_free()`.
+///
+/// # Panics
+/// Panics if the string contains embedded null bytes.
 #[inline(always)]
 pub fn string_to_c_char_owned(string: &str) -> *mut c_char {
     CString::new(string)
@@ -48,7 +78,10 @@ pub fn string_to_c_char_owned(string: &str) -> *mut c_char {
         .into_raw()
 }
 
-/// Converts owned String to C string pointer. Caller must free.
+/// Converts an owned String to a C string pointer.
+///
+/// # Memory
+/// The caller must free the returned pointer using `c_char_free()`.
 #[inline(always)]
 pub fn owned_string_to_c_char(string: String) -> *mut c_char {
     CString::new(string)
@@ -56,7 +89,12 @@ pub fn owned_string_to_c_char(string: String) -> *mut c_char {
         .into_raw()
 }
 
-/// Frees C string allocated by Rust FFI functions.
+/// Frees a C string that was allocated by Rust FFI functions.
+///
+/// # Safety
+/// - The pointer must have been allocated by Rust (via CString::into_raw)
+/// - The pointer must not have been freed already
+/// - Safe to call with null pointer (no-op)
 #[inline(always)]
 #[allow(dead_code)]
 pub unsafe fn c_char_free(ptr: *mut c_char) {
@@ -65,13 +103,23 @@ pub unsafe fn c_char_free(ptr: *mut c_char) {
     }
 }
 
-/// Converts C string pointer to &CStr reference.
+/// Converts a C string pointer to a &CStr reference.
+///
+/// Useful when you need to work with CStr methods directly.
 #[inline(always)]
 pub unsafe fn c_char_to_cstr<'a>(c_char: *const c_char) -> &'a CStr {
     debug_assert!(!c_char.is_null(), "c_char_to_cstr: null pointer");
     unsafe { CStr::from_ptr(c_char) }
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// System Introspection Functions
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Returns the full path of the current executable.
+///
+/// Uses /proc/self/exe on Linux to get the actual executable path,
+/// resolving any symlinks.
 #[unsafe(no_mangle)]
 pub extern "C" fn get_executable_name() -> *const c_char {
     let mut path = [0; PATH_MAX as usize];
@@ -94,6 +142,9 @@ pub extern "C" fn get_executable_name() -> *const c_char {
     }
 }
 
+/// Returns the command line used to start this process.
+///
+/// Reads from /proc/self/cmdline and converts null separators to spaces.
 #[unsafe(no_mangle)]
 pub extern "C" fn get_self_cmdline() -> *mut c_char {
     let mut file = match File::open("/proc/self/cmdline") {
@@ -131,7 +182,12 @@ pub extern "C" fn get_self_cmdline() -> *mut c_char {
     cstring.into_raw()
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// ELF Symbol Resolution
+// ────────────────────────────────────────────────────────────────────────────────
+
 lazy_static! {
+    /// Cache for resolved symbol addresses to avoid repeated ELF parsing.
     static ref SYMBOL_ADDRESS_MAP: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
 }
 
@@ -141,11 +197,16 @@ cpp::cpp! {{
     #include <link.h>
 }}
 
+/// Looks up a symbol's runtime address in an ELF file.
+///
+/// Uses dlinfo to get the base address offset and then parses the ELF
+/// symbol table to find the symbol's address. Results are cached.
 #[unsafe(no_mangle)]
 pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *const c_char) -> u64 {
     let filename = c_char_to_string(filename);
     let symbol_name = c_char_to_string(symbol_name);
 
+    // Get the ASLR offset for the current process
     let offset = unsafe {
         cpp::cpp!([] -> u64 as "uint64_t" {
             static uint64_t offset = 0;
@@ -165,11 +226,13 @@ pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *cons
         })
     };
 
+    // Check cache first
     let mut map = SYMBOL_ADDRESS_MAP.lock().unwrap();
     if let Some(&address) = map.get(&symbol_name) {
         return address;
     }
 
+    // Parse ELF and find symbol
     let mut file = File::open(&filename).expect("Failed to load ELF file");
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
@@ -194,9 +257,21 @@ pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *cons
     }
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Simulator Auto-Detection
+// ────────────────────────────────────────────────────────────────────────────────
+
 static CACHE_RESULT: Mutex<Option<String>> = Mutex::new(None);
 static EXECUTABLE_NAME: OnceCell<String> = OnceCell::new();
 
+/// Auto-detects which simulator is running by examining linked libraries.
+///
+/// Inspects the ELF dynamic section to find which libverilua variant is loaded:
+/// - libverilua_verilator.so → "verilator"
+/// - libverilua_vcs.so → "vcs"
+/// - libverilua_iverilog.so → "iverilog"
+/// - libverilua_wave_vpi.so → "wave_vpi"
+/// - libverilua_nosim.so → "nosim"
 #[unsafe(no_mangle)]
 pub extern "C" fn get_simulator_auto() -> *const c_char {
     let mut cached_result = CACHE_RESULT.lock().unwrap();
@@ -242,6 +317,13 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
     string_to_c_char_owned("unknown")
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Simulation Control
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Controls the simulator state (stop, finish, reset).
+///
+/// Wraps vpi_control with human-readable logging.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn c_simulator_control(cmd: c_longlong) {
     log::info!("c_simulator_control => {}", {
@@ -257,6 +339,13 @@ pub unsafe extern "C" fn c_simulator_control(cmd: c_longlong) {
     unsafe { vpi_control(cmd as i32) };
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Pattern Matching & I/O Utilities
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Performs glob-style wildcard pattern matching.
+///
+/// Supports * and ? wildcards as in shell glob patterns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wildmatch(pattern: *const c_char, string: *const c_char) -> c_int {
     let pattern = unsafe { c_char_to_cstr(pattern) }.to_str().unwrap();
@@ -264,6 +353,10 @@ pub unsafe extern "C" fn wildmatch(pattern: *const c_char, string: *const c_char
     wildmatch::WildMatch::new(pattern).matches(string) as c_int
 }
 
+/// Acquires a file-based lock for inter-process synchronization.
+///
+/// Returns an opaque handle that must be passed to `release_lock()`.
+/// Returns null on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn acquire_lock(path: *const c_char) -> *mut c_void {
     if path.is_null() {
@@ -298,6 +391,10 @@ pub unsafe extern "C" fn acquire_lock(path: *const c_char) -> *mut c_void {
     Box::into_raw(Box::new(lockfile)) as *mut c_void
 }
 
+/// Releases a file lock acquired by `acquire_lock()`.
+///
+/// # Panics
+/// Panics if the handle is null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn release_lock(lock_handle: *mut c_void) {
     if lock_handle.is_null() {
@@ -309,6 +406,10 @@ pub unsafe extern "C" fn release_lock(lock_handle: *mut c_void) {
     let _lockfile_box = unsafe { Box::from_raw(lock_ptr) };
 }
 
+/// Executes a shell command and returns its output.
+///
+/// Returns stdout if available, otherwise stderr. Returns null on error.
+/// The returned string must be freed by the caller.
 #[unsafe(no_mangle)]
 pub extern "C" fn iorun(cmd: *const c_char) -> *const c_char {
     if cmd.is_null() {

@@ -42,37 +42,36 @@ Self {
     has_final_cb: false,
     has_next_sim_time_cb: false,
     
-            #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_1: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_2: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_3: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_4: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_5: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_6: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_7: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_8: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_9: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_10: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_11: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_12: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_13: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_14: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_15: None,
-                #[cfg(feature = "chunk_task")]
-        lua_sim_event_chunk_16: None,
-        
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_1: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_2: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_3: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_4: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_5: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_6: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_7: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_8: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_9: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_10: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_11: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_12: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_13: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_14: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_15: None,
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunk_16: None,
 }
