@@ -133,41 +133,29 @@ _G.colors = {
     white   = "\27[37m"
 }
 
---
--- global debug log functions
---
+local Logger = require "verilua.utils.Logger"
+local default_logger = Logger.default
+_G.verilua_logger = default_logger
+
 local enable_verilua_debug = os.getenv("VL_DEBUG") == "1"
 _G.enable_verilua_debug = enable_verilua_debug
 
-if enable_verilua_debug == true then
-    _G.verilua_debug = function(...)
-        io.write("\27[31m") -- RED
-        print(_G.debug_str(">> [VERILUA DEBUG]", ...), "\27[0m")
-        io.flush()
-    end
+-- When VL_LOG_LEVEL is set higher than debug, debug() is a no-op function
+if enable_verilua_debug then
+    _G.verilua_debug = function(...) default_logger:debug(...) end
 else
-    _G.verilua_debug = function(...)
-    end
+    -- VL_DEBUG not set, use empty function (zero overhead)
+    _G.verilua_debug = function() end
 end
 
-_G.verilua_info = function(...)
-    io.write("\27[36m") -- CYAN
-    print(">> [VERILUA INFO]", ..., "\27[0m")
-end
-
-_G.verilua_warning = function(...)
-    io.write("\27[33m") -- YELLOW
-    print(">> [VERILUA WARNING]", ..., "\27[0m")
-    io.flush()
-end
-
+_G.verilua_info = function(...) default_logger:info(...) end
+_G.verilua_success = function(...) default_logger:success(...) end
+_G.verilua_warning = function(...) default_logger:warning(...) end
 _G.verilua_error = function(...)
-    local error_print = function(...)
-        io.write("\27[31m") -- RED
-        print(">> [VERILUA ERROR]", ..., "\27[0m")
-        io.flush()
-    end
-    assert(false, error_print(...))
+    default_logger:error(...)
+    local args = { ... }
+    local message = #args == 1 and tostring(args[1]) or table.concat(args, " ")
+    assert(false, message)
 end
 
 _G.verilua_assert = function(cond, ...)

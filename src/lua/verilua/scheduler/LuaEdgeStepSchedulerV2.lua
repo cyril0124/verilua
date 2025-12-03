@@ -25,12 +25,12 @@
 
 
 
-require "math"
 local debug = require "debug"
 require "vpiml"
 local class = require "pl.class"
 local coroutine = require "coroutine"
 local table_clear = require "table.clear"
+local Logger = require "verilua.utils.Logger"
 
 local f = string.format
 local table_remove = table.remove
@@ -523,37 +523,10 @@ end
 end
 
 function Scheduler:list_tasks()
-    print("╔══════════════════════════════════════════════════════════════════════")
-    print("║ [Scheduler] List Tasks:")
-    print("╠══════════════════════════════════════════════════════════════════════")
+    local logger = Logger.new("Scheduler")
+    logger:section_start("Task Statistics", 74)
 
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -615,11 +588,11 @@ local max_name_str_len = 0 --[[@as integer]]
 
     local idx = 0
     for id, name in pairs(self.task_name_map_running) do
-        print(f("║ [%2d] name: %" .. max_name_str_len .. "s    id: %5d    cnt:%8d", idx, name, id,
-            self.task_execution_count_map[id]))
+        logger:section_line(f("[%2d] name: %-" .. max_name_str_len .. "s  id: %5d  cnt: %8d", idx, name, id,
+            self.task_execution_count_map[id]), 74)
         idx = idx + 1
     end
-    print("╚══════════════════════════════════════════════════════════════════════")
+    logger:section_end(74)
     print()
 end
 
