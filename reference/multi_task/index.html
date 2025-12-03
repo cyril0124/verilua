@@ -1,0 +1,1910 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Verilua: An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT">
+      
+      
+        <meta name="author" content="Chuyu Zheng">
+      
+      
+        <link rel="canonical" href="https://cyril0124.github.io/verilua/reference/multi_task/">
+      
+      
+        <link rel="prev" href="../../how-to-guides/write_reusable_component/">
+      
+      
+        <link rel="next" href="../data_structure/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>多任务系统 - Verilua</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Verilua" class="md-header__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Verilua
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              多任务系统
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/install/" class="md-tabs__link">
+          
+  
+  
+  Getting started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to-guides/simple_ut_env/" class="md-tabs__link">
+          
+  
+  
+  How-to guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Verilua" class="md-nav__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    Verilua
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install Verilua
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/simple_hvl_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HVL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/simple_hse_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HSE 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/simple_wal_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 WAL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/simple_ut_env/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搭建一个简单的 UT 环境
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/write_reusable_component/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    编写可复用的验证组件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    多任务系统
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    多任务系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        创建任务
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        等待任务执行完成
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注册任务回调
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        任务同步
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduler 底层 API 的使用
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scheduler 底层 API 的使用">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注册任务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        列出所有任务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        检查任务是否存在
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduler 任务性能统计
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler-api_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        其他 Scheduler API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-task-finish-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start Task 和 Finish Task
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bitvec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BitVec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    String Literal Constructor Pattern (SLCP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simulator_control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    仿真器控制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testbench_generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testbench 自动生成流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../xmake_params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    xmake 的配置参数
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        创建任务
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        等待任务执行完成
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注册任务回调
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        任务同步
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduler 底层 API 的使用
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scheduler 底层 API 的使用">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注册任务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        列出所有任务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        检查任务是否存在
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduler 任务性能统计
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduler-api_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        其他 Scheduler API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-task-finish-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start Task 和 Finish Task
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Introduction
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="_1">多任务系统</h1>
+<p>Verilua 实现了一个基于事件轮询调度的调度器（Scheduler），用于管理和记录用户注册的任务，Verilua 通过这种调度系统来实现多任务的调度。
+在具体实现上，每个任务在执行到特定事件时，会通过 Scheduler 注册对应的回调函数（callback），并主动让出控制权，直到回调函数被触发后由 Scheduler 唤醒。这种协作式多任务模型依赖于任务的主动控制权让出，任务在让出控制权时可指定回调类型，例如上升沿（posedge）或下降沿（negedge）等。Scheduler 采用 Round Robin 仲裁策略，确保所有注册任务能够公平地获得执行机会，从而在单线程环境中实现高效的任务调度与并发执行。</p>
+<p>下图是 Verilua 的任务调度流程，可以分为五个步骤：</p>
+<ol>
+<li>Scheduler 遍历所有已注册的任务，每个任务通过唯一的 Task ID 进行标识；</li>
+<li>进入到其中一个任务中执行，执行特定位置让出任务控制权并提供回调类型与 Task ID进行回调注册；</li>
+<li>Scheduler 通过 VPI-ML（Verilua 定义的一个中间层）与仿真器交互，控制仿真器注册指定的回调函数；</li>
+<li>回调函数注册后，仿真器继续运行，直到回调触发；</li>
+<li>仿真器在特定时间点触发回调后，通过 Task ID 定位对应任务，并恢复任务执行。</li>
+</ol>
+<figure>
+  <img alt="Scheduler workflow" src="../images/scheduler_workflow.png" width="70%" />
+<br />
+<figcaption>Scheduler workflow</figcaption>
+</figure>
+<p>这一过程实现了任务的调度，且回调注册是异步的，任务无需等待回调完成即可继续执行其他任务，任务之间不存在依赖运行。</p>
+<h2 id="_2">创建任务</h2>
+<p>在 Verilua 中，我们可以通过 <code>fork</code> 来创建任务，并将其添加到 Scheduler 中，同时被创建的任务会随机分配一个唯一的任务 ID。例如：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-0-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-0-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-0-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-0-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-0-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-0-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-0-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-0-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-0-10">10</a></span>
+<span class="normal"><a href="#__codelineno-0-11">11</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="hll"><span class="nv">fork</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">-- 也可以使用 `verilua &quot;appendTasks&quot;`，不过目前推荐使用 fork 来创建任务</span>
+</span><a id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;fork task 1&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;fork task 2&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="c1">-- Other tasks...</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div></p>
+<p>使用 <code>fork</code> 来创建任务的时候也可以指定任务的名称，例如：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-1-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-1-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-1-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-1-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-1-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-1-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-1-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-1-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-1-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-1-10">10</a></span>
+<span class="normal"><a href="#__codelineno-1-11">11</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="nv">fork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="hll"><span class="w">    </span><span class="nv">simple_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+</span><a id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;fork task 1&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="hll"><span class="w">    </span><span class="p">[</span><span class="s2">&quot;another simple task&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+</span><a id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;fork task 2&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10"></a><span class="w">    </span><span class="c1">-- Other tasks...</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div></p>
+<p>如果没有指定任务名称，那么 Verilua 会自动生成一个名称，具体格式为: <code>unnamed_task_&lt;task_id&gt;</code>。</p>
+<p>这里的每一个 function 在 Verilua 的底层中都被用于创建一个个的 coroutine 从而允许 Verilua 的 Scheduler 进行调度。</p>
+<h2 id="_3">等待任务执行完成</h2>
+<p>Verilua 提供了 <code>join</code> 函数来等待一个或多个任务执行完成，需要配合 <code>jfork</code> 函数来使用。</p>
+<p><code>jfork</code> 函数用于创建一个任务（注意，只能是一个），并返回一个专门给 <code>join</code> 使用的 <code>EventHandle</code>, 使用方式和 <code>fork</code> 类似：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-2-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-2-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-2-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-2-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-2-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-2-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-2-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-2-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-2-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-2-10">10</a></span>
+<span class="normal"><a href="#__codelineno-2-11">11</a></span>
+<span class="normal"><a href="#__codelineno-2-12">12</a></span>
+<span class="normal"><a href="#__codelineno-2-13">13</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ehdl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">jfork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;jfork task 1&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="w">        </span><span class="c1">-- ...</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="p">}</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ehdl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">jfork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9"></a><span class="w">    </span><span class="nv">task_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;jfork task 2&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11"></a><span class="w">        </span><span class="c1">-- ...</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div></p>
+<p>使用 <code>join</code> 可以等待一个或多个 <code>jfork</code> 创建的 <code>EventHandle</code> 所代表的任务执行完成，例如：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-3-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-3-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-3-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-3-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-3-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-3-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-3-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-3-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-3-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-3-10">10</a></span>
+<span class="normal"><a href="#__codelineno-3-11">11</a></span>
+<span class="normal"><a href="#__codelineno-3-12">12</a></span>
+<span class="normal"><a href="#__codelineno-3-13">13</a></span>
+<span class="normal"><a href="#__codelineno-3-14">14</a></span>
+<span class="normal"><a href="#__codelineno-3-15">15</a></span>
+<span class="normal"><a href="#__codelineno-3-16">16</a></span>
+<span class="normal"><a href="#__codelineno-3-17">17</a></span>
+<span class="normal"><a href="#__codelineno-3-18">18</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ehdl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">jfork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="w">        </span><span class="c1">-- ...</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5"></a><span class="p">}</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6"></a><span class="nf">join</span><span class="p">(</span><span class="nv">ehdl</span><span class="p">)</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7"></a>
+<a id="__codelineno-3-8" name="__codelineno-3-8"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ehdl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">jfork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10"></a><span class="w">        </span><span class="c1">-- ...</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12"></a><span class="p">}</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ehdl2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">jfork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15"></a><span class="w">        </span><span class="c1">-- ...</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17"></a><span class="p">}</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18"></a><span class="nf">join</span><span class="p">({</span><span class="w"> </span><span class="nv">ehdl</span><span class="p">,</span><span class="w"> </span><span class="nv">ehdl2</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="c1">-- or join { ehdl, ehdl2 }</span>
+</code></pre></div></td></tr></table></div></p>
+<h2 id="_4">注册任务回调</h2>
+<p>Verilua 的 task 中支持 <code>posedge</code>、<code>negedge</code>、<code>edge</code>、<code>time</code> 仿真行为控制机制，能够满足大部分的硬件仿真交互场景。</p>
+<figure>
+  <img alt="Edge in the waveform" src="../images/clock_edge.png" width="70%" />
+<br />
+<figcaption>Edge in the waveform</figcaption>
+</figure>
+<p>其中<code>posedge</code>、<code>negedge</code>、<code>edge</code>只能作用在位宽为 1 bit 的信号上，并且可以由 <code>CallableHDL</code>、<code>ProxyTableHandle</code> 等数据结构来创建。
+下面是一个简单的例子：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-4-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-4-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-4-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-4-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-4-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-4-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-4-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-4-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-4-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-4-10">10</a></span>
+<span class="normal"><a href="#__codelineno-4-11">11</a></span>
+<span class="normal"><a href="#__codelineno-4-12">12</a></span>
+<span class="normal"><a href="#__codelineno-4-13">13</a></span>
+<span class="normal"><a href="#__codelineno-4-14">14</a></span>
+<span class="normal"><a href="#__codelineno-4-15">15</a></span>
+<span class="normal"><a href="#__codelineno-4-16">16</a></span>
+<span class="normal"><a href="#__codelineno-4-17">17</a></span>
+<span class="normal"><a href="#__codelineno-4-18">18</a></span>
+<span class="normal"><a href="#__codelineno-4-19">19</a></span>
+<span class="normal"><a href="#__codelineno-4-20">20</a></span>
+<span class="normal"><a href="#__codelineno-4-21">21</a></span>
+<span class="normal"><a href="#__codelineno-4-22">22</a></span>
+<span class="normal"><a href="#__codelineno-4-23">23</a></span>
+<span class="normal"><a href="#__codelineno-4-24">24</a></span>
+<span class="normal"><a href="#__codelineno-4-25">25</a></span>
+<span class="normal"><a href="#__codelineno-4-26">26</a></span>
+<span class="normal"><a href="#__codelineno-4-27">27</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="nv">fork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;start task 1&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5"></a><span class="w">        </span><span class="c1">--</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6"></a><span class="w">        </span><span class="c1">-- Use ProxyTableHandle(dut)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7"></a><span class="w">        </span><span class="c1">--</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">()</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;posedge clock&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;negedge clock&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13"></a>
+<a id="__codelineno-4-14" name="__codelineno-4-14"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15"></a>
+<a id="__codelineno-4-16" name="__codelineno-4-16"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="p">(</span><span class="nv">c</span><span class="p">)</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17"></a><span class="w">            </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;repeat negedge clock 5 times, now is &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="nv">c</span><span class="p">)</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18"></a><span class="w">        </span><span class="kr">end</span><span class="p">)</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19"></a>
+<a id="__codelineno-4-20" name="__codelineno-4-20"></a><span class="w">        </span><span class="c1">--</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21"></a><span class="w">        </span><span class="c1">-- Use CallableHDL</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22"></a><span class="w">        </span><span class="c1">--</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23"></a><span class="w">        </span><span class="kd">local</span><span class="w"> </span><span class="nv">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">chdl</span><span class="p">()</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">()</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-4-27" name="__codelineno-4-27"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+<code>posedge</code>/<code>negedge</code>/<code>edge</code> 等回调注册函数可以接收两个参数，第一个是回调的等待次数，第二个是回调函数，回调函数在每次触发事件的时候都会被执行，回调函数还会接收一个参数，表示第几次进入到回调函数中。</p>
+<p><code>time</code> 这一个行为控制机制不需要使用到具体的硬件信号，只需要在任务中使用 <code>await_time(XXX)</code> 即可，其中 <code>XXX</code> 是指定的时间，单位与仿真器的时间单位相当，例如：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-5-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-5-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-5-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-5-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-5-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-5-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-5-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-5-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-5-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-5-10">10</a></span>
+<span class="normal"><a href="#__codelineno-5-11">11</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1"></a><span class="nv">fork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;start task 1&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5"></a><span class="w">        </span><span class="nf">await_time</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;await time 10&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8"></a><span class="w">        </span><span class="nf">await_time</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;await time 100&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div></p>
+<p><a id="task-synchronization"></a></p>
+<h2 id="_5">任务同步</h2>
+<p>多个任务之间的同步可以使用 <code>EventHandle</code> 来创建特定事件实现，不同于直接使用全局变量进行同步，<code>EventHandle</code> 能够更进一步在事件触发的时候对正在等待的任务进行唤醒，从而实现了及时的任务同步。具体代码如下：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-6-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-6-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-6-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-6-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-6-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-6-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-6-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-6-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-6-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-6-10">10</a></span>
+<span class="normal"><a href="#__codelineno-6-11">11</a></span>
+<span class="normal"><a href="#__codelineno-6-12">12</a></span>
+<span class="normal"><a href="#__codelineno-6-13">13</a></span>
+<span class="normal"><a href="#__codelineno-6-14">14</a></span>
+<span class="normal"><a href="#__codelineno-6-15">15</a></span>
+<span class="normal"><a href="#__codelineno-6-16">16</a></span>
+<span class="normal"><a href="#__codelineno-6-17">17</a></span>
+<span class="normal"><a href="#__codelineno-6-18">18</a></span>
+<span class="normal"><a href="#__codelineno-6-19">19</a></span>
+<span class="normal"><a href="#__codelineno-6-20">20</a></span>
+<span class="normal"><a href="#__codelineno-6-21">21</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1"></a><span class="c1">-- Create a EvevntHandle with name &quot;name of the event&quot;</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="s2">&quot;name of the event&quot;</span><span class="p">):</span><span class="nf">ehdl</span><span class="p">()</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4"></a><span class="nv">fork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5"></a><span class="w">    </span><span class="nv">task_1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;send event&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8"></a><span class="hll"><span class="w">        </span><span class="nv">e</span><span class="p">:</span><span class="nf">send</span><span class="p">()</span>
+</span><a id="__codelineno-6-9" name="__codelineno-6-9"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10"></a>
+<a id="__codelineno-6-11" name="__codelineno-6-11"></a><span class="w">    </span><span class="nv">task_2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12"></a><span class="hll"><span class="w">        </span><span class="nv">e</span><span class="p">:</span><span class="nf">wait</span><span class="p">()</span>
+</span><a id="__codelineno-6-13" name="__codelineno-6-13"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_2 is awakened&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15"></a>
+<a id="__codelineno-6-16" name="__codelineno-6-16"></a><span class="w">    </span><span class="nv">task_3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18"></a><span class="hll"><span class="w">        </span><span class="nv">e</span><span class="p">:</span><span class="nf">wait</span><span class="p">()</span>
+</span><a id="__codelineno-6-19" name="__codelineno-6-19"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_3 is awakened&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+上述代码中，task_2 将会在第十个仿真周期到来的时候被 task_1 唤醒，并且在唤醒后会打印出 <code>task_2 is awakened</code>，而 task_3 则在第五个仿真周期到来的时候被 task_1 唤醒，并且在唤醒后会打印出 <code>task_3 is awakened</code>。</p>
+<p>需要注意的是，Verilua 允许有多个任务在等待同一个事件，但是同一时间点不能有多个任务同时 send 同一个 <code>EventHandle</code>，如果多个任务同时 send 事件，则会导致待唤醒的任务被唤醒多次，出现不符合预期的行为，但是 Verilua 底层并不会检查这一种情况，因此用户需要自行规避。</p>
+<h2 id="scheduler-api">Scheduler 底层 API 的使用</h2>
+<p>Verilua 的 Scheduler 提供了一系列 API 来查看和管理任务，下面是一些常用的 API 的介绍。</p>
+<h3 id="_6">注册任务</h3>
+<p><code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">append_task</span><span class="p">(</span><span class="nv">task_id</span><span class="p">,</span><span class="w"> </span><span class="nv">namee</span><span class="p">,</span><span class="w"> </span><span class="nv">task_body</span><span class="p">,</span><span class="w"> </span><span class="nv">start_now</span><span class="p">)</span></code> 用于注册一个任务。</p>
+<ul>
+<li><code>task_id</code> 是任务的唯一标识，可以输入<code class="highlight"><span class="kc">nil</span></code> 来让 Scheduler 自动生成一个唯一的任务 ID，否则 Scheduler 则会使用这里指定的 task_id 作为任务的唯一标识；</li>
+<li><code>name</code> 是被注册任务的名称；</li>
+<li><code>task_body</code> 是任务的代码块，也就是一个 <code class="highlight"><span class="kr">function</span></code>；</li>
+<li><code>start_now</code> 是否立即启动该任务，默认为 <code>false</code>，如果设置为 <code>true</code> 则会在调用 <code>append_task</code> 之后立即启动任务（执行 <code>task_body</code> 代码块）.</li>
+</ul>
+<p><code>append_task</code> 在调用之后会创建一个任务并将其添加到 Scheduler 中，同时返回一个任务 ID。<code>scheduler</code> 是一个全局的变量，可以通过 <code class="highlight"><span class="kd">local</span><span class="w"> </span><span class="nv">scheduler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">require</span><span class="w"> </span><span class="s2">&quot;LuaScheduler&quot;</span></code> 来引入。</p>
+<p>下面是一个简单的例子：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-7-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-7-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-7-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-7-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-7-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-7-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-7-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-7-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-7-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-7-10">10</a></span>
+<span class="normal"><a href="#__codelineno-7-11">11</a></span>
+<span class="normal"><a href="#__codelineno-7-12">12</a></span>
+<span class="normal"><a href="#__codelineno-7-13">13</a></span>
+<span class="normal"><a href="#__codelineno-7-14">14</a></span>
+<span class="normal"><a href="#__codelineno-7-15">15</a></span>
+<span class="normal"><a href="#__codelineno-7-16">16</a></span>
+<span class="normal"><a href="#__codelineno-7-17">17</a></span>
+<span class="normal"><a href="#__codelineno-7-18">18</a></span>
+<span class="normal"><a href="#__codelineno-7-19">19</a></span>
+<span class="normal"><a href="#__codelineno-7-20">20</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">scheduler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">require</span><span class="w"> </span><span class="s2">&quot;LuaScheduler&quot;</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">scheduler</span><span class="p">:</span><span class="nf">append_task</span><span class="p">(</span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;task_1&quot;</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_1 is running&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5"></a><span class="w">    </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_1 is finished&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7"></a><span class="nv">ene</span><span class="p">)</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8"></a>
+<a id="__codelineno-7-9" name="__codelineno-7-9"></a><span class="kd">local</span><span class="w"> </span><span class="nv">id2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">scheduler</span><span class="p">:</span><span class="nf">append_task</span><span class="p">(</span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;task_2&quot;</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_2 is running&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11"></a><span class="w">    </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_2 is finished&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13"></a><span class="kr">end</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14"></a>
+<a id="__codelineno-7-15" name="__codelineno-7-15"></a><span class="kd">local</span><span class="w"> </span><span class="nv">id3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">scheduler</span><span class="p">:</span><span class="nf">append_task</span><span class="p">(</span><span class="mi">123</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;task_3&quot;</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_3 is running&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17"></a><span class="w">    </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_3 is finished&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19"></a><span class="kr">end</span><span class="p">)</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20"></a><span class="nb">assert</span><span class="p">(</span><span class="nv">id3</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;task_id should be 123&quot;</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></p>
+<div class="admonition note">
+<p class="admonition-title"><code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">append_task</span><span class="p">(...)</span></code> 返回的 <code>task_id</code> 可以结合 <code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">check_task_exists</span><span class="p">(</span><span class="nv">task_id</span><span class="p">)</span></code> 来检查任务是否存在</p>
+</div>
+<h3 id="_7">列出所有任务</h3>
+<p><code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">list_tasks</span><span class="p">()</span></code> 用于列出所有注册的任务，并打印出其信息。下面是一个输出的示例：
+<div class="highlight"><span class="filename">Terminal</span><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="o">[</span>scheduler<span class="w"> </span>list<span class="w"> </span>tasks<span class="o">]</span>:
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>-----------------------------------------------------------
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="o">[</span><span class="m">0</span><span class="o">]</span><span class="w"> </span>name:<span class="w"> </span>task_1<span class="w">    </span>id:<span class="w"> </span><span class="m">1123</span><span class="w">     </span>cnt:12
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="o">[</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>name:<span class="w"> </span>task_2<span class="w">    </span>id:<span class="w"> </span><span class="m">2323</span><span class="w">     </span>cnt:13
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="o">[</span><span class="m">2</span><span class="o">]</span><span class="w"> </span>name:<span class="w"> </span>task_3<span class="w">    </span>id:<span class="w"> </span><span class="m">3456</span><span class="w">     </span>cnt:14
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>-----------------------------------------------------------
+</code></pre></div>
+其中的 <code>id</code> 为任务的唯一标识，<code>cnt</code> 为任务在调度器中的执行次数。</p>
+<div class="admonition note">
+<p class="admonition-title">每次仿真结束的时候，Verilua 都会自动调用一次 <code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">list_tasks</span><span class="p">()</span></code></p>
+</div>
+<h3 id="_8">检查任务是否存在</h3>
+<p><code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">check_task_exists</span><span class="p">(</span><span class="nv">task_id</span><span class="p">)</span></code> 用于检查任务是否存在，如果任务不存在则返回 <code>false</code>，否则返回 <code>true</code>。
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-9-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-9-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-9-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-9-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-9-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-9-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-9-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-9-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-9-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-9-10">10</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">scheduler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">require</span><span class="w"> </span><span class="s2">&quot;LuaScheduler&quot;</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">scheduler</span><span class="p">:</span><span class="nf">append_task</span><span class="p">(</span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;task_1&quot;</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_1 is running&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5"></a><span class="w">    </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6"></a><span class="w">    </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;task_1 is finished&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7"></a><span class="kr">end</span><span class="p">)</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8"></a>
+<a id="__codelineno-9-9" name="__codelineno-9-9"></a><span class="kd">local</span><span class="w"> </span><span class="nv">exists</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">scheduler</span><span class="p">:</span><span class="nf">check_task_exists</span><span class="p">(</span><span class="nv">id</span><span class="p">)</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10"></a><span class="nb">assert</span><span class="p">(</span><span class="nv">exists</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;task_1 should exist&quot;</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></p>
+<h2 id="scheduler">Scheduler 任务性能统计</h2>
+<p>Verilua 内置了一个 Scheduler 的任务性能统计功能，可以通过在仿真开始之前将环境变量 <code>VL_PERF_TIME</code> 设置为 <code>1</code> 来动态开启该功能。例如：
+<div class="highlight"><span class="filename">Terminal</span><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nv">VL_PERF_TIME</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>xmake<span class="w"> </span>run<span class="w"> </span>TestDesign
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># or</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">VL_PERF_TIME</span><span class="o">=</span><span class="m">1</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>xmake<span class="w"> </span>run<span class="w"> </span>TestDesign
+</code></pre></div></p>
+<p>在仿真结束之后，Verilua 会自动调用 <code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">list_tasks</span><span class="p">()</span></code> 来输出任务性能统计信息，下面是一个输出的示例：
+<div class="highlight"><span class="filename">Terminal</span><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="o">[</span>scheduler<span class="w"> </span>list<span class="w"> </span>tasks<span class="o">]</span>:
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>-------------------------------------------------------------
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="o">[</span><span class="w"> </span><span class="m">58254</span>@fake_cmoclient_0/TLULAgent<span class="w"> </span>a<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">    </span><span class="m">0</span>.39<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">0</span>.05%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="o">[</span><span class="m">83942</span>@fake_mmioclient_0/TLULAgent<span class="w"> </span>a<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">    </span><span class="m">1</span>.93<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">0</span>.23%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="o">[</span><span class="w">                       </span><span class="m">21509</span>@unnamed_fork_task_0<span class="o">]</span><span class="w">    </span><span class="m">2</span>.64<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">0</span>.31%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="o">[</span><span class="w">           </span><span class="m">65687</span>@fake_mmioclient_0<span class="w"> </span>timeout<span class="w"> </span>check<span class="o">]</span><span class="w">    </span><span class="m">2</span>.70<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">0</span>.32%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="o">[</span><span class="w">               </span><span class="m">34459</span>@fake_icache_0<span class="w"> </span>timeout<span class="w"> </span>check<span class="o">]</span><span class="w">    </span><span class="m">3</span>.46<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">0</span>.41%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="o">[</span><span class="w">                                   </span><span class="m">49198</span>@pf_init<span class="o">]</span><span class="w">    </span><span class="m">4</span>.29<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">0</span>.50%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="o">[</span><span class="w">     </span><span class="m">45191</span>@fake_dcache_0/TLCAgent<span class="w"> </span>c<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">    </span><span class="m">7</span>.32<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">0</span>.86%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="o">[</span><span class="w">     </span><span class="m">49389</span>@fake_dcache_0/TLCAgent<span class="w"> </span>e<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">    </span><span class="m">9</span>.37<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">1</span>.10%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="o">[</span><span class="m">75477</span>@fake_mmioclient_0/TLULAgent<span class="w"> </span>d<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">   </span><span class="m">24</span>.26<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">2</span>.84%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="o">[</span><span class="w"> </span><span class="m">87630</span>@fake_cmoclient_0/TLULAgent<span class="w"> </span>d<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">   </span><span class="m">24</span>.29<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">2</span>.85%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="o">[</span><span class="w">    </span><span class="m">43364</span>@fake_icache_0/TLULAgent<span class="w"> </span>a<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">   </span><span class="m">24</span>.65<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">2</span>.89%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="o">[</span><span class="w">     </span><span class="m">96595</span>@fake_dcache_0/TLCAgent<span class="w"> </span>a<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">   </span><span class="m">25</span>.38<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">2</span>.98%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="o">[</span><span class="w">                               </span><span class="m">6330</span>@send_pf_task<span class="o">]</span><span class="w">   </span><span class="m">26</span>.54<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">3</span>.11%<span class="w">  </span>┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="o">[</span><span class="w">                              </span><span class="m">87302</span>@recv_tlb_req<span class="o">]</span><span class="w">   </span><span class="m">31</span>.96<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">3</span>.75%<span class="w">  </span>┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="o">[</span><span class="w">     </span><span class="m">28004</span>@fake_dcache_0/TLCAgent<span class="w"> </span>b<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">   </span><span class="m">35</span>.42<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">4</span>.15%<span class="w">  </span>┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="o">[</span><span class="w">    </span><span class="m">28108</span>@fake_icache_0/TLULAgent<span class="w"> </span>d<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">   </span><span class="m">36</span>.69<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">4</span>.30%<span class="w">  </span>┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="o">[</span><span class="w">     </span><span class="m">15833</span>@fake_dcache_0/TLCAgent<span class="w"> </span>d<span class="w"> </span>task<span class="w"> </span>resolve<span class="o">]</span><span class="w">   </span><span class="m">40</span>.14<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">4</span>.71%<span class="w">  </span>┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="o">[</span><span class="w">                                 </span><span class="m">63208</span>@main_task<span class="o">]</span><span class="w">   </span><span class="m">51</span>.69<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w">  </span><span class="m">6</span>.06%<span class="w">  </span>┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a><span class="o">[</span><span class="w">                   </span><span class="m">53008</span>@fake_dcache_0<span class="w"> </span><span class="nb">eval</span><span class="w"> </span>task<span class="o">]</span><span class="w">   </span><span class="m">175</span>.71<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w"> </span><span class="m">20</span>.60%<span class="w"> </span>┃██████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="o">[</span><span class="w">                              </span><span class="m">27178</span>@monitor_task<span class="o">]</span><span class="w">   </span><span class="m">324</span>.09<span class="w"> </span>ms<span class="w">   </span>percent:<span class="w"> </span><span class="m">38</span>.00%<span class="w"> </span>┃███████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
+<a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a>total_time:<span class="w"> </span><span class="m">0</span>.85<span class="w"> </span>s<span class="w"> </span>/<span class="w"> </span><span class="m">852</span>.91<span class="w"> </span>ms
+</code></pre></div></p>
+<h2 id="scheduler-api_1">其他 Scheduler API</h2>
+<ol>
+<li>
+<p><code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">wakeup_task</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">task_id</span><span class="o">&gt;</span><span class="p">)</span></code></p>
+<p>通过 <code>&lt;task_id&gt;</code> 唤醒一个已经结束的任务，这个任务必须是之前已经被注册过的任务，如果任务之前没有注册过或者这个任务还在运行（没有结束），那么调用的时候会抛出一个错误。</p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">try_wakeup_task</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">task_id</span><span class="o">&gt;</span><span class="p">)</span></code></p>
+<p>尝试唤醒一个任务，如果这个任务还在运行，则什么都不做，如果这个任务已经结束，则唤醒这个任务。</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nv">scheduler</span><span class="p">:</span><span class="nf">try_wakeup_task</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1">-- equivalent to</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="kr">if</span><span class="w"> </span><span class="nv">scheduler</span><span class="p">:</span><span class="nf">check_task_exists</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span><span class="w"> </span><span class="kr">then</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="nv">scheduler</span><span class="p">:</span><span class="nf">wakeup_task</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="kr">end</span>
+</code></pre></div>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">scheduler</span><span class="p">:</span><span class="nf">remove_task</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">task_id</span><span class="o">&gt;</span><span class="p">)</span></code>
+    移除一个任务（可以是正在运行的任务），这个任务必须是之前已经被注册过的任务，如果任务之前没有注册过，那么调用的时候会抛出一个错误。</p>
+</li>
+</ol>
+<h2 id="start-task-finish-task">Start Task 和 Finish Task</h2>
+<p>Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。</p>
+<ul>
+<li>
+<p>通过 <code class="highlight"><span class="nv">initial</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span></code> / <code class="highlight"><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;startTask&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span></code> 创建 Start Task；</p>
+<p>Start Task 可以由多个函数组成。</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-13-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-13-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-13-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-13-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-13-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-13-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-13-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-13-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-13-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-13-10">10</a></span>
+<span class="normal"><a href="#__codelineno-13-11">11</a></span>
+<span class="normal"><a href="#__codelineno-13-12">12</a></span>
+<span class="normal"><a href="#__codelineno-13-13">13</a></span>
+<span class="normal"><a href="#__codelineno-13-14">14</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1"></a><span class="nv">initial</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation started!&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5"></a><span class="w">    </span><span class="c1">-- Other tasks...</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6"></a><span class="p">}</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7"></a>
+<a id="__codelineno-13-8" name="__codelineno-13-8"></a><span class="c1">-- or</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9"></a><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;startTask&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation started!&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13"></a><span class="w">    </span><span class="c1">-- Other tasks...</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+</li>
+<li>
+<p>通过 <code class="highlight"><span class="nv">final</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span></code> / <code class="highlight"><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;finishTask&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span></code> 创建 Finish Task。</p>
+<p>Finish Task 可以由多个函数组成。</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-14-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-14-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-14-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-14-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-14-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-14-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-14-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-14-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-14-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-14-10">10</a></span>
+<span class="normal"><a href="#__codelineno-14-11">11</a></span>
+<span class="normal"><a href="#__codelineno-14-12">12</a></span>
+<span class="normal"><a href="#__codelineno-14-13">13</a></span>
+<span class="normal"><a href="#__codelineno-14-14">14</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1"></a><span class="nv">final</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation finished!&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5"></a><span class="w">    </span><span class="c1">-- Other tasks...</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6"></a><span class="p">}</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7"></a>
+<a id="__codelineno-14-8" name="__codelineno-14-8"></a><span class="c1">-- or</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9"></a><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;finishTask&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation finished!&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13"></a><span class="w">    </span><span class="c1">-- Other tasks...</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../../how-to-guides/write_reusable_component/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 编写可复用的验证组件">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                编写可复用的验证组件
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../data_structure/" class="md-footer__link md-footer__link--next" aria-label="Next: 数据结构">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                数据结构
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - 2025 Chuyu Zheng
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.footer", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,1838 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Verilua: An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT">
+      
+      
+        <meta name="author" content="Chuyu Zheng">
+      
+      
+        <link rel="canonical" href="https://cyril0124.github.io/verilua/reference/testbench_generate/">
+      
+      
+        <link rel="prev" href="../simulator_control/">
+      
+      
+        <link rel="next" href="../xmake_params/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Testbench 自动生成流程 - Verilua</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#testbench" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Verilua" class="md-header__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Verilua
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Testbench 自动生成流程
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/install/" class="md-tabs__link">
+          
+  
+  
+  Getting started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to-guides/simple_ut_env/" class="md-tabs__link">
+          
+  
+  
+  How-to guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../multi_task/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Verilua" class="md-nav__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    Verilua
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install Verilua
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/simple_hvl_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HVL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/simple_hse_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HSE 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/simple_wal_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 WAL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/simple_ut_env/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搭建一个简单的 UT 环境
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/write_reusable_component/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    编写可复用的验证组件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multi_task/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    多任务系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bitvec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BitVec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    String Literal Constructor Pattern (SLCP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simulator_control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    仿真器控制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testbench 自动生成流程
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testbench 自动生成流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        多时钟配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="多时钟配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        时钟信号识别规则
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        禁用内部时钟生成
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        多时钟使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        时钟相关参数说明
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内部时钟自动生成
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="内部时钟自动生成">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        性能优势
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        时钟周期配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        设计考虑与权衡
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        选择建议
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        其他
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../xmake_params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    xmake 的配置参数
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        多时钟配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="多时钟配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        时钟信号识别规则
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        禁用内部时钟生成
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        多时钟使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        时钟相关参数说明
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内部时钟自动生成
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="内部时钟自动生成">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        性能优势
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        时钟周期配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        设计考虑与权衡
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        选择建议
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        其他
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Introduction
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../multi_task/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="testbench">Testbench 自动生成流程</h1>
+<p>Verilua 中，Testbench 是全自动生成的 <code>testbench_gen</code> 工具实现（安装 Verilua 的时候会编译生成 <code>testbench_gen</code>），其核心功能包括顶层模块的例化、时钟驱动、波形控制等。具体工作流程如下图所示：</p>
+<figure>
+  <img alt="Testbench generate workflow" src="../images/testbench_gen_flow.png" width="100%" />
+<br />
+<figcaption>Testbench generate workflow</figcaption>
+</figure>
+<p><code>testbench_gen</code> 底层使用的是 <a href="https://github.com/MikePopoloski/slang">slang</a> 进行 RTL 代码的解析，下面是 <code>testbench_gen</code> 的命令行参数（高亮的为常用的选项）：</p>
+<div class="highlight"><table class="highlighttable"><tr><th colspan="2" class="filename"><span class="filename">Terminal</span></th></tr><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-0-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-0-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-0-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-0-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-0-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-0-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-0-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-0-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-0-10">10</a></span>
+<span class="normal"><a href="#__codelineno-0-11">11</a></span>
+<span class="normal"><a href="#__codelineno-0-12">12</a></span>
+<span class="normal"><a href="#__codelineno-0-13">13</a></span>
+<span class="normal"><a href="#__codelineno-0-14">14</a></span>
+<span class="normal"><a href="#__codelineno-0-15">15</a></span>
+<span class="normal"><a href="#__codelineno-0-16">16</a></span>
+<span class="normal"><a href="#__codelineno-0-17">17</a></span>
+<span class="normal"><a href="#__codelineno-0-18">18</a></span>
+<span class="normal"><a href="#__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#__codelineno-0-21">21</a></span>
+<span class="normal"><a href="#__codelineno-0-22">22</a></span>
+<span class="normal"><a href="#__codelineno-0-23">23</a></span>
+<span class="normal"><a href="#__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#__codelineno-0-30">30</a></span>
+<span class="normal"><a href="#__codelineno-0-31">31</a></span>
+<span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span>
+<span class="normal"><a href="#__codelineno-0-47">47</a></span>
+<span class="normal"><a href="#__codelineno-0-48">48</a></span>
+<span class="normal"><a href="#__codelineno-0-49">49</a></span>
+<span class="normal"><a href="#__codelineno-0-50">50</a></span>
+<span class="normal"><a href="#__codelineno-0-51">51</a></span>
+<span class="normal"><a href="#__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#__codelineno-0-76">76</a></span>
+<span class="normal"><a href="#__codelineno-0-77">77</a></span>
+<span class="normal"><a href="#__codelineno-0-78">78</a></span>
+<span class="normal"><a href="#__codelineno-0-79">79</a></span>
+<span class="normal"><a href="#__codelineno-0-80">80</a></span>
+<span class="normal"><a href="#__codelineno-0-81">81</a></span>
+<span class="normal"><a href="#__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#__codelineno-0-83">83</a></span>
+<span class="normal"><a href="#__codelineno-0-84">84</a></span>
+<span class="normal"><a href="#__codelineno-0-85">85</a></span>
+<span class="normal"><a href="#__codelineno-0-86">86</a></span>
+<span class="normal"><a href="#__codelineno-0-87">87</a></span>
+<span class="normal"><a href="#__codelineno-0-88">88</a></span>
+<span class="normal"><a href="#__codelineno-0-89">89</a></span>
+<span class="normal"><a href="#__codelineno-0-90">90</a></span>
+<span class="normal"><a href="#__codelineno-0-91">91</a></span>
+<span class="normal"><a href="#__codelineno-0-92">92</a></span>
+<span class="normal"><a href="#__codelineno-0-93">93</a></span>
+<span class="normal"><a href="#__codelineno-0-94">94</a></span>
+<span class="normal"><a href="#__codelineno-0-95">95</a></span>
+<span class="normal"><a href="#__codelineno-0-96">96</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a>OVERVIEW:<span class="w"> </span>testbench_gen<span class="o">(</span>verilua@v2.0.0<span class="o">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3"></a>USAGE:<span class="w"> </span>testbench_gen<span class="w"> </span><span class="o">[</span>options<span class="o">]</span><span class="w"> </span>files...
+<a id="__codelineno-0-4" name="__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5"></a>OPTIONS:
+<a id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="hll"><span class="w">  </span>--tt,--tbtop<span class="w"> </span>&lt;top<span class="w"> </span>module<span class="w"> </span>name&gt;<span class="w">                      </span>testbench<span class="w"> </span>top<span class="w"> </span>module<span class="w"> </span>name
+</span><a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="hll"><span class="w">  </span>--dn,--dut-name<span class="w"> </span>&lt;dut<span class="w"> </span>instance<span class="w"> </span>name&gt;<span class="w">                 </span>testbench<span class="w"> </span>dut<span class="w"> </span>inst<span class="w"> </span>name
+</span><a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="hll"><span class="w">  </span>--od,--out-dir<span class="w"> </span>&lt;directory&gt;<span class="w">                          </span>output<span class="w"> </span>directory
+</span><a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="hll"><span class="w">  </span>--cs,--clock-signal<span class="w"> </span>&lt;signal<span class="w"> </span>name&gt;<span class="w">                   </span>clock<span class="w"> </span>signal<span class="w"> </span>name
+</span><a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="hll"><span class="w">  </span>--rs,--reset-signal<span class="w"> </span>&lt;signal<span class="w"> </span>name&gt;<span class="w">                   </span>reset<span class="w"> </span>signal<span class="w"> </span>name
+</span><a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="hll"><span class="w">  </span>--cc,--custom-code<span class="w"> </span>&lt;file&gt;<span class="w">                           </span>input<span class="w"> </span>custom<span class="w"> </span>code<span class="w"> </span>&lt;file&gt;,<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>inserted<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>bottom<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>testbench<span class="w"> </span>module
+</span><a id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="hll"><span class="w">  </span>--ccs,--custom-code-str<span class="w"> </span>&lt;string&gt;<span class="w">                    </span>input<span class="w"> </span>custom<span class="w"> </span>code<span class="w"> </span>&lt;string&gt;,<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>inserted<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>bottom<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>testbench<span class="w"> </span>module
+</span><a id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="hll"><span class="w">  </span>--cco,--custom-code-outer<span class="w"> </span>&lt;file&gt;<span class="w">                    </span>input<span class="w"> </span>custom<span class="w"> </span>code<span class="w"> </span>&lt;file&gt;,<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>inserted<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>top<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>testbench<span class="w"> </span>module
+</span><a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="hll"><span class="w">  </span>--ccso,--custom-code-str-outer<span class="w"> </span>&lt;string&gt;<span class="w">             </span>input<span class="w"> </span>custom<span class="w"> </span>code<span class="w"> </span>&lt;string&gt;,<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>inserted<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>top<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>testbench<span class="w"> </span>module
+</span><a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="hll"><span class="w">  </span>--lm,--lua-meta-file<span class="w"> </span>&lt;file&gt;<span class="w">                         </span>output<span class="w"> </span>lua<span class="w"> </span>meta<span class="w"> </span>file<span class="o">(</span><span class="nb">type</span><span class="w"> </span>annotation<span class="w"> </span>file<span class="o">)</span>
+</span><a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="hll"><span class="w">  </span>--fl,--filelist<span class="w"> </span>&lt;file/filelist&gt;<span class="w">                     </span>input<span class="w"> </span>file<span class="w"> </span>or<span class="w"> </span>filelist
+</span><a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="hll"><span class="w">  </span>-p,--period<span class="w"> </span>&lt;period<span class="w"> </span>value&gt;<span class="w">                          </span>clock<span class="w"> </span>period
+</span><a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="hll"><span class="w">  </span>--vb,--verbose<span class="w">                                      </span>verbose<span class="w"> </span>output
+</span><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="hll"><span class="w">  </span>--co,--check-output<span class="w">                                 </span>check<span class="w"> </span>output
+</span><a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="hll"><span class="w">  </span>--dr,--dryrun<span class="w">                                       </span><span class="k">do</span><span class="w"> </span>not<span class="w"> </span>generate<span class="w"> </span>testbench
+</span><a id="__codelineno-0-21" name="__codelineno-0-21"></a><span class="w">  </span>-r,--regen<span class="w">                                          </span>force<span class="w"> </span>regeneration<span class="w"> </span>of<span class="w"> </span>testbench
+<a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="w">  </span>--nd,--nodpi<span class="w">                                        </span>disable<span class="w"> </span>dpi<span class="w"> </span>generation
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">  </span>-h,--help<span class="w">                                           </span>Display<span class="w"> </span>available<span class="w"> </span>options
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="w">  </span>--std<span class="w"> </span><span class="o">(</span><span class="m">1800</span>-2017<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">1800</span>-2023<span class="w"> </span><span class="p">|</span><span class="w"> </span>latest<span class="o">)</span><span class="w">              </span>The<span class="w"> </span>version<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>SystemVerilog<span class="w"> </span>language<span class="w"> </span>to<span class="w"> </span>use
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="w">  </span>-I,--include-directory,+incdir<span class="w"> </span>&lt;dir-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">  </span>Additional<span class="w"> </span>include<span class="w"> </span>search<span class="w"> </span>paths
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="w">  </span>--isystem<span class="w"> </span>&lt;dir-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">                       </span>Additional<span class="w"> </span>system<span class="w"> </span>include<span class="w"> </span>search<span class="w"> </span>paths
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="w">  </span>-D,--define-macro,+define<span class="w"> </span>&lt;macro&gt;<span class="o">=</span>&lt;value&gt;<span class="w">           </span>Define<span class="w"> </span>&lt;macro&gt;<span class="w"> </span>to<span class="w"> </span>&lt;value&gt;<span class="w"> </span><span class="o">(</span>or<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="k">if</span><span class="w"> </span>&lt;value&gt;<span class="w"> </span>ommitted<span class="o">)</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>all<span class="w"> </span><span class="nb">source</span><span class="w"> </span>files
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="w">  </span>-U,--undefine-macro<span class="w"> </span>&lt;macro&gt;<span class="w">                         </span>Undefine<span class="w"> </span>macro<span class="w"> </span>name<span class="w"> </span>at<span class="w"> </span>the<span class="w"> </span>start<span class="w"> </span>of<span class="w"> </span>all<span class="w"> </span><span class="nb">source</span><span class="w"> </span>files
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="w">  </span>--max-include-depth<span class="w"> </span>&lt;depth&gt;<span class="w">                         </span>Maximum<span class="w"> </span>depth<span class="w"> </span>of<span class="w"> </span>nested<span class="w"> </span>include<span class="w"> </span>files<span class="w"> </span>allowed
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="w">  </span>--libraries-inherit-macros<span class="w">                          </span>If<span class="w"> </span>true,<span class="w"> </span>library<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>inherit<span class="w"> </span>macro<span class="w"> </span>definitions<span class="w"> </span>from<span class="w"> </span>the<span class="w"> </span>primary<span class="w"> </span><span class="nb">source</span><span class="w"> </span>files.<span class="w"> </span>--single-unit<span class="w"> </span>must<span class="w"> </span>also<span class="w"> </span>be<span class="w"> </span>passed<span class="w"> </span>when<span class="w"> </span>this<span class="w"> </span>option<span class="w"> </span>is<span class="w"> </span>used.
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="w">  </span>--enable-legacy-protect<span class="w">                             </span>If<span class="w"> </span>true,<span class="w"> </span>the<span class="w"> </span>preprocessor<span class="w"> </span>will<span class="w"> </span>support<span class="w"> </span>legacy<span class="w"> </span>protected<span class="w"> </span>envelope<span class="w"> </span>directives,<span class="w"> </span><span class="k">for</span><span class="w"> </span>compatibility<span class="w"> </span>with<span class="w"> </span>old<span class="w"> </span>Verilog<span class="w"> </span>tools
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="w">  </span>--translate-off-format<span class="w"> </span>&lt;common&gt;,&lt;start&gt;,&lt;end&gt;<span class="w">       </span>Set<span class="w"> </span>a<span class="w"> </span>format<span class="w"> </span><span class="k">for</span><span class="w"> </span>comment<span class="w"> </span>directives<span class="w"> </span>that<span class="w"> </span>mark<span class="w"> </span>a<span class="w"> </span>region<span class="w"> </span>of<span class="w"> </span>disabled<span class="w"> </span><span class="nb">source</span><span class="w"> </span>text.<span class="w"> </span>The<span class="w"> </span>format<span class="w"> </span>is<span class="w"> </span>a<span class="w"> </span>common<span class="w"> </span>keyword,<span class="w"> </span>a<span class="w"> </span>start<span class="w"> </span>word,<span class="w"> </span>and<span class="w"> </span>an<span class="w"> </span>end<span class="w"> </span>word,<span class="w"> </span>each<span class="w"> </span>separated<span class="w"> </span>by<span class="w"> </span>commas.<span class="w"> </span>For<span class="w"> </span>example,<span class="w"> </span><span class="s1">&#39;pragma,translate_off,translate_on&#39;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">  </span>--cmd-ignore<span class="w"> </span>&lt;vendor_cmd&gt;,&lt;N&gt;<span class="w">                       </span>Define<span class="w"> </span>rule<span class="w"> </span>to<span class="w"> </span>ignore<span class="w"> </span>vendor<span class="w"> </span><span class="nb">command</span><span class="w"> </span>&lt;vendor_cmd&gt;<span class="w"> </span>with<span class="w"> </span>its<span class="w"> </span>following<span class="w"> </span>&lt;N&gt;<span class="w"> </span>parameters.
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="w">                                                      </span>A<span class="w"> </span><span class="nb">command</span><span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>form<span class="w"> </span>+xyz<span class="w"> </span>will<span class="w"> </span>also<span class="w"> </span>match<span class="w"> </span>any<span class="w"> </span>vendor<span class="w"> </span><span class="nb">command</span><span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>form<span class="w"> </span>+xyz+abc,
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="w">                                                      </span>as<span class="w"> </span>+abc<span class="w"> </span>is<span class="w"> </span>the<span class="w"> </span>command<span class="s1">&#39;s argument, and doesn&#39;</span>t<span class="w"> </span>need<span class="w"> </span>to<span class="w"> </span>be<span class="w"> </span>matched.
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="w">  </span>--cmd-rename<span class="w"> </span>&lt;vendor_cmd&gt;,&lt;slang_cmd&gt;<span class="w">               </span>Define<span class="w"> </span>rule<span class="w"> </span>to<span class="w"> </span>rename<span class="w"> </span>vendor<span class="w"> </span><span class="nb">command</span><span class="w"> </span>&lt;vendor_cmd&gt;<span class="w"> </span>into<span class="w"> </span>existing<span class="w"> </span>&lt;slang_cmd&gt;
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="w">  </span>--ignore-directive<span class="w"> </span>&lt;directive&gt;<span class="w">                      </span>Ignore<span class="w"> </span>preprocessor<span class="w"> </span>directive<span class="w"> </span>and<span class="w"> </span>all<span class="w"> </span>its<span class="w"> </span>arguments<span class="w"> </span><span class="k">until</span><span class="w"> </span>EOL
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a><span class="w">  </span>--max-parse-depth<span class="w"> </span>&lt;depth&gt;<span class="w">                           </span>Maximum<span class="w"> </span>depth<span class="w"> </span>of<span class="w"> </span>nested<span class="w"> </span>language<span class="w"> </span>constructs<span class="w"> </span>allowed
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a><span class="w">  </span>--max-lexer-errors<span class="w"> </span>&lt;count&gt;<span class="w">                          </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>errors<span class="w"> </span>that<span class="w"> </span>can<span class="w"> </span>occur<span class="w"> </span>during<span class="w"> </span>lexing<span class="w"> </span>before<span class="w"> </span>the<span class="w"> </span>rest<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>is<span class="w"> </span>skipped
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="w">  </span>-j,--threads<span class="w"> </span>&lt;count&gt;<span class="w">                                </span>The<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>threads<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>to<span class="w"> </span>parallelize<span class="w"> </span>parsing
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a><span class="w">  </span>-C<span class="w"> </span>&lt;file-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">                             </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span>files<span class="w"> </span>containing<span class="w"> </span>independent<span class="w"> </span>compilation<span class="w"> </span>unit<span class="w"> </span>listings.<span class="w"> </span>The<span class="w"> </span>files<span class="w"> </span>accept<span class="w"> </span>a<span class="w"> </span>subset<span class="w"> </span>of<span class="w"> </span>options<span class="w"> </span>that<span class="w"> </span>pertain<span class="w"> </span>specifically<span class="w"> </span>to<span class="w"> </span>parsing<span class="w"> </span>that<span class="w"> </span>unit<span class="w"> </span>and<span class="w"> </span>optionally<span class="w"> </span>including<span class="w"> </span>it<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>library.
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="w">  </span>--max-hierarchy-depth<span class="w"> </span>&lt;depth&gt;<span class="w">                       </span>Maximum<span class="w"> </span>depth<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>design<span class="w"> </span>hierarchy
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">  </span>--max-generate-steps<span class="w"> </span>&lt;steps&gt;<span class="w">                        </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>steps<span class="w"> </span>that<span class="w"> </span>can<span class="w"> </span>occur<span class="w"> </span>during<span class="w"> </span>generate<span class="w"> </span>block<span class="w"> </span>evaluation<span class="w"> </span>before<span class="w"> </span>giving<span class="w"> </span>up
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="w">  </span>--max-constexpr-depth<span class="w"> </span>&lt;depth&gt;<span class="w">                       </span>Maximum<span class="w"> </span>depth<span class="w"> </span>of<span class="w"> </span>a<span class="w"> </span>constant<span class="w"> </span>evaluation<span class="w"> </span>call<span class="w"> </span>stack
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="w">  </span>--max-constexpr-steps<span class="w"> </span>&lt;steps&gt;<span class="w">                       </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>steps<span class="w"> </span>that<span class="w"> </span>can<span class="w"> </span>occur<span class="w"> </span>during<span class="w"> </span>constant<span class="w"> </span>evaluation<span class="w"> </span>before<span class="w"> </span>giving<span class="w"> </span>up
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="w">  </span>--constexpr-backtrace-limit<span class="w"> </span>&lt;limit&gt;<span class="w">                 </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>frames<span class="w"> </span>to<span class="w"> </span>show<span class="w"> </span>when<span class="w"> </span>printing<span class="w"> </span>a<span class="w"> </span>constant<span class="w"> </span>evaluation<span class="w"> </span>backtrace<span class="p">;</span><span class="w"> </span>the<span class="w"> </span>rest<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>abbreviated
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="w">  </span>--max-instance-array<span class="w"> </span>&lt;limit&gt;<span class="w">                        </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>instances<span class="w"> </span>allowed<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>single<span class="w"> </span>instance<span class="w"> </span>array
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="w">  </span>--max-udp-coverage-notes<span class="w"> </span>&lt;limit&gt;<span class="w">                    </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>UDP<span class="w"> </span>coverage<span class="w"> </span>notes<span class="w"> </span>that<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span><span class="k">for</span><span class="w"> </span>a<span class="w"> </span>single<span class="w"> </span>warning<span class="w"> </span>about<span class="w"> </span>missing<span class="w"> </span>edge<span class="w"> </span>transitions
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="w">  </span>--compat<span class="w"> </span>vcs<span class="w">                                        </span>Attempt<span class="w"> </span>to<span class="w"> </span>increase<span class="w"> </span>compatibility<span class="w"> </span>with<span class="w"> </span>the<span class="w"> </span>specified<span class="w"> </span>tool
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="w">  </span>-T,--timing<span class="w"> </span>min<span class="p">|</span>typ<span class="p">|</span>max<span class="w">                             </span>Select<span class="w"> </span>which<span class="w"> </span>value<span class="w"> </span>to<span class="w"> </span>consider<span class="w"> </span><span class="k">in</span><span class="w"> </span>min:typ:max<span class="w"> </span>expressions
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="w">  </span>--timescale<span class="w"> </span>&lt;base&gt;/&lt;precision&gt;<span class="w">                      </span>Default<span class="w"> </span><span class="nb">time</span><span class="w"> </span>scale<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span><span class="k">for</span><span class="w"> </span>design<span class="w"> </span>elements<span class="w"> </span>that<span class="w"> </span>don<span class="s1">&#39;t specify one explicitly</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="s1">  --allow-use-before-declare                          Don&#39;</span>t<span class="w"> </span>issue<span class="w"> </span>an<span class="w"> </span>error<span class="w"> </span><span class="k">for</span><span class="w"> </span>use<span class="w"> </span>of<span class="w"> </span>names<span class="w"> </span>before<span class="w"> </span>their<span class="w"> </span>declarations
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="w">  </span>--ignore-unknown-modules<span class="w">                            </span>Don<span class="s1">&#39;t issue an error for instantiations of unknown modules, interface, and programs</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="s1">  --relax-enum-conversions                            Allow all integral types to convert implicitly to enum types</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="s1">  --relax-string-conversions                          Allow string types to convert implicitly to integral types</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="s1">  --allow-hierarchical-const                          Allow hierarchical references in constant expressions</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="s1">  --allow-toplevel-iface-ports                        Allow top-level modules to have interface ports</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a><span class="s1">  --allow-recursive-implicit-call                     Allow implicit call expressions to be recursive function calls</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a><span class="s1">  --allow-bare-value-param-assigment                  Allow module parameter assignments to elide the parentheses</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="s1">  --allow-self-determined-stream-concat               Allow self-determined streaming concatenation expressions</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="s1">  --allow-merging-ansi-ports                          Allow merging ANSI port declarations with nets and variables declared in the instance body</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a><span class="s1">  --lint-only                                         Only perform linting of code, don&#39;</span>t<span class="w"> </span>try<span class="w"> </span>to<span class="w"> </span>elaborate<span class="w"> </span>a<span class="w"> </span>full<span class="w"> </span>hierarchy
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a><span class="w">  </span>--disable-instance-caching<span class="w">                          </span>Disable<span class="w"> </span>the<span class="w"> </span>use<span class="w"> </span>of<span class="w"> </span>instance<span class="w"> </span>caching,<span class="w"> </span>which<span class="w"> </span>normally<span class="w"> </span>allows<span class="w"> </span>skipping<span class="w"> </span>duplicate<span class="w"> </span>instance<span class="w"> </span>bodies<span class="w"> </span>to<span class="w"> </span>save<span class="w"> </span><span class="nb">time</span><span class="w"> </span>when<span class="w"> </span>elaborating
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a><span class="w">  </span>--disallow-refs-to-unknown-instances<span class="w">                </span>When<span class="w"> </span>using<span class="w"> </span>--ignore-unknown-modules,<span class="w"> </span>explicitly<span class="w"> </span>disallow<span class="w"> </span>references<span class="w"> </span>to<span class="w"> </span>ignored<span class="w"> </span>module<span class="w"> </span>instances<span class="w"> </span>by<span class="w"> </span>issuing<span class="w"> </span>an<span class="w"> </span>error
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a><span class="w">  </span>--top<span class="w"> </span>&lt;name&gt;<span class="w">                                        </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span>top-level<span class="w"> </span>modules<span class="w"> </span>to<span class="w"> </span>instantiate<span class="w"> </span><span class="o">(</span>instead<span class="w"> </span>of<span class="w"> </span>figuring<span class="w"> </span>it<span class="w"> </span>out<span class="w"> </span>automatically<span class="o">)</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a><span class="w">  </span>-G<span class="w"> </span>&lt;name&gt;<span class="o">=</span>&lt;value&gt;<span class="w">                                   </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span>parameter<span class="w"> </span>overrides<span class="w"> </span>to<span class="w"> </span>apply<span class="w"> </span>when<span class="w"> </span>instantiating<span class="w"> </span>top-level<span class="w"> </span>modules
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a><span class="w">  </span>-L<span class="w"> </span>&lt;library&gt;<span class="w">                                        </span>A<span class="w"> </span>list<span class="w"> </span>of<span class="w"> </span>library<span class="w"> </span>names<span class="w"> </span>that<span class="w"> </span>controls<span class="w"> </span>the<span class="w"> </span>priority<span class="w"> </span>order<span class="w"> </span><span class="k">for</span><span class="w"> </span>module<span class="w"> </span>lookup
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a><span class="w">  </span>--defaultLibName<span class="w"> </span>&lt;name&gt;<span class="w">                             </span>Sets<span class="w"> </span>the<span class="w"> </span>name<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>default<span class="w"> </span>library
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a><span class="w">  </span>-W<span class="w"> </span>&lt;warning&gt;<span class="w">                                        </span>Control<span class="w"> </span>the<span class="w"> </span>specified<span class="w"> </span>warning
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a><span class="w">  </span>--color-diagnostics<span class="w">                                 </span>Always<span class="w"> </span>print<span class="w"> </span>diagnostics<span class="w"> </span><span class="k">in</span><span class="w"> </span>color.<span class="w"> </span>If<span class="w"> </span>this<span class="w"> </span>option<span class="w"> </span>is<span class="w"> </span>unset,<span class="w"> </span>colors<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>enabled<span class="w"> </span><span class="k">if</span><span class="w"> </span>a<span class="w"> </span>color-capable<span class="w"> </span>terminal<span class="w"> </span>is<span class="w"> </span>detected.
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="w">  </span>--diag-column<span class="w">                                       </span>Show<span class="w"> </span>column<span class="w"> </span>numbers<span class="w"> </span><span class="k">in</span><span class="w"> </span>diagnostic<span class="w"> </span>output
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a><span class="w">  </span>--diag-location<span class="w">                                     </span>Show<span class="w"> </span>location<span class="w"> </span>information<span class="w"> </span><span class="k">in</span><span class="w"> </span>diagnostic<span class="w"> </span>output
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a><span class="w">  </span>--diag-source<span class="w">                                       </span>Show<span class="w"> </span><span class="nb">source</span><span class="w"> </span>line<span class="w"> </span>or<span class="w"> </span>caret<span class="w"> </span>info<span class="w"> </span><span class="k">in</span><span class="w"> </span>diagnostic<span class="w"> </span>output
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a><span class="w">  </span>--diag-option<span class="w">                                       </span>Show<span class="w"> </span>option<span class="w"> </span>names<span class="w"> </span><span class="k">in</span><span class="w"> </span>diagnostic<span class="w"> </span>output
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a><span class="w">  </span>--diag-include-stack<span class="w">                                </span>Show<span class="w"> </span>include<span class="w"> </span>stacks<span class="w"> </span><span class="k">in</span><span class="w"> </span>diagnostic<span class="w"> </span>output
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a><span class="w">  </span>--diag-macro-expansion<span class="w">                              </span>Show<span class="w"> </span>macro<span class="w"> </span>expansion<span class="w"> </span>backtraces
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a><span class="w">  </span>--diag-abs-paths<span class="w">                                    </span>Display<span class="w"> </span>absolute<span class="w"> </span>paths<span class="w"> </span>to<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>diagnostic<span class="w"> </span>output
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="w">  </span>--diag-hierarchy<span class="w"> </span>always<span class="p">|</span>never<span class="p">|</span>auto<span class="w">                  </span>Show<span class="w"> </span>hierarchy<span class="w"> </span>locations<span class="w"> </span><span class="k">in</span><span class="w"> </span>diagnostic<span class="w"> </span>output
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="w">  </span>--diag-json<span class="w"> </span>&lt;file&gt;<span class="w">                                  </span>Dump<span class="w"> </span>all<span class="w"> </span>diagnostics<span class="w"> </span><span class="k">in</span><span class="w"> </span>JSON<span class="w"> </span>format<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>specified<span class="w"> </span>file,<span class="w"> </span>or<span class="w"> </span><span class="s1">&#39;-&#39;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>stdout
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="w">  </span>--error-limit<span class="w"> </span>&lt;limit&gt;<span class="w">                               </span>Limit<span class="w"> </span>on<span class="w"> </span>the<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>errors<span class="w"> </span>that<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>printed.<span class="w"> </span>Setting<span class="w"> </span>this<span class="w"> </span>to<span class="w"> </span>zero<span class="w"> </span>will<span class="w"> </span>disable<span class="w"> </span>the<span class="w"> </span>limit.
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="w">  </span>--suppress-warnings<span class="w"> </span>&lt;file-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">            </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span>paths<span class="w"> </span><span class="k">in</span><span class="w"> </span>which<span class="w"> </span>to<span class="w"> </span>suppress<span class="w"> </span>warnings
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="w">  </span>--suppress-macro-warnings<span class="w"> </span>&lt;file-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">      </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span>paths<span class="w"> </span><span class="k">in</span><span class="w"> </span>which<span class="w"> </span>to<span class="w"> </span>suppress<span class="w"> </span>warnings<span class="w"> </span>that<span class="w"> </span>originate<span class="w"> </span><span class="k">in</span><span class="w"> </span>macro<span class="w"> </span>expansions
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="w">  </span>--single-unit<span class="w">                                       </span>Treat<span class="w"> </span>all<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>as<span class="w"> </span>a<span class="w"> </span>single<span class="w"> </span>compilation<span class="w"> </span>unit
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="w">  </span>-v,--libfile<span class="w"> </span>&lt;file-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">                   </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span>library<span class="w"> </span>files,<span class="w"> </span>which<span class="w"> </span>are<span class="w"> </span>separate<span class="w"> </span>compilation<span class="w"> </span>units<span class="w"> </span>where<span class="w"> </span>modules<span class="w"> </span>are<span class="w"> </span>not<span class="w"> </span>automatically<span class="w"> </span>instantiated
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="w">  </span>--libmap<span class="w"> </span>&lt;file-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">                       </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span>library<span class="w"> </span>map<span class="w"> </span>files<span class="w"> </span>to<span class="w"> </span>parse<span class="w"> </span><span class="k">for</span><span class="w"> </span>library<span class="w"> </span>name<span class="w"> </span>mappings<span class="w"> </span>and<span class="w"> </span>file<span class="w"> </span>lists
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="w">  </span>-y,--libdir<span class="w"> </span>&lt;dir-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">                     </span>Library<span class="w"> </span>search<span class="w"> </span>paths,<span class="w"> </span>which<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>searched<span class="w"> </span><span class="k">for</span><span class="w"> </span>missing<span class="w"> </span>modules
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="w">  </span>-Y,--libext,+libext<span class="w"> </span>&lt;ext&gt;<span class="w">                           </span>Additional<span class="w"> </span>library<span class="w"> </span>file<span class="w"> </span>extensions<span class="w"> </span>to<span class="w"> </span>search
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="w">  </span>--exclude-ext<span class="w"> </span>&lt;ext&gt;<span class="w">                                 </span>Exclude<span class="w"> </span>provided<span class="w"> </span><span class="nb">source</span><span class="w"> </span>files<span class="w"> </span>with<span class="w"> </span>these<span class="w"> </span>extensions
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="w">  </span>-f<span class="w"> </span>&lt;file-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">                             </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span><span class="nb">command</span><span class="w"> </span>files<span class="w"> </span>containing<span class="w"> </span>additional<span class="w"> </span>program<span class="w"> </span>options.<span class="w"> </span>Paths<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>are<span class="w"> </span>considered<span class="w"> </span>relative<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>current<span class="w"> </span>directory.
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="w">  </span>-F<span class="w"> </span>&lt;file-pattern&gt;<span class="o">[</span>,...<span class="o">]</span><span class="w">                             </span>One<span class="w"> </span>or<span class="w"> </span>more<span class="w"> </span><span class="nb">command</span><span class="w"> </span>files<span class="w"> </span>containing<span class="w"> </span>additional<span class="w"> </span>program<span class="w"> </span>options.<span class="w"> </span>Paths<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>are<span class="w"> </span>considered<span class="w"> </span>relative<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>itself.
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a><span class="w">  </span>--dfa-unique-priority<span class="w">                               </span>Respect<span class="w"> </span>the<span class="w"> </span><span class="s1">&#39;unique&#39;</span><span class="w"> </span>and<span class="w"> </span><span class="s1">&#39;priority&#39;</span><span class="w"> </span>keywords<span class="w"> </span>when<span class="w"> </span>analyzing<span class="w"> </span>data<span class="w"> </span>flow<span class="w"> </span>through<span class="w"> </span><span class="k">case</span><span class="w"> </span>statements
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="w">  </span>--dfa-four-state<span class="w">                                    </span>Require<span class="w"> </span>that<span class="w"> </span><span class="k">case</span><span class="w"> </span>items<span class="w"> </span>cover<span class="w"> </span>X<span class="w"> </span>and<span class="w"> </span>Z<span class="w"> </span>bits<span class="w"> </span>to<span class="w"> </span>assume<span class="w"> </span>full<span class="w"> </span>coverage<span class="w"> </span><span class="k">in</span><span class="w"> </span>data<span class="w"> </span>flow<span class="w"> </span>analysis
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="w">  </span>--allow-multi-driven-locals<span class="w">                         </span>Allow<span class="w"> </span>subroutine<span class="w"> </span><span class="nb">local</span><span class="w"> </span>variables<span class="w"> </span>to<span class="w"> </span>be<span class="w"> </span>driven<span class="w"> </span>from<span class="w"> </span>multiple<span class="w"> </span>always_comb/_ff<span class="w"> </span>blocks
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a><span class="w">  </span>--allow-dup-initial-drivers<span class="w">                         </span>Allow<span class="w"> </span>signals<span class="w"> </span>driven<span class="w"> </span><span class="k">in</span><span class="w"> </span>an<span class="w"> </span>always_comb<span class="w"> </span>or<span class="w"> </span>always_ff<span class="w"> </span>block<span class="w"> </span>to<span class="w"> </span>also<span class="w"> </span>be<span class="w"> </span>driven<span class="w"> </span>by<span class="w"> </span>initial<span class="w"> </span>blocks
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="w">  </span>--max-case-analysis-steps<span class="w"> </span>&lt;steps&gt;<span class="w">                   </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>steps<span class="w"> </span>that<span class="w"> </span>can<span class="w"> </span>occur<span class="w"> </span>during<span class="w"> </span><span class="k">case</span><span class="w"> </span>analysis<span class="w"> </span>before<span class="w"> </span>giving<span class="w"> </span>up
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="w">  </span>--max-loop-analysis-steps<span class="w"> </span>&lt;steps&gt;<span class="w">                   </span>Maximum<span class="w"> </span>number<span class="w"> </span>of<span class="w"> </span>steps<span class="w"> </span>that<span class="w"> </span>can<span class="w"> </span>occur<span class="w"> </span>during<span class="w"> </span>loop<span class="w"> </span>analysis<span class="w"> </span>before<span class="w"> </span>giving<span class="w"> </span>up
+</code></pre></div></td></tr></table></div>
+<h2 id="_1">多时钟配置</h2>
+<p>当设计包含多个时钟信号时，<code>testbench_gen</code> 提供了灵活的配置选项来处理不同的时钟场景：</p>
+<h3 id="_2">时钟信号识别规则</h3>
+<p><code>testbench_gen</code> 会按照以下优先级识别主时钟信号：</p>
+<ol>
+<li><strong>用户指定的时钟信号</strong>：通过 <code>--clock-signal</code> 参数明确指定的时钟信号名称</li>
+<li><strong>默认时钟信号名称</strong>：按优先级自动识别以下信号名称：</li>
+<li><code>clock</code></li>
+<li><code>clock_i</code></li>
+<li><code>clk</code></li>
+<li><code>clk_i</code></li>
+<li><code>i_clk</code></li>
+</ol>
+<p>如果设计中存在多个匹配的时钟信号，<code>testbench_gen</code> 会选择优先级最高的信号作为主时钟。</p>
+<h3 id="_3">禁用内部时钟生成</h3>
+<p>对于多时钟设计，通常需要禁用 <code>testbench_gen</code> 的内部时钟自动生成功能，然后在用户代码中手动管理所有时钟信号。</p>
+<p>在 xmake.lua 中配置：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">-- 禁用内部时钟生成</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;cfg.no_internal_clock&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="_4">多时钟使用示例</h3>
+<p>假设设计有以下时钟信号：
+- <code>sys_clk</code>：系统主时钟
+- <code>uart_clk</code>：UART 时钟
+- <code>mem_clk</code>：内存时钟</p>
+<p>配置方法：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">-- 指定主时钟信号</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nf">add_values</span><span class="p">(</span><span class="s2">&quot;cfg.tb_gen_flags&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--clock-signal&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;sys_clk&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1">-- 禁用内部时钟生成</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;cfg.no_internal_clock&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>然后在测试代码中手动生成所有时钟：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">sys_clk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">sys_clk</span><span class="p">:</span><span class="nf">chdl</span><span class="p">()</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">uart_clk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">uart_clk</span><span class="p">:</span><span class="nf">chdl</span><span class="p">()</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">mem_clk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">mem_clk</span><span class="p">:</span><span class="nf">chdl</span><span class="p">()</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nv">fork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="c1">-- 系统时钟 100MHz</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="kr">while</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="kr">do</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">            </span><span class="nv">sys_clk</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">            </span><span class="nf">await_time</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="w">  </span><span class="c1">-- 5ns</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">            </span><span class="nv">sys_clk</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">            </span><span class="nf">await_time</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">        </span><span class="kr">end</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="c1">-- UART 时钟 9.6MHz</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">        </span><span class="kr">while</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="kr">do</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">            </span><span class="nv">uart_clk</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">            </span><span class="nf">await_time</span><span class="p">(</span><span class="mi">52</span><span class="p">)</span><span class="w">  </span><span class="c1">-- 52ns</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">            </span><span class="nv">uart_clk</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">            </span><span class="nf">await_time</span><span class="p">(</span><span class="mi">52</span><span class="p">)</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">        </span><span class="kr">end</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">    </span><span class="c1">-- 内存时钟 200MHz</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">    </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">        </span><span class="kr">while</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="kr">do</span>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">            </span><span class="nv">mem_clk</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">            </span><span class="nf">await_time</span><span class="p">(</span><span class="mf">2.5</span><span class="p">)</span><span class="w">  </span><span class="c1">-- 2.5ns</span>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">            </span><span class="nv">mem_clk</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">            </span><span class="nf">await_time</span><span class="p">(</span><span class="mf">2.5</span><span class="p">)</span>
+<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="w">        </span><span class="kr">end</span>
+<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="_5">时钟相关参数说明</h3>
+<ul>
+<li><code>--clock-signal &lt;signal_name&gt;</code>：指定主时钟信号名称</li>
+<li><code>-p,--period &lt;period_value&gt;</code>：设置主时钟周期（仅在使用内部时钟时有效）</li>
+</ul>
+<h2 id="_6">内部时钟自动生成</h2>
+<p>默认情况下，<code>testbench_gen</code> 会自动在 RTL 侧生成时钟信号。这是 Verilua 的一项性能优化设计，将时钟生成放在 RTL 层面可以避免使用 Lua 任务来驱动时钟信号，从而减少任务切换的开销，提高仿真性能。</p>
+<h3 id="_7">性能优势</h3>
+<p><strong>RTL 侧时钟生成</strong>（默认）：
+- 时钟信号由 SystemVerilog 的 <code>always</code> 块直接驱动
+- 无需 Lua 任务参与时钟切换
+- 最小的仿真开销，最佳性能表现</p>
+<p><strong>Lua 侧时钟控制</strong>（禁用内部时钟）：
+- 需要创建专门的 Lua 任务来管理时钟信号
+- 每个时钟边沿都需要 Lua-RTL 交互
+- 增加任务切换开销，影响仿真速度, 但更加灵活</p>
+<h3 id="_8">时钟周期配置</h3>
+<p>可以通过 tb_gen_flags 传递(xmake.lua)配置时钟周期：
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nf">add_values</span><span class="p">(</span><span class="s2">&quot;cfg.tb_gen_flags&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--period&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;15&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<h3 id="_9">设计考虑与权衡</h3>
+<p>内部时钟自动生成在以下方面具有特点：</p>
+<ul>
+<li><strong>单时钟优化</strong>：专为单时钟设计优化，提供最佳性能</li>
+<li><strong>固定波形</strong>：生成标准的 50% 占空比方波，满足大多数应用需求</li>
+<li><strong>高效稳定</strong>：RTL 层面的时钟生成更加稳定可靠</li>
+<li><strong>简化设计</strong>：减少用户代码复杂度，专注于测试逻辑</li>
+</ul>
+<h3 id="_10">选择建议</h3>
+<p>根据具体需求选择合适的时钟方案：</p>
+<p><strong>推荐使用内部时钟的场景</strong>：
+- 单时钟设计，追求最佳仿真性能
+- 标准时钟波形即可满足需求
+- 对仿真速度有较高要求
+- 简单到中等复杂度的测试场景</p>
+<p><strong>需要禁用内部时钟的场景</strong>：
+- 多时钟设计，必须分别控制多个时钟信号
+- 需要非标准时钟波形（可变占空比、复杂调制等）
+- 时钟门控或动态时钟控制需求
+- 异步时钟域间的精确时序控制
+- 需要在运行时调整时钟参数</p>
+<h2 id="_11">其他</h2>
+<p>Testbench 只在 HVL 场景下才需要自动生成，可以在 xmake.lua 文件中通过 <code class="highlight"><span class="nf">add_values</span><span class="p">(</span><span class="s2">&quot;cfg.tb_gen_flags&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">...)</span></code> 来添加其他的 flags 参数，例如：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nf">add_values</span><span class="p">(</span><span class="s2">&quot;cfg.tb_gen_flags&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--ignore-unknown-modules&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--verbose&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>默认情况下，<code>testbench_gen</code> 会生成两个文件，一个是 <code>tb_top.sv</code>，另一个是 <code>other.sv</code>，其中 <code>tb_top.sv</code> 是 Testbench 文件，<code>other.sv</code> 是留给用户自定义的文件。用户可以在 <code>others.sv</code> 中自行添加其他的内容，每次重新生成 Testbench 的时候如果 <code>others.sv</code> 存在，就不会重新生成或者覆盖，因此用户可以安全地在其中添加用户自定义的内容。 部分内容如下（假设 DUT 为 <code>Design</code>）：</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>我们之前在<a href="../../getting-started/simple_hvl_example/#about-dut">这里</a>简单介绍过相关的内容。</p>
+</div>
+<div class="highlight"><span class="filename">tb_top.sv</span><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1">// user custom code</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1">//    use `--custom-code-outer/-cco &lt;file&gt;` to pass in the custom code file.</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1">//       |_ e.g. `testbench_gen [...] --custom-code-outer path/to/file`</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1">//    use `--custom-code-str-outer/-ccso &lt;string&gt;` to pass in the custom code string.</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1">//       |_ e.g. `testbench_gen [...] --custom-code-str-outer &quot;`define a 1&quot;`</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="k">module</span><span class="w"> </span><span class="n">tb_top</span><span class="p">;</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1">// ...</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="kt">reg</span><span class="w"> </span><span class="n">clock</span><span class="p">;</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="kt">reg</span><span class="w"> </span><span class="n">reset</span><span class="p">;</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="k">initial</span><span class="w"> </span><span class="k">begin</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="n">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0</span><span class="p">;</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="n">reset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">1</span><span class="p">;</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="k">end</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="k">always</span><span class="w"> </span><span class="p">#</span><span class="mh">10</span><span class="w"> </span><span class="n">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">~</span><span class="n">clock</span><span class="p">;</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="c1">// ...</span>
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>
+<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="c1">// reg/wire declaration</span>
+<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="kt">reg</span><span class="w">                  </span><span class="n">inc</span><span class="w">          </span><span class="p">;</span><span class="w"> </span><span class="c1">// Input</span>
+<a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="kt">reg</span><span class="p">[</span><span class="mh">7</span><span class="o">:</span><span class="mh">0</span><span class="p">]</span><span class="w">             </span><span class="n">test</span><span class="w">         </span><span class="p">;</span><span class="w"> </span><span class="c1">// Input</span>
+<a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="kt">wire</span><span class="p">[</span><span class="mh">7</span><span class="o">:</span><span class="mh">0</span><span class="p">]</span><span class="w">            </span><span class="n">value</span><span class="w">        </span><span class="p">;</span><span class="w"> </span><span class="c1">// Output</span>
+<a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a>
+<a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a><span class="c1">// ...</span>
+<a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a>
+<a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-35" name="__codelineno-6-35" href="#__codelineno-6-35"></a><span class="c1">//  DUT module instantiate</span>
+<a id="__codelineno-6-36" name="__codelineno-6-36" href="#__codelineno-6-36"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-37" name="__codelineno-6-37" href="#__codelineno-6-37"></a><span class="n">Design</span><span class="w"> </span><span class="n">u_Design</span><span class="w"> </span><span class="p">(</span>
+<a id="__codelineno-6-38" name="__codelineno-6-38" href="#__codelineno-6-38"></a><span class="w">    </span><span class="p">.</span><span class="n">clock</span><span class="w">   </span><span class="p">(</span><span class="n">clock</span><span class="w">  </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: logic</span>
+<a id="__codelineno-6-39" name="__codelineno-6-39" href="#__codelineno-6-39"></a><span class="w">    </span><span class="p">.</span><span class="n">reset</span><span class="w">   </span><span class="p">(</span><span class="n">reset</span><span class="w">  </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: logic</span>
+<a id="__codelineno-6-40" name="__codelineno-6-40" href="#__codelineno-6-40"></a><span class="w">    </span><span class="p">.</span><span class="n">inc</span><span class="w">     </span><span class="p">(</span><span class="n">inc</span><span class="w">    </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: logic</span>
+<a id="__codelineno-6-41" name="__codelineno-6-41" href="#__codelineno-6-41"></a><span class="w">    </span><span class="p">.</span><span class="n">test</span><span class="w">    </span><span class="p">(</span><span class="n">test</span><span class="w">   </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: reg[7:0]</span>
+<a id="__codelineno-6-42" name="__codelineno-6-42" href="#__codelineno-6-42"></a><span class="w">    </span><span class="p">.</span><span class="n">value</span><span class="w">   </span><span class="p">(</span><span class="n">value</span><span class="w">  </span><span class="p">)</span><span class="w">  </span><span class="c1">// direction: Out        dataType: logic[7:0</span>
+<a id="__codelineno-6-43" name="__codelineno-6-43" href="#__codelineno-6-43"></a><span class="p">);</span><span class="w"> </span><span class="c1">// u_Design</span>
+<a id="__codelineno-6-44" name="__codelineno-6-44" href="#__codelineno-6-44"></a>
+<a id="__codelineno-6-45" name="__codelineno-6-45" href="#__codelineno-6-45"></a><span class="c1">// ...</span>
+<a id="__codelineno-6-46" name="__codelineno-6-46" href="#__codelineno-6-46"></a>
+<a id="__codelineno-6-47" name="__codelineno-6-47" href="#__codelineno-6-47"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-48" name="__codelineno-6-48" href="#__codelineno-6-48"></a><span class="c1">// other user code...</span>
+<a id="__codelineno-6-49" name="__codelineno-6-49" href="#__codelineno-6-49"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-50" name="__codelineno-6-50" href="#__codelineno-6-50"></a><span class="n">Others</span><span class="w"> </span><span class="n">u_others</span><span class="p">(</span>
+<a id="__codelineno-6-51" name="__codelineno-6-51" href="#__codelineno-6-51"></a><span class="w">  </span><span class="p">.</span><span class="n">clock</span><span class="p">(</span><span class="n">clock</span><span class="p">),</span>
+<a id="__codelineno-6-52" name="__codelineno-6-52" href="#__codelineno-6-52"></a><span class="w">  </span><span class="p">.</span><span class="n">reset</span><span class="p">(</span><span class="n">reset</span><span class="p">)</span>
+<a id="__codelineno-6-53" name="__codelineno-6-53" href="#__codelineno-6-53"></a><span class="p">);</span>
+<a id="__codelineno-6-54" name="__codelineno-6-54" href="#__codelineno-6-54"></a>
+<a id="__codelineno-6-55" name="__codelineno-6-55" href="#__codelineno-6-55"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-56" name="__codelineno-6-56" href="#__codelineno-6-56"></a><span class="c1">// user custom code</span>
+<a id="__codelineno-6-57" name="__codelineno-6-57" href="#__codelineno-6-57"></a><span class="c1">//    use `--custom-code/-cc &lt;file&gt;` to pass in the custom code file.</span>
+<a id="__codelineno-6-58" name="__codelineno-6-58" href="#__codelineno-6-58"></a><span class="c1">//       |_ e.g. `testbench_gen [...] --custom-code path/to/file`</span>
+<a id="__codelineno-6-59" name="__codelineno-6-59" href="#__codelineno-6-59"></a><span class="c1">//    use `--custom-code-str/-ccs &lt;string&gt;` to pass in the custom code string.</span>
+<a id="__codelineno-6-60" name="__codelineno-6-60" href="#__codelineno-6-60"></a><span class="c1">//       |_ e.g. `testbench_gen [...] --custom-code-str &quot;reg a; initial a = 1;&quot;`</span>
+<a id="__codelineno-6-61" name="__codelineno-6-61" href="#__codelineno-6-61"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-6-62" name="__codelineno-6-62" href="#__codelineno-6-62"></a>
+<a id="__codelineno-6-63" name="__codelineno-6-63" href="#__codelineno-6-63"></a>
+<a id="__codelineno-6-64" name="__codelineno-6-64" href="#__codelineno-6-64"></a><span class="k">endmodule</span>
+</code></pre></div>
+<div class="highlight"><span class="filename">other.sv</span><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">module</span><span class="w"> </span><span class="n">Others</span><span class="w"> </span><span class="p">(</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="k">input</span><span class="w"> </span><span class="kt">wire</span><span class="w"> </span><span class="n">clock</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">input</span><span class="w"> </span><span class="kt">wire</span><span class="w"> </span><span class="n">reset</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">);</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1">// other user code...</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1">// ...</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="k">endmodule</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../simulator_control/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 仿真器控制">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                仿真器控制
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../xmake_params/" class="md-footer__link md-footer__link--next" aria-label="Next: xmake 的配置参数">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                xmake 的配置参数
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - 2025 Chuyu Zheng
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.footer", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>
