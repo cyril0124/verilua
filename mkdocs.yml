@@ -96,6 +96,7 @@ nav:
     - reference/multi_task.md
     - reference/data_structure.md
     - reference/bitvec.md
+    - reference/slcp.md
     - reference/simulator_control.md
     - reference/testbench_generate.md
     - reference/xmake_params.md

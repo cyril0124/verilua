@@ -1,5 +1,64 @@
 ---@diagnostic disable: unnecessary-assert
 
+--------------------------------------------------------------------------------
+--- String Literal Constructor Pattern (SLCP)
+--------------------------------------------------------------------------------
+---
+--- SLCP is a design pattern in Verilua that extends the Lua string library,
+--- allowing users to construct various Verilua data structures directly from
+--- string literals without explicitly requiring the corresponding modules.
+---
+--- This pattern leverages the fact that all strings in Lua share the same
+--- metatable. By adding methods to the string table, all string literals
+--- can call these methods.
+---
+--- ## Supported Constructors
+---
+--- | Method           | Return Type       | Description                    |
+--- |------------------|-------------------|--------------------------------|
+--- | `:chdl()`        | CallableHDL       | Signal handle constructor      |
+--- | `:hdl()`         | ComplexHandleRaw  | Low-level VPI handle           |
+--- | `:bdl{...}`      | Bundle            | Signal bundle constructor      |
+--- | `:abdl{...}`     | AliasBundle       | Aliased bundle constructor     |
+--- | `:ehdl()`        | EventHandle       | Event handle constructor       |
+--- | `:bv()`          | BitVec            | Bit vector constructor         |
+--- | `:auto_bundle{}` | Bundle            | Auto bundle constructor        |
+--- | `:fake_chdl{}`   | CallableHDL       | Virtual signal constructor     |
+---
+--- ## Usage Examples
+---
+--- ```lua
+--- -- Traditional way
+--- local CallableHDL = require "LuaCallableHDL"
+--- local chdl = CallableHDL("signal", "tb_top.clock")
+---
+--- -- SLCP way
+--- local chdl = ("tb_top.clock"):chdl()
+---
+--- -- Bundle construction
+--- local bdl = ("valid | ready | data"):bdl { hier = "tb_top.dut" }
+---
+--- -- BitVec construction
+--- local bv = ("deadbeef"):bv(128)
+--- ```
+---
+--- ## Implementation Principle
+---
+--- All strings in Lua share the same metatable, whose __index points to the
+--- string table. Therefore, any function added to the string table can be
+--- called by all string literals.
+---
+--- ```lua
+--- -- This is why "hello":upper() works
+--- string.upper = function(s) ... end
+---
+--- -- SLCP works the same way
+--- string.chdl = function(hierpath, hdl) ... end
+--- ```
+---
+--- For more details about SLCP, see: docs/reference/slcp.md
+--------------------------------------------------------------------------------
+
 local f = string.format
 local vpiml = require "vpiml"
 local stringx = require "pl.stringx"
