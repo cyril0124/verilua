@@ -82,6 +82,32 @@ target("reinstall_luajit", function()
     end)
 end)
 
+target("install_libgmp", function()
+    set_kind("phony")
+    on_run(function(target)
+        local build_dir = path.join(prj_dir, "build")
+        local shared_dir = path.join(prj_dir, "shared/")
+        if not os.isdir(build_dir) then
+            os.mkdir(build_dir)
+        end
+        if not os.isdir(shared_dir) then
+            os.mkdir(shared_dir)
+        end
+
+        local libgmp_dir = path.join(build_dir, "gmp-6.3.0")
+        os.cd(build_dir)
+        os.exec("wget https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz")
+        os.exec("tar xJf gmp-6.3.0.tar.xz")
+        os.cd(libgmp_dir)
+        os.exec("./configure --prefix=%s --disable-static", libs_dir)
+        os.exec("make -j" .. os.cpuinfo().ncpu)
+        os.exec("make install")
+
+        -- Copy libgmp into shared dir
+        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), path.join(shared_dir))
+    end)
+end)
+
 target("install_other_libs", function()
     set_kind("phony")
     on_run(function(target)
@@ -130,18 +156,7 @@ target("install_other_libs", function()
         os.exec(conan_cmd .. " install . --output-folder=%s --build=missing", libs_dir)
 
         -- Install libgmp
-        local libgmp_dir = path.join(build_dir, "gmp-6.3.0")
-        os.cd(build_dir)
-        os.exec("wget https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz")
-        os.exec("tar xJf gmp-6.3.0.tar.xz")
-        os.cd(libgmp_dir)
-        os.exec("./configure --prefix=%s --disable-static", libs_dir)
-        os.exec("make -j" .. os.cpuinfo().ncpu)
-        os.exec("make install")
-
-        -- Copy libgmp into shared dir
-        os.mkdir(shared_dir)
-        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), path.join(shared_dir))
+        os.exec("xmake run install_libgmp")
     end)
 end)
 
