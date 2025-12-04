@@ -18,7 +18,7 @@ int main(int argc, const char *argv[]) {
     std::optional<std::string> _customCodeOuterFile;
     std::optional<std::string> _customCodeStrOuter;
     std::optional<std::string> _luaMetaFile;
-    std::optional<int> _period;
+    std::optional<double> _period;
     std::optional<bool> _verbose;
     std::optional<bool> _checkOutput;
     std::optional<bool> _dryrun;
@@ -96,7 +96,7 @@ int main(int argc, const char *argv[]) {
     std::string customCodeOuterFile = _customCodeOuterFile.value_or("");
     std::string customCodeStrOuter  = _customCodeStrOuter.value_or("");
     std::string luaMetaFile         = _luaMetaFile.value_or("");
-    int period                      = _period.value_or(10);
+    double period                   = _period.value_or(20);
     bool verbose                    = _verbose.value_or(false);
     bool checkOutput                = _checkOutput.value_or(false);
     bool regen                      = _regen.value_or(false);
@@ -747,7 +747,7 @@ endmodule
         tbtopData["topName"]                    = topName;
         tbtopData["dutName"]                    = dutName;
         tbtopData["dutPortParamDecl"]           = dutPortParamDecl;
-        tbtopData["clockPeriod"]                = period;
+        tbtopData["clockPeriod"]                = (double)(period / 2.0); // half period for clock toggle
         tbtopData["clockSignalName"]            = clockSignalName;
         tbtopData["resetSignalName"]            = resetSignalName;
         tbtopData["signalDecl"]                 = signalDecl;

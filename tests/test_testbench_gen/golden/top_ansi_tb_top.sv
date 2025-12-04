@@ -69,7 +69,7 @@ initial begin
 end
 
 `ifndef NO_INTERNAL_CLOCK
-always #10 clk = ~clk;
+always #10.0 clk = ~clk;
 `endif // NO_INTERNAL_CLOCK
 `endif // SIM_VERILATOR
 
