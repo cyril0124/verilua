@@ -100,8 +100,11 @@ target("install_other_libs", function()
         local build_dir = path.join(prj_dir, "build")
         local has_conan = try { function() return os.iorun("conan --version") end }
 
-        if not has_conan then
+        if not os.isdir(build_dir) then
             os.mkdir(build_dir)
+        end
+
+        if not has_conan then
             os.cd(build_dir)
             os.exec("wget https://github.com/conan-io/conan/releases/download/2.14.0/conan-2.14.0-linux-x86_64.tgz")
             os.mkdir("./conan")
