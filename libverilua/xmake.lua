@@ -72,6 +72,10 @@ local function build_lib_common(simulator)
         else
             raise("Unknown simulator => " .. simulator)
         end
+        
+        if not os.isdir(shared_dir) then
+            os.mkdir(shared_dir)
+        end
 
         os.cp(
             path.join(prj_dir, "target", "release", "libverilua.so"),

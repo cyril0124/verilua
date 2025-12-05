@@ -1,7 +1,8 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
+local shared_dir = path.join(prj_dir, "shared")
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
@@ -75,6 +76,10 @@ target("libsignal_db_gen", function()
     signal_db_gen_common()
 
     after_build(function(target)
-        os.cp(target:targetfile(), path.join(prj_dir, "shared"))
+        if not os.isdir(shared_dir) then
+            os.mkdir(shared_dir)
+        end
+
+        os.cp(target:targetfile(), shared_dir)
     end)
 end)

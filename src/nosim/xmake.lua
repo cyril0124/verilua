@@ -10,7 +10,7 @@ local shared_dir = path.join(prj_dir, "shared")
 target("nosim", function()
     set_kind("binary")
 
-    add_deps("libverilua_nosim")
+    add_deps("libverilua_nosim", "libsignal_db_gen")
 
     if is_mode("debug") then
         -- add_defines("DEBUG")

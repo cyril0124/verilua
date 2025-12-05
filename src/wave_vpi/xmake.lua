@@ -124,4 +124,8 @@ target("wave_vpi_wellen_impl", function()
         os.cd(path.join(curr_dir, "wellen_impl"))
         os.exec("cargo build --release")
     end)
+
+    after_build(function(target)
+        os.cp(path.join(prj_dir, "target", "release", "libwave_vpi_wellen_impl.so"), shared_dir)
+    end)
 end)
