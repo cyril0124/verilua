@@ -25,7 +25,6 @@ LDFLAGS = ""
 
 CFLAGS += f"-I{luapath}/include -I{luapath}/include/luajit-2.1 "
 CFLAGS += f"-I{verilua_path}/src/include "
-CFLAGS += f"-I{verilua_path}/conan_installed/include "
 
 LDFLAGS += f"-Wl,-rpath,{libpath} -L{libpath} -Wl,--no-as-needed -lverilua_verilator_dpi "
 LDFLAGS += f"-Wl,-rpath,{liblua_path} -L{liblua_path} -Wl,--no-as-needed -lluajit-5.1 "

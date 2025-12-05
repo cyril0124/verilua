@@ -18,15 +18,17 @@
 #include "verilated_vpi.h"
 
 #include "lightsss.h"
-#include <argparse/argparse.hpp>
 #include <cassert>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #ifndef VERILATOR_STEP_TIME
 #define VERILATOR_STEP_TIME 1
@@ -239,37 +241,62 @@ extern "C" void _verilator_simulation_disableTrace(void *param) {
 #endif
 }
 
+static void print_usage(const char *prog_name) {
+    std::cerr << "Usage: " << prog_name << " [options]\n"
+              << "Options:\n"
+              << "  -ef, --enable-fork          Enable forking child processes to debug (LightSSS)\n"
+              << "  -fi, --fork-interval <sec>  LightSSS snapshot interval in seconds (default: 1000)\n"
+              << "  -ftf, --fork-trace-file <f> Wavefile name when LightSSS is enabled\n"
+              << "  -h, --help                  Show this help message\n";
+}
+
 Emulator::Emulator(int argc, char *argv[]) {
     dut_ptr = new Vtb_top("");
 
-    argparse::ArgumentParser program("verilator main for verilua");
-
-    program.add_argument("-ef", "--enable-fork").help("Enable folking child processes to debug(LightSSS)").default_value(false).implicit_value(true);
-    program.add_argument("-fi", "--fork-interval").help("LightSSS snapshot interval (in seconds)").default_value(1000).action([](const std::string &value) { return std::stoi(value); });
-    program.add_argument("-ftf", "--fork-trace-file").help("Wavefile name when LightSSS is enabled").default_value("").action([](const std::string &value) { return value; });
-
-    // Filter out verilog plusargs (starting with +) before passing to argparse
-    std::vector<char *> filtered_argv;
-    // The first argument (argv[0]) is always the name of the program itself and must be preserved
-    filtered_argv.push_back(argv[0]);
+    // Filter out verilog plusargs (starting with +)
+    std::vector<std::string> filtered_args;
     for (int i = 1; i < argc; ++i) {
-        // If the current argument starts with +, skip it
         if (argv[i] && argv[i][0] != '+') {
-            filtered_argv.push_back(argv[i]);
+            filtered_args.push_back(argv[i]);
         }
     }
 
-    try {
-        program.parse_args(filtered_argv.size(), filtered_argv.data());
-    } catch (const std::runtime_error &err) {
-        std::cerr << err.what() << std::endl;
-        std::cerr << program;
+    // Parse arguments manually
+    for (size_t i = 0; i < filtered_args.size(); ++i) {
+        const std::string &arg = filtered_args[i];
+
+        if (arg == "-h" || arg == "--help") {
+            print_usage(argv[0]);
+            exit(0);
+        } else if (arg == "-ef" || arg == "--enable-fork") {
+            args.enable_fork = true;
+        } else if (arg == "-fi" || arg == "--fork-interval") {
+            if (i + 1 >= filtered_args.size()) {
+                std::cerr << "Error: " << arg << " requires an argument\n";
+                print_usage(argv[0]);
+                exit(1);
+            }
+            try {
+                args.fork_interval = 1000 * std::stoi(filtered_args[++i]);
+            } catch (const std::exception &e) {
+                std::cerr << "Error: Invalid value for " << arg << ": " << filtered_args[i] << "\n";
+                print_usage(argv[0]);
+                exit(1);
+            }
+        } else if (arg == "-ftf" || arg == "--fork-trace-file") {
+            if (i + 1 >= filtered_args.size()) {
+                std::cerr << "Error: " << arg << " requires an argument\n";
+                print_usage(argv[0]);
+                exit(1);
+            }
+            args.fork_trace_file = filtered_args[++i];
+        } else if (arg[0] == '-') {
+            std::cerr << "Error: Unknown option: " << arg << "\n";
+            print_usage(argv[0]);
         exit(1);
     }
-
-    args.enable_fork     = program.get<bool>("--enable-fork");
-    args.fork_interval   = 1000 * program.get<int>("--fork-interval");
-    args.fork_trace_file = program.get<std::string>("--fork-trace-file");
+        // Ignore non-option arguments (positional args)
+    }
 
     if (args.enable_fork) {
 #ifdef ENABLE_LIGHTSSS
