@@ -11,6 +11,16 @@ includes(path.join(prj_dir, "src", "testbench_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "wave_vpi", "xmake.lua"))
 includes(path.join(prj_dir, "src", "nosim", "xmake.lua"))
 
+local CC = os.getenv("CC")
+local CXX = os.getenv("CXX")
+if CC then
+    set_toolset("cc", CC)
+end
+if CXX then
+    set_toolset("cxx", CXX)
+    set_toolset("ld", CXX)
+end
+
 target("update_submodules", function()
     set_kind("phony")
     on_run(function(target)
