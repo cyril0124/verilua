@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global, undefined-field
 
-local prj_dir  = os.curdir()
+local prj_dir  = os.projectdir()
 local libs_dir = path.join(prj_dir, "conan_installed")
 
 includes(path.join(prj_dir, "libverilua", "xmake.lua"))
@@ -18,23 +18,14 @@ target("update_submodules", function()
     end)
 end)
 
-target("install_luajit", function()
+target("install_luarocks", function()
     set_kind("phony")
     on_run(function(target)
-        local curr_dir = os.projectdir()
-        local luajit_pro_dir = path.join(curr_dir, "luajit-pro")
-        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
+        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luarocks_version = "3.12.2"
 
-        -- Build luajit_pro_helper
-        os.cd(luajit_pro_dir)
-        os.exec("git submodule update --init")
-        os.exec("cargo build --release")
-        -- Build luajit
-        os.exec("bash init.sh")
-        os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
-
         -- Add luajit to PATH
+        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
         os.addenvs({ PATH = path.join(luajit_dir, "bin") })
 
         -- Build luarocks
@@ -54,19 +45,42 @@ target("install_luajit", function()
             os.exec("make install")
         end
 
+        os.cd(prj_dir)
+    end)
+end)
+
+target("install_luajit", function()
+    set_kind("phony")
+    on_run(function(target)
+        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
+        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
+
+        -- Build luajit_pro_helper
+        os.cd(luajit_pro_dir)
+        os.exec("git submodule update --init")
+        os.exec("cargo build --release")
+        -- Build luajit
+        os.exec("bash init.sh")
+        os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
+
+        -- Add luajit to PATH
+        os.addenvs({ PATH = path.join(luajit_dir, "bin") })
+
+        -- Install luarocks
+        os.exec("xmake run install_luarocks")
+
         -- Rebuild luajit_pro_helper
         os.cd(luajit_pro_dir)
         os.exec("cargo build --release")
 
-        os.cd(curr_dir)
+        os.cd(prj_dir)
     end)
 end)
 
 target("reinstall_luajit", function()
     set_kind("phony")
     on_run(function(target)
-        local curr_dir = os.workingdir()
-        local luajit_pro_dir = path.join(curr_dir, "luajit-pro")
+        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
 
         -- build luajit_pro_helper
@@ -78,15 +92,23 @@ target("reinstall_luajit", function()
         os.exec("bash init.sh")
         os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
 
-        os.cd(curr_dir)
+        -- Add luajit to PATH
+        os.addenvs({ PATH = path.join(luajit_dir, "bin") })
+
+        os.cd(prj_dir)
     end)
 end)
 
 target("install_libgmp", function()
     set_kind("phony")
     on_run(function(target)
+        if os.getenv("CI_USE_CONAN_CACHE") and os.isfile(libs_dir, "lib", "libgmp.so") then
+            print("[xmake.lua] [install_libgmp] Using cached libgmp...")
+            return
+        end
+
         local build_dir = path.join(prj_dir, "build")
-        local shared_dir = path.join(prj_dir, "shared/")
+        local shared_dir = path.join(prj_dir, "shared")
         if not os.isdir(build_dir) then
             os.mkdir(build_dir)
         end
@@ -104,21 +126,21 @@ target("install_libgmp", function()
         os.exec("make install")
 
         -- Copy libgmp into shared dir
-        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), path.join(shared_dir))
+        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_dir)
     end)
 end)
 
 target("install_other_libs", function()
     set_kind("phony")
     on_run(function(target)
-        local shared_dir = path.join(prj_dir, "shared/")
+        local shared_dir = path.join(prj_dir, "shared")
 
         -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
         if os.getenv("CI_USE_CONAN_CACHE") then
             print("[xmake.lua] [install_other_libs] Using cached conan libs...")
 
             os.mkdir(shared_dir)
-            os.cp(path.join(libs_dir, "lib", "libgmp.so*"), path.join(shared_dir))
+            os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_dir)
             return
         end
 
@@ -163,8 +185,7 @@ end)
 target("install_lua_modules", function()
     set_kind("phony")
     on_run(function(target)
-        local curr_dir = os.workingdir()
-        local luajit_pro_dir = path.join(curr_dir, "luajit-pro")
+        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
         local libs = {
             "penlight",
