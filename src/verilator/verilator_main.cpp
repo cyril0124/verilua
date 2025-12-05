@@ -570,6 +570,10 @@ void Emulator::finalize(bool success = true) {
     VL_INFO("finalize\n");
     fflush(stdout);
 
+#if defined(VERILATOR_VERSION_INTEGER) && VERILATOR_VERSION_INTEGER >= 5024000
+    Verilated::threadContextp()->statsPrintSummary();
+#endif
+
     dut_ptr->final();
 
 #if VM_TRACE
