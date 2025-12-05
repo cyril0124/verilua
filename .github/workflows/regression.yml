@@ -52,7 +52,7 @@ jobs:
 
       - name: Test verilua (Basic test)
         run: |
-          xmake run test
+          STOP_ON_FAIL=1 VERBOSE=1 xmake run test
 
       - name: Before upload artifact(package)
         if: ${{ matrix.verilator-version == 'v5.038' && matrix.iverilog-tag == 's20250103' }}

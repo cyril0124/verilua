@@ -1,4 +1,4 @@
----@diagnostic disable: undefined-global, undefined-field
+---@diagnostic disable: undefined-global, undefined-field, unnecessary-if
 
 local prj_dir  = os.projectdir()
 local libs_dir = path.join(prj_dir, "conan_installed")
@@ -359,8 +359,214 @@ target("test", function()
     on_run(function(target)
         import("lib.detect.find_file")
 
+        --
+        -- Configuration
+        --
+        local verbose = os.getenv("VERBOSE") == "1" or os.getenv("V") == "1"
+        local stop_on_fail = os.getenv("STOP_ON_FAIL") == "1"
         local old_env = os.getenvs()
 
+        --
+        -- Test statistics tracking
+        --
+        local test_stats = {
+            total = 0,
+            passed = 0,
+            failed = 0,
+            start_time = os.time(),
+            results = {}
+        }
+
+        --
+        -- Utility functions for beautified output
+        --
+        local function get_time_str()
+            return os.date("%H:%M:%S")
+        end
+
+        local function format_duration(seconds)
+            if seconds < 60 then
+                return string.format("%.1fs", seconds)
+            elseif seconds < 3600 then
+                local min = math.floor(seconds / 60)
+                local sec = seconds % 60
+                return string.format("%dm %ds", min, sec)
+            else
+                local hr = math.floor(seconds / 3600)
+                local min = math.floor((seconds % 3600) / 60)
+                return string.format("%dh %dm", hr, min)
+            end
+        end
+
+        local function print_header()
+            cprint("")
+            cprint("${bright}╔══════════════════════════════════════════════════════════════════════════════╗${reset}")
+            cprint("${bright}║                                                                              ║${reset}")
+            cprint(
+                "${bright}║${reset}                     ${cyan}V E R I L U A${reset}   ${white}T E S T   S U I T E${reset}                      ${bright}║${reset}")
+            cprint("${bright}║                                                                              ║${reset}")
+            cprint("${bright}╚══════════════════════════════════════════════════════════════════════════════╝${reset}")
+            cprint("")
+        end
+
+        local function print_section(section_num, total_sections, title)
+            cprint("")
+            cprint("${bright}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${reset}")
+            cprint("${bright}┃${reset} ${yellow}[%d/%d]${reset} ${cyan}%s${reset}", section_num, total_sections, title)
+            cprint("${bright}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${reset}")
+        end
+
+        local function print_test_start(test_name, simulator, extra_info)
+            test_stats.total = test_stats.total + 1
+            local info_str = extra_info and string.format(" ${dim}(%s)${reset}", extra_info) or ""
+            if verbose then
+                cprint("  ${bright}├─${reset} ${white}[%s]${reset} Running: ${green}%s${reset} @ ${magenta}%s${reset}%s",
+                    get_time_str(), test_name, simulator, info_str)
+            else
+                cprint("  ${bright}├─${reset} ${white}[%d]${reset} ${green}%s${reset} @ ${magenta}%s${reset}%s",
+                    test_stats.total, test_name, simulator, info_str)
+            end
+        end
+
+        local function print_test_result(test_name, simulator, success, duration, extra_info)
+            if success then
+                test_stats.passed = test_stats.passed + 1
+            else
+                test_stats.failed = test_stats.failed + 1
+            end
+
+            table.insert(test_stats.results, {
+                name = test_name,
+                simulator = simulator,
+                success = success,
+                duration = duration,
+                extra = extra_info
+            })
+
+            local info_str = extra_info and string.format(" ${dim}(%s)${reset}", extra_info) or ""
+            local duration_str = format_duration(duration)
+            if success then
+                if verbose then
+                    cprint("  ${bright}└─${reset} ${white}[%s]${reset} ${green}✓ PASSED${reset} ${dim}(%s)${reset}%s",
+                        get_time_str(), duration_str, info_str)
+                else
+                    cprint("  ${bright}└─${reset} ${green}✓ PASSED${reset} ${dim}(%s)${reset}%s",
+                        duration_str, info_str)
+                end
+            else
+                if verbose then
+                    cprint("  ${bright}└─${reset} ${white}[%s]${reset} ${red}✗ FAILED${reset} ${dim}(%s)${reset}%s",
+                        get_time_str(), duration_str, info_str)
+                else
+                    cprint("  ${bright}└─${reset} ${red}✗ FAILED${reset} ${dim}(%s)${reset}%s",
+                        duration_str, info_str)
+                end
+
+                if stop_on_fail then
+                    cprint("")
+                    cprint("${red}${bright}✗ Test failed: %s @ %s${reset}", test_name, simulator)
+                    cprint("${red}Stopping test suite due to STOP_ON_FAIL=1${reset}")
+                    os.exit(1)
+                end
+            end
+        end
+
+        local function print_summary()
+            local total_duration = os.time() - test_stats.start_time
+            local pass_rate = test_stats.total > 0 and (test_stats.passed / test_stats.total * 100) or 0
+
+            cprint("")
+            cprint("${bright}╔══════════════════════════════════════════════════════════════════════════════╗${reset}")
+            cprint(
+                "${bright}║${reset}                           ${cyan}TEST SUMMARY${reset}                                     ${bright}║${reset}")
+            cprint("${bright}╠══════════════════════════════════════════════════════════════════════════════╣${reset}")
+            cprint(
+                "${bright}║${reset}                                                                              ${bright}║${reset}")
+            cprint(
+                "${bright}║${reset}   ${white}Total Tests:${reset}  ${bright}%d${reset}                                                            ${bright}║${reset}",
+                test_stats.total)
+            cprint(
+                "${bright}║${reset}   ${green}Passed:${reset}       ${green}%d${reset}                                                            ${bright}║${reset}",
+                test_stats.passed)
+            if test_stats.failed > 0 then
+                cprint(
+                    "${bright}║${reset}   ${red}Failed:${reset}       ${red}%d${reset}                                                            ${bright}║${reset}",
+                    test_stats.failed)
+            else
+                cprint(
+                    "${bright}║${reset}   ${dim}Failed:${reset}       ${dim}%d${reset}                                                            ${bright}║${reset}",
+                    test_stats.failed)
+            end
+            cprint(
+                "${bright}║${reset}   ${white}Pass Rate:${reset}    ${bright}%.1f%%${reset}                                                        ${bright}║${reset}",
+                pass_rate)
+            cprint(
+                "${bright}║${reset}   ${white}Duration:${reset}     ${bright}%s${reset}                                                         ${bright}║${reset}",
+                format_duration(total_duration))
+            cprint(
+                "${bright}║${reset}                                                                              ${bright}║${reset}")
+            cprint("${bright}╚══════════════════════════════════════════════════════════════════════════════╝${reset}")
+        end
+
+        local function print_final_result()
+            cprint("")
+            if test_stats.failed == 0 then
+                cprint([[${green}
+    ██████╗  █████╗ ███████╗███████╗███████╗██████╗
+    ██╔══██╗██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗
+    ██████╔╝███████║███████╗███████╗█████╗  ██║  ██║
+    ██╔═══╝ ██╔══██║╚════██║╚════██║██╔══╝  ██║  ██║
+    ██║     ██║  ██║███████║███████║███████╗██████╔╝
+    ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═════╝
+${reset}]])
+                cprint("${green}              ✓ All tests passed successfully!${reset}")
+            else
+                cprint([[${red}
+    ███████╗ █████╗ ██╗██╗     ███████╗██████╗
+    ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗
+    █████╗  ███████║██║██║     █████╗  ██║  ██║
+    ██╔══╝  ██╔══██║██║██║     ██╔══╝  ██║  ██║
+    ██║     ██║  ██║██║███████╗███████╗██████╔╝
+    ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝
+${reset}]])
+                cprint("${red}              ✗ %d test(s) failed!${reset}", test_stats.failed)
+            end
+            cprint("")
+        end
+
+        -- Wrapper for executing commands with optional verbose output
+        local function run_cmd(cmd)
+            if verbose then
+                os.exec(cmd)
+            else
+                os.execv(os.shell(), { "-c", cmd .. " > /dev/null 2>&1" })
+            end
+        end
+
+        local function run_cmd_allow_fail(cmd)
+            try {
+                function()
+                    if verbose then
+                        os.exec(cmd)
+                    else
+                        os.execv(os.shell(), { "-c", cmd .. " > /dev/null 2>&1" })
+                    end
+                end
+            }
+        end
+
+        -- Wrapper for executing shell scripts with optional verbose output
+        local function run_shell_script(script)
+            if verbose then
+                os.execv(os.shell(), { script })
+            else
+                os.execv(os.shell(), { "-c", "." .. "/" .. script .. " > /dev/null 2>&1" })
+            end
+        end
+
+        --
+        -- Detect available simulators
+        --
         local simulators = {}
         local has_vcs = false
 
@@ -377,165 +583,363 @@ target("test", function()
 
         assert(#simulators > 0, "No simulators found!")
 
+        --
+        -- Print header and configuration
+        --
+        print_header()
+        cprint("${white}Configuration:${reset}")
+        cprint("  ${dim}•${reset} Simulators: ${cyan}%s${reset}", table.concat(simulators, ", "))
+        cprint("  ${dim}•${reset} Verbose: ${cyan}%s${reset}", verbose and "yes" or "no (set VERBOSE=1 to enable)")
+        cprint("  ${dim}•${reset} Stop on fail: ${cyan}%s${reset}",
+            stop_on_fail and "yes" or "no (set STOP_ON_FAIL=1 to enable)")
+        cprint("  ${dim}•${reset} Started at: ${cyan}%s${reset}", os.date("%Y-%m-%d %H:%M:%S"))
+
+        local total_sections = 12
+
+        --
+        -- Section: Tutorial Example
+        --
+        print_section(1, total_sections, "Tutorial Example")
         do
             os.cd(path.join(prj_dir, "examples", "tutorial_example"))
-
             for _, sim in ipairs(simulators) do
+                local start_time = os.time()
+                print_test_start("tutorial_example", sim)
                 os.setenv("SIM", sim)
-                os.exec("rm build -rf")
-                os.exec("xmake build -v -P .")
-                if sim == "vcs" then
-                    -- ignore error
-                    try { function() os.exec("xmake run -v -P .") end }
-                else
-                    os.exec("xmake run -v -P .")
-                end
+                os.tryrm("build")
+                local success = true
+                try {
+                    function()
+                        run_cmd("xmake build -v -P .")
+                        if sim == "vcs" then
+                            run_cmd_allow_fail("xmake run -v -P .")
+                        else
+                            run_cmd("xmake run -v -P .")
+                        end
+                    end,
+                    catch {
+                        function(e)
+                            success = false
+                        end
+                    }
+                }
+                print_test_result("tutorial_example", sim, success, os.time() - start_time)
             end
         end
 
+        --
+        -- Section: WAL Example
+        --
+        print_section(2, total_sections, "WAL (Waveform Analysis Library)")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "WAL"))
             os.setenv("SIM", "iverilog")
-            os.exec("rm build -rf")
-            os.exec("xmake build -v -P . gen_wave")
-            os.exec("xmake run -v -P . gen_wave")
-            os.exec("xmake build -v -P . sim_wave")
-            os.exec("xmake run -v -P . sim_wave")
+            local start_time = os.time()
+            print_test_start("WAL/gen_wave", "iverilog")
+            os.tryrm("build")
+            local success = true
+            try {
+                function()
+                    run_cmd("xmake build -v -P . gen_wave")
+                    run_cmd("xmake run -v -P . gen_wave")
+                end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("WAL/gen_wave", "iverilog", success, os.time() - start_time)
+
+            start_time = os.time()
+            print_test_start("WAL/sim_wave", "iverilog")
+            success = true
+            try {
+                function()
+                    run_cmd("xmake build -v -P . sim_wave")
+                    run_cmd("xmake run -v -P . sim_wave")
+                end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("WAL/sim_wave", "iverilog", success, os.time() - start_time)
         end
 
+        --
+        -- Section: HSE Example
+        --
+        print_section(3, total_sections, "HSE (Hardware Script Engine)")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "HSE"))
             os.tryrm("csrc")
             os.tryrm("simv*")
             os.tryrm("sim_build*")
-            os.execv(os.shell(), { "run_verilator.sh" })
-            os.execv(os.shell(), { "run_verilator_p.sh" })
+
+            local start_time = os.time()
+            print_test_start("HSE/verilator", "verilator")
+            local success = true
+            try {
+                function() run_shell_script("run_verilator.sh") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("HSE/verilator", "verilator", success, os.time() - start_time)
+
+            start_time = os.time()
+            print_test_start("HSE/verilator_p", "verilator")
+            success = true
+            try {
+                function() run_shell_script("run_verilator_p.sh") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("HSE/verilator_p", "verilator", success, os.time() - start_time)
 
             if has_vcs then
-                os.execv(os.shell(), { "run_vcs.sh" })
+                start_time = os.time()
+                print_test_start("HSE/vcs", "vcs")
+                success = true
+                try {
+                    function() run_shell_script("run_vcs.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE/vcs", "vcs", success, os.time() - start_time)
             end
         end
 
+        --
+        -- Section: HSE Dummy VPI
+        --
+        print_section(4, total_sections, "HSE Dummy VPI")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "HSE_dummy_vpi"))
             os.tryrm("csrc")
             os.tryrm("simv*")
             os.tryrm("sim_build*")
-            os.execv(os.shell(), { "run_verilator.sh" })
-            os.execv(os.shell(), { "run_verilator_dpi.sh" })
+
+            local start_time = os.time()
+            print_test_start("HSE_dummy_vpi/verilator", "verilator")
+            local success = true
+            try {
+                function() run_shell_script("run_verilator.sh") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("HSE_dummy_vpi/verilator", "verilator", success, os.time() - start_time)
+
+            start_time = os.time()
+            print_test_start("HSE_dummy_vpi/verilator_dpi", "verilator")
+            success = true
+            try {
+                function() run_shell_script("run_verilator_dpi.sh") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("HSE_dummy_vpi/verilator_dpi", "verilator", success, os.time() - start_time)
 
             if has_vcs then
-                os.execv(os.shell(), { "run_vcs.sh" })
-                os.execv(os.shell(), { "run_vcs_dpi.sh" })
+                start_time = os.time()
+                print_test_start("HSE_dummy_vpi/vcs", "vcs")
+                success = true
+                try {
+                    function() run_shell_script("run_vcs.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE_dummy_vpi/vcs", "vcs", success, os.time() - start_time)
+
+                start_time = os.time()
+                print_test_start("HSE_dummy_vpi/vcs_dpi", "vcs")
+                success = true
+                try {
+                    function() run_shell_script("run_vcs_dpi.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE_dummy_vpi/vcs_dpi", "vcs", success, os.time() - start_time)
             end
         end
 
+        --
+        -- Section: HSE Virtual RTL
+        --
+        print_section(5, total_sections, "HSE Virtual RTL")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "HSE_virtual_rtl"))
             os.tryrm("sim_build_dpi")
-            os.execv(os.shell(), { "run_verilator_dpi.sh" })
+
+            local start_time = os.time()
+            print_test_start("HSE_virtual_rtl/verilator_dpi", "verilator")
+            local success = true
+            try {
+                function() run_shell_script("run_verilator_dpi.sh") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("HSE_virtual_rtl/verilator_dpi", "verilator", success, os.time() - start_time)
 
             if has_vcs then
                 os.tryrm("csrc")
                 os.tryrm("simv_dpi")
                 os.tryrm("simv_dpi.daidir")
-                os.execv(os.shell(), { "run_vcs_dpi.sh" })
+                start_time = os.time()
+                print_test_start("HSE_virtual_rtl/vcs_dpi", "vcs")
+                success = true
+                try {
+                    function() run_shell_script("run_vcs_dpi.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE_virtual_rtl/vcs_dpi", "vcs", success, os.time() - start_time)
             end
         end
 
+        --
+        -- Section: Simple UT Environment
+        --
+        print_section(6, total_sections, "Simple UT Environment")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "simple_ut_env"))
             os.tryrm("build")
-            os.exec("xmake build -P . test_counter")
-            os.exec("xmake run -v -P . test_counter")
+
+            local start_time = os.time()
+            print_test_start("simple_ut_env/test_counter", "verilator")
+            local success = true
+            try {
+                function()
+                    run_cmd("xmake build -P . test_counter")
+                    run_cmd("xmake run -v -P . test_counter")
+                end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("simple_ut_env/test_counter", "verilator", success, os.time() - start_time)
         end
 
+        --
+        -- Section: Wave VPI Padding Issue
+        --
+        print_section(7, total_sections, "Wave VPI Padding Issue Test")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "wave_vpi_padding_issue"))
-            os.exec("rm build -rf")
-            os.exec("xmake build -v -P . test")
-            os.exec("xmake run -v -P . test")
-            os.exec("xmake build -v -P . test_wave")
-            os.exec("xmake run -v -P . test_wave")
+            os.tryrm("build")
+
+            local start_time = os.time()
+            print_test_start("wave_vpi_padding/test", "verilator")
+            local success = true
+            try {
+                function()
+                    run_cmd("xmake build -v -P . test")
+                    run_cmd("xmake run -v -P . test")
+                end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("wave_vpi_padding/test", "verilator", success, os.time() - start_time)
+
+            start_time = os.time()
+            print_test_start("wave_vpi_padding/test_wave", "verilator")
+            success = true
+            try {
+                function()
+                    run_cmd("xmake build -v -P . test_wave")
+                    run_cmd("xmake run -v -P . test_wave")
+                end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("wave_vpi_padding/test_wave", "verilator", success, os.time() - start_time)
         end
 
+        --
+        -- Section: Core Tests
+        --
+        print_section(8, total_sections, "Core Tests (Multi-Simulator)")
         do
             local test_dirs = {
-                path.join(prj_dir, "tests", "test_edge"),
-                path.join(prj_dir, "tests", "test_set_value"),
-                path.join(prj_dir, "tests", "test_basic_signal"),
-                path.join(prj_dir, "tests", "test_scheduler"),
-                path.join(prj_dir, "tests", "test_comb"),
-                path.join(prj_dir, "tests", "test_bitvec_signal"),
-                path.join(prj_dir, "tests", "test_no_internal_clock"),
-                path.join(prj_dir, "examples", "guided_tour"),
-                path.join(prj_dir, "examples", "simple_mux"),
+                { path.join(prj_dir, "tests", "test_edge"),              "test_edge" },
+                { path.join(prj_dir, "tests", "test_set_value"),         "test_set_value" },
+                { path.join(prj_dir, "tests", "test_basic_signal"),      "test_basic_signal" },
+                { path.join(prj_dir, "tests", "test_scheduler"),         "test_scheduler" },
+                { path.join(prj_dir, "tests", "test_comb"),              "test_comb" },
+                { path.join(prj_dir, "tests", "test_bitvec_signal"),     "test_bitvec_signal" },
+                { path.join(prj_dir, "tests", "test_no_internal_clock"), "test_no_internal_clock" },
+                { path.join(prj_dir, "examples", "guided_tour"),         "guided_tour" },
+                { path.join(prj_dir, "examples", "simple_mux"),          "simple_mux" },
             }
             os.setenvs(old_env)
-            for _, test_dir in ipairs(test_dirs) do
+
+            for _, test_info in ipairs(test_dirs) do
+                local test_dir, test_name = test_info[1], test_info[2]
                 os.cd(test_dir)
-                local test = function(_simulators)
-                    for _, sim in ipairs(_simulators) do
-                        cprint("")
-                        cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                        cprint("> sim: ${green underline}%s${reset}", sim)
-                        cprint("> test_dir: ${green underline}%s${reset}", test_dir)
-                        cprint(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-                        os.setenv("SIM", sim)
-                        os.tryrm("build")
-                        os.exec("xmake build -v -P .")
-                        -- if sim == "vcs" then
-                        --     -- ignore error
-                        --     try { function () os.exec("xmake run -v -P .") end }
-                        -- else
-                        os.exec("xmake run -v -P .")
-                        -- end
-
-                        cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                        cprint("< sim: ${green underline}%s${reset}", sim)
-                        cprint("< test_dir: ${green underline}%s${reset}", test_dir)
-                        cprint("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-                        cprint("")
-                    end
+                -- Regular simulator tests
+                for _, sim in ipairs(simulators) do
+                    local start_time = os.time()
+                    print_test_start(test_name, sim)
+                    os.setenv("SIM", sim)
+                    os.tryrm("build")
+                    local success = true
+                    try {
+                        function()
+                            run_cmd("xmake build -v -P .")
+                            run_cmd("xmake run -v -P .")
+                        end,
+                        catch { function(e) success = false end }
+                    }
+                    print_test_result(test_name, sim, success, os.time() - start_time)
                 end
-                test(simulators)
 
+                -- Inertial put test for verilator
                 if table.contains(simulators, "verilator") then
+                    local start_time = os.time()
+                    print_test_start(test_name, "verilator", "inertial_put")
+                    os.setenv("SIM", "verilator")
                     os.setenv("CFG_USE_INERTIAL_PUT", "1")
-                    assert(os.getenv("CFG_USE_INERTIAL_PUT") == "1")
-                    test({ "verilator" })
+                    os.tryrm("build")
+                    local success = true
+                    try {
+                        function()
+                            run_cmd("xmake build -v -P .")
+                            run_cmd("xmake run -v -P .")
+                        end,
+                        catch { function(e) success = false end }
+                    }
                     os.setenv("CFG_USE_INERTIAL_PUT", nil)
-                    assert(os.getenv("CFG_USE_INERTIAL_PUT") == nil)
+                    print_test_result(test_name, "verilator", success, os.time() - start_time, "inertial_put")
                 end
             end
         end
 
+        --
+        -- Section: No Internal Clock Tests
+        --
+        print_section(9, total_sections, "No Internal Clock Tests")
         do
             local test_dirs = {
-                path.join(prj_dir, "tests", "test_basic_signal"),
-                path.join(prj_dir, "tests", "test_comb"),
+                { path.join(prj_dir, "tests", "test_basic_signal"), "test_basic_signal" },
+                { path.join(prj_dir, "tests", "test_comb"),         "test_comb" },
             }
             os.setenvs(old_env)
-            for _, test_dir in ipairs(test_dirs) do
+
+            for _, test_info in ipairs(test_dirs) do
+                local test_dir, test_name = test_info[1], test_info[2]
                 os.cd(test_dir)
+
                 for _, sim in ipairs(simulators) do
+                    local start_time = os.time()
+                    print_test_start(test_name, sim, "no_internal_clock")
                     os.setenv("SIM", sim)
                     os.setenv("NO_INTERNAL_CLOCK", "1")
                     os.tryrm("build")
-                    os.exec("xmake build -v -P .")
-                    os.exec("xmake run -v -P .")
+                    local success = true
+                    try {
+                        function()
+                            run_cmd("xmake build -v -P .")
+                            run_cmd("xmake run -v -P .")
+                        end,
+                        catch { function(e) success = false end }
+                    }
+                    print_test_result(test_name, sim, success, os.time() - start_time, "no_internal_clock")
                 end
                 os.setenv("NO_INTERNAL_CLOCK", nil)
             end
         end
 
+        --
+        -- Section: Benchmarks
+        --
+        print_section(10, total_sections, "Performance Benchmarks")
         do
             local benchmark_cases = {
                 "signal_operation",
@@ -545,69 +949,131 @@ target("test", function()
             }
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "benchmarks"))
-            for _, case in ipairs(benchmark_cases) do
-                local test = function(_simulators)
-                    for _, sim in ipairs(_simulators) do
-                        os.setenv("SIM", sim)
-                        os.tryrm("build")
-                        os.exec("xmake build -P . %s", case)
-                        os.exec("xmake run -P . %s", case)
-                    end
-                end
-                test(simulators)
 
+            for _, case in ipairs(benchmark_cases) do
+                for _, sim in ipairs(simulators) do
+                    local start_time = os.time()
+                    print_test_start("benchmark/" .. case, sim)
+                    os.setenv("SIM", sim)
+                    os.tryrm("build")
+                    local success = true
+                    try {
+                        function()
+                            run_cmd(string.format("xmake build -P . %s", case))
+                            run_cmd(string.format("xmake run -P . %s", case))
+                        end,
+                        catch { function(e) success = false end }
+                    }
+                    print_test_result("benchmark/" .. case, sim, success, os.time() - start_time)
+                end
+
+                -- Inertial put test for verilator
                 if table.contains(simulators, "verilator") then
+                    local start_time = os.time()
+                    print_test_start("benchmark/" .. case, "verilator", "inertial_put")
+                    os.setenv("SIM", "verilator")
                     os.setenv("CFG_USE_INERTIAL_PUT", "1")
-                    test({ "verilator" })
+                    os.tryrm("build")
+                    local success = true
+                    try {
+                        function()
+                            run_cmd(string.format("xmake build -P . %s", case))
+                            run_cmd(string.format("xmake run -P . %s", case))
+                        end,
+                        catch { function(e) success = false end }
+                    }
                     os.setenv("CFG_USE_INERTIAL_PUT", nil)
+                    print_test_result("benchmark/" .. case, "verilator", success, os.time() - start_time, "inertial_put")
                 end
             end
         end
 
+        --
+        -- Section: Testbench Generator
+        --
+        print_section(11, total_sections, "Testbench Generator")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "test_testbench_gen"))
-            os.exec("xmake run -P .")
+
+            local start_time = os.time()
+            print_test_start("testbench_gen/gen", "--")
+            local success = true
+            try {
+                function() run_cmd("xmake run -P .") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("testbench_gen/gen", "--", success, os.time() - start_time)
+
             for _, sim in ipairs(simulators) do
                 if sim ~= "iverilog" then
+                    start_time = os.time()
+                    print_test_start("testbench_gen/run_ansi", sim)
                     os.setenv("SIM", sim)
                     os.tryrm("./build")
-                    os.exec("xmake b -P . test_run_ansi")
-                    os.exec("xmake r -P . test_run_ansi")
-
-                    -- TODO: testbench_gen for non-ansi port declaration
-                    -- os.exec("xmake b -P . test_run_non_ansi")
-                    -- os.exec("xmake r -P . test_run_non_ansi")
+                    success = true
+                    try {
+                        function()
+                            run_cmd("xmake b -P . test_run_ansi")
+                            run_cmd("xmake r -P . test_run_ansi")
+                        end,
+                        catch { function(e) success = false end }
+                    }
+                    print_test_result("testbench_gen/run_ansi", sim, success, os.time() - start_time)
                 end
             end
         end
 
+        --
+        -- Section: Lua Unit Tests & Tools
+        --
+        print_section(12, total_sections, "Lua Unit Tests & Tools")
         do
             os.setenvs(old_env)
-            os.cd(path.join(prj_dir, "tests"))
-            os.exec("xmake run -P . test_all")
-        end
 
-        do
+            -- Lua unit tests
+            os.cd(path.join(prj_dir, "tests"))
+            local start_time = os.time()
+            print_test_start("lua_unit_tests", "luajit")
+            local success = true
+            try {
+                function() run_cmd("xmake run -P . test_all") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("lua_unit_tests", "luajit", success, os.time() - start_time)
+
+            -- DPI exporter
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "test_dpi_exporter"))
-            os.exec("xmake run -P .")
-        end
+            start_time = os.time()
+            print_test_start("dpi_exporter", "--")
+            success = true
+            try {
+                function() run_cmd("xmake run -P .") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("dpi_exporter", "--", success, os.time() - start_time)
 
-        do
+            -- Signal DB
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "test_signal_db"))
-            os.exec("xmake build -P .")
-            os.exec("xmake run -P .")
+            start_time = os.time()
+            print_test_start("signal_db", "--")
+            success = true
+            try {
+                function()
+                    run_cmd("xmake build -P .")
+                    run_cmd("xmake run -P .")
+                end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("signal_db", "--", success, os.time() - start_time)
         end
 
-        cprint([[${green}
-  _____         _____ _____
- |  __ \ /\    / ____/ ____|
- | |__) /  \  | (___| (___
- |  ___/ /\ \  \___ \\___ \
- | |  / ____ \ ____) |___) |
- |_| /_/    \_\_____/_____/
-${reset}]])
+        --
+        -- Print summary and final result
+        --
+        print_summary()
+        print_final_result()
     end)
 end)
