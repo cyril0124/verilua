@@ -29,7 +29,6 @@ cp -r ./VERSION ./dist
 cp -r ./xmake.lua ./dist
 cp -r ./verilua.sh ./dist
 cp -r ./activate_verilua.sh ./dist
-cp -r ./conan_installed/include/argparse ./dist/conan_installed/include
 
 echo "${zip_file_name}" > ./dist/DIST_INFO
 echo "$(git rev-parse HEAD)" > ./dist/COMMIT_HASH
