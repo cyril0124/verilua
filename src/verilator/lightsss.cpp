@@ -3,7 +3,7 @@
 #include "lightsss.h"
 
 ForkShareMemory::ForkShareMemory() {
-  if ((key_n = ftok(".", 's') < 0)) {
+  if ((key_n = ftok(".", 's')) < 0) {
     perror("Fail to ftok\n");
     FAIT_EXIT
   }

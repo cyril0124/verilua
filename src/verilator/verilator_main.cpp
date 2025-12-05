@@ -293,8 +293,8 @@ Emulator::Emulator(int argc, char *argv[]) {
         } else if (arg[0] == '-') {
             std::cerr << "Error: Unknown option: " << arg << "\n";
             print_usage(argv[0]);
-        exit(1);
-    }
+            exit(1);
+        }
         // Ignore non-option arguments (positional args)
     }
 
@@ -383,7 +383,9 @@ int Emulator::normal_mode_main() {
     while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
 #ifdef ENABLE_LIGHTSSS
         if (args.enable_fork) {
-            lightsss_check_finish();
+            if (lightsss_check_finish() == -1) {
+                break;
+            }
         }
 #endif // ENABLE_LIGHTSSS
 
@@ -465,7 +467,9 @@ int Emulator::timing_mode_main() {
     while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
 #ifdef ENABLE_LIGHTSSS
         if (args.enable_fork) {
-            lightsss_check_finish();
+            if (lightsss_check_finish() == -1) {
+                break;
+            }
         }
 #endif
 
