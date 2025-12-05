@@ -279,22 +279,56 @@ function SignalDB:generate_db(args_str)
         assert(false, "TODO:")
     end
 
-    local cmd = "signal_db_gen " .. args
+    local verilua_home = os.getenv("VERILUA_HOME")
+    assert(verilua_home, "[SignalDB] environment variable `VERILUA_HOME` is not set!")
+
+    -- Try to load .so library first
+    local load_success, lib = pcall(function()
+        return ffi.load(verilua_home .. "/shared/libsignal_db_gen.so")
+    end)
+
+    local cmd = load_success and ("signal_db_gen " .. args) or args
 
     -- Trim duplicate spaces
     local _cmd_list = stringx.split(cmd)
     cmd = _cmd_list:join(" ")
 
-    local verilua_home = os.getenv("VERILUA_HOME")
-    assert(verilua_home, "[SignalDB] environment variable `VERILUA_HOME` is not set!")
 
-    local lib = ffi.load(verilua_home .. "/shared/libsignal_db_gen.so")
-    ffi.cdef [[
-        int signal_db_gen_main(const char *argList);
-    ]]
+    local ret = nil
+    if load_success then
+        -- Successfully loaded .so library
+        ffi.cdef [[
+            int signal_db_gen_main(const char *argList);
+        ]]
 
-    print(f("[SignalDB] generate_db cmd: %s", cmd))
-    local ret = lib.signal_db_gen_main(cmd)
+        print(f("[SignalDB] generate_db cmd: %s", cmd))
+        ret = lib.signal_db_gen_main(cmd)
+    else
+        -- Failed to load .so (possibly GLIBC compatibility issue), fallback to binary
+        print(f("[SignalDB] Failed to load libsignal_db_gen.so (reason: %s), falling back to binary", tostring(lib)))
+
+        local binary_path = verilua_home .. "/tools/signal_db_gen"
+        assert(path.isfile(binary_path), f("[SignalDB] signal_db_gen binary not found at: %s", binary_path))
+
+        print(f("[SignalDB] generate_db cmd: %s %s", binary_path, cmd))
+
+        -- LuaJIT mode: need to parse the return code from $?
+        -- Actually, let's use io.popen to get the exit code reliably
+        print("[SignalDB] Executing signal_db_gen binary...")
+        local handle = io.popen(binary_path .. " " .. cmd .. "; echo $?")
+        local output = handle:read("*a")
+        handle:close()
+        print("[SignalDB] signal_db_gen output:\n==============\n" .. output .. "==============")
+
+        -- Extract the exit code from the last line
+        local lines = stringx.splitlines(output)
+        local last_line = lines[#lines]
+        ret = tonumber(last_line)
+
+        if not ret then
+            error(f("[SignalDB] Failed to parse exit code from command output. Last line: %s", last_line))
+        end
+    end
 
     if ret == SIGNALDB_NO_NEED_GEN then
         print("[SignalDB] generate_db: no need to generate!")
