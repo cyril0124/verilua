@@ -62,6 +62,7 @@ jobs:
           PACKAGE_NAME=verilua-${ARCH}-${{ matrix.os }}
           echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
 
+          xmake run clean_all
           bash ./ci/package.sh ./artifact/${PACKAGE_NAME}.zip
       
       - name: Upload artifact
