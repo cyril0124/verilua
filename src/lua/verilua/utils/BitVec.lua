@@ -124,7 +124,56 @@ function BitVec:_init(data, bit_width)
         end
     elseif typ == "cdata" then
         if ffi.istype("uint64_t", data) then
-            assert(false, "Unsupported type: cdata(uint64_t)")
+            auto_bit_width = 64
+            if bit_width then
+                local beat_size = math_floor(math_floor(bit_width + 31) / 32)
+                self.u32_vec = table_new(beat_size, 0) --[[@as table<integer, integer>]]
+
+                self.u32_vec[1] = tonumber(bit_band(data, 0x00000000FFFFFFFFULL))
+                if beat_size > 1 then
+                    self.u32_vec[2] = tonumber(bit_rshift(data, 32))
+                    for i = 3, beat_size do
+                        self.u32_vec[i] = 0
+                    end
+                end
+
+                self.bit_width = bit_width
+            else
+                self.u32_vec = table_new(2, 0) --[[@as table<integer, integer>]]
+                self.u32_vec[1] = tonumber(bit_band(data, 0x00000000FFFFFFFFULL))
+                self.u32_vec[2] = tonumber(bit_rshift(data, 32))
+                self.bit_width = auto_bit_width
+            end
+
+            self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
+            if self.beat_size == 1 then
+                self._update_u32_vec = function(t, data1)
+                    ---@cast data1 integer
+                    t.u32_vec[1] = data1
+                end
+            elseif self.beat_size > 1 then
+                self._update_u32_vec = function(t, data1)
+                    for i = 1, t.beat_size do
+                        t.u32_vec[i] = data1[i]
+                    end
+                end
+            end
+
+            self.tonumber = function(this)
+                return tonumber(this.u32_vec[1]) --[[@as integer]]
+            end
+
+            if self.beat_size > 1 then
+                self.tonumber64 = function(this)
+                    return bit_lshift(this.u32_vec[2] + 0ULL, 32) + this.u32_vec[1]
+                end
+            else
+                self.tonumber64 = function(this)
+                    return this.u32_vec[1] + 0ULL
+                end
+            end
+
+            return
         end
 
         local data_len = tonumber(data[0]) --[[@as integer]]

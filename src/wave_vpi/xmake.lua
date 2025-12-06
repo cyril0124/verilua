@@ -22,7 +22,6 @@ local function wave_vpi_main_common()
         "-Wl,--no-as-needed"
     )
 
-    add_defines("VL_DEF_OPT_USE_BOOST_UNORDERED")
     -- add_defines("PROFILE_JIT")
 
     add_files(

@@ -394,4 +394,71 @@ describe("BitVec test", function()
         bitvec:update_value(0x1234000056780000ULL)
         expect.equal(bitvec:dump_str(), "000000001234000056780000")
     end)
+
+    it("should work properly for creating BitVec using ULL (uint64_t)", function()
+        -- Test basic ULL creation
+        local bitvec = BitVec(0x123456789ABCDEFULL)
+        expect.equal(#bitvec, 64)
+        expect.equal(bitvec:dump_str(), "0123456789abcdef")
+        expect.equal(bitvec.u32_vec[1], 0x89abcdef)
+        expect.equal(bitvec.u32_vec[2], 0x01234567)
+
+        -- Test ULL with bit_width parameter
+        local bitvec = BitVec(0x123456789ABCDEFULL, 128)
+        expect.equal(#bitvec, 128)
+        expect.equal(#(bitvec.u32_vec), 4)
+        expect.equal(bitvec.u32_vec[1], 0x89abcdef)
+        expect.equal(bitvec.u32_vec[2], 0x01234567)
+        expect.equal(bitvec.u32_vec[3], 0)
+        expect.equal(bitvec.u32_vec[4], 0)
+        expect.equal(tostring(bitvec), "000000000000000001234567" .. "89abcdef")
+
+        -- Test ULL with smaller bit_width
+        local bitvec = BitVec(0xFFFFFFFFFFFFFFFFULL, 32)
+        expect.equal(#bitvec, 32)
+        expect.equal(#(bitvec.u32_vec), 1)
+        expect.equal(bitvec.u32_vec[1], 0xFFFFFFFF)
+        expect.equal(tostring(bitvec), "ffffffff")
+
+        -- Test ULL with all zeros
+        local bitvec = BitVec(0ULL)
+        expect.equal(#bitvec, 64)
+        expect.equal(bitvec.u32_vec[1], 0)
+        expect.equal(bitvec.u32_vec[2], 0)
+        expect.equal(tostring(bitvec), "0000000000000000")
+
+        -- Test ULL tonumber and tonumber64
+        local bitvec = BitVec(0x123456789ABCDEFULL)
+        expect.equal(bitvec:tonumber(), 0x89abcdef)
+        expect.equal(bitvec:tonumber64(), 0x123456789ABCDEFULL)
+
+        -- Test ULL with 32-bit value
+        local bitvec = BitVec(0x12345678ULL, 32)
+        expect.equal(#bitvec, 32)
+        expect.equal(#(bitvec.u32_vec), 1)
+        expect.equal(bitvec.u32_vec[1], 0x12345678)
+        expect.equal(tostring(bitvec), "12345678")
+        expect.equal(bitvec:tonumber(), 0x12345678)
+        expect.equal(bitvec:tonumber64(), 0x12345678ULL)
+
+        -- Test ULL get_bitfield
+        local bitvec = BitVec(0x123456789ABCDEFULL)
+        expect.equal(bitvec:get_bitfield(0, 31), 0x89abcdefULL)
+        expect.equal(bitvec:get_bitfield(32, 63), 0x01234567ULL)
+        expect.equal(bitvec:get_bitfield(16, 47), 0x456789abULL)
+
+        -- Test ULL set_bitfield
+        local bitvec = BitVec(0ULL)
+        bitvec:set_bitfield(0, 31, 0x89abcdef)
+        bitvec:set_bitfield(32, 63, 0x01234567)
+        expect.equal(tostring(bitvec), "0123456789abcdef")
+
+        -- Test ULL with SubBitVec
+        local bitvec = BitVec(0x123456789ABCDEFULL)
+        local sub = bitvec(0, 15)
+        expect.equal(sub:get(), 0xcdefULL)
+        sub:set(0xFFFF)
+        expect.equal(bitvec:get_bitfield(0, 15), 0xFFFFULL)
+        expect.equal(tostring(bitvec), "0123456789abffff")
+    end)
 end)
