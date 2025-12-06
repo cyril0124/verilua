@@ -21,7 +21,6 @@ rm -rf ./dist
 
 mkdir -p ./dist/extern
 mkdir -p ./dist/extern/luajit_tcc/tinycc
-mkdir -p ./dist/conan_installed/include
 mkdir -p ./dist/luajit-pro/luajit2.1
 mkdir -p ./dist/luajit-pro/tl
 

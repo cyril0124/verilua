@@ -338,6 +338,36 @@ target("apply_xmake_patch", function()
     end)
 end)
 
+target("clean_all", function()
+    set_kind("phony")
+    on_run(function(target)
+        local function rm_common(dir)
+            os.tryrm(path.join(dir, "build"))
+            os.tryrm(path.join(dir, ".xmake"))
+            os.tryrm(path.join(dir, "sim_build"))
+            os.tryrm(path.join(dir, "sim_build_*"))
+            os.tryrm(path.join(dir, ".dpi_exporter"))
+            os.tryrm(path.join(dir, "ucli.key"))
+            os.tryrm(path.join(dir, "simv"))
+            os.tryrm(path.join(dir, "simv_dpi"))
+            os.tryrm(path.join(dir, "simv.daidir"))
+            os.tryrm(path.join(dir, "simv_dpi.daidir"))
+            os.tryrm(path.join(dir, "csrc"))
+            os.tryrm(path.join(dir, "vc_hdrs.h"))
+        end
+
+        local examples_dir = path.join(prj_dir, "examples")
+        for _, dir in ipairs(os.dirs(path.join(examples_dir, "*"))) do
+            rm_common(dir)
+        end
+
+        local tests_dir = path.join(prj_dir, "tests")
+        for _, dir in ipairs(os.dirs(path.join(tests_dir, "*"))) do
+            rm_common(dir)
+        end
+    end)
+end)
+
 target("verilua", function()
     set_kind("phony")
     on_install(function(target)
@@ -568,7 +598,7 @@ ${reset}]])
         -- Wrapper for executing shell scripts with optional verbose output
         local function run_shell_script(script)
             if verbose then
-                os.execv(os.shell(), { script })
+                os.execv(os.shell(), { "-c", "." .. "/" .. script })
             else
                 os.execv(os.shell(), { "-c", "." .. "/" .. script .. " > /dev/null 2>&1" })
             end
