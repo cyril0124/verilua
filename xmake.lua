@@ -334,7 +334,22 @@ end)
 target("apply_xmake_patch", function()
     set_kind("phony")
     on_run(function(target)
-        os.exec("bash apply_xmake_patch.sh")
+        local verilua_xmake_dir = path.join(prj_dir, "scripts", ".xmake")
+
+        os.mkdir(path.join("~", ".xmake", "rules", "verilua"))
+        os.cp(
+            path.join(verilua_xmake_dir, "rules", "verilua", "xmake.lua"),
+            path.join("~", ".xmake", "rules", "verilua", "xmake.lua")
+        )
+
+        for _, toolchain_dir in ipairs(os.dirs(path.join(verilua_xmake_dir, "toolchains", "*"))) do
+            local toolchain_name = path.basename(toolchain_dir)
+            os.mkdir(path.join("~", ".xmake", "toolchains", toolchain_name))
+            os.cp(
+                path.join(toolchain_dir, "*"),
+                path.join("~", ".xmake", "toolchains", toolchain_name)
+            )
+        end
     end)
 end)
 
