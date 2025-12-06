@@ -32,7 +32,11 @@ jobs:
         run: |
           ARCH=$(uname -m)
           if [ "$ARCH" = "x86_64" ]; then ARCH="x64"; fi
-          PACKAGE_NAME=verilua-${ARCH}-${{ matrix.os }}
+          if [ ${{ github.event_name }} == 'workflow_dispatch' ]; then
+            PACKAGE_NAME=verilua-${ARCH}-${{ matrix.os }}-${GITHUB_SHA:0:7}
+          else
+            PACKAGE_NAME=verilua-${ARCH}-${{ matrix.os }}
+          fi
           echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
 
           bash ./ci/package.sh ./artifact/${PACKAGE_NAME}.zip
@@ -54,4 +58,171 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-# TODO: centos7, centos8
+  build-centos7:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        iverilog-tag: [ 's20250103' ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-25.11
+
+      - name: Install dependencies via Nix
+        run: |
+          nix profile install nixpkgs#verilator --accept-flake-config
+          nix profile install nixpkgs#cmake --accept-flake-config
+          nix profile install nixpkgs#xmake --accept-flake-config
+          nix profile install nixpkgs#git --accept-flake-config
+          nix profile install nixpkgs#conan --accept-flake-config
+          nix profile install nixpkgs#gperf --accept-flake-config
+          nix profile install nixpkgs#pixi --accept-flake-config
+          nix profile install nixpkgs#patchelf --accept-flake-config
+          nix profile install nixpkgs#python3 --accept-flake-config
+
+      - name: Cache Icarus Verilog installation
+        id: cache-iverilog
+        uses: actions/cache@v4
+        with:
+          path: /tmp/iverilog_installed
+          key: centos7-iverilog-${{ matrix.iverilog-tag }}
+
+      - name: Setup iverilog cache folder
+        if: steps.cache-iverilog.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/iverilog_installed
+
+      - name: Cache conan libs
+        id: cache-conan-libs
+        uses: actions/cache@v4
+        with:
+          path: /tmp/conan_installed
+          key: centos7-conan-libs-${{ hashFiles('**/conanfile*')}}
+
+      - name: Check conan libs
+        if: steps.cache-conan-libs.outputs.cache-hit == 'true'
+        run: |
+          ls -l /tmp/conan_installed
+          cp -r /tmp/conan_installed .
+          echo "CI_USE_CONAN_CACHE=1" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Install conan libs
+        if : steps.cache-conan-libs.outputs.cache-hit != 'true'
+        run: |
+          xmake r install_other_libs
+
+      - name: Build verilua tools outside container
+        run: |
+          xmake run install_luajit
+          xmake build -y -v libsignal_db_gen
+          xmake run build_all_tools
+
+      - name: Setup glibc using pixi
+        run: |
+          bash ./ci/setup_pixi_glibc.sh
+
+      - name: Make wrapper for some tools
+        run: |
+          bash ./ci/make_tools_wrapper.sh
+
+      - name: Setup and test in CentOS 7 container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -v /nix:/nix \
+            -v "$HOME/.nix-profile:/nix-profile" \
+            -v /tmp/iverilog_installed:/tmp/iverilog_installed \
+            -w /workspace \
+            centos:7 \
+            bash -c '
+              set -e
+
+              # Setup build environment
+              bash ./ci/setup_centos_env.sh
+
+              source /opt/rh/devtoolset-11/enable
+              source $HOME/.cargo/env
+              export PATH=/nix-profile/bin:$PATH
+              export PATH=/tmp/iverilog_installed/bin:$PATH
+              export IVERILOG_HOME=/tmp/iverilog_installed
+              export XMAKE_ROOT=y
+              export CI_USE_CONAN_CACHE=1
+              export NO_CPPTRACE=1
+
+              git config --global --add safe.directory /workspace
+              git config --global --add safe.directory /workspace/luajit-pro
+              git config --global --add safe.directory /workspace/extern/luajit_tcc
+              git config --global http.sslVerify false
+
+              if [ "${{ steps.cache-iverilog.outputs.cache-hit }}" != "true" ]; then
+                git clone https://github.com/steveicarus/iverilog.git
+                cd iverilog
+                git reset --hard ${{ matrix.iverilog-tag }}
+                bash ./autoconf.sh
+                bash ./configure --prefix=/tmp/iverilog_installed
+                make -j $(nproc)
+                make install
+                cd -
+              fi
+
+              xmake run install_libgmp
+
+              xmake run reinstall_luajit
+              xmake run install_luarocks
+              xmake run install_lua_modules
+              xmake run install_tinycc
+              xmake run -y -v build_libverilua
+              xmake build -y -v iverilog_vpi_module
+
+              xmake run clean_all
+            '
+
+      - name: Update conan libs cache files
+        if: steps.cache-conan-libs.outputs.cache-hit != 'true'
+        run: |
+          cp -r ./conan_installed /tmp/conan_installed
+        shell: bash
+
+      - name: Package
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then ARCH="x64"; fi
+          if [ ${{ github.event_name }} == 'workflow_dispatch' ]; then
+            PACKAGE_NAME=verilua-${ARCH}-centos-7-${GITHUB_SHA:0:7}
+          else
+            PACKAGE_NAME=verilua-${ARCH}-centos-7
+          fi
+          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
+
+          xmake run clean_all        
+          bash ./ci/package.sh ./artifact/${PACKAGE_NAME}.zip
+          unzip ./artifact/${PACKAGE_NAME}.zip -d ./artifact/${PACKAGE_NAME}_unzipped
+
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.PACKAGE_NAME }}"
+          path: "./artifact/${{ env.PACKAGE_NAME }}_unzipped/"
+          retention-days: 30
+
+      - name: Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "${{ github.ref_name }}"
+          files: "./artifact/*.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
