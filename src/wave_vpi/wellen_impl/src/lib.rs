@@ -166,18 +166,20 @@ fn get_wave_source() -> &'static mut SignalSource {
     }
 }
 
+#[inline]
 fn lest_score(target: &str, candidate: &str) -> usize {
     target
-        .split(".")
-        .zip(candidate.split("."))
+        .split('.')
+        .zip(candidate.split('.'))
         .take_while(|(a, b)| a == b)
         .count()
 }
 
-// Get the most likely signal name from the hierarchy.
+/// Get the most likely signal names from the hierarchy
+/// Returns top N candidates sorted by best match
 fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
     let hierarchy = get_hierarchy();
-    let mut match_vec: Vec<_> = hierarchy
+    let mut match_vec: Vec<(usize, String)> = hierarchy
         .iter_vars()
         .map(|var| {
             let full_name = var.full_name(hierarchy);
@@ -186,8 +188,11 @@ fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
         })
         .collect();
 
-    // Sort by score
-    match_vec.sort_by_key(|(score, full_name)| (*score, full_name.clone()));
+    // Sort by score (descending) and name (for stability)
+    match_vec.sort_unstable_by(|(score_a, name_a), (score_b, name_b)| {
+        score_b.cmp(score_a).then_with(|| name_a.cmp(name_b))
+    });
+
     match_vec.into_iter().take(n).map(|(_, s)| s).collect()
 }
 
@@ -509,24 +514,32 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
     Box::into_raw(value) as *mut c_void
 }
 
+#[inline]
 fn bytes_to_u32s_be(bytes: &[u8]) -> Vec<u32> {
-    let mut u32s = Vec::with_capacity((bytes.len() + 3) / 4);
+    let len = bytes.len();
+    let capacity = (len + 3) / 4;
+    let mut u32s = Vec::with_capacity(capacity);
 
-    let padded_bytes = if bytes.len() % 4 != 0 {
-        let ret = 4 - bytes.len() % 4;
-        match ret {
-            1 => [vec![0], bytes.to_vec()].concat(),
-            2 => [vec![0, 0], bytes.to_vec()].concat(),
-            3 => [vec![0, 0, 0], bytes.to_vec()].concat(),
-            _ => unreachable!(),
+    // Handle padding for non-aligned bytes
+    let padding = (4 - (len % 4)) % 4;
+
+    if padding > 0 {
+        // First word with padding
+        let mut first_word = 0u32;
+        for (i, &byte) in bytes.iter().take(4 - padding).enumerate() {
+            first_word |= (byte as u32) << ((4 - padding - 1 - i) * 8);
+        }
+        u32s.push(first_word);
+
+        // Process remaining aligned chunks
+        for chunk in bytes[(4 - padding)..].chunks_exact(4) {
+            u32s.push(BigEndian::read_u32(chunk));
         }
     } else {
-        Vec::from(bytes)
-    };
-
-    for chunk in padded_bytes.chunks(4) {
-        let value = BigEndian::read_u32(chunk);
-        u32s.push(value);
+        // All chunks are aligned
+        for chunk in bytes.chunks_exact(4) {
+            u32s.push(BigEndian::read_u32(chunk));
+        }
     }
 
     u32s
@@ -537,31 +550,13 @@ pub const fn cover_with_32(size: usize) -> usize {
     size.div_ceil(32)
 }
 
+#[inline]
 fn find_nearest_time_index(time_table: &[u64], time: u64) -> usize {
-    match time_table.binary_search_by(|&probe| {
-        if probe < time {
-            std::cmp::Ordering::Less
-        } else if probe > time {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Equal
-        }
-    }) {
+    match time_table.binary_search(&time) {
         Ok(index) => index,
-        Err(index) => {
-            if index == 0 {
-                0
-            } else if index == time_table.len() {
-                time_table.len() - 1
-            } else {
-                let before = index - 1;
-                if time_table[before] < time {
-                    before
-                } else {
-                    index
-                }
-            }
-        }
+        Err(index) => index
+            .saturating_sub(1)
+            .min(time_table.len().saturating_sub(1)),
     }
 }
 
@@ -644,45 +639,53 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                         }
                     }
                     vpiHexStrVal => {
-                        const chunk_size: u32 = 4;
-                        let mut signal_bit_string =
+                        let signal_bit_string =
                             loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
 
-                        // Check if the length of `signal_bit_string` is not a multiple of 4
-                        if signal_bit_string.len() % 4 != 0 {
-                            let padding_length = 4 - (signal_bit_string.len() % 4);
+                        let len = signal_bit_string.len();
+                        let padding = (4 - (len % 4)) % 4;
+                        let hex_len = (len + padding + 3) / 4;
 
-                            // Create a string of `'0'` characters with a length equal to `padding_length`
-                            let padding: String =
-                                std::iter::repeat('0').take(padding_length).collect();
+                        let mut hex_chars = Vec::with_capacity(hex_len);
+                        let bytes = signal_bit_string.as_bytes();
 
-                            // Insert the padding at the beginning of the `signal_bit_string`
-                            signal_bit_string.insert_str(0, &padding);
+                        // Process with padding if needed
+                        let mut idx = 0;
+                        if padding > 0 {
+                            let mut nibble = 0u8;
+                            for i in 0..(4 - padding) {
+                                nibble = (nibble << 1) | (bytes[i] - b'0');
+                            }
+                            hex_chars.push(if nibble < 10 {
+                                b'0' + nibble
+                            } else {
+                                b'a' + nibble - 10
+                            });
+                            idx = 4 - padding;
                         }
 
-                        let chunks: Vec<Vec<u8>> = signal_bit_string
-                            .as_bytes()
-                            .chunks(chunk_size as usize)
-                            .map(|chunk| chunk.iter().map(|&x| x - b'0').collect::<Vec<u8>>())
-                            .collect();
-                        let hex_string: String = chunks
-                            .iter()
-                            .map(|chunk| {
-                                let bin_value = chunk
-                                    .iter()
-                                    .rev()
-                                    .enumerate()
-                                    .fold(0, |acc, (i, &b)| acc | (b << i));
-                                format!("{:x}", bin_value)
-                            })
-                            .collect();
+                        // Process remaining 4-bit chunks
+                        while idx < len {
+                            let mut nibble = 0u8;
+                            for i in 0..4 {
+                                if idx + i < len {
+                                    nibble = (nibble << 1) | (bytes[idx + i] - b'0');
+                                }
+                            }
+                            hex_chars.push(if nibble < 10 {
+                                b'0' + nibble
+                            } else {
+                                b'a' + nibble - 10
+                            });
+                            idx += 4;
+                        }
 
+                        let hex_string = unsafe { String::from_utf8_unchecked(hex_chars) };
                         let c_string = CString::new(hex_string).expect("CString::new failed");
                         let c_str_ptr = c_string.into_raw();
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
-                        // todo!("vpiHexStrVal signal_bit_string => {} bits => {} hex_digits => {} {}", signal_bit_string, _bits, hex_digits, hex_string);
                     }
                     vpiBinStrVal => {
                         let signal_bit_string =
