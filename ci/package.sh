@@ -44,6 +44,10 @@ cp -r ./extern/luajit_tcc/tcc.lua ./dist/extern/luajit_tcc
 cp -r ./extern/luajit_tcc/setvars.sh ./dist/extern/luajit_tcc
 cp -r ./extern/luajit_tcc/tinycc/install ./dist/extern/luajit_tcc/tinycc
 
+if [ -d "./libc" ]; then
+    cp -r ./libc ./dist
+fi
+
 cp -r ./luajit-pro/src ./dist/luajit-pro
 cp -r ./luajit-pro/luajit2.1/bin ./dist/luajit-pro/luajit2.1/bin
 cp -r ./luajit-pro/luajit2.1/lib ./dist/luajit-pro/luajit2.1/lib
