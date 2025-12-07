@@ -137,7 +137,7 @@ local post_init_mt = setmetatable({
 ---@field set_imm_index_unsafe fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
 ---@field set_imm_index_bitfield fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, v: integer)
 ---@field set_imm_index_bitfield_hex_str fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
----@field set_imm_index_all fun(self: verilua.handles.CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_imm_index_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>, force_single_beat?: boolean)
 ---@field set_imm_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer|uint64_t|integer[]>, force_single_beat?: boolean)
 ---
 ---@field get_str fun(self: verilua.handles.CallableHDL, fmt: integer): string

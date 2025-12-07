@@ -132,6 +132,28 @@ local bus = ([[
 }
 ```
 
+可选信号（使用方括号语法）：
+
+```lua
+-- 使用方括号标记可选信号
+local io = ([[
+    | valid
+    | ready
+    | data
+    | [debug_info]  -- 可选信号，不存在时不会报错
+]]):bdl {
+    hier = "tb_top.u_dut",
+    prefix = "io_"
+}
+
+-- 旧方法（仍然有效）
+local io_old = ("valid | ready | data | debug_info"):bdl {
+    hier = "tb_top.u_dut",
+    prefix = "io_",
+    optional_signals = {"debug_info"}
+}
+```
+
 ### AliasBundle 构造
 
 `AliasBundle` 允许为信号创建别名，提高代码可读性。
@@ -165,6 +187,25 @@ local sig = ([[
 sig.short:get()
 sig.alias1:get()
 sig.alias2:get()
+
+-- 可选信号（使用方括号语法）
+local ctrl_with_opt = ([[
+    | io_in_start => start
+    | io_in_stop  => stop
+    | [io_debug_port => debug]
+]]):abdl {
+    hier = "tb_top.u_ctrl"
+}
+
+-- 旧方法（仍然有效）
+local ctrl_old = ([[
+    | io_in_start => start
+    | io_in_stop  => stop
+    | io_debug_port => debug
+]]):abdl {
+    hier = "tb_top.u_ctrl",
+    optional_signals = {"debug"}
+}
 ```
 
 支持字符串插值：

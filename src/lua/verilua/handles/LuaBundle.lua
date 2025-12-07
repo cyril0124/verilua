@@ -109,8 +109,17 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
                 fullpath = hierarchy .. "." .. signal
             end
 
-            rawset(self, signal, CallableHDL(fullpath, signal))
-            table_insert(self.signals_table, signal)
+            if not tablex.find(optional_signals, signal) then
+                rawset(self, signal, CallableHDL(fullpath, signal))
+                table_insert(self.signals_table, signal)
+            else
+                local hdl = vpiml.vpiml_handle_by_name_safe(fullpath)
+                if hdl ~= -1 then
+                    -- optional signals are allowed to be empty
+                    rawset(self, signal, CallableHDL(fullpath, signal, hdl))
+                    table_insert(self.signals_table, signal)
+                end
+            end
         end
     end
 

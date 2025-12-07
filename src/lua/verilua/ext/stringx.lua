@@ -444,11 +444,20 @@ end
 --- - `is_decoupled` (boolean, optional, default=true): Whether the bundle follows the decoupled interface convention.
 --- - `name` (string, optional, default="Unknown"): A name for the bundle.
 --- - `optional_signals` (table of strings, optional): A list of optional signal names that may or may not be present in the bundle.
+---
+--- Optional signals can be specified in two ways:
+--- 1. Using the `optional_signals` parameter: `optional_signals = {"sig1", "sig2"}`
+--- 2. Using bracket syntax in the signal list: `[signal_name]` (recommended)
+---
 --- e.g.
 --- ```lua
 ---      local bdl = ("field1|field2|field3"):bundle {hier = "tb_top"} -- hier is the only one mandatory params to be passed into this constructor
 ---      local bdl = ("valid | ready | opcode | data"):bundle {hier = "tb_top", is_decoupled = true}
 ---      local bdl = ("| valid | ready | opcode | data"): bundle {hier = "tb_top"}
+---      -- Optional signal using bracket syntax (recommended)
+---      local bdl = ("valid | data | [nonexistent]"):bundle {hier = "tb_top"}
+---      -- Optional signal using optional_signals parameter (old way, still works)
+---      local bdl = ("valid | data | nonexistent"):bundle {hier = "tb_top", optional_signals = {"nonexistent"}}
 ---      local bdl = ("| valid | ready | opcode | data |"): bundle {hier = "tb_top"}
 ---      local strange_bdl = ([[
 ---          field1 |
@@ -476,6 +485,7 @@ end
 local process_bundle = function(str, params_table)
     local signals_table = stringx.split(str, "|")
     local will_remove_idx = {}
+    local auto_optional_signals = {}
 
     for i = 1, #signals_table do
         -- remove trivial characters
@@ -486,6 +496,13 @@ local process_bundle = function(str, params_table)
         if signals_table[i] == "" then
             -- not a valid signal
             table.insert(will_remove_idx, i)
+        else
+            -- Check for optional signal syntax: [signal_name]
+            local optional_match = string.match(signals_table[i], "^%[(.+)%]$")
+            if optional_match then
+                signals_table[i] = optional_match
+                table.insert(auto_optional_signals, optional_match)
+            end
         end
     end
 
@@ -536,6 +553,17 @@ local process_bundle = function(str, params_table)
         end
     end
 
+    -- Merge auto-detected optional signals with manually specified ones
+    if #auto_optional_signals > 0 then
+        if optional_signals then
+            for _, sig in ipairs(auto_optional_signals) do
+                table.insert(optional_signals, sig)
+            end
+        else
+            optional_signals = auto_optional_signals
+        end
+    end
+
     return Bundle(_signals_table, prefix, hier, name, is_decoupled, optional_signals)
 end
 string.bundle = process_bundle
@@ -547,8 +575,14 @@ string.bdl = process_bundle
 --- - `hier` (string, mandatory): The hierarchical path of the bundle.
 --- - `prefix` (string, optional): A prefix to add to each origin signal name in the bundle.
 --- - `name` (string, optional, default="Unknown"): A name for the alias bundle.
+--- - `optional_signals` (table of strings, optional): A list of optional alias names that may or may not be present.
 --- - Additional fields can be used for string interpolation in the signal names,
 ---   where `{key}` in the signal name will be replaced by the value of `params_table[key]`.
+---
+--- Optional signals can be specified in two ways:
+--- 1. Using the `optional_signals` parameter: `optional_signals = {"alias1", "alias2"}`
+--- 2. Using bracket syntax in the signal list: `[origin => alias]` or `[signal_name]` (recommended)
+---
 --- e.g.
 --- ```lua
 ---      local abdl = ([[
@@ -574,17 +608,30 @@ string.bdl = process_bundle
 ---      local value = abdl.origin_signal_name:get()
 ---      abdl.alias_name_1:set(123)
 ---
+---      -- String interpolation
 ---      local abdl = ([[
 ---          | {p}_value => val_{b}
 ---          | {b}_opcode => opcode
 ---      ]]):abdl {hier ="hier", prefix = "prefix_", p = "hello", b = 123}
 ---      local value = abdl.val_123:get()     -- real signal is <hier.prefix_hello_value>
+---
+---      -- Optional signal using bracket syntax (recommended)
+---      local abdl = ([[
+---          | origin_signal_0 => alias_0
+---          | [nonexistent => alias_ne]
+---      ]]):abdl {hier = "tb_top"}
+---      -- Optional signal using optional_signals parameter (old way, still works)
+---      local abdl = ([[
+---          | origin_signal_0 => alias_0
+---          | nonexistent => alias_ne
+---      ]]):abdl {hier = "tb_top", optional_signals = {"alias_ne"}}
 --- ```
 string.abdl = function(str, params_table)
     ---@cast str string
 
     local signals_table = stringx.split(str, "|")
     local will_remove_idx = {}
+    local auto_optional_signals = {}
 
     for i = 1, #signals_table do
         -- remove trivial characters
@@ -595,6 +642,24 @@ string.abdl = function(str, params_table)
         if signals_table[i] == "" then
             -- not a valid signal
             table.insert(will_remove_idx, i)
+        else
+            -- Check for optional signal syntax: [signal_name => alias] or [signal_name]
+            local optional_match = string.match(signals_table[i], "^%[(.+)%]$")
+            if optional_match then
+                signals_table[i] = optional_match
+                -- Extract alias names from the optional signal
+                local parts = stringx.split(optional_match, "=>")
+                if parts[2] then
+                    -- Has alias: [orig => alias]
+                    local alias_names = stringx.split(parts[2], "/")
+                    for _, alias in ipairs(alias_names) do
+                        table.insert(auto_optional_signals, alias)
+                    end
+                else
+                    -- No alias: [signal_name]
+                    table.insert(auto_optional_signals, optional_match)
+                end
+            end
         end
     end
 
@@ -668,6 +733,17 @@ string.abdl = function(str, params_table)
                 assert(type(value[1]) == "string")
             end
             optional_signals = value
+        end
+    end
+
+    -- Merge auto-detected optional signals with manually specified ones
+    if #auto_optional_signals > 0 then
+        if optional_signals then
+            for _, sig in ipairs(auto_optional_signals) do
+                table.insert(optional_signals, sig)
+            end
+        else
+            optional_signals = auto_optional_signals
         end
     end
 

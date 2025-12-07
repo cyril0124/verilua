@@ -286,6 +286,15 @@ local vpiml = {
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
     vpiml_set_value_dec_str = C.vpiml_set_value_dec_str,
 
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
+    vpiml_set_imm_value_str = C.vpiml_set_imm_value_str,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
+    vpiml_set_imm_value_hex_str = C.vpiml_set_imm_value_hex_str,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
+    vpiml_set_imm_value_bin_str = C.vpiml_set_imm_value_bin_str,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
+    vpiml_set_imm_value_dec_str = C.vpiml_set_imm_value_dec_str,
+
     ---@type fun(handle: verilua.handles.ComplexHandleRaw)
     vpiml_set_shuffled = C.vpiml_set_shuffled,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw)
