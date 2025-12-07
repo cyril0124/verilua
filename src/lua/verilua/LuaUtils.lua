@@ -640,9 +640,11 @@ function utils.urandom64_range(min, max)
     return result --[[@as uint64_t]]
 end
 
----@param str string
----@param nr_group integer
----@return string[], integer
+--- Splits a string into groups of a specified size.
+---@param str string The input string
+---@param nr_group integer The number of groups to split the string into
+---@return table<integer, string> The grouped string table
+---@return integer The size of each group
 function utils.str_group_by(str, nr_group)
     local group_size = math_ceil(#str / nr_group)
     local result = table_new(group_size, 0)
@@ -653,10 +655,11 @@ function utils.str_group_by(str, nr_group)
     return result, group_size
 end
 
----@param str string
----@param step integer
----@param separator string
----@return string
+--- Separates a string with a separator at every step characters.
+---@param str string The input string to be separated
+---@param step integer The number of characters between each separator
+---@param separator string The separator to insert between chunks
+---@return string The separated string
 function utils.str_sep(str, step, separator)
     local result = ""
     separator = separator or " "
@@ -687,10 +690,11 @@ function utils.bitmask(n)
     end
 end
 
----@param value integer
----@param start integer
----@param length integer
----@return uint64_t
+--- Resets a range of bits in a value to zero.
+---@param value integer The input value
+---@param start integer The starting bit position
+---@param length integer The number of bits to reset
+---@return uint64_t The value with the specified bits reset to zero
 function utils.reset_bits(value, start, length)
     assert(start < 64)
     assert(length <= 64)
@@ -698,15 +702,17 @@ function utils.reset_bits(value, start, length)
     return bit_band(value, bit_bnot(mask)) --[[@as uint64_t]]
 end
 
----@param value number|integer
----@param n integer
----@return integer
+--- Calculates how many groups of n are needed to cover the value.
+---@param value number|integer The value to be covered
+---@param n integer The size of each group
+---@return integer The number of groups needed to cover the value
 function utils.cover_with_n(value, n)
     return math_ceil(value / n)
 end
 
----@param bitwidth integer
----@return uint64_t
+--- Generates a random value within the specified bit width.
+---@param bitwidth integer The bit width of the random value (must be <= 64)
+---@return uint64_t A random value within the specified bit width
 function utils.shuffle_bits(bitwidth)
     assert(bitwidth <= 64, "bitwidth must be less than or equal to 64")
     if bitwidth <= 32 then
@@ -716,8 +722,9 @@ function utils.shuffle_bits(bitwidth)
     end
 end
 
----@param bitwidth integer
----@return string
+--- Generates a random hexadecimal string within the specified bit width.
+---@param bitwidth integer The bit width of the random value
+---@return string The hexadecimal string representation of the random value
 function utils.shuffle_bits_hex_str(bitwidth)
     if bitwidth <= 32 then
         return bit_tohex(utils.shuffle_bits(bitwidth) --[[@as integer]])
@@ -752,8 +759,9 @@ function utils.expand_hex_str(value_hex_str, bitwidth)
     return srep("0", target_len - len) .. value_hex_str
 end
 
----@param hex_str string
----@return string
+--- Converts a hexadecimal string to a binary string.
+---@param hex_str string The hexadecimal string to convert
+---@return string The binary string representation
 function utils.hex_to_bin(hex_str)
     local bin_parts = table_new(#hex_str, 0)
     for i = 1, #hex_str do
@@ -763,8 +771,9 @@ function utils.hex_to_bin(hex_str)
     return table_concat(bin_parts)
 end
 
----@param bin_str string
----@return string
+--- Converts a binary string to a hexadecimal string.
+---@param bin_str string The binary string to convert
+---@return string The hexadecimal string representation
 function utils.bin_str_to_hex_str(bin_str)
     local remainder = #bin_str % 4
     if remainder ~= 0 then
@@ -1142,9 +1151,10 @@ function utils.execute_after(count, func, options)
     end
 end
 
----@param code string
----@param env? table
----@param chunkname? string
+--- Loads and executes a Lua code string.
+---@param code string The Lua code string to load and execute
+---@param env? table Optional environment table to set for the loaded function
+---@param chunkname? string Optional name for the chunk (used in error messages)
 function utils.loadcode(code, env, chunkname)
     local ret = loadstring(code, chunkname) --[[@as function]]
     if not ret then
@@ -1157,8 +1167,8 @@ end
 
 local unique_lock_file_idx = 0
 --- Execute a function in an exclusive environment. (i.e. only one thread can execute the function at the same time)
----@param func fun()
----@param lock_file_name string?
+---@param func fun() The function to execute exclusively
+---@param lock_file_name string? Optional lock file name, auto-generated if not provided
 function utils.exclusive_call(func, lock_file_name)
     if not lock_file_name then
         lock_file_name = "exclusive_call.lock." .. unique_lock_file_idx
@@ -1215,10 +1225,11 @@ function utils.report_luacov()
     end, "luacov.report.lock")
 end
 
----@param func_ptr_str string e.g. void (*)(const char*)
----@param ffi_func_decl_str string e.g. void my_func(const char*); => trailing semicolon is required
----@param func_name string e.g. my_func
----@return fun(any, ...): any
+--- Attempts to get a function pointer through FFI cast or declaration.
+---@param func_ptr_str string The function pointer type string, e.g. "void (*)(const char*)"
+---@param ffi_func_decl_str string The FFI function declaration string, e.g. "void my_func(const char*);"
+---@param func_name string The function name to search for, e.g. "my_func"
+---@return fun(any, ...): any The function pointer
 function utils.try_ffi_cast(func_ptr_str, ffi_func_decl_str, func_name)
     local SymbolHelper = require("SymbolHelper")
     if SymbolHelper.get_global_symbol_addr(func_name) ~= 0 then
@@ -1233,8 +1244,8 @@ end
 ---@type fun(cmd: string): string?
 local iorun_cfunc
 --- Run a command and return the output(stdout or stderr if stdout is empty)
----@param cmd string
----@return string
+---@param cmd string The command to execute
+---@return string The command output from stdout or stderr
 function utils.iorun(cmd)
     if not iorun_cfunc then
         local _iorun = utils.try_ffi_cast(
