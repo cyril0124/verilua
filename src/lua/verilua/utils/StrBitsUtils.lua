@@ -884,10 +884,20 @@ function M.popcount_hex_str(hex_str)
     return scount(bin_str, "1")
 end
 
+local use_libgmp = false
+
 -- Initialize the module to use libgmp for underlying operations
-function M.init_use_libgmp()
+---@param _self verilua.utils.StrBitsUtils?
+---@return verilua.utils.StrBitsUtils
+function M.init_use_libgmp(_self)
+    if use_libgmp then
+        return M
+    end
+
     local g = require "verilua.utils.LibGMP"
     g:init()
+
+    use_libgmp = true
 
     local _v_bitfield_hex_str = g.types.z()
     M.bitfield_hex_str = function(hex_str, s, e, bitwidth)
@@ -1067,6 +1077,8 @@ function M.init_use_libgmp()
         _v_popcount:init_set_str(hex_str, 16)
         return _v_popcount:popcount()
     end
+
+    return M
 end
 
 return M
