@@ -89,11 +89,11 @@ function M:init(params)
             end
         else
             local verilua_home = os.getenv("VERILUA_HOME")
-            self.clib = ffi.load(verilua_home .. "/shared/libgmp.so")
+            self.clib = ffi.load(verilua_home .. "/shared/gmp/libgmp.so")
         end
     else
         local verilua_home = os.getenv("VERILUA_HOME")
-        self.clib = ffi.load(verilua_home .. "/shared/libgmp.so")
+        self.clib = ffi.load(verilua_home .. "/shared/gmp/libgmp.so")
     end
 
     libgmp_clib = self.clib

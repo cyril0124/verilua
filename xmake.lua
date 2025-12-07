@@ -118,39 +118,41 @@ target("install_libgmp", function()
         end
 
         local build_dir = path.join(prj_dir, "build")
-        local shared_dir = path.join(prj_dir, "shared")
+        local shared_gmp_dir = path.join(prj_dir, "shared", "gmp")
         if not os.isdir(build_dir) then
             os.mkdir(build_dir)
         end
-        if not os.isdir(shared_dir) then
-            os.mkdir(shared_dir)
+        if not os.isdir(shared_gmp_dir) then
+            os.mkdir(shared_gmp_dir)
         end
 
+        local libgmp_xz = "gmp-6.3.0.tar.xz"
         local libgmp_dir = path.join(build_dir, "gmp-6.3.0")
         os.cd(build_dir)
-        os.exec("wget https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz")
-        os.exec("tar xJf gmp-6.3.0.tar.xz")
+        os.tryrm(libgmp_dir)
+        os.tryrm(libgmp_xz)
+        os.exec("wget https://ftp.gnu.org/gnu/gmp/" .. libgmp_xz)
+        os.exec("tar xJf " .. libgmp_xz)
         os.cd(libgmp_dir)
         os.exec("./configure --prefix=%s --disable-static", libs_dir)
         os.exec("make -j" .. os.cpuinfo().ncpu)
         os.exec("make install")
 
         -- Copy libgmp into shared dir
-        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_dir)
+        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_gmp_dir)
     end)
 end)
 
 target("install_other_libs", function()
     set_kind("phony")
     on_run(function(target)
-        local shared_dir = path.join(prj_dir, "shared")
-
         -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
         if os.getenv("CI_USE_CONAN_CACHE") then
             print("[xmake.lua] [install_other_libs] Using cached conan libs...")
 
-            os.mkdir(shared_dir)
-            os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_dir)
+            local shared_gmp_dir = path.join(prj_dir, "shared", "gmp")
+            os.mkdir(shared_gmp_dir)
+            os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_gmp_dir)
             return
         end
 

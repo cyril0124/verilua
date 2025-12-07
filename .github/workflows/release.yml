@@ -158,7 +158,6 @@ jobs:
               export PATH=/tmp/iverilog_installed/bin:$PATH
               export IVERILOG_HOME=/tmp/iverilog_installed
               export XMAKE_ROOT=y
-              export CI_USE_CONAN_CACHE=1
               export NO_CPPTRACE=1
 
               git config --global --add safe.directory /workspace
