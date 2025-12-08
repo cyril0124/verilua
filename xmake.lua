@@ -695,32 +695,46 @@ ${reset}]])
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "WAL"))
+            local should_skip_verilator = false
             for _, sim in ipairs(simulators) do
-                local start_time = os.time()
-                print_test_start("WAL/gen_wave", sim)
-                os.setenv("SIM", sim)
-                os.tryrm("build")
-                local success = true
-                try {
-                    function()
-                        run_cmd("xmake build -v -P . gen_wave")
-                        run_cmd("xmake run -v -P . gen_wave")
-                    end,
-                    catch { function(e) success = false end }
-                }
-                print_test_result("WAL/gen_wave", sim, success, os.time() - start_time)
+                if sim == "verilator" then
+                    local s = os.iorun("verilator --version")
+                    local main_version_str = s:match("Verilator%s+([%d.]+)")
+                    if tonumber(main_version_str) <= 5.026 then
+                        -- Skip Verilator tests for WAL if Verilator version <= 5.026 where the generated VCD waveform is broken
+                        should_skip_verilator = true
+                    end
+                else
+                    should_skip_verilator = false
+                end
 
-                start_time = os.time()
-                print_test_start("WAL/sim_wave", sim)
-                success = true
-                try {
-                    function()
-                        run_cmd("xmake build -v -P . sim_wave")
-                        run_cmd("xmake run -v -P . sim_wave")
-                    end,
-                    catch { function(e) success = false end }
-                }
-                print_test_result("WAL/sim_wave", sim, success, os.time() - start_time)
+                if not should_skip_verilator then
+                    local start_time = os.time()
+                    print_test_start("WAL/gen_wave", sim)
+                    os.setenv("SIM", sim)
+                    os.tryrm("build")
+                    local success = true
+                    try {
+                        function()
+                            run_cmd("xmake build -v -P . gen_wave")
+                            run_cmd("xmake run -v -P . gen_wave")
+                        end,
+                        catch { function(e) success = false end }
+                    }
+                    print_test_result("WAL/gen_wave", sim, success, os.time() - start_time)
+
+                    start_time = os.time()
+                    print_test_start("WAL/sim_wave", sim)
+                    success = true
+                    try {
+                        function()
+                            run_cmd("xmake build -v -P . sim_wave")
+                            run_cmd("xmake run -v -P . sim_wave")
+                        end,
+                        catch { function(e) success = false end }
+                    }
+                    print_test_result("WAL/sim_wave", sim, success, os.time() - start_time)
+                end
             end
         end
 
