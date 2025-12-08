@@ -47,6 +47,7 @@ jobs:
         with:
           name: "${{ env.PACKAGE_NAME }}"
           path: "./artifact"
+          include-hidden-files: true
           retention-days: 30
 
       - name: Release
@@ -215,6 +216,7 @@ jobs:
         with:
           name: "${{ env.PACKAGE_NAME }}"
           path: "./artifact/${{ env.PACKAGE_NAME }}_unzipped/"
+          include-hidden-files: true
           retention-days: 30
 
       - name: Release
