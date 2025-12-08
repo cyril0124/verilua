@@ -625,12 +625,16 @@ ${reset}]])
         -- Detect available simulators
         --
         local simulators = {}
+        local has_iverilog = false
+        local has_verilator = false
         local has_vcs = false
 
         if find_file("iverilog", { "$(env PATH)" }) then
+            has_iverilog = true
             table.insert(simulators, "iverilog")
         end
         if find_file("verilator", { "$(env PATH)" }) then
+            has_verilator = true
             table.insert(simulators, "verilator")
         end
         if find_file("vcs", { "$(env PATH)" }) then
@@ -691,31 +695,33 @@ ${reset}]])
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "WAL"))
-            os.setenv("SIM", "iverilog")
-            local start_time = os.time()
-            print_test_start("WAL/gen_wave", "iverilog")
-            os.tryrm("build")
-            local success = true
-            try {
-                function()
-                    run_cmd("xmake build -v -P . gen_wave")
-                    run_cmd("xmake run -v -P . gen_wave")
-                end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("WAL/gen_wave", "iverilog", success, os.time() - start_time)
+            for _, sim in ipairs(simulators) do
+                local start_time = os.time()
+                print_test_start("WAL/gen_wave", sim)
+                os.setenv("SIM", sim)
+                os.tryrm("build")
+                local success = true
+                try {
+                    function()
+                        run_cmd("xmake build -v -P . gen_wave")
+                        run_cmd("xmake run -v -P . gen_wave")
+                    end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("WAL/gen_wave", sim, success, os.time() - start_time)
 
-            start_time = os.time()
-            print_test_start("WAL/sim_wave", "iverilog")
-            success = true
-            try {
-                function()
-                    run_cmd("xmake build -v -P . sim_wave")
-                    run_cmd("xmake run -v -P . sim_wave")
-                end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("WAL/sim_wave", "iverilog", success, os.time() - start_time)
+                start_time = os.time()
+                print_test_start("WAL/sim_wave", sim)
+                success = true
+                try {
+                    function()
+                        run_cmd("xmake build -v -P . sim_wave")
+                        run_cmd("xmake run -v -P . sim_wave")
+                    end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("WAL/sim_wave", sim, success, os.time() - start_time)
+            end
         end
 
         --
@@ -729,28 +735,30 @@ ${reset}]])
             os.tryrm("simv*")
             os.tryrm("sim_build*")
 
-            local start_time = os.time()
-            print_test_start("HSE/verilator", "verilator")
-            local success = true
-            try {
-                function() run_shell_script("run_verilator.sh") end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("HSE/verilator", "verilator", success, os.time() - start_time)
+            if has_verilator then
+                local start_time = os.time()
+                print_test_start("HSE/verilator", "verilator")
+                local success = true
+                try {
+                    function() run_shell_script("run_verilator.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE/verilator", "verilator", success, os.time() - start_time)
 
-            start_time = os.time()
-            print_test_start("HSE/verilator_p", "verilator")
-            success = true
-            try {
-                function() run_shell_script("run_verilator_p.sh") end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("HSE/verilator_p", "verilator", success, os.time() - start_time)
+                start_time = os.time()
+                print_test_start("HSE/verilator_p", "verilator")
+                success = true
+                try {
+                    function() run_shell_script("run_verilator_p.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE/verilator_p", "verilator", success, os.time() - start_time)
+            end
 
             if has_vcs then
-                start_time = os.time()
+                local start_time = os.time()
                 print_test_start("HSE/vcs", "vcs")
-                success = true
+                local success = true
                 try {
                     function() run_shell_script("run_vcs.sh") end,
                     catch { function(e) success = false end }
@@ -758,6 +766,7 @@ ${reset}]])
                 print_test_result("HSE/vcs", "vcs", success, os.time() - start_time)
             end
         end
+
 
         --
         -- Section: HSE Dummy VPI
@@ -770,28 +779,30 @@ ${reset}]])
             os.tryrm("simv*")
             os.tryrm("sim_build*")
 
-            local start_time = os.time()
-            print_test_start("HSE_dummy_vpi/verilator", "verilator")
-            local success = true
-            try {
-                function() run_shell_script("run_verilator.sh") end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("HSE_dummy_vpi/verilator", "verilator", success, os.time() - start_time)
+            if has_verilator then
+                local start_time = os.time()
+                print_test_start("HSE_dummy_vpi/verilator", "verilator")
+                local success = true
+                try {
+                    function() run_shell_script("run_verilator.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE_dummy_vpi/verilator", "verilator", success, os.time() - start_time)
 
-            start_time = os.time()
-            print_test_start("HSE_dummy_vpi/verilator_dpi", "verilator")
-            success = true
-            try {
-                function() run_shell_script("run_verilator_dpi.sh") end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("HSE_dummy_vpi/verilator_dpi", "verilator", success, os.time() - start_time)
+                start_time = os.time()
+                print_test_start("HSE_dummy_vpi/verilator_dpi", "verilator")
+                success = true
+                try {
+                    function() run_shell_script("run_verilator_dpi.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE_dummy_vpi/verilator_dpi", "verilator", success, os.time() - start_time)
+            end
 
             if has_vcs then
-                start_time = os.time()
+                local start_time = os.time()
                 print_test_start("HSE_dummy_vpi/vcs", "vcs")
-                success = true
+                local success = true
                 try {
                     function() run_shell_script("run_vcs.sh") end,
                     catch { function(e) success = false end }
@@ -817,23 +828,25 @@ ${reset}]])
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "HSE_virtual_rtl"))
             os.tryrm("sim_build_dpi")
+            os.tryrm("csrc")
+            os.tryrm("simv_dpi")
+            os.tryrm("simv_dpi.daidir")
 
-            local start_time = os.time()
-            print_test_start("HSE_virtual_rtl/verilator_dpi", "verilator")
-            local success = true
-            try {
-                function() run_shell_script("run_verilator_dpi.sh") end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("HSE_virtual_rtl/verilator_dpi", "verilator", success, os.time() - start_time)
+            if has_verilator then
+                local start_time = os.time()
+                print_test_start("HSE_virtual_rtl/verilator_dpi", "verilator")
+                local success = true
+                try {
+                    function() run_shell_script("run_verilator_dpi.sh") end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("HSE_virtual_rtl/verilator_dpi", "verilator", success, os.time() - start_time)
+            end
 
             if has_vcs then
-                os.tryrm("csrc")
-                os.tryrm("simv_dpi")
-                os.tryrm("simv_dpi.daidir")
-                start_time = os.time()
+                local start_time = os.time()
                 print_test_start("HSE_virtual_rtl/vcs_dpi", "vcs")
-                success = true
+                local success = true
                 try {
                     function() run_shell_script("run_vcs_dpi.sh") end,
                     catch { function(e) success = false end }
@@ -851,51 +864,55 @@ ${reset}]])
             os.cd(path.join(prj_dir, "examples", "simple_ut_env"))
             os.tryrm("build")
 
-            local start_time = os.time()
-            print_test_start("simple_ut_env/test_counter", "verilator")
-            local success = true
-            try {
-                function()
-                    run_cmd("xmake build -P . test_counter")
-                    run_cmd("xmake run -v -P . test_counter")
-                end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("simple_ut_env/test_counter", "verilator", success, os.time() - start_time)
+            for _, sim in ipairs(simulators) do
+                local start_time = os.time()
+                print_test_start("simple_ut_env/test_counter", sim)
+                local success = true
+                try {
+                    function()
+                        run_cmd("xmake build -P . test_counter")
+                        run_cmd("xmake run -v -P . test_counter")
+                    end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("simple_ut_env/test_counter", sim, success, os.time() - start_time)
+            end
         end
 
         --
-        -- Section: Wave VPI Padding Issue
+        -- Section: WaveVPI Padding Issue
         --
-        print_section(7, total_sections, "Wave VPI Padding Issue Test")
+        print_section(7, total_sections, "WaveVPI Padding Issue Test")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "wave_vpi_padding_issue"))
             os.tryrm("build")
 
-            local start_time = os.time()
-            print_test_start("wave_vpi_padding/test", "verilator")
-            local success = true
-            try {
-                function()
-                    run_cmd("xmake build -v -P . test")
-                    run_cmd("xmake run -v -P . test")
-                end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("wave_vpi_padding/test", "verilator", success, os.time() - start_time)
+            if has_iverilog then
+                local start_time = os.time()
+                print_test_start("wave_vpi_padding/test", "iverilog")
+                local success = true
+                try {
+                    function()
+                        run_cmd("xmake build -v -P . test")
+                        run_cmd("xmake run -v -P . test")
+                    end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("wave_vpi_padding/test", "iverilog", success, os.time() - start_time)
 
-            start_time = os.time()
-            print_test_start("wave_vpi_padding/test_wave", "verilator")
-            success = true
-            try {
-                function()
-                    run_cmd("xmake build -v -P . test_wave")
-                    run_cmd("xmake run -v -P . test_wave")
-                end,
-                catch { function(e) success = false end }
-            }
-            print_test_result("wave_vpi_padding/test_wave", "verilator", success, os.time() - start_time)
+                start_time = os.time()
+                print_test_start("wave_vpi_padding/test_wave", "iverilog")
+                success = true
+                try {
+                    function()
+                        run_cmd("xmake build -v -P . test_wave")
+                        run_cmd("xmake run -v -P . test_wave")
+                    end,
+                    catch { function(e) success = false end }
+                }
+                print_test_result("wave_vpi_padding/test_wave", "iverilog", success, os.time() - start_time)
+            end
         end
 
         --
@@ -939,7 +956,7 @@ ${reset}]])
                 end
 
                 -- Inertial put test for verilator
-                if table.contains(simulators, "verilator") then
+                if has_verilator then
                     local start_time = os.time()
                     print_test_start(test_name, "verilator", "inertial_put")
                     os.setenv("SIM", "verilator")
@@ -1026,7 +1043,7 @@ ${reset}]])
                 end
 
                 -- Inertial put test for verilator
-                if table.contains(simulators, "verilator") then
+                if has_verilator then
                     local start_time = os.time()
                     print_test_start("benchmark/" .. case, "verilator", "inertial_put")
                     os.setenv("SIM", "verilator")
