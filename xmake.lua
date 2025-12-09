@@ -881,6 +881,7 @@ ${reset}]])
             for _, sim in ipairs(simulators) do
                 local start_time = os.time()
                 print_test_start("simple_ut_env/test_counter", sim)
+                os.setenv("SIM", sim)
                 local success = true
                 try {
                     function()
