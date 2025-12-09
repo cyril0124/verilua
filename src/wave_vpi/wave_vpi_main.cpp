@@ -1,4 +1,3 @@
-#include "lua.hpp"
 #include "wave_vpi.h"
 
 #include <argparse/argparse.hpp>
@@ -15,8 +14,6 @@
 #endif
 
 int main(int argc, const char *argv[]) {
-    lua_State *L = luaL_newstate(); // keep luajit symbols
-
     signal(SIGABRT, [](int sig) {
         fmt::println("[wave_vpi::main] SIGABRT");
 #ifdef USE_CPPTRACE

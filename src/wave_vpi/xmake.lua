@@ -1,7 +1,7 @@
 ---@diagnostic disable: undefined-global, undefined-field
 
-local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
+local prj_dir = path.join(curr_dir, "..", "..")
 local shared_dir = path.join(prj_dir, "shared")
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
@@ -10,8 +10,6 @@ local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 local function wave_vpi_main_common()
     set_kind("binary")
-
-    add_deps("libverilua_wave_vpi", "wave_vpi_wellen_impl")
 
     set_languages("c++20")
     set_targetdir(path.join(build_dir, "bin"))
@@ -49,7 +47,7 @@ local function wave_vpi_main_common()
 
     add_links("dl", "pthread")
 
-    add_linkgroups("luajit-5.1", { static = true, whole = true })
+    add_linkgroups("luajit-5.1", { static = true, whole = true, as_needed = false })
     add_linkdirs(path.join(lua_dir, "lib"))
 
     add_links("luajit_pro_helper")
@@ -63,10 +61,6 @@ local function wave_vpi_main_common()
     add_links("verilua_wave_vpi")
     add_linkdirs(shared_dir)
     add_rpathdirs(shared_dir)
-
-    add_links("wave_vpi_wellen_impl")
-    add_linkdirs(path.join(prj_dir, "target", "release"))
-    add_rpathdirs(path.join(prj_dir, "target", "release"))
 
     local no_cpptrace = os.getenv("NO_CPPTRACE")
     if not no_cpptrace then
@@ -89,11 +83,23 @@ end
 
 target("wave_vpi_main", function()
     wave_vpi_main_common()
+
+    if not os.getenv("NO_DEPS") then
+        add_deps("libverilua_wave_vpi", "wave_vpi_wellen_impl")
+    end
+
+    add_links("wave_vpi_wellen_impl")
+    add_linkdirs(path.join(prj_dir, "target", "release"))
+    add_rpathdirs(path.join(prj_dir, "target", "release"))
 end)
 
 target("wave_vpi_main_fsdb", function()
     if os.getenv("VERDI_HOME") then
         wave_vpi_main_common()
+
+        if not os.getenv("NO_DEPS") then
+            add_deps("libverilua_wave_vpi")
+        end
 
         local verdi_home = os.getenv("VERDI_HOME")
 

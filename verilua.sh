@@ -24,6 +24,22 @@ fi
 
 script_dir=$(dirname $(realpath $script_file))
 
+function build_wave_vpi_main_fsdb() {
+    NO_DEPS=1 NO_CPPTRACE=1 xmake b -P $VERILUA_HOME/src/wave_vpi wave_vpi_main_fsdb
+    which wave_vpi_main_fsdb &> /dev/null
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}[verilua.sh] Error: wave_vpi_main_fsdb build failed!${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}[verilua.sh] wave_vpi_main_fsdb builded successfully!${NC}"
+}
+
+# If wave_vpi_main_fsdb is not found and VERDI_HOME is set, try to build it
+if ! command -v wave_vpi_main_fsdb >/dev/null 2>&1 && [ -n "$VERDI_HOME" ]; then
+    echo -e "${YELLOW}[verilua.sh] wave_vpi_main_fsdb not found and VERDI_HOME is set, attempting to build it...${NC}"
+    build_wave_vpi_main_fsdb
+fi
+
 export VERILUA_HOME=$script_dir
 export XMAKE_GLOBALDIR=$VERILUA_HOME/scripts
 source $VERILUA_HOME/activate_verilua.sh
