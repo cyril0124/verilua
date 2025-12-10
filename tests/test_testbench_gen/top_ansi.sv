@@ -19,7 +19,7 @@ module TopAnsi#(
 
     output reg oo1,
                oo2,
-    
+
     output reg [7:0] oo3,
                      oo4,
 
@@ -63,5 +63,10 @@ module TopAnsi#(
     inout wire [7:0] bidir_data,
     inout wire [15:0] bidir_bus
 );
+
+function void test_func;
+    input string _test_func_i;
+    output bit _test_func_o;
+endfunction
 
 endmodule

@@ -203,6 +203,11 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
         //   endmodule
         std::string lastNonAnsiPortTypeStr;
         ast.getSyntax()->visit(makeSyntaxVisitor([&](auto &visitor, const slang::syntax::PortDeclarationSyntax &node) {
+            if (node.parent->kind != slang::syntax::SyntaxKind::ModuleDeclaration) {
+                // Ignore ports that are not in the module body (e.g. in `function` or `task` body)
+                return;
+            };
+
             auto headerKind = node.header->kind;
 
             std::vector<PortInfo> ports;
