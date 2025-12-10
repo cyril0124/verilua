@@ -628,6 +628,7 @@ ${reset}]])
         local has_iverilog = false
         local has_verilator = false
         local has_vcs = false
+        local has_xcelium = false
 
         if find_file("iverilog", { "$(env PATH)" }) then
             has_iverilog = true
@@ -640,6 +641,10 @@ ${reset}]])
         if find_file("vcs", { "$(env PATH)" }) then
             has_vcs = true
             table.insert(simulators, "vcs")
+        end
+        if find_file("xrun", { "$(env PATH)" }) then
+            -- has_xcelium = true
+            table.insert(simulators, "xcelium")
         end
 
         assert(#simulators > 0, "No simulators found!")
@@ -691,24 +696,26 @@ ${reset}]])
         --
         -- Section: WAL Example
         --
-        print_section(2, total_sections, "WAL (Waveform Analysis Library)")
+        print_section(2, total_sections, "WAL (Waveform Analysis Language)")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "examples", "WAL"))
-            local should_skip_verilator = false
+            local should_skip = false
             for _, sim in ipairs(simulators) do
                 if sim == "verilator" then
                     local s = os.iorun("verilator --version")
                     local main_version_str = s:match("Verilator%s+([%d.]+)")
                     if tonumber(main_version_str) <= 5.026 then
                         -- Skip Verilator tests for WAL if Verilator version <= 5.026 where the generated VCD waveform is broken
-                        should_skip_verilator = true
+                        should_skip = true
                     end
+                elseif sim == "xcelium" then
+                    should_skip = true
                 else
-                    should_skip_verilator = false
+                    should_skip = false
                 end
 
-                if not should_skip_verilator then
+                if not should_skip then
                     local start_time = os.time()
                     print_test_start("WAL/gen_wave", sim)
                     os.setenv("SIM", sim)

@@ -10,6 +10,8 @@ target("test_run_ansi", function()
             target:set("toolchains", "@iverilog")
         elseif sim == "vcs" then
             target:set("toolchains", "@vcs")
+        elseif sim == "xcelium" then
+            target:set("toolchains", "@xcelium")
         elseif sim == "verilator" then
             target:set("toolchains", "@verilator")
         else
@@ -32,6 +34,8 @@ target("test_run_non_ansi", function()
             target:set("toolchains", "@iverilog")
         elseif sim == "vcs" then
             target:set("toolchains", "@vcs")
+        elseif sim == "xcelium" then
+            target:set("toolchains", "@xcelium")
         elseif sim == "verilator" then
             target:set("toolchains", "@verilator")
         else

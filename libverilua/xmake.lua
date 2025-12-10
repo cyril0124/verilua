@@ -12,6 +12,7 @@ local common_features = "acc_time"
 
 local verilator_features = "chunk_task verilator_inner_step_callback " .. common_features
 local vcs_features = "chunk_task merge_cb " .. common_features
+local xcelium_features = vcs_features .. " promote_luajit_global"
 local iverilog_features = "chunk_task merge_cb " .. common_features
 local wave_vpi_features = "chunk_task " .. common_features
 local nosim_features = "chunk_task " .. common_features
@@ -59,9 +60,15 @@ local function build_lib_common(simulator)
             os.setenv("RUSTFLAGS", "")
         elseif simulator == "vcs" then
             os.vrun([[cargo build --release --features "vcs %s"]], vcs_features)
+        elseif simulator == "xcelium" then
+            os.vrun([[cargo build --release --features "vcs %s"]], xcelium_features)
         elseif simulator == "vcs_dpi" then
             os.setenv("RUSTFLAGS", "-Clink-arg=-Wl,--wrap=" .. table.concat(vpi_funcs, ",--wrap="))
             os.vrun([[cargo build --release --features "vcs dpi %s"]], vcs_features)
+            os.setenv("RUSTFLAGS", "")
+        elseif simulator == "xcelium_dpi" then
+            os.setenv("RUSTFLAGS", "-Clink-arg=-Wl,--wrap=" .. table.concat(vpi_funcs, ",--wrap="))
+            os.vrun([[cargo build --release --features "vcs dpi %s"]], xcelium_features)
             os.setenv("RUSTFLAGS", "")
         elseif simulator == "wave_vpi" then
             os.vrun([[cargo build --release --features "wave_vpi %s"]], wave_vpi_features)
@@ -72,7 +79,7 @@ local function build_lib_common(simulator)
         else
             raise("Unknown simulator => " .. simulator)
         end
-        
+
         if not os.isdir(shared_dir) then
             os.mkdir(shared_dir)
         end
@@ -91,6 +98,8 @@ for _, simulator in ipairs({
     "verilator_dpi",
     "vcs",
     "vcs_dpi",
+    "xcelium",
+    "xcelium_dpi",
     "iverilog",
     "wave_vpi",
     "nosim"
@@ -100,6 +109,8 @@ for _, simulator in ipairs({
     -- libverilua_verilator_dpi
     -- libverilua_vcs
     -- libverilua_vcs_dpi
+    -- libverilua_xcelium
+    -- libverilua_xcelium_dpi
     -- libverilua_iverilog
     -- libverilua_wave_vpi
     -- libverilua_nosim

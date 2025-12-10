@@ -301,6 +301,11 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
         } else if string.contains("libverilua_vcs.so") || string.contains("libverilua_vcs_dpi.so") {
             *cached_result = Some("vcs".to_string());
             return string_to_c_char_owned("vcs");
+        } else if string.contains("libverilua_xcelium.so")
+            || string.contains("libverilua_xcelium_dpi.so")
+        {
+            *cached_result = Some("xcelium".to_string());
+            return string_to_c_char_owned("xcelium");
         } else if string.contains("liverilua_iverilog.so") {
             *cached_result = Some("iverilog".to_string());
             return string_to_c_char_owned("iverilog");

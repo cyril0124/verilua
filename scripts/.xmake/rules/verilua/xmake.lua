@@ -1,4 +1,4 @@
----@diagnostic disable: undefined-global, undefined-field
+---@diagnostic disable: undefined-global, undefined-field, unnecessary-assert, unnecessary-if
 
 local f = string.format
 local default_timescale = "1ns/1ps"
@@ -7,7 +7,7 @@ local verilua_tools_home = path.join(verilua_home, "tools")
 local verilua_libs_home = path.join(verilua_home, "shared")
 local luajitpro_home = path.join(verilua_home, "luajit-pro", "luajit2.1")
 
----@alias SimulatorType "iverilog" | "verilator" | "vcs" | "wave_vpi" | "nosim"
+---@alias SimulatorType "iverilog" | "verilator" | "vcs" | "xcelium" | "wave_vpi" | "nosim"
 
 ---@alias InstrumentationType "cov_exporter"
 
@@ -25,9 +25,11 @@ local function get_simulator_type(target)
         return "iverilog"
     elseif target:toolchain("vcs") then
         return "vcs"
-    elseif target:toolchain("wave_vpi") ~= nil then
+    elseif target:toolchain("xcelium") then
+        return "xcelium"
+    elseif target:toolchain("wave_vpi") then
         return "wave_vpi"
-    elseif target:toolchain("nosim") ~= nil then
+    elseif target:toolchain("nosim") then
         return "nosim"
     else
         return nil
@@ -56,6 +58,8 @@ local function before_build_or_run(target)
     ---     -- or
     ---     add_toolchains("@vcs")
     ---     -- or
+    ---     add_toolchains("@xcelium")
+    ---     -- or
     ---     add_toolchains("@wave_vpi")
     ---     -- or
     ---     add_toolchains("@nosim")
@@ -67,6 +71,7 @@ local function before_build_or_run(target)
                 - add_toolchains("@verilator")
                 - add_toolchains("@iverilog")
                 - add_toolchains("@vcs")
+                - add_toolchains("@xcelium")
                 - add_toolchains("@wave_vpi") => For waveform simulation only
                 - add_toolchains("@nosim") => For no simulation
     ]])
@@ -675,6 +680,93 @@ rule("verilua", function()
             for _, eflag in ipairs(extra_vcs_flags) do
                 target:add("values", "vcs.flags", eflag)
             end
+        elseif sim == "xcelium" then
+            local extra_xcelium_flags = {
+                "-64bit",
+                "-licqueue",
+                "-elaborate",
+                "-name " .. tb_top .. "_snapshot",
+                "-xmlibdirpath " .. build_dir,
+                "-xmlibdirname " .. path.basename(sim_build_dir),
+                "-sv",
+                "-timescale " .. default_timescale,
+                "-l " .. path.join(build_dir, "xrun_comp.log"),
+                "-access +rw",
+                "-loadvpi " ..
+                path.join(verilua_libs_home, "libverilua_xcelium.so") .. ":vlog_startup_routines_bootstrap",
+                "-top " .. tb_top,
+                "-nospecify", -- Suppress timing information from specify blocks
+                "-define SIM_XCELIUM",
+                "-define XCELIUM",
+            }
+
+            if no_internal_clock == "1" then
+                extra_xcelium_flags[#extra_xcelium_flags + 1] = "-define NO_INTERNAL_CLOCK"
+            end
+
+            local xcelium_dump_fsdb = false
+            local _xcelium_flags = target:values("xcelium.flags") or {}
+            if type(_xcelium_flags) ~= "table" then
+                _xcelium_flags = { _xcelium_flags }
+            end
+            local xcelium_uflags = table.concat(_xcelium_flags, " ")
+            xcelium_uflags = xcelium_uflags:split(" ", { plain = true })
+            for i, uflag in ipairs(xcelium_uflags) do
+                if uflag == "-timescale" then
+                    -- Override the timescale flag
+                    for j, eflag in ipairs(extra_xcelium_flags) do
+                        if eflag:startswith("-timescale") then
+                            local _timescale = xcelium_uflags[i + 1]
+                            assert(
+                                _timescale:find("/"),
+                                "[on_build] timescale value for `-timescale` option may not be a valid timescale value(e.g. 1ns/1ns)"
+                            )
+                            extra_xcelium_flags[j] = _timescale
+                        end
+                    end
+                elseif uflag:startswith("+define+XCELIUM_DUMP_FSDB") then
+                    xcelium_dump_fsdb = true
+                elseif uflag == "-define" then
+                    assert(xcelium_uflags[i + 1], "-define should be followed by a value")
+                    local macro = xcelium_uflags[i + 1]
+                    if macro == "XCELIUM_DUMP_FSDB" then
+                        xcelium_dump_fsdb = true
+                    end
+                end
+            end
+
+            --- By default, xcelium dump SHM waveform, fsdb waveform is only enabled when
+            --- user explicitly define `XCELIUM_DUMP_FSDB` macro through `xcelium.flags`.
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_values("xcelium.flags", "-define XCELIUM_DUMP_FSDB")
+            ---     -- or
+            ---     add_values("xcelium.flags", "+define+XCELIUM_DUMP_FSDB")
+            --- ```
+            ---
+            --- Also, use `XCELIUM_DUMP_VCD` macro to dump vcd waveform.
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     add_values("xcelium.flags", "-define XCELIUM_DUMP_VCD")
+            ---     -- or
+            ---     add_values("xcelium.flags", "+define+XCELIUM_DUMP_VCD")
+            --- ```
+            if xcelium_dump_fsdb then
+                local verdi_home = os.getenv("VERDI_HOME")
+                local verdi_pli_dir = path.join(verdi_home, "share", "PLI", "IUS", "LINUX64")
+                local ld_library_path = os.getenv("LD_LIBRARY_PATH") or ""
+
+                assert(verdi_home, "[on_build] VERDI_HOME is not set when using XCELIUM_DUMP_FSDB")
+                os.setenv("LD_LIBRARY_PATH", verdi_pli_dir .. ":" .. ld_library_path)
+
+                extra_xcelium_flags[#extra_xcelium_flags + 1] =
+                    "-loadpli1 " ..
+                    path.join(verdi_pli_dir, "boot", "debpli.so") .. ":novas_pli_boot"
+            end
+
+            for _, eflag in ipairs(extra_xcelium_flags) do
+                target:add("values", "xcelium.flags", eflag)
+            end
         elseif sim == "wave_vpi" then
             -- Do nothing
         elseif sim == "nosim" then
@@ -712,7 +804,7 @@ rule("verilua", function()
             path.join(luajitpro_home, "include", "luajit-2.1"),
             path.join(verilua_home, "src", "include")
         )
-        target:add("links", "luajit-5.1")
+        -- target:add("links", "luajit-5.1") -- This is move into `apply_build_flags`
         target:add("linkdirs", path.join(luajitpro_home, "lib"), verilua_libs_home)
         target:add("linkdirs", path.join(verilua_home, "conan_installed", "lib"))
         target:add("rpathdirs", path.join(luajitpro_home, "lib"), verilua_libs_home)
@@ -775,7 +867,14 @@ rule("verilua", function()
             --- ```
             --- For more information about `testbench_gen`, please refer to `testbench_gen --help`
             local u_tb_gen_flags = target:values("cfg.tb_gen_flags")
-            local tb_gen_flags = { "--top", top, "--tbtop", tb_top, "--nodpi", "--verbose", "--out-dir", build_dir, "--lua-meta-file", path.join("build", "meta.lua") }
+            local tb_gen_flags = {
+                "--top", top,
+                "--tbtop", tb_top,
+                "--nodpi",
+                "--verbose",
+                "--out-dir", build_dir,
+                "--lua-meta-file", path.join("build", "meta.lua")
+            }
             if u_tb_gen_flags then
                 tb_gen_flags = table.join2(tb_gen_flags, u_tb_gen_flags)
             end
@@ -954,14 +1053,28 @@ rule("verilua", function()
         ---     add_linkdirs("/path/to/lib1", "/path/to/lib2")
         ---     add_links("fmt", "mimalloc")
         --- ```
-        local function apply_build_flags()
+        ---@param _argv table?
+        ---@return string CFLAGS string
+        ---@return string LDFLAGS string
+        local function apply_build_flags(_argv)
+            _argv = _argv or {}
+            local all_cflags_str = ""
+            local all_ldflags_str = ""
+            -- TODO: Support `add_linkgroups()`
+
             --- e.g. (in your xmake.lua)
             --- ```lua
             ---     add_cflags("-Wall", "-Wextra")
             --- ```
             local cflags = target:get("cflags")
-            if cflags then
-                table.insert(argv, f([[-CFLAGS "%s"]], table.concat(cflags, " ")))
+            local cflags_t = type(cflags)
+            if cflags_t == "table" then
+                local s = table.concat(cflags, " ")
+                all_cflags_str = all_cflags_str .. " " .. s
+                table.insert(_argv, f([[-CFLAGS "%s"]], s))
+            elseif cflags_t == "string" then
+                all_cflags_str = all_cflags_str .. " " .. cflags
+                table.insert(_argv, f([[-CFLAGS "%s"]], cflags))
             end
 
             --- e.g. (in your xmake.lua)
@@ -969,8 +1082,14 @@ rule("verilua", function()
             ---     add_ldflags("-lfmt")
             --- ```
             local ldflags = target:get("ldflags")
-            if ldflags then
-                table.insert(argv, f([[-LDFLAGS "%s"]], table.concat(ldflags, " ")))
+            local ldflags_t = type(ldflags)
+            if ldflags_t == "table" then
+                local s = table.concat(ldflags, " ")
+                all_ldflags_str = all_ldflags_str .. " " .. s
+                table.insert(_argv, f([[-LDFLAGS "%s"]], s))
+            elseif ldflags_t == "string" then
+                all_ldflags_str = all_ldflags_str .. " " .. ldflags
+                table.insert(_argv, f([[-LDFLAGS "%s"]], ldflags))
             end
 
             --- e.g. (in your xmake.lua)
@@ -978,8 +1097,15 @@ rule("verilua", function()
             ---     add_defines("HELLO", "WORLD=1")
             --- ```
             local defines = target:get("defines")
-            for _, define in ipairs(defines) do
-                table.insert(argv, f([[-CFLAGS "-D%s"]], define))
+            local defines_t = type(defines)
+            if defines_t == "table" then
+                for _, define in ipairs(defines) do
+                    all_cflags_str = all_cflags_str .. " -D" .. define
+                    table.insert(_argv, f([[-CFLAGS "-D%s"]], define))
+                end
+            elseif defines_t == "string" then
+                all_cflags_str = all_cflags_str .. " -D" .. defines
+                table.insert(_argv, f([[-CFLAGS "-D%s"]], defines))
             end
 
             --- e.g. (in your xmake.lua)
@@ -987,9 +1113,17 @@ rule("verilua", function()
             ---     add_includedirs("/path/to/inc1", "/path/to/inc2")
             --- ```
             local includedirs = target:get("includedirs")
-            for _, dir in ipairs(includedirs) do
-                table.insert(argv, "-CFLAGS")
-                table.insert(argv, "-I" .. path.absolute(dir))
+            local includedirs_t = type(includedirs)
+            if includedirs_t == "table" then
+                for _, dir in ipairs(includedirs) do
+                    all_cflags_str = all_cflags_str .. " -I" .. path.absolute(dir)
+                    table.insert(_argv, "-CFLAGS")
+                    table.insert(_argv, "-I" .. path.absolute(dir))
+                end
+            elseif includedirs_t == "string" then
+                all_cflags_str = all_cflags_str .. " -I" .. path.absolute(includedirs)
+                table.insert(_argv, "-CFLAGS")
+                table.insert(_argv, "-I" .. path.absolute(includedirs))
             end
 
             --- e.g. (in your xmake.lua)
@@ -998,11 +1132,24 @@ rule("verilua", function()
             ---     add_rpathdirs("/path/to/link1", "/path/to/link2")
             --- ```
             local linkdirs, rpathdirs = target:get("linkdirs"), target:get("rpathdirs")
-            for _, dir in ipairs(linkdirs) do
-                table.insert(argv, "-LDFLAGS \"-L" .. path.absolute(dir) .. "\"")
+            local linkdirs_t, rpathdirs_t = type(linkdirs), type(rpathdirs)
+            if linkdirs_t == "table" then
+                for _, dir in ipairs(linkdirs) do
+                    all_ldflags_str = all_ldflags_str .. " -L" .. path.absolute(dir)
+                    table.insert(_argv, "-LDFLAGS \"-L" .. path.absolute(dir) .. "\"")
+                end
+            elseif linkdirs_t == "string" then
+                all_ldflags_str = all_ldflags_str .. " -L" .. path.absolute(linkdirs)
+                table.insert(_argv, "-LDFLAGS \"-L" .. path.absolute(linkdirs) .. "\"")
             end
-            for _, dir in ipairs(rpathdirs) do
-                table.insert(argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(dir) .. "\"")
+            if rpathdirs_t == "table" then
+                for _, dir in ipairs(rpathdirs) do
+                    all_ldflags_str = all_ldflags_str .. " -Wl,-rpath," .. path.absolute(dir)
+                    table.insert(_argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(dir) .. "\"")
+                end
+            elseif rpathdirs_t == "string" then
+                all_ldflags_str = all_ldflags_str .. " -Wl,-rpath," .. path.absolute(rpathdirs)
+                table.insert(_argv, "-LDFLAGS \"-Wl,-rpath," .. path.absolute(rpathdirs) .. "\"")
             end
 
             --- e.g. (in your xmake.lua)
@@ -1010,10 +1157,31 @@ rule("verilua", function()
             ---     add_links("fmt", "mimalloc")
             --- ```
             local links = target:get("links")
-            for _, link in ipairs(links) do
-                table.insert(argv, "-LDFLAGS")
-                table.insert(argv, "-l" .. link)
+            local links_t = type(links)
+            if links_t == "table" then
+                for _, link in ipairs(links) do
+                    all_ldflags_str = all_ldflags_str .. " -l" .. link
+                    table.insert(_argv, "-LDFLAGS")
+                    table.insert(_argv, "-l" .. link)
+                end
+            elseif links_t == "string" then
+                all_ldflags_str = all_ldflags_str .. " -l" .. links
+                table.insert(_argv, "-LDFLAGS")
+                table.insert(_argv, "-l" .. links)
             end
+
+            -- Apply luajit build flags
+            local luajit_ldflags =
+                "-Wl,--no-as-needed -Wl,--whole-archive " ..
+                "-lluajit-5.1 " ..
+                "-Wl,--no-whole-archive -Wl,--as-needed"
+            all_ldflags_str = all_ldflags_str .. " " .. luajit_ldflags
+            table.insert(_argv,
+                "-LDFLAGS " ..
+                f([["%s"]], luajit_ldflags)
+            )
+
+            return all_cflags_str, all_ldflags_str
         end
 
         if sim == "verilator" then
@@ -1025,7 +1193,7 @@ rule("verilua", function()
             buildcmd = find_file("verilator", { "$(env PATH)" }) or
                 assert(toolchain:config("verilator"), "[on_build] verilator not found!")
 
-            apply_build_flags()
+            apply_build_flags(argv)
         elseif sim == "iverilog" then
             toolchain = assert(
                 target:toolchain("iverilog"),
@@ -1043,7 +1211,15 @@ rule("verilua", function()
             buildcmd = find_file("vcs", { "$(env PATH)" }) or
                 assert(toolchain:config("vcs"), "[on_build] vcs not found!")
 
-            apply_build_flags()
+            apply_build_flags(argv)
+        elseif sim == "xcelium" then
+            toolchain = assert(
+                target:toolchain("xcelium"),
+                '[on_build] we need to set_toolchains("@xcelium") in target("%s")',
+                target:name()
+            )
+            buildcmd = find_file("xrun", { "$(env PATH)" }) or
+                assert(toolchain:config("xcelium"), "[on_build] vcs not found!")
         elseif sim == "wave_vpi" then
             -- Do nothing
         elseif sim == "nosim" then
@@ -1097,20 +1273,30 @@ rule("verilua", function()
                 waveform_file
             )
         else
+            -- Used when sim == "xcelium" to build C/C++ files
+            local cfiles = {}
+
             for _, sourcefile in ipairs(sourcefiles) do
-                local ext = path.extension(sourcefile)
+                local ext = path.extension(sourcefile) --[[@as string]]
                 local abs_sourcefile = path.absolute(sourcefile)
                 cprint("${📄} read file ${green dim}%s${reset}", abs_sourcefile)
                 if ext ~= ".lua" and ext ~= ".luau" and ext ~= ".tl" then
                     if ext == ".vlt" then
-                        -- Ignore "*.vlt" file if current simulator is not verilator
                         if sim == "verilator" then
+                            -- Ignore "*.vlt" file if current simulator is not verilator
                             table.insert(filelist_sim, abs_sourcefile)
                             table.insert(argv, abs_sourcefile)
                         end
                     elseif ext == ".v" or ext == ".sv" or ext == ".svh" then
                         table.insert(filelist_dut, abs_sourcefile)
                         table.insert(filelist_sim, abs_sourcefile)
+                    elseif ext == ".c" or ext == ".cpp" then
+                        table.insert(filelist_sim, abs_sourcefile)
+                        if sim == "xcelium" then
+                            table.insert(cfiles, abs_sourcefile)
+                        else
+                            table.insert(argv, abs_sourcefile)
+                        end
                     else
                         table.insert(filelist_sim, abs_sourcefile)
                         table.insert(argv, abs_sourcefile)
@@ -1177,6 +1363,57 @@ rule("verilua", function()
                     tb_top_mk
                 )
                 os.cd(os.curdir())
+            elseif sim == "xcelium" and #cfiles > 0 then
+                import("lib.detect.find_file")
+
+                -- Build libdpi.so
+                local cc = os.getenv("CC") or "gcc"
+                local cxx = os.getenv("CXX") or "g++"
+
+                local obj_files = {}
+                local all_cflags_str, all_ldflags_str = apply_build_flags()
+                local total_cfiles = #cfiles
+                local obj_dir = path.join(build_dir, "libdpi_objs")
+
+                if not os.isdir(obj_dir) then
+                    os.mkdir(obj_dir)
+                end
+
+                local cds_root = assert(
+                    find_file("cds_root", { "$(env PATH)" }),
+                    "[on_build] Current simulator is `xcelium`, but `cds_root` not found!"
+                )
+                local xrun_home = os.iorun(cds_root .. " xrun"):trim():gsub("\n", "")
+                local xrun_include = path.join(xrun_home, "tools", "include")
+                assert(
+                    os.exists(path.join(xrun_include, "svdpi.h")),
+                    "[xcelium.lua] [xrun_comp] error: svdpi.h is not found in %s",
+                    xrun_include
+                )
+                all_cflags_str = all_cflags_str .. " -I" .. xrun_include
+
+                for i, cfile in ipairs(cfiles) do
+                    local ext = path.extension(cfile)
+                    local basename = path.basename(cfile)
+                    local obj_file = path.join(obj_dir, basename) .. ".o"
+                    local compiler = cxx
+                    if ext == ".c" then
+                        compiler = cc
+                    end
+
+                    local cmd = f("%s -c -fPIC %s %s -o %s", compiler, all_cflags_str, cfile, obj_file)
+                    print(f("[%d/%d]", i, total_cfiles), cmd)
+                    os.exec(cmd)
+
+                    obj_files[#obj_files + 1] = obj_file
+                end
+
+                -- `libdpi.so` can be automatically recognized by xcelium as a default DPI library without extra flags(i.e. -sv_lib)
+                local so_file = path.join(build_dir, "libdpi.so")
+                local cmd = f("%s -shared -Wl,-soname,libdpi.so %s -o %s %s", cxx, all_ldflags_str, so_file,
+                    table.concat(obj_files, " "))
+                print(cmd)
+                os.exec(cmd)
             end
         end
 
@@ -1232,19 +1469,34 @@ source setvars.sh
 
         local run_sh = ""
         if sim == "verilator" then
-            run_sh = f([[%s/V%s 2>&1 | tee run.log]], sim_build_dir, tb_top)
+            run_sh = f("%s/V%s 2>&1 | tee run.log", sim_build_dir, tb_top)
         elseif sim == "vcs" then
-            run_sh = f([[%s/simv %s +notimingcheck 2>&1 | tee run.log]], sim_build_dir,
-                (function() if target:get("vcs_no_initreg") then return "" else return "+vcs+initreg+0" end end)())
+            run_sh = f(
+                "%s/simv %s +notimingcheck 2>&1 | tee run.log",
+                sim_build_dir,
+                target:get("vcs_no_initreg") and "" or "+vcs+initreg+0"
+            )
+        elseif sim == "xcelium" then
+            run_sh = f(
+                "xrun -r %s_snapshot -xmlibdirpath %s -xmlibdirname %s -l %s -loadvpi %s:vlog_startup_routines_bootstrap",
+                tb_top,
+                build_dir,
+                path.basename(sim_build_dir),
+                path.join(build_dir, "xrun_run.log"),
+                path.join(verilua_libs_home, "libverilua_xcelium.so")
+            )
         elseif sim == "iverilog" then
-            run_sh = f([[vvp -M %s -m libverilua_iverilog %s/simv.vvp | tee run.log]], verilua_libs_home, sim_build_dir)
+            run_sh = f("vvp -M %s -m libverilua_iverilog %s/simv.vvp | tee run.log", verilua_libs_home, sim_build_dir)
         elseif sim == "wave_vpi" then
             local waveform_file = assert(
                 target:get("waveform_file"),
                 "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst, .fsdb)"
             )
-            run_sh = f([[wave_vpi_main --wave-file %s 2>&1 | tee run.log]], waveform_file)
+            run_sh = f("wave_vpi_main --wave-file %s 2>&1 | tee run.log", waveform_file)
+        elseif sim == "nosim" then
+            -- TODO:
         end
+
         io.writefile(
             path.join(build_dir, "run.sh"),
             "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh
@@ -1274,7 +1526,7 @@ verdi -f filelist.f -sv -nologo $@]]
             local target_file = path.join(sim_build_dir, "simv")
             os.cp(target_file, target:targetdir())
             os.cp(target_file, path.join(target:targetdir(), target:name())) -- make xmake happy, otherwise it would fail to find the binary
-        elseif sim == "wave_vpi" then
+        elseif sim == "wave_vpi" or sim == "xcelium" then
             os.touch(path.join(target:targetdir(), target:name()))           -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "nosim" then
             -- Save cmdline into a seperate file which can be used in `SignalDB.lua`
@@ -1342,6 +1594,7 @@ verdi -f filelist.f -sv -nologo $@]]
         ---     add_values("verilator.run_flags", "--flag")
         ---     add_values("verilator.run_prefix", "gdb --args")
         --- ```
+        local full_runcmd = ""
         if sim == "verilator" then
             local run_flags = { "" }
             local _run_flags = target:values("verilator.run_flags")
@@ -1356,10 +1609,9 @@ verdi -f filelist.f -sv -nologo $@]]
             end
 
             local vtb_top = path.join(sim_build_dir, "V" .. tb_top)
-            os.exec(
+            full_runcmd =
                 table.concat(run_prefix, " ") ..
                 " " .. vtb_top .. " " .. table.concat(run_flags, " ")
-            )
         elseif sim == "iverilog" then
             import("lib.detect.find_file")
 
@@ -1398,10 +1650,9 @@ verdi -f filelist.f -sv -nologo $@]]
 
             local vvp = assert(find_file("vvp", { "$(env PATH)" }), "[on_run] vvp not found!")
             local simv_vvp = path.join(sim_build_dir, "simv.vvp")
-            os.exec(
+            full_runcmd =
                 table.concat(run_prefix, " ") ..
                 " " .. vvp .. " " .. table.concat(run_flags, " ") .. " " .. simv_vvp
-            )
         elseif sim == "vcs" then
             local run_flags = {
                 "+notimingcheck"
@@ -1422,10 +1673,80 @@ verdi -f filelist.f -sv -nologo $@]]
             end
 
             local simv = path.join(sim_build_dir, "simv")
-            os.exec(
+            full_runcmd =
                 table.concat(run_prefix, " ") ..
                 " " .. simv .. " " .. table.concat(run_flags, " ")
-            )
+        elseif sim == "xcelium" then
+            import("lib.detect.find_file")
+
+            local run_flags = {
+                "-64bit",
+                "-r " .. tb_top .. "_snapshot",
+                "-xmlibdirpath " .. build_dir,
+                "-xmlibdirname " .. path.basename(sim_build_dir),
+                "-l " .. path.join(build_dir, "xrun_run.log"),
+                "-loadvpi " ..
+                path.join(verilua_libs_home, "libverilua_xcelium.so") .. ":vlog_startup_routines_bootstrap",
+            }
+
+            do
+                local xcelium_dump_fsdb = false
+                local xcelium_flags = target:values("xcelium.flags") or {}
+                if type(xcelium_flags) ~= "table" then
+                    xcelium_flags = { xcelium_flags }
+                end
+                local xcelium_flags_str = table.concat(xcelium_flags, " ")
+                local xcelium_uflags = xcelium_flags_str:split(" ", { plain = true })
+                for i, uflag in ipairs(xcelium_uflags) do
+                    if uflag:startswith("+define+XCELIUM_DUMP_FSDB") then
+                        xcelium_dump_fsdb = true
+                    elseif uflag == "-define" then
+                        local macro = xcelium_uflags[i + 1]
+                        if macro == "XCELIUM_DUMP_FSDB" then
+                            xcelium_dump_fsdb = true
+                        end
+                    end
+                end
+
+                -- By default, xcelium dump SHM waveform, fsdb waveform is only enabled when user explicitly define `XCELIUM_DUMP_FSDB` macro
+                if xcelium_dump_fsdb then
+                    local verdi_home = os.getenv("VERDI_HOME")
+                    local verdi_pli_dir = path.join(verdi_home, "share", "PLI", "IUS", "LINUX64")
+                    local ld_library_path = os.getenv("LD_LIBRARY_PATH") or ""
+
+                    assert(verdi_home, "[on_run] VERDI_HOME is not set when using XCELIUM_DUMP_FSDB")
+                    os.setenv("LD_LIBRARY_PATH", verdi_pli_dir .. ":" .. ld_library_path)
+
+                    run_flags[#run_flags + 1] =
+                        "-loadpli1 " ..
+                        path.join(verdi_pli_dir, "boot", "debpli.so") .. ":novas_pli_boot"
+                end
+            end
+
+            local _run_flags = target:values("xcelium.run_flags")
+            if _run_flags then
+                table.join2(run_flags, _run_flags)
+            end
+
+            local run_prefix = { "" }
+            local _run_prefix = target:values("xcelium.run_prefix")
+            if _run_prefix then
+                table.join2(run_prefix, _run_prefix)
+            end
+
+            local xrun = find_file("xrun", { "$(env PATH)" })
+            if not xrun then
+                local toolchain = assert(
+                    target:toolchain("xcelium"),
+                    '[on_run] we need to set_toolchains("@xcelium") in target("%s")',
+                    target:name()
+                )
+                xrun = assert(toolchain:config("xrun"), "[on_run] xrun not found!")
+            end
+
+            full_runcmd =
+                table.concat(run_prefix, " ") ..
+                " " .. xrun .. " " .. table.concat(run_flags, " ")
         elseif sim == "wave_vpi" then
             import("lib.detect.find_file")
 
@@ -1465,10 +1786,9 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.join2(run_prefix, _run_prefix)
             end
 
-            os.exec(
+            full_runcmd =
                 table.concat(run_prefix, " ") ..
                 " " .. wave_vpi_main .. " " .. table.concat(run_flags, " ")
-            )
         elseif sim == "nosim" then
             import("lib.detect.find_file")
 
@@ -1487,12 +1807,18 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.join2(run_prefix, _run_prefix)
             end
 
-            os.exec(
+            full_runcmd =
                 table.concat(run_prefix, " ") ..
                 " " .. nosim .. " " .. table.concat(run_flags, " ")
-            )
         else
             raise("TODO: [on_run] unknown simulator => " .. sim)
         end
+
+        cprint(
+            "${✅} [verilua-xmake] [%s] full runcmd is ${green underline}%s${reset}",
+            target:name(),
+            full_runcmd
+        )
+        os.exec(full_runcmd)
     end)
 end)

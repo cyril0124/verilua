@@ -16,7 +16,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
     添加具体的仿真器（Verilua 中称为仿真后端（Backend））。
     
-    - 对于 HVL 场景，目前 `<toolchain>` 的可选值为 `@verilator`、`@iverilog`、`@vcs`，分别对应了开源的 [Verilator](https://github.com/verilator/verilator)、开源的 [Icarus Verilog](https://github.com/steveicarus/iverilog)、商业的 Synopsys VCS 等仿真器。
+    - 对于 HVL 场景，目前 `<toolchain>` 的可选值为 `@verilator`、`@iverilog`、`@vcs`、 `@xcelium`，分别对应了开源的 [Verilator](https://github.com/verilator/verilator)、开源的 [Icarus Verilog](https://github.com/steveicarus/iverilog)、商业的 Synopsys VCS、Cadence Xcelium 等仿真器。
     - 对于 WAL 场景，目前 `<toolchain>` 的可选值为 `@wave_vpi`，`wave_vpi` 是 Verilua 开发的一个用于仿真波形的仿真后端，目前支持的波形格式为: VCD、FST、FSDB。
 
 2. `#!lua add_files(...)`
@@ -119,7 +119,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
     用来添加需要传递给仿真器进行编译的额外参数，具体支持的 flags 可以与使用的仿真器相关。
     
     !!! warning "注意"
-        - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`。
+        - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs` 、 `xcelium`。
         - 对于 WAL 场景，这一设置不起作用。
 
 4. `#!lua set_values("<sim>.run_flags", <flags used at runtime>)` / ``#!lua add_values("<sim>.run_flags", "<flags used at runtime>")``
@@ -127,7 +127,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
     用来添加需要传递给编译后的二进制文件运行时的额外参数。例如 Verilator 编译得到的二进制文件通常叫 `Vtb_top`，则可以使用 `set_values("verilator.run_flags", "--help")` 来添加一个运行时参数，这样在 xmake 执行 run 的时候就会加上这个参数。运行仿真的时候等价于 `#!shell Vtb_top --help`。
 
     !!! warning "注意"
-        - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`。
+        - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`、 `xcelium`。
         - 对于 WAL 场景，这一设置不起作用。
 
 5. `#!lua set_values("<sim>.run_prefix", <prefix flags used at runtime>)` / `#!lua add_values("<sim>.run_prefix", "<prefix flags used at runtime>")`
@@ -135,7 +135,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
     用来添加需要传递给编译后的二进制文件运行时的额外**前缀**参数。例如 Verilator 编译得到的二进制文件通常叫 `Vtb_top`，则可以使用 `set_values("verilator.run_prefix", "gdb --args")` 来添加一个运行时前缀参数，这样在 xmake 执行 run 的时候就会加上这个参数。运行仿真的时候等价于 `#!shell gdb --args Vtb_top`。
 
     !!! warning "注意"
-        - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`。
+        - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`、 `xcelium`。
         - 对于 WAL 场景，这一设置不起作用。
 
     !!! tip "`run_prefix` 和 `run_flags` 的位置区别"

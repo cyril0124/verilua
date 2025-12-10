@@ -51,6 +51,8 @@ opt_cb_task = []
 merge_cb = ["opt_cb_task"]
 chunk_task = ["opt_cb_task"]
 
+promote_luajit_global = []
+
 [build-dependencies]
 cc = {version = "1.2.32", features = ["parallel"]}
 cpp_build = "0.5"

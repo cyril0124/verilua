@@ -280,7 +280,7 @@ do
     end
 end
 
-if cfg.simulator == "vcs" then
+if cfg.simulator == "vcs" or cfg.simulator == "xcelium" then
     ffi.cdef [[
         void *svGetScopeFromName(const char *str);
         void svSetScope(void *scope);

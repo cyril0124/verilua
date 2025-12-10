@@ -10,17 +10,36 @@ local assert = assert
 local ffi_new = ffi.new
 
 local cfg = _G.cfg
+local simulator = cfg.simulator
 
----@type fun()
+local is_vcs = simulator == "vcs"
+local is_xcelium = simulator == "xcelium"
+local is_verilator = simulator == "verilator"
+local is_iverilog = simulator == "iverilog"
+local is_wave_vpi = simulator == "wave_vpi"
+local is_nosim = simulator == "nosim"
+
+---@type fun(scope_name: string?)
 local set_dpi_scope
-if cfg.simulator == "vcs" then
-    ffi.cdef [[
-        void *svGetScopeFromName(const char *str);
-        void svSetScope(void *scope);
-    ]]
+if is_verilator or is_vcs or is_xcelium then
+    local svSetScope = utils.try_ffi_cast(
+        "void (*)(void *)",
+        "void svSetScope(void *scope)",
+        "svSetScope"
+    )
+    local svGetScopeFromName = utils.try_ffi_cast(
+        "void *(*)(const char *)",
+        "void svGetScopeFromName(const char *name)",
+        "svGetScopeFromName"
+    )
 
-    set_dpi_scope = function()
-        ffi.C.svSetScope(ffi.C.svGetScopeFromName(cfg.top))
+    set_dpi_scope = function(scope_name)
+        scope_name = scope_name or cfg.top
+        svSetScope(svGetScopeFromName(scope_name))
+    end
+else
+    set_dpi_scope = function(_)
+        assert(false, string.format("Simulator: %s not support set_dpi_scope", simulator))
     end
 end
 
@@ -40,13 +59,12 @@ ffi.cdef [[
 
 local initialize_trace = function(trace_file_path)
     assert(trace_file_path ~= nil)
-    local simulator = cfg.simulator
-    if simulator == "vcs" then
+    if is_vcs or is_xcelium then
         set_dpi_scope()
         ffi.C.simulation_initializeTrace(ffi.cast("char *", trace_file_path))
-    elseif simulator == "verilator" then
+    elseif is_verilator then
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
-    elseif simulator == "iverilog" then
+    elseif is_iverilog then
         _G.await_time(0) -- waitting for simulation start
 
         local traceFilePath = trace_file_path or "dump.vcd"
@@ -59,50 +77,56 @@ local initialize_trace = function(trace_file_path)
 
         dut.simulation_initializeTrace = 1
         dut.simulation_initializeTrace_latch = 0
-    elseif simulator == "wave_vpi" then
-        assert(false, "[initialize_trace] not support for wave_vpi now")
+    elseif is_wave_vpi or is_nosim then
+        assert(false, "[initialize_trace] not support for wave_vpi/nosim")
     else
         assert(false, "Unknown simulator => " .. simulator)
     end
 end
 
 local enable_trace = function()
-    local simulator = cfg.simulator
-    if simulator == "vcs" then
+    if is_vcs or is_xcelium then
         set_dpi_scope()
         ffi.C.simulation_enableTrace()
-    elseif simulator == "verilator" then
+    elseif is_verilator then
         ffi.C.verilator_simulation_enableTrace()
-    elseif simulator == "iverilog" then
+    elseif is_iverilog then
         dut.simulation_enableTrace = 1
         dut.simulation_enableTrace_latch = 0
-    elseif simulator == "wave_vpi" then
-        assert(false, "[enable_trace] not support for wave_vpi now")
+    elseif is_wave_vpi or is_nosim then
+        assert(false, "[enable_trace] not support for wave_vpi/nosim")
     else
         assert(false, "Unknown simulator => " .. simulator)
     end
 end
 
 local disable_trace = function()
-    if cfg.simulator == "vcs" then
+    if is_vcs or is_xcelium then
         set_dpi_scope()
         ffi.C.simulation_disableTrace()
-    elseif cfg.simulator == "verilator" then
+    elseif is_verilator then
         ffi.C.verilator_simulation_disableTrace()
-    elseif cfg.simulator == "iverilog" then
+    elseif is_iverilog then
         dut.simulation_disableTrace = 1
         dut.simulation_disableTrace_latch = 0
 
         dut.simulation_enableTrace = 0
         dut.simulation_enableTrace_latch = 0
-    elseif cfg.simulator == "wave_vpi" then
-        assert(false, "[disable_trace] not support for wave_vpi now")
+    elseif is_wave_vpi or is_nosim then
+        assert(false, "[disable_trace] not support for wave_vpi/nosim")
     else
-        assert(false, "Unknown simulator => " .. cfg.simulator)
+        assert(false, "Unknown simulator => " .. simulator)
     end
 end
 
 local dump_wave = function(trace_file_path)
+    if is_xcelium and trace_file_path then
+        -- The reason is that $shm_open cannot accept string variable as the input file name.
+        print(
+            "[dump_wave] xcelium not support custom trace file name when dumping `.shm` wave, the default name is `waves.shm`"
+        )
+    end
+
     local _trace_file_path = trace_file_path or "test.vcd"
     local trace_path = path.abspath(path.dirname(_trace_file_path))
 
@@ -127,6 +151,9 @@ local simulator_control = function(sim_crtl)
 end
 
 local finish = function()
+    if is_xcelium then
+        os.exit(0)
+    end
     simulator_control(SimCtrl.FINISH)
 end
 
@@ -179,6 +206,7 @@ end
 
 ---@class (exact) verilua.LuaSimulator
 ---@field SimCtrl table<string, integer>
+---@field set_dpi_scope fun(scope_name?: string)
 ---@field initialize_trace fun(trace_file_path: string)
 ---@field enable_trace fun()
 ---@field disable_trace fun()
@@ -190,6 +218,7 @@ end
 ---@field print_hierarchy fun(max_level?: integer)
 ---@field iterate_vpi_type fun(module_name: string, type: integer)
 local LuaSimulator = {
+    set_dpi_scope     = set_dpi_scope,
     initialize_trace  = initialize_trace,
     enable_trace      = enable_trace,
     disable_trace     = disable_trace,

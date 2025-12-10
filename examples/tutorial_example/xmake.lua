@@ -11,6 +11,8 @@ target("TestDesign", function()
         add_toolchains("@iverilog")
     elseif sim == "vcs" then
         add_toolchains("@vcs")
+    elseif sim == "xcelium" then
+        add_toolchains("@xcelium")
     elseif sim == "verilator" then
         add_toolchains("@verilator")
     else

@@ -38,7 +38,9 @@ fork {
         clock:negedge()
 
         --- `cfg` is a pretty useful global variable, which saves some configuration information
-        assert(cfg.simulator == "verilator" or cfg.simulator == "vcs" or cfg.simulator == "iverilog")
+        assert(cfg.simulator == "verilator" or cfg.simulator == "vcs" or cfg.simulator == "iverilog" or
+            cfg.simulator == "xcelium")
+        print("Current simulator: ", cfg.simulator)
         assert(cfg.top == "tb_top")
         print("Current project directory: ", cfg.prj_dir)
 
@@ -511,7 +513,14 @@ fork {
         assert(a == 123)
 
         clock:posedge()
-        assert(a == 124)
+        if cfg.simulator == "xcelium" then
+            -- Xcelium schedule posedge callback in random order, when the callback is called,
+            -- the value of `a` may not be updated yet, so we need to wait for one more cycle.
+            clock:posedge()
+            assert(a == 124)
+        else
+            assert(a == 124)
+        end
 
         --- To wait for a spcific task to finish, you can use `jfork` combined with `join`
         local e = jfork {

@@ -43,7 +43,7 @@ if simulator == "verilator" then
     getCondCoverage = SymbolHelper.ffi_cast("void (*)(double *)", "getCondCoverage");
     resetCoverage = SymbolHelper.ffi_cast("void (*)(void)", "resetCoverage");
     showCoverageCount = SymbolHelper.ffi_cast("void (*)(void)", "showCoverageCount");
-elseif simulator == "vcs" then
+elseif simulator == "vcs" or simulator == "xcelium" then
     ffi.cdef [[
         void *svGetScopeFromName(const char *str);
         void svSetScope(void *scope);

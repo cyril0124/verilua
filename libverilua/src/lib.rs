@@ -67,6 +67,64 @@ extern "C" fn init_env_logger() {
     let _ = env_logger::try_init();
 }
 
+/// Promotes LuaJIT symbols (e.g., lua_checkstack) to the global namespace (RTLD_GLOBAL).
+/// This ensures that dynamically loaded Lua C modules (like lsqlite3) can resolve
+/// Lua API symbols, even if the host simulator loaded libverilua/libluajit with RTLD_LOCAL.
+#[unsafe(no_mangle)]
+pub extern "C" fn promote_luajit_symbols() {
+    #[cfg(feature = "promote_luajit_global")]
+    unsafe {
+        // Possible filenames for the LuaJIT shared library.
+        // Adjust if your specific environment uses a different name.
+        let possible_names = [
+            "libluajit-5.1.so", // Symlink often used during compilation
+        ];
+
+        let mut promoted = false;
+
+        for lib_name in possible_names {
+            let c_lib_name = std::ffi::CString::new(lib_name).expect("CString conversion failed");
+
+            // RTLD_LAZY   (0x00001): Relocations are performed at an implementation-dependent time.
+            // RTLD_GLOBAL (0x00100): The symbols defined by this library will be made available for symbol resolution of subsequently loaded libraries.
+            // RTLD_NOLOAD (0x00004): Do not load the library. This can be used to test if the library is already resident and promote its flags.
+            let flags_noload = libc::RTLD_LAZY | libc::RTLD_GLOBAL | libc::RTLD_NOLOAD;
+
+            // Attempt 1: Try to modify the existing handle without reloading
+            let handle = libc::dlopen(c_lib_name.as_ptr(), flags_noload);
+
+            if !handle.is_null() {
+                log::info!(
+                    "Successfully promoted LuaJIT symbols ({}) to GLOBAL scope (via RTLD_NOLOAD).",
+                    lib_name
+                );
+                promoted = true;
+                break;
+            }
+
+            // Attempt 2: If the library wasn't found or NOLOAD failed, try a standard dlopen with GLOBAL.
+            // This increments the refcount and applies the GLOBAL flag.
+            let flags_force = libc::RTLD_LAZY | libc::RTLD_GLOBAL;
+            let handle_force = libc::dlopen(c_lib_name.as_ptr(), flags_force);
+
+            if !handle_force.is_null() {
+                log::info!(
+                    "Successfully loaded and promoted LuaJIT symbols ({}) to GLOBAL scope.",
+                    lib_name
+                );
+                promoted = true;
+                break;
+            }
+        }
+
+        if !promoted {
+            log::warn!(
+                "Failed to promote LuaJIT symbols to GLOBAL scope. Modules like 'lsqlite3' may fail to load due to missing symbols."
+            );
+        }
+    }
+}
+
 /// VPI startup routines registered with the simulator.
 ///
 /// These callbacks are invoked by the simulator during initialization:
@@ -75,7 +133,8 @@ extern "C" fn init_env_logger() {
 /// 3. `bootstrap_register_final_callback`: Cleanup when simulation ends
 #[cfg(not(feature = "dpi"))]
 #[unsafe(no_mangle)]
-pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 4] = [
+pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 5] = [
+    Some(promote_luajit_symbols),
     Some(vpi_callback::bootstrap_register_next_sim_time_callback),
     Some(vpi_callback::bootstrap_register_start_callback),
     Some(vpi_callback::bootstrap_register_final_callback),

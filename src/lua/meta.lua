@@ -60,7 +60,9 @@ function await_nsim() end
 --- | "@verilator"
 --- | "@iverilog"
 --- | "@vcs"
+--- | "@xcelium"
 --- | "@wave_vpi"
+--- | "@nosim"
 
 ---@alias verilua.xmake.set_values.yes_or_not
 --- | "1"

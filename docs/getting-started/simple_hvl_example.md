@@ -151,7 +151,7 @@ Verilua 的工程（HVL 和 WAL 场景）使用 `xmake` 来管理，因此需要
         -- 添加 Verilua 的规则，xmake 中支持自定义 rule，具体可以参考 xmake 相关文档
         add_rules("verilua")
 
-        -- 添加用来执行硬件仿真的仿真器，这里使用的是 Verilator，还可以选择 @vcs 或 @iverilog
+        -- 添加用来执行硬件仿真的仿真器，这里使用的是 Verilator，还可以选择 @vcs、@xcelium 或 @iverilog
         add_toolchains("@verilator")
         
         -- 添加 RTL 文件, 也可以使用通配符进行匹配，如 ./*.v
@@ -169,7 +169,7 @@ Verilua 的工程（HVL 和 WAL 场景）使用 `xmake` 来管理，因此需要
         -- Optional settings
         -- 
         -- `XXX`.flags 用于设置编译时选项，将会在编译仿真的时候被添加到对应的仿真器的命令行中
-        -- 这里的 XXX 可以是 verilator、vcs、iverilog 等
+        -- 这里的 XXX 可以是 verilator、vcs、 xcelium、iverilog 等
         -- 下面这里主要添加了 Verilator 中用于输出波形文件的选项
         set_values("verilator.flags", "--trace", "--no-trace-top")
 

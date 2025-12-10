@@ -9,6 +9,8 @@ target("test", function()
             target:set("toolchains", "@iverilog")
         elseif sim == "vcs" then
             target:set("toolchains", "@vcs")
+        elseif sim == "xcelium" then
+            target:set("toolchains", "@xcelium")
         elseif sim == "verilator" then
             target:set("toolchains", "@verilator")
         else

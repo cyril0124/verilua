@@ -19,7 +19,7 @@ local colors = _G.colors
 ---@class (partial) verilua.LuaSimConfig
 ---@field script string
 ---@field mode "normal"|"step"|"edge_step"|"unknown"
----@field simulator "verilator"|"vcs"|"iverilog"|"wave_vpi"|"nosim"|"unknown"
+---@field simulator "verilator"|"vcs"|"xcelium"|"iverilog"|"wave_vpi"|"nosim"|"unknown"
 ---@field top string Top module name of testbench
 ---@field srcs string[]
 ---@field deps string[]

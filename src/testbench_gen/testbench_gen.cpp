@@ -359,13 +359,21 @@ module {{tbtopName}} {{tbtopPortParamDecl}}(
       $finish;
     end
   `endif
+  `ifdef SIM_XCELIUM
+    initial begin
+      $error("Both SIM_VERILATOR and SIM_XCELIUM are defined. Only one should be defined.");
+      $finish;
+    end
+  `endif
 `else
   `ifndef SIM_VCS
     `ifndef SIM_IVERILOG
+      `ifndef SIM_XCELIUM
         initial begin
-          $error("One of [SIM_VERILATOR / SIM_VCS / SIM_IVERILOG] is not defined! One must be defined.");
+          $error("One of [SIM_VERILATOR / SIM_VCS / SIM_IVERILOG / SIM_XCELIUM] is not defined! One must be defined.");
           $finish;
         end
+      `endif
     `endif
   `endif
 `endif
@@ -505,6 +513,44 @@ end
                 $fsdbDumpvars(0, {{tbtopName}}, "+all");
             `endif // VCS_DUMP_VCD
         `endif // SIM_VCS
+
+        `ifdef SIM_XCELIUM
+            `ifdef XCELIUM_DUMP_VCD
+                $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+                $dumpfile({traceFilePath, ".vcd"});
+                $dumpvars(0, {{tbtopName}});
+            `elsif XCELIUM_DUMP_FSDB
+                $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
+
+                `ifdef FSDB_AUTO_SWITCH
+                    `ifndef FILE_SIZE
+                        `define FILE_SIZE 25
+                    `endif
+
+                    `ifndef NUM_OF_FILES
+                        `define NUM_OF_FILES 1000
+                    `endif
+
+                    $fsdbAutoSwitchDumpfile(`FILE_SIZE, {traceFilePath, ".fsdb"}, `NUM_OF_FILES);
+                `else // FSDB_AUTO_SWITCH
+                    $fsdbDumpfile({traceFilePath, ".fsdb"});
+                `endif // FSDB_AUTO_SWITCH
+
+                `ifdef FSDB_DUMP_SVA
+                    $fsdbDumpSVA(0, {{tbtopName}});
+                `endif // FSDB_DUMP_SVA
+
+                $fsdbDumpvars(0, {{tbtopName}}, "+all");
+            `else // Default to SHM for XCELIUM
+                $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => SHM", $time, `__FILE__, `__LINE__);
+
+                // $shm_open cannot accept string variable as the input file name.
+                // $shm_open({traceFilePath, ".shm"});
+                $shm_open("waves.shm");
+
+                $shm_probe({{tbtopName}}, "AS");
+            `endif // XCELIUM_DUMP_VCD
+        `endif // SIM_XCELIUM
     endfunction
 
     function void simulation_enableTrace;
@@ -523,6 +569,19 @@ end
                 // $fsdbDumpMDA(); // enable dump Multi-Dimension-Array
             `endif // VCS_DUMP_VCD
         `endif
+
+        `ifdef SIM_XCELIUM
+            `ifdef XCELIUM_DUMP_VCD
+                $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+                $dumpon;
+            `elsif XCELIUM_DUMP_FSDB
+                $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
+                $fsdbDumpon;
+            `else // Default to SHM for XCELIUM
+                $display("[INFO] @%0t [%s:%d] simulation_enableTrace trace type => SHM", $time, `__FILE__, `__LINE__);
+                // SHM tracing is enabled by default when $shm_probe is called
+            `endif // XCELIUM_DUMP_VCD
+        `endif // SIM_XCELIUM
     endfunction
 
     function void simulation_disableTrace;
@@ -540,6 +599,19 @@ end
                 $fsdbDumpoff;
             `endif // VCS_DUMP_VCD
         `endif
+
+        `ifdef SIM_XCELIUM
+            `ifdef XCELIUM_DUMP_VCD
+                $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => VCD", $time, `__FILE__, `__LINE__);
+                $dumpoff;
+            `elsif XCELIUM_DUMP_FSDB
+                $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
+                $fsdbDumpoff;
+            `else // Default to SHM for XCELIUM
+                $display("[INFO] @%0t [%s:%d] simulation_disableTrace trace type => SHM", $time, `__FILE__, `__LINE__);
+                $shm_close;
+            `endif // XCELIUM_DUMP_VCD
+        `endif // SIM_XCELIUM
     endfunction
 `endif // SIM_IVERILOG
 

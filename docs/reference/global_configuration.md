@@ -8,7 +8,7 @@ Verilua 中，`#!lua cfg` 这个全局变量（`table`类型）用于存储一�
 
 2. `#!lua cfg.simulator`
 
-    这个变量用于存储当前的仿真器的名称，可以是 `verilator`、`vcs`、`iverilog`、或者 `wave_vpi`。
+    这个变量用于存储当前的仿真器的名称，可以是 `verilator`、`vcs`、 `xcelium`、`iverilog`、或者 `wave_vpi`。
 
 3. `#!lua cfg.script`
 

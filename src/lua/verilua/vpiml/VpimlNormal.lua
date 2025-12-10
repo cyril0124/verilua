@@ -257,7 +257,8 @@ local vpiml = {
 
     ---@type fun(handle: verilua.handles.ComplexHandleRaw)
     vpiml_release_value = (function()
-        if cfg.simulator == "iverilog" then
+        local simulator = cfg.simulator
+        if simulator == "iverilog" or simulator == "xcelium" then
             --- see: tests/test_set_value/main.lua:117
             return C.vpiml_release_imm_value
         else

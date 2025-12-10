@@ -2,10 +2,14 @@
 
 target("test_counter", function()
     add_rules("verilua")
-    if os.getenv("SIM") == "iverilog" then
+
+    local sim = os.getenv("SIM") or "verilator"
+    if sim == "iverilog" then
         add_toolchains("@iverilog")
-    elseif os.getenv("SIM") == "vcs" then
+    elseif sim == "vcs" then
         add_toolchains("@vcs")
+    elseif sim == "xcelium" then
+        add_toolchains("@xcelium")
     else
         add_toolchains("@verilator")
     end
