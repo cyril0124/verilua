@@ -199,7 +199,9 @@ setmetatable(cfg, {
             ffi.cdef [[
                 const char *vpiml_get_simulator_auto();
             ]]
-            local simulator = ffi.string(ffi.C.vpiml_get_simulator_auto())
+
+            -- Enviroment variable `SIM` has higher priority than `vpiml_get_simulator_auto()`
+            local simulator = os.getenv("SIM") or ffi.string(ffi.C.vpiml_get_simulator_auto())
             if simulator ~= "unknown" then
                 ---@diagnostic disable-next-line: assign-type-mismatch
                 cfg.simulator = simulator
