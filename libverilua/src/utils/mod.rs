@@ -136,6 +136,14 @@ pub extern "C" fn get_executable_name() -> *const c_char {
         path[len] = 0; // Null-terminate the string
 
         let executable_name = CString::new(&path[..len]).expect("CString::new failed");
+
+        unsafe {
+            log::debug!(
+                "Executable name: {}",
+                CStr::from_ptr(executable_name.as_ptr()).to_str().unwrap()
+            );
+        }
+
         (executable_name.into_raw()) as _
     } else {
         panic!("Failed to get executable name");
