@@ -76,17 +76,6 @@ local function before_build_or_run(target)
                 - add_toolchains("@nosim") => For no simulation
     ]])
 
-    if sim == "vcs" then
-        --- Disable vcs reg initialization, verilua use `+vcs+initreg+0` by default.
-        --- e.g. (in your xmake.lua)
-        --- ```lua
-        ---     set_values("cfg.vcs_no_initreg", "1")
-        --- ```
-        if target:values("cfg.vcs_no_initreg") == "1" then
-            target:add("vcs_no_initreg", true)
-        end
-    end
-
     -- Used in `on_build` or `on_run` phase
     target:add("sim", sim)
     cprint("${✅} [verilua-xmake] [%s] simulator/toolchain is ${green underline}%s${reset}", target:name(), sim)
@@ -618,7 +607,12 @@ rule("verilua", function()
                 extra_vcs_flags[#extra_vcs_flags + 1] = "-ld " .. vcs_ld
             end
 
-            if not target:get("vcs_no_initreg") then
+            --- Disable vcs reg initialization, verilua use `+vcs+initreg+0` by default.
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     set_values("cfg.vcs_no_initreg", "1")
+            --- ```
+            if target:values("cfg.vcs_no_initreg") ~= "1" then
                 extra_vcs_flags[#extra_vcs_flags + 1] = "+vcs+initreg+random"
             end
 
@@ -699,6 +693,15 @@ rule("verilua", function()
                 "-define SIM_XCELIUM",
                 "-define XCELIUM",
             }
+
+            --- Disable xcelium reg initialization, verilua use `-xminitialize 0` by default.
+            --- e.g. (in your xmake.lua)
+            --- ```lua
+            ---     set_values("cfg.xcelium_no_initreg", "1")
+            --- ```
+            if target:values("cfg.xcelium_no_initreg") ~= "1" then
+                extra_xcelium_flags[#extra_xcelium_flags + 1] = "-xminitialize 0"
+            end
 
             if no_internal_clock == "1" then
                 extra_xcelium_flags[#extra_xcelium_flags + 1] = "-define NO_INTERNAL_CLOCK"
@@ -1474,15 +1477,16 @@ source setvars.sh
             run_sh = f(
                 "%s/simv %s +notimingcheck 2>&1 | tee run.log",
                 sim_build_dir,
-                target:get("vcs_no_initreg") and "" or "+vcs+initreg+0"
+                (target:values("cfg.vcs_no_initreg") == "1") and "" or "+vcs+initreg+0"
             )
         elseif sim == "xcelium" then
             run_sh = f(
-                "xrun -r %s_snapshot -xmlibdirpath %s -xmlibdirname %s -l %s -loadvpi %s:vlog_startup_routines_bootstrap",
+                "xrun -r %s_snapshot -xmlibdirpath %s -xmlibdirname %s -l %s %s -loadvpi %s:vlog_startup_routines_bootstrap",
                 tb_top,
                 build_dir,
                 path.basename(sim_build_dir),
                 path.join(build_dir, "xrun_run.log"),
+                (target:values("cfg.xcelium_no_initreg") == "1") and "" or "-xminitialize 0",
                 path.join(verilua_libs_home, "libverilua_xcelium.so")
             )
         elseif sim == "iverilog" then
@@ -1662,7 +1666,7 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.join2(run_flags, _run_flags)
             end
 
-            if not target:get("vcs_no_initreg") then
+            if target:values("cfg.vcs_no_initreg") ~= "1" then
                 run_flags[#run_flags + 1] = "+vcs+initreg+0"
             end
 
@@ -1726,6 +1730,10 @@ verdi -f filelist.f -sv -nologo $@]]
             local _run_flags = target:values("xcelium.run_flags")
             if _run_flags then
                 table.join2(run_flags, _run_flags)
+            end
+
+            if target:values("cfg.xcelium_no_initreg") ~= "1" then
+                run_flags[#run_flags + 1] = "-xminitialize 0"
             end
 
             local run_prefix = { "" }
