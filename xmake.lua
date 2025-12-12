@@ -1140,7 +1140,7 @@ ${reset}]])
             }
             print_test_result("lua_unit_tests", "luajit", success, os.time() - start_time)
 
-            -- DPI exporter
+            -- dpi_exporter
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "test_dpi_exporter"))
             start_time = os.time()
