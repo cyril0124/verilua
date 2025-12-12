@@ -55,6 +55,7 @@ struct CovExporter {
     std::optional<bool> noSepAlwaysBlock;
     std::optional<bool> errPrintTree;
     std::optional<bool> quiet;
+    std::optional<bool> relativeFilePath;
     std::optional<std::string> defaultClockName;
     std::optional<std::string> altClockName;
     std::optional<std::string> _workdir;
@@ -82,6 +83,7 @@ struct CovExporter {
         driver.cmdLine.add("--dc,--default-clock", defaultClockName, "Default clock signal name(default: `clock`)", "<signal name>");
         driver.cmdLine.add("--ac,--alt-clock", altClockName, "Alternative clock signal name(default: `tb_top.clock`), available when defaultClock cannot be found in the module", "<signal name>");
         driver.cmdLine.add("--ns,--no-sep-always-block", noSepAlwaysBlock, "Disable seperating always block");
+        driver.cmdLine.add("--rfp,--relative-file-path", relativeFilePath, "use relative path for meta info file path in generated code");
         driver.cmdLine.add("-q,--quiet", quiet, "Quiet mode, print only necessary info");
     }
 
@@ -255,7 +257,7 @@ struct CovExporter {
         for (auto &coverageInfo : coverageInfos) {
             fmt::println("[cov_exporter] Processing coverage signal info: `{}`", coverageInfo.moduleName);
 
-            CoverageInfoWritter writter(coverageInfo);
+            CoverageInfoWritter writter(coverageInfo, relativeFilePath.value_or(false));
             auto newTree = writter.transform(tree);
             tree         = newTree;
         }

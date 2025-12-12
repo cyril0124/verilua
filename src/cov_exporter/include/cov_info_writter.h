@@ -10,8 +10,9 @@ inline uint64_t getUniqueBinExprId() {
 
 struct CoverageInfoWritter : public slang::syntax::SyntaxRewriter<CoverageInfoWritter> {
     CoverageInfo &coverageInfo;
+    bool relativeFilePath = false;
 
-    CoverageInfoWritter(CoverageInfo &coverageInfo) : coverageInfo(coverageInfo) {}
+    CoverageInfoWritter(CoverageInfo &coverageInfo, bool relativeFilePath) : coverageInfo(coverageInfo), relativeFilePath(relativeFilePath) {}
 
     void handle(const slang::syntax::ModuleDeclarationSyntax &syntax) {
         if (syntax.header->name.rawText() == coverageInfo.moduleName) {
@@ -249,15 +250,33 @@ export "DPI-C" function resetCoverage;
             for (const auto &pair : coverageInfo.netMap) {
                 const auto &net  = pair.first;
                 const auto &info = pair.second;
-                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Net`\\t%s\t{3}:{1}\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, net, info.file)});
+                std::string file = info.file;
+                if (relativeFilePath) {
+                    auto cwd         = std::filesystem::current_path();
+                    auto absFilePath = std::filesystem::absolute(info.file);
+                    file             = std::filesystem::relative(absFilePath, cwd).string();
+                }
+                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Net`\\t%s\t{3}:{1}\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, net, file)});
             }
             for (const auto &pair : coverageInfo.varMap) {
                 const auto &var  = pair.first;
                 const auto &info = pair.second;
-                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Var`\\t%s\t{3}:{1}\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, var, info.file)});
+                std::string file = info.file;
+                if (relativeFilePath) {
+                    auto cwd         = std::filesystem::current_path();
+                    auto absFilePath = std::filesystem::absolute(info.file);
+                    file             = std::filesystem::relative(absFilePath, cwd).string();
+                }
+                covEntries.emplace_back(CovEntry{info.line, fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`Var`\\t%s\t{3}:{1}\", _{2}__COV_CNT, _{2}__COV_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, info.line, var, file)});
             }
             for (int i = 0; i < allBinExprLineVec.size(); i++) {
-                covEntries.emplace_back(CovEntry{allBinExprLineVec[i], fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`BinExpr`\\t%s\t{3}:{1}\", _{2}__COV_BIN_EXPR_CNT, _{2}__COV_BIN_EXPR_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, allBinExprLineVec[i], tgtSignals[i], allBinExprFileVec[i])});
+                std::string file = allBinExprFileVec[i];
+                if (relativeFilePath) {
+                    auto cwd         = std::filesystem::current_path();
+                    auto absFilePath = std::filesystem::absolute(allBinExprFileVec[i]);
+                    file             = std::filesystem::relative(absFilePath, cwd).string();
+                }
+                covEntries.emplace_back(CovEntry{allBinExprLineVec[i], fmt::format("$display(\"[{0}] {1:6d}: %6d\\t`BinExpr`\\t%s\t{3}:{1}\", _{2}__COV_BIN_EXPR_CNT, _{2}__COV_BIN_EXPR_CNT > 0 ? \"\\x1b[32mCOVERED\\x1b[0m\" : \"\\x1b[31mMISSED\\x1b[0m\");", coverageInfo.moduleName, allBinExprLineVec[i], tgtSignals[i], file)});
             }
             // Sort by linenumber
             std::sort(covEntries.begin(), covEntries.end(), [](const CovEntry &a, const CovEntry &b) { return a.line < b.line; });

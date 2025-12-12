@@ -54,7 +54,7 @@ target("test", function()
         local output_dir = path.join(test_dir, ".cov_exporter_" .. test_name)
 
         print(string.format("\n[%s] Running cov_exporter...", test_name))
-        local cmd = format("cov_exporter %s -m top --od %s --wd %s -q", rtl, output_dir, output_dir)
+        local cmd = format("cov_exporter %s -m top --od %s --wd %s -q --relative-file-path", rtl, output_dir, output_dir)
         local ok = try { function()
             os.exec(cmd)
             return true
@@ -100,7 +100,7 @@ target("test", function()
         output_dir = path.join(test_dir, ".cov_exporter_" .. test_name)
 
         print(string.format("\n[%s] Running cov_exporter...", test_name))
-        cmd = format("cov_exporter %s -m top --ds top:counter --od %s --wd %s -q", rtl, output_dir, output_dir)
+        cmd = format("cov_exporter %s -m top --ds top:counter --od %s --wd %s -q --relative-file-path", rtl, output_dir, output_dir)
         ok = try { function()
             os.exec(cmd)
             return true
@@ -132,7 +132,7 @@ target("test", function()
         output_dir = path.join(test_dir, ".cov_exporter_" .. test_name)
 
         print(string.format("\n[%s] Running cov_exporter...", test_name))
-        cmd = format("cov_exporter %s -m top --ns --od %s --wd %s -q", rtl, output_dir, output_dir)
+        cmd = format("cov_exporter %s -m top --ns --od %s --wd %s -q --relative-file-path", rtl, output_dir, output_dir)
         ok = try { function()
             os.exec(cmd)
             return true
@@ -186,7 +186,7 @@ target("regen_golden", function()
         local test_name = "basic"
         local output_dir = path.join(test_dir, ".cov_exporter_" .. test_name)
         print(string.format("[%s] Generating golden file...", test_name))
-        local cmd = format("cov_exporter %s -m top --od %s --wd %s -q", rtl, output_dir, output_dir)
+        local cmd = format("cov_exporter %s -m top --od %s --wd %s -q --relative-file-path", rtl, output_dir, output_dir)
         os.exec(cmd)
         os.cp(path.join(output_dir, "top.sv"), path.join(golden_dir, test_name .. "_top.sv"))
 
@@ -194,7 +194,7 @@ target("regen_golden", function()
         test_name = "disable_signal"
         output_dir = path.join(test_dir, ".cov_exporter_" .. test_name)
         print(string.format("[%s] Generating golden file...", test_name))
-        cmd = format("cov_exporter %s -m top --ds top:counter --od %s --wd %s -q", rtl, output_dir, output_dir)
+        cmd = format("cov_exporter %s -m top --ds top:counter --od %s --wd %s -q --relative-file-path", rtl, output_dir, output_dir)
         os.exec(cmd)
         os.cp(path.join(output_dir, "top.sv"), path.join(golden_dir, test_name .. "_top.sv"))
 
@@ -202,7 +202,7 @@ target("regen_golden", function()
         test_name = "no_sep_always"
         output_dir = path.join(test_dir, ".cov_exporter_" .. test_name)
         print(string.format("[%s] Generating golden file...", test_name))
-        cmd = format("cov_exporter %s -m top --ns --od %s --wd %s -q", rtl, output_dir, output_dir)
+        cmd = format("cov_exporter %s -m top --ns --od %s --wd %s -q --relative-file-path", rtl, output_dir, output_dir)
         os.exec(cmd)
         os.cp(path.join(output_dir, "top.sv"), path.join(golden_dir, test_name .. "_top.sv"))
 
