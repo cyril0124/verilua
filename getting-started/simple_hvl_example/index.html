@@ -1,0 +1,1692 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Verilua: An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT">
+      
+      
+        <meta name="author" content="Chuyu Zheng">
+      
+      
+        <link rel="canonical" href="https://cyril0124.github.io/verilua/getting-started/simple_hvl_example/">
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../simple_hse_example/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>一个简单的 HVL 示例 - Verilua</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#hvl" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Verilua" class="md-header__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Verilua
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              一个简单的 HVL 示例
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../install/" class="md-tabs__link">
+          
+  
+  
+  Getting started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to-guides/simple_ut_env/" class="md-tabs__link">
+          
+  
+  
+  How-to guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/multi_task/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Verilua" class="md-nav__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    Verilua
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install Verilua
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HVL 示例
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HVL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#0-rtl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0. 准备 RTL 文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-lua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 创建一个 Lua 脚本文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-xmakelua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 创建一个 xmake.lua 文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 编译
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 运行仿真
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_hse_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HSE 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_wal_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 WAL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/simple_ut_env/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搭建一个简单的 UT 环境
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/write_reusable_component/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    编写可复用的验证组件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/multi_task/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    多任务系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/bitvec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BitVec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/slcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    String Literal Constructor Pattern (SLCP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/simulator_control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    仿真器控制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/testbench_generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testbench 自动生成流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/xmake_params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    xmake 的配置参数
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#0-rtl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0. 准备 RTL 文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-lua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 创建一个 Lua 脚本文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-xmakelua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 创建一个 xmake.lua 文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 编译
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 运行仿真
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Introduction
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../install/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="hvl">一个简单的 HVL 示例</h1>
+<p>本节将通过一个简单的例子（针对 HVL 场景）来展示 Verilua 的基本使用方法。</p>
+<p>本节所使用的示例代码可以在 <a href="https://github.com/cyril0124/verilua/tree/master/examples/tutorial_example">这里</a> 找到。</p>
+<h2 id="0-rtl">0. 准备 RTL 文件</h2>
+<p>下面是本节中使用到的 DUT（Design Under Test）的 RTL 代码，主要是一个简单的 Counter 模块。
+<div class="highlight"><span class="filename">Design.v</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">module</span><span class="w"> </span><span class="n">Design</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="k">input</span><span class="w">  </span><span class="kt">wire</span><span class="w"> </span><span class="n">clock</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">input</span><span class="w">  </span><span class="kt">wire</span><span class="w"> </span><span class="n">reset</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">input</span><span class="w">  </span><span class="kt">wire</span><span class="w"> </span><span class="n">inc</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">output</span><span class="w"> </span><span class="kt">wire</span><span class="w"> </span><span class="p">[</span><span class="mh">7</span><span class="o">:</span><span class="mh">0</span><span class="p">]</span><span class="w"> </span><span class="n">value</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">);</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="kt">reg</span><span class="w"> </span><span class="p">[</span><span class="mh">7</span><span class="o">:</span><span class="mh">0</span><span class="p">]</span><span class="w"> </span><span class="n">value_reg</span><span class="p">;</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">always</span><span class="p">@(</span><span class="k">posedge</span><span class="w"> </span><span class="n">clock</span><span class="p">)</span><span class="w"> </span><span class="k">begin</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">reset</span><span class="p">)</span><span class="w"> </span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">        </span><span class="n">value_reg</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mh">8</span><span class="mi">&#39;d0</span><span class="p">;</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">inc</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">1</span><span class="mb">&#39;b1</span><span class="p">)</span><span class="w"> </span><span class="k">begin</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">        </span><span class="n">value_reg</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">value_reg</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mh">1</span><span class="mb">&#39;b1</span><span class="p">;</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="k">end</span><span class="w"> </span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="k">end</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="k">assign</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value_reg</span><span class="p">;</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">endmodule</span>
+</code></pre></div></p>
+<h2 id="1-lua">1. 创建一个 Lua 脚本文件</h2>
+<p>下面是本节中使用到的 Lua 脚本文件，它将会在 Verilua 中被调用，从而控制硬件仿真的过程，这类似 C 语言中的 main 函数。
+<div class="highlight"><table class="highlighttable"><tr><th colspan="2" class="filename"><span class="filename">main.lua</span></th></tr><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-1-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-1-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-1-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-1-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-1-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-1-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-1-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-1-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-1-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-1-10">10</a></span>
+<span class="normal"><a href="#__codelineno-1-11">11</a></span>
+<span class="normal"><a href="#__codelineno-1-12">12</a></span>
+<span class="normal"><a href="#__codelineno-1-13">13</a></span>
+<span class="normal"><a href="#__codelineno-1-14">14</a></span>
+<span class="normal"><a href="#__codelineno-1-15">15</a></span>
+<span class="normal"><a href="#__codelineno-1-16">16</a></span>
+<span class="normal"><a href="#__codelineno-1-17">17</a></span>
+<span class="normal"><a href="#__codelineno-1-18">18</a></span>
+<span class="normal"><a href="#__codelineno-1-19">19</a></span>
+<span class="normal"><a href="#__codelineno-1-20">20</a></span>
+<span class="normal"><a href="#__codelineno-1-21">21</a></span>
+<span class="normal"><a href="#__codelineno-1-22">22</a></span>
+<span class="normal"><a href="#__codelineno-1-23">23</a></span>
+<span class="normal"><a href="#__codelineno-1-24">24</a></span>
+<span class="normal"><a href="#__codelineno-1-25">25</a></span>
+<span class="normal"><a href="#__codelineno-1-26">26</a></span>
+<span class="normal"><a href="#__codelineno-1-27">27</a></span>
+<span class="normal"><a href="#__codelineno-1-28">28</a></span>
+<span class="normal"><a href="#__codelineno-1-29">29</a></span>
+<span class="normal"><a href="#__codelineno-1-30">30</a></span>
+<span class="normal"><a href="#__codelineno-1-31">31</a></span>
+<span class="normal"><a href="#__codelineno-1-32">32</a></span>
+<span class="normal"><a href="#__codelineno-1-33">33</a></span>
+<span class="normal"><a href="#__codelineno-1-34">34</a></span>
+<span class="normal"><a href="#__codelineno-1-35">35</a></span>
+<span class="normal"><a href="#__codelineno-1-36">36</a></span>
+<span class="normal"><a href="#__codelineno-1-37">37</a></span>
+<span class="normal"><a href="#__codelineno-1-38">38</a></span>
+<span class="normal"><a href="#__codelineno-1-39">39</a></span>
+<span class="normal"><a href="#__codelineno-1-40">40</a></span>
+<span class="normal"><a href="#__codelineno-1-41">41</a></span>
+<span class="normal"><a href="#__codelineno-1-42">42</a></span>
+<span class="normal"><a href="#__codelineno-1-43">43</a></span>
+<span class="normal"><a href="#__codelineno-1-44">44</a></span>
+<span class="normal"><a href="#__codelineno-1-45">45</a></span>
+<span class="normal"><a href="#__codelineno-1-46">46</a></span>
+<span class="normal"><a href="#__codelineno-1-47">47</a></span>
+<span class="normal"><a href="#__codelineno-1-48">48</a></span>
+<span class="normal"><a href="#__codelineno-1-49">49</a></span>
+<span class="normal"><a href="#__codelineno-1-50">50</a></span>
+<span class="normal"><a href="#__codelineno-1-51">51</a></span>
+<span class="normal"><a href="#__codelineno-1-52">52</a></span>
+<span class="normal"><a href="#__codelineno-1-53">53</a></span>
+<span class="normal"><a href="#__codelineno-1-54">54</a></span>
+<span class="normal"><a href="#__codelineno-1-55">55</a></span>
+<span class="normal"><a href="#__codelineno-1-56">56</a></span>
+<span class="normal"><a href="#__codelineno-1-57">57</a></span>
+<span class="normal"><a href="#__codelineno-1-58">58</a></span>
+<span class="normal"><a href="#__codelineno-1-59">59</a></span>
+<span class="normal"><a href="#__codelineno-1-60">60</a></span>
+<span class="normal"><a href="#__codelineno-1-61">61</a></span>
+<span class="normal"><a href="#__codelineno-1-62">62</a></span>
+<span class="normal"><a href="#__codelineno-1-63">63</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;appendTasks&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="w">    </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">        </span><span class="c1">-- sim.dump_wave(&quot;./wave/hello_world.vcd&quot;) -- dump wave file</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">reset</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">reset</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12"></a><span class="w">            </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;current cycle:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">cycles</span><span class="p">:</span><span class="nf">get</span><span class="p">())</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13"></a><span class="w">        </span><span class="kr">end</span><span class="p">)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14"></a>
+<a id="__codelineno-1-15" name="__codelineno-1-15"></a><span class="w">        </span><span class="c1">-- we recommend using the `chdl()` method to get the `CallableHDL` of the signal which provides higher performance</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16"></a><span class="w">        </span><span class="kd">local</span><span class="w"> </span><span class="nv">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">chdl</span><span class="p">()</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17"></a>
+<a id="__codelineno-1-18" name="__codelineno-1-18"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump</span><span class="p">()</span><span class="w"> </span><span class="c1">-- dump the value of the signal to the console</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20"></a>
+<a id="__codelineno-1-21" name="__codelineno-1-21"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25"></a>
+<a id="__codelineno-1-26" name="__codelineno-1-26"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump</span><span class="p">()</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28"></a>
+<a id="__codelineno-1-29" name="__codelineno-1-29"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33"></a>
+<a id="__codelineno-1-34" name="__codelineno-1-34"></a><span class="w">        </span><span class="kr">if</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">is</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="kr">then</span>
+<a id="__codelineno-1-35" name="__codelineno-1-35"></a><span class="w">            </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;dump_str() =&gt; &quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump_str</span><span class="p">())</span>
+<a id="__codelineno-1-36" name="__codelineno-1-36"></a><span class="w">            </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;get() =&gt; &quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">get</span><span class="p">())</span>
+<a id="__codelineno-1-37" name="__codelineno-1-37"></a><span class="w">        </span><span class="kr">end</span>
+<a id="__codelineno-1-38" name="__codelineno-1-38"></a>
+<a id="__codelineno-1-39" name="__codelineno-1-39"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span>
+<a id="__codelineno-1-40" name="__codelineno-1-40"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-1-41" name="__codelineno-1-41"></a>
+<a id="__codelineno-1-42" name="__codelineno-1-42"></a><span class="w">        </span><span class="nv">clock</span><span class="p">:</span><span class="nf">posedge</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-1-43" name="__codelineno-1-43"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-1-44" name="__codelineno-1-44"></a>
+<a id="__codelineno-1-45" name="__codelineno-1-45"></a><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span>
+<a id="__codelineno-1-46" name="__codelineno-1-46"></a>
+<a id="__codelineno-1-47" name="__codelineno-1-47"></a><span class="w">        </span><span class="nv">sim</span><span class="p">.</span><span class="nf">finish</span><span class="p">()</span><span class="w"> </span><span class="c1">-- finish the simulation</span>
+<a id="__codelineno-1-48" name="__codelineno-1-48"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-1-49" name="__codelineno-1-49"></a><span class="p">}</span>
+<a id="__codelineno-1-50" name="__codelineno-1-50"></a>
+<a id="__codelineno-1-51" name="__codelineno-1-51"></a><span class="c1">-- start task will be called when the simulation starts</span>
+<a id="__codelineno-1-52" name="__codelineno-1-52"></a><span class="nv">initial</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-53" name="__codelineno-1-53"></a><span class="w">    </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-1-54" name="__codelineno-1-54"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation started!&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-55" name="__codelineno-1-55"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-1-56" name="__codelineno-1-56"></a><span class="p">}</span>
+<a id="__codelineno-1-57" name="__codelineno-1-57"></a>
+<a id="__codelineno-1-58" name="__codelineno-1-58"></a><span class="c1">-- finish task will be called when the simulation finishes</span>
+<a id="__codelineno-1-59" name="__codelineno-1-59"></a><span class="nv">final</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-60" name="__codelineno-1-60"></a><span class="w">    </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-1-61" name="__codelineno-1-61"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation finished!&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-62" name="__codelineno-1-62"></a><span class="w">    </span><span class="kr">end</span>
+<a id="__codelineno-1-63" name="__codelineno-1-63"></a><span class="p">}</span>
+</code></pre></div></td></tr></table></div></p>
+<details class="note">
+<summary>上述代码的相关语法解释</summary>
+<ul>
+<li><code class="highlight"><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;appendTasks&quot;</span></code> 这个语句用于创建一个新的 task， Verilua 中所有的 task 能够以类似并行的方式进行调用；</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">更简洁的方式创建 task</p>
+<p>推荐使用 <code>fork</code> 来创建 task，例如: 
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">fork</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;fork task 1&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;fork task 2&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="c1">-- Other tasks...</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">}</span>
+</code></pre></div>
+这里的每一个 function 在 Verilua 的底层中都被用于创建一个个的 coroutine 从而允许 Verilua 的 Scheduler 进行调度。</p>
+</div>
+<ul>
+<li><code class="highlight"><span class="nv">sim</span><span class="p">.</span><span class="nf">dump_wave</span><span class="p">()</span></code> 这一函数用于启动波形文件的输出，也可以接收一个参数用来指定生成的文件，例如 <code class="highlight"><span class="nv">sim</span><span class="p">.</span><span class="nf">dump_wave</span><span class="p">(</span><span class="s2">&quot;./wave.vcd&quot;</span><span class="p">)</span></code>，如果没有指定（此处的用法），那么默认生成的波形文件名为 <code>test.vcd</code></li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">波形文件的输出路径</p>
+<p>使用 <code>sim.dump_wave()</code> 生成的波形文件通常保存在 <code>./build/&lt;simulator&gt;/&lt;target_name&gt;</code> 中，其中 <code>&lt;simulator&gt;</code> 是仿真器的名称，<code>&lt;target_name&gt;</code> 是 target 的名称。例如如果使用的 simulator 是 <code>verilator</code>，那么就会生成 <code>./build/verilator/TestDesign</code> 的波形文件。</p>
+</div>
+<ul>
+<li><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span></code> 这一行中的 <code>dut</code> 用于指代当前的一整个 DUT，可以使用 <code>dut.&lt;top_signal&gt;</code> 来访问 DUT 的接口信号，这里的 <code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span></code> 就是 DUT 的顶层 clock 信号，而 <code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">()</span></code> 用于等待 clock 信号的下降沿，一旦调用这一函数，那么就会将此时的函数控制权交给仿真器，等到 clock 的下降沿到达的时候再通过 Scheduler 返回交出控制权的位置；
+<a id="about-dut"></a></li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">关于 dut</p>
+<p><a id="about-dut"> </a>
+<code>dut</code> 是 Verilua 中的一个全局的 table，主要用来提供<strong>临时</strong>的信号访问功能，具体的功能将在后续的教程中进行介绍（TODO：），如果想用 <code>dut</code> 来访问 DUT 的<mark class="critic">内部信号</mark>(顶层的接口信号不需要)，那么需要以 <code>dut.u_&lt;top_module_name&gt;.&lt;internal_signal_name&gt;</code> 的方式访问，例如 <code>dut.u_Design.value</code>，这里加上 <code>u_&lt;top_module_name&gt;</code> 的原因是因为 Verilua 在编译的时候会根据所提供的 RTL 信息自动创建 Testbench，这个 Testbench 中会例化当前的 DUT，并将其取名为 <code>u_Design</code>。下面是自动生成的 Testbench 的部分代码：
+<div class="highlight"><table class="highlighttable"><tr><th colspan="2" class="filename"><span class="filename">tb_top.sv</span></th></tr><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-3-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-3-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-3-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-3-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-3-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-3-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-3-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-3-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-3-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-3-10">10</a></span>
+<span class="normal"><a href="#__codelineno-3-11">11</a></span>
+<span class="normal"><a href="#__codelineno-3-12">12</a></span>
+<span class="normal"><a href="#__codelineno-3-13">13</a></span>
+<span class="normal"><a href="#__codelineno-3-14">14</a></span>
+<span class="normal"><a href="#__codelineno-3-15">15</a></span>
+<span class="normal"><a href="#__codelineno-3-16">16</a></span>
+<span class="normal"><a href="#__codelineno-3-17">17</a></span>
+<span class="normal"><a href="#__codelineno-3-18">18</a></span>
+<span class="normal"><a href="#__codelineno-3-19">19</a></span>
+<span class="normal"><a href="#__codelineno-3-20">20</a></span>
+<span class="normal"><a href="#__codelineno-3-21">21</a></span>
+<span class="normal"><a href="#__codelineno-3-22">22</a></span>
+<span class="normal"><a href="#__codelineno-3-23">23</a></span>
+<span class="normal"><a href="#__codelineno-3-24">24</a></span>
+<span class="normal"><a href="#__codelineno-3-25">25</a></span>
+<span class="normal"><a href="#__codelineno-3-26">26</a></span>
+<span class="normal"><a href="#__codelineno-3-27">27</a></span>
+<span class="normal"><a href="#__codelineno-3-28">28</a></span>
+<span class="normal"><a href="#__codelineno-3-29">29</a></span>
+<span class="normal"><a href="#__codelineno-3-30">30</a></span>
+<span class="normal"><a href="#__codelineno-3-31">31</a></span>
+<span class="normal"><a href="#__codelineno-3-32">32</a></span>
+<span class="normal"><a href="#__codelineno-3-33">33</a></span>
+<span class="normal"><a href="#__codelineno-3-34">34</a></span>
+<span class="normal"><a href="#__codelineno-3-35">35</a></span>
+<span class="normal"><a href="#__codelineno-3-36">36</a></span>
+<span class="normal"><a href="#__codelineno-3-37">37</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="k">module</span><span class="w"> </span><span class="n">tb_top</span><span class="p">;</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">    </span><span class="c1">// ...</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="w">    </span><span class="kt">reg</span><span class="w"> </span><span class="n">clock</span><span class="p">;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5"></a><span class="w">    </span><span class="kt">reg</span><span class="w"> </span><span class="n">reset</span><span class="p">;</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="w">    </span><span class="k">initial</span><span class="w"> </span><span class="k">begin</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8"></a><span class="w">        </span><span class="n">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9"></a><span class="w">        </span><span class="n">reset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10"></a><span class="w">    </span><span class="k">end</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12"></a><span class="w">    </span><span class="k">always</span><span class="w"> </span><span class="p">#</span><span class="mi">10</span><span class="w"> </span><span class="n">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">~</span><span class="n">clock</span><span class="p">;</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13"></a>
+<a id="__codelineno-3-14" name="__codelineno-3-14"></a><span class="w">    </span><span class="c1">// ...</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15"></a>
+<a id="__codelineno-3-16" name="__codelineno-3-16"></a><span class="w">    </span><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17"></a><span class="w">    </span><span class="c1">// reg/wire declaration</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18"></a><span class="w">    </span><span class="c1">// -----------------------------------------  </span>
+<a id="__codelineno-3-19" name="__codelineno-3-19"></a><span class="w">    </span><span class="kt">reg</span><span class="w">                  </span><span class="n">inc</span><span class="w">          </span><span class="p">;</span><span class="w"> </span><span class="c1">// Input</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20"></a><span class="w">    </span><span class="kt">reg</span><span class="p">[</span><span class="mi">7</span><span class="o">:</span><span class="mi">0</span><span class="p">]</span><span class="w">             </span><span class="n">test</span><span class="w">         </span><span class="p">;</span><span class="w"> </span><span class="c1">// Input</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21"></a><span class="w">    </span><span class="kt">wire</span><span class="p">[</span><span class="mi">7</span><span class="o">:</span><span class="mi">0</span><span class="p">]</span><span class="w">            </span><span class="n">value</span><span class="w">        </span><span class="p">;</span><span class="w"> </span><span class="c1">// Output</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22"></a>
+<a id="__codelineno-3-23" name="__codelineno-3-23"></a><span class="w">    </span><span class="c1">// ...</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24"></a>
+<a id="__codelineno-3-25" name="__codelineno-3-25"></a><span class="w">    </span><span class="c1">// -----------------------------------------</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26"></a><span class="w">    </span><span class="c1">//  DUT module instantiate</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27"></a><span class="w">    </span><span class="c1">// ----------------------------------------- </span>
+<a id="__codelineno-3-28" name="__codelineno-3-28"></a><span class="hll"><span class="w">    </span><span class="n">Design</span><span class="w"> </span><span class="n">u_Design</span><span class="w"> </span><span class="p">(</span>
+</span><a id="__codelineno-3-29" name="__codelineno-3-29"></a><span class="hll"><span class="w">        </span><span class="p">.</span><span class="n">clock</span><span class="w">   </span><span class="p">(</span><span class="n">clock</span><span class="w">  </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: logic</span>
+</span><a id="__codelineno-3-30" name="__codelineno-3-30"></a><span class="hll"><span class="w">        </span><span class="p">.</span><span class="n">reset</span><span class="w">   </span><span class="p">(</span><span class="n">reset</span><span class="w">  </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: logic</span>
+</span><a id="__codelineno-3-31" name="__codelineno-3-31"></a><span class="hll"><span class="w">        </span><span class="p">.</span><span class="n">inc</span><span class="w">     </span><span class="p">(</span><span class="n">inc</span><span class="w">    </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: logic</span>
+</span><a id="__codelineno-3-32" name="__codelineno-3-32"></a><span class="hll"><span class="w">        </span><span class="p">.</span><span class="n">test</span><span class="w">    </span><span class="p">(</span><span class="n">test</span><span class="w">   </span><span class="p">),</span><span class="w"> </span><span class="c1">// direction: In         dataType: reg[7:0]</span>
+</span><a id="__codelineno-3-33" name="__codelineno-3-33"></a><span class="hll"><span class="w">        </span><span class="p">.</span><span class="n">value</span><span class="w">   </span><span class="p">(</span><span class="n">value</span><span class="w">  </span><span class="p">)</span><span class="w">  </span><span class="c1">// direction: Out        dataType: logic[7:0</span>
+</span><a id="__codelineno-3-34" name="__codelineno-3-34"></a><span class="hll"><span class="w">    </span><span class="p">);</span><span class="w"> </span><span class="c1">// u_Design</span>
+</span><a id="__codelineno-3-35" name="__codelineno-3-35"></a>
+<a id="__codelineno-3-36" name="__codelineno-3-36"></a><span class="w">    </span><span class="c1">// ...</span>
+<a id="__codelineno-3-37" name="__codelineno-3-37"></a><span class="k">endmodule</span>
+</code></pre></div></td></tr></table></div></p>
+<div class="admonition note">
+<p class="admonition-title">关于 negedge</p>
+<p>类似 <code>negedge</code> 的仿真时间控制函数还有 <code>posedge</code>、<code>edge</code>等，具体的功能将在后续的教程中进行介绍（TODO：），需要注意的是这些函数只能对<strong>位宽为 1 的信号</strong>进行使用！</p>
+</div>
+</div>
+<ul>
+<li>
+<p><code>negedge</code> 可以接收两个参数，第一个是等待的次数，第二个是回调函数，回调函数在每次触发事件的时候都会被执行。
+    <div class="highlight"><table class="highlighttable"><tr><th colspan="2" class="filename"><span class="filename">main.lua</span></th></tr><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-4-11">11</a></span>
+<span class="normal"><a href="#__codelineno-4-12">12</a></span>
+<span class="normal"><a href="#__codelineno-4-13">13</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-4-11" name="__codelineno-4-11"></a><span class="hll"><span class="w">        </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">negedge</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+</span><a id="__codelineno-4-12" name="__codelineno-4-12"></a><span class="hll"><span class="w">            </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;current cycle:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">cycles</span><span class="p">:</span><span class="nf">get</span><span class="p">())</span>
+</span><a id="__codelineno-4-13" name="__codelineno-4-13"></a><span class="hll"><span class="w">        </span><span class="kr">end</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div></p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">reset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span></code> 和 <code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">reset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span></code> 用于使用 dut 来给 reset 信号进行赋值，这种对信号赋值的方式是<strong>立即赋值</strong>，并且只对小于 32 bit 的信号可以这么使用，如果对大于 32 bit 的信号也使用这种方式进行赋值就会只赋值低 32 bit。
+也可以使用 <code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">reset</span><span class="p">:</span><span class="nf">set_imm</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></code> 和 <code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">reset</span><span class="p">:</span><span class="nf">set_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></code> 来代替这两个方式，这里的 imm 是 immediate 的缩写，即立即（关于立即赋值与普通赋值的区别将会在后续的教程中进行介绍，具体可以看 <a href="../../reference/data_structure/#set_and_set_imm">这里</a>）。</p>
+</li>
+<li>
+<p><code class="highlight"><span class="kd">local</span><span class="w"> </span><span class="nv">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">dut</span><span class="p">.</span><span class="py">clock</span><span class="p">:</span><span class="nf">chdl</span><span class="p">()</span></code> 用于创建一个 Verilua 的 <code>CallableHDL</code> 对象（也叫 <code>chdl</code>），这个对象用于管理 <code>tb_top.clock</code> 这个信号（<code>dut</code> 默认代表的 Testbench 顶层是 <code>tb_top</code>，也可以进行修改，但是不建议这么做）。</p>
+<ul>
+<li><code>CallableHDL</code> 其内部包括了多种信息，包括信号位宽、hierarchy path 等。</li>
+<li>还包括了各种用于控制信号的方法，例如：<code>&lt;chdl&gt;:set(&lt;value&gt;)</code> 用于设置信号的值，<code>&lt;chdl&gt;:get()</code> 用于获取信号的值，<code>&lt;chdl&gt;:posedge()</code> 用于等待信号上升沿，等等。</li>
+<li>使用 <code>CallableHDL</code> 对象对信号进行操作的性能比使用 <code>dut</code> 进行操作时的性能更高（底层实现的差异所导致的，<code>dut</code> 主要用于临时访问信号，不建议在性能要求较高的场景大量使用 <code>dut</code> 的方式访问信号）。</li>
+</ul>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump</span><span class="p">()</span></code> 用于将信号的值（主要是以 Hex String 的形式）输出到控制台，可以用于查看信号的值，所有的信号相关的操作方式都有这个方法，包括上面提到的 <code>CallableHDL</code>。打印的内容如下所示：
+    <div class="highlight"><span class="filename">Terminal</span><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="o">[</span>tb_top.value<span class="o">]</span><span class="w"> </span><span class="o">=</span>&gt;<span class="w"> </span>0x01
+</code></pre></div></p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump_str</span><span class="p">()</span></code> 会将原本<code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump</span><span class="p">()</span></code> 的输出的内容作为一个返回值进行返回，因此 <code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump</span><span class="p">()</span></code> 也等价于 <code class="highlight"><span class="nb">print</span><span class="p">(</span><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">dump_str</span><span class="p">())</span></code>。</p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></code> 的 <code>expect</code> 方法用于断言信号的值，如果信号的值与期望值相等则什么也不会发生，如果不相等则会打印报错信息并停止仿真。错误信息格式如下所示：
+    <div class="highlight"><span class="filename">Terminal</span><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="o">[</span>tb_top.value<span class="o">]</span><span class="w"> </span><span class="nv">expect</span><span class="w"> </span><span class="o">=</span>&gt;<span class="w"> </span><span class="m">10</span>,<span class="w"> </span>but<span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="o">=</span>&gt;<span class="w"> </span><span class="m">0</span>
+</code></pre></div>
+    类似 <code>expect</code> 的其他方法有 <code>expect_hex_str</code> 用于断言信号的 Hex String 值，<code>expect_dec_str</code> 用于断言信号的 Decimal String 值，<code>expect_bin_str</code> 用于断言信号的 Binary String 值。下面的几种写法是等价的：
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect_hex_str</span><span class="p">(</span><span class="s2">&quot;a&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect_dec_str</span><span class="p">(</span><span class="s2">&quot;10&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">expect_bin_str</span><span class="p">(</span><span class="s2">&quot;1010&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">value</span><span class="p">:</span><span class="nf">is</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span></code> 的 <code>is</code> 方法用于判断信号的值是否等于某个值，如果等于则返回 <code>true</code>，否则返回 <code>false</code>。类似 <code>is</code> 的方法还有 <code>is_hex_str</code>、<code>is_dec_str</code>、<code>is_bin_str</code>，还有一个 <code>is_not</code> 方法，其功能和 <code>is</code> 相反，但是如果等于则返回 <code>false</code>，否则返回 <code>true</code>。</p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></code> 的 <code>set</code> 方法用于设置信号的值，区别于立即赋值的 <code>dut.inc = 1</code>，<code>set</code> 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 <a href="../../reference/data_structure/#set_and_set_imm">这里</a>）。<code>dut</code> 的 <code>set</code> 方法同样只能赋值最多 32 bit 位宽的信号。</p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">dut</span><span class="p">.</span><span class="py">inc</span><span class="p">:</span><span class="nf">get</span><span class="p">()</span></code> 的 <code>get</code> 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值，需要注意的是 <code>dut</code> 的 <code>get</code> 方法只能用来获得最多 32 bit 位宽信号的值。</p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">sim</span><span class="p">.</span><span class="nf">finish</span><span class="p">()</span></code> 用于控制仿真器结束仿真。</p>
+</li>
+<li>
+<p><code class="highlight"><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;startTask&quot;</span></code> 用于添加仿真开始执行时调用的函数，而 <code class="highlight"><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;finishTask&quot;</span></code> 则用于添加仿真结束执行时调用的函数。这两个函数都能添加多个 function 块，例如：
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nv">verilua</span><span class="w"> </span><span class="s2">&quot;startTask&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation started! 1&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="kr">function</span><span class="w"> </span><span class="p">()</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Simulation started! 2&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="kr">end</span><span class="p">,</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="c1">-- ...</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">}</span>
+</code></pre></div></p>
+</li>
+</ul>
+</details>
+<p><a id="create-xmake-lua"></a></p>
+<h2 id="2-xmakelua">2. 创建一个 xmake.lua 文件</h2>
+<p>Verilua 的工程（HVL 和 WAL 场景）使用 <code>xmake</code> 来管理，因此需要先在你的工程文件夹中创建一个 xmake.lua 文件。xmake 是一个基于 Lua 的构建工具（类似 makefile，cmake 等），提供了灵活的构建方式。关于 xmake 的使用，可以参考 <a href="https://xmake.io/#/getting_started">xmake 官方文档</a>。关于 Verilua 中支持的相关 xmake 配置参数，可以查看<a href="../../reference/xmake_params/">此处</a>的介绍。</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">xmake.lua</label><label for="__tabbed_1_2">xmake.lua（无注释）</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><span class="filename">xmake.lua</span><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nf">target</span><span class="p">(</span><span class="s2">&quot;TestDesign&quot;</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="p">()</span><span class="w">                </span><span class="c1">-- target 的名称可以随意取</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="c1">-- </span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="c1">-- Mandatory settings</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="c1">-- </span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="c1">-- 添加 Verilua 的规则，xmake 中支持自定义 rule，具体可以参考 xmake 相关文档</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="nf">add_rules</span><span class="p">(</span><span class="s2">&quot;verilua&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="c1">-- 添加用来执行硬件仿真的仿真器，这里使用的是 Verilator，还可以选择 @vcs、@xcelium 或 @iverilog</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="nf">add_toolchains</span><span class="p">(</span><span class="s2">&quot;@verilator&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="c1">-- 添加 RTL 文件, 也可以使用通配符进行匹配，如 ./*.v</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="c1">-- 如果 main.lua 中使用到了其他的 Lua 模块，和添加 RTL 文件一样这里也可以添加 Lua 文件</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="nf">add_files</span><span class="p">(</span><span class="s2">&quot;./Design.v&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">    </span><span class="c1">-- 设置 RTL 文件中的 top 实例名称（顶层模块名称），这里就是 Design</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;cfg.top&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Design&quot;</span><span class="p">)</span><span class="w"> </span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">    </span><span class="c1">-- 设置需要执行的 Lua 脚本文件，一般只有一个主脚本，这里就是前面创建的 main.lua</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;cfg.lua_main&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;./main.lua&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">    </span><span class="c1">-- </span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a><span class="w">    </span><span class="c1">-- Optional settings</span>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">    </span><span class="c1">-- </span>
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="w">    </span><span class="c1">-- `XXX`.flags 用于设置编译时选项，将会在编译仿真的时候被添加到对应的仿真器的命令行中</span>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">    </span><span class="c1">-- 这里的 XXX 可以是 verilator、vcs、 xcelium、iverilog 等</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="w">    </span><span class="c1">-- 下面这里主要添加了 Verilator 中用于输出波形文件的选项</span>
+<a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;verilator.flags&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--trace&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--no-trace-top&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a>
+<a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a><span class="w">    </span><span class="c1">-- `XXX`.run_prefix 用于设置仿真器的运行前缀，将会在运行仿真的时候被添加到命令行的前面</span>
+<a id="__codelineno-9-31" name="__codelineno-9-31" href="#__codelineno-9-31"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;verilator.run_prefix&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-32" name="__codelineno-9-32" href="#__codelineno-9-32"></a><span class="kr">end</span><span class="p">)</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><span class="filename">xmake.lua</span><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nf">target</span><span class="p">(</span><span class="s2">&quot;TestDesign&quot;</span><span class="p">,</span><span class="w"> </span><span class="kr">function</span><span class="p">()</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="nf">add_rules</span><span class="p">(</span><span class="s2">&quot;verilua&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nf">add_toolchains</span><span class="p">(</span><span class="s2">&quot;@verilator&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="nf">add_files</span><span class="p">(</span><span class="s2">&quot;./Design.v&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;cfg.top&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Design&quot;</span><span class="p">)</span><span class="w"> </span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;cfg.lua_main&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;./main.lua&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;verilator.flags&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--trace&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--no-trace-top&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="nf">set_values</span><span class="p">(</span><span class="s2">&quot;verilator.run_prefix&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="kr">end</span><span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+<h2 id="3">3. 编译</h2>
+<p>在创建好 xmake.lua 文件之后，我们就可以开始编译了，只需要执行下面的命令即可进行编译:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>xmake<span class="w"> </span>build<span class="w"> </span>-P<span class="w"> </span>.<span class="w"> </span>TestDesign
+</code></pre></div></p>
+<ul>
+<li>上面的命令中，TestDesign 是我们创建的 target 的名称。</li>
+<li>如果 RTL 文件没有被再次修改，那么只需要执行一次编译即可，如果文件被修改了，那么需要再次执行编译。</li>
+<li>如果 Lua 文件（这里主要是 main.lua）被修改了，也不需要重新编译，因为 Lua 是解释执行的语言，不需要编译。</li>
+<li><code>-P .</code> 用于指定 xmake 的运行路径为当前目录，如果不指定，那么 xmake 会自动查找上层的 xmake.lua 文件。因此这里添加了 <code>-P .</code> 参数，以便在当前目录下执行 xmake。如果你的工程目录的上一层目录没有 xmake.lua 文件，那么就不需要添加 <code>-P .</code> 参数。</li>
+<li>如果编译成功，会在命令行最后输出 <code>[100%]: build ok, spent XXXs</code> 的信息，如果编译失败，那么会显示 error。</li>
+</ul>
+<h2 id="4">4. 运行仿真</h2>
+<p>编译完成后，可以执行下面的命令运行仿真：
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>xmake<span class="w"> </span>run<span class="w"> </span>-P<span class="w"> </span>.<span class="w"> </span>TestDesign
+</code></pre></div></p>
+<p>至此，我们就完成了一个简单的 Verilua 示例，并成功运行起仿真，可以看到由于 Verilua 使用 xmake 进行工程管理，因此相关的流程和编译配置都相对简单，提高了开发的效率。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../install/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Install Verilua">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Install Verilua
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../simple_hse_example/" class="md-footer__link md-footer__link--next" aria-label="Next: 一个简单的 HSE 示例">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                一个简单的 HSE 示例
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - 2025 Chuyu Zheng
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.footer", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>

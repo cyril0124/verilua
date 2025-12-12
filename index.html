@@ -1,0 +1,1442 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Verilua: An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT">
+      
+      
+        <meta name="author" content="Chuyu Zheng">
+      
+      
+        <link rel="canonical" href="https://cyril0124.github.io/verilua/">
+      
+      
+      
+        <link rel="next" href="getting-started/install/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Verilua</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#introduction" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="Verilua" class="md-header__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Verilua
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Introduction
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="getting-started/install/" class="md-tabs__link">
+          
+  
+  
+  Getting started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="how-to-guides/simple_ut_env/" class="md-tabs__link">
+          
+  
+  
+  How-to guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="reference/multi_task/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="Verilua" class="md-nav__button md-logo" aria-label="Verilua" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.5 5A8.5 8.5 0 0 0 2 13.5a8.5 8.5 0 0 0 8.5 8.5 8.5 8.5 0 0 0 8.5-8.5A8.5 8.5 0 0 0 10.5 5m3 8a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 8a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5m6-11A2.5 2.5 0 0 0 17 4.5 2.5 2.5 0 0 0 19.5 7 2.5 2.5 0 0 0 22 4.5 2.5 2.5 0 0 0 19.5 2"/></svg>
+
+    </a>
+    Verilua
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cyril0124/verilua" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyril0124/verilua
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#verilua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        为什么使用 Verilua?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hardware-verification-languagehvl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardware Verification Language（HVL）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hardware-script-enginehse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardware Script Engine（HSE）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#waveform-analysis-languagewal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Waveform Analysis Language（WAL）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verilua_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua 架构概览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        应用案例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="应用案例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verilua-as-an-hvl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua as an HVL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verilua-as-an-hse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua as an HSE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verilua-as-an-wal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua as an WAL
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started/install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install Verilua
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started/simple_hvl_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HVL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started/simple_hse_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 HSE 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started/simple_wal_example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    一个简单的 WAL 示例
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="how-to-guides/simple_ut_env/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搭建一个简单的 UT 环境
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="how-to-guides/write_reusable_component/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    编写可复用的验证组件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/multi_task/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    多任务系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/data_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/bitvec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BitVec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/slcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    String Literal Constructor Pattern (SLCP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/simulator_control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    仿真器控制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/testbench_generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testbench 自动生成流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/xmake_params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    xmake 的配置参数
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#verilua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        为什么使用 Verilua?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hardware-verification-languagehvl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardware Verification Language（HVL）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hardware-script-enginehse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardware Script Engine（HSE）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#waveform-analysis-languagewal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Waveform Analysis Language（WAL）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verilua_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua 架构概览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        应用案例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="应用案例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verilua-as-an-hvl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua as an HVL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verilua-as-an-hse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua as an HSE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verilua-as-an-wal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verilua as an WAL
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="introduction">Introduction</h1>
+<div class="admonition info">
+<p class="admonition-title">English Version Status</p>
+<p>The English version of this documentation is currently being prepared. We are working to translate the existing Chinese content into English as soon as possible. In the meantime, you may refer to the Chinese version of this documentation or use your browser's translation tool to read it.</p>
+</div>
+<p>Verilua 是一个基于中间件分层架构的硬件验证解耦仿真框架，统一了包括：Hardware Verification Language（<code>HVL</code>）、Hardware Script Engine（<code>HSE</code>）、Waveform Analysis Language（<code>WAL</code>）在内的多种验证场景，解决了验证生态碎片化的问题。
+Verilua 的 HVL、HSE、WAL 能够覆盖硬件验证中的多个流程。</p>
+<figure>
+  <img alt="hvl_hse_wal_in_flow" src="images/hvl_hse_wal_in_flow.png" width="70%" />
+<br />
+<figcaption>HVL、HSE、WAL 能够覆盖硬件验证中的多个流程</figcaption>
+</figure>
+<div class="admonition note">
+<p class="admonition-title">硬件验证生态碎片化问题</p>
+<p>随着各种开源验证框架/语言的出现，使用各种开源的验证框架/语言开发与验证芯片逐渐成为主流，而现代高性能处理器的验证也越来越复杂化，完整的验证流程中不同层次不同模块的验证通常就会包括多个不同的验证环境，不同的验证环境会根据验证需求的不同采用不同的 HVL（Hardware Verification Language），例如对于 ST（System Test），此时对于仿真速度有更高的要求，因此会采用 HVL_A，对于UT（Unit Test）则对验证效率有更高的要求，UT 的验证环境需要能够快速迭代，因此就会可能会采用 HVL_B。不同 HVL 编写的验证组件在不同的验证环境下难以复用，这就导致了验证生态存在碎片化问题，因为这些不同 HVL 编写的验证组件就像孤立的岛屿，难以在多样化的验证场景中实现有效迁移与复用，最终导致整体的验证效率低下。
+<figure markdown="span">
+  <img alt="reuse_issue" src="images/reuse_issue.png" width="50%" />
+  <figcaption>验证组件的复用问题</figcaption>
+</figure></p>
+</div>
+<h2 id="verilua">为什么使用 Verilua?</h2>
+<ul>
+<li>传统 SystemVerilog + UVM 芯片验证方法的不足：<ul>
+<li>❌ 学习曲线陡峭：UVM 框架庞大复杂，组件繁多且规则严格，新手需要较长时间掌握，开发效率较低</li>
+<li>❌ SV 语言局限性：SystemVerilog 作为硬件描述语言，受限于硬件设计语义，缺乏普通编程语言（如 Python 或 C++）的灵活性，限制了验证开发的效率和表达能力（例如实现一个数据库的数据保存功能，可能需要 SV -&gt; DPIC -&gt; SV 的方式来实现）</li>
+</ul>
+</li>
+<li><a href="https://www.cocotb.org/">Cocotb</a> 等框架？<ul>
+<li>✅ Cocotb 是一个开源的基于 Python 的硬件验证框架，允许用户使用 Python 语言编写验证平台，基于 coroutine（协程）实现类似 SV 中的并发控制，适用于硬件验证场景</li>
+<li>✅ Cocotb 在开源社区中广泛使用，成熟且稳定，并且能使用 Python 的强大的第三方库生态</li>
+</ul>
+</li>
+<li>
+<p>但是 Cocotb 并不适合在生产环境下使用：</p>
+<ul>
+<li>❌ 因为采用 Python，存在性能问题，Python 几乎是最慢的脚本语言之一，编写复杂的验证环境的时候，这种性能问题会影响验证效率</li>
+<li>❌ Cocotb 编写的硬件验证组件无法复用（在其他非 Cocotb 的验证平台中使用），只能在自己的框架下使用，隔离的验证生态使得团队难以与行业主流验证工具链无缝对接</li>
+</ul>
+</li>
+<li>
+<p>Verilua 的特点</p>
+<ul>
+<li>✅ 使用 Lua 语言进行硬件验证，Lua 语言简单易学，功能完整，同样具备 coroutine 功能，能够实现并发控制逻辑</li>
+<li>✅ Lua 的开发体验比 SystemVerilog 更好，因为 Lua 语言的使用人数比 SystemVerilog 多很多，开发者积极开发各种插件提高 Lua 语言的开发体验，例如：EmmyLuaLs、LuaLS</li>
+<li>✅ 由于采用 Lua 的 LuaJIT 实现（LuaJIT 几乎是最快的脚本语言实现），因此性能比基于 Python 的 Cocotb 更高，能够满足硬件验证的需要</li>
+<li>✅ Verilua 支持 HVL（Hardware Verification Language）、HSE（Hardware Script Engine）、WAL（Waveform Analysis Language）三种验证场景，能够实现验证组件的跨验证平台、跨场景复用，解决非 SV 验证平台的验证组件复用问题（HVL、HSE、WAL 三种场景都能使用同一套基于 Verilua 编写的验证组件）</li>
+</ul>
+</li>
+<li>
+<p>Verilua 的缺点/不足：</p>
+<ul>
+<li>❌ Verilua 的底层基于 VPI，不是直接与硬件信号进行交互，而是通过中间层 API 的方式进行，所以相比于纯 SV 的验证环境存在天然的性能差距</li>
+<li>...</li>
+</ul>
+</li>
+</ul>
+<h2 id="hardware-verification-languagehvl">Hardware Verification Language（<code>HVL</code>）</h2>
+<p>硬件验证语言，专门用于硬件验证场景，能够控制验证平台的运行或者描述复杂的验证逻辑，我们熟悉的 SystemVerilog 就属于一种 HVL（当然也属于 HDL），类似地 Cocotb 框架允许将 Python 作为一种 HVL，而 <a href="https://veripool.org/guide/latest/">Verilator</a> 能够允许用户将 C++ 作为一种 HVL。</p>
+<p>在 Verilua 中，Lua 语言被选择用来作为 Verilua 的 HVL（Verilua 的名字由来：Verification + Lua），具体而言采用的是 <a href="https://luajit.org/">LuaJIT</a> 这一 Lua 实现，因为 LuaJIT 是一个性能更高的 Lua 实现，并且支持 JIT 编译，这能够为 Verilua 提供更好的 HVL 性能。Verilua 在 LuaJIT 的基础上构造了一个 DSL（Domain Specific Language），以方便用户能够使用 Lua 语言来进行硬件验证业务代码的编写，从而能够使用 Lua 语言作为一种 HVL。</p>
+<h2 id="hardware-script-enginehse">Hardware Script Engine（<code>HSE</code>）</h2>
+<p>脚本引擎（Script Engine, SE）作为一种动态代码执行环境，在浏览器和游戏开发中得到了广泛应用，例如浏览器通过 JavaScript SE 扩展功能，游戏开发则常嵌入 Lua SE 以支持用户编写插件。Verilua 将这一概念扩展到了硬件仿真中，提出了 Hardware Script Engine（HSE）。例如在硬件仿真的过程中我们经常会有动态打印某些信号的 log 或者需要动态统计某些信号的性能事件的需求，传统的做法通常是修改 RTL 代码向其中临时插入相关业务代码（如 print 语句）来实现这些功能，但是事实上我们完全可以使用一个动态的 SE 来实现，也就是在 RTL 仿真的时候嵌入一个 Lua SE，并且在 SE 中可以通过 VPI 访问所有RTL 信号信息，并可以使用 Lua 来编写动态的代码以应对时刻变化的需求。</p>
+<p>HSE 底层的接口基于 VPI（Verilog Procudural Interface），由于 VPI 的通用性（几乎所有的硬件仿真器都支持 VPI），因此 HSE 能够使得 Verilua 编写的验证组件在非 Verilua 的任何支持 VPI 的验证环境中使用。因此 HSE 是 Verilua 中实现跨环境验证组件复用的关键。得益于 Verilua 的解耦框架设计，HSE 能够复用 HVL 中编写的验证组件，也就是说如果用户在 HVL 场景下编写了一系列的验证组件（例如 Monitor、Scoreboard），那么在 HSE 中是可以直接拿过来复用的，这使得 Verilua 编写的验证组件具有更好的复用性。</p>
+<h2 id="waveform-analysis-languagewal">Waveform Analysis Language（<code>WAL</code>）</h2>
+<p>WAL 的概念最早于 2022 年由 Lucas Klemmer 等人的一篇<a href="https://ics.jku.at/files/2022ASPDAC_WAL.pdf">论文</a>提出（<a href="https://github.com/ics-jku/wal">github 仓库</a>，后续标记为 <code>lisp-wal</code>），其基本思想是利用编程语言自动化波形分析，不同于 lisp-wal 使用 lisp 语言实现了 WAL，Verilua 采用了 Lua 语言实现了 WAL，并且由于底层实现的不同，Verilua 的性能比 lisp-wal 更好，且支持的波形格式更多（包括 VCD、FST、FSDB，而 lisp-wal 只支持 VCD、FST），因此更加适合较大规模的波形分析场景。</p>
+<p>由于 WAL 属于 Verilua 的其中一种使用场景，因此 WAL 场景下也能够复用 HVL、HSE 中使用的验证组件，这种复用性极大地提高了波形分析效率，用户可以通过复用来减少重复开发的成本。</p>
+<h2 id="verilua_1">Verilua 架构概览</h2>
+<p>Verilua 的解耦框架中，分为 Frontend、Kernel、Backend 三个层次：</p>
+<ul>
+<li>Frontend 表示的是用户的业务代码；</li>
+<li>Kernel 则包含了 Scheduler、Handles 等 DSL 的核心组件以及 Verilua 的运行时环境等；</li>
+<li>Backend 对于 HVL、HSE 表示的是具体的硬件仿真器，对于 WAL 这里指的则是 Verilua 开发的 <code>wave_vpi</code>，Verilua 编写的用户代码可以在这些不同的 Backend 中使用，且不需要做额外的适配。</li>
+</ul>
+<p>HVL、HSE、WAL 基于同一个中间件（VPI-ML），用于连接 Kernel 和 Backend，VPI-ML 能够在各种硬件仿真器中支持，这是实现解耦与复用的关键，特别地对于 HSE，可以使用 <code>dummy_vpi</code>（后续将会介绍） 代替这一中间件来减少 HSE 的接入开销。</p>
+<p>中间件（VPI-ML）和 Frontend、Kernel、Backend 的架构组成是 Verilua 的解耦框架设计的基础，这种架构提供了最大的可扩展性。</p>
+<figure>
+  <img alt="verilua_architecture" src="images/verilua_architecture.png" width="70%" />
+<br />
+<figcaption>Verilua 架构</figcaption>
+</figure>
+<div class="admonition note">
+<p class="admonition-title">Verilua 的验证组件复用</p>
+<p>Verilua 的解耦框架设计允许 HVL、HSE、WAL 的验证组件在这三种场景下的任意一种中复用，任意一种场景下编写的验证组件无需考虑复用性问题，Verilua 从框架层面上就支持复用。从下图可以看到所有相同颜色的组件都是同一份代码，它们在 HVL、HSE、WAL 三个场景下都能无修改复用。
+<figure markdown="span">
+  <img alt="verilua_component_reuse" src="images/verilua_component_reuse.png" width="50%" />
+  <figcaption>Verilua 的验证组件复用</figcaption>
+</figure></p>
+</div>
+<h2 id="_1">应用案例</h2>
+<p>在本节中，我们将展示 Verilua 作为硬件验证语言（HVL）、硬件仿真引擎（HSE）和波形分析语言（WAL）的用例，展示其与传统仿真框架相比的独特特性。我们所有的案例将围绕<a href="https://github.com/OpenXiangShan/XiangShan">香山处理器</a>南湖V3（<code>NHV3</code>）系列开源高性能处理器的缓存子系统的验证和调试过程展开。</p>
+<h3 id="verilua-as-an-hvl">Verilua as an HVL</h3>
+<p>在 NHV3 中，我们使用 Verilua 构建了一个针对缓存子系统（包括 L2/L3 缓存）的验证平台，如下图所示。Verilua 作为一种硬件验证语言（HVL）的应用，涉及多个关键的验证组件，例如 FakeCache、FakeDMA、TLCAgent、TLULAgent、L2Monitor、L3Monitor 和 GlobalScoreboard，这些组件均使用 Lua 编写。其中，FakeCache 和 FakeDMA 组件通过 VPI 与待测设计（DUT）的信号进行交互。</p>
+<figure>
+  <img alt="verilua_as_an_hvl" src="images/verilua_as_an_hvl.png" width="70%" />
+<br />
+<figcaption>Verilua as an HVL</figcaption>
+</figure>
+<p>在该验证平台中，每个组件都具备相对独立的功能。例如，L2/L3 Monitor 负责从 L2/L3 缓存中读取总线信号并记录日志，以便后续分析。GlobalScoreboard 是一个关键的检查组件，用于确保缓存系统内的全局数据一致性，这对于维护缓存操作的完整性至关重要。</p>
+<p>使用 Lua 编写这些组件的一个显著优势是，对业务逻辑的修改无需重新编译整个验证平台。这种能力使得平台能够快速迭代和开发，从而提高了整体效率。此外，Lua 高效且灵活的语法有助于创建适应性强的验证平台。与传统的 SystemVerilog 验证平台相比，Lua 的轻量级和动态特性使得验证环境更易于维护和扩展。</p>
+<h3 id="verilua-as-an-hse">Verilua as an HSE</h3>
+<p>在本示例中，我们将 Verilua 作为硬件仿真引擎（HSE）嵌入到现有的仿真框架中。在 NHV3 的顶层仿真中，<a href="https://github.com/OpenXiangShan/difftest">difftest</a> 执行指令级比较以确保正确性。如果 L2/L3 缓存中存在错误，该错误会通过处理器流水线传播，并仅在 difftest 比较架构寄存器时被检测到。这使得验证工程师难以定位错误，需要追溯到缓存子系统，这一过程耗时且严重影响调试效率。</p>
+<p>通过将 Verilua 嵌入到 difftest 仿真环境中，我们可以利用之前开发的组件（如 L2/L3Monitor 和 GlobalScoreboard），并通过 VPI 将它们连接到 L2/L3 缓存总线信号，如下图所示。这种设置使得 Monitor 组件能够记录总线行为，而 GlobalScoreboard 则实时检查数据正确性。如果发生错误，仿真会立即停止，并提供错误信息，从而帮助快速将问题定位到 L2/L3 缓存。</p>
+<figure>
+  <img alt="verilua_as_an_hse" src="images/verilua_as_an_hse.png" width="70%" />
+<br />
+<figcaption>Verilua as an HSE</figcaption>
+</figure>
+<p>在这种情况下，Verilua 的使用促进了现有验证组件的重用，而无需重写或插入调试代码片段。整个过程是非侵入式的，最大限度地减少了对原始 RTL 设计的干扰，并避免了因频繁修改 RTL 代码而引入新错误的风险，最终提高了验证过程的效率和准确性。</p>
+<p>将 Verilua 作为 HSE 使用，使我们能够灵活地收集各种仿真信号信息。例如，一个简单的 Lua 脚本可以统计缓存命中率、未命中率、读写延迟等，并在仿真过程中打印这些信息。这种方法无需修改 RTL 来扩展仿真功能，因为所有功能都可以通过 Lua 脚本动态实现。</p>
+<h3 id="verilua-as-an-wal">Verilua as an WAL</h3>
+<p>在最后一个示例中，我们展示了 Verilua 作为波形分析语言（WAL）如何提高波形分析效率。假设验证工程师在使用其他验证平台时遇到了一个错误，但无法定位问题。他们发送给我们一个波形文件进行调试。通常情况下，我们需要从他们提供的有限信息入手，逐步排查问题，这一过程可能非常耗时，尤其是当问题出现在缓存子系统的 L3Cache 中时。</p>
+<p>借助 Verilua，我们可以使用 wave_vpi 后端对波形文件进行仿真。在此仿真过程中，我们可以利用 L2/L3Monitor、GlobalScoreboard 以及前文示例中的其他组件（如下图所示）来帮助识别错误并收集总线信息。通过将这些组件集成到波形仿真场景中，我们能够高效地分析波形。Monitors 和 GlobalScoreboard 会在仿真过程中精确定位错误发生的位置，并告知我们错误的具体来源。这种方法避免了繁琐的波形检查，使得我们可以将 Verilua 作为 WAL 来分析波形并重用验证组件，从而显著提升分析效率，节省调试时间，并提高生产力。</p>
+<figure>
+  <img alt="verilua_as_an_wal" src="images/verilua_as_an_wal.png" width="70%" />
+<br />
+<figcaption>Verilua as an WAL</figcaption>
+</figure>
+<p>在这些案例中，Verilua 能够利用同一套基于 Lua 的验证组件来应对 HVL、HSE 和 WAL 的不同场景。这展示了 Verilua 强大的可重用性，并显著提升了验证过程的效率。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+        
+          
+          <a href="getting-started/install/" class="md-footer__link md-footer__link--next" aria-label="Next: Install Verilua">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Install Verilua
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - 2025 Chuyu Zheng
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.footer", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "search.suggest", "search.highlight"], "search": "assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>
