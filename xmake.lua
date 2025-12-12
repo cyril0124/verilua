@@ -1152,6 +1152,18 @@ ${reset}]])
             }
             print_test_result("dpi_exporter", "--", success, os.time() - start_time)
 
+            -- cov_exporter
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests", "test_cov_exporter"))
+            start_time = os.time()
+            print_test_start("cov_exporter", "--")
+            success = true
+            try {
+                function() run_cmd("xmake run -P .") end,
+                catch { function(e) success = false end }
+            }
+            print_test_result("cov_exporter", "--", success, os.time() - start_time)
+
             -- Signal DB
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "test_signal_db"))
