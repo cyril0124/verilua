@@ -28,6 +28,7 @@ class DPIExporter {
     std::optional<bool> pldmGfifoDpi;
     std::optional<bool> nocache;
     std::optional<bool> showHelp;
+    std::optional<bool> _relativeMetaPath;
 
     std::string configFile;
     std::string configFileContent;
@@ -40,6 +41,7 @@ class DPIExporter {
     std::string cmdLineStr;
     bool distributeDPI;
     bool quiet;
+    bool relativeMetaPath;
 
     json metaInfoJson;
     std::string metaInfoFilePath;
@@ -337,6 +339,7 @@ end
         driver.cmdLine.add("--nc,--no-cache", nocache, "do not use cache files");
         driver.cmdLine.add("--im,--insert-module-name", insertModuleName, "module namne of the DPI function(available when distributeDPI is FALSE)", "<name>"); // ! make sure tha the inserted module has only one instance
         driver.cmdLine.add("--pgd,--pldm-gfifo-dpi", pldmGfifoDpi, "Mark the generated DPI functions as pldm gfifo functions(pldm => Cadence Palladium Emulation Platform)");
+        driver.cmdLine.add("--rmp,--relative-meta-path", _relativeMetaPath, "use relative path for meta info file path in generated code");
     }
 
     int parseCommandLine(int argc, char **argv) {
@@ -353,6 +356,7 @@ end
         sampleEdge       = _sampleEdge.value_or(DEFAULT_SAMPLE_EDGE);
         distributeDPI    = _distributeDPI.value_or(false);
         quiet            = _quiet.value_or(false);
+        relativeMetaPath = _relativeMetaPath.value_or(false);
         metaInfoFilePath = outdir + "/dpi_exporter.meta.json";
         dpiFilePath      = outdir + "/" + _dpiFile.value_or(DEFAULT_DPI_FILE_NAME);
         fmt::println("[dpi_exporter]\n\tconfigFile: {}\n\tdpiFileName: {}\n\toutdir: {}\n\tworkdir: {}\n\tdistributeDPI: {}\n\tquiet: {}\n", configFile, _dpiFile.value_or(DEFAULT_DPI_FILE_NAME), outdir, workdir, distributeDPI, quiet);
@@ -503,7 +507,7 @@ end
             ASSERT(false, "TODO: distributeDPI is not supported yet!");
         }
 
-        std::string dpiFileContent = renderDpiFile(mergedSignalGroupVec, sensitiveTriggerInfoVec, topModuleName, distributeDPI, metaInfoFilePath);
+        std::string dpiFileContent = renderDpiFile(mergedSignalGroupVec, sensitiveTriggerInfoVec, topModuleName, distributeDPI, metaInfoFilePath, relativeMetaPath);
 
         {
             fmt::println("[dpi_exporter] start generating dpi file, outdir: {}, dpiFilePath: {}", outdir, dpiFilePath);

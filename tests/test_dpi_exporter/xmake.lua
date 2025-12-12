@@ -58,7 +58,7 @@ target("test", function()
 
             -- Run dpi_exporter
             print(string.format("\n[%s] Running dpi_exporter...", cfg_name))
-            local cmd = format("dpi_exporter %s -c %s --no-cache -q --od %s --wd %s", rtl, cfg, output_dir, output_dir)
+            local cmd = format("dpi_exporter %s -c %s --no-cache -q --od %s --wd %s --relative-meta-path", rtl, cfg, output_dir, output_dir)
             local ok = try { function()
                 os.exec(cmd)
                 return true
@@ -125,7 +125,7 @@ target("regen_golden", function()
             local output_dir = path.join(test_dir, ".dpi_exporter_" .. cfg_name)
 
             print(string.format("[%s] Generating golden file...", cfg_name))
-            local cmd = format("dpi_exporter %s -c %s --no-cache -q --od %s --wd %s", rtl, cfg, output_dir, output_dir)
+            local cmd = format("dpi_exporter %s -c %s --no-cache -q --od %s --wd %s --relative-meta-path", rtl, cfg, output_dir, output_dir)
             os.exec(cmd)
 
             -- Copy generated files to golden directory

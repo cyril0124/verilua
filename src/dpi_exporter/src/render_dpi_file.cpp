@@ -207,7 +207,19 @@ extern "C" void dpi_exporter_tick({{dpiTickFuncParam}}) {
 )";
 }
 
-std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::vector<SensitiveTriggerInfo> &sensitiveTriggerInfoVec, std::string topModuleName, bool distributeDPI, std::string metaInfoFilePath) {
+std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::vector<SensitiveTriggerInfo> &sensitiveTriggerInfoVec, std::string topModuleName, bool distributeDPI, std::string metaInfoFilePath, bool relativeMetaPath) {
+    // Use relative path if requested, otherwise use just filename
+    std::string metaInfoFilePathForCode;
+    if (relativeMetaPath) {
+        // Convert to relative path from current working directory
+        auto cwd                = std::filesystem::current_path();
+        auto absPath            = std::filesystem::absolute(metaInfoFilePath);
+        metaInfoFilePathForCode = std::filesystem::relative(absPath, cwd).string();
+    } else {
+        // Use just the filename (default behavior for compatibility)
+        metaInfoFilePathForCode = std::filesystem::path(metaInfoFilePath).filename().string();
+    }
+
     bool hasSensitiveSignals = false;
     std::vector<std::string> handleByNameVec;
     std::vector<std::string> getTypeStrVec;
@@ -516,7 +528,7 @@ extern "C" void VERILUA_DPI_EXPORTER_{0}_SET_HEX_STR(char *hexStr) {{
     j["topModuleName"]      = topModuleName;
     j["distributeDPI"]      = distributeDPI ? 1 : 0;
     j["dpiFuncFileContent"] = joinStrVec(dpiSignalBlockVec, "\n"); // dpiFuncFileContent;
-    j["metaInfoFilePath"]   = metaInfoFilePath;
+    j["metaInfoFilePath"]   = metaInfoFilePathForCode;
     j["handleByName"]       = joinStrVec(handleByNameVec, ",\n");
     j["getTypeStr"]         = joinStrVec(getTypeStrVec, ",\n");
     j["getBitWidth"]        = joinStrVec(getBitWidthVec, ",\n");

@@ -308,7 +308,7 @@ extern "C" char *dpi_exporter_get_top_name() {
 }
 
 extern "C" char *dpi_exporter_get_meta_info_file_path() {
-    static char meta_info_file_path[] = "/nfs/home/zhengchuyu/tmp/verilua/tests/test_dpi_exporter/.dpi_exporter_only_default/dpi_exporter.meta.json";
+    static char meta_info_file_path[] = ".dpi_exporter_only_default/dpi_exporter.meta.json";
     return meta_info_file_path;
 }
 
