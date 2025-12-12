@@ -819,6 +819,21 @@ local bdl = Bundle(
 
     用来标记 `signals_table` 中的信号哪些是可选的，如果一个信号被标记为可选的，那么在构建 `Bundle` 的时候如果发现这个信号不存在，就会忽略这个信号的报错，否则就会报错。
 
+    !!! tip "推荐使用方括号语法"
+        除了通过 `optional_signals` 参数指定可选信号外，还可以在信号列表中使用方括号 `[signal_name]` 来标记可选信号（推荐）：
+        ```lua
+        -- 使用 optional_signals 参数（旧方法，仍然有效）
+        local bdl = ("valid | data | nonexistent"):bdl {
+            hier = "tb_top",
+            optional_signals = {"nonexistent"}
+        }
+        
+        -- 使用方括号语法（推荐）
+        local bdl = ("valid | data | [nonexistent]"):bdl {
+            hier = "tb_top"
+        }
+        ```
+
 上述代码会将下面的信号加入到 `Bundle` 中：
 ```
 path.to.hier.some_prefix_valid
@@ -1000,6 +1015,35 @@ local abdl = AliasBundle(
 5. `optional_signals`
 
     用来标记 `signals_table` 中的信号哪些是可选的，如果一个信号被标记为可选的，那么在构建 `AliasBundle` 的时候如果发现这个信号不存在，就会忽略这个信号的报错，否则就会报错。
+
+    !!! tip "推荐使用方括号语法"
+        除了通过 `optional_signals` 参数指定可选信号外，还可以在信号列表中使用方括号来标记可选信号（推荐）：
+        ```lua
+        -- 使用 optional_signals 参数（旧方法，仍然有效）
+        local abdl = ([[
+            | origin_signal_0 => alias_0
+            | nonexistent => alias_ne
+        ]]):abdl {
+            hier = "tb_top",
+            optional_signals = {"alias_ne"}
+        }
+        
+        -- 使用方括号语法（推荐）
+        local abdl = ([[
+            | origin_signal_0 => alias_0
+            | [nonexistent => alias_ne]
+        ]]):abdl {
+            hier = "tb_top"
+        }
+        
+        -- 也可以用于没有别名的信号
+        local abdl = ([[
+            | origin_signal_0
+            | [optional_signal]
+        ]]):abdl {
+            hier = "tb_top"
+        }
+        ```
 
 上述代码会将下面的信号加入到 `AliasBundle` 中：
 ```
