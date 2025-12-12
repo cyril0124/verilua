@@ -2,7 +2,7 @@ module top;
 
 export "DPI-C" function sv_func;
 
-function sv_func;
+function void sv_func;
     input string content;
     $display("[sv_func] got: %s", content);
 endfunction
