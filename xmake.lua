@@ -260,17 +260,49 @@ target("build_all_tools", function()
     end)
 end)
 
-target("format", function()
+target("format-lua", function()
     set_kind("phony")
-    on_run(function(target)
-        cprint("${💥} ${yellow}Formatting C++ files...${reset}")
+    set_default(false)
+    on_run(function()
+        import("lib.detect.find_file")
+        if not find_file("CodeFormat", { "$(env PATH)" }) then
+            raise("CodeFormat tool is not found! Please install it from https://github.com/CppCXY/EmmyLuaCodeStyle")
+        end
+
+        local lua_files = {}
+        table.join2(lua_files, os.files(path.join(prj_dir, "*.lua")))
+        table.join2(lua_files, os.files(path.join(prj_dir, "tests", "**", "*.lua")))
+        table.join2(lua_files, os.files(path.join(prj_dir, "scripts", ".xmake", "**", "*.lua")))
+        table.join2(lua_files, os.files(path.join(prj_dir, "src", "lua", "verilua", "**", "*.lua")))
+        for _, file in ipairs(lua_files) do
+            local filename = path.filename(file)
+            if not filename:startswith("ChdlAccess") and
+                not filename:startswith("LuaEdgeStepScheduler") and
+                not filename:startswith("LuaStepScheduler") and
+                not filename:startswith("LuaNormalScheduler")
+            then
+                cprint("${blue}Formatting: ${green}%s${reset}", file)
+                os.exec("CodeFormat format -f " .. file .. " -ow")
+            end
+        end
+    end)
+end)
+
+target("format-cpp", function()
+    set_kind("phony")
+    set_default(false)
+    on_run(function()
+        import("lib.detect.find_file")
+        if not find_file("clang-format", { "$(env PATH)" }) then
+            raise("clang-format tool is not found!")
+        end
 
         -- Find all C++ source and header files in src directory
         local cpp_patterns = { "*.cpp", "*.hpp", "*.h", "*.cc", "*.cxx", "*.hxx" }
         local files = {}
 
         -- Try to use fd first, fallback to find
-        local use_fd = os.iorun("which fd") ~= nil
+        local use_fd = find_file("fd", { "$(env PATH)" }) ~= nil
 
         for _, pattern in ipairs(cpp_patterns) do
             local found
@@ -287,13 +319,24 @@ target("format", function()
             end
         end
 
-        -- Format each file with clang-format
         for _, file in ipairs(files) do
-            cprint("${blue}Formatting: ${green}%s${reset}", file)
-            os.exec("clang-format -i %s", file)
+            file = path.absolute(file)
+            local filename = path.filename(file)
+            if not filename:startswith("svdpi") and not filename:startswith("vpi_user") and not filename:startswith("lightsss") then
+                cprint("${blue}Formatting: ${green}%s${reset}", file)
+                os.exec("clang-format -i %s", file)
+            end
         end
+    end)
+end)
 
-        cprint("${green}All C++ files have been formatted!${reset}")
+target("format", function()
+    set_kind("phony")
+    set_default(false)
+    on_run(function(target)
+        os.exec("xmake run format-lua")
+        os.exec("xmake run format-cpp")
+        os.exec("cargo fmt")
     end)
 end)
 

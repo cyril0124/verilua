@@ -50,7 +50,7 @@ function WeightedRandom:gen()
     end
 
     local last_value = self.weighted_random_table[#self.weighted_random_table]
-    
+
     ---@diagnostic disable-next-line: need-check-nil
     return random(last_value[2], last_value[3])
 end

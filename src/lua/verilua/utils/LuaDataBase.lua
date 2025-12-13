@@ -139,7 +139,9 @@ function LuaDataBase:_init(params)
     ---@diagnostic disable-next-line: undefined-field
     if type(params.backend) == "string" and params.backend ~= "sqlite3" then
         ---@diagnostic disable-next-line: undefined-field
-        assert(false, "LuaDataBase does not support `backend` parameter, use LuaDataBaseV2 instead. params.backend: " .. params.backend)
+        assert(false,
+            "LuaDataBase does not support `backend` parameter, use LuaDataBaseV2 instead. params.backend: " ..
+            params.backend)
     end
 
     texpect.expect_string(table_name, "table_name")

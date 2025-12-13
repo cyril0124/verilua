@@ -13,8 +13,8 @@ target("top", function()
             target:set("toolchains", "@xcelium")
         elseif sim == "verilator" then
             target:set("toolchains", "@verilator")
-        -- else
-        --     raise("unknown simulator: %s", sim)
+            -- else
+            --     raise("unknown simulator: %s", sim)
         end
     end)
 

@@ -5,7 +5,7 @@ end
 local clock = dut.clock:chdl()
 
 fork {
-    function ()
+    function()
         clock:posedge()
 
         local cycles = 10000 * 10
@@ -14,7 +14,7 @@ fork {
 
         for _ = 1, nr_task do
             fork {
-                function ()
+                function()
                     while true do
                         clock:posedge()
                     end

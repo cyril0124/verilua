@@ -1,9 +1,9 @@
 ---@diagnostic disable
--- 
+--
 -- Notice:
---      A modified version of the penlight template preprocessor with 
+--      A modified version of the penlight template preprocessor with
 --      some modifications to make it work with rendering verilua handles.
--- 
+--
 
 --- A template preprocessor.
 -- Originally by [Ricki Lake](http://lua-users.org/wiki/SlightlyLessSimpleLuaPreprocessor)
@@ -50,14 +50,14 @@ local function parseDollarParen(pieces, chunk, exec_pat, newline)
     for term, executed, e in chunk:gmatch(exec_pat) do
         executed = '(' .. strsub(executed, 2, -2) .. ')'
         append(pieces, APPENDER .. format("%q;", strsub(chunk, s, term - 1)))
-        -- 
+        --
         -- Origin
-        -- 
+        --
         -- append(pieces, APPENDER .. format("__tostring(%s or '');", executed))
 
-        -- 
+        --
         -- Modified
-        -- 
+        --
         append(pieces, APPENDER .. format("__tostring(%q, %s);", executed, executed))
         s = e
     end
@@ -84,7 +84,7 @@ local function parseHashLines(chunk, inline_escape, brackets, esc, newline)
 
     local esc_pat = esc .. "+([^\n]*\n?)"
     local esc_pat1, esc_pat2 = "^" .. esc_pat, "\n" .. esc_pat
-    local pieces, s = {"return function() local __R_size, __R_table, __tostring = 0, {}, __tostring; "}, 1
+    local pieces, s = { "return function() local __R_size, __R_table, __tostring = 0, {}, __tostring; " }, 1
     while true do
         local _, e, lua = strfind(chunk, esc_pat1, s)
         if not e then
@@ -165,10 +165,10 @@ end
 -- local rendered , err = ct:render(my_env, parent)
 local function render(self, env, parent, db)
     env = env or {}
-    if parent then  -- parent is a bit silly, but for backward compatibility retained
-        setmetatable(env, {__index = parent})
+    if parent then -- parent is a bit silly, but for backward compatibility retained
+        setmetatable(env, { __index = parent })
     end
-    setmetatable(self.env, {__index = env})
+    setmetatable(self.env, { __index = env })
 
     local res, out = xpcall(self.fn, debug.traceback)
     if not res then
@@ -207,37 +207,39 @@ function template.compile(str, opts)
     local inline_brackets = opts.inline_brackets or '()'
 
     local code, short = parseHashLines(str, inline_escape, inline_brackets, escape, opts.newline)
-    -- 
+    --
     -- Origin
-    -- 
+    --
     -- local env = { __tostring = tostring }
 
-    -- 
+    --
     -- Modified
-    -- 
-    local env = { __tostring = function (n, v)
-        if type(v) == "table" then
-            if v.__type == "CallableHDL" then
-                ---@cast v verilua.handles.CallableHDL
-                return v.fullpath
-            elseif v.__type == "ProxyTableHandle" then
-                ---@cast v verilua.handles.ProxyTableHandle
-                return v:chdl().fullpath
-            elseif v.__type == "Sequence" then
-                ---@cast v verilua.sva.SVAContext.sequence
-                return v.name
-            elseif v.__type == "Property" then
-                ---@cast v verilua.sva.SVAContext.property
-                return v.name
+    --
+    local env = {
+        __tostring = function(n, v)
+            if type(v) == "table" then
+                if v.__type == "CallableHDL" then
+                    ---@cast v verilua.handles.CallableHDL
+                    return v.fullpath
+                elseif v.__type == "ProxyTableHandle" then
+                    ---@cast v verilua.handles.ProxyTableHandle
+                    return v:chdl().fullpath
+                elseif v.__type == "Sequence" then
+                    ---@cast v verilua.sva.SVAContext.sequence
+                    return v.name
+                elseif v.__type == "Property" then
+                    ---@cast v verilua.sva.SVAContext.property
+                    return v.name
+                end
             end
-        end
 
-        if v == nil then
-            assert(false, "Failed to render template, get `nil` value, var name => " .. n)
-        end
+            if v == nil then
+                assert(false, "Failed to render template, get `nil` value, var name => " .. n)
+            end
 
-        return tostring(v)
-    end }
+            return tostring(v)
+        end
+    }
 
     local fn, err = utils.load(code, chunk_name, 't', env)
     if not fn then return nil, err, code end

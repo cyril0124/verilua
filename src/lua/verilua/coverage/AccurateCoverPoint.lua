@@ -22,8 +22,9 @@ function AccurateCoverPoint:_init(name, coverage_group)
 
     self.covered_cycles_table = {}
     self.cnt = 0
-    
-    verilua_debug(f("[AccurateCoverPoint] Create AccurateCoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name, coverage_group.name, self.fullname))
+
+    verilua_debug(f("[AccurateCoverPoint] Create AccurateCoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name,
+        coverage_group.name, self.fullname))
 end
 
 function AccurateCoverPoint:inc_with_cycle(cycle)

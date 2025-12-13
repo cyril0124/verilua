@@ -34,12 +34,16 @@ function CoverGroup:add_cover_point(cover_point)
     if self.cover_point_type == "Unknown" then
         self.cover_point_type = cover_point.__type
     else
-        assert(cover_point.__type == self.cover_point_type, f("[CoverGroup] all the appended cover point should have the same type, current cover point type: %s, appended cover point type: %s", self.cover_point_type, cover_point.__type))
+        assert(cover_point.__type == self.cover_point_type,
+            f(
+                "[CoverGroup] all the appended cover point should have the same type, current cover point type: %s, appended cover point type: %s",
+                self.cover_point_type, cover_point.__type))
     end
 
-    assert(self.points[cover_point.name] == nil, f("[CoverGroup] %s duplicate cover point name: %s", self.name, cover_point.name))
+    assert(self.points[cover_point.name] == nil,
+        f("[CoverGroup] %s duplicate cover point name: %s", self.name, cover_point.name))
     self.points[cover_point.name] = cover_point
-    
+
     table_insert(self.cover_points, cover_point)
 end
 
@@ -57,7 +61,8 @@ function CoverGroup:save(_filename)
         filename = self.name .. ".coverage.json"
     end
 
-    printf("[CoverGroup] Save coverage group: `%s` into `%s`, cover point type is `%s`\n", self.name, filename, self.cover_point_type)
+    printf("[CoverGroup] Save coverage group: `%s` into `%s`, cover point type is `%s`\n", self.name, filename,
+        self.cover_point_type)
 
     local file = io.open(filename, 'w')
     assert(file, f("[CoverGroup] Failed to open file `%s` for writing", filename))
@@ -89,7 +94,7 @@ function CoverGroup:save(_filename)
                     file:write(f("%d, ", cycles))
                 end
             end
-            
+
             if i == final_idx then
                 file:write("]\n")
             else

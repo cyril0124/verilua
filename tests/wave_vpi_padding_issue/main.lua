@@ -1,5 +1,5 @@
 fork {
-    function ()
+    function()
         if cfg.simulator == "iverilog" then
             sim.dump_wave()
             dut.reset = 1
@@ -11,11 +11,11 @@ fork {
             dut.clock:posedge()
             dut.value:expect_hex_str("10000000")
         else
-            dut.clock:posedge(10, function ()
+            dut.clock:posedge(10, function()
                 dut.value:dump()
             end)
         end
-        
+
         sim.finish()
-    end   
+    end
 }

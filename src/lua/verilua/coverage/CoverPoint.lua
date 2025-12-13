@@ -20,8 +20,9 @@ function CoverPoint:_init(name, coverage_group)
     self.coverage_group = coverage_group
 
     self.cnt = 0
-    
-    verilua_debug(f("[CoverPoint] Create CoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name, coverage_group.name, self.fullname))
+
+    verilua_debug(f("[CoverPoint] Create CoverPoint: %s -- CoverGroup: %s -- fullname: %s\n", name, coverage_group.name,
+        self.fullname))
 end
 
 function CoverPoint:cover()
