@@ -9,6 +9,18 @@ Verilua 支持两种安装方式：
 
 这是最简单的安装方式，直接下载预编译的 Release 包即可使用。
 
+:::tip[获取最新构建包]
+除了下载正式发布的 Release 包外，你也可以从 GitHub Actions 的 artifacts 中获取最新的构建包。每当有新的 commit 推送到主分支时，CI 会自动运行回归测试并生成完整的 release 包。由于正式 Release 包的发布通常不及时，从 artifacts 获取可以让你使用最新的功能和修复。
+
+访问 [Actions 页面](https://github.com/cyril0124/verilua/actions/workflows/regression.yml)，选择最新的成功运行的 "Regression" 工作流，下载以下 artifact 之一：
+- `verilua-x64-ubuntu-22.04-xxxxxxx` (Ubuntu 22.04)
+- `verilua-x64-centos-7-xxxxxxx` (CentOS 7)
+
+其中 `xxxxxxx` 是 commit 的短哈希。这些包包含完整的预编译 Verilua 环境，可以直接使用。
+
+如果没有找到适合你系统的包，可以使用 CentOS 7 的包，因为 CentOS 7 使用较低版本的 glibc 2.17，通常能够兼容更高版本 glibc 的系统。
+:::
+
 ### 1. 下载并解压
 
 ```bash
