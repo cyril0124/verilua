@@ -6,32 +6,105 @@
 
 ## 1. 生成波形
 
-生成波形主要是使用到了 Verilua 的 HVL 场景，可以现查看[这里](./simple_hvl_example.md)的内容对 HVL 场景的使用有一个基本的了解。
+生成波形主要是使用到了 Verilua 的 HVL 场景，可以现查看[这里](./simple_hvl_example.mdx)的内容对 HVL 场景的使用有一个基本的了解。
 
 ### 1.1. 准备 RTL 文件
 
 下面是本节使用到的 RTL 代码，是一个简单的 Counter 模块。
 
 ```verilog title="Counter.v"
---8<-- "examples/WAL/Counter.v"
+module Counter (
+    input wire clock,
+    input wire reset,
+    output wire [7:0] count
+);
+
+reg [7:0] count_reg;
+
+initial begin
+    count_reg = 0;
+end
+
+always @(posedge clock) begin
+    if (reset) begin
+        count_reg <= 0;
+    end else if (count_reg < 10) begin
+        count_reg <= count_reg + 1;
+    end else begin
+        count_reg <= 0;
+    end
+end
+
+assign count = count_reg;
+
+endmodule
 ```
 
 ### 1.2. 创建相关 Lua 脚本文件
 
-```lua title="main.lua" linenums="1"
---8<-- "examples/WAL/main.lua"
+```lua title="main.lua"
+local Monitor = require "Monitor"
+
+fork {
+    function ()
+        -- dump wave file
+        sim.dump_wave("./wave/test.vcd") -- wave file is stored in ./build/<simulator>/Counter/wave/test.vcd
+
+        -- reset the dut
+        dut.reset = 1
+        dut.clock:posedge(10)
+        dut.reset = 0
+
+        -- create a monitor for monitoring the dut.count signal
+        -- this Monitor will be reused when we simulate the generated wave file using @wave_vpi backend 
+        local monitor = Monitor("MonitorForGenWave", dut.count:chdl())
+        monitor:start()
+
+        -- run the simulation for 100 clock cycles
+        dut.clock:posedge(20)
+
+        -- finish the simulation
+        sim.finish()
+    end
+}
 ```
 
-```lua title="Monitor.lua" linenums="1"
---8<-- "examples/WAL/Monitor.lua"
+```lua title="Monitor.lua"
+local class = require "pl.class"
+
+local f = string.format
+
+local Monitor = class()
+
+function Monitor:_init(name, signal_chdl)
+    self.name = name
+    self.signal = signal_chdl
+end
+
+function Monitor:start()
+    fork {
+        function ()
+            local clock = dut.clock:chdl()
+
+            while true do
+                print(f("[Monitor] [%s] %s", self.name, self.signal:dump_str()))
+                clock:posedge()
+            end
+        end
+    }
+end
+
+return Monitor
 ```
 
-!!! note "此处的 `Monitor.lua` 模块将会在接下来仿真波形的时候被**复用**"
+:::note[此处的 `Monitor.lua` 模块将会在接下来仿真波形的时候被**复用**]
 
+
+:::
 
 ### 1.3. 创建 xmake.lua 文件
 
-更具体的 xmake.lua 的介绍可以参考[这里](./simple_hvl_example.md#create-xmake-lua)的内容。
+更具体的 xmake.lua 的介绍可以参考[这里](./simple_hvl_example.mdx#create-xmake-lua)的内容。
 
 ```lua title="xmake.lua"
 target("gen_wave", function()
@@ -67,7 +140,7 @@ xmake run -P . gen_wave
 
 仿真生成的波形将会保存在 `./build/verilator/Counter/wave/test.vcd` 中，可以用 GTKWave 等波形文件查看器打开查看。
 
-<a id="gen-wave-result"></a>
+<div id="gen-wave-result"></div>
 Monitor 模块会在命令行中打印出下面的信息：
 ```shell title="Terminal"
 [Monitor] [MonitorForGenWave] [tb_top.count] => 0x00
@@ -103,13 +176,40 @@ WAL 的输入文件不是 Verilog/SystemVerilog，而是具体的波形文件（
 
 需要有一个 Lua 脚本来作为 WAL 波形分析场景的入口。
 
-```lua title="main_for_wal.lua" hl_lines="5 8 10" linenums="1"
---8<-- "examples/WAL/main_for_wal.lua"
+```lua title="main_for_wal.lua"
+local Monitor = require "Monitor"
+
+fork {
+    function ()
+        -- Notice: be aware that signals are READ-ONLY when using @wave_vpi backend
+        --         so we can't use the following code to reset the dut
+        -- reset the dut
+        -- dut.reset = 1
+        -- dut.clock:posedge(10)
+        -- dut.reset = 0
+        dut.clock:posedge(10)
+
+        -- create a monitor for monitoring the dut.count signal
+        -- this monitor has been reused
+        local monitor = Monitor("MonitorForSimWave", dut.count:chdl())
+        monitor:start()
+
+        -- run the simulation for 100 clock cycles
+        dut.clock:posedge(20)
+
+        -- finish the simulation
+        sim.finish()
+    end
+}
 ```
 
-!!! note "注意这里 `main_for_wal.lua` 中的 Monitor 模块复用了前面生成波形时候的 `Monitor.lua`"
+:::note[注意这里 `main_for_wal.lua` 中的 Monitor 模块复用了前面生成波形时候的 `Monitor.lua`]
 
-!!! danger "WAL 场景下，不允许出现赋值的语句，例如 `set` 等，否则会导致报错，目前 WAL 场景下所有的信号都是只读的！"
+:::
+
+:::danger[WAL 场景下，不允许出现赋值的语句，例如 `set` 等，否则会导致报错，目前 WAL 场景下所有的信号都是只读的！]
+
+:::
 
 ### 2.3. 创建 xmake.lua 文件
 

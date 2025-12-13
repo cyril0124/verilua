@@ -5,4 +5,4 @@ has_changes:
   - "!**/images/**"
 docs_has_changes:
   - "docs/**"
-  - "mkdocs.yml"
+  - "docs-website/**"

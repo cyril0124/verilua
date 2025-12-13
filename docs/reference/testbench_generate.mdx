@@ -2,14 +2,14 @@
 
 Verilua 中，Testbench 是全自动生成的 `testbench_gen` 工具实现（安装 Verilua 的时候会编译生成 `testbench_gen`），其核心功能包括顶层模块的例化、时钟驱动、波形控制等。具体工作流程如下图所示：
 
-<figure markdown="span">
-  ![Testbench generate workflow](./images/testbench_gen_flow.png){ width="100%" }
+<figure>
+  <img src={require('./images/testbench_gen_flow.png').default} alt="Testbench generate workflow" style={{width: '100%'}} />
   <figcaption>Testbench generate workflow</figcaption>
 </figure>
 
 `testbench_gen` 底层使用的是 [slang](https://github.com/MikePopoloski/slang) 进行 RTL 代码的解析，下面是 `testbench_gen` 的命令行参数（高亮的为常用的选项）：
 
-```shell title="Terminal" linenums="1" hl_lines="6-20"
+```shell title="Terminal"
 OVERVIEW: testbench_gen(verilua@v2.0.0)
 
 USAGE: testbench_gen [options] files...
@@ -250,7 +250,7 @@ add_values("cfg.tb_gen_flags", "--period", "15")
 
 ## 其他
 
-Testbench 只在 HVL 场景下才需要自动生成，可以在 xmake.lua 文件中通过 `#!lua add_values("cfg.tb_gen_flags", ...)` 来添加其他的 flags 参数，例如：
+Testbench 只在 HVL 场景下才需要自动生成，可以在 xmake.lua 文件中通过 `add_values("cfg.tb_gen_flags", ...)` 来添加其他的 flags 参数，例如：
 
 ```lua
 add_values("cfg.tb_gen_flags", "--ignore-unknown-modules", "--verbose")
@@ -258,8 +258,10 @@ add_values("cfg.tb_gen_flags", "--ignore-unknown-modules", "--verbose")
 
 默认情况下，`testbench_gen` 会生成两个文件，一个是 `tb_top.sv`，另一个是 `other.sv`，其中 `tb_top.sv` 是 Testbench 文件，`other.sv` 是留给用户自定义的文件。用户可以在 `others.sv` 中自行添加其他的内容，每次重新生成 Testbench 的时候如果 `others.sv` 存在，就不会重新生成或者覆盖，因此用户可以安全地在其中添加用户自定义的内容。 部分内容如下（假设 DUT 为 `Design`）：
 
-!!! note
-    我们之前在[这里](../getting-started/simple_hvl_example.md#about-dut)简单介绍过相关的内容。
+:::note
+我们之前在[这里](../getting-started/simple_hvl_example.mdx#about-dut)简单介绍过相关的内容。
+
+:::
 
 ```verilog title="tb_top.sv"
 // -----------------------------------------

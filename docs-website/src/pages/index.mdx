@@ -1,0 +1,110 @@
+---
+title: Verilua - Hardware Verification Framework
+description: An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT
+hide_table_of_contents: true
+---
+
+import Link from '@docusaurus/Link';
+import styles from './index.module.css';
+
+{/* Hero Section with Waveform Animation */}
+<header className={styles.heroBanner}>
+  <div className={styles.waveformBackground}>
+    <svg className={styles.waveformSvg} viewBox="0 0 1200 300" preserveAspectRatio="none">
+      {/* Waveform 1 - Clock-like */}
+      <path className={styles.wave1} d="M0,150 L50,150 L50,80 L100,80 L100,150 L150,150 L150,80 L200,80 L200,150 L250,150 L250,80 L300,80 L300,150 L350,150 L350,80 L400,80 L400,150 L450,150 L450,80 L500,80 L500,150 L550,150 L550,80 L600,80 L600,150 L650,150 L650,80 L700,80 L700,150 L750,150 L750,80 L800,80 L800,150 L850,150 L850,80 L900,80 L900,150 L950,150 L950,80 L1000,80 L1000,150 L1050,150 L1050,80 L1100,80 L1100,150 L1150,150 L1150,80 L1200,80 L1200,150 L1250,150 L1250,80 L1300,80 L1300,150 L1350,150 L1350,80 L1400,80 L1400,150" fill="none" strokeWidth="2"/>
+      {/* Waveform 2 - Data signal */}
+      <path className={styles.wave2} d="M0,200 L30,200 L30,130 L80,130 L80,200 L180,200 L180,130 L220,130 L220,200 L280,200 L280,130 L380,130 L380,200 L420,200 L420,130 L520,130 L520,200 L580,200 L580,130 L620,130 L620,200 L720,200 L720,130 L780,130 L780,200 L880,200 L880,130 L920,130 L920,200 L1020,200 L1020,130 L1080,130 L1080,200 L1180,200 L1180,130 L1220,130 L1220,200 L1320,200 L1320,130 L1380,130 L1380,200 L1400,200" fill="none" strokeWidth="2"/>
+      {/* Waveform 3 - Irregular signal */}
+      <path className={styles.wave3} d="M0,250 L60,250 L60,180 L90,180 L90,250 L150,250 L150,180 L250,180 L250,250 L300,250 L300,180 L330,180 L330,250 L450,250 L450,180 L480,180 L480,250 L540,250 L540,180 L640,180 L640,250 L690,250 L690,180 L720,180 L720,250 L840,250 L840,180 L870,180 L870,250 L930,250 L930,180 L1030,180 L1030,250 L1080,250 L1080,180 L1110,180 L1110,250 L1230,250 L1230,180 L1260,180 L1260,250 L1320,250 L1320,180 L1400,180" fill="none" strokeWidth="2"/>
+      {/* Waveform 4 - Another clock */}
+      <path className={styles.wave4} d="M0,50 L25,50 L25,100 L75,100 L75,50 L125,50 L125,100 L175,100 L175,50 L225,50 L225,100 L275,100 L275,50 L325,50 L325,100 L375,100 L375,50 L425,50 L425,100 L475,100 L475,50 L525,50 L525,100 L575,100 L575,50 L625,50 L625,100 L675,100 L675,50 L725,50 L725,100 L775,100 L775,50 L825,50 L825,100 L875,100 L875,50 L925,50 L925,100 L975,100 L975,50 L1025,50 L1025,100 L1075,100 L1075,50 L1125,50 L1125,100 L1175,100 L1175,50 L1225,50 L1225,100 L1275,100 L1275,50 L1325,50 L1325,100 L1375,100 L1375,50 L1400,50" fill="none" strokeWidth="2"/>
+    </svg>
+  </div>
+  <div className={styles.heroContent}>
+    <h1 className={styles.heroTitle}>Verilua</h1>
+    <p className={styles.heroSubtitle}>An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT</p>
+    <div className={styles.buttons}>
+      <Link className="button button--secondary button--lg" to="/docs/">
+        Get Started →
+      </Link>
+      <Link className="button button--outline button--lg button--secondary" to="https://github.com/cyril0124/verilua">
+        GitHub
+      </Link>
+    </div>
+  </div>
+</header>
+
+{/* Features Section */}
+<section className={styles.features}>
+  <div className="container">
+    <h2 className={styles.sectionTitle}>Key Features</h2>
+    <div className="row">
+      <div className="col col--4">
+        <div className={styles.featureCard}>
+          <div className={styles.featureEmoji}>🔧</div>
+          <h3>Hardware Verification Language (HVL)</h3>
+          <p>Use Lua as a powerful HVL with LuaJIT's exceptional performance. Write verification components with coroutine-based concurrency, no recompilation needed for logic changes.</p>
+        </div>
+      </div>
+      <div className="col col--4">
+        <div className={styles.featureCard}>
+          <div className={styles.featureEmoji}>⚙️</div>
+          <h3>Hardware Script Engine (HSE)</h3>
+          <p>Embed Verilua into existing simulation frameworks via VPI. Non-intrusive debugging, real-time signal monitoring, and dynamic performance analysis without RTL modifications.</p>
+        </div>
+      </div>
+      <div className="col col--4">
+        <div className={styles.featureCard}>
+          <div className={styles.featureEmoji}>📈</div>
+          <h3>Waveform Analysis Language (WAL)</h3>
+          <p>Automate waveform analysis with Lua scripts. Support for VCD, FST, and FSDB formats. Reuse HVL/HSE components for efficient wave debugging.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* Highlights Section */}
+<section className={styles.highlights}>
+  <div className="container">
+    <h2 className={styles.sectionTitle}>Why Verilua?</h2>
+    <div className="row">
+      <div className="col col--4">
+        <div className={styles.highlightCard}>
+          <h3>⚡ High Performance</h3>
+          <p>Powered by LuaJIT, one of the fastest scripting language implementations, delivering superior performance compared to Python-based alternatives.</p>
+        </div>
+      </div>
+      <div className="col col--4">
+        <div className={styles.highlightCard}>
+          <h3>🔄 Component Reuse</h3>
+          <p>Write verification components once, use them across HVL, HSE, and WAL scenarios. No modifications needed for cross-platform reuse.</p>
+        </div>
+      </div>
+      <div className="col col--4">
+        <div className={styles.highlightCard}>
+          <h3>🛠️ Easy Integration</h3>
+          <p>Seamlessly integrates with popular simulators through VPI. Works with Verilator, VCS, and Icarus Verilog.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* Use Cases Section */}
+<section className={styles.useCases}>
+  <div className="container">
+    <h2 className={styles.sectionTitle}>Proven in Production</h2>
+    <p className={styles.sectionSubtitle}>
+      Verilua has been successfully used in the verification of{' '}
+      <a href="https://github.com/OpenXiangShan/XiangShan" target="_blank" rel="noopener noreferrer">XiangShan processor</a>'s 
+      cache subsystem (L2/L3 Cache), demonstrating its effectiveness in real-world high-performance processor verification.
+    </p>
+    <div className={styles.buttons}>
+      <Link className="button button--primary button--lg" to="/docs/getting-started/install">
+        View Documentation
+      </Link>
+    </div>
+  </div>
+</section>

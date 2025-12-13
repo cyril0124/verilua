@@ -11,8 +11,8 @@ Verilua 实现了一个基于事件轮询调度的调度器（Scheduler），用
 4. 回调函数注册后，仿真器继续运行，直到回调触发；
 5. 仿真器在特定时间点触发回调后，通过 Task ID 定位对应任务，并恢复任务执行。
 
-<figure markdown="span">
-  ![Scheduler workflow](./images/scheduler_workflow.png){ width="70%" }
+<figure>
+  <img src={require('./images/scheduler_workflow.png').default} alt="Scheduler workflow" style={{width: '70%'}} />
   <figcaption>Scheduler workflow</figcaption>
 </figure>
 
@@ -21,7 +21,7 @@ Verilua 实现了一个基于事件轮询调度的调度器（Scheduler），用
 
 ## 创建任务
 在 Verilua 中，我们可以通过 `fork` 来创建任务，并将其添加到 Scheduler 中，同时被创建的任务会随机分配一个唯一的任务 ID。例如：
-```lua linenums="1" hl_lines="1"
+```lua
 fork { -- 也可以使用 `verilua "appendTasks"`，不过目前推荐使用 fork 来创建任务
     function ()
         print("fork task 1")
@@ -36,7 +36,7 @@ fork { -- 也可以使用 `verilua "appendTasks"`，不过目前推荐使用 for
 ```
 
 使用 `fork` 来创建任务的时候也可以指定任务的名称，例如：
-```lua linenums="1" hl_lines="2 6"
+```lua
 fork {
     simple_task = function ()
         print("fork task 1")
@@ -59,7 +59,7 @@ fork {
 Verilua 提供了 `join` 函数来等待一个或多个任务执行完成，需要配合 `jfork` 函数来使用。
 
 `jfork` 函数用于创建一个任务（注意，只能是一个），并返回一个专门给 `join` 使用的 `EventHandle`, 使用方式和 `fork` 类似：
-```lua linenums="1"
+```lua
 local ehdl = jfork {
     function ()
         print("jfork task 1")
@@ -76,7 +76,7 @@ local ehdl = jfork {
 ```
 
 使用 `join` 可以等待一个或多个 `jfork` 创建的 `EventHandle` 所代表的任务执行完成，例如：
-```lua linenums="1"
+```lua
 local ehdl = jfork {
     function ()
         -- ...
@@ -100,14 +100,14 @@ join({ ehdl, ehdl2 }) -- or join { ehdl, ehdl2 }
 ## 注册任务回调
 Verilua 的 task 中支持 `posedge`、`negedge`、`edge`、`time` 仿真行为控制机制，能够满足大部分的硬件仿真交互场景。
 
-<figure markdown="span">
-  ![Edge in the waveform](./images/clock_edge.png){ width="70%" }
+<figure>
+  <img src={require('./images/clock_edge.png').default} alt="Edge in the waveform" style={{width: '70%'}} />
   <figcaption>Edge in the waveform</figcaption>
 </figure>
 
 其中`posedge`、`negedge`、`edge`只能作用在位宽为 1 bit 的信号上，并且可以由 `CallableHDL`、`ProxyTableHandle` 等数据结构来创建。
 下面是一个简单的例子：
-```lua linenums="1"
+```lua
 fork {
     function ()
         print("start task 1")
@@ -139,7 +139,7 @@ fork {
 `posedge`/`negedge`/`edge` 等回调注册函数可以接收两个参数，第一个是回调的等待次数，第二个是回调函数，回调函数在每次触发事件的时候都会被执行，回调函数还会接收一个参数，表示第几次进入到回调函数中。
 
 `time` 这一个行为控制机制不需要使用到具体的硬件信号，只需要在任务中使用 `await_time(XXX)` 即可，其中 `XXX` 是指定的时间，单位与仿真器的时间单位相当，例如：
-```lua linenums="1"
+```lua
 fork {
     function ()
         print("start task 1")
@@ -153,10 +153,10 @@ fork {
 }
 ```
 
-<a id="task-synchronization"></a>
+<div id="task-synchronization"></div>
 ## 任务同步
 多个任务之间的同步可以使用 `EventHandle` 来创建特定事件实现，不同于直接使用全局变量进行同步，`EventHandle` 能够更进一步在事件触发的时候对正在等待的任务进行唤醒，从而实现了及时的任务同步。具体代码如下：
-```lua linenums="1" hl_lines="8 12 18"
+```lua
 -- Create a EvevntHandle with name "name of the event"
 local e = ("name of the event"):ehdl()
 
@@ -188,17 +188,17 @@ fork {
 Verilua 的 Scheduler 提供了一系列 API 来查看和管理任务，下面是一些常用的 API 的介绍。
 
 ### 注册任务
-`#!lua scheduler:append_task(task_id, namee, task_body, start_now)` 用于注册一个任务。
+`scheduler:append_task(task_id, namee, task_body, start_now)` 用于注册一个任务。
 
-- `task_id` 是任务的唯一标识，可以输入`#!lua nil` 来让 Scheduler 自动生成一个唯一的任务 ID，否则 Scheduler 则会使用这里指定的 task_id 作为任务的唯一标识；
+- `task_id` 是任务的唯一标识，可以输入`nil` 来让 Scheduler 自动生成一个唯一的任务 ID，否则 Scheduler 则会使用这里指定的 task_id 作为任务的唯一标识；
 - `name` 是被注册任务的名称；
-- `task_body` 是任务的代码块，也就是一个 `#!lua function`；
+- `task_body` 是任务的代码块，也就是一个 `function`；
 - `start_now` 是否立即启动该任务，默认为 `false`，如果设置为 `true` 则会在调用 `append_task` 之后立即启动任务（执行 `task_body` 代码块）.
 
-`append_task` 在调用之后会创建一个任务并将其添加到 Scheduler 中，同时返回一个任务 ID。`scheduler` 是一个全局的变量，可以通过 `#!lua local scheduler = require "LuaScheduler"` 来引入。
+`append_task` 在调用之后会创建一个任务并将其添加到 Scheduler 中，同时返回一个任务 ID。`scheduler` 是一个全局的变量，可以通过 `local scheduler = require "LuaScheduler"` 来引入。
 
 下面是一个简单的例子：
-```lua linenums="1"
+```lua
 local scheduler = require "LuaScheduler"
 
 local id = scheduler:append_task(nil, "task_1", function ()
@@ -221,10 +221,12 @@ end)
 assert(id3 == 123, "task_id should be 123")
 ```
 
-!!! note "`#!lua scheduler:append_task(...)` 返回的 `task_id` 可以结合 `#!lua scheduler:check_task_exists(task_id)` 来检查任务是否存在"
+:::note[`scheduler:append_task(...)` 返回的 `task_id` 可以结合 `scheduler:check_task_exists(task_id)` 来检查任务是否存在]
+
+:::
 
 ### 列出所有任务
-`#!lua scheduler:list_tasks()` 用于列出所有注册的任务，并打印出其信息。下面是一个输出的示例：
+`scheduler:list_tasks()` 用于列出所有注册的任务，并打印出其信息。下面是一个输出的示例：
 ```shell title="Terminal"
 [scheduler list tasks]:
 -----------------------------------------------------------
@@ -235,12 +237,14 @@ assert(id3 == 123, "task_id should be 123")
 ```
 其中的 `id` 为任务的唯一标识，`cnt` 为任务在调度器中的执行次数。
 
-!!! note "每次仿真结束的时候，Verilua 都会自动调用一次 `#!lua scheduler:list_tasks()`"
+:::note[每次仿真结束的时候，Verilua 都会自动调用一次 `scheduler:list_tasks()`]
 
+
+:::
 
 ### 检查任务是否存在
-`#!lua scheduler:check_task_exists(task_id)` 用于检查任务是否存在，如果任务不存在则返回 `false`，否则返回 `true`。
-```lua linenums="1"
+`scheduler:check_task_exists(task_id)` 用于检查任务是否存在，如果任务不存在则返回 `false`，否则返回 `true`。
+```lua
 local scheduler = require "LuaScheduler"
 
 local id = scheduler:append_task(nil, "task_1", function ()
@@ -264,7 +268,7 @@ export VL_PERF_TIME=1
 xmake run TestDesign
 ```
 
-在仿真结束之后，Verilua 会自动调用 `#!lua scheduler:list_tasks()` 来输出任务性能统计信息，下面是一个输出的示例：
+在仿真结束之后，Verilua 会自动调用 `scheduler:list_tasks()` 来输出任务性能统计信息，下面是一个输出的示例：
 ```shell title="Terminal"
 [scheduler list tasks]:
 -------------------------------------------------------------
@@ -293,11 +297,11 @@ total_time: 0.85 s / 852.91 ms
 
 ## 其他 Scheduler API
 
-1. `#!lua scheduler:wakeup_task(<task_id>)`
+1. `scheduler:wakeup_task(<task_id>)`
 
     通过 `<task_id>` 唤醒一个已经结束的任务，这个任务必须是之前已经被注册过的任务，如果任务之前没有注册过或者这个任务还在运行（没有结束），那么调用的时候会抛出一个错误。
 
-2. `#!lua scheduler:try_wakeup_task(<task_id>)`
+2. `scheduler:try_wakeup_task(<task_id>)`
 
     尝试唤醒一个任务，如果这个任务还在运行，则什么都不做，如果这个任务已经结束，则唤醒这个任务。
 
@@ -311,18 +315,18 @@ total_time: 0.85 s / 852.91 ms
     end
     ```
 
-3. `#!lua scheduler:remove_task(<task_id>)`
+3. `scheduler:remove_task(<task_id>)`
     移除一个任务（可以是正在运行的任务），这个任务必须是之前已经被注册过的任务，如果任务之前没有注册过，那么调用的时候会抛出一个错误。
 
 ## Start Task 和 Finish Task
 
 Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。
 
-- 通过 `#!lua initial { ... }` / `#!lua verilua "startTask" { ... }` 创建 Start Task；
+- 通过 `initial { ... }` / `verilua "startTask" { ... }` 创建 Start Task；
 
     Start Task 可以由多个函数组成。
 
-    ```lua linenums="1"
+    ```lua
     initial {
         function ()
             print("Simulation started!")
@@ -339,11 +343,11 @@ Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，
     }
     ```
 
-- 通过 `#!lua final { ... }` / `#!lua verilua "finishTask" { ... }` 创建 Finish Task。
+- 通过 `final { ... }` / `verilua "finishTask" { ... }` 创建 Finish Task。
 
     Finish Task 可以由多个函数组成。
 
-    ```lua linenums="1"
+    ```lua
     final {
         function ()
             print("Simulation finished!")

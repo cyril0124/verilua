@@ -1,0 +1,331 @@
+# 搭建一个简单的 UT 环境
+
+Verilua 的启动速度很快，并且运行时足够轻量，能够用来搭建 Unit Test（UT）环境，测试一些中小规模的硬件模块。
+
+在本节中，我们将介绍如何基于 Verilua 搭建一个简单的 UT 环境，所有的代码可以在[这里](https://github.com/cyril0124/verilua/tree/master/examples/simple_ut_env)找到。
+
+## 1. 编写 UT 环境代码
+
+我们可以编写一个简单的 UT 环境代码，它将包含一些实际验证中较为常用的函数，具体可以看下面的代码片段:
+
+```lua title="env.lua"
+local clock = dut.clock:chdl()
+local reset = dut.reset:chdl()
+
+local function posedge(...)
+    clock:posedge(...)
+end
+
+local function negedge(...)
+    clock:negedge(...)
+end
+
+local function dut_reset(reset_cycles)
+    reset:set_imm(1)
+    clock:posedge(reset_cycles or 10)
+    reset:set_imm(0)
+end
+
+local function expect_happen_until(limit_cycles, func)
+    assert(type(limit_cycles) == "number")
+    assert(type(func) == "function")
+    local ok = clock:posedge_until(limit_cycles, func)
+    assert(ok)
+end
+
+local function expect_not_happen_until(limit_cycles, func)
+    assert(type(limit_cycles) == "number")
+    assert(type(func) == "function")
+    local ok = clock:posedge_until(limit_cycles, func)
+    assert(not ok)
+end
+
+local test_case_count = 0
+
+local function TEST_SUCCESS()
+    print("total_test_cases: <" .. test_case_count .. ">\n")
+    print(">>>TEST_SUCCESS!<<<")
+
+    local ANSI_GREEN = "\27[32m"
+    local ANSI_RESET = "\27[0m"
+
+    print(ANSI_GREEN .. [[
+  _____         _____ _____ 
+ |  __ \ /\    / ____/ ____|
+ | |__) /  \  | (___| (___  
+ |  ___/ /\ \  \___ \\___ \ 
+ | |  / ____ \ ____) |___) |
+ |_| /_/    \_\_____/_____/ 
+]] .. ANSI_RESET)
+
+    io.flush()
+    sim.finish()
+end
+
+-- 
+-- Test case management
+-- 
+local function register_test_case(case_name)
+    assert(type(case_name) == "string")
+
+    return function(func_table)
+        assert(type(func_table) == "table")
+        assert(#func_table == 1)
+        
+        assert(type(func_table[1]) == "function")
+        local func = func_table[1]
+
+        local new_env = {
+            print = function(...) print("|", ...) end,
+            printf = function(...) io.write("|\t" .. string.format(...)) end,
+        }
+
+        setmetatable(new_env, { __index = _G })
+        setfenv(func, new_env)
+
+        return function (...)
+            print(string.format([[
+-----------------------------------------------------------------
+| [%d] start test case ==> %s
+-----------------------------------------------------------------]], test_case_count, case_name))
+
+            -- Execute the test case
+            func(...)
+
+            print(string.format([[
+-----------------------------------------------------------------
+| [%d] end test case ==> %s
+-----------------------------------------------------------------]], test_case_count, case_name))
+
+            test_case_count = test_case_count + 1
+        end
+    end
+end
+
+return {
+    posedge = posedge,
+    negedge = negedge,
+    dut_reset = dut_reset,
+    expect_happen_until = expect_happen_until,
+    expect_not_happen_until = expect_not_happen_until,
+    register_test_case = register_test_case,
+    TEST_SUCCESS = TEST_SUCCESS,
+}
+```
+
+上述代码片段提供了如下的函数：
+
+- `env.posedge(...)` / `env.negedge(...)`
+
+    对全局的 `clock` 这个 `chdl` 的 `posedge` 函数进行封装，其使用方式和 [`<chdl>:posedge(...)`](../reference/data_structure#chdl-posedge) / [`<chdl>:negedge(...)`](../reference/data_structure#chdl-negedge) 是一样的。
+
+- `env.dut_reset(reset_cycles)`
+
+    对 DUT 进行复位，其中会对 reset 信号进行赋值，可以通过 `reset_cycles` 来指定复位的周期。
+
+- `env.expect_happen_until(limit_cycles, func)`
+
+    检查 `func` 在 `limit_cycles` 周期内是否发生，如果发生则立即返回，否则会触发 `assert` 错误，这在具体编写验证代码的时候比较常用，用来检查特定信号是否在预期时间内发生。
+
+- `env.expect_not_happen_until(limit_cycles, func)`
+
+    和 `env.expect_happen_until(limit_cycles, func)` 作用相反。
+
+- `env.TEST_SUCCESS()`
+
+    用来打印一个显眼的信息到 Terminal 上，表示测试已经成功结束。
+
+- `env.register_test_case(case_name)`
+
+    注册一个测试用例，其中 `case_name` 是测试用例的名称，返回一个被注册的测试用例函数。使用示例如下：
+
+    ```lua 
+    local env = require "env"
+    
+    local some_test_case = env.register_test_case "name of the test case" {
+        -- Test case body
+        function ()
+            -- Do something
+        end
+    }
+
+    fork {
+        function ()
+            env.dut_reset()
+
+            -- Execute the test case
+            some_test_case()
+            
+            env.TEST_SUCCESS()
+            sim.finish()
+        end
+    }
+    ```
+
+通过上面这个简单的 `env.lua` 模块，就能为 UT 测试创建一个简易的验证环境。
+
+## 2. 编写 UT 测试主体
+
+接下来需要编写 UT 的具体业务代码（一个 lua 文件），这里同样以一个 Counter 模块为例：
+```verilog title="Counter.v"
+module Counter(
+    input  wire clock,
+    input  wire reset,
+    input  wire incr,
+    output wire [7:0] value
+);
+
+reg [7:0] value_reg;
+
+always@(posedge clock) begin
+    if (reset) 
+        value_reg <= 8'd0;
+    else if (incr == 1'b1) begin
+        value_reg <= value_reg + 1'b1;
+    end 
+end
+
+assign value = value_reg;
+
+endmodule
+```
+
+那么上述设计的 UT 业务代码可以写成这样：
+```lua title="test_counter.lua"
+local env = require "env"
+
+local test_value_incr = env.register_test_case "test value incr" {
+    function ()
+        env.dut_reset()
+
+        env.posedge()
+            dut.incr:set(1)
+
+        env.posedge()
+            dut.value:expect(0)
+
+        env.posedge()
+            dut.value:expect(1)
+            dut.incr:set(0)
+
+        env.posedge()
+            dut.value:expect(2)
+
+        env.posedge()
+            dut.value:expect(2)
+    end
+}
+
+local test_value_no_incr = env.register_test_case "test value no incr" {
+    function ()
+        env.dut_reset()
+
+        env.posedge()
+            dut.incr:set(0)
+
+        env.expect_not_happen_until(1000, function ()
+            return dut.value:is_not(0)
+        end)
+    end
+}
+
+local test_value_overflow = env.register_test_case "test value overflow" {
+    function ()
+        env.dut_reset()
+
+        env.posedge()
+            dut.incr:set(1)
+
+        env.expect_happen_until(300, function()
+            return dut.value:get() == 255
+        end)
+    end
+}
+
+fork {
+    function ()
+        env.dut_reset()
+
+        test_value_incr()
+        test_value_no_incr()
+        test_value_overflow()
+
+        env.TEST_SUCCESS()
+        sim.finish()
+    end
+}
+```
+
+这里我们写了三个测试用例：（1）test value incr，（2）test value no incr，（3）test value overflow。并在 `fork` 中启动了这三个测试用例。
+
+## 3. 编写 xmake.lua
+
+对于 HVL 场景，我们都需要编写一个 xmake.lua 文件来管理整个工程。
+
+```lua title="xmake.lua"
+---@diagnostic disable: undefined-global, undefined-field
+
+target("test_counter", function()
+    add_rules("verilua")
+
+    local sim = os.getenv("SIM") or "verilator"
+    if sim == "iverilog" then
+        add_toolchains("@iverilog")
+    elseif sim == "vcs" then
+        add_toolchains("@vcs")
+    elseif sim == "xcelium" then
+        add_toolchains("@xcelium")
+    else
+        add_toolchains("@verilator")
+    end
+
+    add_files("env.lua")
+    add_files("Counter.v")
+
+    set_values("cfg.lua_main", "./test_counter.lua")
+    set_values("cfg.top", "Counter")
+end)
+```
+
+## 4. 执行测试
+
+执行下面的命令即可编译并进行测试，这里如果 RTL 代码没有修改则只需要编译一次，修改 Lua 代码并不需要重新编译。
+
+```shell
+xmake build -P . test_counter
+
+xmake run -P . test_counter
+```
+
+如果所有的测试用例都测试成功，那么就会打印一个成功的提示信息，并调用 `sim.finish()` 来结束仿真。命令行打印的信息如下所示：
+``` title="Terminal"
+-----------------------------------------------------------------
+| [0] start test case ==> test value incr
+-----------------------------------------------------------------
+-----------------------------------------------------------------
+| [0] end test case ==> test value incr
+-----------------------------------------------------------------
+-----------------------------------------------------------------
+| [1] start test case ==> test value no incr
+-----------------------------------------------------------------
+-----------------------------------------------------------------
+| [1] end test case ==> test value no incr
+-----------------------------------------------------------------
+-----------------------------------------------------------------
+| [2] start test case ==> test value overflow
+-----------------------------------------------------------------
+-----------------------------------------------------------------
+| [2] end test case ==> test value overflow
+-----------------------------------------------------------------
+total_test_cases: <3>
+
+>>>TEST_SUCCESS!<<<
+  _____         _____ _____ 
+ |  __ \ /\    / ____/ ____|
+ | |__) /  \  | (___| (___  
+ |  ___/ /\ \  \___ \\___ \ 
+ | |  / ____ \ ____) |___) |
+ |_| /_/    \_\_____/_____/ 
+
+```
+
