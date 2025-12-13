@@ -1,6 +1,25 @@
 <div align="center">
+  <h1 align="center">
+    Verilua
+    <br />
+    <a href="https://cyril0124.github.io/verilua/" style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #ffffff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 800px;
+        height: 200px;
+        margin: 0 auto;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    ">
+      <img src="./docs-website/static/img/logo.svg" height="200" alt="Verilua">
+    </a>
+  </h1>
+</div>
 
-# 🌔 Verilua
+<div align="center">
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/cyril0124/verilua/regression.yml?style=for-the-badge)
 ![GitHub Release](https://img.shields.io/github/v/release/cyril0124/verilua?style=for-the-badge)
@@ -20,41 +39,41 @@
 
 </div>
 
+## 🔧 Introduction
+
 `Verilua` is a versatile simulation framework for Hardware Verification based on `LuaJIT`. It can be used as a Hardwave Verification Language (`HVL`) to write testbenches and simulate hardware designs. Or it can be used as a Hardware Script Engine (`HSE`) to embed Lua scripts into the simulation. It can also can be used as a Waveform Analysis Language(`WAL`) to analyze the provided waveform files(VCD, FST, FSDB, etc).
 
-## 📦 Installation(from release)
 
-### Download from release
-```bash
-wget https://github.com/cyril0124/verilua/releases/download/v2.0.0/verilua-x64-ubuntu-22.04.zip
+## 🚀 Getting Started
 
-unzip verilua-x64-ubuntu-22.04.zip -d <path-to-install>
-```
+To get started with Verilua, visit our [documentation website](https://cyril0124.github.io/verilua/) for comprehensive installation guides, tutorials, API references, and examples. You can also try the [guided tour](./examples/guided_tour/main.lua) for a hands-on introduction.
 
-### Activate verilua
-Add the following line to your `~/.bashrc` or `~/.zshrc`:
-```bash
-source <path-to-install>/verilua.sh
-```
+## 📁 Project Structure
 
-### Test installation
-You need to reload your shell configuration file to activate verilua. After that, you can test the installation by running:
-```bash
-test_verilua
 ```
-If you see the following output, then the installation is successful:
-```bash
-[test_verilua] Test verilua finished!
+verilua/
+├── docs/                    # Documentation files (MDX format)
+├── docs-website/            # Docusaurus documentation website
+├── src/                     # Main source code
+│   ├── lua/verilua/         # Lua code entry point
+│   ├── testbench_gen/       # Testbench auto-generation tool
+│   ├── verilator/           # Verilator simulator main files
+│   ├── wave_vpi/            # Waveform simulation backend
+│   ├── nosim/               # No-simulation backend for analysis
+│   ├── signal_db_gen/       # SignalDB generator
+│   ├── dummy_vpi/           # VPI to DPI converter for HSE performance
+│   ├── dpi_exporter/        # DPI exporter for signal access
+│   ├── cov_exporter/        # Coverage exporter
+│   └── include/             # Some common header files
+├── libverilua/              # Core VPI implementation (Rust)
+├── tests/                   # Test cases (also serves as examples for Verilua API usage)
+├── examples/                # Example projects
+├── scripts/                 # Build scripts and utility scripts
+│   ├── .xmake/              # Xmake build rules and toolchains for various simulators
+├── tools/                   # Compiled tool binaries and hardware simulator wrappers for Verilua integration
+├── xmake.lua                # Top-level xmake build script
+└── DEVELOPMENT.md           # Development guidelines
 ```
-
-### Update verilua
-To update the verilua to the latest version, you can run:
-```bash
-update_verilua
-```
-> [!IMPORTANT]
-> - Make sure that you have the permission to write to the verilua home directory(or verilua install directory).
-> - `update_verilua` is only available if you have installed verilua from release.
 
 ## 💡 Why Lua/LuaJIT?
 
@@ -69,3 +88,4 @@ update_verilua
 - **[Cocotb](https://github.com/cocotb/cocotb)** - A source of inspiration for Verilua's design and functionality.
 - **[Slang](https://github.com/MikePopoloski/slang)** - A robust parser for Verilog/SystemVerilog files, integral to many tools in this repository.
 - **[Xmake](https://github.com/xmake-io/xmake)** - The foundation of our streamlined and efficient build system.
+
