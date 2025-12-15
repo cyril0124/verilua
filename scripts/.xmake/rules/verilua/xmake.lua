@@ -1178,6 +1178,11 @@ rule("verilua", function()
                 "-Wl,--no-as-needed -Wl,--whole-archive " ..
                 "-lluajit-5.1 " ..
                 "-Wl,--no-whole-archive -Wl,--as-needed"
+            if sim == "vcs" then
+                -- Otherwise there will be linking errors in specific vcs version.
+                -- e.g.: "<lib>: undefined reference to <xxx>", etc.
+                luajit_ldflags = "-lluajit-5.1"
+            end
             all_ldflags_str = all_ldflags_str .. " " .. luajit_ldflags
             table.insert(_argv,
                 "-LDFLAGS " ..
