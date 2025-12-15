@@ -122,13 +122,14 @@ unload_verilua() {
 
 # Test verilua with available simulators
 test_verilua() {
-    local simulators=()
+    local simulators
+    simulators=()
 
     # Detect available simulators
     command -v iverilog &> /dev/null && simulators+=("iverilog")
     command -v verilator &> /dev/null && simulators+=("verilator")
     command -v vcs &> /dev/null && simulators+=("vcs")
-    command -v xcelium &> /dev/null && simulators+=("xcelium")
+    command -v xrun &> /dev/null && simulators+=("xcelium")
 
     if [ ${#simulators[@]} -eq 0 ]; then
         log_warning "No simulators found (iverilog, verilator, vcs, xcelium)"
@@ -154,11 +155,19 @@ test_verilua() {
         return 1
     }
 
+    run_cmd() {
+        if [ "$V" = "1" ]; then
+            "$@"
+        else
+            "$@" &> /dev/null
+        fi
+    }
+
     for sim in "${simulators[@]}"; do
         log_step "Testing with ${MAGENTA}${sim}${NC}..."
 
-        if SIM="$sim" xmake b -P "$case_dir" &> /dev/null && \
-           SIM="$sim" xmake r -P "$case_dir" &> /dev/null; then
+        if SIM="$sim" run_cmd xmake b -P "$case_dir" && \
+           SIM="$sim" run_cmd xmake r -P "$case_dir"; then
             log_success "Test passed with ${GREEN}${sim}${NC}"
             ((test_passed++))
         else
@@ -168,6 +177,8 @@ test_verilua() {
 
         rm -rf build
     done
+
+    unset -f run_cmd
 
     cd "$curr_dir" || return 1
 
