@@ -36,17 +36,6 @@ impl VeriluaEnv {
         }
     }
 
-    pub fn vpiml_handle_by_name(&mut self, name: *mut c_char) -> ComplexHandleRaw {
-        let handle = self.complex_handle_by_name(name, std::ptr::null_mut());
-        let chdl = ComplexHandle::from_raw(&handle);
-        assert!(
-            !(chdl.vpi_handle as vpiHandle).is_null(),
-            "[vpiml_handle_by_name] No handle found: {}",
-            unsafe { utils::c_char_to_str(name) }
-        );
-        handle
-    }
-
     pub fn vpiml_handle_by_index(
         &mut self,
         complex_handle_raw: ComplexHandleRaw,
@@ -76,15 +65,6 @@ impl VeriluaEnv {
             ret_complex_handle.into_raw()
         }
     }
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_handle_by_name(
-    env: *mut c_void,
-    name: *mut c_char,
-) -> ComplexHandleRaw {
-    let env = VeriluaEnv::from_void_ptr(env);
-    env.vpiml_handle_by_name(name)
 }
 
 #[unsafe(no_mangle)]

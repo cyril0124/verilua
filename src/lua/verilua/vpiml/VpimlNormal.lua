@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local ffi = require "ffi"
 
 local C = ffi.C
@@ -19,7 +21,6 @@ ffi.cdef [[
     void vpiml_register_posedge_callback_always(long long handle, int id);
     void vpiml_register_negedge_callback_always(long long handle, int id);
 
-    long long vpiml_handle_by_name(void *env, const char* name);
     long long vpiml_handle_by_name_safe(void *env, const char* name);
     long long vpiml_handle_by_index(void *env, long long hdl, int index);
 
@@ -137,15 +138,22 @@ local vpiml = {
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, id: verilua.scheduler.TaskID)
     vpiml_register_negedge_callback_always = C.vpiml_register_negedge_callback_always,
 
-    ---@type fun(name: string): verilua.handles.ComplexHandleRaw
-    vpiml_handle_by_name = function(name) return C.vpiml_handle_by_name(env, name) end,
-    ---@type fun(hdl: verilua.handles.ComplexHandleRaw, idx: integer): verilua.handles.ComplexHandleRaw
-    vpiml_handle_by_index = function(hdl, idx) return C.vpiml_handle_by_index(env, hdl, idx) end,
-
     --- Safe version of `vpiml_handle_by_name`, can be used to check if a handle exists without throwing an error.
     --- Returns `-1` if the handle does not exist.
     ---@type fun(name: string): integer
     vpiml_handle_by_name_safe = function(name) return C.vpiml_handle_by_name_safe(env, name) end,
+
+    ---@type fun(name: string): verilua.handles.ComplexHandleRaw
+    vpiml_handle_by_name = function(name)
+        local hdl = C.vpiml_handle_by_name_safe(env, name)
+        if hdl == -1 then
+            assert(false, "[VpimlNormal] No handle found: " .. name)
+        end
+        return hdl
+    end,
+
+    ---@type fun(hdl: verilua.handles.ComplexHandleRaw, idx: integer): verilua.handles.ComplexHandleRaw
+    vpiml_handle_by_index = function(hdl, idx) return C.vpiml_handle_by_index(env, hdl, idx) end,
 
     ---@type fun(handle: verilua.handles.ComplexHandleRaw): string
     vpiml_get_hdl_type = C.vpiml_get_hdl_type,

@@ -29,9 +29,11 @@ vpiml.vpiml_get_simulator_auto = function()
 end
 
 vpiml.vpiml_handle_by_name = function(name)
-    local signal_info = SignalDB:get_signal_info(name)
-    assert(signal_info, f("[VpimlNosim] [vpiml_handle_by_name] No handle found for `%s`", name))
-    return alloc_handle(signal_info)
+    local handle = vpiml.vpiml_handle_by_name_safe(name)
+    if handle == -1 then
+        assert(false, f("[VpimlNosim] [vpiml_handle_by_name] No handle found for `%s`", name))
+    end
+    return handle
 end
 
 vpiml.vpiml_handle_by_name_safe = function(name)
