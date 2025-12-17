@@ -1,5 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
+
     "runtime": {
         "version": "LuaJIT",
         "path": [
@@ -15,6 +16,7 @@
             "./src/lua/verilua/coverage/?.lua"
         ]  
     },
+
     "diagnostics": {
         "workspaceDelay": 200,
         "severity": {
@@ -32,8 +34,7 @@
             "tmp",
             "luajit-pro",
             "src/lua/thirdparty_lib",
-            "src/gen/out",
-            "wave_vpi"
+            "src/gen/out"
         ]
     }
 }
