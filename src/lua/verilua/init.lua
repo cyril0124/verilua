@@ -788,22 +788,22 @@ do
     ---      join(ehdl1) -- Wait here until `ehdl1` finished
     ---      join(ehdl2) -- Wait here until `ehdl2` finished
     --- ```
-    ---@param ehdl_or_ehdl_tbl verilua.handles.EventHandle|table<integer, verilua.handles.EventHandle>
-    _G.join = function(ehdl_or_ehdl_tbl)
-        assert(type(ehdl_or_ehdl_tbl) == "table")
-        if ehdl_or_ehdl_tbl.event_id ~= nil then
-            if not scheduler.event_name_map[ehdl_or_ehdl_tbl.event_id] then
+    ---@param ehdl_or_ehdl_vec verilua.handles.EventHandle|table<integer, verilua.handles.EventHandle>
+    _G.join = function(ehdl_or_ehdl_vec)
+        assert(type(ehdl_or_ehdl_vec) == "table")
+        if ehdl_or_ehdl_vec.event_id ~= nil then
+            if not scheduler.event_name_map[ehdl_or_ehdl_vec.event_id] then
                 -- If the event is already finished, just return
                 return
             end
-            ---@cast ehdl_or_ehdl_tbl verilua.handles.EventHandle
-            ehdl_or_ehdl_tbl:wait()
+            ---@cast ehdl_or_ehdl_vec verilua.handles.EventHandle
+            ehdl_or_ehdl_vec:wait()
         else
-            ---@cast ehdl_or_ehdl_tbl verilua.handles.EventHandle[]
+            ---@cast ehdl_or_ehdl_vec verilua.handles.EventHandle[]
             local expect_finished_cnt = 0
             local already_finished_cnt = 0
             local finished_ehdl_vec = {}
-            for _, ehdl in ipairs(ehdl_or_ehdl_tbl) do
+            for _, ehdl in ipairs(ehdl_or_ehdl_vec) do
                 local e_type = type(ehdl)
                 if not (e_type == "table" and ehdl.__type == "EventHandleForJFork") then
                     assert(false, "`join` only supports EventHandle created by `jfork`, got " .. e_type)
@@ -817,7 +817,7 @@ do
                     already_finished_cnt = already_finished_cnt + 1
                 end
             end
-            expect_finished_cnt = #ehdl_or_ehdl_tbl
+            expect_finished_cnt = #ehdl_or_ehdl_vec
 
             -- Update expect_finished_cnt
             expect_finished_cnt = expect_finished_cnt - already_finished_cnt
