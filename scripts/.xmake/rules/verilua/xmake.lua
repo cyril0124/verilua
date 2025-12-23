@@ -414,6 +414,9 @@ rule("verilua", function()
             assert(sim == "verilator", "[on_build] cfg.use_inertial_put is only supported for `verilator` simulator")
         end
 
+        --- Collect include directories from simulator flags for Verilog source files, used by testbench_gen
+        local v_include_dirs = {}
+
         --- For most of the simulators, we have `<sim>.flags` for user to specify extra command line flags.
         --- e.g.(in your xmake.lua)
         --- ```lua
@@ -473,11 +476,10 @@ rule("verilua", function()
                 for i, _flag in ipairs(maybe_flags) do
                     if _flag == "-O0" then
                         verilator_opt = "-O0"
-                    end
-                    if _flag:startswith("--x-assign") then
+                    elseif _flag:startswith("--x-assign") then
                         local next_flag = maybe_flags[i + 1]
                         assert(
-                            next_flag ~= nil,
+                            next_flag,
                             "Invalid `--x-assign` option for verilator.flags, `--x-assign` should be followed by a value(e.g. --x-assign 0/1/fast/unique)"
                         )
                         verilator_x_assign = "--x-assign " .. next_flag
@@ -520,6 +522,16 @@ rule("verilua", function()
                     end
                 elseif uflag:startswith("--trace") then
                     extra_verilator_flags[#extra_verilator_flags + 1] = "--no-trace-top"
+                elseif uflag == "-I" then
+                    local includedir = verilator_uflags[i + 1]
+                    assert(
+                        includedir,
+                        "Invalid `-I` option for verilator.flags, `-I` should be followed by a value(e.g. -I /some/path)"
+                    )
+                    table.insert(v_include_dirs, includedir)
+                elseif uflag:startswith("+incdir+") then
+                    local includedir = uflag:sub(9)
+                    table.insert(v_include_dirs, includedir)
                 end
             end
 
@@ -558,6 +570,13 @@ rule("verilua", function()
                             extra_iverilog_cmds[j] = uflag
                         end
                     end
+                elseif uflag == "-I" then
+                    local includedir = iverilog_uflags[i + 1]
+                    assert(
+                        includedir,
+                        "Invalid `-I` option for iverilog.flags, `-I` should be followed by a value(e.g. -I /some/path)"
+                    )
+                    table.insert(v_include_dirs, includedir)
                 end
             end
 
@@ -620,6 +639,8 @@ rule("verilua", function()
                 extra_vcs_flags[#extra_vcs_flags + 1] = "+define+NO_INTERNAL_CLOCK"
             end
 
+            -- TODO: pass include flags to `testbench_gen`(VCS/Verilator/Icarus/Xcelium)
+
             -- Some flags can be overridden by user defined flags
             local _vcs_flags = target:values("vcs.flags") or {}
             if type(_vcs_flags) ~= "table" then
@@ -635,6 +656,9 @@ rule("verilua", function()
                             extra_vcs_flags[j] = uflag
                         end
                     end
+                elseif uflag:startswith("+incdir+") then
+                    local includedir = uflag:sub(9)
+                    table.insert(v_include_dirs, includedir)
                 elseif uflag == "-cc" then
                     for j, eflag in ipairs(extra_vcs_flags) do
                         if eflag:startswith("-cc ") then
@@ -730,11 +754,15 @@ rule("verilua", function()
                 elseif uflag:startswith("+define+XCELIUM_DUMP_FSDB") then
                     xcelium_dump_fsdb = true
                 elseif uflag == "-define" then
-                    assert(xcelium_uflags[i + 1], "-define should be followed by a value")
+                    assert(xcelium_uflags[i + 1], "`-define` should be followed by a value")
                     local macro = xcelium_uflags[i + 1]
                     if macro == "XCELIUM_DUMP_FSDB" then
                         xcelium_dump_fsdb = true
                     end
+                elseif uflag == "-incdir" then
+                    local incudedir = xcelium_uflags[i + 1]
+                    assert(incudedir, "`-incdir` should be followed by a value")
+                    table.insert(v_include_dirs, incudedir)
                 end
             end
 
@@ -782,6 +810,23 @@ rule("verilua", function()
                 "-o " .. signal_db_file,
                 "--top", tb_top,
             }
+
+            local _nosim_flags = target:values("nosim.flags") or {}
+            if type(_nosim_flags) ~= "table" then
+                _nosim_flags = { _nosim_flags }
+            end
+            local nosim_uflags = table.concat(_nosim_flags, " ")
+            nosim_uflags = nosim_uflags:split(" ", { plain = true })
+            for i, uflag in ipairs(nosim_uflags) do
+                if uflag == "-I" then
+                    local includedir = nosim_uflags[i + 1]
+                    assert(
+                        includedir,
+                        "Invalid `-I` option for nosim.flags, `-I` should be followed by a value(e.g. -I /some/path)"
+                    )
+                    table.insert(v_include_dirs, includedir)
+                end
+            end
 
             for _, eflag in ipairs(extra_nosim_flags) do
                 target:add("values", "nosim.flags", eflag)
@@ -881,11 +926,15 @@ rule("verilua", function()
                 "--out-dir", build_dir,
                 "--lua-meta-file", path.join("build", "meta.lua")
             }
+            local include_flag_str = ""
+            for _, includedir in ipairs(v_include_dirs) do
+                include_flag_str = include_flag_str .. "-I " .. includedir .. " "
+            end
             if u_tb_gen_flags then
                 tb_gen_flags = table.join2(tb_gen_flags, u_tb_gen_flags)
             end
-            local gen_cmd = f(path.join(verilua_tools_home, "testbench_gen") ..
-                " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str)
+            local gen_cmd = path.join(verilua_tools_home, "testbench_gen") ..
+                " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str .. " " .. include_flag_str
 
             --- You can also specify your own testbench top module file using `cfg.tb_top_file`.
             --- e.g. (in your xmake.lua)
