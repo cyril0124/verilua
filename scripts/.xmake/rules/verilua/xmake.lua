@@ -841,9 +841,12 @@ rule("verilua", function()
         --- ```lua
         ---     set_values("cfg.not_gen_tb", "1")
         --- ```
-        local _not_gen_tb = target:values("cfg.not_gen_tb") -- Do not automatically generate testbench top
+        local _not_gen_tb = target:values("cfg.not_gen_tb")
         local not_gen_tb = false
-        if _not_gen_tb == "1" then
+        local _not_gen_tb_t = type(_not_gen_tb)
+        if _not_gen_tb_t == "string" and _not_gen_tb == "1" then
+            not_gen_tb = true
+        elseif _not_gen_tb_t == "table" and _not_gen_tb[1] == "1" then
             not_gen_tb = true
         end
         if sim ~= "wave_vpi" and not not_gen_tb then
