@@ -97,6 +97,7 @@ function utils.serialize(t, conn)
     return table_concat(serialized, conn)
 end
 
+---@nodiscard Return value should not be discarded
 ---@param tab any[] The table to be reversed
 ---@return any[] The reversed table
 function utils.reverse_table(tab)
@@ -125,6 +126,7 @@ do
         return table_concat(t_copy, separator)
     end
 
+    ---@nodiscard Return value should not be discarded
     ---@param t integer|ffi.cdata*|table The value to be converted to hexadecimal string
     ---@param separator? string The separator for the hexadecimal string, defaults to ""
     ---@return string -- The hexadecimal string, MSB <=> LSB
@@ -161,6 +163,7 @@ do
     end
 end
 
+---@nodiscard Return value should not be discarded
 ---@param n integer The value to calculate the logarithm base 2
 ---@return integer The ceiling of the logarithm base 2
 function utils.log2Ceil(n)
@@ -173,6 +176,7 @@ function utils.log2Ceil(n)
     end
 end
 
+---@nodiscard Return value should not be discarded
 ---@param begin integer The start bit
 ---@param endd integer The end bit
 ---@param val integer The value to be processed
@@ -182,6 +186,7 @@ function utils.bitfield32(begin, endd, val)
     return tonumber(bit_band(bit_rshift(val + 0ULL, begin), mask)) --[[@as integer]]
 end
 
+---@nodiscard Return value should not be discarded
 ---@param begin integer The start bit
 ---@param endd integer The end bit
 ---@param val integer The value to be processed
@@ -200,6 +205,7 @@ end
 --
 -- LSB <==> MSB
 --
+---@nodiscard Return value should not be discarded
 ---@param hex_table number|table The value or table to be converted to hexadecimal
 ---@return string The hexadecimal string
 function utils.to_hex(hex_table)
@@ -238,6 +244,7 @@ function utils.hex_str_to_ull(hex_str)
 end
 
 --- Convert a hexadecimal string to a signed long long
+---@nodiscard Return value should not be discarded
 ---@param hex_str string The hexadecimal string to be converted to signed long long
 ---@return integer
 function utils.hex_str_to_ll(hex_str)
@@ -246,6 +253,7 @@ function utils.hex_str_to_ll(hex_str)
     return ffi.cast("int64_t", ull) --[[@as integer]]
 end
 
+---@nodiscard Return value should not be discarded
 ---@param num integer The number to be converted to binary string
 ---@return string The binary string
 function utils.num_to_binstr(num)
@@ -321,6 +329,7 @@ end
 ---            RUNNING = 3,
 ---      }
 --- ```
+---@nodiscard Return value should not be discarded
 ---@generic T: table
 ---@param enum_table T The enumeration table to be defined
 ---@return T The defined enumeration table
@@ -378,12 +387,14 @@ end
 ---     local str = utils.get_datetime_str()
 ---     assert(str == "20240124_2301")
 --- ```
+---@nodiscard Return value should not be discarded
 ---@return string The string representation of the current date and time in the format <Year><Month><Day>_<Hour><Minute>
 function utils.get_datetime_str()
     local datetime = os.date("%Y%m%d_%H%M") --[[@as string]]
     return datetime
 end
 
+---@nodiscard Return value should not be discarded
 ---@param filename string The file name to be read
 ---@return string The content of the file
 function utils.read_file_str(filename)
@@ -424,6 +435,7 @@ local function hex_to_bin(hex)
     return bin
 end
 
+---@nodiscard Return value should not be discarded
 ---@param str string The input string (binary starts with "0b", hexadecimal starts with "0x", decimal has no prefix)
 ---@param s integer The start bit
 ---@param e integer The end bit
@@ -556,6 +568,7 @@ end
 
 utils.bitpat_to_hex_str = bitpat_to_hex_str
 
+---@nodiscard Return value should not be discarded
 ---@param uint_value integer The unsigned integer value to be converted to one-hot encoding
 ---@return integer The one-hot encoded value
 function utils.uint_to_onehot(uint_value)
@@ -599,6 +612,7 @@ do
         return str1:lower():gsub("0*", "") == str2:lower():gsub("0*", "")
     end
 
+    ---@nodiscard Return value should not be discarded
     ---@param str1 string The first string to be compared
     ---@param str2 string The second string to be compared
     ---@return boolean Whether the two strings are equal
@@ -622,6 +636,7 @@ function utils.urandom64()
     return (math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)) --[[@as uint64_t]]
 end
 
+---@nodiscard Return value should not be discarded
 ---@param min integer|uint64_t
 ---@param max integer|uint64_t
 ---@return uint64_t
@@ -641,6 +656,7 @@ function utils.urandom64_range(min, max)
 end
 
 --- Splits a string into groups of a specified size.
+---@nodiscard Return value should not be discarded
 ---@param str string The input string
 ---@param nr_group integer The number of groups to split the string into
 ---@return table<integer, string> The grouped string table
@@ -656,6 +672,7 @@ function utils.str_group_by(str, nr_group)
 end
 
 --- Separates a string with a separator at every step characters.
+---@nodiscard Return value should not be discarded
 ---@param str string The input string to be separated
 ---@param step integer The number of characters between each separator
 ---@param separator string The separator to insert between chunks
@@ -679,6 +696,7 @@ end
 --- local mask = utils.bitmask(4)
 --- assert(mask == 0b1111)
 --- ```
+---@nodiscard Return value should not be discarded
 ---@param n integer
 ---@return uint64_t
 function utils.bitmask(n)
@@ -691,6 +709,7 @@ function utils.bitmask(n)
 end
 
 --- Resets a range of bits in a value to zero.
+---@nodiscard Return value should not be discarded
 ---@param value integer The input value
 ---@param start integer The starting bit position
 ---@param length integer The number of bits to reset
@@ -703,6 +722,7 @@ function utils.reset_bits(value, start, length)
 end
 
 --- Calculates how many groups of n are needed to cover the value.
+---@nodiscard Return value should not be discarded
 ---@param value number|integer The value to be covered
 ---@param n integer The size of each group
 ---@return integer The number of groups needed to cover the value
@@ -711,6 +731,7 @@ function utils.cover_with_n(value, n)
 end
 
 --- Generates a random value within the specified bit width.
+---@nodiscard Return value should not be discarded
 ---@param bitwidth integer The bit width of the random value (must be <= 64)
 ---@return uint64_t A random value within the specified bit width
 function utils.shuffle_bits(bitwidth)
@@ -723,6 +744,7 @@ function utils.shuffle_bits(bitwidth)
 end
 
 --- Generates a random hexadecimal string within the specified bit width.
+---@nodiscard Return value should not be discarded
 ---@param bitwidth integer The bit width of the random value
 ---@return string The hexadecimal string representation of the random value
 function utils.shuffle_bits_hex_str(bitwidth)
@@ -750,6 +772,7 @@ end
 --- local sbu = require "verilua.utils.StrBitsUtils"
 --- local v = sbu.adjust_hex_bitwidth("1234", 10)
 --- ```
+---@nodiscard Return value should not be discarded
 ---@param value_hex_str string
 ---@param bitwidth integer
 ---@return string
@@ -760,6 +783,7 @@ function utils.expand_hex_str(value_hex_str, bitwidth)
 end
 
 --- Converts a hexadecimal string to a binary string.
+---@nodiscard Return value should not be discarded
 ---@param hex_str string The hexadecimal string to convert
 ---@return string The binary string representation
 function utils.hex_to_bin(hex_str)
@@ -772,6 +796,7 @@ function utils.hex_to_bin(hex_str)
 end
 
 --- Converts a binary string to a hexadecimal string.
+---@nodiscard Return value should not be discarded
 ---@param bin_str string The binary string to convert
 ---@return string The hexadecimal string representation
 function utils.bin_str_to_hex_str(bin_str)
@@ -813,6 +838,7 @@ local false_values = {
     ["disable"] = true,
     ["off"] = true,
 }
+---@nodiscard Return value should not be discarded
 ---@generic T: string|number|integer|boolean
 ---@param key string Environment variable name
 ---@param value_type "string" | "boolean" | "number" | "integer"
@@ -1093,6 +1119,7 @@ function utils.matrix_call(func_table)
 end
 
 --- Execute a function after a specified number of calls
+---@nodiscard Return value should not be discarded
 ---@param count number The number of calls to wait before executing the function
 ---@param func fun(): any? The function to execute
 ---@param options? { _repeat?: boolean, times?: number } If `options._repeat` is `true`, the function will be executed after every `count` calls
@@ -1152,9 +1179,11 @@ function utils.execute_after(count, func, options)
 end
 
 --- Loads and executes a Lua code string.
+---@nodiscard Return value should not be discarded
 ---@param code string The Lua code string to load and execute
 ---@param env? table Optional environment table to set for the loaded function
 ---@param chunkname? string Optional name for the chunk (used in error messages)
+---@return function
 function utils.loadcode(code, env, chunkname)
     local ret = loadstring(code, chunkname) --[[@as function]]
     if not ret then
@@ -1226,6 +1255,7 @@ function utils.report_luacov()
 end
 
 --- Attempts to get a function pointer through FFI cast or declaration.
+---@nodiscard Return value should not be discarded
 ---@param func_ptr_str string The function pointer type string, e.g. "void (*)(const char*)"
 ---@param ffi_func_decl_str string The FFI function declaration string, e.g. "void my_func(const char*);"
 ---@param func_name string The function name to search for, e.g. "my_func"
@@ -1244,6 +1274,7 @@ end
 ---@type fun(cmd: string): string?
 local iorun_cfunc
 --- Run a command and return the output(stdout or stderr if stdout is empty)
+---@nodiscard Return value should not be discarded
 ---@param cmd string The command to execute
 ---@return string The command output from stdout or stderr
 function utils.iorun(cmd)

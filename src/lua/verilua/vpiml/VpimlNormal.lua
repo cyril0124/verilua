@@ -164,7 +164,7 @@ local vpiml = {
     vpiml_get_value = C.vpiml_get_value,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw): integer
     vpiml_get_value64 = C.vpiml_get_value64,
-    ---@type fun(handle: verilua.handles.ComplexHandleRaw, ret: ffi.cdata*[], len: integer)
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, ret: ffi.cdata*, len: integer)
     vpiml_get_value_multi = C.vpiml_get_value_multi,
 
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, value: integer)

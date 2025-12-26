@@ -22,7 +22,7 @@ local f = string.format
 ---@field private shuffle boolean
 ---@field private pool integer[]
 ---@field private size integer
----@field alloc fun(self: verilua.utils.IDPool): integer
+----@field alloc fun(self: verilua.utils.IDPool): integer
 ---@field release fun(self: verilua.utils.IDPool, id: integer)
 ---@field is_full fun(self: verilua.utils.IDPool): boolean Check if the pool is full (all IDs are available)
 ---@field is_empty fun(self: verilua.utils.IDPool): boolean Check if the pool is empty(all IDs are allocated, none left in pool)
@@ -81,6 +81,8 @@ function IDPool:_init(params, shuffle)
     end
 end
 
+---@nodiscard Return value(ID) should be used
+---@return integer
 function IDPool:alloc()
     local id = self.pool[self.size]
     self.pool[self.size] = nil

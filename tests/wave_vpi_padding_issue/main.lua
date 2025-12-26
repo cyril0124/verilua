@@ -2,9 +2,9 @@ fork {
     function()
         if cfg.simulator == "iverilog" then
             sim.dump_wave()
-            dut.reset = 1
+            dut.reset:set(1)
             dut.clock:posedge(5)
-            dut.reset = 0
+            dut.reset:set(0)
         end
 
         if cfg.simulator == "wave_vpi" then

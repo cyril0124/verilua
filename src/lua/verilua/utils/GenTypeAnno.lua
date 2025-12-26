@@ -97,15 +97,17 @@ local function gen_type_anno_alias_bundle(name, alias_bundle)
     local content_vec = {
         f("---@class %s: verilua.handles.AliasBundle", name)
     }
-    for i, field_name in ipairs(alias_bundle.alias_tbl) do
+    for i, field_name_vec in ipairs(alias_bundle.alias_tbl) do
         local hierpath = alias_bundle.hierarchy .. "." .. alias_bundle.prefix .. alias_bundle.signals_tbl[i]
-        local width = alias_bundle[field_name]:get_width()
-        content_vec[#content_vec + 1] = f(
-            "---@field %s verilua.handles.CallableHDL hierpath: %s width: %d",
-            field_name,
-            hierpath,
-            width
-        )
+        for _, field_name in ipairs(field_name_vec) do
+            local width = alias_bundle[field_name]:get_width()
+            content_vec[#content_vec + 1] = f(
+                "---@field %s verilua.handles.CallableHDL hierpath: %s width: %d",
+                field_name,
+                hierpath,
+                width
+            )
+        end
     end
 
     return table.concat(content_vec, "\n")
@@ -127,8 +129,12 @@ function GenTypeAnno:gen_type_anno(params)
         if not handle.__type then
             local name = handle[1]
             local value = handle[2]
+            ---@cast name -?
+            ---@cast value -?
+
             texpect.expect_string(name, "params.handles[" .. i .. "][1]")
             texpect.expect_table(value, "params.handles[" .. i .. "][2]")
+
             if value.__type == "Bundle" then
                 ---@cast value verilua.handles.Bundle
                 content_vec[#content_vec + 1] = gen_type_anno_bundle(name, value)

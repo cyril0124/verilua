@@ -23,6 +23,7 @@ local scount = stringx.count
 ---@class (exact) verilua.utils.StrBitsUtils
 local M = {}
 
+---@nodiscard Return value should not be discarded
 ---@param bin_or_hex_str string
 ---@return string
 function M.trim_leading_zeros(bin_or_hex_str)
@@ -34,6 +35,7 @@ function M.trim_leading_zeros(bin_or_hex_str)
 end
 
 -- Helper: Adjust binary string to specific bitwidth (truncate MSB or pad MSB)
+---@nodiscard Return value should not be discarded
 ---@param bin_str string
 ---@param bitwidth? integer
 ---@return string
@@ -55,6 +57,7 @@ end
 
 --- Helper function to convert hex string to uint64_t safely
 --- Handles strings up to 16 hex characters (64 bits)
+---@nodiscard Return value should not be discarded
 ---@param hex_str string
 ---@return integer uint64_t value
 local function hex_str_to_ull(hex_str)
@@ -122,9 +125,10 @@ local VAL_HEXS = {
 }
 
 --- Mask hex string inputs to fit within specified bitwidth
---- @param hex_str string The hex string to mask
---- @param bitwidth number The target bitwidth
---- @return string The masked hex string
+---@nodiscard Return value should not be discarded
+---@param hex_str string The hex string to mask
+---@param bitwidth number The target bitwidth
+---@return string The masked hex string
 local function adjust_hex_bitwidth(hex_str, bitwidth)
     -- Calculate the required number of hex characters
     local bitwidth_hex_chars = math_ceil(bitwidth / 4)
@@ -167,6 +171,7 @@ local function adjust_hex_bitwidth(hex_str, bitwidth)
 end
 
 --- Adjust hex string to specified bitwidth with bit-level precision
+---@nodiscard Return value should not be discarded
 ---@param hex_str string The input hex string (without "0x" prefix)
 ---@param bitwidth integer The target bitwidth
 ---@return string The adjusted hex string
@@ -175,6 +180,7 @@ function M.adjust_hex_bitwidth(hex_str, bitwidth)
 end
 
 --- Adjust binary string to specified bitwidth with bit-level precision
+---@nodiscard Return value should not be discarded
 ---@param bin_str string The input binary string
 ---@param bitwidth integer The target bitwidth
 ---@return string The adjusted binary string
@@ -182,6 +188,7 @@ function M.adjust_bin_bitwidth(bin_str, bitwidth)
     return adjust_bin_bitwidth(bin_str, bitwidth)
 end
 
+---@nodiscard Return value should not be discarded
 ---@param hex_str string The hexadecimal string without "0x" prefix
 ---@param s integer The start bit
 ---@param e integer The end bit
@@ -215,6 +222,7 @@ function M.bitfield_hex_str(hex_str, s, e, bitwidth)
     return utils.bin_str_to_hex_str(bin_result)
 end
 
+---@nodiscard Return value should not be discarded
 ---@param hex_str string The original hexadecimal string without "0x" prefix
 ---@param s integer The start bit
 ---@param e integer The end bit
@@ -277,6 +285,7 @@ end
 
 --- Left shift a hexadecimal string representation.
 --- Mimics the behavior of `val << n`.
+---@nodiscard Return value should not be discarded
 ---@param hex_str string: The input hexadecimal string.
 ---@param n integer: The number of bits to shift.
 ---@param bitwidth? integer: (Optional) Simulates a fixed-width register. Truncates overflow if set.
@@ -316,6 +325,7 @@ end
 
 --- Logical right shift a hexadecimal string representation.
 --- Mimics the behavior of `val >> n` (Logical Shift, zero-filling MSB).
+---@nodiscard Return value should not be discarded
 ---@param hex_str string: The input hexadecimal string.
 ---@param n integer: The number of bits to shift.
 ---@param bitwidth? integer: (Optional) Simulates a fixed-width register. Used for MSB padding.
@@ -360,6 +370,7 @@ end
 
 --- Perform bitwise OR operation on two hexadecimal strings.
 --- Returns a hexadecimal string representing the result.
+---@nodiscard Return value should not be discarded
 ---@param hex_str1 string: First hexadecimal string (without 0x prefix)
 ---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
 ---@param bitwidth integer?: Optional target bit width (result is truncated/padded to this width)
@@ -453,6 +464,7 @@ end
 
 --- Perform bitwise XOR operation on two hexadecimal strings.
 --- Returns a hexadecimal string representing the result.
+---@nodiscard Return value should not be discarded
 ---@param hex_str1 string: First hexadecimal string (without 0x prefix)
 ---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
 ---@param bitwidth integer?: Optional target bit width (result is truncated/padded to this width)
@@ -546,6 +558,7 @@ end
 
 --- Perform bitwise AND operation on two hexadecimal strings.
 --- Returns a hexadecimal string representing the result.
+---@nodiscard Return value should not be discarded
 ---@param hex_str1 string: First hexadecimal string (without 0x prefix)
 ---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
 ---@param bitwidth integer?: Optional target bit width (result is truncated/padded to this width)
@@ -640,6 +653,7 @@ end
 --- Perform bitwise NOT operation on a hexadecimal string.
 --- Returns a hexadecimal string representing the result.
 --- If bitwidth is not specified, the function assumes the bitwidth based on the input hex string length.
+---@nodiscard Return value should not be discarded
 ---@param hex_str string: Hexadecimal string (without 0x prefix)
 ---@param bitwidth integer?: Optional bit width (result is masked to this width)
 ---@return string: Result as hexadecimal string (without 0x prefix)
@@ -724,6 +738,7 @@ end
 
 --- Perform addition operation on two hexadecimal strings.
 --- Returns the result as a hexadecimal string and a carry flag.
+---@nodiscard Return value should not be discarded
 ---@param hex_str1 string: First hexadecimal string (without 0x prefix)
 ---@param hex_str2 string: Second hexadecimal string (without 0x prefix)
 ---@param bitwidth integer?: Optional target bit width (if specified, result is truncated to this width)
@@ -877,6 +892,7 @@ function M.add_hex_str(hex_str1, hex_str2, bitwidth)
 end
 
 --- Count the number of '1' bits in a hexadecimal string.
+---@nodiscard Return value should not be discarded
 ---@param hex_str string
 ---@return integer
 function M.popcount_hex_str(hex_str)

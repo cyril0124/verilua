@@ -70,7 +70,7 @@ local AliasBundle = class()
 ---@param prefix string
 ---@param hierarchy string
 ---@param name string
----@param optional_signals? table<string>
+---@param optional_signals? table<integer, string>
 function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_signals)
     texpect.expect_table(alias_signal_tbl, "alias_signal_tbl")
     texpect.expect_table(alias_signal_tbl[1] --[[@as table]], "alias_signal_tbl[1]")

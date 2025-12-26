@@ -70,6 +70,7 @@ extern "C" fn init_env_logger() {
 /// Promotes LuaJIT symbols (e.g., lua_checkstack) to the global namespace (RTLD_GLOBAL).
 /// This ensures that dynamically loaded Lua C modules (like lsqlite3) can resolve
 /// Lua API symbols, even if the host simulator loaded libverilua/libluajit with RTLD_LOCAL.
+/// Note: This method is used by Xcelium simulator.
 #[unsafe(no_mangle)]
 pub extern "C" fn promote_luajit_symbols() {
     #[cfg(feature = "promote_luajit_global")]

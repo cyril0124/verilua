@@ -10,9 +10,9 @@ fork {
         local value64 = dut.value64:chdl()
         local value128 = dut.value128:chdl()
 
-        dut.reset = 1
+        dut.reset:set(1)
         clock:negedge(10)
-        dut.reset = 0
+        dut.reset:set(0)
 
         expect.equal(value128:get_width(), 128)
 
@@ -145,7 +145,7 @@ fork {
         do
             clock:negedge()
             local u32_array = ffi.new("uint32_t[?]", 5) --[[@as table<integer, integer>]]
-            u32_array[0] = 4     -- length of the u32_array
+            u32_array[0] = 4 -- length of the u32_array
             u32_array[1] = 0x32
             u32_array[2] = 0x34
             u32_array[3] = 0

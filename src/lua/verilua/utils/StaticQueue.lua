@@ -1,5 +1,4 @@
 local class = require "pl.class"
-local inspect = require "inspect"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
 
@@ -13,27 +12,27 @@ local math_random = math.random
 ---@generic T
 ---@class (exact) verilua.utils.StaticQueue<T>
 ---@overload fun(size: integer, name?: string): verilua.utils.StaticQueue
----@field private name string
----@field private first_ptr integer
----@field private last_ptr integer
----@field private _size integer
----@field private data table<integer, T>
----@field count integer
----@field push fun(self: verilua.utils.StaticQueue, value: T): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed
----@field pop fun(self: verilua.utils.StaticQueue): T
----@field query_first fun(self: verilua.utils.StaticQueue): T
+---@field private name string Name identifier for the queue instance
+---@field private first_ptr integer Pointer to the first element in the queue
+---@field private last_ptr integer Pointer to the last element in the queue
+---@field private _size integer Maximum capacity of the queue
+---@field private data table<integer, T> Internal storage array for queue elements
+---@field count integer Current number of elements in the queue
+----@field push fun(self: verilua.utils.StaticQueue, value: T): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed Push a value to the end of the queue
+---@field pop fun(self: verilua.utils.StaticQueue): T Remove and return the first element from the queue
+---@field query_first fun(self: verilua.utils.StaticQueue): T Get the first element without removing it
 ---@field front fun(self: verilua.utils.StaticQueue): T Alias of query_first
----@field last fun(self: verilua.utils.StaticQueue): T
----@field is_empty fun(self: verilua.utils.StaticQueue): boolean
----@field is_full fun(self: verilua.utils.StaticQueue): boolean
----@field size fun(self: verilua.utils.StaticQueue): integer
----@field used_count fun(self: verilua.utils.StaticQueue): integer
----@field free_count fun(self: verilua.utils.StaticQueue): integer
----@field reset fun(self: verilua.utils.StaticQueue)
----@field shuffle fun(self: verilua.utils.StaticQueue)
----@field get_all_data fun(self: verilua.utils.StaticQueue): T[]
----@field list_data fun(self: verilua.utils.StaticQueue)
----@operator len: integer
+---@field last fun(self: verilua.utils.StaticQueue): T Get the last element without removing it
+---@field is_empty fun(self: verilua.utils.StaticQueue): boolean Check if the queue is empty
+---@field is_full fun(self: verilua.utils.StaticQueue): boolean Check if the queue is full
+---@field size fun(self: verilua.utils.StaticQueue): integer Get current number of elements (alias of used_count)
+---@field used_count fun(self: verilua.utils.StaticQueue): integer Get current number of elements used
+---@field free_count fun(self: verilua.utils.StaticQueue): integer Get number of available slots
+---@field reset fun(self: verilua.utils.StaticQueue) Reset the queue to empty state
+---@field shuffle fun(self: verilua.utils.StaticQueue) Randomly shuffle all elements in the queue
+---@field get_all_data fun(self: verilua.utils.StaticQueue): T[] Get all elements as an array in queue order
+---@field list_data fun(self: verilua.utils.StaticQueue) Print all elements with queue information
+---@operator len: integer Length operator overload returns current element count
 local StaticQueue = class() --[[@as verilua.utils.StaticQueue]]
 
 function StaticQueue:_init(size, name)
@@ -46,14 +45,14 @@ function StaticQueue:_init(size, name)
     self.data = table_new(size, 0)
 end
 
---
--- return
---   0: success
---   1: full
---
+--- Push a value to the end of the queue
+---@nodiscard Need check success, `0` for success, `1` for failed
+---@param value T
+---@return integer TODO: use boolean?
 function StaticQueue:push(value)
-    -- assert(self.count < self.size, "full!")
-    if self.count >= self._size then return 1 end
+    if self.count >= self._size then
+        return 1
+    end
 
     local last_ptr = (self.last_ptr % self._size) + 1
     self.last_ptr = last_ptr
@@ -63,8 +62,12 @@ function StaticQueue:push(value)
 end
 
 function StaticQueue:pop()
+    if self.count == 0 then
+        ---@diagnostic disable-next-line
+        assert(false, "queue is empty")
+    end
+
     local first_ptr = self.first_ptr
-    if self.count == 0 then assert(false, "queue is empty") end
     local value = self.data[first_ptr]
     self.first_ptr = (self.first_ptr % self._size) + 1
     self.count = self.count - 1

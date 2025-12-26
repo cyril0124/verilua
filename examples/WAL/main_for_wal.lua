@@ -5,9 +5,9 @@ fork {
         -- Notice: be aware that signals are READ-ONLY when using @wave_vpi backend
         --         so we can't use the following code to reset the dut
         -- reset the dut
-        -- dut.reset = 1
+        -- dut.reset:set(1)
         -- dut.clock:posedge(10)
-        -- dut.reset = 0
+        -- dut.reset:set(0)
         dut.clock:posedge(10)
 
         -- create a monitor for monitoring the dut.count signal

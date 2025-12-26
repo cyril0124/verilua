@@ -720,6 +720,7 @@ do
     ---      }
     ---      join(ehdl1, ehdl2) -- Wait here until both tasks finished
     --- ```
+    ---@nodiscard The returned (EventHandle, TaskID) can be used to track the created task, if you don't need it, you should consider using `fork` instead.
     ---@param one_task_table table<verilua.scheduler.TaskName|number, verilua.scheduler.TaskFunction>
     ---@return verilua.handles.EventHandle, verilua.scheduler.TaskID
     _G.jfork = function(one_task_table)

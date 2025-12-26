@@ -14,7 +14,7 @@
             "./src/lua/verilua/random/?.lua",
             "./src/lua/verilua/handles/?.lua",
             "./src/lua/verilua/coverage/?.lua"
-        ]  
+        ]
     },
 
     "diagnostics": {
@@ -25,11 +25,12 @@
             "redefined-local": "hint"
         }
     },
+
     "workspace": {
         "ignoreDir": [
-            ".vscode", 
-            "extern", 
-            "libverilua", 
+            ".vscode",
+            "extern",
+            "libverilua",
             "build",
             "tmp",
             "luajit-pro",

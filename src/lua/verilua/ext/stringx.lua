@@ -485,6 +485,8 @@ end
 local process_bundle = function(str, params_table)
     local signals_table = stringx.split(str, "|")
     local will_remove_idx = {}
+
+    ---@type table<integer, string>
     local auto_optional_signals = {}
 
     for i = 1, #signals_table do
@@ -525,7 +527,10 @@ local process_bundle = function(str, params_table)
     local prefix = ""
     local is_decoupled = true
     local name = "Unknown"
-    local optional_signals = nil
+
+    ---@type table<integer, string>?
+    local optional_signals
+
     for key, value in pairs(params_table) do
         if key == "prefix" then
             assert(type(value) == "string")
@@ -631,6 +636,8 @@ string.abdl = function(str, params_table)
 
     local signals_table = stringx.split(str, "|")
     local will_remove_idx = {}
+
+    ---@type table<integer, string>
     local auto_optional_signals = {}
 
     for i = 1, #signals_table do
@@ -719,7 +726,10 @@ string.abdl = function(str, params_table)
 
     local prefix = ""
     local name = "Unknown"
-    local optional_signals = nil
+
+    ---@type tablelib<integer, string>?
+    local optional_signals
+
     for key, value in pairs(params_table) do
         if key == "prefix" then
             assert(type(value) == "string", "[abdl] invalid type for the `prefix` field, valid type: `string`")
@@ -732,6 +742,7 @@ string.abdl = function(str, params_table)
             if #value > 0 then
                 assert(type(value[1]) == "string")
             end
+            ---@diagnostic disable-next-line
             optional_signals = value
         end
     end
@@ -743,6 +754,7 @@ string.abdl = function(str, params_table)
                 table.insert(optional_signals, sig)
             end
         else
+            ---@diagnostic disable-next-line
             optional_signals = auto_optional_signals
         end
     end

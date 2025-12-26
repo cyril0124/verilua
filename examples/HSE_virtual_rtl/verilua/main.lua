@@ -30,7 +30,7 @@ fork {
     end,
 
     check_task = function ()
-        local expect_values = { 
+        local expect_values = {
             0,  -- 1
             15, -- 2
             30, -- 3

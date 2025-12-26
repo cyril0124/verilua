@@ -123,7 +123,7 @@ test1: cover property (_GEN_test1_PROPERTY);
             expr = "test + $(a) + $(bb)",
             envs = { a = 123, bb = 456 }
         }
-        ---@cast ret SVAContext.sequence
+        ---@cast ret verilua.sva.SVAContext.sequence
         expect.equal(ret.__type, "Sequence")
         expect.equal(ret.name, "test")
         expect.equal(tostring(ctx), [[
@@ -136,7 +136,7 @@ sequence test(); test + 123 + 456; endsequence
             expr = "test + $(a) + $(bb)",
             envs = { a = 123, bb = 456 }
         }
-        ---@cast ret1 SVAContext.property
+        ---@cast ret1 verilua.sva.SVAContext.property
         expect.equal(ret1.__type, "Property")
         expect.equal(ret1.name, "test1")
         expect.equal(tostring(ctx), [[
@@ -299,7 +299,7 @@ test: cover property (_GEN_test_PROPERTY);
             fullpath = "path.to.clock",
             get_width = function() return 1 end
         }
-        ---@cast clock_signal CallableHDL
+        ---@cast clock_signal verilua.handles.CallableHDL
         ctx:default_clocking(clock_signal, "posedge")
         expect.equal(tostring(ctx), [[
 default clocking @(posedge path.to.clock); endclocking
@@ -314,7 +314,7 @@ default clocking @(posedge path.to.clock); endclocking
                 return clock_signal
             end
         }
-        ---@cast clock_dut_signal ProxyTableHandle
+        ---@cast clock_dut_signal verilua.handles.ProxyTableHandle
         ctx:default_clocking(clock_dut_signal, "negedge")
         expect.equal(tostring(ctx), [[
 default clocking @(negedge path.to.clock); endclocking
