@@ -57,6 +57,8 @@ ffi.cdef [[
     void vpiml_iterate_vpi_type(const char *module_name, int type);
 ]]
 
+local default_wave_name = "test"
+
 local initialize_trace = function(trace_file_path)
     assert(trace_file_path ~= nil)
     if is_vcs or is_xcelium then
@@ -67,7 +69,7 @@ local initialize_trace = function(trace_file_path)
     elseif is_iverilog then
         _G.await_time(0) -- waitting for simulation start
 
-        local traceFilePath = trace_file_path or "dump.vcd"
+        local traceFilePath = trace_file_path or default_wave_name .. ".vcd"
         local file, err = io.open("iverilog_trace_name.txt", "w")
 
         assert(file, "Failed to open file: " .. tostring(err))
@@ -127,7 +129,7 @@ local dump_wave = function(trace_file_path)
         )
     end
 
-    local _trace_file_path = trace_file_path or "test.vcd"
+    local _trace_file_path = trace_file_path or default_wave_name .. ".vcd"
     local trace_path = path.abspath(path.dirname(_trace_file_path))
 
     if not path.exists(trace_path) then

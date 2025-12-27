@@ -161,14 +161,14 @@ TopClockVariants  u_TopClockVariants (
 
         `ifdef SIM_VERILATOR
             $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-            $dumpfile({traceFilePath, ".vcd"});
+            $dumpfile(traceFilePath);
             $dumpvars(0, tb_top);
         `endif // SIM_VERILATOR
 
         `ifdef SIM_VCS
             `ifdef VCS_DUMP_VCD
                 $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-                $dumpfile({traceFilePath, ".vcd"});
+                $dumpfile(traceFilePath);
                 $dumpvars(0, tb_top);
             `else // VCS_DUMP_VCD
                 $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
@@ -214,7 +214,7 @@ TopClockVariants  u_TopClockVariants (
         `ifdef SIM_XCELIUM
             `ifdef XCELIUM_DUMP_VCD
                 $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => VCD", $time, `__FILE__, `__LINE__);
-                $dumpfile({traceFilePath, ".vcd"});
+                $dumpfile(traceFilePath);
                 $dumpvars(0, tb_top);
             `elsif XCELIUM_DUMP_FSDB
                 $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => FSDB", $time, `__FILE__, `__LINE__);
@@ -241,8 +241,8 @@ TopClockVariants  u_TopClockVariants (
             `else // Default to SHM for XCELIUM
                 $display("[INFO] @%0t [%s:%d] simulation_initializeTrace trace type => SHM", $time, `__FILE__, `__LINE__);
 
-                // $shm_open cannot accept string variable as the input file name.
-                // $shm_open({traceFilePath, ".shm"});
+                // Notice: $shm_open cannot accept string variable as the input file name.
+                //          e.g. $shm_open({traceFilePath, ".shm"});
                 $shm_open("waves.shm");
 
                 $shm_probe(tb_top, "AS");
