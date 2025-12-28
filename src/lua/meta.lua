@@ -86,6 +86,7 @@ function await_nsim() end
 --- | "cfg.tb_top"
 --- | "cfg.version_required"
 --- | "cfg.vcs_no_initreg"
+--- | "cfg.xcelium_no_initreg"
 --- | "cfg.not_gen_tb"
 --- | "cfg.build_dir"
 --- | "cfg.build_dir_path"
@@ -102,7 +103,7 @@ function set_values(cmd, ...) end
 
 ---@param cmd verilua.xmake.add_values.cmd
 ---@param ... verilua.xmake.set_values.yes_or_not|string
-function add_values() end
+function add_values(cmd, ...) end
 
 ---@param toolchain verilua.xmake.toolchains
 function add_toolchain(toolchain) end
