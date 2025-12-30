@@ -14,8 +14,8 @@ describe("StaticQueue test", function()
         expect.truthy(q:is_empty())
         expect.fail(function() q:pop() end)
 
-        q:push(11)
-        q:push(22)
+        assert(q:push(11) == 0)
+        assert(q:push(22) == 0)
 
         expect.equal(q.count, 2)
 
