@@ -3,33 +3,35 @@
 local inspect = require "inspect"
 local class = require "pl.class"
 
----@class verilua.utils.Queue.options
----@field name string?
----@field compact_threshold integer?
----@field leak_check boolean?
----@field leak_check_threshold integer?
+---@class verilua.utils.Queue.options Configuration options for Queue
+---@field name string? Optional name for the queue (useful for debugging)
+---@field compact_threshold integer? Number of operations before triggering compaction (default: 1000)
+---@field leak_check boolean? Enable leak checking (default: false)
+---@field leak_check_threshold integer? Number of do_leak_check() calls before reporting leak (default: 100000)
 
 ---@generic T
----@class (exact) verilua.utils.Queue<T>
----@overload fun(options: verilua.utils.Queue.options?): verilua.utils.Queue
----@field private data table<integer, T>
----@field private first_ptr integer
----@field private last_ptr integer
----@field private leak_check boolean
----@field private leak_check_threshold integer
----@field private leak_check_cnt integer
----@field private compact_threshold integer Threshold for triggering compaction
----@field private _compact fun(self: verilua.utils.Queue) Compact the queue to free memory
----@field push fun(self: verilua.utils.Queue, value: T)
----@field pop fun(self: verilua.utils.Queue): T
----@field query_first_ptr fun(self: verilua.utils.Queue): T
----@field front fun(self: verilua.utils.Queue): T Alias of query_first_ptr
----@field last fun(self: verilua.utils.Queue): T
----@field is_empty fun(self: verilua.utils.Queue): boolean
----@field size fun(self: verilua.utils.Queue): integer
----@field reset fun(self: verilua.utils.Queue)
----@field do_leak_check fun(self: verilua.utils.Queue)
----@operator len: integer
+---@class (exact) verilua.utils.Queue<T> Generic queue implementation with leak detection and memory optimization
+---@overload fun(options: verilua.utils.Queue.options?): verilua.utils.Queue Create a new queue with optional configuration
+---@field private name string Queue name for debugging purposes
+---@field private data table<integer, T> Internal storage for queue elements
+---@field private first_ptr integer Index of the first element in the queue
+---@field private last_ptr integer Index of the last element in the queue
+---@field private leak_check boolean Whether leak checking is enabled
+---@field private leak_check_threshold integer Maximum number of do_leak_check() calls before reporting leak
+---@field private leak_check_cnt integer Current count of consecutive do_leak_check() calls
+---@field private compact_threshold integer Number of operations before triggering automatic compaction
+---@field private _compact fun(self: verilua.utils.Queue) Compact the queue to free memory by moving elements to the beginning
+---@field push fun(self: verilua.utils.Queue, value: T) Add an element to the end of the queue
+---@field pop fun(self: verilua.utils.Queue): T Remove and return the first element from the queue
+---@field query_first_ptr fun(self: verilua.utils.Queue): T Get the first element without removing it
+---@field front fun(self: verilua.utils.Queue): T Alias of query_first_ptr - get the first element without removing it
+---@field last fun(self: verilua.utils.Queue): T Get the last element without removing it, or nil if queue is empty
+---@field is_empty fun(self: verilua.utils.Queue): boolean Check if the queue is empty
+---@field size fun(self: verilua.utils.Queue): integer Get the number of elements in the queue
+---@field reset fun(self: verilua.utils.Queue) Clear all elements and reset the queue to initial state
+---@field do_leak_check fun(self: verilua.utils.Queue) Increment leak check counter and report leak if threshold exceeded
+---@field __tostring fun(self: verilua.utils.Queue): string Convert queue to string for printing
+---@operator len: integer Get the number of elements in the queue using # operator
 local Queue = class() --[[@as verilua.utils.Queue]]
 
 local q_idx = 0
@@ -202,6 +204,32 @@ end
 
 function Queue:__len()
     return self.last_ptr - self.first_ptr + 1
+end
+
+--- Convert queue to string for printing
+---@return string Formatted string representation of queue elements
+function Queue:__tostring()
+    local header_parts = {}
+    table.insert(header_parts, string.format("[%s]", self.name))
+
+    if self.leak_check then
+        table.insert(header_parts, string.format("Leak check: %d/%d", self.leak_check_cnt, self.leak_check_threshold))
+    end
+
+    if self:is_empty() then
+        return table.concat(header_parts, " ") .. " Queue is empty"
+    end
+
+    local elements = {}
+    for i = self.first_ptr, self.last_ptr do
+        local value = self.data[i]
+        local value_str = inspect(value)
+        table.insert(elements, string.format("  [%d] %s", i - self.first_ptr + 1, value_str))
+    end
+
+    table.insert(header_parts, string.format("Queue (%d elements):", self:size()))
+
+    return table.concat(header_parts, " ") .. "\n" .. table.concat(elements, "\n")
 end
 
 return Queue
