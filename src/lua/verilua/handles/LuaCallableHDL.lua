@@ -1,4 +1,4 @@
----@diagnostic disable: need-check-nil
+---@diagnostic disable: need-check-nil, unnecessary-assert
 local ffi = require "ffi"
 local math = require "math"
 local vpiml = require "vpiml"
