@@ -272,9 +272,10 @@ target("lsp-check-lua", function()
         local emmyrc = path.join(prj_dir, ".emmyrc-lsp-check.json")
         local F = os.getenv("F") -- F is the filename to check
         if F then
-            local lua_dir = path.join(prj_dir, "src", "lua")
+            local src_lua_dir = path.join(prj_dir, "src", "lua")
+            local tests_lua_dir = path.join(prj_dir, "tests")
 
-            local file = find_file(F, { path.join(lua_dir, "**") })
+            local file = find_file(F, { path.join(src_lua_dir, "**"), tests_lua_dir })
             assert(file ~= nil, "file not found: " .. F)
             assert(type(file) == "string", "multiple files found for: " .. F)
             assert(os.isfile(file), "file not found: " .. file)
@@ -286,9 +287,11 @@ target("lsp-check-lua", function()
             os.cp(file, tmp_file_dir)
 
             os.mkdir(tmp_lib_dir)
-            os.cp(path.join(lua_dir, "*"), tmp_lib_dir)
+            os.cp(path.join(src_lua_dir, "*"), tmp_lib_dir)
+            os.cp(path.join(tests_lua_dir, "*.lua"), tmp_lib_dir)
 
-            local _file = find_file(F, { path.join(tmp_lib_dir, "**") })
+            local _file = find_file(F, { path.join(tmp_lib_dir, "**"), tmp_lib_dir })
+            assert(_file ~= nil, "file not found in tmp_lib_dir: " .. F)
             os.rm(_file)
 
             try {
