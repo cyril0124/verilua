@@ -240,7 +240,17 @@ function cfg:merge_config(other_cfg, info_str)
         else
             self:config_info(f("[merge_config] %s new key: %s value: %s", info_str, k, v))
         end
-        self[k] = v
+
+        if k == "srcs" or k == "deps" then
+            for _, p in ipairs(v) do
+                if not self[k] then
+                    self[k] = {}
+                end
+                table.insert(self[k], p)
+            end
+        else
+            self[k] = v
+        end
     end
 end
 
@@ -255,7 +265,17 @@ function cfg.merge_config_1(src_cfg, other_cfg, info_str)
         else
             config_info(f("[merge_config_1] %s new key: %s value: %s", info_str, k, v))
         end
-        src_cfg[k] = v
+
+        if k == "srcs" or k == "deps" then
+            for _, p in ipairs(v) do
+                if not src_cfg[k] then
+                    src_cfg[k] = {}
+                end
+                table.insert(src_cfg[k], p)
+            end
+        else
+            src_cfg[k] = v
+        end
     end
 end
 
