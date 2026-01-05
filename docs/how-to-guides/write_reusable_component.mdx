@@ -4,9 +4,9 @@ Verilua 提倡编写**可复用的验证组件**，以便在多个场景（HVL�
 
 ## 使用 Bundle 编写验证组件
 
-正常情况下，Verilua 中可以通过一系列的[数据结构](../reference/data_structure.mdx) 来和硬件信号进行交互，但是在这些数据结构通常需要指定一些和当前设计信号相关的信息从而才能构建出来，例如 hierarchy path、signal name 等。
+正常情况下，Verilua 中可以通过一系列的[数据结构](../reference/data_structure.mdx) 来和硬件信号进行交互，但是这些数据结构通常需要指定一些和当前设计信号相关的信息从而才能构建出来，例如 hierarchy path、signal name 等。
 
-针对这两个信息，不同的 DUT 下可能会有所不同，有可能是 hierarchy path 不同，例如在 DUT_A 中，hierarchy path 是 `tb_top.path.to.mod`，在 DUT_B 中是 `tb_top.another.path.to.mod`，也有可能是 signal name 不同，例如在 DUT_A 中，signal name 是 `valid` 和 `value`，在 DUT_B 中是 `vld` 和 `value_2`。假设我们的一个验证组件 `Monitor` 需要接收一个 `Bundle` 来作为信号输入来监测前面提到的这两个信号，作用是当 `valid` 或 `vld` 有效的时候，打印出当前的 `value` 或 `value_2` 的值：
+针对这两个方面，不同的 DUT 下可能会有所不同，有可能是 hierarchy path 不同，例如在 DUT_A 中，hierarchy path 是 `tb_top.path.to.mod`，在 DUT_B 中是 `tb_top.another.path.to.mod`，也有可能是 signal name 不同，例如在 DUT_A 中，signal name 是 `valid` 和 `value`，在 DUT_B 中是 `vld` 和 `value_2`。假设我们的一个验证组件 `Monitor` 需要接收一个 `Bundle` 来作为信号输入来监测前面提到的这两个信号，作用是当 `valid` 或 `vld` 有效的时候，打印出当前的 `value` 或 `value_2` 的值：
 
 ```lua title="Monitor.lua"
 local class = require "pl.class"
@@ -192,3 +192,98 @@ local mon = Monitor(signals_bdl)
 ## 总结
 
 通过上面的例子，我们可以使用 `AliasBundle` 结合 `TypeExpect` 可以编写出一个可复用的验证组件，并且在不同的 DUT 中使用。`TypeExpect` 的 `expect_abdl` 方法还能检查信号的位宽是否满足要求，具体可以参考[此处](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/TypeExpect.lua)的代码。
+
+:::tip[有些信号不存在，但是我仍然复用验证组件]
+
+在某些情况下，不同的 DUT 可能会有不同的信号配置。例如：
+
+- **DUT_A**：有 `valid` 和 `value` 两个信号
+- **DUT_B**：只有 `valid` 信号，没有 `value` 信号
+
+但是我们的 `Monitor` 组件期望同时接收 `valid` 和 `value` 两个信号，这就导致了复用问题。
+
+在这种情况下，我们可以使用 `fake_chdl()` 创建一个虚拟信号，然后通过**字段注入**的方式将其赋值给 `AliasBundle`。
+
+#### 示例：在 DUT_B 中注入虚拟信号
+
+```lua title="test_dut_b.lua"
+local Monitor = require "Monitor"
+
+-- 创建 AliasBundle（value 信号不存在也没关系, 但需要用方括号包起来，表示可选信号，或者也可以添加 value 信号）
+local signals_bdl = ([[
+    | vld => valid
+    | [value]
+]]):abdl {
+    hier = "tb_top.another.path.to.mod",
+    prefix = ""
+}
+
+-- 创建一个虚拟的 value 信号，总是返回 0
+local fake_value = ("tb_top.u_dut.fake_value"):fake_chdl {
+    get = function(self)
+        return 0  -- 返回固定值
+    end,
+    set = function(self, value)
+        -- 忽略设置操作
+    end,
+    get_width = function(self)
+        return 32  -- 模拟 32 位信号
+    end,
+    is = function(self, value)
+        return value == 0
+    end
+}
+
+-- 通过字段注入的方式将虚拟信号赋值给 AliasBundle
+signals_bdl.value = fake_value
+
+local mon = Monitor(signals_bdl)
+
+-- ...
+```
+
+#### 更复杂的虚拟信号示例
+
+```lua title="test_dut_b_with_random.lua"
+local Monitor = require "Monitor"
+
+local signals_bdl = ([[
+    | vld => valid
+    | value => value
+]]):abdl {
+    hier = "tb_top.another.path.to.mod",
+    prefix = ""
+}
+
+-- 创建一个虚拟的 value 信号，返回随机值
+local fake_value = ("tb_top.u_dut.fake_value"):fake_chdl {
+    get = function(self)
+        return math.random(0, 255)  -- 返回 0-255 之间的随机值
+    end,
+    set = function(self, value)
+        -- 记录设置的值
+        self._last_value = value
+    end,
+    get_width = function(self)
+        return 8
+    end,
+    is = function(self, value)
+        return value == self:get()
+    end
+}
+
+-- 注入虚拟信号
+signals_bdl.value = fake_value
+
+local mon = Monitor(signals_bdl)
+```
+
+#### 注意事项
+
+1. **虚拟信号的行为应该合理**：根据实际场景，虚拟信号应该返回合理的值，避免影响验证逻辑
+2. **考虑位宽**：确保虚拟信号的位宽与 Monitor 组件期望的位宽一致
+3. **记录日志**：在虚拟信号的 `set` 方法中可以添加日志，帮助调试
+4. **避免过度使用**：虚拟信号应该只是临时的解决方案，长期来看应该考虑修改 DUT 设计或 Monitor 组件
+5. **TypeExpect 检查**：使用 `expect_abdl` 时，虚拟信号也会参与位宽检查，确保 `fake_chdl` 实现了 `get_width` 方法
+
+:::
