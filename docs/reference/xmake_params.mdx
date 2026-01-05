@@ -12,7 +12,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
 1. `add_rules("verilua")`
 
-    对于所有的 HVL/WAL 场景下的工程，都需要在 xmake 的 target 中添加这一句配置，否则讲无法正常使用 Verilua。
+    对于所有的 HVL/WAL 场景下的工程，都需要在 xmake 的 target 中添加这一句配置，否则将无法正常使用 Verilua。
 
 1. `add_toolchains(<toolchain>)`
 
@@ -97,7 +97,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
     }
     ```
 
-2. `set_values("cfg.tb_gen_flags", <flags for testbench_gen>)` / ``add_values("cfg.tb_gen_flags", "<flags for testbench_gen>")``
+2. `set_values("cfg.tb_gen_flags", <flags for testbench_gen>)` / `add_values("cfg.tb_gen_flags", "<flags for testbench_gen>")`
 
     设置需要传递给 `testbench_gen` 的额外参数，具体支持的 flags 可以参考 [这里](./testbench_generate.mdx) 的介绍。
 
@@ -120,7 +120,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
     :::
 
-3. `set_values("<sim>.flags", <flags used in compilation>)` / ``add_values("<sim>.flags", "<flags used in compilation>")``
+3. `set_values("<sim>.flags", <flags used in compilation>)` / `add_values("<sim>.flags", "<flags used in compilation>")`
     
     用来添加需要传递给仿真器进行编译的额外参数，具体支持的 flags 可以与使用的仿真器相关。
     
@@ -130,7 +130,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
     :::
 
-4. `set_values("<sim>.run_flags", <flags used at runtime>)` / ``add_values("<sim>.run_flags", "<flags used at runtime>")``
+4. `set_values("<sim>.run_flags", <flags used at runtime>)` / `add_values("<sim>.run_flags", "<flags used at runtime>")`
 
     用来添加需要传递给编译后的二进制文件运行时的额外参数。例如 Verilator 编译得到的二进制文件通常叫 `Vtb_top`，则可以使用 `set_values("verilator.run_flags", "--help")` 来添加一个运行时参数，这样在 xmake 执行 run 的时候就会加上这个参数。运行仿真的时候等价于 `Vtb_top --help`。
 

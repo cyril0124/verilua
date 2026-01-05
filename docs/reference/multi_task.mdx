@@ -205,7 +205,7 @@ local id = scheduler:append_task(nil, "task_1", function ()
     print("task_1 is running")
     dut.clock:posedge(10)
     print("task_1 is finished")
-ene)
+end)
 
 local id2 = scheduler:append_task(nil, "task_2", function ()
     print("task_2 is running")
