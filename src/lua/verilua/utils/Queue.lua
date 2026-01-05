@@ -4,6 +4,10 @@ local inspect = require "inspect"
 local class = require "pl.class"
 local table_clear = require "table.clear"
 
+local f = string.format
+local table_insert = table.insert
+local table_concat = table.concat
+
 ---@class verilua.utils.Queue.options Configuration options for Queue
 ---@field name string? Optional name for the queue (useful for debugging)
 ---@field compact_threshold integer? Number of operations before triggering compaction (default: 1000)
@@ -175,15 +179,15 @@ function Queue:do_leak_check()
         for i = self.first_ptr, self.last_ptr do
             local value = self.data[i]
             local value_str = inspect(value)
-            table.insert(elements_info, string.format("  [%d] %s", i - self.first_ptr + 1, value_str))
+            table_insert(elements_info, f("  [%d] %s", i - self.first_ptr + 1, value_str))
         end
 
-        local queue_content = table.concat(elements_info, "\n")
+        local queue_content = table_concat(elements_info, "\n")
         if #elements_info == 0 then
             queue_content = "  (empty)"
         end
 
-        assert(false, string.format(
+        assert(false, f(
             "[%s] Queue leak check failed. Leak check count: %d\n" ..
             "Queue content (%d elements):\n%s",
             self.name,
@@ -203,26 +207,26 @@ end
 ---@return string Formatted string representation of queue elements
 function Queue:__tostring()
     local header_parts = {}
-    table.insert(header_parts, string.format("[%s]", self.name))
+    table_insert(header_parts, f("[%s]", self.name))
 
     if self.leak_check then
-        table.insert(header_parts, string.format("Leak check: %d/%d", self.leak_check_cnt, self.leak_check_threshold))
+        table_insert(header_parts, f("Leak check: %d/%d", self.leak_check_cnt, self.leak_check_threshold))
     end
 
     if self:is_empty() then
-        return table.concat(header_parts, " ") .. " Queue is empty"
+        return table_concat(header_parts, " ") .. " Queue is empty"
     end
 
     local elements = {}
     for i = self.first_ptr, self.last_ptr do
         local value = self.data[i]
         local value_str = inspect(value)
-        table.insert(elements, string.format("  [%d] %s", i - self.first_ptr + 1, value_str))
+        table_insert(elements, f("  [%d] %s", i - self.first_ptr + 1, value_str))
     end
 
-    table.insert(header_parts, string.format("Queue (%d elements):", self:size()))
+    table_insert(header_parts, f("Queue (%d elements):", self:size()))
 
-    return table.concat(header_parts, " ") .. "\n" .. table.concat(elements, "\n")
+    return table_concat(header_parts, " ") .. "\n" .. table_concat(elements, "\n")
 end
 
 return Queue
