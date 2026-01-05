@@ -3,7 +3,6 @@
 local ffi = require "ffi"
 local bit = require "bit"
 local math = require "math"
-local utils = require "LuaUtils"
 local class = require "pl.class"
 local table_new = require "table.new"
 local string_buffer = require "string.buffer"
@@ -22,7 +21,6 @@ local math_floor = math.floor
 local math_max = math.max
 local string_rep = string.rep
 local setmetatable = setmetatable
-local to_hex_str = utils.to_hex_str
 
 ---@class (exact) verilua.utils.SubBitVec
 ---@field __type string
@@ -62,7 +60,7 @@ local to_hex_str = utils.to_hex_str
 ---@field _set_bitfield_vec fun(self: verilua.utils.BitVec, s: integer, e: integer, v: table<integer, integer>): verilua.utils.BitVec
 ---@field dump_str fun(self: verilua.utils.BitVec): string
 ---@field dump fun(self: verilua.utils.BitVec)
----@field to_hex_str fun(self: verilua.utils.BitVec): verilua.utils.BitVec.HexStr
+----@field to_hex_str fun(self: verilua.utils.BitVec): verilua.utils.BitVec.HexStr
 ---@field tonumber fun(self: verilua.utils.BitVec): integer
 ---@field tonumber64 fun(self: verilua.utils.BitVec): integer
 local BitVec = class()
@@ -547,8 +545,10 @@ function BitVec:_set_bitfield_vec(s, e, u32_vec)
     return self
 end
 
+---@nodiscard Return value should not be discarded
+---@return verilua.utils.BitVec.HexStr
 function BitVec:dump_str()
-    return to_hex_str(self.u32_vec)
+    return self:to_hex_str()
 end
 
 function BitVec:dump()
@@ -563,6 +563,50 @@ function BitVec:__tostring()
     return result
 end
 
+--- Convert BitVec to hexadecimal string (MSB to LSB)
+---
+--- The returned string represents the BitVec value with MSB (Most Significant Byte) first,
+--- which is the natural left-to-right reading order for humans.
+---
+--- **Internal Storage (Little Endian):**
+---   u32_vec: LSB {u32_0, u32_1, u32_2, ...} MSB
+---   - u32_vec[1] contains the least significant 32 bits
+---   - u32_vec[n] contains the most significant 32 bits
+---
+--- **Output Format (Big Endian for readability):**
+---   Returns: "MSB...LSB" (hex string)
+---   - Most significant byte first
+---   - Each u32 is formatted as 8 hex digits (zero-padded)
+---
+--- **Examples:**
+--- ```lua
+---   -- Single u32 (32 bits)
+---   local bv = BitVec(0x12345678)
+---   bv:to_hex_str()  -- Returns: "12345678"
+---
+---   -- Multiple u32 (64 bits)
+---   local bv = BitVec({ 0x12345678, 0x9ABCDEF0 })
+---   -- u32_vec[1] = 0x12345678 (LSB)
+---   -- u32_vec[2] = 0x9ABCDEF0 (MSB)
+---   bv:to_hex_str()  -- Returns: "9abcdef012345678"
+---
+---   -- From hex string
+---   local bv = BitVec("aabbccdd")
+---   bv:to_hex_str()  -- Returns: "aabbccdd"
+---
+---   -- With different bit widths
+---   local bv = BitVec(0x12345678, 28)  -- bit_width = 28
+---   -- Note: to_hex_str ignores bit_width, returns full u32_vec
+---   bv:to_hex_str()  -- Returns: "12345678"
+--- ```
+---
+--- **Performance Note:**
+---   This method uses string.buffer for high performance (~1.26x-3.10x faster than
+---   traditional bit.tohex + table.concat approach). The buffer is reused across
+---   multiple calls to avoid memory allocations.
+---
+---@nodiscard Return value should not be discarded
+---@return verilua.utils.BitVec.HexStr Hexadecimal string (MSB first)
 function BitVec:to_hex_str()
     local buffer = self.to_hex_str_buffer
     local nr_u32_vec = self.nr_u32_vec or #self.u32_vec

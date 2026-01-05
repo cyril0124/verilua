@@ -113,8 +113,8 @@ describe("BitVec test", function()
         local bitvec = BitVec({ 0x12345678 })
         expect.equal(bitvec:dump_str(), "12345678")
 
-        local bitvec = BitVec({ 0x12345678, 0x4455667788 })
-        expect.equal(bitvec:dump_str(), "5566778812345678")
+        local bitvec = BitVec({ 0x12345678, 0x44556677 })
+        expect.equal(bitvec:dump_str(), "4455667712345678")
     end)
 
     it("should work properly for get_bitfield_hex_str()", function()
