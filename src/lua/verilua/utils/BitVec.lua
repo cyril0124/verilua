@@ -100,6 +100,11 @@ function BitVec:_init(data, bit_width)
     local auto_bit_width
 
     self.__type = "BitVec"
+    -- Cache for SubBitVec instances created via __call(s, e)
+    -- Memory leak is not a concern because:
+    -- 1. In typical usage, (s, e) combinations are limited (e.g., register fields)
+    -- 2. Each BitVec instance has its own cache, which is freed when the BitVec is GC'd
+    -- 3. Repeated calls with the same (s, e) will reuse cached SubBitVec instances
     self._call_cache = {}
 
     if typ == "table" then
