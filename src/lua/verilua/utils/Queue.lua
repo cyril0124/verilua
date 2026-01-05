@@ -2,6 +2,7 @@
 
 local inspect = require "inspect"
 local class = require "pl.class"
+local table_clear = require "table.clear"
 
 ---@class verilua.utils.Queue.options Configuration options for Queue
 ---@field name string? Optional name for the queue (useful for debugging)
@@ -160,15 +161,7 @@ function Queue:size()
 end
 
 function Queue:reset()
-    local data = self.data
-    local first_ptr = self.first_ptr
-    local last_ptr = self.last_ptr
-
-    -- Clear used elements
-    for i = first_ptr, last_ptr do
-        data[i] = nil
-    end
-
+    table_clear(self.data)
     self.leak_check_cnt = 0
     self.first_ptr = 1
     self.last_ptr = 0
