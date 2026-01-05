@@ -1,0 +1,32 @@
+{
+    "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
+
+    "runtime": {
+        "version": "LuaJIT"
+    },
+
+    "diagnostics": {
+        "workspaceDelay": 200,
+        "severity": {
+            "unnecessary-assert": "hint",
+            "unnecessary-if": "warning",
+            "redefined-local": "hint"
+        }
+    },
+
+    "workspace": {
+        "ignoreDir": [
+            ".vscode",
+            "extern",
+            "libverilua",
+            "build",
+            "tmp",
+            "luajit-pro",
+            "src/lua/thirdparty_lib",
+            "src/gen/out"
+        ],
+        "library": [
+            "./tmp_lua_lib_dir"
+        ]
+    }
+}

@@ -260,6 +260,51 @@ target("build_all_tools", function()
     end)
 end)
 
+target("lsp-check-lua", function()
+    set_kind("phony")
+    set_default(false)
+    on_run(function()
+        import("lib.detect.find_file")
+        if not find_file("emmylua_check", { "$(env PATH)" }) then
+            raise("emmylua_check tool is not found! Please install it via `cargo install emmylua_check`")
+        end
+
+        local emmyrc = path.join(prj_dir, ".emmyrc-lsp-check.json")
+        local F = os.getenv("F") -- F is the filename to check
+        if F then
+            local lua_dir = path.join(prj_dir, "src", "lua")
+
+            local file = find_file(F, { path.join(lua_dir, "**") })
+            assert(file ~= nil, "file not found: " .. F)
+            assert(type(file) == "string", "multiple files found for: " .. F)
+            assert(os.isfile(file), "file not found: " .. file)
+            print("[lsp-check-lua] Checking file: " .. file)
+
+            local tmp_file_dir = path.join(prj_dir, "tmp_lua_file_dir")
+            local tmp_lib_dir = path.join(prj_dir, "tmp_lua_lib_dir")
+            os.mkdir(tmp_file_dir)
+            os.cp(file, tmp_file_dir)
+
+            os.mkdir(tmp_lib_dir)
+            os.cp(path.join(lua_dir, "*"), tmp_lib_dir)
+
+            local _file = find_file(F, { path.join(tmp_lib_dir, "**") })
+            os.rm(_file)
+
+            try {
+                function()
+                    os.exec("emmylua_check --config " .. emmyrc .. " " .. tmp_file_dir)
+                end
+            }
+
+            os.exec("rm -rf " .. tmp_file_dir)
+            os.exec("rm -rf " .. tmp_lib_dir)
+        else
+            os.exec("emmylua_check --config " .. emmyrc .. " " .. prj_dir)
+        end
+    end)
+end)
+
 target("format-lua", function()
     set_kind("phony")
     set_default(false)
