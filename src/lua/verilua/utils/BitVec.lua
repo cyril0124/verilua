@@ -6,6 +6,7 @@ local math = require "math"
 local utils = require "LuaUtils"
 local class = require "pl.class"
 local table_new = require "table.new"
+local string_buffer = require "string.buffer"
 
 local type = type
 local print = print
@@ -40,9 +41,11 @@ local to_hex_str = utils.to_hex_str
 
 ---@class (exact) verilua.utils.BitVec
 ---@overload fun(data: table<integer, integer>|ffi.cdata*|integer|string, bit_width?: integer): verilua.utils.BitVecInst
+---@field private to_hex_str_buffer string.buffer
 ---@field __type string
 ---@field _call_cache table<string, verilua.utils.SubBitVec>
 ---@field u32_vec table<integer, integer>
+---@field nr_u32_vec integer
 ---@field bit_width integer
 ---@field beat_size integer
 ---@field _update_u32_vec fun(self: verilua.utils.BitVec, data: integer|integer[])
@@ -159,6 +162,9 @@ function BitVec:_init(data, bit_width)
                 end
             end
 
+            self.nr_u32_vec = #self.u32_vec
+            self.to_hex_str_buffer = string_buffer.new()
+
             self.tonumber = function(this)
                 return tonumber(this.u32_vec[1]) --[[@as integer]]
             end
@@ -243,6 +249,9 @@ function BitVec:_init(data, bit_width)
     else
         assert(false, "Unsupported type: " .. typ)
     end
+
+    self.nr_u32_vec = #self.u32_vec
+    self.to_hex_str_buffer = string_buffer.new()
 
     self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
     if self.beat_size == 1 then
@@ -333,6 +342,8 @@ function BitVec:update_value(data)
     else
         assert(false, "Unsupported type: " .. typ)
     end
+
+    self.nr_u32_vec = #self.u32_vec
 end
 
 function BitVec:get_bitfield(s, e)
@@ -547,11 +558,12 @@ function BitVec:__tostring()
 end
 
 function BitVec:to_hex_str()
-    local result = ""
-    for i = 1, #self.u32_vec do
-        result = bit_tohex(self.u32_vec[i]) .. result
+    local buffer = self.to_hex_str_buffer
+    local nr_u32_vec = self.nr_u32_vec or #self.u32_vec
+    for i = nr_u32_vec, 1, -1 do
+        buffer:putf("%08x", self.u32_vec[i])
     end
-    return result
+    return buffer:get()
 end
 
 function BitVec:__concat(other)
