@@ -157,7 +157,7 @@ fork {
 ## 任务同步
 多个任务之间的同步可以使用 `EventHandle` 来创建特定事件实现，不同于直接使用全局变量进行同步，`EventHandle` 能够更进一步在事件触发的时候对正在等待的任务进行唤醒，从而实现了及时的任务同步。具体代码如下：
 ```lua
--- Create a EvevntHandle with name "name of the event"
+-- Create an EventHandle with name "name of the event"
 local e = ("name of the event"):ehdl()
 
 fork {
@@ -179,7 +179,7 @@ fork {
     end,
 }
 ```
-上述代码中，task_2 将会在第十个仿真周期到来的时候被 task_1 唤醒，并且在唤醒后会打印出 `task_2 is awakened`，而 task_3 则在第五个仿真周期到来的时候被 task_1 唤醒，并且在唤醒后会打印出 `task_3 is awakened`。
+上述代码中，task_2 会立即开始等待事件，task_3 在等待 5 个时钟周期后开始等待事件。task_1 在第 10 个时钟周期发送事件，此时 task_2 和 task_3 都在等待该事件，因此它们都会被唤醒。
 
 需要注意的是，Verilua 允许有多个任务在等待同一个事件，但是同一时间点不能有多个任务同时 send 同一个 `EventHandle`，如果多个任务同时 send 事件，则会导致待唤醒的任务被唤醒多次，出现不符合预期的行为，但是 Verilua 底层并不会检查这一种情况，因此用户需要自行规避。
 
