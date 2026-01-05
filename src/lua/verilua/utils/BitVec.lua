@@ -19,6 +19,7 @@ local bit_tohex = bit.tohex
 local bit_rshift = bit.rshift
 local bit_lshift = bit.lshift
 local math_floor = math.floor
+local math_max = math.max
 local string_rep = string.rep
 local setmetatable = setmetatable
 local to_hex_str = utils.to_hex_str
@@ -571,46 +572,15 @@ function BitVec:__concat(other)
 end
 
 function BitVec:__eq(other)
-    local self_len = #self.u32_vec
-    local other_len = #other.u32_vec
-    local result = true
-
-    if self_len == other_len then
-        for i = 1, self_len do
-            if self.u32_vec[i] ~= other.u32_vec[i] then
-                result = false
-                break
-            end
-        end
-    elseif self_len > other_len then
-        for i = 1, other_len do
-            if self.u32_vec[i] ~= other.u32_vec[i] then
-                result = false
-                break
-            end
-        end
-        for i = other_len + 1, self_len do
-            if self.u32_vec[i] ~= 0 then
-                result = false
-                break
-            end
-        end
-    elseif self_len < other_len then
-        for i = 1, self_len do
-            if self.u32_vec[i] ~= other.u32_vec[i] then
-                result = false
-                break
-            end
-        end
-        for i = self_len + 1, other_len do
-            if other.u32_vec[i] ~= 0 then
-                result = false
-                break
-            end
+    local max_len = math_max(#self.u32_vec, #other.u32_vec)
+    for i = 1, max_len do
+        local self_val = self.u32_vec[i] or 0
+        local other_val = other.u32_vec[i] or 0
+        if self_val ~= other_val then
+            return false
         end
     end
-
-    return result
+    return true
 end
 
 function BitVec:__len()
