@@ -132,7 +132,8 @@ end
 
 ---@param value table
 ---@param name string
-function texpect.expect_table(value, name)
+---@param table_keys table<integer, string>? Optional whitelist of allowed table keys
+function texpect.expect_table(value, name, table_keys)
     if type(value) ~= "table" then
         texpect_error(
             string.format(
@@ -143,6 +144,34 @@ function texpect.expect_table(value, name)
                 smart_inspect(value)
             )
         )
+    end
+
+    -- Validate table keys against whitelist if provided
+    if table_keys then
+        local keys_set = {}
+        for _, k in ipairs(table_keys) do
+            keys_set[k] = true
+        end
+
+        local invalid_keys = {}
+        for key, _ in pairs(value) do
+            if not keys_set[key] then
+                table.insert(invalid_keys, key)
+            end
+        end
+
+        if #invalid_keys > 0 then
+            texpect_error(
+                string.format(
+                    "  Argument: %s\n  Expected: table with keys %s\n  Received: table with unexpected keys: %s\n  Allowed keys: %s\n  Value: %s",
+                    Logger.colorize("`" .. name .. "`", colors.YELLOW),
+                    Logger.colorize(inspect(table_keys), colors.GREEN),
+                    Logger.colorize(inspect(invalid_keys), colors.RED),
+                    Logger.colorize(inspect(table_keys), colors.CYAN),
+                    smart_inspect(value)
+                )
+            )
+        end
     end
 end
 

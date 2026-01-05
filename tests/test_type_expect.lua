@@ -89,6 +89,32 @@ describe("TypeExpect test", function()
         expect.equal(status, false)
         err = strip_ansi(err)
         expect.truthy(err:find("expect_table", 1, true))
+
+        -- Test with table_keys whitelist - valid case
+        texpect.expect_table({ a = 1, b = 2 }, "valid_table", { "a", "b" })
+
+        -- Test with table_keys whitelist - empty table
+        texpect.expect_table({}, "empty_table", { "a", "b" })
+
+        -- Test with table_keys whitelist - single invalid key
+        status, err = pcall(function()
+            texpect.expect_table({ a = 1, b = 2, c = 3 }, "invalid_table", { "a", "b" })
+        end)
+        expect.equal(status, false)
+        err = strip_ansi(err)
+        expect.truthy(err:find("unexpected keys", 1, true))
+        expect.truthy(err:find("c", 1, true))
+
+        -- Test with table_keys whitelist - multiple invalid keys
+        status, err = pcall(function()
+            texpect.expect_table({ a = 1, x = 2, y = 3, z = 4 }, "multi_invalid_table", { "a", "b" })
+        end)
+        expect.equal(status, false)
+        err = strip_ansi(err)
+        expect.truthy(err:find("unexpected keys", 1, true))
+        expect.truthy(err:find("x", 1, true))
+        expect.truthy(err:find("y", 1, true))
+        expect.truthy(err:find("z", 1, true))
     end)
 
     it("should work for expect_function", function()
@@ -246,4 +272,3 @@ describe("TypeExpect test", function()
         expect.truthy(err:find("expect_covergroup", 1, true))
     end)
 end)
-
