@@ -35,7 +35,15 @@ local math_random = math.random
 ---@operator len: integer Length operator overload returns current element count
 local StaticQueue = class() --[[@as verilua.utils.StaticQueue]]
 
+---@param size integer
+---@param name? string
 function StaticQueue:_init(size, name)
+    assert(type(size) == "number", "size must be a number")
+
+    if name then
+        assert(type(name) == "string", "name must be a string")
+    end
+
     self.name = name or "Unknown_StaticQueue"
     self.first_ptr = 1
     self.last_ptr = 0
@@ -80,6 +88,10 @@ end
 
 function StaticQueue:front()
     return self.data[self.first_ptr]
+end
+
+function StaticQueue:last()
+    return self.data[self.last_ptr]
 end
 
 function StaticQueue:is_empty()
