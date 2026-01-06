@@ -65,10 +65,12 @@ local NOOP = 5555
 ---@field private task_name_map_archived table<verilua.scheduler.TaskID, string> Map of archived task IDs to task names
 ---@field private task_fired_status_map table<verilua.scheduler.TaskID, boolean> Map of task IDs to their fired status
 ---@field private task_execution_count_map table<verilua.scheduler.TaskID, integer> Map of task IDs to their execution count
----@field private pending_removal_tasks verilua.scheduler.TaskID[] List of task IDs pending removal
----@field private user_removal_tasks verilua.scheduler.TaskID[] List of user specified task IDs to be removed
----@field private posedge_tasks table<verilua.scheduler.TaskID, boolean> Available only when EDGE_STEP is enabled)
----@field private negedge_tasks table<verilua.scheduler.TaskID, boolean> Available only when EDGE_STEP is enabled)
+---@field private pending_removal_tasks table<integer, verilua.scheduler.TaskID> List of task IDs pending removal
+---@field private nr_pending_removal_tasks integer Number of tasks pending removal
+---@field private nr_user_removal_tasks integer Number of user specified task IDs to be removed
+---@field private user_removal_tasks_set table<verilua.scheduler.TaskID, boolean> Set of user specified task IDs to be removed
+---@field private posedge_tasks table<verilua.scheduler.TaskID, boolean> Set of task IDs triggered on posedge (available only when EDGE_STEP is enabled)
+---@field private negedge_tasks table<verilua.scheduler.TaskID, boolean> Set of task IDs triggered on negedge (available only when EDGE_STEP is enabled)
 ---@field private next_task_id verilua.scheduler.TaskID Next available task ID
 ---@field private next_event_id verilua.scheduler.EventID Next available event ID
 ---@field event_task_id_list_map table<verilua.scheduler.EventID, verilua.scheduler.TaskID[]> Map of event IDs to lists of task IDs
@@ -117,8 +119,12 @@ function Scheduler:_init()
     self.task_name_map_archived = {}
     self.task_fired_status_map = {} -- Used to check if a task has been fired
     self.task_execution_count_map = {}
+
+    self.nr_user_removal_tasks = 0
+    self.user_removal_tasks_set = {}
+
     self.pending_removal_tasks = {}
-    self.user_removal_tasks = {}
+    self.nr_pending_removal_tasks = 0
 
     ---@diagnostic disable-next-line: undefined-global
     if _G.EDGE_STEP then
@@ -174,6 +180,7 @@ function Scheduler:_alloc_task_id()
         end
     end
 
+    -- TODO: How to recycle task id?
     local id = self.next_task_id
     self.next_task_id = self.next_task_id + 1
     if self.next_task_id > SCHEDULER_MAX_TASK_ID then
@@ -211,6 +218,7 @@ end
 
 function Scheduler:_remove_task(id)
     table_insert(self.pending_removal_tasks, id)
+    self.nr_pending_removal_tasks = self.nr_pending_removal_tasks + 1
 
     ---@diagnostic disable-next-line: undefined-global
     if _G.EDGE_STEP then
@@ -235,8 +243,11 @@ function Scheduler:remove_task(id)
         end
     end
 
+    ---@cast id -0
+
     if self.task_name_map_running[id] ~= nil then
-        table_insert(self.user_removal_tasks, id)
+        self.user_removal_tasks_set[id] = true
+        self.nr_user_removal_tasks = self.nr_user_removal_tasks + 1
     end
 end
 
@@ -377,6 +388,7 @@ function Scheduler:wakeup_task(id)
 
     if found_in_removal_tasks then
         table_remove(self.pending_removal_tasks, removal_task_id)
+        self.nr_pending_removal_tasks = self.nr_pending_removal_tasks - 1
     end
 
     self.task_name_map_running[id] = task_name
@@ -402,25 +414,34 @@ function Scheduler:try_wakeup_task(id)
 end
 
 function Scheduler:schedule_task(id)
-    for _, remove_id in ipairs(self.pending_removal_tasks) do
-        self.task_name_map_running[remove_id] = nil
-        self.task_execution_count_map[remove_id] = 0
-        self.task_fired_status_map[remove_id] = false
+    local nr_pending_removal_tasks = self.nr_pending_removal_tasks
+    if nr_pending_removal_tasks > 0 then
+        local pending_removal_tasks = self.pending_removal_tasks
+        for i = 1, nr_pending_removal_tasks do
+            local remove_id = pending_removal_tasks[i]
 
-        if _G.SAFETY then
-            if remove_id == id then
-                assert(false, "remove_id == id")
-            end
-        end
-    end
-    table_clear(self.pending_removal_tasks)
-
-    for i, remove_id in ipairs(self.user_removal_tasks) do
-        if remove_id == id then
-            table_remove(self.user_removal_tasks, i)
             self.task_name_map_running[remove_id] = nil
             self.task_execution_count_map[remove_id] = 0
             self.task_fired_status_map[remove_id] = false
+
+            if _G.SAFETY then
+                if remove_id == id then
+                    assert(false, "remove_id == id")
+                end
+            end
+        end
+        self.nr_pending_removal_tasks = 0
+        table_clear(pending_removal_tasks)
+    end
+
+    if self.nr_user_removal_tasks > 0 then
+        if self.user_removal_tasks_set[id] then
+            self.user_removal_tasks_set[id] = nil
+            self.nr_user_removal_tasks = self.nr_user_removal_tasks - 1
+
+            self.task_name_map_running[id] = nil
+            self.task_execution_count_map[id] = 0
+            self.task_fired_status_map[id] = false
             return
         end
     end

@@ -31,8 +31,9 @@ local cfg = _G.cfg
 ---@field private task_execution_count_map table<verilua.scheduler.TaskID, integer> Map of task IDs to their execution count
 ---@field private pending_removal_tasks verilua.scheduler.TaskID[] List of task IDs pending removal
 ---@field private user_removal_tasks verilua.scheduler.TaskID[] List of user specified task IDs to be removed
----@field private posedge_tasks table<verilua.scheduler.TaskID, boolean> Available only when EDGE_STEP is enabled)
----@field private negedge_tasks table<verilua.scheduler.TaskID, boolean> Available only when EDGE_STEP is enabled)
+---@field private user_removal_tasks_set table<verilua.scheduler.TaskID, boolean> Set of user specified task IDs to be removed
+---@field private posedge_tasks table<verilua.scheduler.TaskID, boolean> Set of task IDs triggered on posedge (available only when EDGE_STEP is enabled)
+---@field private negedge_tasks table<verilua.scheduler.TaskID, boolean> Set of task IDs triggered on negedge (available only when EDGE_STEP is enabled)
 ---@field private next_task_id verilua.scheduler.TaskID Next available task ID
 ---@field private next_event_id verilua.scheduler.EventID Next available event ID
 ---@field event_task_id_list_map table<verilua.scheduler.EventID, verilua.scheduler.TaskID[]> Map of event IDs to lists of task IDs
