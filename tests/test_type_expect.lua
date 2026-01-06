@@ -73,6 +73,20 @@ describe("TypeExpect test", function()
         expect.equal(status, false)
         err = strip_ansi(err)
         expect.truthy(err:find("expect_integer", 1, true))
+
+        -- Test LuaJIT LL and ULL support
+        local ffi = require "ffi"
+        local ll_value = 123LL
+        local ull_value = 456ULL
+        texpect.expect_integer(ll_value, "var_ll")
+        texpect.expect_integer(ull_value, "var_ull")
+
+        -- Test that invalid cdata types are rejected
+        local invalid_cdata = ffi.new("struct { int x; }")
+        status, err = pcall(function() texpect.expect_integer(invalid_cdata, "var_invalid") end)
+        expect.equal(status, false)
+        err = strip_ansi(err)
+        expect.truthy(err:find("expect_integer", 1, true))
     end)
 
     it("should work for expect_boolean", function()

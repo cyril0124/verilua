@@ -1,5 +1,6 @@
 ---@diagnostic disable: unnecessary-if, global-in-non-module
 
+local ffi = require "ffi"
 local inspect = require "inspect"
 
 local type = type
@@ -98,15 +99,25 @@ function texpect.expect_number(value, name)
     end
 end
 
----@param value integer
+---@param value integer|ffi.ct* Also supports LuaJIT LL/ULL literals
 ---@param name string
 function texpect.expect_integer(value, name)
-    if type(value) ~= "number" then
+    local is_valid = false
+
+    if type(value) == "number" then
+        is_valid = true
+    elseif type(value) == "cdata" then
+        if ffi.istype("int64_t", value) or ffi.istype("uint64_t", value) then
+            is_valid = true
+        end
+    end
+
+    if not is_valid then
         texpect_error(
             string.format(
                 "  Argument: %s\n  Expected: %s\n  Received: %s (value: %s)",
                 Logger.colorize("`" .. name .. "`", colors.YELLOW),
-                Logger.colorize("integer", colors.GREEN),
+                Logger.colorize("integer (number, LL, or ULL)", colors.GREEN),
                 Logger.colorize(type(value), colors.RED),
                 smart_inspect(value)
             )
