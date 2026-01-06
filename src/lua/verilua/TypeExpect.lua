@@ -256,7 +256,7 @@ end
 ---@param width_max number?
 function texpect.expect_chdl(value, name, width_or_width_min, width_max)
     if type(value) ~= "table" or value.__type ~= "CallableHDL" then
-        local received_type = type(value)
+        local received_type = type(value) --[[@as string]]
         if received_type == "table" and value.__type then
             received_type = tostring(value.__type)
         end
@@ -302,7 +302,7 @@ end
 ---@param name string
 function texpect.expect_bdl(value, name)
     if type(value) ~= "table" or value.__type ~= "Bundle" then
-        local received_type = type(value)
+        local received_type = type(value) --[[@as string]]
         if received_type == "table" and value.__type then
             received_type = tostring(value.__type)
         end
@@ -362,7 +362,7 @@ Throws:
 ---@param params table<integer, string|verilua.TypeExpect.expect_abdl.params>
 function texpect.expect_abdl(value, name, params)
     if type(value) ~= "table" or value.__type ~= "AliasBundle" then
-        local received_type = type(value)
+        local received_type = type(value) --[[@as string]]
         if received_type == "table" and value.__type then
             received_type = tostring(value.__type)
         end
@@ -495,7 +495,7 @@ end
 ---@param elements_table string[]
 function texpect.expect_database(value, name, elements_table)
     if type(value) ~= "table" or value.__type ~= "LuaDataBase" then
-        local received_type = type(value)
+        local received_type = type(value) --[[@as string]]
         if received_type == "table" and value.__type then
             received_type = tostring(value.__type)
         end
@@ -545,7 +545,7 @@ end
 
 function texpect.expect_covergroup(value, name)
     if type(value) ~= "table" or value.__type ~= "CoverGroup" then
-        local received_type = type(value)
+        local received_type = type(value) --[[@as string]]
         if received_type == "table" and value.__type then
             received_type = tostring(value.__type)
         end
