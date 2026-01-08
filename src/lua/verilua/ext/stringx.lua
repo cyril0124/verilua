@@ -110,7 +110,7 @@ local scheduler = require "verilua.scheduler.LuaScheduler"
 ---@field hdl fun(hierpath: string): verilua.handles.ComplexHandleRaw
 ---@field hdl_safe fun(hierpath: string): verilua.handles.ComplexHandleRaw
 ---@field chdl fun(hierpath: string, hdl?: verilua.handles.ComplexHandleRaw): verilua.handles.CallableHDL
----@field fake_chdl fun(hierpath: string, overload_func_tbl: string.fake_chdl.overload_func_tbl): verilua.handles.CallableHDL
+----@field fake_chdl fun(hierpath: string, overload_func_tbl: string.fake_chdl.overload_func_tbl): verilua.handles.CallableHDL
 ---@field bundle fun(str: string, params: string.bdl.params): verilua.handles.Bundle
 ---@field bdl fun(str: string, params: string.bdl.params): verilua.handles.Bundle
 ---@field abdl fun(str: string, params_table: string.bdl.params): verilua.handles.AliasBundle
@@ -404,6 +404,10 @@ end
 --- ```
 --- Note: Accessing any method or property not defined in `overload_func_tbl` will
 --- raise an assertion error.
+---@nodiscard Return value should not be ignored
+---@param hierpath string
+---@param overload_func_tbl string.fake_chdl.overload_func_tbl
+---@return verilua.handles.CallableHDL
 string.fake_chdl = function(hierpath, overload_func_tbl)
     ---@type verilua.handles.CallableHDL
     ---@diagnostic disable-next-line: missing-fields
@@ -420,7 +424,7 @@ string.fake_chdl = function(hierpath, overload_func_tbl)
 
     setmetatable(chdl, {
         __index = function(_self, key)
-            assert(false, f("[fake_chdl] Cannot access key: %s, key no found!", key))
+            assert(false, f("[fake_chdl] Cannot access key: `%s`, key no found!", key))
         end,
     })
 

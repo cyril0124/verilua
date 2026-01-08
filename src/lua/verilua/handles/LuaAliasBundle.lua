@@ -21,7 +21,7 @@ local verilua_debug = _G.verilua_debug
 ---@field [integer] string other alias name
 
 ---@class (exact) verilua.handles.AliasBundle
----@overload fun(alias_signal_tbl: verilua.handles.AliasBundle.alias_signal_pair[], prefix: string, hierarchy: string, name: string, optional_signals?: table<string>): verilua.handles.AliasBundle
+---@overload fun(alias_signal_tbl: verilua.handles.AliasBundle.alias_signal_pair[], prefix: string, hierarchy: string, name: string, optional_signals: table<integer, string>?): verilua.handles.AliasBundle
 ---@field __type string
 ---@field prefix string
 ---@field hierarchy string
