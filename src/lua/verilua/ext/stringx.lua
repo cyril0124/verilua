@@ -409,8 +409,9 @@ string.fake_chdl = function(hierpath, overload_func_tbl)
     ---@diagnostic disable-next-line: missing-fields
     local chdl = {
         __type = "CallableHDL",
-        name = "fake_chdl__" .. hierpath,
+        name = "fake_chdl::" .. hierpath,
         fullpath = hierpath,
+        hdl = 0xFFFFFFFF,
     }
 
     for k, v in pairs(overload_func_tbl) do

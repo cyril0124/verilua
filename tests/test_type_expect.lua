@@ -3,12 +3,40 @@ local texpect = require "verilua.TypeExpect"
 
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
+-- Helper function to create fake_chdl (mimicking SLCP's fake_chdl)
+local function fake_chdl(hierpath, overload_func_tbl)
+    local chdl = {
+        __type = "CallableHDL",
+        name = "fake_chdl::" .. hierpath,
+        fullpath = hierpath,
+        hdl = {}, -- Use unique table as hdl
+    }
+
+    for k, v in pairs(overload_func_tbl) do
+        chdl[k] = v
+    end
+
+    setmetatable(chdl, {
+        __index = function(_self, key)
+            assert(false, string.format("[fake_chdl] Cannot access key: `%s`, key no found!", key))
+        end,
+    })
+
+    return chdl
+end
+
+-- Add fake_chdl to string metatable (mimicking SLCP)
+string.fake_chdl = function(self, overload_func_tbl)
+    return fake_chdl(self, overload_func_tbl)
+end
+
 -- Mocking some objects for testing
 local function mock_chdl(width)
     local chdl = {
         __type = "CallableHDL",
         get_width = function() return width end,
         fullpath = "top.sig",
+        name = "top.sig",
         hdl = {} -- dummy hdl handle
     }
     ---@cast chdl verilua.handles.CallableHDL
@@ -258,6 +286,134 @@ describe("TypeExpect test", function()
         expect.equal(status, false)
         err = strip_ansi(err)
         expect.truthy(err:find("must have `name` or `names` field"))
+    end)
+
+    it("should work for expect_chdl with fake_chdl", function()
+        -- Test fake_chdl with get_width() method - should work
+        local fake_chdl_with_width = ("top.fake_sig"):fake_chdl {
+            get_width = function(self)
+                return 32
+            end
+        }
+        texpect.expect_chdl(fake_chdl_with_width, "my_fake_chdl")
+        texpect.expect_chdl(fake_chdl_with_width, "my_fake_chdl", 32)
+        texpect.expect_chdl(fake_chdl_with_width, "my_fake_chdl", 16, 64)
+
+        -- Test fake_chdl without get_width() method, no width constraint - should work
+        local fake_chdl_no_width = ("top.fake_sig2"):fake_chdl {}
+        texpect.expect_chdl(fake_chdl_no_width, "my_fake_chdl_no_width")
+
+        -- Test fake_chdl without get_width() method, with width constraint - should error
+        local status, err = pcall(function()
+            texpect.expect_chdl(fake_chdl_no_width, "my_fake_chdl_no_width", 32)
+        end)
+        expect.equal(status, false)
+        -- Check that error message contains key information
+        expect.truthy(err:find("fake_chdl", 1, true) or err:find("does not have a `get_width()` method", 1, true))
+
+        -- Test fake_chdl without get_width() method, with width range constraint - should error
+        local status, err = pcall(function()
+            texpect.expect_chdl(fake_chdl_no_width, "my_fake_chdl_no_width", 16, 64)
+        end)
+        expect.equal(status, false)
+        -- Check that error message contains key information
+        expect.truthy(err:find("fake_chdl", 1, true) or err:find("does not have a `get_width()` method", 1, true))
+    end)
+
+    it("should work for expect_abdl with fake_chdl", function()
+        -- Create fake_chdl signals
+        local fake_sig1 = ("top.fake_sig1"):fake_chdl {
+            get_width = function(self)
+                return 10
+            end
+        }
+        local fake_sig2 = ("top.fake_sig2"):fake_chdl {
+            get_width = function(self)
+                return 32
+            end
+        }
+        local fake_sig1_alias = fake_sig1 -- Same signal, different name
+
+        local fake_abdl = mock_abdl({
+            s1 = fake_sig1,
+            s2 = fake_sig2,
+            s1_alias = fake_sig1_alias
+        })
+
+        -- Test fake_chdl with get_width() method - should work
+        texpect.expect_abdl(fake_abdl, "my_fake_abdl", {
+            { name = "s1", width = 10 },
+            { name = "s2", width_min = 16, width_max = 64 },
+            "s1"
+        })
+
+        -- Test fake_chdl with names (aliases) - should work
+        texpect.expect_abdl(fake_abdl, "my_fake_abdl", {
+            { names = { "s1", "s1_alias" }, width = 10 }
+        })
+
+        -- Test fake_chdl without get_width() method, no width constraint - should work
+        local fake_sig_no_width = ("top.fake_sig_no_width"):fake_chdl {}
+        local fake_abdl_no_width = mock_abdl({ s_no_width = fake_sig_no_width })
+        texpect.expect_abdl(fake_abdl_no_width, "my_fake_abdl_no_width", {
+            { name = "s_no_width" }
+        })
+
+        -- Test fake_chdl signal comparison - should show fake_chdl info
+        local fake_sig3 = ("top.fake_sig3"):fake_chdl {
+            get_width = function(self)
+                return 10
+            end
+        }
+        local fake_sig4 = ("top.fake_sig4"):fake_chdl {
+            get_width = function(self)
+                return 10
+            end
+        }
+        local fake_abdl_diff = mock_abdl({ s3 = fake_sig3, s4 = fake_sig4 })
+
+        local status, err = pcall(function()
+            texpect.expect_abdl(fake_abdl_diff, "my_fake_abdl_diff", {
+                { names = { "s3", "s4" }, width = 10 }
+            })
+        end)
+        expect.equal(status, false)
+        err = strip_ansi(err)
+        expect.truthy(err:find("are not the same signal", 1, true))
+        expect.truthy(err:find("(1) is fake_chdl", 1, true))
+        expect.truthy(err:find("(2) is fake_chdl", 1, true))
+
+        -- Test mixed real and fake chdl - should show fake_chdl info
+        local real_sig = mock_chdl(10)
+        local fake_sig5 = ("top.fake_sig5"):fake_chdl {
+            get_width = function(self)
+                return 10
+            end
+        }
+        local mixed_abdl = mock_abdl({ real = real_sig, fake = fake_sig5 })
+
+        local status, err = pcall(function()
+            texpect.expect_abdl(mixed_abdl, "my_mixed_abdl", {
+                { names = { "real", "fake" }, width = 10 }
+            })
+        end)
+        expect.equal(status, false)
+        err = strip_ansi(err)
+        expect.truthy(err:find("are not the same signal", 1, true))
+        -- Should show one is fake_chdl
+        expect.truthy(err:find("fake_chdl", 1, true))
+
+        -- Test fake_chdl without get_width() method, with width constraint - should error
+        local status, err = pcall(function()
+            texpect.expect_abdl(fake_abdl_no_width, "my_fake_abdl_no_width", {
+                { name = "s_no_width", width = 32 }
+            })
+        end)
+        expect.equal(status, false)
+        err = strip_ansi(err)
+        expect.truthy(err:find("fake_chdl", 1, true))
+        expect.truthy(err:find("does not have a `get_width()` method", 1, true))
+        expect.truthy(err:find("top.fake_sig_no_width", 1, true))
     end)
 
     it("should work for expect_database", function()

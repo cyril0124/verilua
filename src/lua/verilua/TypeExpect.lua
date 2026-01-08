@@ -2,14 +2,15 @@
 
 local ffi = require "ffi"
 local inspect = require "inspect"
+local Logger = require "verilua.utils.Logger"
 
 local type = type
 local pairs = pairs
 local assert = assert
 local tostring = tostring
-
-local Logger = require "verilua.utils.Logger"
 local colors = Logger.COLORS
+
+local FAKE_CHDL_NAME_PREFIX = "fake_chdl::"
 
 local function smart_inspect(value)
     local s = inspect(value):gsub("\n", " ")
@@ -271,6 +272,39 @@ function texpect.expect_chdl(value, name, width_or_width_min, width_max)
         )
     else
         if width_or_width_min ~= nil and width_max == nil then
+            local is_fake_chdl = value.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+            if is_fake_chdl and type(rawget(value, "get_width")) ~= "function" then
+                local error_msg = string.format(
+                    [[
+  Argument: %s
+  Error: fake_chdl `%s` does not have a `get_width()` method
+  Expected width: %s
+
+  Please implement `get_width()` method for this fake_chdl.
+
+  Example of creating a fake_chdl with get_width():
+
+    local fake_signal = ("your.hierpath"):fake_chdl {
+        --
+        -- Other methods ...
+        --
+
+        get_width = function(self)
+            return %d  -- Must return %d
+        end
+    }
+
+  Note: The `get_width()` method is required when calling expect_chdl() with a width parameter.
+]],
+                    Logger.colorize("`" .. name .. "`", colors.YELLOW),
+                    Logger.colorize(value.name, colors.RED),
+                    Logger.colorize(tostring(width_or_width_min), colors.CYAN),
+                    width_or_width_min,
+                    width_or_width_min
+                )
+                texpect_error(error_msg)
+            end
+
             if value:get_width() ~= width_or_width_min then
                 texpect_error(
                     string.format(
@@ -414,19 +448,68 @@ function texpect.expect_abdl(value, name, params)
 
                         ---@diagnostic disable-next-line: access-invisible
                         if first_sig.hdl ~= sig.hdl then
+                            -- Check if signals are fake_chdl
+                            local first_is_fake = first_sig.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+                            local sig_is_fake = sig.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+
+                            local fake_info = ""
+                            if first_is_fake or sig_is_fake then
+                                local parts = {}
+                                if first_is_fake then
+                                    table.insert(parts, string.format("(1) is fake_chdl"))
+                                end
+                                if sig_is_fake then
+                                    table.insert(parts, string.format("(2) is fake_chdl"))
+                                end
+                                fake_info = "\n  " .. table.concat(parts, ", ")
+                            end
+
                             texpect_error(
                                 string.format(
-                                    "  signal `%s`(1) and `%s`(2) are not the same signal\n  (1).hierarchy: %s\n  (2).hierarchy: %s\n  names: {%s}",
+                                    "  signal `%s`(1) and `%s`(2) are not the same signal\n  (1).hierarchy: %s\n  (2).hierarchy: %s\n  names: {%s}%s",
                                     first_sig_name,
                                     sig_name,
                                     first_sig.fullpath,
                                     sig.fullpath,
-                                    table.concat(sig_names, ", ")
+                                    table.concat(sig_names, ", "),
+                                    fake_info
                                 )
                             )
                         end
 
                         if sig_info.width then
+                            -- Check if fake_chdl has get_width() method before accessing width constraints
+                            local is_fake_chdl = sig.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+                            if is_fake_chdl and type(rawget(sig, "get_width")) ~= "function" then
+                                local error_msg = string.format(
+                                    [[
+  Argument: %s
+  Error: fake_chdl `%s` does not have a `get_width()` method
+  Width constraints were specified for this signal in expect_abdl()
+
+  Please implement `get_width()` method for this fake_chdl.
+
+  Example of creating a fake_chdl with get_width():
+
+    local fake_signal = ("your.hierpath"):fake_chdl {
+        --
+        -- Other methods ...
+        --
+
+        get_width = function(self)
+            return %d  -- Must match the expected width
+        end
+    }
+
+  Note: The `get_width()` method is required when calling expect_abdl() with width constraints.
+]],
+                                    Logger.colorize("`" .. sig_name .. "`", colors.YELLOW),
+                                    Logger.colorize(sig.name, colors.RED),
+                                    sig_info.width
+                                )
+                                texpect_error(error_msg)
+                            end
+
                             if sig:get_width() ~= sig_info.width then
                                 texpect_error(
                                     string.format(
@@ -438,6 +521,38 @@ function texpect.expect_abdl(value, name, params)
                                 )
                             end
                         elseif sig_info.width_min and sig_info.width_max then
+                            -- Check if fake_chdl has get_width() method before accessing width constraints
+                            local is_fake_chdl = sig.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+                            if is_fake_chdl and type(rawget(sig, "get_width")) ~= "function" then
+                                local error_msg = string.format(
+                                    [[
+  Argument: %s
+  Error: fake_chdl `%s` does not have a `get_width()` method
+  Width constraints were specified for this signal in expect_abdl()
+
+  Please implement `get_width()` method for this fake_chdl.
+
+  Example of creating a fake_chdl with get_width():
+
+    local fake_signal = ("your.hierpath"):fake_chdl {
+        --
+        -- Other methods ...
+        --
+
+        get_width = function(self)
+            return %d  -- Must match the expected width
+        end
+    }
+
+  Note: The `get_width()` method is required when calling expect_abdl() with width constraints.
+]],
+                                    Logger.colorize("`" .. sig_name .. "`", colors.YELLOW),
+                                    Logger.colorize(sig.name, colors.RED),
+                                    sig_info.width_min
+                                )
+                                texpect_error(error_msg)
+                            end
+
                             local width = sig:get_width()
                             if not (width >= sig_info.width_min and width <= sig_info.width_max) then
                                 texpect_error(
@@ -451,6 +566,38 @@ function texpect.expect_abdl(value, name, params)
                                 )
                             end
                         elseif sig_info.width_min then
+                            -- Check if fake_chdl has get_width() method before accessing width constraints
+                            local is_fake_chdl = sig.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+                            if is_fake_chdl and type(rawget(sig, "get_width")) ~= "function" then
+                                local error_msg = string.format(
+                                    [[
+  Argument: %s
+  Error: fake_chdl `%s` does not have a `get_width()` method
+  Width constraints were specified for this signal in expect_abdl()
+
+  Please implement `get_width()` method for this fake_chdl.
+
+  Example of creating a fake_chdl with get_width():
+
+    local fake_signal = ("your.hierpath"):fake_chdl {
+        --
+        -- Other methods ...
+        --
+
+        get_width = function(self)
+            return %d  -- Must match the expected width
+        end
+    }
+
+  Note: The `get_width()` method is required when calling expect_abdl() with width constraints.
+]],
+                                    Logger.colorize("`" .. sig_name .. "`", colors.YELLOW),
+                                    Logger.colorize(sig.name, colors.RED),
+                                    sig_info.width_min
+                                )
+                                texpect_error(error_msg)
+                            end
+
                             if sig:get_width() < sig_info.width_min then
                                 texpect_error(
                                     string.format(
@@ -462,6 +609,38 @@ function texpect.expect_abdl(value, name, params)
                                 )
                             end
                         elseif sig_info.width_max then
+                            -- Check if fake_chdl has get_width() method before accessing width constraints
+                            local is_fake_chdl = sig.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+                            if is_fake_chdl and type(rawget(sig, "get_width")) ~= "function" then
+                                local error_msg = string.format(
+                                    [[
+  Argument: %s
+  Error: fake_chdl `%s` does not have a `get_width()` method
+  Width constraints were specified for this signal in expect_abdl()
+
+  Please implement `get_width()` method for this fake_chdl.
+
+  Example of creating a fake_chdl with get_width():
+
+    local fake_signal = ("your.hierpath"):fake_chdl {
+        --
+        -- Other methods ...
+        --
+
+        get_width = function(self)
+            return %d  -- Must match the expected width
+        end
+    }
+
+  Note: The `get_width()` method is required when calling expect_abdl() with width constraints.
+]],
+                                    Logger.colorize("`" .. sig_name .. "`", colors.YELLOW),
+                                    Logger.colorize(sig.name, colors.RED),
+                                    sig_info.width_max
+                                )
+                                texpect_error(error_msg)
+                            end
+
                             if sig:get_width() > sig_info.width_max then
                                 texpect_error(
                                     string.format(
