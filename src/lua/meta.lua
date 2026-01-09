@@ -103,9 +103,13 @@ function await_nsim() end
 --- | "cfg.tb_top_file"
 --- | "cfg.no_internal_clock"
 --- | "cfg.use_inertial_put"
+--- | "before_build" <Optional> User-defined callback function to run before build
+--- | "instrumentation" <Optional> Instrumentation configuration function for runtime coverage collection
+--- | "verilator.opt_slow" <Optional> Optimization options for slow-path code
+--- | "verilator.opt_fast" <Optional> Optimization options for fast-path code
 
 ---@param cmd verilua.xmake.set_add_values.cmd
----@param ... verilua.xmake.set_add_values.yes_or_not|string
+---@param ... verilua.xmake.set_add_values.yes_or_not|string|function|table
 function set_values(cmd, ...) end
 
 ---@param cmd verilua.xmake.set_add_values.cmd
