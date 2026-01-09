@@ -4,7 +4,6 @@ local cfg = _G.cfg
 ---@alias verilua.scheduler.EventID integer
 ---@class verilua.scheduler.TaskName: string
 ---@alias verilua.scheduler.TaskCallbackType verilua.scheduler.YieldType
----@alias verilua.scheduler.CoroutineYieldInfo [integer, string, integer]
 ---@alias verilua.scheduler.CoroutineTaskBody fun()
 
 --- Task function used in `fork`, `jfork`, `initial`, `final`.
@@ -22,7 +21,6 @@ local cfg = _G.cfg
 ---@field remove fun(self: verilua.handles.EventHandle) Mark this EventHandle as removed
 
 ---@class (exact) verilua.scheduler.LuaScheduler
----@field private task_yield_info_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineYieldInfo> Map of task IDs to coroutine yield info
 ---@field private task_coroutine_map table<verilua.scheduler.TaskID, thread> Map of task IDs to coroutine threads
 ---@field private task_body_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineTaskBody> Map of task IDs to coroutine task bodies
 ---@field private task_name_map_running table<verilua.scheduler.TaskID, string> Map of running task IDs to task names

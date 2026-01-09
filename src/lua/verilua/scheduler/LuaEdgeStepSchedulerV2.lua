@@ -63,7 +63,6 @@ local Event = 9
 local NOOP = 5555
 
 ---@class (exact) verilua.LuaScheduler_gen_LuaEdgeStepSchedulerV2
----@field private task_yield_info_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineYieldInfo> Map of task IDs to coroutine yield info
 ---@field private task_coroutine_map table<verilua.scheduler.TaskID, thread> Map of task IDs to coroutine threads
 ---@field private task_body_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineTaskBody> Map of task IDs to coroutine task bodies
 ---@field private task_name_map_running table<verilua.scheduler.TaskID, string> Map of running task IDs to task names

@@ -58,7 +58,6 @@ local NextSimTime = 12
 local NOOP = 5555
 
 ---@class (exact) verilua.scheduler.LuaScheduler_gen
----@field private task_yield_info_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineYieldInfo> Map of task IDs to coroutine yield info
 ---@field private task_coroutine_map table<verilua.scheduler.TaskID, thread> Map of task IDs to coroutine threads
 ---@field private task_body_map table<verilua.scheduler.TaskID, verilua.scheduler.CoroutineTaskBody> Map of task IDs to coroutine task bodies
 ---@field private task_name_map_running table<verilua.scheduler.TaskID, string> Map of running task IDs to task names
@@ -496,7 +495,7 @@ function Scheduler:schedule_task(id)
             )
         end
 
-        local key = tostring(id) .. "@" .. name
+        local key = f("%d@%s", id, name)
         self.acc_time_table[key] = (self.acc_time_table[key] or 0) + (e - s)
     end
 
