@@ -765,4 +765,37 @@ describe("LuaUtils test", function()
                     hex_str, utils.to_hex_str(result_u64), utils.to_hex_str(expected_u64)))
         end
     end)
+
+    it("should work properly for compare_hex_str()", function()
+        -- Test the bug fix: ensure only leading zeros are removed, not all zeros
+        local tests = {
+            -- Different values should not be equal
+            { "10", "01",    false, "0x10 (16) should not equal 0x01 (1)" },
+            { "101", "11",   false, "0x101 (257) should not equal 0x11 (17)" },
+            { "10001", "11", false, "0x10001 (65537) should not equal 0x11 (17)" },
+            { "10", "00",    false, "0x10 (16) should not equal 0x00 (0)" },
+
+            -- Same values should be equal (case insensitive)
+            { "1a", "01a",   true, "0x1A (26) should equal 0x01a (26)" },
+            { "ABC", "abc",   true, "0xABC should equal 0xabc (case insensitive)" },
+            { "1234", "1234", true, "Same values should be equal" },
+
+            -- Leading zeros should be ignored
+            { "1", "001",     true, "0x1 should equal 0x001" },
+            { "00a", "a",     true, "0x00a should equal 0xa" },
+
+            -- Different hex values should not be equal
+            { "ff", "fe",     false, "0xff (255) should not equal 0xfe (254)" },
+            { "0", "1",       false, "0x0 should not equal 0x1" },
+        }
+
+        for _, test in ipairs(tests) do
+            local str1 = test[1]
+            local str2 = test[2]
+            local expected = test[3]
+            local msg = test[4]
+            local result = utils.compare_hex_str(str1, str2)
+            expect.equal(result, expected, f("compare_hex_str('%s', '%s'): %s", str1, str2, msg))
+        end
+    end)
 end)
