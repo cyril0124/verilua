@@ -228,6 +228,8 @@ local function before_build_or_run(target)
     --- -- Your code ...
     --- return cfg
     --- ```
+    ---
+    --- Notice: `cfg.other_cfg` is deprecated, please use `cfg.user_cfg` instead.
     local user_cfg = target:values("cfg.user_cfg") or target:values("cfg.other_cfg")
     local user_cfg_path = "nil"
     if user_cfg == nil or user_cfg == "" then

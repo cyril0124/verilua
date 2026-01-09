@@ -68,17 +68,20 @@ function await_nsim() end
 --- | "@wave_vpi"
 --- | "@nosim"
 
----@alias verilua.xmake.set_values.yes_or_not
+---@alias verilua.xmake.set_add_values.yes_or_not
 --- | "1"
 --- | "0"
 
----@alias verilua.xmake.set_values.cmd
+---@alias verilua.xmake.set_add_values.cmd
 --- | "verilator.flags"
 --- | "verilator.run_prefix"
 --- | "verilator.run_flags"
 --- | "vcs.flags"
 --- | "vcs.run_prefix"
 --- | "vcs.run_flags"
+--- | "xcelium.flags"
+--- | "xcelium.run_prefix"
+--- | "xcelium.run_flags"
 --- | "iverilog.flags"
 --- | "iverilog.run_prefix"
 --- | "iverilog.run_flags"
@@ -101,12 +104,12 @@ function await_nsim() end
 --- | "cfg.no_internal_clock"
 --- | "cfg.use_inertial_put"
 
----@param cmd verilua.xmake.set_values.cmd
----@param ... verilua.xmake.set_values.yes_or_not|string
+---@param cmd verilua.xmake.set_add_values.cmd
+---@param ... verilua.xmake.set_add_values.yes_or_not|string
 function set_values(cmd, ...) end
 
----@param cmd verilua.xmake.add_values.cmd
----@param ... verilua.xmake.set_values.yes_or_not|string
+---@param cmd verilua.xmake.set_add_values.cmd
+---@param ... verilua.xmake.set_add_values.yes_or_not|string
 function add_values(cmd, ...) end
 
 ---@param toolchain verilua.xmake.toolchains
