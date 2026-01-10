@@ -2,19 +2,7 @@
     "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
 
     "runtime": {
-        "version": "LuaJIT",
-        "path": [
-            "./src/gen/?.lua",
-            "./src/lua/?.lua",
-            "./src/lua/verilua/?.lua",
-            "./src/lua/verilua/utils/?.lua",
-            "./src/lua/verilua/vpiml/?.lua",
-            "./src/lua/verilua/sva/?.lua",
-            "./src/lua/verilua/scheduler/?.lua",
-            "./src/lua/verilua/random/?.lua",
-            "./src/lua/verilua/handles/?.lua",
-            "./src/lua/verilua/coverage/?.lua"
-        ]
+        "version": "LuaJIT"
     },
 
     "diagnostics": {
