@@ -4,6 +4,7 @@ local bit = require "bit"
 local math = require "math"
 local stringx = require "pl.stringx"
 local utils = require "LuaUtils"
+local table_new = require "table.new"
 
 local f = string.format
 local tonumber = tonumber
@@ -27,11 +28,19 @@ local M = {}
 ---@param bin_or_hex_str string
 ---@return string
 function M.trim_leading_zeros(bin_or_hex_str)
-    local ret = bin_or_hex_str:gsub("^0+", "")
-    if ret == "" then
-        ret = "0"
+    local len = #bin_or_hex_str
+    local start = 1
+
+    -- Iterate to find the first non-zero character
+    while start <= len and ssub(bin_or_hex_str, start, start) == "0" do
+        start = start + 1
     end
-    return ret
+
+    if start > len then
+        return "0"
+    end
+
+    return ssub(bin_or_hex_str, start)
 end
 
 -- Helper: Adjust binary string to specific bitwidth (truncate MSB or pad MSB)
@@ -406,9 +415,9 @@ function M.bor_hex_str(hex_str1, hex_str2, bitwidth)
     end
 
     -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
-    local result_parts = {}
     local chunk_size = 16
     local num_chunks = math_ceil(max_len / chunk_size)
+    local result_parts = table_new(num_chunks, 0)
 
     for i = 1, num_chunks do
         local end_pos = max_len - (i - 1) * chunk_size
@@ -500,9 +509,9 @@ function M.bxor_hex_str(hex_str1, hex_str2, bitwidth)
     end
 
     -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
-    local result_parts = {}
     local chunk_size = 16
     local num_chunks = math_ceil(max_len / chunk_size)
+    local result_parts = table_new(num_chunks, 0)
 
     for i = 1, num_chunks do
         local end_pos = max_len - (i - 1) * chunk_size
@@ -594,9 +603,9 @@ function M.band_hex_str(hex_str1, hex_str2, bitwidth)
     end
 
     -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
-    local result_parts = {}
     local chunk_size = 16
     local num_chunks = math_ceil(max_len / chunk_size)
+    local result_parts = table_new(num_chunks, 0)
 
     for i = 1, num_chunks do
         local end_pos = max_len - (i - 1) * chunk_size
@@ -681,9 +690,9 @@ function M.bnot_hex_str(hex_str, bitwidth)
     end
 
     -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
-    local result_parts = {}
     local chunk_size = 16
     local num_chunks = math_ceil(hex_len / chunk_size)
+    local result_parts = table_new(num_chunks, 0)
 
     for i = 1, num_chunks do
         local end_pos = hex_len - (i - 1) * chunk_size
@@ -775,9 +784,9 @@ function M.add_hex_str(hex_str1, hex_str2, bitwidth)
     end
 
     -- Process in chunks of 16 hex characters (64 bits) for optimal LuaJIT performance
-    local result_parts = {}
     local chunk_size = 16
     local num_chunks = math_ceil(max_len / chunk_size)
+    local result_parts = table_new(num_chunks, 0)
 
     local carry = 0ULL
 
