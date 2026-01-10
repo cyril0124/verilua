@@ -1,5 +1,7 @@
 --[[luajit-pro, pretty, {IS_SINGLE = 1, IS_DOUBLE = 0, IS_MULTI = 0}]]
 
+---@diagnostic disable
+
 local vpiml = require "vpiml"
 local BitVec = require "BitVec"
 local table_new = require "table.new"
@@ -49,17 +51,20 @@ end
 local assert = assert
 local f = string.format
 
+
 local chdl, chdl_array
 function __LJP:comp_time()
     output("chdl = {")
     for _, api_name in ipairs(chdl_apis) do
-        output([[{{api_name}} = function(this) assert(false, f("<chdl>:{{api_name}}() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,]])
+        output(
+            [[{{api_name}} = function(this) assert(false, f("<chdl>:{{api_name}}() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,]])
     end
     output("}")
 
     output("chdl_array = {")
     for _, api_name in ipairs(chdl_array_apis) do
-        output([[{{api_name}} = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,]])
+        output(
+            [[{{api_name}} = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,]])
     end
     output("}")
 end
@@ -149,7 +154,7 @@ local function chdl_init()
                             if type(value) ~= "table" then
                                 assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
                             end
-                            
+
                             local beat_num = this.beat_num
                             if #value ~= beat_num then
                                 assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
@@ -181,7 +186,7 @@ local function chdl_init()
                 if _G.IS_SINGLE then
                     --#
                     --# Unsafe usage of CallableHDL:set()
-                    --# Do not check value type and lenght of value table. 
+                    --# Do not check value type and lenght of value table.
                     --# Usually has higher performance than CallableHDL:set()
                     --#
                     chdl.set{{prefix}}_unsafe = chdl.set{{prefix}}
@@ -198,7 +203,7 @@ local function chdl_init()
                     chdl.set{{prefix}}_unsafe = function (this, value, force_single_beat)
                         --#
                         --# Unsafe usage of CallableHDL:set()
-                        --# Do not check value type and lenght of value table. 
+                        --# Do not check value type and lenght of value table.
                         --# Usually has higher performance than CallableHDL:set()
                         --#
                         if force_single_beat then
@@ -212,7 +217,7 @@ local function chdl_init()
                     chdl.set{{prefix}}_unsafe = function (this, value, force_single_beat)
                         --#
                         --# Unsafe usage of CallableHDL:set()
-                        --# Do not check value type and lenght of value table. 
+                        --# Do not check value type and lenght of value table.
                         --# Usually has higher performance than CallableHDL:set()
                         --#
                         if force_single_beat then
@@ -295,7 +300,7 @@ local function chdl_init()
                             if type(value) ~= "table" then
                                 assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set_force(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
                             end
-                            
+
                             local beat_num = this.beat_num
                             if #value ~= beat_num then
                                 assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
@@ -430,7 +435,7 @@ local function chdl_array_init()
                 end
             ]])
         end
-        
+
         local function gen_setter_func(is_imm)
             local prefix = is_imm and "_imm" or ""
             output([[
@@ -449,7 +454,7 @@ local function chdl_array_init()
                             if type(value) ~= "table" then
                                 assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
                             end
-                            
+
                             if #value ~= 2 then
                                 assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
                             end
@@ -467,7 +472,7 @@ local function chdl_array_init()
                             if type(value) ~= "table" then
                                 assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
                             end
-                            
+
                             local beat_num = this.beat_num
                             if #value ~= beat_num then
                                 assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
@@ -592,7 +597,7 @@ local function chdl_array_init()
     end
 end
 
-return function (is_array)
+return function(is_array)
     chdl_init()
 
     if is_array then
