@@ -172,9 +172,13 @@ local function before_build_or_run(target)
         local ext = path.extension(sourcefile)
         if ext == ".lua" or ext == ".luau" or ext == ".tl" then
             local dir = path.directory(path.absolute(sourcefile))
+            local last_dir = path.normalize(path.join(dir, ".."))
+            local last_last_dir = path.normalize(path.join(dir, "..", ".."))
             if not deps_path_map[dir] then
                 deps_path_map[dir] = true
                 deps_vec[#deps_vec + 1] = path.join(dir, "?.lua")
+                deps_vec[#deps_vec + 1] = path.join(last_dir, "?.lua")
+                deps_vec[#deps_vec + 1] = path.join(last_last_dir, "?.lua")
             end
         end
     end
@@ -983,7 +987,9 @@ rule("verilua", function()
         if user_before_build then
             local t = type(user_before_build)
             assert(t == "function", f("[on_build] before_build should be a `function`, but got `%s`", t))
+            ---@diagnostic disable-next-line: access-invisible
             if _ENV then
+                ---@diagnostic disable-next-line: access-invisible
                 debug.setupvalue(user_before_build, 1, _ENV)
             end
             user_before_build(target)
@@ -1314,12 +1320,12 @@ rule("verilua", function()
                 else
                     wave_vpi_main = find_file("wave_vpi_main", { "$(env PATH)" })
                     if not wave_vpi_main then
-                        local toolchain = assert(
+                        local _toolchain = assert(
                             target:toolchain("wave_vpi"),
                             '[on_build] we need to set_toolchains("@wave_vpi") in target("%s")',
                             target:name()
                         )
-                        wave_vpi_main = assert(toolchain:config("wave_vpi"), "[on_build] wave_vpi_main not found!")
+                        wave_vpi_main = assert(_toolchain:config("wave_vpi"), "[on_build] wave_vpi_main not found!")
                     end
                 end
             end
