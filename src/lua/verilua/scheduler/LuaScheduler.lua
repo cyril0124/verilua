@@ -1,3 +1,5 @@
+---@diagnostic disable: unnecessary-assert
+
 local cfg = _G.cfg
 
 ---@alias verilua.scheduler.TaskID integer
@@ -9,6 +11,10 @@ local cfg = _G.cfg
 --- Task function used in `fork`, `jfork`, `initial`, `final`.
 --- It should be a function without parameters and return value.
 ---@alias verilua.scheduler.TaskFunction fun()
+
+---@class (exact) verilua.scheduler.TaskInfo
+---@field id verilua.scheduler.TaskID Task ID
+---@field name string Task name
 
 ---@class (exact) verilua.handles.EventHandle
 ---@field __type "EventHandle" | "EventHandleForJFork"
@@ -62,6 +68,7 @@ local cfg = _G.cfg
 ---@field schedule_posedge_tasks fun(self: verilua.scheduler.LuaScheduler)|nil Schedules positive edge tasks (available only when EDGE_STEP is enabled)
 ---@field schedule_negedge_tasks fun(self: verilua.scheduler.LuaScheduler)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
 ---@field list_tasks fun(self: verilua.scheduler.LuaScheduler) List all running tasks
+---@field get_running_tasks fun(self: verilua.scheduler.LuaScheduler): table<integer, verilua.scheduler.TaskInfo> Get all running tasks
 
 local scheduler
 do

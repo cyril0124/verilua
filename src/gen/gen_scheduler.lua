@@ -88,6 +88,7 @@ local NOOP = 5555
 ---@field curr_wakeup_event_id verilua.scheduler.EventID Current wakeup event ID
 ---@field private new_event_hdl fun(self: verilua.scheduler.LuaScheduler_gen, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Creates a new event handle
 ---@field private get_event_hdl fun(self: verilua.scheduler.LuaScheduler_gen, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Alias for new_event_hdl
+---@field get_running_tasks fun(self: verilua.scheduler.LuaScheduler_gen): table<integer, verilua.scheduler.TaskInfo> Get all running tasks
 ---@field private send_event fun(self: verilua.scheduler.LuaScheduler_gen, event_id: verilua.scheduler.EventID) Sends an event
 ---@field remove_task fun(self: verilua.scheduler.LuaScheduler_gen, task_id: verilua.scheduler.TaskID) Removes a task by ID
 ---@field check_task_exists fun(self: verilua.scheduler.LuaScheduler_gen, task_id: verilua.scheduler.TaskID): boolean Checks if a task exists
@@ -624,6 +625,19 @@ function Scheduler:list_tasks()
     end
     logger:section_end(74)
     print()
+end
+
+function Scheduler:get_running_tasks()
+    local tasks = {}
+    for id, name in pairs(self.task_name_map_running) do
+        ---@type verilua.scheduler.TaskInfo
+        local task_info = {
+            id = id,
+            name = name,
+        }
+        table_insert(tasks, task_info)
+    end
+    return tasks
 end
 
 function Scheduler:send_event(event_id)

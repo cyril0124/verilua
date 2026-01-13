@@ -59,6 +59,78 @@ fork {
         print("✓ Basic task management test passed")
 
         --==============================================================================
+        -- 1.5. Get Running Tasks Test
+        --==============================================================================
+
+        print("\n--- 1.5. Get Running Tasks Test ---")
+
+        -- Create multiple test tasks
+        local test_task_1_id = scheduler:append_task(nil, "test_task_1", function()
+            -- Task body
+        end)
+
+        local test_task_2_id = scheduler:append_task(nil, "test_task_2", function()
+            -- Task body
+        end)
+
+        local test_task_3_id = scheduler:append_task(nil, "test_task_3", function()
+            -- Task body
+        end)
+
+        -- Get all running tasks
+        local running_tasks = scheduler:get_running_tasks()
+
+        -- Verify return type and content
+        assert(type(running_tasks) == "table", "get_running_tasks should return a table")
+
+        -- Count running tasks accurately (using pairs since task IDs may not be consecutive)
+        local running_task_count = 0
+        for _ in pairs(scheduler.task_name_map_running) do
+            running_task_count = running_task_count + 1
+        end
+
+        -- Count returned tasks
+        local returned_task_count = 0
+        for _ in ipairs(running_tasks) do
+            returned_task_count = returned_task_count + 1
+        end
+
+        -- Verify task count matches
+        assert(returned_task_count == running_task_count,
+            string.format("Returned task count (%d) should match running task count (%d)",
+                returned_task_count, running_task_count))
+
+        -- Verify we have at least our 3 test tasks
+        assert(returned_task_count >= 3,
+            string.format("Should have at least 3 running tasks, got %d", returned_task_count))
+
+        -- Verify task structure
+        local task_found = {}
+        for _, task_info in ipairs(running_tasks) do
+            assert(type(task_info) == "table", "Each task should be a table")
+            assert(type(task_info.id) == "number", "Task id should be a number")
+            assert(type(task_info.name) == "string", "Task name should be a string")
+
+            -- Check if our test tasks are in the list
+            if task_info.id == test_task_1_id then
+                assert(task_info.name == "test_task_1", "Task 1 name mismatch")
+                task_found[1] = true
+            elseif task_info.id == test_task_2_id then
+                assert(task_info.name == "test_task_2", "Task 2 name mismatch")
+                task_found[2] = true
+            elseif task_info.id == test_task_3_id then
+                assert(task_info.name == "test_task_3", "Task 3 name mismatch")
+                task_found[3] = true
+            end
+        end
+
+        assert(task_found[1], "Task 1 should be in the running tasks list")
+        assert(task_found[2], "Task 2 should be in the running tasks list")
+        assert(task_found[3], "Task 3 should be in the running tasks list")
+
+        print("✓ Get running tasks test passed")
+
+        --==============================================================================
         -- 2. Timing Control Test
         --==============================================================================
 

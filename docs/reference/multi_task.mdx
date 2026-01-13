@@ -318,6 +318,32 @@ total_time: 0.85 s / 852.91 ms
 3. `scheduler:remove_task(<task_id>)`
     移除一个任务（可以是正在运行的任务），这个任务必须是之前已经被注册过的任务，如果任务之前没有注册过，那么调用的时候会抛出一个错误。
 
+4. `scheduler:get_running_tasks()`
+
+    获取所有正在运行的任务信息，返回一个 table 数组。每个元素包含任务的 ID 和名称。
+
+    ```lua
+    local scheduler = require "LuaScheduler"
+
+    -- 获取所有正在运行的任务
+    local running_tasks = scheduler:get_running_tasks()
+
+    -- 遍历任务信息
+    for i, task_info in ipairs(running_tasks) do
+        print(string.format("Task %d: id=%d, name=%s", 
+                          i, task_info.id, task_info.name))
+    end
+    ```
+
+    返回值结构：
+    - 返回类型：`table` 数组
+    - 每个元素包含：
+      - `id`：任务的唯一标识（number）
+      - `name`：任务名称（string）
+
+    :::note[该方法只返回正在运行的任务，不包含已完成或已删除的任务]
+    :::
+
 ## Start Task 和 Finish Task
 
 Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。
