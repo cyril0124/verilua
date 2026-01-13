@@ -380,7 +380,7 @@ void Emulator::stop_dump_wave() {
 int Emulator::normal_mode_main() {
     this->start_simulation();
 
-    while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
+    while ((!Verilated::gotFinish()) && !got_sigint && !got_sigabrt) {
 #ifdef ENABLE_LIGHTSSS
         if (args.enable_fork) {
             if (lightsss_check_finish() == -1) {
@@ -464,7 +464,7 @@ int Emulator::timing_mode_main() {
     this->start_simulation();
 
     // TODO: not checked!
-    while ((!Verilated::gotFinish()) | got_sigint | got_sigabrt) {
+    while ((!Verilated::gotFinish()) && !got_sigint && !got_sigabrt) {
 #ifdef ENABLE_LIGHTSSS
         if (args.enable_fork) {
             if (lightsss_check_finish() == -1) {
