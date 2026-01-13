@@ -832,7 +832,7 @@ ReadFromFSDB:
         break;
     }
     case vpiHexStrVal: {
-        static const char hexLookUpTable[] = {'0', '1', '2', '3', '4', '4', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+        static const char hexLookUpTable[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
         switch (bpb) {
         [[likely]] case FSDB_BYTES_PER_BIT_1B: {
             int bufferIdx = 0;
