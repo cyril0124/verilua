@@ -30,7 +30,6 @@ local string = require "string"
 local table = require "table"
 local math = require "math"
 
-local print = print
 local tostring = tostring
 local setmetatable = setmetatable
 local ipairs = ipairs
@@ -40,6 +39,10 @@ local concat = table.concat
 local floor = math.floor
 local max = math.max
 local min = math.min
+
+local quiet = os.getenv("VL_QUIET") == "1"
+local old_print = print
+local print = quiet and function() end or old_print
 
 --------------------------------------------------------------------------------
 -- ANSI Color Codes (cached as upvalues for performance)

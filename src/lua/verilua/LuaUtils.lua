@@ -7,6 +7,7 @@ local ffi = require "ffi"
 local math = require "math"
 local path = require "pl.path"
 local table_new = require "table.new"
+local logger = require("verilua.utils.Logger").new("verilua.LuaUtils")
 
 local type = type
 local next = next
@@ -876,7 +877,7 @@ function utils.get_env_or_else(key, value_type, default)
             )
         end
 
-        print("[utils.get_env_or_else] warning: " .. key .. " is not set, use default value: " .. tostring(default))
+        logger:warning("[get_env_or_else] '" .. key .. "' is not set, use default value: " .. tostring(default))
         return default --[[@as string|number|boolean]]
     end
 
@@ -900,7 +901,7 @@ function utils.get_env_or_else(key, value_type, default)
     end
 
     assert(value ~= nil)
-    print("[utils.get_env_or_else] info: " .. key .. " => " .. tostring(value))
+    logger:info("[get_env_or_else] '" .. key .. "' => " .. tostring(value))
     return value --[[@as string|number|boolean]]
 end
 

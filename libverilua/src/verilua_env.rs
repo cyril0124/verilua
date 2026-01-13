@@ -417,7 +417,10 @@ impl VeriluaEnv {
             }
         }
 
-        println!("{}", table);
+        // Suppress statistics output in quiet mode
+        if std::env::var("VL_QUIET").ok().as_deref() != Some("1") {
+            println!("{}", table);
+        }
 
         if log::log_enabled!(log::Level::Trace) {
             self.hdl_cache
