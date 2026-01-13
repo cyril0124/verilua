@@ -222,15 +222,13 @@ int main(int argc, const char *argv[]) {
             return true;
 
         // Prefix patterns: clk_*, clock_*, i_clk*, i_clock*
-        if (lowerName.substr(0, 4) == "clk_" || lowerName.substr(0, 6) == "clock_")
+        if (lowerName.starts_with("clk_") || lowerName.starts_with("clock_"))
             return true;
-        if (lowerName.substr(0, 5) == "i_clk" || lowerName.substr(0, 7) == "i_clock")
+        if (lowerName.starts_with("i_clk") || lowerName.starts_with("i_clock"))
             return true;
 
         // Suffix patterns: *_clk, *_clock
-        if (lowerName.length() > 4 && lowerName.substr(lowerName.length() - 4) == "_clk")
-            return true;
-        if (lowerName.length() > 6 && lowerName.substr(lowerName.length() - 6) == "_clock")
+        if (lowerName.ends_with("_clk") || lowerName.ends_with("_clock"))
             return true;
 
         // Common patterns
@@ -255,19 +253,15 @@ int main(int argc, const char *argv[]) {
             return true;
 
         // Prefix patterns: rst_*, reset_*, i_rst*, i_reset*
-        if (lowerName.substr(0, 4) == "rst_" || lowerName.substr(0, 6) == "reset_")
+        if (lowerName.starts_with("rst_") || lowerName.starts_with("reset_"))
             return true;
-        if (lowerName.substr(0, 5) == "i_rst" || lowerName.substr(0, 7) == "i_reset")
+        if (lowerName.starts_with("i_rst") || lowerName.starts_with("i_reset"))
             return true;
 
         // Suffix patterns: *_rst, *_reset, *_rst_n, *_reset_n
-        if (lowerName.length() > 4 && lowerName.substr(lowerName.length() - 4) == "_rst")
+        if (lowerName.ends_with("_rst") || lowerName.ends_with("_reset"))
             return true;
-        if (lowerName.length() > 6 && lowerName.substr(lowerName.length() - 6) == "_reset")
-            return true;
-        if (lowerName.length() > 6 && lowerName.substr(lowerName.length() - 6) == "_rst_n")
-            return true;
-        if (lowerName.length() > 8 && lowerName.substr(lowerName.length() - 8) == "_reset_n")
+        if (lowerName.ends_with("_rst_n") || lowerName.ends_with("_reset_n"))
             return true;
 
         // Common patterns
