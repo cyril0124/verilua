@@ -630,12 +630,24 @@ end
 function Scheduler:get_running_tasks()
     local tasks = {}
     for id, name in pairs(self.task_name_map_running) do
-        ---@type verilua.scheduler.TaskInfo
-        local task_info = {
-            id = id,
-            name = name,
-        }
-        table_insert(tasks, task_info)
+        if not self.user_removal_tasks_set[id] then
+            local is_pending_remove = false
+            for _, pending_id in ipairs(self.pending_removal_tasks) do
+                if pending_id == id then
+                    is_pending_remove = true
+                    break
+                end
+            end
+
+            if not is_pending_remove then
+                ---@type verilua.scheduler.TaskInfo
+                local task_info = {
+                    id = id,
+                    name = name,
+                }
+                table_insert(tasks, task_info)
+            end
+        end
     end
     return tasks
 end
