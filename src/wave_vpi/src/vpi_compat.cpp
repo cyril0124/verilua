@@ -377,6 +377,10 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
 
 #ifdef USE_FSDB
 static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVec, fsdb_wave_vpi::FsdbSignalHandlePtr fsdbSigHdl) {
+    if (vpiControlTerminate) {
+        return;
+    }
+
     static std::mutex optMutex;
 
     // Ensure only one `fsdbObj` can be processed for all the optimization threads. (It seems like a bug that FsdbReader did not allow multiple ffrObjects to be processed at multiple threads. )
@@ -543,6 +547,10 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 }
 #else
 static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
+    if (vpiControlTerminate) {
+        return;
+    }
+
     // static std::mutex optMutex;
 
     // std::unique_lock<std::mutex> lock(optMutex);
