@@ -157,7 +157,21 @@ local LuaDataBaseV2 = class()
 
 ---@param params verilua.utils.LuaDataBase.params
 function LuaDataBaseV2:_init(params)
-    texpect.expect_table(params, "init_tbl")
+    texpect.expect_table(params, "LuaDataBaseV2::_init::params", {
+        "table_name",
+        "elements",
+        "path",
+        "file_name",
+        "save_cnt_max",
+        "size_limit",
+        "table_cnt_max",
+        "verbose",
+        "no_check_bind_value",
+        "backend",
+        "lib_name",
+        "lib_path",
+        "pragmas",
+    })
 
     local save_cnt_max  = params.save_cnt_max or 10000
     local table_cnt_max = params.table_cnt_max
@@ -200,7 +214,13 @@ function LuaDataBaseV2:_init(params)
     texpect.expect_string(table_name, "table_name")
     texpect.expect_table(elements, "elements")
     texpect.expect_string(file_name, "file_name")
-    texpect.expect_table(pragmas, "pragmas")
+    texpect.expect_table(pragmas, "pragmas", {
+        "cache_size",
+        "journal_mode",
+        "synchronous",
+        "locking_mode",
+        "foreign_keys",
+    })
 
     self.size_limit = size_limit
     self.file_count = 0

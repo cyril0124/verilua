@@ -5,7 +5,7 @@ local path = require "pl.path"
 local inspect = require "inspect"
 local tablex = require "pl.tablex"
 local stringx = require "pl.stringx"
-local texcpect = require "TypeExpect"
+local texpect = require "TypeExpect"
 
 local next = next
 local type = type
@@ -171,25 +171,25 @@ function SignalDB:init(params)
 end
 
 function SignalDB:set_extra_args(args_str)
-    texcpect.expect_string(args_str, "args_str")
+    texpect.expect_string(args_str, "args_str")
     self.extra_signal_db_gen_args = args_str
     return self
 end
 
 function SignalDB:add_extra_args(args_str)
-    texcpect.expect_string(args_str, "args_str")
+    texpect.expect_string(args_str, "args_str")
     self.extra_signal_db_gen_args = self.extra_signal_db_gen_args .. " " .. args_str
     return self
 end
 
 function SignalDB:set_regenerate(regenerate)
-    texcpect.expect_boolean(regenerate, "regenerate")
+    texpect.expect_boolean(regenerate, "regenerate")
     self.regenerate = regenerate
     return self
 end
 
 function SignalDB:set_target_file(file_path)
-    texcpect.expect_string(file_path, "file_path")
+    texpect.expect_string(file_path, "file_path")
     self.target_file = file_path
     return self
 end
@@ -203,8 +203,8 @@ function SignalDB:try_load_db()
 end
 
 function SignalDB:set_enable_modules(modules)
-    texcpect.expect_table(modules, "modules")
-    texcpect.expect_string(modules[1], "modules[1]")
+    texpect.expect_table(modules, "modules")
+    texpect.expect_string(modules[1], "modules[1]")
     for _, module in ipairs(modules) do
         self.extra_signal_db_gen_args = self.extra_signal_db_gen_args .. " --enable-module " .. module
     end
@@ -212,8 +212,8 @@ function SignalDB:set_enable_modules(modules)
 end
 
 function SignalDB:set_disable_modules(modules)
-    texcpect.expect_table(modules, "modules")
-    texcpect.expect_string(modules[1], "modules[1]")
+    texpect.expect_table(modules, "modules")
+    texpect.expect_string(modules[1], "modules[1]")
     for _, module in ipairs(modules) do
         self.extra_signal_db_gen_args = self.extra_signal_db_gen_args .. " --disable-module " .. module
     end
@@ -221,7 +221,7 @@ function SignalDB:set_disable_modules(modules)
 end
 
 function SignalDB:set_rtl_filelist(file_path)
-    texcpect.expect_string(file_path, "file_path")
+    texpect.expect_string(file_path, "file_path")
     self.rtl_filelist = file_path
     return self
 end
@@ -509,6 +509,15 @@ local function default_filter(signal_name, signal_bitwidth)
 end
 
 function SignalDB:auto_bundle(hier_path, params)
+    texpect.expect_table(params, "params", {
+        "filter",
+        "matches",
+        "wildmatch",
+        "startswith",
+        "endswith",
+        "prefix",
+    })
+
     ---@type string[]
     local signals = {}
 

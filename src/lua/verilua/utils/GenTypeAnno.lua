@@ -114,7 +114,10 @@ local function gen_type_anno_alias_bundle(name, alias_bundle)
 end
 
 function GenTypeAnno:gen_type_anno(params)
-    texpect.expect_table(params, "params")
+    texpect.expect_table(params, "params", {
+        "filename",
+        "handles",
+    })
     texpect.expect_string(params.filename, "params.filename")
 
     local content_vec = {

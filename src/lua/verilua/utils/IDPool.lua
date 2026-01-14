@@ -4,6 +4,7 @@ local class = require "pl.class"
 local utils = require "LuaUtils"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
+local texpect = require "verilua.TypeExpect"
 
 local type = type
 local assert = assert
@@ -53,6 +54,12 @@ function IDPool:_init(params, shuffle)
 
     local _shuffle = false
     if type(params) == "table" then
+        texpect.expect_table(params, "IDPool::_init::params", {
+            "size",
+            "start_value",
+            "shuffle",
+        })
+
         ---@cast params verilua.utils.IDPool.params
         _shuffle = params.shuffle or false
 
@@ -123,6 +130,7 @@ end
 
 -- Check if the pool is full (all IDs are available)
 function IDPool:is_full()
+    -- TODO: Re-enable this method in future versions
     assert(false, "<IDPool>:is_full() is deprecated, use `<IDPool>:used_count() == 0` instead")
     return self.size == self.POOL_SIZE
 end
