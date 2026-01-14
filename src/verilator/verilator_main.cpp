@@ -627,6 +627,7 @@ Emulator::~Emulator() {
 
 int Emulator::run_main() {
     dut_ptr->clock = 0;
+    dut_ptr->reset = 1;
 
 #ifdef NORMAL_MODE
     VL_INFO("Using verilator in NORMAL_MODE\n");
