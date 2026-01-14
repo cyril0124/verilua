@@ -215,11 +215,11 @@ local function noop() end
 ---@field private module_name string
 ---@field private prefix string Pre-computed prefix string
 ---@field default verilua.utils.Logger Default logger instance
----@field debug function
----@field info function
----@field success function
----@field warning function
----@field error function
+---@field debug fun(self: verilua.utils.Logger, ...)
+---@field info fun(self: verilua.utils.Logger, ...)
+---@field success fun(self: verilua.utils.Logger, ...)
+---@field warning fun(self: verilua.utils.Logger, ...)
+---@field error fun(self: verilua.utils.Logger, ...)
 ---@field new fun(module_name: string?, config: verilua.utils.Logger.config?): verilua.utils.Logger
 local Logger = {}
 Logger.__index = Logger
