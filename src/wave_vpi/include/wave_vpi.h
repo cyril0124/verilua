@@ -116,16 +116,16 @@ struct SignalHandle_t {
     size_t bitSize;
 
     // Used by JIT-like feature
-    uint64_t readCnt = 0;
-    std::thread optThread;
-    bool doOpt       = false;
-    bool canOpt      = false;
-    bool optFinish   = false;
-    bool continueOpt = false;
-    std::vector<uint32_t> optValueVec;
-    uint64_t optFinishIdx = 0;
-    std::condition_variable cv;
-    std::mutex mtx;
+    uint64_t readCnt = 0;              // Number of times signal has been read, triggers JIT when reaching threshold
+    std::thread optThread;             // Thread performing incremental pre-optimization
+    bool doOpt       = false;          // Flag to start first optimization when readCnt reaches threshold
+    bool canOpt      = false;          // Whether signal can be JIT optimized (bitSize <= 32 only)
+    bool optFinish   = false;          // Whether first optimization window is complete
+    bool continueOpt = false;          // Main thread requests optThread to continue pre-optimizing next window
+    std::vector<uint32_t> optValueVec; // Pre-optimized signal values cache for fast access
+    uint64_t optFinishIdx = 0;         // Last index position optimized by optThread
+    std::condition_variable cv;        // Notifies optThread to wake up when continueOpt is set
+    std::mutex mtx;                    // Protects continueOpt variable access for thread safety
 };
 
 using SignalHandle    = SignalHandle_t;
