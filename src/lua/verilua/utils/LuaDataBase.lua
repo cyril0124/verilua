@@ -134,6 +134,13 @@ function LuaDataBase:_init(params)
         "table_cnt_max",
         "verbose",
         "pragmas",
+
+        -- These parameters are not used in LuaDataBase, instead they are used in LuaDataBaseV2.
+        -- We add them here to avoid error when using LuaDataBaseV2 as a drop-in replacement for LuaDataBase.
+        "no_check_bind_value",
+        "backend",
+        "lib_name",
+        "lib_path",
     })
 
     local save_cnt_max  = params.save_cnt_max or 10000

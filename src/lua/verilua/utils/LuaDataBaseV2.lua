@@ -166,11 +166,11 @@ function LuaDataBaseV2:_init(params)
         "size_limit",
         "table_cnt_max",
         "verbose",
+        "pragmas",
         "no_check_bind_value",
         "backend",
         "lib_name",
         "lib_path",
-        "pragmas",
     })
 
     local save_cnt_max  = params.save_cnt_max or 10000
