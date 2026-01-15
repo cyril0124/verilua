@@ -55,13 +55,73 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
     <div id="cfg-top"></div>
 
-    设置此时的顶层 DUT 的模块名称，对于 HVL/WAL 场景，这个参数必须设置，例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们顶层 DUT 模块的名称是 `Design`，因此可以这么设置：`set_values("cfg.top", "Design")`。
+    设置顶层模块的名称，这是 Verilua 访问信号层次结构的根节点，对于 HVL/WAL 场景，这个参数必须设置。
+
+    - **HVL 场景**：通常设置为实际的顶层 DUT 名称（如 `Design`、`Counter`）
+      或 testbench_gen 生成的 testbench 名称（`tb_top`）
+    - **WAL 场景**：根据波形文件的层次结构设置，详见下方说明
+
+    例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们顶层 DUT 模块的名称是 `Design`，因此可以这么设置：`set_values("cfg.top", "Design")`。
 
 4. `set_values("cfg.lua_main", <lua main file>)`
 
     设置仿真时候执行的 lua 主脚本文件，对于 HVL/WAL 场景，这个参数必须设置，例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们的 lua 主脚本文件是 `LuaMain.lua`，因此可以这么设置：`set_values("cfg.lua_main", "LuaMain.lua")`。
 
     `<lua main file>` 是一个具体的文件，可以包含路径。
+
+### cfg.top 在不同场景下的设置指南
+
+#### HVL 场景（使用 @verilator、@iverilog、@vcs、@xcelium）
+
+通常情况下，cfg.top 应该指向实际的顶层模块名称：
+
+```lua
+set_values("cfg.top", "Design")  -- 直接指定 DUT 名称
+```
+
+如果使用 Verilua 的 testbench_gen 工具（Verilua 会自动生成 testbench），
+cfg.top 应该指向生成的 testbench 模块：
+
+```lua
+set_values("cfg.top", "tb_top")  -- 指向 testbench_gen 生成的模块
+```
+
+#### WAL 场景（使用 @wave_vpi）
+
+cfg.top 应该设置为波形文件中的顶层模块名称。这取决于波形是如何生成的：
+
+**场景 1：波形由 Verilua 的 HVL 仿真生成**
+
+如果波形文件是通过 Verilua 的 HVL 仿真生成的（如 [WAL 示例](../getting-started/simple_wal_example.mdx)中的 `gen_wave`），
+Verilua 会自动使用 testbench_gen 生成 `tb_top` 模块，波形文件的顶层是 `tb_top`：
+
+```lua
+set_values("cfg.top", "tb_top")
+```
+
+这样可以访问：
+- Testbench 信号（时钟、复位等）
+- 导出的 DUT 端口
+- 通过层次路径访问 DUT 内部信号（如 `tb_top.uut.count_reg`）
+
+**场景 2：波形直接来自 RTL（无 testbench 层）**
+
+如果波形文件是直接从 RTL 编译生成的（不通过 Verilua，没有 testbench），
+cfg.top 应该指向实际的 RTL 顶层模块：
+
+```lua
+set_values("cfg.top", "top")  -- 或者你的实际顶层模块名
+```
+
+:::tip[如何确定应该使用哪个值？]
+
+1. **查看波形文件：** 在波形查看器（如 GTKWave、Verdi）中打开波形文件，查看顶层模块名称
+2. **查看信号路径：** 如果信号路径包含 `tb_top.` 前缀，则应使用 `cfg.top = "tb_top"`
+3. **参考生成方式：**
+   - 通过 Verilua 的 HVL 仿真生成 → 通常包含 `tb_top` 层次
+   - 直接用仿真器编译 RTL（不经过 Verilua）→ 通常是实际的模块名
+
+:::
 
 
 ## 可选参数

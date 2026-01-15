@@ -47,7 +47,7 @@ target("sim_wave", function()
         add_files("./test.fst")
     end
 
-    set_values("cfg.top", "top")
+    set_values("cfg.top", "tb_top")
     set_values("cfg.lua_main", "sim_wave_main.lua")
 end)
 

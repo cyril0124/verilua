@@ -230,9 +230,31 @@ target("sim_wave", function()
     set_values("cfg.lua_main", "./main_for_wal.lua")
 
     -- 设计的顶层还是需要手动指定
-    set_values("cfg.top", "Counter")
+    set_values("cfg.top", "tb_top")
 end)
 ```
+
+:::note[为什么 cfg.top 设置为 "tb_top"？]
+
+本示例中，波形文件是通过 `gen_wave` target 使用 Verilator 生成的。
+Verilua 会自动调用 testbench_gen 工具生成一个名为 `tb_top` 的 testbench 模块，
+该模块会：
+1. 实例化 Counter 作为 DUT（`uut` 子模块）
+2. 提供时钟和复位生成
+3. 导出 DUT 端口
+4. 添加 DPI 接口
+
+因此波形文件的顶层是 `tb_top`，而不是 `Counter`。
+
+访问方式：
+- `cfg.top = "tb_top"` → 从 testbench 层访问（当前设置）
+  - 可访问：`tb_top.clk`, `tb_top.count`, `tb_top.uut.count_reg` 等
+- `cfg.top = "Counter"` → 从 DUT 层访问
+  - 仅可访问：Counter 模块内部的信号
+
+参考：[examples/WAL/xmake.lua 源码及详细注释](https://github.com/cyril0124/verilua/tree/master/examples/WAL/xmake.lua)
+
+:::
 
 ### 2.4. 编译
 

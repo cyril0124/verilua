@@ -82,10 +82,6 @@ local function before_build_or_run(target)
     target:add("sim", sim)
     cprint("${✅} [verilua-xmake] [%s] simulator/toolchain is ${green underline}%s${reset}", target:name(), sim)
 
-    -- Used in `on_build` and `on_run` phases
-    local tb_top = target:values("cfg.tb_top") or "tb_top"
-    target:add("tb_top", tb_top)
-
     --- Check top module
     --- e.g. (in your xmake.lua)
     --- ```lua
@@ -100,6 +96,17 @@ local function before_build_or_run(target)
     )
     target:add("top", top) -- Used in `on_build` phase
     cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
+
+    -- Used in `on_build` and `on_run` phases
+    local tb_top = target:values("cfg.tb_top") or "tb_top"
+    do
+        -- For wave_vpi simulator, there is no testbench concept, so tb_top should be the same as top
+        -- This ensures cfg.top in verilua_cfg.lua points to the actual top module instead of "tb_top"
+        if sim == "wave_vpi" then
+            tb_top = top
+        end
+        target:add("tb_top", tb_top)
+    end
 
     -- Check if VERILUA_HOME is set.
     assert(verilua_home ~= "", "[before_build_or_run] [%s] please set VERILUA_HOME", target:name())
