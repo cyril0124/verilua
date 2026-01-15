@@ -5,7 +5,7 @@ module top(
 
 reg [63:0] count;
 
-always_ff @(clock) begin
+always @(posedge clock) begin
     if (reset) begin
         count <= 0;
     end else begin

@@ -30,14 +30,21 @@ if tc_name == "basic" then
             dut.cycles:expect(0)
             dut.reset:expect(1)
 
-            clock:posedge(10)
+            clock:posedge(10, function()
+                -- Reset is always `1`
+                dut.u_top.count:expect(0)
+            end)
             dut.cycles:expect(10)
             dut.reset:expect(1)
 
             clock:posedge()
             dut.reset:expect(0)
 
-            clock:posedge(100)
+            dut.u_top.count:expect(0)
+
+            clock:posedge(100, function(c)
+                dut.u_top.count:expect(c - 1)
+            end)
             dut.cycles:expect(111)
 
             tc_finish()
