@@ -199,6 +199,8 @@ jobs:
               export IVERILOG_HOME=/tmp/iverilog_installed
               export XMAKE_ROOT=y
               export NO_CPPTRACE=1
+              export CC=/opt/rh/devtoolset-11/root/usr/bin/gcc
+              export CXX=/opt/rh/devtoolset-11/root/usr/bin/g++
 
               git config --global --add safe.directory /workspace
               git config --global --add safe.directory /workspace/luajit-pro
@@ -224,6 +226,9 @@ jobs:
               xmake run install_tinycc
               xmake run -y -v build_libverilua
               xmake build -y -v iverilog_vpi_module
+              xmake clean wave_vpi_main
+              xmake f --clean
+              xmake build wave_vpi_main
 
               source ./verilua.sh
               STOP_ON_FAIL=1 VERBOSE=1 xmake run test

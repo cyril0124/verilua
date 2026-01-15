@@ -17,7 +17,8 @@ local function wave_vpi_main_common()
 
     add_shflags(
         "-static-libstdc++ -static-libgcc",
-        "-Wl,--no-as-needed"
+        "-Wl,--no-as-needed",
+        "-rdynamic"
     )
 
     -- add_defines("PROFILE_JIT")

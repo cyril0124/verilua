@@ -5,19 +5,17 @@ extern WaveCursor cursor;
 
 // Below are interfaces used by WaveVpiCtrl.lua to control the wave_vpi.
 
+extern "C" uint64_t wave_vpi_ctrl_get_cursor_index() { return cursor.index; }
+
 extern "C" uint64_t wave_vpi_ctrl_get_max_cursor_index() { return cursor.maxIndex; }
 
-extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) {
-    VL_FATAL(cursor.index == 0, "set_cursor_index can only be called when cursor is at index 0");
-    cursor.index = index;
-}
+extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) { cursor.index = index; }
 
 extern "C" void wave_vpi_ctrl_set_cursor_index_percent(double percent) {
-    VL_FATAL(cursor.index == 0, "set_cursor_index_percent can only be called when cursor is at index 0");
     if (percent >= 100) {
         cursor.index = cursor.maxIndex - 1;
     } else {
-        uint64_t targetIndex = cursor.maxIndex * percent;
+        uint64_t targetIndex = cursor.maxIndex * (percent / 100.0);
         cursor.index         = targetIndex;
     }
 }

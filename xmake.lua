@@ -753,7 +753,7 @@ ${reset}]])
             stop_on_fail and "yes" or "no (set STOP_ON_FAIL=1 to enable)")
         cprint("  ${dim}•${reset} Started at: ${cyan}%s${reset}", os.date("%Y-%m-%d %H:%M:%S"))
 
-        local total_sections = 12
+        local total_sections = 13
 
         --
         -- Section: Tutorial Example
@@ -1093,9 +1093,19 @@ ${reset}]])
         end
 
         --
+        -- Section: WaveVpi Tests
+        --
+        print_section(9, total_sections, "WaveVpi Tests")
+        do
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests", "test_wave_vpi"))
+            run_cmd("xmake run -P .")
+        end
+
+        --
         -- Section: No Internal Clock Tests
         --
-        print_section(9, total_sections, "No Internal Clock Tests")
+        print_section(10, total_sections, "No Internal Clock Tests")
         do
             local test_dirs = {
                 { path.join(prj_dir, "tests", "test_basic_signal"), "test_basic_signal" },
@@ -1130,7 +1140,7 @@ ${reset}]])
         --
         -- Section: Benchmarks
         --
-        print_section(10, total_sections, "Performance Benchmarks")
+        print_section(11, total_sections, "Performance Benchmarks")
         do
             local benchmark_cases = {
                 "signal_operation",
@@ -1182,7 +1192,7 @@ ${reset}]])
         --
         -- Section: Testbench Generator
         --
-        print_section(11, total_sections, "Testbench Generator")
+        print_section(12, total_sections, "Testbench Generator")
         do
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "test_testbench_gen"))
@@ -1218,7 +1228,7 @@ ${reset}]])
         --
         -- Section: Lua Unit Tests & Tools
         --
-        print_section(12, total_sections, "Lua Unit Tests & Tools")
+        print_section(13, total_sections, "Lua Unit Tests & Tools")
         do
             os.setenvs(old_env)
 
