@@ -130,6 +130,24 @@ elseif tc_name == "to_end_2" then
             tc_finish()
         end
     }
+elseif tc_name == "set_cursor_time" then
+    fork {
+        function()
+            local max_time = tonumber(wctrl:get_max_cursor_time()) --[[@as integer]]
+            assert(max_time > 0, "max_time should be positive")
+
+            local half_time = math.floor(max_time / 2)
+            wctrl:set_cursor_time(half_time, false)
+
+            local half_cycles = wtype == "fsdb" and 56 or 57
+            dut.cycles:expect(half_cycles)
+
+            wctrl:set_cursor_time(max_time, true)
+            dut.cycles:expect(final_cycles)
+
+            tc_finish()
+        end
+    }
 else
     verilua_error("unknown test case: " .. tc_name)
 end

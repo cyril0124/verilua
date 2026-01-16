@@ -5,6 +5,8 @@ local Logger = require "verilua.utils.Logger"
 
 local logger = Logger.new("WaveVpiCtrl")
 
+local f = string.format
+
 assert(cfg.simulator == "wave_vpi", "WaveVpiCtrl.lua can only be used with the wave_vpi simulator")
 
 local function try_ffi_cast(type_str, type_str_ffi, value)
@@ -36,13 +38,17 @@ end
 ---
 ---@field get_cursor_index fun(self: verilua.utils.WaveVpiCtrl): integer
 ---@field get_max_cursor_index fun(self: verilua.utils.WaveVpiCtrl): integer
+---@field get_max_cursor_time fun(self: verilua.utils.WaveVpiCtrl): integer Get the maximum time in the waveform file (in femtoseconds)
 ---@field set_cursor_index fun(self: verilua.utils.WaveVpiCtrl, index: integer, flush_scheduler: boolean?)
 ---@field jit_options verilua.utils.WaveVpiJitOptions
 ---@field to_end fun(self: verilua.utils.WaveVpiCtrl, flush_scheduler: boolean?) Move the cursor to the end of the waveform file .
 ---@field to_percent fun(self: verilua.utils.WaveVpiCtrl, percent: number, flush_scheduler: boolean?) Move the cursor to the specified percent of the waveform file .
+---@field set_cursor_time fun(self: verilua.utils.WaveVpiCtrl, time: integer, flush_scheduler: boolean?) Move the cursor to the specified time (in femtoseconds)
 ---@field protected get_max_cursor_index_cfunc fun(): integer
+---@field protected get_max_cursor_time_cfunc fun(): integer
 ---@field protected set_cursor_index_cfunc fun(index: integer)
 ---@field protected set_cursor_index_percent_cfunc fun(percent: number)
+---@field protected set_cursor_time_cfunc fun(time: integer)
 local WaveVpiCtrl = {
     jit_options = {
         set = function(self, opt_name, value)
@@ -125,6 +131,18 @@ function WaveVpiCtrl:get_max_cursor_index()
     return self.get_max_cursor_index_cfunc()
 end
 
+function WaveVpiCtrl:get_max_cursor_time()
+    if not self.get_max_cursor_time_cfunc then
+        self.get_max_cursor_time_cfunc = try_ffi_cast(
+            "uint64_t (*)()",
+            "uint64_t wave_vpi_ctrl_get_max_cursor_time();",
+            "wave_vpi_ctrl_get_max_cursor_time"
+        ) --[[@as fun(): integer]]
+    end
+
+    return self.get_max_cursor_time_cfunc()
+end
+
 local function do_flush_scheduler()
     local curr_task_id = scheduler.curr_task_id
     local task_infos = scheduler:get_running_tasks()
@@ -146,14 +164,14 @@ function WaveVpiCtrl:set_cursor_index(index, flush_scheduler)
 
     local curr_index = self:get_cursor_index()
     if curr_index ~= 0 and not flush_scheduler then
-        assert(false, string.format(
+        assert(false, f(
             "[WaveVpiCtrl::set_cursor_index] `flush_scheduler` must be `true` when index is not 0, curr_index: %d",
             curr_index
         ))
     end
 
     if flush_scheduler then
-        logger:warning(string.format(
+        logger:warning(f(
             [[::set_cursor_index
     `flush_scheduler` is `true`, all tasks except the current task will be removed!
     The cursor index is set from `%d` to %d.
@@ -185,7 +203,7 @@ function WaveVpiCtrl:to_percent(percent, flush_scheduler)
     assert(percent <= 100)
 
     if flush_scheduler then
-        logger:warning(string.format(
+        logger:warning(f(
             [[::to_percent
     `flush_scheduler` is `true`, all tasks except the current task will be removed!
     The cursor index is set from `%d` to (%d * %.2f).
@@ -199,6 +217,54 @@ function WaveVpiCtrl:to_percent(percent, flush_scheduler)
     end
 
     self.set_cursor_index_percent_cfunc(percent)
+end
+
+function WaveVpiCtrl:set_cursor_time(time, flush_scheduler)
+    if not self.set_cursor_time_cfunc then
+        self.set_cursor_time_cfunc = try_ffi_cast(
+            "void (*)(uint64_t)",
+            "void wave_vpi_ctrl_set_cursor_time(uint64_t time);",
+            "wave_vpi_ctrl_set_cursor_time"
+        ) --[[@as fun(time: integer)]]
+    end
+
+    if time < 0 then
+        assert(false, f(
+            "[WaveVpiCtrl::set_cursor_time] time must be >= 0, got: %d",
+            time
+        ))
+    end
+
+    local max_time = self:get_max_cursor_time()
+    if time > max_time then
+        assert(false, f(
+            "[WaveVpiCtrl::set_cursor_time] time exceeds maximum waveform time: %d > %d",
+            time,
+            max_time
+        ))
+    end
+
+    local curr_index = self:get_cursor_index()
+    if curr_index ~= 0 and not flush_scheduler then
+        assert(false, f(
+            "[WaveVpiCtrl::set_cursor_time] `flush_scheduler` must be `true` when index is not 0, curr_index: %d",
+            curr_index
+        ))
+    end
+
+    if flush_scheduler then
+        logger:warning(f(
+            [[::set_cursor_time
+    `flush_scheduler` is `true`, all tasks except the current task will be removed!
+    The cursor is set to time %d fs.
+    This may cause unexpected behavior.
+]],
+            time
+        ))
+        do_flush_scheduler()
+    end
+
+    self.set_cursor_time_cfunc(time)
 end
 
 return WaveVpiCtrl

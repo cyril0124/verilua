@@ -1,5 +1,10 @@
 #include "jit_options.h"
 #include "wave_vpi.h"
+#include <cstdint>
+
+#ifdef USE_FSDB
+#include "fsdb_wave_vpi.h"
+#endif
 
 extern WaveCursor cursor;
 
@@ -8,6 +13,8 @@ extern WaveCursor cursor;
 extern "C" uint64_t wave_vpi_ctrl_get_cursor_index() { return cursor.index; }
 
 extern "C" uint64_t wave_vpi_ctrl_get_max_cursor_index() { return cursor.maxIndex; }
+
+extern "C" uint64_t wave_vpi_ctrl_get_max_cursor_time() { return cursor.maxTime; }
 
 extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) { cursor.index = index; }
 
@@ -56,4 +63,14 @@ extern "C" uint64_t wave_vpi_ctrl_get_jit_options(const char *opt_name) {
     } else {
         VL_FATAL(false, "Unknown JIT option: {}", n);
     }
+}
+
+extern "C" void wave_vpi_ctrl_set_cursor_time(uint64_t time) {
+    uint64_t targetIndex;
+#ifdef USE_FSDB
+    targetIndex = fsdb_wave_vpi::fsdbWaveVpi->findNearestTimeIndex(time);
+#else
+    targetIndex = wellen_get_index_from_time(time);
+#endif
+    cursor.index = targetIndex >= cursor.maxIndex ? cursor.maxIndex - 1 : targetIndex;
 }
