@@ -1,11 +1,11 @@
 ---@diagnostic disable: unnecessary-if, unnecessary-assert
 
 local ffi = require "ffi"
-local path = require "pl.path"
+local pl_path = require "pl.path"
 local inspect = require "inspect"
 local tablex = require "pl.tablex"
 local stringx = require "pl.stringx"
-local texpect = require "TypeExpect"
+local texpect = require "verilua.TypeExpect"
 
 local next = next
 local type = type
@@ -60,7 +60,7 @@ local cfg = _G.cfg
 ---@field prefix? string
 
 ---@class (exact) verilua.utils.SignalDB
----@field private db_data table
+---@field private db_data verilua.utils.SignalDB.data
 ---@field private top string?
 ---@field private check_file string?
 ---@field private target_file string
@@ -118,7 +118,7 @@ local function get_check_file()
     end
 end
 
-function SignalDB:init(params)
+function SignalDB:init(_params)
     if self.initialized and not self.regenerate then
         return self
     end
@@ -131,12 +131,12 @@ function SignalDB:init(params)
     local rtl_filelist = self.rtl_filelist
     if cfg.simulator ~= "nosim" then
         self.check_file = self.check_file or get_check_file()
-        local dir, _ = path.splitpath(self.check_file)
-        if path.isfile(rtl_filelist) then
+        local dir, _ = pl_path.splitpath(self.check_file)
+        if pl_path.isfile(rtl_filelist) then
             -- do nothing
-        elseif path.isfile("./" .. rtl_filelist) then
+        elseif pl_path.isfile("./" .. rtl_filelist) then
             rtl_filelist = "./" .. rtl_filelist
-        elseif path.isfile(dir .. "/../" .. rtl_filelist) then
+        elseif pl_path.isfile(dir .. "/../" .. rtl_filelist) then
             rtl_filelist = dir .. "/../" .. rtl_filelist
         else
             error("[SignalDB] can not find `" .. rtl_filelist .. "`")
@@ -150,7 +150,7 @@ function SignalDB:init(params)
         ))
     else
         local nosim_cmdline_args_file = "./nosim_cmdline_args.lua"
-        assert(path.isfile(nosim_cmdline_args_file),
+        assert(pl_path.isfile(nosim_cmdline_args_file),
             f("[SignalDB] can not find `%s`", nosim_cmdline_args_file))
 
         local args_func = loadfile(nosim_cmdline_args_file)
@@ -195,7 +195,7 @@ function SignalDB:set_target_file(file_path)
 end
 
 function SignalDB:try_load_db()
-    if path.isfile(self.target_file) then
+    if pl_path.isfile(self.target_file) then
         self:load_db(self.target_file)
         self.initialized = true
     end
@@ -308,7 +308,7 @@ function SignalDB:generate_db(args_str)
         print(f("[SignalDB] Failed to load libsignal_db_gen.so (reason: %s), falling back to binary", tostring(lib)))
 
         local binary_path = verilua_home .. "/tools/signal_db_gen"
-        assert(path.isfile(binary_path), f("[SignalDB] signal_db_gen binary not found at: %s", binary_path))
+        assert(pl_path.isfile(binary_path), f("[SignalDB] signal_db_gen binary not found at: %s", binary_path))
 
         print(f("[SignalDB] generate_db cmd: %s %s", binary_path, cmd))
 
@@ -449,6 +449,7 @@ local function _find_signal(hiers, ret, path, signal_pattern, hier_pattern, full
                 _find_signal(v, ret, path .. "." .. k, signal_pattern, hier_pattern, full_info)
             end
         elseif k_type == "number" then
+            ---@cast v verilua.utils.SignalInfo
             local signal_info = v
             local signal_name = signal_info[1]
             if wildmatch(signal_pattern, signal_name) then
@@ -502,9 +503,9 @@ function SignalDB:find_signal(signal_pattern, hier_pattern, full_info)
     return ret
 end
 
----@param signal_name string
----@param signal_bitwidth number
-local function default_filter(signal_name, signal_bitwidth)
+---@param _signal_name string
+---@param _signal_bitwidth number
+local function default_filter(_signal_name, _signal_bitwidth)
     return true
 end
 
