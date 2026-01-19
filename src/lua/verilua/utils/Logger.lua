@@ -212,7 +212,7 @@ local function noop() end
 ---@field min_level verilua.utils.Logger.log_levels? Minimum log level to display (0=debug, 1=info, 2=warn, 3=error)
 
 ---@class verilua.utils.Logger
----@field private module_name string
+---@field private logger_name string
 ---@field private prefix string Pre-computed prefix string
 ---@field default verilua.utils.Logger Default logger instance
 ---@field debug fun(self: verilua.utils.Logger, ...)
@@ -220,14 +220,15 @@ local function noop() end
 ---@field success fun(self: verilua.utils.Logger, ...)
 ---@field warning fun(self: verilua.utils.Logger, ...)
 ---@field error fun(self: verilua.utils.Logger, ...)
----@field new fun(module_name: string?, config: verilua.utils.Logger.config?): verilua.utils.Logger
+---@field new fun(logger_name: string?, config: verilua.utils.Logger.config?): verilua.utils.Logger
+---@field set_logger_name fun(self: verilua.utils.Logger, name: string): verilua.utils.Logger
 local Logger = {}
 Logger.__index = Logger
 
 --- Create log function for a specific level
 ---@param self verilua.utils.Logger
----@param level number
----@param min_level number
+---@param level integer
+---@param min_level integer
 ---@param use_colors boolean
 ---@param color string
 ---@param icon_key string
@@ -262,9 +263,9 @@ local function make_log_func(self, level, min_level, use_colors, color, icon_key
 end
 
 --- Create a new Logger instance with compile-time optimized methods
-function Logger.new(module_name, config)
+function Logger.new(logger_name, config)
     local self = setmetatable({}, Logger)
-    self.module_name = module_name or "VERILUA"
+    self.logger_name = logger_name or "VERILUA"
 
     -- Handle per-instance config overrides
     local use_colors = CFG_USE_COLORS
@@ -275,15 +276,42 @@ function Logger.new(module_name, config)
         if config.min_level ~= nil then min_level = config.min_level end
     end
 
+    -- Store config for set_logger_name to use later
+    self._use_colors = use_colors
+    self._min_level = min_level
+
     -- Pre-compute prefix string
     if use_colors then
-        self.prefix = FG_BRIGHT_BLACK .. "[" .. self.module_name .. "]" .. RESET .. " "
+        self.prefix = FG_BRIGHT_BLACK .. "[" .. self.logger_name .. "]" .. RESET .. " "
     else
-        self.prefix = "[" .. self.module_name .. "] "
+        self.prefix = "[" .. self.logger_name .. "] "
     end
 
     -- Generate optimized log functions at creation time
     -- These functions have zero branching overhead for disabled levels
+    self.debug = make_log_func(self, 0, min_level, use_colors, FG_BRIGHT_BLACK, "DEBUG")
+    self.info = make_log_func(self, 1, min_level, use_colors, FG_CYAN, "")
+    self.success = make_log_func(self, 1, min_level, use_colors, FG_GREEN, "SUCCESS")
+    self.warning = make_log_func(self, 2, min_level, use_colors, FG_YELLOW, "WARNING")
+    self.error = make_log_func(self, 3, min_level, use_colors, FG_RED, "ERROR")
+
+    return self
+end
+
+--- Set the logger name (updates prefix and regenerates log functions)
+function Logger:set_logger_name(name)
+    self.logger_name = name
+
+    -- Recalculate prefix with current color settings
+    local use_colors = self._use_colors or CFG_USE_COLORS
+    if use_colors then
+        self.prefix = FG_BRIGHT_BLACK .. "[" .. self.logger_name .. "]" .. RESET .. " "
+    else
+        self.prefix = "[" .. self.logger_name .. "] "
+    end
+
+    -- Regenerate log functions with new prefix
+    local min_level = self._min_level or CFG_MIN_LEVEL
     self.debug = make_log_func(self, 0, min_level, use_colors, FG_BRIGHT_BLACK, "DEBUG")
     self.info = make_log_func(self, 1, min_level, use_colors, FG_CYAN, "")
     self.success = make_log_func(self, 1, min_level, use_colors, FG_GREEN, "SUCCESS")
