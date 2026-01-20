@@ -155,6 +155,48 @@ describe("LuaUtils test", function()
         end
     end)
 
+    it("should work properly for urandom64_range() with edge cases (overflow test)", function()
+        -- Test edge cases that can cause overflow:
+        -- 1. When max - min + 1 == 2^64 (full range), should not cause division by zero
+        -- 2. When max is near the max uint64 value
+
+        local edge_tests = {
+            -- Test near max boundary: max - min + 1 should not overflow
+            { MIN = 0,                         MAX = 0xFFFFFFFFFFFFFFFFULL },
+            { MIN = 1,                         MAX = 0xFFFFFFFFFFFFFFFFULL },
+            { MIN = 0xFFFFFFFFFFFFFFFEULL,     MAX = 0xFFFFFFFFFFFFFFFFULL },
+            { MIN = 0xFFFFFFFFFFFFFF00ULL,     MAX = 0xFFFFFFFFFFFFFFFFULL },
+            { MIN = 0x8000000000000000ULL,     MAX = 0xFFFFFFFFFFFFFFFFULL },
+            -- Test when min == max (range of 1)
+            { MIN = 0xFFFFFFFFFFFFFFFFULL,     MAX = 0xFFFFFFFFFFFFFFFFULL },
+            { MIN = 0,                         MAX = 0 },
+            { MIN = 12345ULL,                  MAX = 12345ULL },
+        }
+
+        for _, v in ipairs(edge_tests) do
+            local MIN = v.MIN
+            local MAX = v.MAX
+
+            for _ = 1, 1000 do
+                local result = utils.urandom64_range(MIN, MAX)
+                assert(type(result) == "cdata",
+                    f("Expected cdata, got %s for MIN=%s, MAX=%s", type(result),
+                        utils.to_hex_str(MIN), utils.to_hex_str(MAX)))
+                assert(result >= MIN,
+                    f("Result %s should >= MIN %s", utils.to_hex_str(result), utils.to_hex_str(MIN)))
+                assert(result <= MAX,
+                    f("Result %s should <= MAX %s", utils.to_hex_str(result), utils.to_hex_str(MAX)))
+            end
+        end
+
+        -- Test min == max returns exactly that value
+        for _ = 1, 100 do
+            local v = utils.urandom64_range(0xABCDEF123456ULL, 0xABCDEF123456ULL)
+            assert(v == 0xABCDEF123456ULL,
+                f("Expected 0xABCDEF123456, got %s", utils.to_hex_str(v)))
+        end
+    end)
+
     it("should work properly for str_group_by() and str_sep()", function()
         local tests = {
             { "1234567890", 3, { "123", "456", "789", "0" } },

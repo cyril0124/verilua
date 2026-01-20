@@ -642,18 +642,26 @@ end
 ---@param max integer|uint64_t
 ---@return uint64_t
 function utils.urandom64_range(min, max)
-    local random_value = math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
-
-    local range = 0ULL --[[@as integer]]
-    if max == 0xFFFFFFFFFFFFFFFFULL then
-        range = 0xFFFFFFFFFFFFFFFFULL
-    else
-        range = (max - min) --[[@as integer]] + 1ULL
+    -- Handle the case when min == max (range of 1)
+    if min == max then
+        return (min + 0ULL) --[[@as uint64_t]]
     end
 
-    local result = min + (random_value % (range))
+    local random_value = math_random(0, 0xFFFFFFFF) * 0x100000000ULL + math_random(0, 0xFFFFFFFF)
 
-    return result --[[@as uint64_t]]
+    -- Calculate range carefully to avoid overflow
+    -- If max - min == 0xFFFFFFFFFFFFFFFFULL, then range would overflow when we add 1
+    local diff = (max - min) --[[@as integer]]
+
+    if diff == 0xFFFFFFFFFFFFFFFFULL then
+        -- Full 64-bit range: any random value is valid, no modulo needed
+        return random_value --[[@as uint64_t]]
+    else
+        -- range = diff + 1, and since diff < 0xFFFFFFFFFFFFFFFFULL, this won't overflow
+        local range = diff + 1ULL
+        local result = min + (random_value % range)
+        return result --[[@as uint64_t]]
+    end
 end
 
 --- Splits a string into groups of a specified size.
