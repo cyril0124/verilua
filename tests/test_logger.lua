@@ -100,6 +100,25 @@ local no_color_log = Logger.new("NoColor", { use_colors = false })
 no_color_log:info("This should not have colors")
 print("✓ Test 15: No colors mode passed")
 
+-- Test 16: set_logger_name functionality
+local name_change_log = Logger.new("OriginalName")
+name_change_log:info("Message with original name")
+name_change_log:set_logger_name("NewName")
+name_change_log:info("Message with new name")
+assert(name_change_log.logger_name == "NewName", "Logger name should be updated")
+assert(name_change_log.prefix:find("NewName"), "Prefix should contain new name")
+print("✓ Test 16: set_logger_name passed")
+
+-- Test 17: set_logger_name with custom config
+local custom_log = Logger.new("Custom", { use_colors = false, min_level = 2 })
+custom_log:warning("Warning should show (level 2)")
+custom_log:info("Info should not show (level 1 < min_level 2)")
+custom_log:set_logger_name("RenamedCustom")
+custom_log:warning("Warning after rename should still show")
+assert(custom_log._min_level == 2, "Config should be preserved after rename")
+assert(custom_log._use_colors == false, "Config should be preserved after rename")
+print("✓ Test 17: set_logger_name preserves config")
+
 print("")
 print("=" .. string.rep("=", 60))
 print("All Logger tests passed!")
