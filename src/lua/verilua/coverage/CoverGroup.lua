@@ -1,6 +1,6 @@
 local io = require "io"
 local class = require "pl.class"
-local texpect = require "TypeExpect"
+local texpect = require "verilua.TypeExpect"
 
 local type = type
 local print = print

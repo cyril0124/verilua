@@ -3,7 +3,7 @@
 local ffi = require "ffi"
 local inspect = require "inspect"
 local lester = require "lester"
-local utils = require "LuaUtils"
+local utils = require "verilua.LuaUtils"
 
 local describe, it, expect = lester.describe, lester.it, lester.expect
 local assert, f = assert, string.format
@@ -68,48 +68,48 @@ describe("LuaUtils test", function()
     end)
 
     it("should work properly for bitpat_to_hexstr()", function()
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
             { s = 0,  e = 1,  v = 2 },
             { s = 4,  e = 7,  v = 4 },
             { s = 63, e = 63, v = 1 }
         }, 64) == "8000000000000042")
 
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
             { s = 0,   e = 1,   v = 2 },
             { s = 4,   e = 7,   v = 4 },
             { s = 127, e = 127, v = 1 }
         }, 128) == "80000000000000000000000000000042")
 
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
             { s = 0,   e = 1,   v = 2 },
             { s = 4,   e = 7,   v = 4 },
             { s = 255, e = 255, v = 1 }
         }, 256) == "8000000000000000000000000000000000000000000000000000000000000042")
 
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
             { s = 0,   e = 1,   v = 2 },
             { s = 4,   e = 7,   v = 4 },
             { s = 109, e = 109, v = 1 }
         }, 110) == "00002000000000000000000000000042")
 
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
             { s = 0,  e = 1,   v = 2 },
             { s = 4,  e = 7,   v = 4 },
             { s = 65, e = 127, v = 0x11231 }
         }, 128) == "00000000000224620000000000000042")
 
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
                 { s = 0, e = 63, v = 0xdead }
             }, 512) ==
             "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead")
 
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
                 { s = 0,   e = 63,       v = 0xdead },
                 { s = 256, e = 255 + 63, v = 0xbeef },
             }, 512) ==
             "000000000000000000000000000000000000000000000000000000000000beef000000000000000000000000000000000000000000000000000000000000dead")
 
-        assert(utils.bitpat_to_hexstr({
+        assert(utils.bitpat_to_hex_str({
             { s = 16, e = 51, v = 0x600000000ULL },
             { s = 0,  e = 15, v = 0xdead }
         }, 64) == "000600000000dead")
@@ -381,6 +381,7 @@ describe("LuaUtils test", function()
             local hex_str = test[1]
             local width = test[2]
             local expected = test[3]
+            ---@diagnostic disable-next-line
             local result = utils.expand_hex_str(hex_str, width)
             expect.equal(result, expected)
         end

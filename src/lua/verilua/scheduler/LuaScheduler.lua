@@ -55,8 +55,8 @@ local cfg = _G.cfg
 ---@field curr_task_id verilua.scheduler.TaskID Current task ID
 ---@field curr_wakeup_event_id verilua.scheduler.EventID Current wakeup event ID
 ---@field private new_event_hdl fun(self: verilua.scheduler.LuaScheduler, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Creates a new event handle
----@field private get_event_hdl fun(self: verilua.scheduler.LuaScheduler, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Alias for new_event_hdl
----@field private send_event fun(self: verilua.scheduler.LuaScheduler, event_id: verilua.scheduler.EventID) Sends an event
+---@field get_event_hdl fun(self: verilua.scheduler.LuaScheduler, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Alias for new_event_hdl
+---@field send_event fun(self: verilua.scheduler.LuaScheduler, event_id: verilua.scheduler.EventID) Sends an event
 ---@field remove_task fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Removes a task by ID
 ---@field check_task_exists fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID): boolean Checks if a task exists
 ---@field append_task fun(self: verilua.scheduler.LuaScheduler, task_id?: verilua.scheduler.TaskID, task_name: string, task_body: verilua.scheduler.CoroutineTaskBody, start_now?: boolean): verilua.scheduler.TaskID Appends or registers a new task

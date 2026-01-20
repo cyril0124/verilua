@@ -2,7 +2,7 @@
 
 local SymbolHelper
 local ffi = require "ffi"
-local utils = require "LuaUtils"
+local utils = require "verilua.LuaUtils"
 local table_new = require "table.new"
 
 local C = ffi.C

@@ -10,7 +10,7 @@ Verilua 提倡编写**可复用的验证组件**，以便在多个场景（HVL�
 
 ```lua title="Monitor.lua"
 local class = require "pl.class"
-local texpect = require "TypeExpect"
+local texpect = require "verilua.TypeExpect"
 
 local Monitor = class()
 
@@ -31,7 +31,7 @@ end
 
 - `local class = require "pl.class"` 这里使用到了 penlight 库的 class，具体可以参考 [penlight 官方文档](https://lunarmodules.github.io/Penlight)。
 
-- `local texpect = require "TypeExpect"` 这里使用到了 Verilua 内置的 `TypeExpect` 模块，具体可以参考 [TypeExpect 模块](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/TypeExpect.lua)，主要用来检查参数的类型。
+- `local texpect = require "verilua.TypeExpect"` 这里使用到了 Verilua 内置的 `TypeExpect` 模块，具体可以参考 [TypeExpect 模块](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/TypeExpect.lua)，主要用来检查参数的类型。
 
 - `texpect.expect_bdl(signals, "signals")` 的作用和下面是一样的：
     ```lua
@@ -79,7 +79,7 @@ fork {
 
 ```lua title="Monitor_1.lua"
 local class = require "pl.class"
-local texpect = require "TypeExpect"
+local texpect = require "verilua.TypeExpect"
 
 local Monitor = class()
 
@@ -135,7 +135,7 @@ fork {
 
 ```lua title="Monitor.lua"
 local class = require "pl.class"
-local texpect = require "TypeExpect"
+local texpect = require "verilua.TypeExpect"
 
 local Monitor = class()
 

@@ -461,6 +461,8 @@ function SignalDB:generate_db(args_str)
         -- Actually, let's use io.popen to get the exit code reliably
         print("[SignalDB] Executing signal_db_gen binary...")
         local handle = io.popen(binary_path .. " " .. cmd .. "; echo $?")
+        assert(handle, "[SignalDB] Failed to execute signal_db_gen binary!")
+
         local output = handle:read("*a")
         handle:close()
         print("[SignalDB] signal_db_gen output:\n==============\n" .. output .. "==============")

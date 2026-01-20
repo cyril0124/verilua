@@ -1,4 +1,4 @@
-local utils = require "LuaUtils"
+local utils = require "verilua.LuaUtils"
 
 local clock = dut.clock:chdl()
 

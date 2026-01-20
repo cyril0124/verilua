@@ -1,7 +1,7 @@
 ---@diagnostic disable: unnecessary-assert
 
 local putils = require "pl.utils"
-local texpect = require "TypeExpect"
+local texpect = require "verilua.TypeExpect"
 
 local f = string.format
 

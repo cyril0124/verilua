@@ -222,7 +222,7 @@ fork {
         --- There are few ways to get bitfield from a signal value
         --- 1. using methods in `LuaUtils`
         do
-            local utils = require "LuaUtils"
+            local utils = require "verilua.LuaUtils"
             local v = tonumber(0b00001010) --[[@as integer]]
             assert(utils.bitfield32(1, 1, v) == 1)
             assert(utils.bitfield32(1, 3, v) == 5)

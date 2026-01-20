@@ -135,7 +135,7 @@ local ICONS = {
 --------------------------------------------------------------------------------
 -- Configuration (read once at module load time)
 --------------------------------------------------------------------------------
----@class verilua.utils.Logger.log_levels
+---@class verilua.utils.Logger.log_levels: integer
 local LOG_LEVELS = { debug = 0, info = 1, warn = 2, warning = 2, error = 3 }
 
 local function get_env_bool(name, default)
@@ -213,7 +213,9 @@ local function noop() end
 
 ---@class verilua.utils.Logger
 ---@field private logger_name string
----@field private prefix string Pre-computed prefix string
+---@field _use_colors boolean
+---@field _min_level integer
+---@field prefix string Pre-computed prefix string
 ---@field default verilua.utils.Logger Default logger instance
 ---@field debug fun(self: verilua.utils.Logger, ...)
 ---@field info fun(self: verilua.utils.Logger, ...)
@@ -240,7 +242,6 @@ local function make_log_func(self, level, min_level, use_colors, color, icon_key
     end
 
     -- Pre-compute static parts
-    ---@diagnostic disable-next-line: access-invisible
     local prefix = self.prefix
     local icon = get_icon(icon_key)
     local icon_str = icon ~= "" and (icon .. " ") or ""
@@ -275,6 +276,9 @@ function Logger.new(logger_name, config)
         if config.use_colors ~= nil then use_colors = config.use_colors end
         if config.min_level ~= nil then min_level = config.min_level end
     end
+
+    ---@cast use_colors -?
+    ---@cast min_level -?
 
     -- Store config for set_logger_name to use later
     self._use_colors = use_colors

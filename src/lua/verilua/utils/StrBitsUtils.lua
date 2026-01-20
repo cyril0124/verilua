@@ -3,8 +3,8 @@
 local bit = require "bit"
 local math = require "math"
 local stringx = require "pl.stringx"
-local utils = require "LuaUtils"
 local table_new = require "table.new"
+local utils = require "verilua.LuaUtils"
 
 local f = string.format
 local tonumber = tonumber

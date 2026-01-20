@@ -6,9 +6,9 @@ local ffi = require "ffi"
 local lfs = require "lfs"
 local path = require "pl.path"
 local class = require "pl.class"
-local utils = require "LuaUtils"
-local texpect = require "TypeExpect"
 local table_new = require "table.new"
+local utils = require "verilua.LuaUtils"
+local texpect = require "verilua.TypeExpect"
 local subst = require("pl.template").substitute
 
 ---@type any
@@ -83,10 +83,10 @@ end
 ---@class (exact) verilua.utils.LuaDataBase
 ---@overload fun(params: verilua.utils.LuaDataBase.params): verilua.utils.LuaDataBase
 ---@field private db any
----@field private duckdb_config verilua.utils.duckdb.duckdb_config
----@field private duckdb_conn verilua.utils.duckdb.duckdb_connection
----@field private duckdb_appd verilua.utils.duckdb.duckdb_appender
----@field private backend "sqlite3" | "duckdb"
+---@field private duckdb_config verilua.utils.DuckDB.duckdb_config
+---@field private duckdb_conn verilua.utils.DuckDB.duckdb_connection
+---@field private duckdb_appd verilua.utils.DuckDB.duckdb_appender
+---@field backend "sqlite3" | "duckdb"
 ---@field private size_limit? integer
 ---@field private file_count integer
 ---@field private path_name string
@@ -730,7 +730,7 @@ function LuaDataBaseV2:create_db()
             assert(false, f("[LuaDataBaseV2] [%s] Cannot open %s => %s", self.backend, self.fullpath_name, db:errmsg()))
         end
 
-        ---@cast db verilua.utils.duckdb.duckdb_database
+        ---@cast db verilua.utils.DuckDB
         self.db = db
 
         local ret2, conn = self.db:new_conn()

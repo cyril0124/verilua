@@ -26,10 +26,10 @@
 
 
 local debug = require "debug"
-require "vpiml"
 local class = require "pl.class"
 local coroutine = require "coroutine"
 local table_clear = require "table.clear"
+require "verilua.vpiml.vpiml"
 local Logger = require "verilua.utils.Logger"
 
 local f = string.format

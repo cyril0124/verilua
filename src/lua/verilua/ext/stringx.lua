@@ -60,9 +60,9 @@
 --------------------------------------------------------------------------------
 
 local f = string.format
-local vpiml = require "vpiml"
 local stringx = require "pl.stringx"
 local utils = require "verilua.LuaUtils"
+local vpiml = require "verilua.vpiml.vpiml"
 local BitVec = require "verilua.utils.BitVec"
 local Bundle = require "verilua.handles.LuaBundle"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"

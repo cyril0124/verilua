@@ -1,6 +1,6 @@
 fork {
     function()
-        local utils = require "LuaUtils"
+        local utils = require "verilua.LuaUtils"
 
         -- Call C function from verilua side
         local dpic_func = utils.try_ffi_cast("void (*)(const char *)", "void dpic_func(const char *content)", "dpic_func")

@@ -6,7 +6,7 @@ local inspect = require "inspect"
 
 -- local pp = function(...) print(inspect(...)) end
 
----@type SignalDB.data
+---@type verilua.utils.SignalDB.data
 local signal_db_table = {}
 
 ---@param signal_db_file string
@@ -67,7 +67,7 @@ function _G.insert_signal_db(size, hier_path_vec, bitwidth_vec, type_str_vec)
             -- final signal name
             if j == end_idx then
                 -- `v` is the signal name
-                ---@type SignalInfo
+                ---@type verilua.utils.SignalInfo
                 local singal_info = {
                     v,
                     bitwidth_vec[i],

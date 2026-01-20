@@ -446,7 +446,6 @@ function texpect.expect_abdl(value, name, params)
 
                         texpect.expect_chdl(sig, sig_name) -- Each element of AliasBundle must be a CallableHDL
 
-                        ---@diagnostic disable-next-line: access-invisible
                         if first_sig.hdl ~= sig.hdl then
                             -- Check if signals are fake_chdl
                             local first_is_fake = first_sig.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
@@ -695,7 +694,6 @@ function texpect.expect_database(value, name, elements_table)
             elements_table_processed[i] = s:gsub(" ", "")
         end
 
-        ---@diagnostic disable-next-line: access-invisible
         if value.backend and value.backend == "duckdb" then
             for i, s in ipairs(elements_table_processed) do
                 elements_table_processed[i] = s:gsub("INTEGER", "BIGINT"):gsub("TEXT", "VARCHAR")

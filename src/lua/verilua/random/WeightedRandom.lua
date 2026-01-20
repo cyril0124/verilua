@@ -1,5 +1,5 @@
 local class = require "pl.class"
-local texpect = require "TypeExpect"
+local texpect = require "verilua.TypeExpect"
 
 local assert = assert
 local ipairs = ipairs

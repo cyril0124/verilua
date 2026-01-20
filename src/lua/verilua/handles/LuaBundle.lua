@@ -1,9 +1,9 @@
-local vpiml = require "vpiml"
 local class = require "pl.class"
 local tablex = require "pl.tablex"
-local texpect = require "TypeExpect"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
+local vpiml = require "verilua.vpiml.vpiml"
+local texpect = require "verilua.TypeExpect"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local assert = assert

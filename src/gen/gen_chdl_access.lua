@@ -2,8 +2,8 @@
 
 ---@diagnostic disable
 
-local vpiml = require "vpiml"
-local BitVec = require "BitVec"
+local vpiml = require "verilua.vpiml.vpiml"
+local BitVec = require "verilua.utils.BitVec"
 local table_new = require "table.new"
 
 function __LJP:comp_time()

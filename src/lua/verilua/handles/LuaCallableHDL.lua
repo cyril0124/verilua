@@ -1,12 +1,13 @@
 ---@diagnostic disable: need-check-nil, unnecessary-assert
+
 local ffi = require "ffi"
 local math = require "math"
-local vpiml = require "vpiml"
 local debug = require "debug"
-local utils = require "LuaUtils"
 local class = require "pl.class"
-local texpect = require "TypeExpect"
 local table_new = require "table.new"
+local utils = require "verilua.LuaUtils"
+local vpiml = require "verilua.vpiml.vpiml"
+local texpect = require "verilua.TypeExpect"
 
 local BeatWidth = 32
 
@@ -93,7 +94,7 @@ local post_init_mt = setmetatable({
 ---@field name string
 ---@field private always_fired boolean
 ---@field private width integer
----@field private hdl verilua.handles.ComplexHandleRaw
+---@field hdl verilua.handles.ComplexHandleRaw
 ---@field private hdl_type string
 ---@field is_array boolean
 ---@field array_size integer

@@ -1,9 +1,9 @@
 ---@diagnostic disable: unnecessary-assert
 
 local class = require "pl.class"
-local utils = require "LuaUtils"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
+local utils = require "verilua.LuaUtils"
 local texpect = require "verilua.TypeExpect"
 
 local type = type

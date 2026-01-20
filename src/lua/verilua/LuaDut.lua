@@ -1,6 +1,6 @@
 ---@diagnostic disable: unnecessary-if, unnecessary-assert, need-check-nil
 
-local vpiml = require "vpiml"
+local vpiml = require "verilua.vpiml.vpiml"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
 local BeatWidth = 32

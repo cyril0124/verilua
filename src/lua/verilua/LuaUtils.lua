@@ -82,7 +82,7 @@ local hex_to_bin_map = {
     ["f"] = "1111"
 }
 
----@class (exact) verilua.LuaUtils
+---@class verilua.LuaUtils
 local utils = {}
 
 ---@param t table The table to be serialized
@@ -1243,7 +1243,7 @@ end
 ---      -- Third, generate coverage report at the end of the simulation
 ---      final {
 ---          function ()
----              local utils = require "LuaUtils"
+---              local utils = require "verilua.LuaUtils"
 ---              utils.report_luacov()
 ---          end
 ---      }

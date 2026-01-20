@@ -41,7 +41,7 @@ local ffi = require "ffi"
 ---@field private err_msg_ptr table<integer, ffi.cdata*>
 ---@field new_config fun(): verilua.utils.DuckDB.const, verilua.utils.DuckDB.duckdb_config
 ---@field open fun(filename: string, config: verilua.utils.DuckDB.duckdb_config?): verilua.utils.DuckDB.const, verilua.utils.DuckDB.duckdb_database
----@field init fun(params: verilua.utils.DuckDB.params): verilua.utils.DuckDB
+---@field init fun(self: verilua.utils.DuckDB, params: verilua.utils.DuckDB.params): verilua.utils.DuckDB
 local M = {
     const = {
         OK = 0,
@@ -100,7 +100,7 @@ function M:init(params)
                     "[DuckDB.lua] library not found, name: " ..
                     tostring(params.name) .. ", path: " .. tostring(params.path)
                 )
-                self.clib = ffi.load(package.searchpath(params.name, params.path))
+                self.clib = ffi.load(package.searchpath(params.name, params.path) --[[@as string]])
             else
                 self.clib = ffi.load(params.name)
             end

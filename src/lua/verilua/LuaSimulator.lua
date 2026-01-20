@@ -4,7 +4,7 @@ local io = require "io"
 local os = require "os"
 local ffi = require "ffi"
 local path = require "pl.path"
-local utils = require "LuaUtils"
+local utils = require "verilua.LuaUtils"
 
 local assert = assert
 local ffi_new = ffi.new

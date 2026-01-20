@@ -344,7 +344,7 @@ function cfg:post_config()
     _G.cfg = cfg
     cfg.top = cfg.top or os.getenv("DUT_TOP")
     if not cfg.top then
-        local vpiml = require "vpiml"
+        local vpiml = require "verilua.vpiml.vpiml"
         config_warn(f(
             "[cfg:post_config] <cfg.top>(top-level name) is not set! Try to get it from `vpiml.vpiml_get_top_module()`..."
         ))

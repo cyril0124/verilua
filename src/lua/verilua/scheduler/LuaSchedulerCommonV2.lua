@@ -1,4 +1,4 @@
-local utils = require "LuaUtils"
+local utils = require "verilua.LuaUtils"
 local ceil = math.ceil
 local tostring = tostring
 local coroutine = coroutine
@@ -44,6 +44,7 @@ local NOOP = 5555
 local coro_yield = coroutine.yield
 
 local await_time
+-- TODO: "edge_step" ?
 if cfg.mode == "step" then
     local period = cfg.period
     ---@param time integer

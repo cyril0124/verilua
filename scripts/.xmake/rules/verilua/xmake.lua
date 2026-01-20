@@ -235,7 +235,7 @@ local function before_build_or_run(target)
     ---         in a pretty early stage and some modules may not be available yet. Currently, only `LuaUtils` is supported.
     --- e.g. (cfg.lua)
     --- ```lua
-    --- local utils = require "LuaUtils"
+    --- local utils = require "verilua.LuaUtils"
     --- local cfg = {}
     --- cfg.some_option = utils.get_env_or_else("SOME_OPTION", "boolean", false)
     --- -- Your code ...

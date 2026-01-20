@@ -4,10 +4,10 @@ local ffi = require "ffi"
 local lfs = require "lfs"
 local path = require "pl.path"
 local class = require "pl.class"
-local utils = require "LuaUtils"
 local sqlite3 = require "lsqlite3"
-local texpect = require "TypeExpect"
 local table_new = require "table.new"
+local utils = require "verilua.LuaUtils"
+local texpect = require "verilua.TypeExpect"
 local subst = require("pl.template").substitute
 
 local print = print
