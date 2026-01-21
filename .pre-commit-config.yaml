@@ -1,0 +1,33 @@
+# Use `pre-commit install` to install the pre-commit hooks.
+# You only need to do this once.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-merge-conflict
+  - repo: https://github.com/btford/write-good
+    rev: v1.0.8
+    hooks:
+      - id: write-good
+  - repo: local
+    hooks:
+      - id: format-lua
+        name: format-lua
+        entry: xmake run format-lua
+        language: system
+        pass_filenames: false
+        files: \.(lua)$
+      - id: lsp-check-lua
+        name: lsp-check-lua
+        entry: xmake run lsp-check-lua
+        language: system
+        pass_filenames: false
+        files: \.(lua)$
+      - id: format-cpp
+        name: format-cpp
+        entry: xmake run format-cpp
+        language: system
+        pass_filenames: false
+        files: \.(cpp|hpp|h|c)$
+

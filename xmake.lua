@@ -23,14 +23,14 @@ end
 
 target("update_submodules", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         os.exec("git submodule update --init --recursive")
     end)
 end)
 
 target("install_luarocks", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luarocks_version = "3.12.2"
 
@@ -61,7 +61,7 @@ end)
 
 target("install_luajit", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
 
@@ -89,7 +89,7 @@ end)
 
 target("reinstall_luajit", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
 
@@ -111,7 +111,7 @@ end)
 
 target("install_libgmp", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         if os.getenv("CI_USE_CONAN_CACHE") and os.isfile(libs_dir, "lib", "libgmp.so") then
             print("[xmake.lua] [install_libgmp] Using cached libgmp...")
             return
@@ -145,7 +145,7 @@ end)
 
 target("install_other_libs", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
         if os.getenv("CI_USE_CONAN_CACHE") then
             print("[xmake.lua] [install_other_libs] Using cached conan libs...")
@@ -179,7 +179,7 @@ target("install_other_libs", function()
             end,
             catch
             {
-                function(errors)
+                function(e)
                     os.exec(conan_cmd .. " profile detect --force")
                     os.exec(conan_cmd .. " create . --build=missing")
                 end
@@ -196,7 +196,7 @@ end)
 
 target("install_lua_modules", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
         local libs = {
@@ -230,7 +230,7 @@ end)
 
 target("install_tinycc", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         os.cd(path.join(prj_dir, "extern", "luajit_tcc"))
         os.exec("make init")
         os.exec("make")
@@ -383,7 +383,7 @@ end)
 target("format", function()
     set_kind("phony")
     set_default(false)
-    on_run(function(target)
+    on_run(function()
         os.exec("xmake run format-lua")
         os.exec("xmake run format-cpp")
         os.exec("cargo fmt")
@@ -392,7 +392,7 @@ end)
 
 target("setup_verilua", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         local shell_rc = path.join(os.getenv("HOME"), "." .. os.shell() .. "rc")
         local has_match = false
 
@@ -428,7 +428,7 @@ end)
 
 target("apply_xmake_patch", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         local verilua_xmake_dir = path.join(prj_dir, "scripts", ".xmake")
 
         os.mkdir(path.join("~", ".xmake", "rules", "verilua"))
@@ -450,7 +450,7 @@ end)
 
 target("clean_all", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         local function rm_common(dir)
             os.tryrm(path.join(dir, "build"))
             os.tryrm(path.join(dir, ".xmake"))
@@ -480,7 +480,7 @@ end)
 
 target("verilua", function()
     set_kind("phony")
-    on_install(function(target)
+    on_install(function()
         cprint("${💥} ${yellow}[1/7]${reset} Update git submodules...")
         os.exec("xmake run update_submodules")
 
@@ -506,7 +506,7 @@ end)
 
 target("test", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function()
         import("lib.detect.find_file")
 
         --
