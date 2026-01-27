@@ -70,7 +70,9 @@ void wave_vpi_loop() {
 
     // Start wave_vpi evaluation loop
     VL_FATAL(cursor.maxIndex != 0, "cursor.maxIndex should not be 0");
-    fmt::println("[wave_vpi::loop] START! cursor.maxIndex => {} cursor.maxTime => {}", cursor.maxIndex, cursor.maxTime);
+    if (!is_quiet_mode()) {
+        fmt::println("[wave_vpi::loop] START! cursor.maxIndex => {} cursor.maxTime => {}", cursor.maxIndex, cursor.maxTime);
+    }
 
     while (cursor.index < cursor.maxIndex && !vpi_compat::vpiControlTerminate) {
         // Deal with cbAfterDelay(time) callbacks
@@ -165,14 +167,16 @@ void wave_vpi_loop() {
         cursor.index++;
     }
 
+    if (!is_quiet_mode()) {
 #ifdef USE_FSDB
-    fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index]);
+        fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index]);
 #else
-    fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, wellen_get_time_from_index(cursor.index));
+        fmt::println("[wave_vpi::loop] FINISH! cursor.index => {} cursor.time => {}", cursor.index, wellen_get_time_from_index(cursor.index));
 #endif
 
-    if (vpi_compat::vpiControlTerminate) {
-        fmt::println("[wave_vpi::loop] Terminated by vpiControlTerminate, reason: {}", vpi_compat::terminateReason);
+        if (vpi_compat::vpiControlTerminate) {
+            fmt::println("[wave_vpi::loop] Terminated by vpiControlTerminate, reason: {}", vpi_compat::terminateReason);
+        }
     }
 
     vpi_compat::endOfSimulation();

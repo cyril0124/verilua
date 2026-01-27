@@ -392,7 +392,7 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
     auto verboseJIT = jit_options::verboseJIT;
 
-    if (verboseJIT) {
+    if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[fsdbOptThreadTask] First optimization start! {} currentCursorIdx:{}, windowSize:{}", fsdbSigHdl->name, cursor.index, jit_options::compileWindowSize);
         fflush(stdout);
     }
@@ -502,7 +502,7 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
     jit_options::statistic.jitOptTaskFirstFinishCnt.store(jit_options::statistic.jitOptTaskFirstFinishCnt.load() + 1);
 #endif
 
-    if (verboseJIT) {
+    if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[fsdbOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", fsdbSigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
         fflush(stdout);
     }
@@ -527,7 +527,7 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
         optCnt++;
 
-        if (verboseJIT) {
+        if (verboseJIT && !is_quiet_mode()) {
             fmt::println("[fsdbOptThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, fsdbSigHdl->name, optStartIdx, optFinishIdx);
             fflush(stdout);
         }
@@ -540,7 +540,7 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
     jit_options::optThreadCnt.store(jit_options::optThreadCnt.load() - 1);
 
     // fsdbObj->ffrClose();
-    if (verboseJIT) {
+    if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[fsdbOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, fsdbSigHdl->name);
         fflush(stdout);
     }
@@ -572,7 +572,7 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
     auto optFinishIdx     = currentCursorIdx + jit_options::compileWindowSize;
     optFinishIdx          = std::min(optFinishIdx, cursor.maxIndex);
 
-    if (verboseJIT) {
+    if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[wellenOptThreadTask] First optimization start! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", sigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
         fflush(stdout);
     }
@@ -590,7 +590,7 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
     jit_options::statistic.jitOptTaskFirstFinishCnt.store(jit_options::statistic.jitOptTaskFirstFinishCnt.load() + 1);
 #endif
 
-    if (verboseJIT) {
+    if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[wellenOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", sigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
         fflush(stdout);
     }
@@ -614,7 +614,7 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
         sigHdl->continueOpt  = false;
         optCnt++;
 
-        if (verboseJIT) {
+        if (verboseJIT && !is_quiet_mode()) {
             fmt::println("[wellenOptThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, sigHdl->name, optStartIdx, optFinishIdx);
             fflush(stdout);
         }
@@ -626,7 +626,7 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 
     jit_options::optThreadCnt.store(jit_options::optThreadCnt.load() - 1);
 
-    if (verboseJIT) {
+    if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[wellenOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, sigHdl->name);
         fflush(stdout);
     }

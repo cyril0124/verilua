@@ -90,8 +90,10 @@ uint64_t FsdbWaveVpi::setupMaxIndexVarCode(uint64_t maxIndexVarCode) {
     }
     sigNum = maxIndexVarCode;
 
-    fmt::println("[wave_vpi::fsdb_wave_vpi] maxIndexVarCode => {}", maxIndexVarCode);
-    fflush(stdout);
+    if (!is_quiet_mode()) {
+        fmt::println("[wave_vpi::fsdb_wave_vpi] maxIndexVarCode => {}", maxIndexVarCode);
+        fflush(stdout);
+    }
 
     for (int i = FSDB_MIN_VAR_IDCODE; i <= maxIndexVarCode; i++) {
         // !! DO NOT try to load all signals !!
@@ -99,8 +101,10 @@ uint64_t FsdbWaveVpi::setupMaxIndexVarCode(uint64_t maxIndexVarCode) {
         sigArr[i - 1] = i;
     }
     fsdbObj->ffrLoadSignals();
-    fmt::println("[wave_vpi::fsdb_wave_vpi] load all signals finish");
-    fflush(stdout);
+    if (!is_quiet_mode()) {
+        fmt::println("[wave_vpi::fsdb_wave_vpi] load all signals finish");
+        fflush(stdout);
+    }
 
     if (sigNum > maxVarIdcode) {
         sigNum = maxVarIdcode - 1;
@@ -125,7 +129,9 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
             VL_FATAL(false, "fsdb file type is not verilog! {}", this->waveFileName);
         }
         maxXtagValue = Xtag64ToUInt64(fsdbInfo.max_xtag.hltag);
-        fmt::println("[wave_vpi::fsdb_wave_vpi] maxXtagValue: {}", maxXtagValue);
+        if (!is_quiet_mode()) {
+            fmt::println("[wave_vpi::fsdb_wave_vpi] maxXtagValue: {}", maxXtagValue);
+        }
 
         // fsdbObj = std::make_shared<ffrObject>(ffrObject::ffrOpen3(fsdbName));
         // if (NULL == fsdbObj) {
@@ -138,8 +144,10 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         fsdbObj->ffrReadScopeVarTree();
         maxVarIdcode = fsdbObj->ffrGetMaxVarIdcode();
 
-        fmt::println("[wave_vpi::fsdb_wave_vpi] start load all signals...");
-        fflush(stdout);
+        if (!is_quiet_mode()) {
+            fmt::println("[wave_vpi::fsdb_wave_vpi] start load all signals...");
+            fflush(stdout);
+        }
 
         uint64_t maxIndexVarCode = setupMaxIndexVarCode(TIME_TABLE_MAX_INDEX_VAR_CODE);
 
@@ -175,14 +183,18 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
                     updateLastModifiedTimeFile();
                 }
             } catch (std::invalid_argument &e) {
-                fmt::println("[wave_vpi::fsdb_wave_vpi] ERROR while reading:{}! => std::invalid_argument", LAST_MODIFIED_TIME_FILE);
+                if (!is_quiet_mode()) {
+                    fmt::println("[wave_vpi::fsdb_wave_vpi] ERROR while reading:{}! => std::invalid_argument", LAST_MODIFIED_TIME_FILE);
+                }
                 updateLastModifiedTimeFile();
             }
         } else {
             updateLastModifiedTimeFile();
         }
 
-        fmt::println("[wave_vpi::fsdb_wave_vpi] useCachedData: {}", useCachedData);
+        if (!is_quiet_mode()) {
+            fmt::println("[wave_vpi::fsdb_wave_vpi] useCachedData: {}", useCachedData);
+        }
 
         if (useCachedData) {
             std::ifstream usedVarIdCodeCacheFile(USED_VAR_ID_CODE_CACHE_FILE);
@@ -208,15 +220,21 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
                     xtagVec[i].hltag.L = xtagU64Vec[i] & 0xFFFFFFFF;
                 }
 
-                fmt::println("[wave_vpi::fsdb_wave_vpi] read from timeTableFile => xtagU64Vec size: {}, maxValue: {}", xtagU64Vec.size(), xtagU64Vec.back());
+                if (!is_quiet_mode()) {
+                    fmt::println("[wave_vpi::fsdb_wave_vpi] read from timeTableFile => xtagU64Vec size: {}, maxValue: {}", xtagU64Vec.size(), xtagU64Vec.back());
+                }
             } else {
-                fmt::println("[wave_vpi::fsdb_wave_vpi] failed to open {}, doing normal parse...", TIME_TABLE_FILE);
+                if (!is_quiet_mode()) {
+                    fmt::println("[wave_vpi::fsdb_wave_vpi] failed to open {}, doing normal parse...", TIME_TABLE_FILE);
+                }
                 goto NormalParse;
             }
         } else {
         NormalParse:
-            fmt::println("[wave_vpi::fsdb_wave_vpi] start collecting xtagU64Set");
-            fflush(stdout);
+            if (!is_quiet_mode()) {
+                fmt::println("[wave_vpi::fsdb_wave_vpi] start collecting xtagU64Set");
+                fflush(stdout);
+            }
 
             int i = 0;
             fsdbXTag xtag;
@@ -246,8 +264,10 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
             }
             parsedMaxXtagValue = Xtag64ToUInt64(xtagVec.back().hltag);
 
-            fmt::println("[wave_vpi::fsdb_wave_vpi] xtagU64Set.size: {}, xtagVec.maxValue: {}, total size: {}", xtagU64Set.size(), parsedMaxXtagValue, i);
-            fflush(stdout);
+            if (!is_quiet_mode()) {
+                fmt::println("[wave_vpi::fsdb_wave_vpi] xtagU64Set.size: {}, xtagVec.maxValue: {}, total size: {}", xtagU64Set.size(), parsedMaxXtagValue, i);
+                fflush(stdout);
+            }
 
             // Sometimes the signals used to collect time table is not enough, so we need to increase the number of signals and try recollect the time table.
             auto matchedPercent = static_cast<double>(parsedMaxXtagValue * 100) / static_cast<double>(maxXtagValue);
@@ -257,14 +277,18 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
                     if (matchedPercent < ACCEPTABLE_PERCENT) {
                         VL_FATAL(false, "Failed to parse the whole time table! parsedMaxXtagValue({}) < maxXtagValue({}), matchedPercent: {:.2f}%", parsedMaxXtagValue, maxXtagValue, matchedPercent);
                     } else {
-                        fmt::println("[wave_vpi::fsdb_wave_vpi] matchedPercent: {:.2f}% > 95%, continue...", matchedPercent);
+                        if (!is_quiet_mode()) {
+                            fmt::println("[wave_vpi::fsdb_wave_vpi] matchedPercent: {:.2f}% > 95%, continue...", matchedPercent);
+                        }
                         goto ParseFinish;
                     }
                 }
 
                 uint64_t newMaxIndexVarCode = maxIndexVarCode + 10 * (retryTimes ^ 2);
-                fmt::println("\n[wave_vpi::fsdb_wave_vpi] parsedMaxXtagValue({}) < maxXtagValue({}), try to increase maxIndexVarCode to {} and reparse, retryTimes: {}", parsedMaxXtagValue, maxXtagValue, newMaxIndexVarCode, retryTimes);
-                fflush(stdout);
+                if (!is_quiet_mode()) {
+                    fmt::println("\n[wave_vpi::fsdb_wave_vpi] parsedMaxXtagValue({}) < maxXtagValue({}), try to increase maxIndexVarCode to {} and reparse, retryTimes: {}", parsedMaxXtagValue, maxXtagValue, newMaxIndexVarCode, retryTimes);
+                    fflush(stdout);
+                }
 
                 maxIndexVarCode = setupMaxIndexVarCode(newMaxIndexVarCode);
                 goto DoNormalParse;

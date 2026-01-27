@@ -59,18 +59,22 @@ int main(int argc, const char *argv[]) {
         waveFile = std::string(_waveFile);
     }
 
-    fmt::println("[wave_vpi::main] waveform: {}{}{}", ANSI_COLOR_GREEN, waveFile, ANSI_COLOR_RESET);
-    std::cout << std::flush;
+    if (!is_quiet_mode()) {
+        fmt::println("[wave_vpi::main] waveform: {}{}{}", ANSI_COLOR_GREEN, waveFile, ANSI_COLOR_RESET);
+        std::cout << std::flush;
 
-    fmt::println("[wave_vpi::main] initializing...");
-    std::cout << std::flush;
+        fmt::println("[wave_vpi::main] initializing...");
+        std::cout << std::flush;
+    }
 
     wave_vpi_init(waveFile.c_str());
 
-    fmt::println("[wave_vpi::main] initialization finish!");
-    std::cout << std::flush;
+    if (!is_quiet_mode()) {
+        fmt::println("[wave_vpi::main] initialization finish!");
+        std::cout << std::flush;
 
-    fmt::println("[wave_vpi::main] start running wave_vpi_loop()!");
-    std::cout << std::flush;
+        fmt::println("[wave_vpi::main] start running wave_vpi_loop()!");
+        std::cout << std::flush;
+    }
     wave_vpi_loop();
 }

@@ -28,6 +28,16 @@
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
+// Check if VL_QUIET mode is enabled
+inline bool is_quiet_mode() {
+    static int cached = -1;
+    if (cached == -1) {
+        const char *quiet = std::getenv("VL_QUIET");
+        cached            = (quiet != nullptr && std::string(quiet) == "1") ? 1 : 0;
+    }
+    return cached == 1;
+}
+
 #define VL_INFO(...)                                                                                                                                                                                                                                                                                                                                                                                           \
     do {                                                                                                                                                                                                                                                                                                                                                                                                       \
         fmt::print("[{}:{}:{}] [{}INFO{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET);                                                                                                                                                                                                                                                                                          \
