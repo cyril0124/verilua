@@ -6,10 +6,6 @@ repos:
     hooks:
       - id: check-yaml
       - id: check-merge-conflict
-  - repo: https://github.com/btford/write-good
-    rev: v1.0.8
-    hooks:
-      - id: write-good
   - repo: local
     hooks:
       - id: format-lua
