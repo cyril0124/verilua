@@ -746,6 +746,7 @@ end
 --- ```
 function SignalDB:auto_bundle(hier_path, params)
     texpect.expect_table(params, "params", {
+        "name",
         "filter",
         "matches",
         "wildmatch",
