@@ -811,5 +811,5 @@ end
 ---      - startswith + filter
 ---      - endswith + filter
 string.auto_bundle = function(str, params)
-    return require("SignalDB"):auto_bundle(str, params)
+    return require("verilua.utils.SignalDB"):auto_bundle(str, params)
 end

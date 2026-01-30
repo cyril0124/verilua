@@ -776,7 +776,7 @@ local function create_proxy(path, use_prefix)
         end,
 
         auto_bundle = function(t, params)
-            return require("SignalDB"):auto_bundle(local_path, params)
+            return require("verilua.utils.SignalDB"):auto_bundle(local_path, params)
         end
     }, {
         __index = function(t, k)
