@@ -4,7 +4,7 @@ local clock2 = dut.clock2:chdl()
 local clock3 = dut.clock3:chdl()
 local clock4 = dut.clock4:chdl()
 
-local reset = dut.reset:chdl() --[[@as CallableHDL]]
+local reset = dut.reset:chdl() --[[@as verilua.handles.CallableHDL]]
 local reset1 = dut.reset1:chdl()
 local reset2 = dut.reset2:chdl()
 
@@ -17,23 +17,23 @@ local count4 = dut.count4:chdl()
 local is_verilator = cfg.simulator == "verilator"
 local is_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT") == "1"
 
----@param clock CallableHDL
----@return TaskFunction
+---@param clock verilua.handles.CallableHDL
+---@return verilua.scheduler.TaskFunction
 local gen_clock = function(clock, period)
     return function()
         while true do
             clock.value = 1
-            await_time(period)
+            await_time_ns(period)
             clock.value = 0
-            await_time(period)
+            await_time_ns(period)
         end
     end
 end
 
 fork {
-    gen_clock(clock, 2),
-    gen_clock(clock1, 3),
-    gen_clock(clock2, 4),
+    gen_clock(clock, 20),
+    gen_clock(clock1, 30),
+    gen_clock(clock2, 40),
 
     function()
         if os.getenv("DUMP") then

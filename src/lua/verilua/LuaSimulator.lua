@@ -5,6 +5,7 @@ local os = require "os"
 local ffi = require "ffi"
 local path = require "pl.path"
 local utils = require "verilua.LuaUtils"
+local vpiml = require "verilua.vpiml.vpiml"
 
 local assert = assert
 local ffi_new = ffi.new
@@ -203,7 +204,39 @@ local iterate_vpi_type = function(module_name, type)
     ffi.C.vpiml_iterate_vpi_type(module_name, type)
 end
 
----@class (exact) verilua.LuaSimulator
+--- Time unit to exponent mapping
+local UNIT_TO_EXPONENT = {
+    fs = -15,
+    ps = -12,
+    ns = -9,
+    us = -6,
+    ms = -3,
+    s = 0,
+    sec = 0,
+}
+
+--- Get current simulation time
+---@param unit? "fs"|"ps"|"ns"|"us"|"ms"|"s" Time unit ("fs", "ps", "ns", "us", "ms", "s"), default returns steps
+---@return number Simulation time
+local get_sim_time = function(unit)
+    local steps = vpiml.vpiml_get_sim_time()
+
+    if unit == nil or unit == "step" then
+        return steps
+    end
+
+    local target_exp = UNIT_TO_EXPONENT[unit]
+    if target_exp == nil then
+        assert(false, "Unknown time unit: " .. tostring(unit))
+    end
+
+    local precision = vpiml.vpiml_get_time_precision()
+    local scale = 10 ^ (precision - target_exp)
+
+    return steps * scale
+end
+
+---@class verilua.LuaSimulator
 ---@field SimCtrl table<string, integer>
 ---@field set_dpi_scope fun(scope_name?: string)
 ---@field initialize_trace fun(trace_file_path: string)
@@ -227,7 +260,8 @@ local LuaSimulator = {
     finish            = finish,
     bypass_initial    = bypass_initial,
     print_hierarchy   = print_hierarchy,
-    iterate_vpi_type  = iterate_vpi_type
+    iterate_vpi_type  = iterate_vpi_type,
+    get_sim_time      = get_sim_time,
 }
 
 return LuaSimulator

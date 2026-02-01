@@ -42,6 +42,7 @@ local function build_lib_common(simulator)
             "vpi_get",
             "vpi_get_str",
             "vpi_get_value",
+            "vpi_get_time",
             "vpi_handle_by_name",
             "vpi_handle_by_index",
             "vpi_iterate",

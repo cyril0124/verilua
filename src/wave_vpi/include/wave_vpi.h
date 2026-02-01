@@ -70,6 +70,7 @@ void wellen_finalize();
 uint64_t wellen_get_max_index();
 uint64_t wellen_get_time_from_index(uint64_t index);
 uint64_t wellen_get_index_from_time(uint64_t time);
+int32_t wellen_get_time_precision();
 
 char *wellen_get_value_str(void *handle, uint64_t time_table_idx);
 uint32_t wellen_get_int_value(void *handle, uint64_t time_table_index);

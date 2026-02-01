@@ -935,3 +935,24 @@ pub unsafe extern "C" fn wellen_get_max_index() -> u64 {
     let time_table = get_time_table();
     (time_table.len() - 1) as u64
 }
+
+/// Get time precision from waveform file
+/// Returns the exponent (e.g., -9 for ns, -12 for ps)
+#[unsafe(no_mangle)]
+pub extern "C" fn wellen_get_time_precision() -> i32 {
+    let hierarchy = get_hierarchy();
+    if let Some(timescale) = hierarchy.timescale() {
+        let base_exp = timescale.unit.to_exponent().unwrap_or(-9) as i32;
+        // Adjust for factor: 1 -> 0, 10 -> 1, 100 -> 2
+        let factor_adj: i32 = match timescale.factor {
+            1 => 0,
+            10 => 1,
+            100 => 2,
+            _ => 0,
+        };
+        base_exp + factor_adj
+    } else {
+        log::warn!("[wave_vpi] Wave file has no timescale info, defaulting to ns (-9)");
+        -9
+    }
+}

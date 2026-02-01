@@ -86,3 +86,26 @@ pub unsafe extern "C" fn vpiml_get_top_module() -> *const c_char {
 pub unsafe extern "C" fn vpiml_get_simulator_auto() -> *const c_char {
     utils::get_simulator_auto()
 }
+
+/// Get simulation time precision as power of 10 (e.g., -9 for ns, -12 for ps)
+/// This value is cached during initialization for performance.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_get_time_precision() -> i32 {
+    unsafe { vpi_get(vpiTimePrecision as _, std::ptr::null_mut()) }
+}
+
+/// Get current simulation time as 64-bit value
+/// The time is in simulation steps (based on time precision)
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_get_sim_time() -> u64 {
+    let mut vpi_time = t_vpi_time {
+        type_: vpiSimTime as _,
+        high: 0,
+        low: 0,
+        real: 0.0,
+    };
+
+    unsafe { vpi_get_time(std::ptr::null_mut(), &mut vpi_time) };
+
+    ((vpi_time.high as u64) << 32) | (vpi_time.low as u64)
+}

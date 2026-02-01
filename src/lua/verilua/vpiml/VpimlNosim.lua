@@ -56,6 +56,20 @@ vpiml.vpiml_get_signal_width = function(handle)
     return signal_info[2]
 end
 
+--- Get simulation time precision as exponent (e.g., -9 for ns, -12 for ps)
+--- In `nosim` backend, default to ns (-9)
+---@return integer
+vpiml.vpiml_get_time_precision = function()
+    return -9
+end
+
+--- Get current simulation time in steps
+--- In `nosim` backend, always returns 0
+---@return integer
+vpiml.vpiml_get_sim_time = function()
+    return 0
+end
+
 return setmetatable(vpiml, {
     __index = function(_t, k)
         return function(...)

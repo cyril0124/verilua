@@ -339,6 +339,52 @@ vpiHandle vpi_scan(vpiHandle iterator) {
     return nullptr;
 }
 
+/// Convert FSDB scale unit string to VPI time precision exponent
+/// e.g., "1ps" -> -12, "10ns" -> -8, "100us" -> -4
+static int32_t fsdbScaleUnitToVpiPrecision(const char *scaleUnit) {
+    if (scaleUnit == nullptr) {
+        VL_WARN("FSDB scale unit is null, defaulting to ns (-9)\n");
+        return -9;
+    }
+
+    // Parse digit and unit from scale unit string (e.g., "1ps", "10ns", "100us")
+    int digit     = 0;
+    const char *p = scaleUnit;
+    while (*p >= '0' && *p <= '9') {
+        digit = digit * 10 + (*p - '0');
+        p++;
+    }
+    if (digit == 0)
+        digit = 1;
+
+    // Calculate factor adjustment: 1 -> 0, 10 -> 1, 100 -> 2
+    int factorAdj = 0;
+    if (digit >= 100)
+        factorAdj = 2;
+    else if (digit >= 10)
+        factorAdj = 1;
+
+    // Map unit to base exponent
+    int baseExp = -9; // default ns
+    if (strncmp(p, "fs", 2) == 0)
+        baseExp = -15;
+    else if (strncmp(p, "ps", 2) == 0)
+        baseExp = -12;
+    else if (strncmp(p, "ns", 2) == 0)
+        baseExp = -9;
+    else if (strncmp(p, "us", 2) == 0)
+        baseExp = -6;
+    else if (strncmp(p, "ms", 2) == 0)
+        baseExp = -3;
+    else if (strncmp(p, "s", 1) == 0)
+        baseExp = 0;
+    else {
+        VL_WARN("Unknown FSDB time unit: {}, defaulting to ns (-9)\n", p);
+    }
+
+    return baseExp + factorAdj;
+}
+
 PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle sigHdl) {
     switch (property) {
     case vpiSize:
@@ -347,8 +393,42 @@ PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle sigHdl) {
 #else
         return reinterpret_cast<SignalHandlePtr>(sigHdl)->bitSize;
 #endif
+    case vpiTimePrecision:
+#ifdef USE_FSDB
+    {
+        auto scaleUnit = fsdb_wave_vpi::fsdbWaveVpi->fsdbObj->ffrGetScaleUnit();
+        return fsdbScaleUnitToVpiPrecision(scaleUnit);
+    }
+#else
+        return wellen_get_time_precision();
+#endif
     default:
         VL_FATAL(false, "Unimplemented property: {}", property);
+    }
+}
+
+void vpi_get_time(vpiHandle object, p_vpi_time time_p) {
+    if (time_p == nullptr) {
+        return;
+    }
+
+    uint64_t simTime = 0;
+#ifdef USE_FSDB
+    simTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
+#else
+    simTime = wellen_get_time_from_index(cursor.index);
+#endif
+
+    switch (time_p->type) {
+    case vpiSimTime:
+        time_p->high = (PLI_UINT32)(simTime >> 32);
+        time_p->low  = (PLI_UINT32)(simTime & 0xFFFFFFFF);
+        break;
+    case vpiScaledRealTime:
+        time_p->real = (double)simTime;
+        break;
+    default:
+        VL_FATAL(false, "Unsupported time type: {}", time_p->type);
     }
 }
 

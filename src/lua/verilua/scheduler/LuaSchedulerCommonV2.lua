@@ -61,6 +61,84 @@ else
     end
 end
 
+--- Time unit to exponent mapping
+local UNIT_TO_EXPONENT = {
+    fs = -15,
+    ps = -12,
+    ns = -9,
+    us = -6,
+    ms = -3,
+    s = 0,
+}
+
+local time_precision = cfg.time_precision
+
+--- Convert time with unit to simulation steps
+---@param time number Time value
+---@param unit string Time unit ("fs", "ps", "ns", "us", "ms", "s")
+---@return integer steps
+local function time_to_steps(time, unit)
+    local unit_exp = UNIT_TO_EXPONENT[unit]
+    if not unit_exp then
+        assert(false, "Unknown time unit:" .. tostring(unit))
+    end
+
+    local scale = 10 ^ (unit_exp - time_precision)
+    local steps = math.floor(time * scale + 0.5) -- Round to nearest integer
+
+    if steps < 1 then
+        assert(false, string.format(
+            "Time %g %s is smaller than simulation time_precision (10^%d s)",
+            time, unit, time_precision
+        ))
+    end
+
+    return steps
+end
+
+--- Wait for specified femtoseconds
+---@param time number femtoseconds
+local await_time_fs = function(time)
+    coro_yield(Timer, time_to_steps(time, "fs"))
+end
+
+--- Wait for specified picoseconds
+---@param time number picoseconds
+local await_time_ps = function(time)
+    coro_yield(Timer, time_to_steps(time, "ps"))
+end
+
+--- Wait for specified nanoseconds
+---@param time number nanoseconds
+local await_time_ns = function(time)
+    coro_yield(Timer, time_to_steps(time, "ns"))
+end
+
+--- Wait for specified microseconds
+---@param time number microseconds
+local await_time_us = function(time)
+    coro_yield(Timer, time_to_steps(time, "us"))
+end
+
+--- Wait for specified milliseconds
+---@param time number milliseconds
+local await_time_ms = function(time)
+    coro_yield(Timer, time_to_steps(time, "ms"))
+end
+
+--- Wait for specified seconds
+---@param time number seconds
+local await_time_s = function(time)
+    coro_yield(Timer, time_to_steps(time, "s"))
+end
+
+--- Wait for specified time with given unit
+---@param time number Time value
+---@param unit string Time unit ("fs", "ps", "ns", "us", "ms", "s")
+local await_time_unit = function(time, unit)
+    coro_yield(Timer, time_to_steps(time, unit))
+end
+
 ---@param signal_hdl verilua.handles.ComplexHandleRaw
 local await_posedge_hdl = function(signal_hdl)
     coro_yield(PosedgeHDL, signal_hdl)
@@ -114,6 +192,13 @@ end
 return {
     YieldType                = YieldType,
     await_time               = await_time,
+    await_time_fs            = await_time_fs,
+    await_time_ps            = await_time_ps,
+    await_time_ns            = await_time_ns,
+    await_time_us            = await_time_us,
+    await_time_ms            = await_time_ms,
+    await_time_s             = await_time_s,
+    await_time_unit          = await_time_unit,
     await_posedge_hdl        = await_posedge_hdl,
     await_negedge_hdl        = await_negedge_hdl,
     await_edge_hdl           = await_edge_hdl,

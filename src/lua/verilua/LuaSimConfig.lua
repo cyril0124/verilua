@@ -29,6 +29,8 @@ local colors = _G.colors
 ---@field unit string
 ---@field luapanda_debug boolean
 ---@field prj_dir string Project directory
+---@field time_precision integer Time precision as exponent (e.g., -9 for ns, -12 for ps)
+---@field time_unit string Time unit corresponding to time precision ("fs", "ps", "ns", "us", "ms", "s")
 ---@field seed integer
 ---
 --- Enable dpi_exporter optimization. The value getter function
@@ -388,6 +390,24 @@ function cfg:post_config()
 
     type_check(cfg.is_hse, "cfg.is_hse", "boolean")
     type_check(cfg.seed, "cfg.seed", "number")
+
+    -- Setup time precision and time unit
+    do
+        local vpiml = require "verilua.vpiml.vpiml"
+        cfg.time_precision = vpiml.vpiml_get_time_precision()
+
+        local EXPONENT_TO_UNIT = {
+            [-15] = "fs",
+            [-12] = "ps",
+            [-9] = "ns",
+            [-6] = "us",
+            [-3] = "ms",
+            [0] = "s",
+        }
+        cfg.time_unit = EXPONENT_TO_UNIT[cfg.time_precision] or "unknown"
+
+        config_info(f("[cfg:post_config] Time precision: 10^%d seconds (%s)", cfg.time_precision, cfg.time_unit))
+    end
 
     setmetatable(cfg, {
         __index = function(t, k)

@@ -39,8 +39,9 @@
 #define vpiStop 66   /* execute simulator's $stop */
 #define vpiFinish 67 /* execute simulator's $finish */
 
-#define vpiType 1 /* type of object */
-#define vpiSize 4 /* size of gate, net, port, etc. */
+#define vpiType 1           /* type of object */
+#define vpiSize 4           /* size of gate, net, port, etc. */
+#define vpiTimePrecision 12 /* module time precision */
 
 #define vpiBinStrVal 1
 #define vpiHexStrVal 4
@@ -352,14 +353,30 @@ PLI_BYTE8 *DEFINE_VPI_FUNC(vpi_get_str)(PLI_INT32 property, vpiHandle object) {
 }
 
 PLI_INT32 DEFINE_VPI_FUNC(vpi_get)(PLI_INT32 property, vpiHandle object) {
-    FATAL(property == vpiSize, "unsupported property: %d\n", property);
-
-    if (object == nullptr) {
-        WARN("[dummy_vpi] vpi_get: get vpi_get, but `object`(vpiHandle) is nullptr! return 0\n");
-        return 0;
-    } else {
+    switch (property) {
+    case vpiSize: {
+        FATAL(object != nullptr, "[dummy_vpi] vpi_get: get vpiSize, but `object`(vpiHandle) is nullptr! return 0\n");
         auto complexHandle = reinterpret_cast<ComplexHandlePtr>(object);
-        return complexHandle->bitwidth;
+        return static_cast<PLI_INT32>(complexHandle->bitwidth);
+    }
+    case vpiTimePrecision: {
+#ifndef DUMMY_VPI_TIME_PRECISION
+#define DUMMY_VPI_TIME_PRECISION -9 // ns
+        WARN("In dummy_vpi, we assume vpiTimePrecision is ns (-9).\n\tYou can define `DUMMY_VPI_TIME_PRECISION` macro to override this value\n");
+#else
+        // Check the value of DUMMY_VPI_TIME_PRECISION
+        static_assert(std::is_integral<decltype(DUMMY_VPI_TIME_PRECISION)>::value, "DUMMY_VPI_TIME_PRECISION must be an integer");
+        FATAL(std::is_integral<decltype(DUMMY_VPI_TIME_PRECISION)>::value, "DUMMY_VPI_TIME_PRECISION must be an integer, got non-integer type!\n");
+        static_assert(DUMMY_VPI_TIME_PRECISION <= 0 && DUMMY_VPI_TIME_PRECISION >= -15, "DUMMY_VPI_TIME_PRECISION should be between -15 and 0 (inclusive)");
+        FATAL(DUMMY_VPI_TIME_PRECISION <= 0 && DUMMY_VPI_TIME_PRECISION >= -15, "DUMMY_VPI_TIME_PRECISION should be between -15 and 0 (inclusive), got %d\n", DUMMY_VPI_TIME_PRECISION);
+
+        INFO("In dummy_vpi, vpiTimePrecision is set to %d by DUMMY_VPI_TIME_PRECISION macro.\n", DUMMY_VPI_TIME_PRECISION);
+#endif
+        return DUMMY_VPI_TIME_PRECISION;
+    }
+    default:
+        FATAL(0, "unsupported property: %d\n", property);
+        break;
     }
 }
 
@@ -410,6 +427,8 @@ vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_name)(PLI_BYTE8 *name, vpiHandle scope) 
 }
 
 vpiHandle DEFINE_VPI_FUNC(vpi_iterate)(PLI_INT32 type, vpiHandle refHandle) { FATAL(0, "`vpi_iterate` not implemented\n"); }
+
+vpiHandle DEFINE_VPI_FUNC(vpi_get_time)(vpiHandle object, p_vpi_time time_p) { FATAL(0, "`vpi_get_time` not implemented\n"); }
 
 #ifdef __cplusplus
 }

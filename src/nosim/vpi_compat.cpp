@@ -80,6 +80,8 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
 
 void vpi_get_value(vpiHandle expr, p_vpi_value value_p) { PANIC("vpi_get_value not implemented"); }
 
+void vpi_get_time(vpiHandle object, p_vpi_time time_p) { PANIC("vpi_get_time not implemented"); }
+
 PLI_INT32 vpi_control(PLI_INT32 operation, ...) {
     switch (operation) {
     case vpiStop:

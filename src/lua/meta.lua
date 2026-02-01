@@ -26,6 +26,30 @@ _G.scheduler = {} --[[@as verilua.scheduler.LuaScheduler]]
 ---@param time integer
 function await_time(time) end
 
+--- Wait for a specified number of femtoseconds.
+---@param time integer
+function await_time_fs(time) end
+
+--- Wait for a specified number of picoseconds.
+---@param time integer
+function await_time_ps(time) end
+
+--- Wait for a specified number of nanoseconds.
+---@param time integer
+function await_time_ns(time) end
+
+--- Wait for a specified number of microseconds.
+---@param time integer
+function await_time_us(time) end
+
+--- Wait for a specified number of milliseconds.
+---@param time integer
+function await_time_ms(time) end
+
+--- Wait for a specified number of seconds.
+---@param time integer
+function await_time_s(time) end
+
 ---@param signal_hdl verilua.handles.ComplexHandleRaw
 function await_posedge_hdl(signal_hdl) end
 

@@ -110,6 +110,9 @@ ffi.cdef [[
     void vpiml_shuffled_range_u64(long long handle, uint64_t *u64_vec, uint64_t u64_vec_len);
     void vpiml_shuffled_range_hex_str(long long handle, const char **hex_str_vec, uint32_t hex_str_vec_len);
     void vpiml_reset_shuffled_range(long long handle);
+
+    int vpiml_get_time_precision();
+    uint64_t vpiml_get_sim_time();
 ]]
 
 ---@class VpimlNormal
@@ -322,6 +325,18 @@ local vpiml = {
     vpiml_shuffled_range_hex_str = C.vpiml_shuffled_range_hex_str,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw)
     vpiml_reset_shuffled_range = C.vpiml_reset_shuffled_range,
+
+    --- Get simulation time precision as exponent (e.g., -9 for ns, -12 for ps)
+    ---@return integer
+    vpiml_get_time_precision = function()
+        return C.vpiml_get_time_precision()
+    end,
+
+    --- Get current simulation time in steps
+    ---@return integer
+    vpiml_get_sim_time = function()
+        return tonumber(C.vpiml_get_sim_time()) --[[@as integer]]
+    end,
 }
 
 return vpiml
