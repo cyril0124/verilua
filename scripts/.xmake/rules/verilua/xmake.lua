@@ -362,6 +362,7 @@ return cfg
 end
 
 rule("verilua", function()
+    add_imports("lib.detect.find_file")
     set_extensions(".v", ".sv", ".svh", ".lua", ".luau", ".tl", ".d.tl", ".vlt", ".vcd", ".fst", ".fsdb")
 
     before_build(before_build_or_run)
@@ -1469,8 +1470,6 @@ rule("verilua", function()
                 )
                 os.cd(os.curdir())
             elseif sim == "xcelium" and #cfiles > 0 then
-                import("lib.detect.find_file")
-
                 -- Build libdpi.so
                 local cc = os.getenv("CC") or "gcc"
                 local cxx = os.getenv("CXX") or "g++"
@@ -1726,8 +1725,6 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.concat(run_prefix, " ") ..
                 " " .. vtb_top .. " " .. table.concat(run_flags, " ")
         elseif sim == "iverilog" then
-            import("lib.detect.find_file")
-
             local run_flags = { "-M", verilua_libs_home, "-m", "libverilua_iverilog" }
             local _run_flags = target:values("iverilog.run_flags")
             if _run_flags then
@@ -1790,8 +1787,6 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.concat(run_prefix, " ") ..
                 " " .. simv .. " " .. table.concat(run_flags, " ")
         elseif sim == "xcelium" then
-            import("lib.detect.find_file")
-
             local run_flags = {
                 "-64bit",
                 "-r " .. tb_top .. "_snapshot",
@@ -1865,8 +1860,6 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.concat(run_prefix, " ") ..
                 " " .. xrun .. " " .. table.concat(run_flags, " ")
         elseif sim == "wave_vpi" then
-            import("lib.detect.find_file")
-
             local waveform_file = assert(target:get("waveform_file"),
                 "[on_run] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst)")
 
@@ -1907,8 +1900,6 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.concat(run_prefix, " ") ..
                 " " .. wave_vpi_main .. " " .. table.concat(run_flags, " ")
         elseif sim == "nosim" then
-            import("lib.detect.find_file")
-
             local nosim = find_file("nosim", { "$(env PATH)" })
             assert(nosim, "[on_run] nosim not found!")
 
