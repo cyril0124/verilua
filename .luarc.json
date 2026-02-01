@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
+  "runtime": {
+    "version": "LuaJIT"
+  },
+  "hint.enable": true,
+  "diagnostics": {
+    "workspaceDelay": 200,
+    "disable": [
+      "missing-return",
+      "unknown-diag-code"
+    ],
+    "severity": {
+      "redefined-local": "Hint"
+    }
+  },
+  "workspace": {
+    "ignoreDir": [
+      ".vscode",
+      "extern",
+      "libverilua",
+      "build",
+      "tmp",
+      "luajit-pro",
+      "src/lua/thirdparty_lib",
+      "src/gen/out"
+    ]
+  }
+}
