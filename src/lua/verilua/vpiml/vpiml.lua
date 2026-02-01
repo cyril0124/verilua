@@ -2,9 +2,9 @@ local vpiml
 local handle_cache = {}
 
 if cfg.simulator == "nosim" then
-    vpiml = require "VpimlNosim"
+    vpiml = require "verilua.vpiml.VpimlNosim"
 else
-    vpiml = require "VpimlNormal"
+    vpiml = require "verilua.vpiml.VpimlNormal"
 end
 
 local vpiml_handle_by_name = vpiml.vpiml_handle_by_name
