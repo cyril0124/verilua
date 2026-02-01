@@ -2,6 +2,7 @@
 .vscode/
 */.nfs*
 .nfs*
+.luajit_pro/
 tmp/
 shared/
 build/
@@ -14,6 +15,8 @@ tmp/
 result
 FsdbReader
 target/
+tmp_lua_file_dir/
+tmp_lua_lib_dir/
 tools/dpi_exporter
 tools/cov_exporter
 tools/testbench_gen
