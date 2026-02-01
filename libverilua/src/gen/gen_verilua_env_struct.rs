@@ -19,7 +19,7 @@ pub struct VeriluaEnv {
     pub pending_negedge_cb_chunk: HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
     #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
     pub pending_edge_cb_chunk: HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
-    
+
     #[cfg(not(feature = "chunk_task"))]
     pub pending_edge_cb_map: HashMap<ComplexHandleRaw, Vec<CallbackInfo>>,
 

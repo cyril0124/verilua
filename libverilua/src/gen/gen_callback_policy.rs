@@ -1,7 +1,7 @@
 {        for (complex_handle, task_id_vec) in &env.pending_posedge_cb_map {
             let mut idx = 0;
             let task_id_vec_size = task_id_vec.len();
-        
+
             while idx < task_id_vec_size {
                 let chunk_end = usize::min(idx + 16, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];
@@ -41,7 +41,7 @@
         for (complex_handle, task_id_vec) in &env.pending_negedge_cb_map {
             let mut idx = 0;
             let task_id_vec_size = task_id_vec.len();
-        
+
             while idx < task_id_vec_size {
                 let chunk_end = usize::min(idx + 16, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];
@@ -81,7 +81,7 @@
         for (complex_handle, task_id_vec) in &env.pending_edge_cb_map {
             let mut idx = 0;
             let task_id_vec_size = task_id_vec.len();
-        
+
             while idx < task_id_vec_size {
                 let chunk_end = usize::min(idx + 16, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];

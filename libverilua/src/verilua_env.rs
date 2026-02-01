@@ -237,7 +237,7 @@ impl VeriluaEnv {
         log_feature!("wave_vpi");
         log_feature!("iverilog_vpi_mod");
         log_feature!("inertial_put");
-        log_feature!("verilator_next_sim_time_callback");
+        log_feature!("verilator_inner_step_callback");
         log_feature!("dpi");
         log_feature!("debug");
         log_feature!("acc_time");
@@ -245,10 +245,10 @@ impl VeriluaEnv {
         log_feature!("merge_cb");
         log_feature!("chunk_task");
 
-        if cfg!(feature = "verilator_next_sim_time_callback") {
+        if cfg!(feature = "verilator_inner_step_callback") {
             assert!(
                 cfg!(feature = "verilator"),
-                "`feature = \"verilator_next_sim_time_callback\"` requires `feature = \"verilator\"`"
+                "`feature = \"verilator_inner_step_callback\"` requires `feature = \"verilator\"`"
             );
         }
 
@@ -374,7 +374,7 @@ impl VeriluaEnv {
 
         use tabled::{
             builder::Builder,
-            settings::{Alignment, Color, Panel, Shadow, Style, Width, object::Rows},
+            settings::{Alignment, Panel, Shadow, Style, Width, object::Rows},
         };
 
         let mut builder = Builder::new();
@@ -411,9 +411,9 @@ impl VeriluaEnv {
         #[cfg(feature = "acc_time")]
         {
             if _overhead > 50.0 {
-                table.modify((2, 2), Color::FG_RED);
+                table.modify((2, 2), tabled::settings::Color::FG_RED);
             } else {
-                table.modify((2, 2), Color::FG_GREEN);
+                table.modify((2, 2), tabled::settings::Color::FG_GREEN);
             }
         }
 
@@ -435,12 +435,12 @@ impl VeriluaEnv {
     #[inline(always)]
     pub fn do_push_hdl_put_value(&mut self, complex_handle_raw: ComplexHandleRaw) {
         if (cfg!(feature = "vcs") || cfg!(feature = "iverilog")) && self.use_hdl_put_value_bak {
-            /// When we are in `apply_pending_put_values`, it is possible(in VCS/Iverilog) that the vpi_put_value operation
-            /// will trigger a new put value operation which will append to the `hdl_put_value`. While in every end of
-            /// `apply_pending_put_values`, we will clear the `hdl_put_value`, if the newly pushed `hdl_put_value` is not
-            /// backed up, the newly pushed `hdl_put_value` will also be cleared which is not what we want, so we need to
-            /// backup the `hdl_put_value` and restore it later(in NextSimTime callback).
-            /// The `hdl_put_value_bak` is used for backing up the `hdl_put_value` to solve this problem.
+            // When we are in `apply_pending_put_values`, it is possible(in VCS/Iverilog) that the vpi_put_value operation
+            // will trigger a new put value operation which will append to the `hdl_put_value`. While in every end of
+            // `apply_pending_put_values`, we will clear the `hdl_put_value`, if the newly pushed `hdl_put_value` is not
+            // backed up, the newly pushed `hdl_put_value` will also be cleared which is not what we want, so we need to
+            // backup the `hdl_put_value` and restore it later(in NextSimTime callback).
+            // The `hdl_put_value_bak` is used for backing up the `hdl_put_value` to solve this problem.
             self.hdl_put_value_bak.push(complex_handle_raw);
         } else {
             self.hdl_put_value.push(complex_handle_raw);

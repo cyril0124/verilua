@@ -232,7 +232,7 @@ fork {
         end
         --- 2. using `BitVec`
         do
-            local BitVec = require "BitVec"
+            local BitVec = require "verilua.utils.BitVec"
             local v = 0xFF01
             local bv = BitVec(v, 16)
             assert(bv:get_bitfield(0, 0) == 1)

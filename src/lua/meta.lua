@@ -117,7 +117,7 @@ function set_values(cmd, ...) end
 function add_values(cmd, ...) end
 
 ---@param toolchain verilua.xmake.toolchains
-function add_toolchain(toolchain) end
+function add_toolchains(toolchain) end
 
 ---@param toolchain verilua.xmake.toolchains
 function set_toolchain(toolchain) end
