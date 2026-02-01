@@ -153,9 +153,6 @@ local simulator_control = function(sim_crtl)
 end
 
 local finish = function()
-    if is_xcelium then
-        os.exit(0)
-    end
     simulator_control(SimCtrl.FINISH)
 end
 

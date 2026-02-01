@@ -526,6 +526,8 @@ impl VeriluaEnv {
 
 // This is a ensurance mechanism to make sure the finalize function is called when the program
 // is exiting cause in some cases the finalize function may not be called successfully.
+// Note: Disabled for VCS/xcelium as it can cause issues with simulator cleanup (TBB thread joining).
+#[cfg(not(feature = "vcs"))]
 #[static_init::destructor(0)]
 extern "C" fn automatically_finalize_verilua_env() {
     #[cfg(feature = "nosim")]
@@ -536,11 +538,18 @@ extern "C" fn automatically_finalize_verilua_env() {
         }
     }
 
-    log::info!("automatically_finalize_verilua_env");
-    let env = get_verilua_env();
-    if env.initialized && !env.finalized {
-        log::info!("VeriluaEnv::finalize() called automatically");
-        env.finalize();
+    // During program shutdown, some simulators (e.g., xcelium) may have their runtime partially
+    // shutdown. We use a safer approach by first checking if VERILUA_ENV exists without calling
+    // get_verilua_env() which could have side effects.
+    unsafe {
+        if let Some(ref mut env_cell) = VERILUA_ENV {
+            let env = &mut *env_cell.get();
+            log::info!("automatically_finalize_verilua_env");
+            if env.initialized && !env.finalized {
+                log::info!("VeriluaEnv::finalize() called automatically");
+                env.finalize();
+            }
+        }
     }
 }
 
