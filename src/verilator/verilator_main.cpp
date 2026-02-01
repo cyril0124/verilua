@@ -31,10 +31,33 @@
 #include <vector>
 
 #ifndef VERILATOR_STEP_TIME
-#define VERILATOR_STEP_TIME 1
+// VERILATOR_STEP_TIME defines the time increment for each simulation step
+// Value: 10000 (represents 10ns in timescale 1ns/1ps)
+//
+// Explanation:
+// - Verilator uses integer values to represent time, where the unit is determined by the timescale precision
+// - Timescale 1ns/1ps means: time unit = 1ns, time precision = 1ps
+// - Verilator internally uses the precision (1ps) as the base unit for time representation
+// - Therefore: 10000 units × 1ps/unit = 10000ps = 10ns
+//
+// Why 10ns?
+// - CLK_PERIOD = 20000 (20ns for full clock cycle)
+// - CLK_HALF_PERIOD = CLK_PERIOD / 2 = 10000 (10ns for clock toggle)
+// - VERILATOR_STEP_TIME = CLK_HALF_PERIOD = 10000
+// - Each Verilated::timeInc(VERILATOR_STEP_TIME) advances time by 10ns
+// - The internal clock toggles every 10ns (see line ~402, ~486: dut_ptr->clock = !dut_ptr->clock)
+#define VERILATOR_STEP_TIME 10000
 #endif
 
-const vluint64_t CLK_PERIOD      = 2; // Must be multiple of `VERILATOR_STEP_TIME`
+// CLK_PERIOD controls the internal clock rate.
+// For timescale 1ns/1ps (precision = 1ps), a 20ns clock period (10ns high, 10ns low)
+// requires CLK_PERIOD = 20000 (20ns / 1ps = 20000 steps).
+// Users can override this via -CFLAGS "-DVERILATOR_CLK_PERIOD=<value>"
+#ifndef VERILATOR_CLK_PERIOD
+#define VERILATOR_CLK_PERIOD 20000 // Default: 20ns period for 1ns/1ps timescale
+#endif
+
+const vluint64_t CLK_PERIOD      = VERILATOR_CLK_PERIOD; // Must be multiple of `VERILATOR_STEP_TIME`
 const vluint64_t CLK_HALF_PERIOD = CLK_PERIOD / 2;
 
 #ifndef VM_TRACE_FST

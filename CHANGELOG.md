@@ -10,6 +10,8 @@
 
 ### 🐛 Fixes
 
+- **verilator_main.cpp**: Fixed incorrect clock period for timescale 1ns/1ps
+
 ---
 
 ## v3.0.0 - 2026-01-25
