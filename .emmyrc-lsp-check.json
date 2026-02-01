@@ -1,32 +1,36 @@
 {
-    "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
-
-    "runtime": {
-        "version": "LuaJIT"
-    },
-
-    "diagnostics": {
-        "workspaceDelay": 200,
-        "severity": {
-            "unnecessary-assert": "hint",
-            "unnecessary-if": "warning",
-            "redefined-local": "hint"
-        }
-    },
-
-    "workspace": {
-        "ignoreDir": [
-            ".vscode",
-            "extern",
-            "libverilua",
-            "build",
-            "tmp",
-            "luajit-pro",
-            "src/lua/thirdparty_lib",
-            "src/gen/out"
-        ],
-        "library": [
-            "./tmp_lua_lib_dir"
-        ]
+  "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
+  "runtime": {
+    "version": "LuaJIT"
+  },
+  "diagnostics": {
+    "workspaceDelay": 200,
+    "disable": [
+      "unnecessary-if",
+      "unnecessary-assert",
+      "invert-if"
+    ],
+    "severity": {
+      "redefined-local": "hint"
     }
+  },
+  "hint.enable": true,
+  "workspace": {
+    "enableReindex": true,
+    "reindexDuration": 5000,
+    "encoding": "utf-8",
+    "ignoreDir": [
+      ".vscode",
+      "extern",
+      "libverilua",
+      "build",
+      "tmp",
+      "luajit-pro",
+      "src/gen/out",
+      "src/lua/thirdparty_lib"
+    ],
+    "library": [
+      "./tmp_lua_lib_dir"
+    ]
+  }
 }
