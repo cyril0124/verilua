@@ -7,6 +7,12 @@ local verilua_tools_home = path.join(verilua_home, "tools")
 local verilua_libs_home = path.join(verilua_home, "shared")
 local luajitpro_home = path.join(verilua_home, "luajit-pro", "luajit2.1")
 
+--- Check if VL_QUIET mode is enabled
+---@return boolean
+local function is_quiet_mode()
+    return os.getenv("VL_QUIET") == "1"
+end
+
 local FILE_COUNT_THRESHOLD = 100 -- Threshold for using filelist instead of passing files directly
 
 ---@alias SimulatorType "iverilog" | "verilator" | "vcs" | "xcelium" | "wave_vpi" | "nosim"
@@ -50,6 +56,13 @@ local function get_build_dir(target, sim)
 end
 
 local function before_build_or_run(target)
+    local old_cprint = cprint
+    local cprint = function(fmt, ...)
+        if not is_quiet_mode() then
+            old_cprint(fmt, ...)
+        end
+    end
+
     --- Check if any of the valid toolchains is set. If not, raise an error.
     --- You should set the toolchain using add_toolchains(<...>).
     --- e.g. (in your xmake.lua)
@@ -356,7 +369,13 @@ rule("verilua", function()
     before_run(before_build_or_run)
 
     on_build(function(target)
-        import("lib.detect.find_file")
+        local old_cprint = cprint
+        local cprint = function(fmt, ...)
+            if not is_quiet_mode() then
+                old_cprint(fmt, ...)
+            end
+        end
+
         assert(verilua_home ~= "", "[on_build] [%s] please set VERILUA_HOME", target:name())
 
         local top = target:get("top")
@@ -1649,6 +1668,13 @@ verdi -f filelist.f -sv -nologo $@]]
     end)
 
     on_run(function(target)
+        local old_cprint = cprint
+        local cprint = function(fmt, ...)
+            if not is_quiet_mode() then
+                old_cprint(fmt, ...)
+            end
+        end
+
         assert(verilua_home ~= "", "[on_run] [%s] please set VERILUA_HOME", target:name())
 
         local sim = target:get("sim")
