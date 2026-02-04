@@ -1,8 +1,10 @@
 # CHANGELOG.md
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org)
+
 ## Unreleased
 
-### ✨ New Features
+### ✨ Added
 
 - **wave_vpi**: Add `VL_QUIET` environment variable support to suppress all C++ log output in the wave_vpi module, providing consistent quiet mode behavior across both Lua and C++ components
 - **xmake**: Add `VL_QUIET` environment variable support to suppress all build/run output in verilua xmake rule, providing quiet mode for automated workflows
@@ -15,9 +17,7 @@
     - **wave_vpi**: Implement `vpi_get_time()` for FSDB and Wellen backends with automatic timescale detection from waveform files                                                                                                      
     - **dummy_vpi**: Add `vpiTimePrecision` property support with configurable `DUMMY_VPI_TIME_PRECISION` macro (default: -9 for ns)                                                                                                
 
-### 🔧 Improvements
-
-### 🐛 Fixes
+### 🐛 Fixed
 
 - **verilator_main.cpp**: Fixed incorrect clock period for timescale 1ns/1ps
 
