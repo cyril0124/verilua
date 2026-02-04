@@ -272,8 +272,8 @@ describe("LuaUtils test", function()
         for _, test in ipairs(tests) do
             local v = test[1]
             local expected = test[2]
-            local seperator = test[3]
-            local result = utils.to_hex_str(v, seperator)
+            local separator = test[3]
+            local result = utils.to_hex_str(v, separator)
             expect.equal(result, expected)
         end
     end)

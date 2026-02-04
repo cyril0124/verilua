@@ -547,7 +547,7 @@ local unnamed_task_count = 0
 do
     local verilua_debug = _G.verilua_debug
 
-    ---@deprecated Use seperate functions `fork`, `jfork`, `initial`, `final` instead
+    ---@deprecated Use separate functions `fork`, `jfork`, `initial`, `final` instead
     ---@param cmd "appendTasks"|"startTask"|"finishTask"|"appendStartTasks"|"appendFinishTasks"|"showTasks"
     ---@return fun(tbl: table)
     _G.verilua = function(cmd)

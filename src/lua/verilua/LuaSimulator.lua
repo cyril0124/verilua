@@ -68,7 +68,7 @@ local initialize_trace = function(trace_file_path)
     elseif is_verilator then
         ffi.C.verilator_simulation_initializeTrace(ffi.cast("char *", trace_file_path))
     elseif is_iverilog then
-        _G.await_time(0) -- waitting for simulation start
+        _G.await_time(0) -- waiting for simulation start
 
         local traceFilePath = trace_file_path or default_wave_name .. ".vcd"
         local file, err = io.open("iverilog_trace_name.txt", "w")

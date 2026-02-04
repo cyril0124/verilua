@@ -598,14 +598,14 @@ string.bdl = process_bundle
 ---      local abdl = ([[
 ---          | origin_signal_name => alias_name
 ---          | origin_signal_name_1 => alias_name_1
----      ]]):abdl {hier = "path.to.hier", perfix = "some_prefix_", name = "name of alias bundle"}
+---      ]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
 ---      local value = abdl.alias_name:get()    -- real signal is <path.to.hier.some_prefix_origin_signal_name>
 ---      abdl.alias_name_1:set(123)
 ---
----      -- Multiple alias name, seperate by `/`
+---      -- Multiple alias name, separate by `/`
 ---      local abdl = ([[
 ---          | origin_signal_name => alias_name/alias_name_1/alias_name_2
----      ]]):abdl {hier = "path.to.hier", perfix = "some_prefix_", name = "name of alias bundle"}
+---      ]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
 ---      local value = abdl.alias_name:get()     -- real signal is <path.to.hier.some_prefix_origin_signal_name>
 ---      local value_1 = abdl.alias_name_1:get() -- using another alias name to access the same signal
 ---      assert(value == value_1)
