@@ -31,7 +31,6 @@ OPTIONS:
   --co,--check-output                                 check output
   --dr,--dryrun                                       do not generate testbench
   -r,--regen                                          force regeneration of testbench
-  --nd,--nodpi                                        disable dpi generation
   -h,--help                                           Display available options
   --std (1800-2017 | 1800-2023 | latest)              The version of the SystemVerilog language to use
   -I,--include-directory,+incdir <dir-pattern>[,...]  Additional include search paths
@@ -166,9 +165,11 @@ fork {
     function()
         while true do
             sys_clk:set(1)
-            await_time(5)  -- 5ns
+            await_time_ns(5)  -- 5ns
+                              -- Note: this example uses `await_time_ns()` (nanoseconds). 
+                              -- If you need higher precision (ps/fs) use `await_time_ps()`/`await_time_fs()` etc.
             sys_clk:set(0)
-            await_time(5)
+            await_time_ns(5)
         end
     end,
 
@@ -176,9 +177,9 @@ fork {
     function()
         while true do
             uart_clk:set(1)
-            await_time(52)  -- 52ns
+            await_time_ns(52)  -- 52ns
             uart_clk:set(0)
-            await_time(52)
+            await_time_ns(52)
         end
     end,
 
@@ -186,9 +187,9 @@ fork {
     function()
         while true do
             mem_clk:set(1)
-            await_time(2.5)  -- 2.5ns
+            await_time_ns(2.5)  -- 2.5ns
             mem_clk:set(0)
-            await_time(2.5)
+            await_time_ns(2.5)
         end
     end
 }

@@ -263,9 +263,9 @@ set_values("cfg.top", "top")  -- 或者你的实际顶层模块名
             local clock = dut.clock:chdl()
             while true do
                 clock:set(1)
-                await_time(2)
+                await_time_ns(2)
                 clock:set(0)
-                await_time(2)
+                await_time_ns(2)
             end
         end,
         
