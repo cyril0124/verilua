@@ -329,14 +329,16 @@ unsafe extern "C" fn rd_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
         unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
     let env = get_verilua_env();
 
-    if let Err(e) = env
-        .lua_sim_event
-        .as_ref()
-        .unwrap()
-        .call::<()>(user_data.task_id)
-    {
-        env.finalize();
-        panic!("{}", e);
+    unsafe {
+        if let Err(e) = env
+            .lua_sim_event
+            .as_ref()
+            .unwrap_unchecked()
+            .call::<()>(user_data.task_id)
+        {
+            env.finalize();
+            panic!("{}", e);
+        }
     }
 
     0
@@ -370,14 +372,16 @@ unsafe extern "C" fn rw_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
         unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
     let env = get_verilua_env();
 
-    if let Err(e) = env
-        .lua_sim_event
-        .as_ref()
-        .unwrap()
-        .call::<()>(user_data.task_id)
-    {
-        env.finalize();
-        panic!("{}", e);
+    unsafe {
+        if let Err(e) = env
+            .lua_sim_event
+            .as_ref()
+            .unwrap_unchecked()
+            .call::<()>(user_data.task_id)
+        {
+            env.finalize();
+            panic!("{}", e);
+        }
     }
 
     0
@@ -414,14 +418,16 @@ unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT3
         unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
     let env = get_verilua_env();
 
-    if let Err(e) = env
-        .lua_sim_event
-        .as_ref()
-        .unwrap()
-        .call::<()>(user_data.task_id)
-    {
-        env.finalize();
-        panic!("{}", e);
+    unsafe {
+        if let Err(e) = env
+            .lua_sim_event
+            .as_ref()
+            .unwrap_unchecked()
+            .call::<()>(user_data.task_id)
+        {
+            env.finalize();
+            panic!("{}", e);
+        }
     }
 
     0
@@ -651,14 +657,16 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event
-            .as_ref()
-            .unwrap()
-            .call::<()>(user_data.task_id)
-        {
-            env.finalize();
-            panic!("{}", e);
+        unsafe {
+            if let Err(e) = env
+                .lua_sim_event
+                .as_ref()
+                .unwrap_unchecked()
+                .call::<()>(user_data.task_id)
+            {
+                env.finalize();
+                panic!("{}", e);
+            }
         }
 
         #[cfg(feature = "acc_time")]
@@ -774,9 +782,17 @@ unsafe extern "C" fn time_callback_handler(cb_data: *mut t_cb_data) -> PLI_INT32
     #[cfg(feature = "acc_time")]
     let s = std::time::Instant::now();
 
-    if let Err(e) = env.lua_sim_event.as_ref().unwrap().call::<()>(task_id) {
-        panic!("{}", e);
-    };
+    unsafe {
+        if let Err(e) = env
+            .lua_sim_event
+            .as_ref()
+            .unwrap_unchecked()
+            .call::<()>(task_id)
+        {
+            env.finalize();
+            panic!("{}", e);
+        }
+    }
 
     #[cfg(feature = "acc_time")]
     {
@@ -905,13 +921,16 @@ unsafe extern "C" fn edge_callback_always(cb_data: *mut t_cb_data) -> PLI_INT32 
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event
-            .as_ref()
-            .unwrap()
-            .call::<()>(user_data.task_id)
-        {
-            panic!("{}", e);
+        unsafe {
+            if let Err(e) = env
+                .lua_sim_event
+                .as_ref()
+                .unwrap_unchecked()
+                .call::<()>(user_data.task_id)
+            {
+                env.finalize();
+                panic!("{}", e);
+            }
         }
 
         #[cfg(feature = "acc_time")]
