@@ -52,6 +52,7 @@ local cfg = {}
 
 local function get_debug_info(level)
     local _level = level or 2 -- Level 2 because we're inside a function
+    ---@type debuglib.DebugInfo
     local info
 
     -- Get valid debug info. If not found(i.e. info.currentline == -1), then try to get the debug info from the previous level.

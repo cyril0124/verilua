@@ -75,7 +75,7 @@ local time_precision = cfg.time_precision
 
 --- Convert time with unit to simulation steps
 ---@param time number Time value
----@param unit string Time unit ("fs", "ps", "ns", "us", "ms", "s")
+---@param unit "fs" | "ps" | "ns" | "us" | "ms" | "s" Time unit ("fs", "ps", "ns", "us", "ms", "s")
 ---@return integer steps
 local function time_to_steps(time, unit)
     local unit_exp = UNIT_TO_EXPONENT[unit]
@@ -83,6 +83,7 @@ local function time_to_steps(time, unit)
         assert(false, "Unknown time unit:" .. tostring(unit))
     end
 
+    ---@cast unit_exp -?
     local scale = 10 ^ (unit_exp - time_precision)
     local steps = math.floor(time * scale + 0.5) -- Round to nearest integer
 
@@ -134,7 +135,7 @@ end
 
 --- Wait for specified time with given unit
 ---@param time number Time value
----@param unit string Time unit ("fs", "ps", "ns", "us", "ms", "s")
+---@param unit "fs" | "ps" | "ns" | "us" | "ms" | "s" Time unit ("fs", "ps", "ns", "us", "ms", "s")
 local await_time_unit = function(time, unit)
     coro_yield(Timer, time_to_steps(time, unit))
 end

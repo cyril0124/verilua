@@ -50,6 +50,11 @@ function await_time_ms(time) end
 ---@param time integer
 function await_time_s(time) end
 
+--- Wait for specified time with given unit
+---@param time integer Time value
+---@param unit "fs" | "ps" | "ns" | "us" | "ms" | "s" Time unit ("fs", "ps", "ns", "us", "ms", "s")
+function await_time_unit(time, unit) end
+
 ---@param signal_hdl verilua.handles.ComplexHandleRaw
 function await_posedge_hdl(signal_hdl) end
 

@@ -412,6 +412,7 @@ do
         assert(try)
 
         -- get catch and finally functions
+        ---@diagnostic disable-next-line
         local funcs = table_join(block[2] or {}, block[3] or {})
 
         -- try to call it
@@ -431,6 +432,7 @@ do
 
         -- run the finally function
         if funcs and funcs.finally then
+            ---@diagnostic disable-next-line
             funcs.finally(ok, table_unpack(results, 2, results.n))
         end
 
