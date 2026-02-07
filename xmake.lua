@@ -1041,6 +1041,7 @@ ${reset}]])
                 { path.join(prj_dir, "tests", "test_basic_signal"),      "test_basic_signal" },
                 { path.join(prj_dir, "tests", "test_scheduler"),         "test_scheduler" },
                 { path.join(prj_dir, "tests", "test_comb"),              "test_comb" },
+                { path.join(prj_dir, "tests", "test_comb_1"),            "test_comb_1" },
                 { path.join(prj_dir, "tests", "test_bitvec_signal"),     "test_bitvec_signal" },
                 { path.join(prj_dir, "tests", "test_no_internal_clock"), "test_no_internal_clock" },
                 { path.join(prj_dir, "tests", "test_handles"),           "test_handles" },
@@ -1110,6 +1111,7 @@ ${reset}]])
             local test_dirs = {
                 { path.join(prj_dir, "tests", "test_basic_signal"), "test_basic_signal" },
                 { path.join(prj_dir, "tests", "test_comb"),         "test_comb" },
+                { path.join(prj_dir, "tests", "test_comb_1"),       "test_comb_1" },
             }
             os.setenvs(old_env)
 
