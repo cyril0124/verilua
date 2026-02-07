@@ -549,11 +549,14 @@ int Emulator::timing_mode_main() {
         // If there are no more cbAfterDelay callbacks,
         // the next deadline is max value, so end the simulation now
 #ifndef NO_INTERNAL_CLOCK // Has internal clock
-        if (next_time == NO_TOP_EVENTS_PENDING) {
-            // When using internal clock, we always toggle the clock signal,
-            // so there are always have events pending.
-            Verilated::timeInc(VERILATOR_STEP_TIME);
-        } else {
+        {
+            // When using internal clock, always consider the next clock toggle boundary
+            // as a pending event. This prevents time misalignment when cbAfterDelay
+            // callbacks (e.g., await_time(1)) shift time to a non-CLK_HALF_PERIOD-aligned
+            // value, which would cause the clock to never toggle again.
+            vluint64_t current_time      = Verilated::time();
+            vluint64_t next_clock_toggle = ((current_time / CLK_HALF_PERIOD) + 1) * CLK_HALF_PERIOD;
+            next_time                    = std::min(next_time, next_clock_toggle);
             Verilated::time(next_time);
         }
 #else
