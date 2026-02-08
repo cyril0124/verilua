@@ -742,6 +742,13 @@ ${reset}]])
 
         assert(#simulators > 0, "No simulators found!")
 
+        local verilator_version
+        if has_verilator then
+            local s = os.iorun("verilator --version")
+            local v = s:match("Verilator%s+([%d.]+)")
+            verilator_version = tonumber(v)
+        end
+
         --
         -- Print header and configuration
         --
@@ -796,9 +803,7 @@ ${reset}]])
             local should_skip = false
             for _, sim in ipairs(simulators) do
                 if sim == "verilator" then
-                    local s = os.iorun("verilator --version")
-                    local main_version_str = s:match("Verilator%s+([%d.]+)")
-                    if tonumber(main_version_str) <= 5.026 then
+                    if verilator_version <= 5.026 then
                         -- Skip Verilator tests for WAL if Verilator version <= 5.026 where the generated VCD waveform is broken
                         should_skip = true
                     end
@@ -1041,7 +1046,7 @@ ${reset}]])
                 { path.join(prj_dir, "tests", "test_basic_signal"),      "test_basic_signal" },
                 { path.join(prj_dir, "tests", "test_scheduler"),         "test_scheduler" },
                 { path.join(prj_dir, "tests", "test_comb"),              "test_comb" },
-                { path.join(prj_dir, "tests", "test_comb_1"),            "test_comb_1" },
+                { path.join(prj_dir, "tests", "test_comb_1"),            "test_comb_1" }, -- Not work properly on Verilator < 5.036
                 { path.join(prj_dir, "tests", "test_bitvec_signal"),     "test_bitvec_signal" },
                 { path.join(prj_dir, "tests", "test_no_internal_clock"), "test_no_internal_clock" },
                 { path.join(prj_dir, "tests", "test_handles"),           "test_handles" },
@@ -1057,23 +1062,25 @@ ${reset}]])
 
                 -- Regular simulator tests
                 for _, sim in ipairs(simulators) do
-                    local start_time = os.time()
-                    print_test_start(test_name, sim)
-                    os.setenv("SIM", sim)
-                    os.tryrm("build")
-                    local success = true
-                    try {
-                        function()
-                            run_cmd("xmake build -v -P .")
-                            run_cmd("xmake run -v -P .")
-                        end,
-                        catch { function(e) success = false end }
-                    }
-                    print_test_result(test_name, sim, success, os.time() - start_time)
+                    if not (test_name == "test_comb_1" and sim == "verilator" and verilator_version < 5.036) then
+                        local start_time = os.time()
+                        print_test_start(test_name, sim)
+                        os.setenv("SIM", sim)
+                        os.tryrm("build")
+                        local success = true
+                        try {
+                            function()
+                                run_cmd("xmake build -v -P .")
+                                run_cmd("xmake run -v -P .")
+                            end,
+                            catch { function(e) success = false end }
+                        }
+                        print_test_result(test_name, sim, success, os.time() - start_time)
+                    end
                 end
 
                 -- Inertial put test for verilator
-                if has_verilator then
+                if has_verilator and not (test_name == "test_comb_1" and verilator_version < 5.036) then
                     local start_time = os.time()
                     print_test_start(test_name, "verilator", "inertial_put")
                     os.setenv("SIM", "verilator")
@@ -1120,20 +1127,22 @@ ${reset}]])
                 os.cd(test_dir)
 
                 for _, sim in ipairs(simulators) do
-                    local start_time = os.time()
-                    print_test_start(test_name, sim, "no_internal_clock")
-                    os.setenv("SIM", sim)
-                    os.setenv("NO_INTERNAL_CLOCK", "1")
-                    os.tryrm("build")
-                    local success = true
-                    try {
-                        function()
-                            run_cmd("xmake build -v -P .")
-                            run_cmd("xmake run -v -P .")
-                        end,
-                        catch { function(e) success = false end }
-                    }
-                    print_test_result(test_name, sim, success, os.time() - start_time, "no_internal_clock")
+                    if not (test_name == "test_comb_1" and sim == "verilator" and verilator_version < 5.036) then
+                        local start_time = os.time()
+                        print_test_start(test_name, sim, "no_internal_clock")
+                        os.setenv("SIM", sim)
+                        os.setenv("NO_INTERNAL_CLOCK", "1")
+                        os.tryrm("build")
+                        local success = true
+                        try {
+                            function()
+                                run_cmd("xmake build -v -P .")
+                                run_cmd("xmake run -v -P .")
+                            end,
+                            catch { function(e) success = false end }
+                        }
+                        print_test_result(test_name, sim, success, os.time() - start_time, "no_internal_clock")
+                    end
                 end
                 os.setenv("NO_INTERNAL_CLOCK", nil)
             end
