@@ -27,7 +27,6 @@ local colors = _G.colors
 ---@field is_wal boolean Whether use verilua as WAL(Waveform Analysis Language)
 ---@field period integer
 ---@field unit string
----@field luapanda_debug boolean
 ---@field prj_dir string Project directory
 ---@field time_precision integer Time precision as exponent (e.g., -9 for ns, -12 for ps)
 ---@field time_unit string Time unit corresponding to time precision ("fs", "ps", "ns", "us", "ms", "s")
@@ -363,7 +362,6 @@ function cfg:post_config()
     cfg.deps                = cfg:get_or_else("deps", {}) -- Dependencies
     cfg.period              = cfg:get_or_else("period", 10)
     cfg.unit                = cfg:get_or_else("unit", "ns")
-    cfg.luapanda_debug      = cfg:get_or_else("luapanda_debug", false)
     cfg.prj_dir             = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
 
     --- This flag is enabled by calling:
