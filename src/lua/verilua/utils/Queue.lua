@@ -18,6 +18,7 @@ local table_concat = table.concat
 ---@class (exact) verilua.utils.Queue<T> Generic queue implementation with leak detection and memory optimization
 ---@overload fun(options: verilua.utils.Queue.options?): verilua.utils.Queue Create a new queue with optional configuration
 ---@field private name string Queue name for debugging purposes
+---@field private ehdl verilua.handles.EventHandle Event handle for waitable operations
 ---@field private data table<integer, T> Internal storage for queue elements
 ---@field private first_ptr integer Index of the first element in the queue
 ---@field private last_ptr integer Index of the last element in the queue
@@ -28,6 +29,9 @@ local table_concat = table.concat
 ---@field private _compact fun(self: verilua.utils.Queue) Compact the queue to free memory by moving elements to the beginning
 ---@field push fun(self: verilua.utils.Queue, value: T) Add an element to the end of the queue
 ---@field pop fun(self: verilua.utils.Queue): T Remove and return the first element from the queue
+---@field push_waitable fun(self: verilua.utils.Queue, value: T) Add an element and notify waiters
+---@field pop_waitable fun(self: verilua.utils.Queue): T Remove and return the first element, waiting if necessary
+---@field wait_not_empty fun(self: verilua.utils.Queue): boolean Wait until the queue is not empty
 ---@field query_first_ptr fun(self: verilua.utils.Queue): T Get the first element without removing it
 ---@field front fun(self: verilua.utils.Queue): T Alias of query_first_ptr - get the first element without removing it
 ---@field last fun(self: verilua.utils.Queue): T Get the last element without removing it, or nil if queue is empty
@@ -40,6 +44,7 @@ local table_concat = table.concat
 local Queue = class() --[[@as verilua.utils.Queue]]
 
 local q_idx = 0
+local q_idx_for_ehdl = 0
 
 ---@param options verilua.utils.Queue.options?
 function Queue:_init(options)
@@ -57,6 +62,21 @@ function Queue:_init(options)
     else
         self.name = "AnonymousQueue_" .. q_idx
         q_idx = q_idx + 1
+    end
+
+    if string.ehdl then
+        self.ehdl = (self.name .. "::ehdl_" .. q_idx_for_ehdl):ehdl()
+        q_idx_for_ehdl = q_idx_for_ehdl + 1
+    else
+        ---@diagnostic disable-next-line
+        self.ehdl = {
+            send = function()
+                assert(false, "EventHandle not supported in this environment")
+            end,
+            wait = function()
+                assert(false, "EventHandle not supported in this environment")
+            end
+        } --[[@as verilua.handles.EventHandle]]
     end
 
     local leak_check = options and options.leak_check or false
@@ -95,6 +115,13 @@ function Queue:_init(options)
         return value
     end
 
+    self.pop_waitable = function(self)
+        while self:is_empty() do
+            self.ehdl:wait()
+        end
+        return self:pop()
+    end
+
     if leak_check then
         local original_pop = self.pop
         self.pop = function(self)
@@ -109,6 +136,18 @@ function Queue:push(value)
     local last = self.last_ptr + 1
     self.last_ptr = last
     data[last] = value
+end
+
+function Queue:push_waitable(value)
+    self:push(value)
+    self.ehdl:send()
+end
+
+function Queue:wait_not_empty()
+    while self:is_empty() do
+        self.ehdl:wait()
+    end
+    return true
 end
 
 -- Compact the queue by moving elements to the beginning of the table

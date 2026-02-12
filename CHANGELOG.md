@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
     - **wave_vpi**: Implement `vpi_get_time()` for FSDB and Wellen backends with automatic timescale detection from waveform files
     - **dummy_vpi**: Add `vpiTimePrecision` property support with configurable `DUMMY_VPI_TIME_PRECISION` macro (default: -9 for ns)
 - **LuaSimulator**: Add function guards to prevent calling unsupported APIs in HSE/WAL scenarios
+- **Queue**: Add push_waitable() and pop_waitable() methods for blocking queue operations
 
 ### 🐛 Fixed
 

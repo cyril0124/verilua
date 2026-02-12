@@ -17,9 +17,13 @@ local math_random = math.random
 ---@field private last_ptr integer Pointer to the last element in the queue
 ---@field private _size integer Maximum capacity of the queue
 ---@field private data table<integer, T> Internal storage array for queue elements
+---@field private ehdl verilua.handles.EventHandle Event handle for waitable operations
 ---@field count integer Current number of elements in the queue
 ----@field push fun(self: verilua.utils.StaticQueue, value: T): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed Push a value to the end of the queue
+----@field push_waitable fun(self: verilua.utils.StaticQueue, value: T): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed Push a value to the end of the queue, sending an event if successful
 ---@field pop fun(self: verilua.utils.StaticQueue): T Remove and return the first element from the queue
+---@field pop_waitable fun(self: verilua.utils.StaticQueue): T Remove and return the first element, waiting if the queue is empty
+---@field wait_not_empty fun(self: verilua.utils.StaticQueue): boolean Wait until the queue is not empty
 ---@field query_first fun(self: verilua.utils.StaticQueue): T Get the first element without removing it
 ---@field front fun(self: verilua.utils.StaticQueue): T Alias of query_first
 ---@field last fun(self: verilua.utils.StaticQueue): T Get the last element without removing it
@@ -35,6 +39,9 @@ local math_random = math.random
 ---@operator len: integer Length operator overload returns current element count
 local StaticQueue = class() --[[@as verilua.utils.StaticQueue]]
 
+local q_idx = 0
+local q_idx_for_ehdl = 0
+
 ---@param size integer
 ---@param name? string
 function StaticQueue:_init(size, name)
@@ -45,12 +52,34 @@ function StaticQueue:_init(size, name)
     end
 
     self.name = name or "Unknown_StaticQueue"
+    if name then
+        self.name = name
+    else
+        self.name = "StaticQueue_" .. q_idx
+        q_idx = q_idx + 1
+    end
+
     self.first_ptr = 1
     self.last_ptr = 0
     self._size = size
     self.count = 0
 
     self.data = table_new(size, 0)
+
+    if string.ehdl then
+        self.ehdl = (self.name .. "::ehdl_" .. q_idx_for_ehdl):ehdl()
+        q_idx_for_ehdl = q_idx_for_ehdl + 1
+    else
+        ---@diagnostic disable-next-line
+        self.ehdl = {
+            send = function()
+                assert(false, "EventHandle not supported in this environment")
+            end,
+            wait = function()
+                assert(false, "EventHandle not supported in this environment")
+            end
+        } --[[@as verilua.handles.EventHandle]]
+    end
 end
 
 --- Push a value to the end of the queue
@@ -80,6 +109,31 @@ function StaticQueue:pop()
     self.first_ptr = (self.first_ptr % self._size) + 1
     self.count = self.count - 1
     return value
+end
+
+---@nodiscard Need check success, `0` for success, `1` for failed
+---@param value T
+---@return integer
+function StaticQueue:push_waitable(value)
+    local ret = self:push(value)
+    if ret == 0 then
+        self.ehdl:send()
+    end
+    return ret
+end
+
+function StaticQueue:pop_waitable()
+    while self:is_empty() do
+        self.ehdl:wait()
+    end
+    return self:pop()
+end
+
+function StaticQueue:wait_not_empty()
+    while self:is_empty() do
+        self.ehdl:wait()
+    end
+    return true
 end
 
 function StaticQueue:query_first()
