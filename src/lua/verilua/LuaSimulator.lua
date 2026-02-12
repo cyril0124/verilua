@@ -13,6 +13,9 @@ local ffi_new = ffi.new
 local cfg = _G.cfg
 local simulator = cfg.simulator
 
+local is_hse = cfg.is_hse
+local is_wal = cfg.is_wal
+
 local is_vcs = simulator == "vcs"
 local is_xcelium = simulator == "xcelium"
 local is_verilator = simulator == "verilator"
@@ -219,6 +222,7 @@ local UNIT_TO_EXPONENT = {
 ---@param unit? "fs"|"ps"|"ns"|"us"|"ms"|"s" Time unit ("fs", "ps", "ns", "us", "ms", "s"), default returns steps
 ---@return number Simulation time
 local get_sim_time = function(unit)
+    ---@diagnostic disable-next-line
     local steps = vpiml.vpiml_get_sim_time()
 
     if unit == nil or unit == "step" then
@@ -230,10 +234,43 @@ local get_sim_time = function(unit)
         assert(false, "Unknown time unit: " .. tostring(unit))
     end
 
+    ---@diagnostic disable-next-line
     local precision = vpiml.vpiml_get_time_precision()
     local scale = 10 ^ (precision - target_exp)
 
     return steps * scale
+end
+
+if is_hse or is_wal then
+    initialize_trace = function()
+        assert(false, "[initialize_trace] not supported for HSE/WAL scenario")
+    end
+
+    enable_trace = function()
+        assert(false, "[enable_trace] not supported for HSE/WAL scenario")
+    end
+
+    disable_trace = function()
+        assert(false, "[disable_trace] not supported for HSE/WAL scenario")
+    end
+
+    dump_wave = function()
+        assert(false, "[dump_wave] not supported for HSE/WAL scenario")
+    end
+
+    print_hierarchy = function()
+        assert(false, "[print_hierarchy] not supported for HSE/WAL scenario")
+    end
+
+    iterate_vpi_type = function()
+        assert(false, "[iterate_vpi_type] not supported for HSE/WAL scenario")
+    end
+end
+
+if is_hse then
+    get_sim_time = function()
+        assert(false, "[get_sim_time] not supported for HSE scenario")
+    end
 end
 
 ---@class verilua.LuaSimulator
