@@ -28,6 +28,7 @@
 local debug = require "debug"
 local class = require "pl.class"
 local coroutine = require "coroutine"
+local table_new = require "table.new"
 local table_clear = require "table.clear"
 local vpiml = require "verilua.vpiml.vpiml"
 local Logger = require "verilua.utils.Logger"
@@ -509,12 +510,21 @@ if self.has_wakeup_event then
         self.has_wakeup_event = false
         for _, event_id in ipairs(self.pending_wakeup_event) do
             self.curr_wakeup_event_id = event_id
+
+            -- Snapshot and clear current waiters first, so tasks that call
+            -- `wait()` again during wakeup are queued for the *next* send.
             local wakeup_task_id_list = self.event_task_id_list_map[event_id]
-            for _, wakeup_task_id in ipairs(wakeup_task_id_list) do
+            local wakeup_task_id_snapshot = table_new(#wakeup_task_id_list, 0)
+            for i, wakeup_task_id in ipairs(wakeup_task_id_list) do
+                wakeup_task_id_snapshot[i] = wakeup_task_id
+            end
+            table_clear(wakeup_task_id_list)
+
+            for _, wakeup_task_id in ipairs(wakeup_task_id_snapshot) do
                 self:schedule_task(wakeup_task_id)
             end
+
             self.curr_wakeup_event_id = nil
-            table_clear(self.event_task_id_list_map[event_id])
         end
         table_clear(self.pending_wakeup_event)
     end

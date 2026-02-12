@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### 🐛 Fixed
 
 - **verilator_main.cpp**: Fixed incorrect clock period for timescale 1ns/1ps
+- **scheduler**: Fixed race condition in event wakeup where tasks that call wait() again during wakeup would be immediately scheduled in the same cycle. Now uses a snapshot pattern to ensure re-waiting tasks are properly queued for the next event send
 
 ---
 
