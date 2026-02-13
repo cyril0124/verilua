@@ -1,10 +1,7 @@
 ---@diagnostic disable: undefined-global, undefined-field
 
 local prj_dir = os.projectdir()
-local curr_dir = os.scriptdir()
-local build_dir = path.join(prj_dir, "build")
 local shared_dir = path.join(prj_dir, "shared")
-local libs_dir = path.join(prj_dir, "conan_installed")
 local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
 
 local common_features = "acc_time"
@@ -31,7 +28,7 @@ end
 
 local function build_lib_common(simulator)
     set_kind("phony")
-    on_build(function(target)
+    on_build(function(_target)
         setup_cargo_env(os)
 
         local vpi_funcs = {
@@ -125,36 +122,77 @@ end
 -- Build all libverilua libraries
 target("build_libverilua", function()
     set_kind("phony")
-    on_run(function(target)
+    on_run(function(_target)
+        local sim = os.getenv("SIM")
+        if sim then
+            assert(
+                sim == "iverilog" or
+                sim == "vcs" or
+                sim == "xcelium" or
+                sim == "verilator" or
+                sim == "wave_vpi" or
+                sim == "nosim",
+                "Invalid SIM environment variable value: " .. sim .. ". Expected one of: iverilog, vcs, xcelium, verilator, wave_vpi, nosim"
+            )
+        end
+
         import("lib.detect.find_file")
 
-        print("--------------------- [Build libverilua] ---------------------- ")
+        local header_str = format("========== [Build libverilua%s] ==========", sim and format(" with SIM=%s", sim) or "")
+        print(header_str)
         try { function() os.vrun("cargo clean") end }
 
-        for _, target_name in ipairs(all_libverilua_targets) do
-            if not target_name:find("iverilog") then
-                cprint("* Build ${green}%s${reset}", target_name)
-                os.vrun("xmake build " .. target_name)
+        if not sim then
+            local build_iverilog = false
+            for _, target_name in ipairs(all_libverilua_targets) do
+                if target_name:find("iverilog") and not build_iverilog then
+                    if find_file("iverilog", { "$(env PATH)" }) then
+                        setup_cargo_env(os)
+
+                        cprint("* Build ${green}libverilua_iverilog${reset}")
+                        os.vrun("xmake build libverilua_iverilog")
+
+                        cprint("* Build ${green}iverilog_vpi_module${reset}")
+                        os.vrun("xmake build iverilog_vpi_module")
+                    end
+
+                    build_iverilog = true
+                else
+                    cprint("* Build ${green}%s${reset}", target_name)
+                    os.vrun("xmake build " .. target_name)
+                end
+            end
+        else
+            local build_iverilog = false
+            for _, target_name in ipairs(all_libverilua_targets) do
+                if sim == "iverilog" and target_name:find("iverilog") and not build_iverilog then
+                    if find_file("iverilog", { "$(env PATH)" }) then
+                        setup_cargo_env(os)
+
+                        cprint("* Build ${green}libverilua_iverilog${reset}")
+                        os.vrun("xmake build libverilua_iverilog")
+
+                        cprint("* Build ${green}iverilog_vpi_module${reset}")
+                        os.vrun("xmake build iverilog_vpi_module")
+                    else
+                        raise("[build_libverilua with SIM=iverilog] iverilog not found in PATH! Build failed!")
+                    end
+
+                    build_iverilog = true
+                elseif target_name:find(sim) then
+                    cprint("* Build ${green}%s${reset}", target_name)
+                    os.vrun("xmake build " .. target_name)
+                end
             end
         end
 
-        if find_file("iverilog", { "$(env PATH)" }) then
-            setup_cargo_env(os)
-
-            cprint("* Build ${green}libverilua_iverilog${reset}")
-            os.vrun("xmake build libverilua_iverilog")
-
-            cprint("* Build ${green}iverilog_vpi_module${reset}")
-            os.vrun("xmake build iverilog_vpi_module")
-        end
-
-        print("---------------------------------------------------------- ")
+        print(string.rep("=", #header_str))
     end)
 end)
 
 target("iverilog_vpi_module", function()
     set_kind("phony")
-    on_build(function(target)
+    on_build(function(_target)
         setup_cargo_env(os)
 
         try { function() os.vrun("cargo clean") end }
@@ -174,19 +212,31 @@ target("build_libverilua_no_opt", function()
 
         print("[build libverilua_no_opt] build libverilua_verilator.so...")
         os.vrun([[cargo build --release --features "verilator verilator_inner_step_callback %s"]], common_features)
-        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_verilator.so"))
+        os.cp(
+            path.join(prj_dir, "target", "release", "libverilua.so"),
+            path.join(shared_dir, "no_opt", "libverilua_verilator.so")
+        )
 
         print("[build libverilua_no_opt] build libverilua_vcs.so...")
         os.vrun([[cargo build --release --features "vcs %s"]], common_features)
-        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_vcs.so"))
+        os.cp(
+            path.join(prj_dir, "target", "release", "libverilua.so"),
+            path.join(shared_dir, "no_opt", "libverilua_vcs.so")
+        )
 
-        local build_iverilog_vpi_module_cmd = format(
+        local _build_iverilog_vpi_module_cmd = format(
             [[cargo build --release --features "iverilog iverilog_vpi_mod %s"]],
-           common_features
+            common_features
         )
         print("[build libverilua_no_opt] build libverilua_iverilog.so...")
-        os.vrun(build_iverilog_vpi_module_cmd)
-        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_iverilog.so"))
-        os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "no_opt", "libverilua_iverilog.vpi"))
+        os.vrun(_build_iverilog_vpi_module_cmd)
+        os.cp(
+            path.join(prj_dir, "target", "release", "libverilua.so"),
+            path.join(shared_dir, "no_opt", "libverilua_iverilog.so")
+        )
+        os.cp(
+            path.join(prj_dir, "target", "release", "libverilua.so"),
+            path.join(shared_dir, "no_opt", "libverilua_iverilog.vpi")
+        )
     end)
 end)
