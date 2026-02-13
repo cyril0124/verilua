@@ -45,6 +45,8 @@
 -- Configuration
 --------------------------------------------------------------------------------
 
+-- Notice: `mlua` <Function>::call only accepts up to 16 arguments, so the
+-- maximum chunk size is limited to 16 when `fast_lua_call` feature is disabled.
 local MAX_CHUNK = 16  -- Maximum tasks per callback chunk
 
 --------------------------------------------------------------------------------

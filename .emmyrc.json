@@ -22,7 +22,6 @@
     "ignoreDir": [
       ".vscode",
       "extern",
-      "libverilua",
       "build",
       "tmp",
       "luajit-pro",
