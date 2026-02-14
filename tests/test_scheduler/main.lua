@@ -389,6 +389,37 @@ fork {
         clock:posedge()
         assert(not scheduler:check_task_exists(task5_id), "Task5 should be removed")
 
+        -- Test 6: Remove task multiple times
+        do
+            local e = (""):ehdl()
+            local v = 0
+            local func = function()
+                e:wait()
+                v = v + 1
+
+                while true do
+                    e:wait()
+                end
+            end
+
+            local tid = scheduler.NULL_TASK_ID
+            tid = scheduler:append_task(nil, "test", func, true)
+
+            scheduler:remove_task(tid)
+
+            tid = scheduler:append_task(tid, "test", func, true)
+
+            scheduler:remove_task(tid)
+
+            assert(v == 0)
+            e:send()
+            assert(v == 0)
+
+            await_time(0)
+
+            assert(v == 0)
+        end
+
         print("✓ Remove task test passed (using jfork returned task_id)")
 
         --==============================================================================

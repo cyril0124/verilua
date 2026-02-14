@@ -80,6 +80,7 @@ local NOOP = 5555
 ---@field private next_event_id verilua.scheduler.EventID Next available event ID
 ---@field event_task_id_list_map table<verilua.scheduler.EventID, verilua.scheduler.TaskID[]> Map of event IDs to lists of task IDs
 ---@field event_name_map table<verilua.scheduler.EventID, string> Map of event IDs to event names
+---@field private task_id_to_event_id_map table<verilua.scheduler.TaskID, verilua.scheduler.EventID> Map of task IDs to event IDs
 ---@field private has_wakeup_event boolean Indicates if there is a wakeup event
 ---@field private pending_wakeup_event table<verilua.scheduler.EventID, any> List of pending wakeup event IDs
 ---@field private acc_time_table table<string, number> Accumulated time table
@@ -143,6 +144,7 @@ self.next_task_id = SCHEDULER_MIN_TASK_ID
 
     self.event_task_id_list_map = {}
     self.event_name_map = {}
+    self.task_id_to_event_id_map = {}
     self.has_wakeup_event = false
     self.pending_wakeup_event = {}
 
@@ -255,6 +257,28 @@ function Scheduler:remove_task(id)
         self.user_removal_tasks_set[id] = true
         self.nr_user_removal_tasks = self.nr_user_removal_tasks + 1
     end
+
+    local event_id = self.task_id_to_event_id_map[id]
+    if event_id then
+        local idx = 0
+        local m = self.event_task_id_list_map[event_id]
+        for i, tid in ipairs(m) do
+            if tid == id then
+                if idx ~= 0 then
+                    assert(
+                        false,
+                        "[Scheduler] Task ID appears multiple times in event_task_id_list_map! task_id: " ..
+                        id .. ", event_id: " .. event_id
+                    )
+                end
+                idx = i
+            end
+        end
+
+        if idx ~= 0 then
+            table_remove(m, idx)
+        end
+    end
 end
 
 function Scheduler:_register_callback(id, cb_type, integer_value)
@@ -279,6 +303,7 @@ if cb_type == PosedgeHDL then
             if self.event_name_map[integer_value] == nil then
                 assert(false, "Unknown event => " .. integer_value)
             end
+            self.task_id_to_event_id_map[id] = integer_value
             table_insert(self.event_task_id_list_map[integer_value], id)
         elseif cb_type == NOOP then
             -- do nothing
@@ -286,6 +311,8 @@ if cb_type == PosedgeHDL then
             assert(false, "Unknown YieldType => " .. tostring(cb_type))
         end
 end
+
+
 
 
 
@@ -342,7 +369,7 @@ local task_id = id
             assert(false, "[Scheduler] Invalid coroutine task id!")
         end
 
-        if self:check_task_exists(id) then
+        if self:check_task_exists(id) and not self.user_removal_tasks_set[id] then
             local task_name = self.task_name_map_running[id]
             assert(false, "[Scheduler] Task already exists! task_id: " .. id .. ", task_name: " .. task_name)
         end
@@ -357,6 +384,14 @@ local task_id = id
     self.task_coroutine_map[task_id] = coro_create(task_body)
     self.task_body_map[task_id] = task_body
     self.task_execution_count_map[task_id] = 0
+
+    -- Clear any pending user_removal flag for this task ID. This happens when
+    -- remove_task() was called followed by append_task() with the same ID.
+    -- Clear it so the new task's schedule_task is not skipped.
+    if self.user_removal_tasks_set[task_id] then
+        self.user_removal_tasks_set[task_id] = nil
+        self.nr_user_removal_tasks = self.nr_user_removal_tasks - 1
+    end
 do        
 
 
@@ -378,21 +413,32 @@ function Scheduler:wakeup_task(id)
 
     local removal_task_id = 1
     local found_in_removal_tasks = false
+    local found_in_user_removal = false
     if self.task_name_map_running[id] ~= nil then
-        for i, r_id in ipairs(self.pending_removal_tasks) do
-            if r_id == id then
-                removal_task_id = i
-                found_in_removal_tasks = true
-                break
+        -- Check user_removal first (set by remove_task)
+        if self.user_removal_tasks_set[id] then
+            found_in_user_removal = true
+        else
+            -- Check pending_removal (set by _remove_task when coroutine exits)
+            for i, r_id in ipairs(self.pending_removal_tasks) do
+                if r_id == id then
+                    removal_task_id = i
+                    found_in_removal_tasks = true
+                    break
+                end
             end
-        end
 
-        if not found_in_removal_tasks then
-            assert(false, "[Scheduler] Task already running! task_id: " .. id .. ", task_name: " .. task_name)
+            if not found_in_removal_tasks then
+                assert(false, "[Scheduler] Task already running! task_id: " .. id .. ", task_name: " .. task_name)
+            end
         end
     end
 
-    if found_in_removal_tasks then
+    if found_in_user_removal then
+        self.user_removal_tasks_set[id] = nil
+        self.nr_user_removal_tasks = self.nr_user_removal_tasks - 1
+        self.task_name_map_running[id] = nil
+    elseif found_in_removal_tasks then
         table_remove(self.pending_removal_tasks, removal_task_id)
         self.nr_pending_removal_tasks = self.nr_pending_removal_tasks - 1
     end
@@ -404,7 +450,7 @@ function Scheduler:wakeup_task(id)
 end
 
 function Scheduler:try_wakeup_task(id)
-    if self:check_task_exists(id) then
+    if self:check_task_exists(id) and not self.user_removal_tasks_set[id] then
         return
     else
         local task_name = self.task_name_map_archived[id]
@@ -415,6 +461,12 @@ function Scheduler:try_wakeup_task(id)
         self.task_name_map_running[id] = task_name
         self.task_fired_status_map[id] = true
         self.task_coroutine_map[id] = coro_create(self.task_body_map[id])
+        -- Clear any stale user_removal flag so the new coroutine is not
+        -- immediately skipped by schedule_task's user_removal check.
+        if self.user_removal_tasks_set[id] then
+            self.user_removal_tasks_set[id] = nil
+            self.nr_user_removal_tasks = self.nr_user_removal_tasks - 1
+        end
         self:schedule_task(id)
     end
 end

@@ -23,6 +23,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **verilator_main.cpp**: Fixed incorrect clock period for timescale 1ns/1ps
 - **scheduler**: Fixed race condition in event wakeup where tasks that call wait() again during wakeup would be immediately scheduled in the same cycle. Now uses a snapshot pattern to ensure re-waiting tasks are properly queued for the next event send
+- **scheduler**: Fixed task event list cleanup issue where `remove_task()` did not remove the task ID from `event_task_id_list_map`, causing incorrect wake-up behavior when the same task ID was reused. This fix:
+  - Adds `task_id_to_event_id_map` field to track task-to-event bidirectional mapping
+  - Cleans up event task list entries when `remove_task()` is called
+  - Clears stale `user_removal_tasks_set` flags in `append_task()` and `try_wakeup_task()` to prevent task reuse issues
+  - Prioritizes user_removal checks in `wakeup_task()` to handle removal-before-wakeup scenarios correctly
 
 ---
 
