@@ -831,7 +831,7 @@ local Bundle = require "LuaBundle"
 local bdl = Bundle(
     {"valid", "ready", "opcode", "data"}, -- 1. <signals_table>
     "some_prefix_",                       -- 2. <prefix>
-    "path.to.hier",                       -- 3. <hierachy>
+    "path.to.hier",                       -- 3. <hierarchy>
     "name of bundle",                     -- 4. <name>
     true,                                 -- 5. <is_decoupled>
     nil                                   -- 6. <optional_signals>
@@ -848,7 +848,7 @@ local bdl = Bundle(
 
     这个参数是一个字符串，其中包含了信号的前缀，如果不存在前缀，那么传入的值可以是 `""`。
 
-3. `hierachy`
+3. `hierarchy`
 
     这个参数是一个字符串，其中包含了信号的完整 hierarchy，这是一个必需添加的参数。
 
@@ -1073,7 +1073,7 @@ local abdl = AliasBundle(
         {"origin_signal_name_1"  "alias_name_1"},
     },                                            -- 1. <alias_signal_tbl>
     "some_prefix",                                -- 2. <prefix>
-    "path.to.hier",                               -- 3. <hierachy>
+    "path.to.hier",                               -- 3. <hierarchy>
     "name of alias bundle",                       -- 4. <name>
     nil                                           -- 5. <optional_signals>
 )
@@ -1088,7 +1088,7 @@ local abdl = AliasBundle(
 
     这个参数是一个字符串，其中包含了信号的前缀，如果不存在前缀，那么传入的值可以是 `""`。
 
-3. `hierachy`
+3. `hierarchy`
 
     这个参数是一个字符串，其中包含了信号的完整 hierarchy，这是一个必需添加的参数。
 

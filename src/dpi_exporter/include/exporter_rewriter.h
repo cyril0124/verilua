@@ -85,10 +85,10 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
 
                     //
                     // e.g.
-                    //      SenstiveSignals => valid, valid1, valid2
+                    //      SensitiveSignals => valid, valid1, valid2
                     //      sSignalsCond => (valid ^ valid__LAST) || (valid1 ^ valid1__LAST) || (valid2 ^ valid2__LAST) || valid || valid1 || valid2
                     //
-                    // TODO: for senstive signals with bitWidth > 1
+                    // TODO: for sensitive signals with bitWidth > 1
                     sSignalsCond += fmt::format("({} ^ {}) ||", s.hierPath, s.hierPathName + "__LAST");
                     sSignalsCondExtra += fmt::format("{} ||", s.hierPath);
                     sSignalsLastRegAssign += fmt::format("{}__LAST <= {}; \\\n\t", s.hierPathName, s.hierPath);

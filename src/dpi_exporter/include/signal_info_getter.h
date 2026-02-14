@@ -12,7 +12,7 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
     slang::ast::Compilation *compilation;
     std::vector<std::string> hierPaths;
     SignalGroup signalGroup;
-    bool gotSenstiveSignal;
+    bool gotSensitiveSignal;
     bool isTopModule;
 
     std::vector<std::string> shouldRemoveHierPaths;
@@ -101,7 +101,7 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                         if (!Config::getInstance().quietEnabled) {
                             fmt::println("\t<NET_SENSITIVE>: name: {}, width: {}, hierPath: {}, modulePath: {}, signalName: {}, handleId: {}, isWritable: {}", net.name, bitWidth, hierPathFull, hierPathPair.first, hierPathPair.second, handleId, isWritable);
                         }
-                        gotSenstiveSignal = true;
+                        gotSensitiveSignal = true;
                     }
 
                     ASSERT(!isWritable, "NET should not be marked as writable", hierPathFull);
@@ -144,7 +144,7 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
                         if (!Config::getInstance().quietEnabled) {
                             fmt::println("\t<VAR_SENSITIVE>: name: {}, width: {}, hierPath: {}, modulePath: {}, signalName: {}, handleId: {}, isWritable: {}", var.name, bitWidth, hierPathFull, hierPathPair.first, hierPathPair.second, handleId, isWritable);
                         }
-                        gotSenstiveSignal = true;
+                        gotSensitiveSignal = true;
                     }
 
                     if (isUnique || writableNotUnique) {

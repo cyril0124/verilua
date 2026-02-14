@@ -25,5 +25,9 @@ function add_pattern(params) return "" end
 ---@return string name of the added pattern
 function add_signals(params) return "" end
 
+---@deprecated Use `add_sensitive_trigger` instead, since the former has a typo in its name.
 ---@param params dpi_exporter.sensitive_trigger_params
 function add_senstive_trigger(params) end
+
+---@param params dpi_exporter.sensitive_trigger_params
+function add_sensitive_trigger(params) end

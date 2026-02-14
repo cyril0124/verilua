@@ -40,7 +40,7 @@ fork {
 
         --- Set the value of the `reset` signal using `set` method
         reset:set(1)
-        --- Waitting for the `posedge` event of the `clock` signal
+        --- Waiting for the `posedge` event of the `clock` signal
         --- `clock` signal is managed by the `tb_top` so you dont have to generate `clock` pulses by yourself
         clock:posedge()
         do

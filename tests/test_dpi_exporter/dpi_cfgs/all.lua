@@ -5,7 +5,7 @@ add_signals {
     signals = "i_value_.*"
 }
 
--- Three groups of signals has only one senstive trigger
+-- Three groups of signals has only one sensitive trigger
 do
     local n = add_pattern {
         name = "i_signals",
@@ -29,7 +29,7 @@ do
         signals = "signal.*"
     }
 
-    add_senstive_trigger {
+    add_sensitive_trigger {
         name = "test",
         group_names = { n, n1, n2 }
     }
@@ -51,7 +51,7 @@ do
         signals = "o_.*"
     }
 
-    add_senstive_trigger {
+    add_sensitive_trigger {
         name = "test1",
         group_names = { n2, n3 }
     }

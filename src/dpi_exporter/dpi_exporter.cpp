@@ -215,38 +215,38 @@ end
 -- Alias name for `add_pattern`
 _G.add_signals = add_pattern
 
-local valid_keys_for_add_senstive_trigger = {
+local valid_keys_for_add_sensitive_trigger = {
     "name",
     "group_names",
 }
-function add_senstive_trigger(params)
-    local name = assert(params.name, "[add_senstive_trigger] name is nil")
-    local group_names = assert(params.group_names, "[add_senstive_trigger] group_names is nil")
+function add_sensitive_trigger(params)
+    local name = assert(params.name, "[add_sensitive_trigger] name is nil")
+    local group_names = assert(params.group_names, "[add_sensitive_trigger] group_names is nil")
 
     for k, _ in pairs(params) do
         local find_matched_key = false
-        for _, valid_key in ipairs(valid_keys_for_add_senstive_trigger) do
+        for _, valid_key in ipairs(valid_keys_for_add_sensitive_trigger) do
             if k == valid_key then
                 find_matched_key = true
                 break
             end
         end
         assert(find_matched_key, f(
-            "[add_senstive_trigger] invalid params key: %s, available keys: {%s}, params.name: %s, params.group_names: %s",
+            "[add_sensitive_trigger] invalid params key: %s, available keys: {%s}, params.name: %s, params.group_names: %s",
             k,
-            table.concat(valid_keys_for_add_senstive_trigger, ", "),
+            table.concat(valid_keys_for_add_sensitive_trigger, ", "),
             params.name,
             params.group_names
         ))
     end
 
     for _, n in ipairs(group_names) do
-        assert(name_map[n], f("[add_senstive_trigger] group name `%s` not found, maybe you forgot to add it with `add_pattern(<params>)/add_signals(<params>)`", n))
+        assert(name_map[n], f("[add_sensitive_trigger] group name `%s` not found, maybe you forgot to add it with `add_pattern(<params>)/add_signals(<params>)`", n))
     end
 
-    assert(is_valid_name(name), f("[add_senstive_trigger] name `%s` is not a valid name", name))
-    assert(not sensitive_name_map[name], f("[add_senstive_trigger] name `%s` is already used", name))
-    assert(#group_names > 0, "[add_senstive_trigger] group_names is empty")
+    assert(is_valid_name(name), f("[add_sensitive_trigger] name `%s` is not a valid name", name))
+    assert(not sensitive_name_map[name], f("[add_sensitive_trigger] name `%s` is already used", name))
+    assert(#group_names > 0, "[add_sensitive_trigger] group_names is empty")
 
     append(sensitive_triggers_data, {
         name = name,
@@ -255,6 +255,9 @@ function add_senstive_trigger(params)
 
     sensitive_name_map[name] = true
 end
+
+--- Alias name for `add_sensitive_trigger`, and also fix the typo in the function name.
+add_senstive_trigger = add_sensitive_trigger
 
 )");
         lua.script_file(configFile);
@@ -462,7 +465,7 @@ end
             }
 
             if (cpattern.sensitiveSignals != "") {
-                ASSERT(getter.gotSenstiveSignal, "No sensitive signal found in the signal group, senstive signal is chosen from `signals`, maybe you should adjust your `signals` value to include sensitive signals", cpattern.name, cpattern.signals, cpattern.sensitiveSignals);
+                ASSERT(getter.gotSensitiveSignal, "No sensitive signal found in the signal group, sensitive signal is chosen from `signals`, maybe you should adjust your `signals` value to include sensitive signals", cpattern.name, cpattern.signals, cpattern.sensitiveSignals);
             }
 
             ASSERT(!getter.signalGroup.signalInfoVec.empty(), "No signal found in the signal group, please check your `signals`/`moduleName`/`instName` value", cpattern.name, cpattern.signals, cpattern.moduleName, cpattern.instName);

@@ -76,7 +76,7 @@ local scheduler = require "verilua.scheduler.LuaScheduler"
 ---@field [string] string|number
 
 ---@class (exact) string.bdl.params
----@field hier string Hierachy path of the bundle, e.g. `tb_top.u_top.path.to.module`
+---@field hier string hierarchy path of the bundle, e.g. `tb_top.u_top.path.to.module`
 ---@field prefix? string Default is `""`
 ---@field is_decoupled? boolean Default is `true`
 ---@field name? string
@@ -526,7 +526,7 @@ local process_bundle = function(str, params_table)
     local hier = params_table.hier
     local hier_type = type(hier)
 
-    assert(hier ~= nil, "[bundle] hierachy is not set! please set by `hier` field ")
+    assert(hier ~= nil, "[bundle] hierarchy is not set! please set by `hier` field ")
     assert(hier_type == "string", "[bundle] invalid hierarchy type => " .. hier_type)
 
     local prefix = ""
@@ -726,7 +726,7 @@ string.abdl = function(str, params_table)
     local hier = params_table.hier
     local hier_type = type(hier)
 
-    assert(hier ~= nil, "[abdl] hierachy is not set! please set by `hier` field ")
+    assert(hier ~= nil, "[abdl] hierarchy is not set! please set by `hier` field ")
     assert(hier_type == "string", "[abdl] invalid hierarchy type => " .. hier_type)
 
     local prefix = ""

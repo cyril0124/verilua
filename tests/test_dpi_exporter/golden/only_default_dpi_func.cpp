@@ -359,7 +359,7 @@ extern "C" void dpi_exporter_tick(const uint8_t top_b_inst_valid1, const uint8_t
 
 
 
-// When sensitive signal groups are updated(i.e. dpi_exporter_tick_<SenstiveGroupName>), this function can be used to check whether any signal has changed.
+// When sensitive signal groups are updated(i.e. dpi_exporter_tick_<SensitiveGroupName>), this function can be used to check whether any signal has changed.
 // Normally used for optimizing the performance of obtaining signal values by reducing unnecessary signal value sampling actions.
 extern "C" bool dpi_exporter_sensitive_trigger() {
 #ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
