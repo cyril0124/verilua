@@ -35,6 +35,7 @@ const sidebars: SidebarsConfig = {
         'reference/multi_task',
         'reference/data_structure',
         'reference/bitvec',
+        'reference/str_bits_utils',
         'reference/slcp',
         'reference/simulator_control',
         'reference/testbench_generate',

@@ -1,0 +1,213 @@
+# StrBitsUtils
+
+`StrBitsUtils` 是一组基于字符串的位操作工具函数，用于处理超出 Lua 数字范围的大位宽数据。它将信号值表示为十六进制或二进制字符串，并提供提取、设置、移位、逻辑运算等功能，常用于需要高精度位操作的验证场景。
+
+## 初始化
+
+在首次使用前，可以选择性地初始化 GMP（GNU Multiple Precision）库以提升大整数运算的性能。如果不初始化，则使用纯 Lua 实现（基于字符串操作）。
+
+```lua
+local sbu = require "verilua.utils.StrBitsUtils"
+sbu:init_use_libgmp()   -- 启用 GMP 后端（可选）
+```
+
+:::tip
+GMP 后端的性能通常优于纯 Lua 实现，尤其在进行大量大数运算时。但需要注意 GMP 库需要单独安装（Verilua 的安装脚本会自动处理）。
+:::
+
+## 函数概览
+
+| 函数                                             | 描述                                           |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `trim_leading_zeros(str)`                        | 移除十六进制或二进制字符串的前导零             |
+| `bitfield_hex_str(hex_str, s, e, bitwidth?)`     | 提取十六进制字符串中的指定位域，返回十六进制串 |
+| `set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth?)` | 在十六进制字符串中设置指定位域                 |
+| `lshift_hex_str(hex_str, n, bitwidth?)`          | 左移位操作（十六进制字符串）                   |
+| `rshift_hex_str(hex_str, n, bitwidth?)`          | 右移位操作（十六进制字符串）                   |
+| `bor_hex_str(hex_str1, hex_str2, bitwidth?)`     | 按位或（十六进制字符串）                       |
+| `bxor_hex_str(hex_str1, hex_str2, bitwidth?)`    | 按位异或（十六进制字符串）                     |
+| `band_hex_str(hex_str1, hex_str2, bitwidth?)`    | 按位与（十六进制字符串）                       |
+| `bnot_hex_str(hex_str, bitwidth?)`               | 按位取反（十六进制字符串）                     |
+| `add_hex_str(hex_str1, hex_str2, bitwidth?)`     | 加法运算，返回结果和进位标志                     |
+| `popcount_hex_str(hex_str)`                       | 计算二进制中 '1' 的个数                         |
+| `adjust_hex_bitwidth(hex_str, bitwidth)`          | 将十六进制字符串调整到指定位宽（截断或补零）   |
+| `adjust_bin_bitwidth(bin_str, bitwidth)`          | 将二进制字符串调整到指定位宽                   |
+
+## 详细说明
+
+### 位域提取与设置
+
+#### `bitfield_hex_str(hex_str, s, e, bitwidth?)`
+
+- `hex_str`：原始十六进制字符串（无前缀）。
+- `s`：起始位（LSB，0‑based）。
+- `e`：结束位（MSB，0‑based）。
+- `bitwidth`：可选，指定原始值的位宽（用于确定字符串长度）。
+- 返回：提取的位域对应的十六进制字符串。
+
+```lua
+local sbu = require "verilua.utils.StrBitsUtils"
+local hex = "deadbeef"
+local field = sbu.bitfield_hex_str(hex, 0, 15)   -- 提取低 16 位
+print(field)  --> "beef"
+```
+
+#### `set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth?)`
+
+- 将 `hex_str` 中 `[s, e]` 范围内的位替换为 `val_hex_str` 表示的值，返回新字符串。
+
+```lua
+local new = sbu.set_bitfield_hex_str("00000000", 16, 31, "abcd")
+print(new)  --> "abcd0000"
+```
+
+### 移位运算
+
+#### `lshift_hex_str(hex_str, n, bitwidth?)`
+
+逻辑左移 `n` 位。如果指定 `bitwidth`，结果将被截断或补零到该位宽。
+
+```lua
+local sbu = require "verilua.utils.StrBitsUtils"
+local res = sbu.lshift_hex_str("12", 8)      -- "12" << 8
+print(res)  --> "1200"   (0x12 << 8 = 0x1200)
+
+-- 固定位宽（例如 16 位）
+res = sbu.lshift_hex_str("12", 8, 16)
+print(res)  --> "1200"   (16 位表示)
+```
+
+#### `rshift_hex_str(hex_str, n, bitwidth?)`
+
+逻辑右移 `n` 位。高位补零。
+
+```lua
+local res = sbu.rshift_hex_str("1234", 4)
+print(res)  --> "123"    (0x1234 >> 4 = 0x123)
+```
+
+### 位逻辑运算
+
+所有逻辑运算（`bor`/`bxor`/`band`/`bnot`）均支持可选的 `bitwidth` 参数，用于约束结果宽度。
+
+```lua
+local a = "a5"
+local b = "5a"
+print(sbu.bor_hex_str(a, b))   --> "ff"
+print(sbu.band_hex_str(a, b))  --> "00"
+print(sbu.bxor_hex_str(a, b))  --> "ff"
+print(sbu.bnot_hex_str("f0f0", 16))  --> "0f0f"
+```
+
+### 加法运算
+
+#### `add_hex_str(hex_str1, hex_str2, bitwidth?)`
+
+执行两个十六进制字符串的加法，返回两个值：结果字符串（十六进制）和进位标志（`true`/`false`）。
+
+```lua
+local sum, carry = sbu.add_hex_str("ffff", "0001", 16)
+print(sum)    --> "0000"
+print(carry)  --> true   (产生进位)
+
+sum, carry = sbu.add_hex_str("1234", "5678", 16)
+print(sum)    --> "68ac"
+print(carry)  --> false
+```
+
+### 辅助函数
+
+#### `trim_leading_zeros(str)`
+
+移除十六进制或二进制字符串的前导零。
+
+```lua
+print(sbu.trim_leading_zeros("0000dead"))  --> "dead"
+print(sbu.trim_leading_zeros("001010"))    --> "1010"
+```
+
+#### `popcount_hex_str(hex_str)`
+
+返回十六进制字符串中二进制 '1' 的个数。
+
+```lua
+local cnt = sbu.popcount_hex_str("f0")   -- 0xf0 = 11110000
+print(cnt)  --> 4
+```
+
+#### `adjust_hex_bitwidth(hex_str, bitwidth)`
+
+将十六进制字符串调整到指定的位宽：如果原字符串位数不足则高位补零，超出则截断高位。
+
+```lua
+local adj = sbu.adjust_hex_bitwidth("123", 16)
+print(adj)  --> "0123"   (补零到 16 位)
+```
+
+#### `adjust_bin_bitwidth(bin_str, bitwidth)`
+
+与 `adjust_hex_bitwidth` 类似，但操作对象为二进制字符串。
+
+## 使用 GMP 后端
+
+当需要进行大量高精度运算时，可以启用 GMP 后端。启用后，所有核心运算将委托给 GMP 库，性能显著提升。
+
+```lua
+local sbu = require "verilua.utils.StrBitsUtils"
+sbu:init_use_libgmp()   -- 切换至 GMP 后端
+
+-- 后续所有函数调用都将使用 GMP 实现
+local res = sbu.add_hex_str("ffffffffffffffff", "1")
+print(res)  --> "10000000000000000"
+```
+
+:::note
+`init_use_libgmp()` 只需调用一次，且必须在所有其他函数调用之前执行。如果未调用，则使用纯 Lua 实现。
+:::
+
+## 与 BitVec 的关系
+
+`StrBitsUtils` 与 `BitVec` 都提供了位操作能力，但适用场景略有不同：
+
+- `BitVec` 更适合需要频繁读写的信号值，其内部以 u32 数组存储，操作更接近硬件位宽。
+- `StrBitsUtils` 基于字符串，适合在需要处理超大位宽（如 1024 位）或进行复杂字符串拼接的场景中使用，其 API 更接近传统的大整数库。
+
+两者可以结合使用，例如先用 `StrBitsUtils` 进行字符串运算，再通过 `BitVec` 的 `set_hex_str` 方法将结果赋给信号。
+
+## 完整示例
+
+```lua
+local sbu = require "verilua.utils.StrBitsUtils"
+sbu:init_use_libgmp()   -- 启用 GMP
+
+-- 原始值
+local orig = "1234567890abcdef"
+
+-- 提取中间 32 位
+local mid = sbu.bitfield_hex_str(orig, 16, 47)   -- 从第 16 位到第 47 位
+print(mid)  --> "567890ab"
+
+-- 左移 8 位
+local shifted = sbu.lshift_hex_str(mid, 8, 32)
+print(shifted)  --> "67890ab0"
+
+-- 与另一个值按位或
+local other = "ff00ff00"
+local result = sbu.bor_hex_str(shifted, other, 32)
+print(result)  --> "6f90aff0"
+
+-- 计算 popcount
+print(sbu.popcount_hex_str(result))  --> 16
+```
+
+## 注意事项
+
+- 所有输入字符串应为纯十六进制或二进制，不含 `0x` 或 `0b` 前缀。
+- 位索引 `s` 和 `e` 遵循 **LSB 0** 规则，即最低位为索引 0。
+- 当指定 `bitwidth` 时，函数会确保输入输出符合指定位宽，超出部分将被截断或补零。
+- 使用 GMP 后端时，确保系统已安装 `libgmp`（Verilua 安装脚本会自动处理）。
+
+## 参考
+
+- [BitVec](./bitvec.mdx)：基于数组的位向量实现。
+- [CallableHDL](./data_structure.mdx#callablehdl)：硬件信号句柄，可通过 `get_hex_str()` 等获取字符串值。

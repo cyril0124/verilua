@@ -1,3 +1,236 @@
 # BitVec
 
-TODO：
+`BitVec` 是 Verilua 中用于处理任意位宽数据的工具类。它提供了一套位级操作方法，可以方便地提取和设置信号中的位域，支持超过 Lua 原生整数范围的大位宽数据。
+
+## 创建 BitVec
+
+`BitVec` 可以从多种类型创建：Lua 数字、Lua 表（u32 数组）、十六进制字符串、`uint64_t` cdata 等。构造函数接受两个参数：`data` 和可选的 `bit_width`。
+
+### 语法
+```lua
+local BitVec = require "verilua.utils.BitVec"
+local bv = BitVec(data, bit_width)
+```
+
+### 示例
+
+#### 从数字创建（默认 32 位）
+```lua
+local bv = BitVec(0x12345678)                -- 32 位
+print(bv:to_hex_str())  --> "12345678"
+```
+
+#### 从数字指定位宽
+```lua
+local bv = BitVec(0x12345678, 28)            -- 28 位，高位截断
+print(bv:to_hex_str())  --> "2345678"        -- 按位宽返回有效位
+```
+
+#### 从 u32 表创建
+```lua
+local bv = BitVec({ 0x12345678, 0x9ABCDEF0 }) -- 64 位
+print(bv:to_hex_str())  --> "9abcdef012345678"
+```
+
+#### 从十六进制字符串创建
+```lua
+local bv = BitVec("deadbeef")                 -- 32 位
+print(bv:to_hex_str())  --> "deadbeef"
+
+local bv = BitVec("deadbeef", 64)             -- 64 位，高位补零
+print(bv:to_hex_str())  --> "00000000deadbeef"
+```
+
+#### 从 `uint64_t` cdata 创建
+```lua
+local bv = BitVec(0x1234567890ABCDEFULL)      -- 64 位
+print(bv:to_hex_str())  --> "1234567890abcdef"
+```
+
+## 基本属性
+
+| 属性          | 说明                             |
+| ------------- | -------------------------------- |
+| `bv.bit_width`| 位宽（整数）                     |
+| `bv.u32_vec`  | 内部存储的 u32 数组（只读）       |
+| `bv.beat_size`| 所需的 32 位字个数（`ceil(bit_width/32)`） |
+
+```lua
+local bv = BitVec({ 0x1234, 0x5678 }, 60)
+print(bv.bit_width)   --> 60
+print(bv.beat_size)   --> 2
+```
+
+## 核心方法
+
+### 提取位域
+
+#### `get_bitfield(s, e)`
+提取从 `s`（LSB）到 `e`（MSB）的位域，返回 `uint64_t`（cdata）。要求位域宽度 ≤ 64。
+
+```lua
+local bv = BitVec(0x12345678)
+local field = bv:get_bitfield(16, 23)        -- 取出 0x56
+print(tonumber(field))  --> 0x56
+```
+
+#### `get_bitfield_hex_str(s, e)`
+提取位域并返回十六进制字符串。
+
+```lua
+local bv = BitVec("deadbeef")
+print(bv:get_bitfield_hex_str(0, 15))  --> "beef"
+```
+
+#### `get_bitfield_vec(s, e)`
+提取位域并以 u32 表返回（大端序排列）。
+
+```lua
+local bv = BitVec({ 0x12345678, 0x9ABCDEF0 })
+local vec = bv:get_bitfield_vec(32, 63)   --> { 0x9ABCDEF0 }
+```
+
+### 设置位域
+
+#### `set_bitfield(s, e, v)`
+将 `s` 到 `e` 的位域设置为 `v`（`uint64_t` 或 Lua 数字）。
+
+```lua
+local bv = BitVec(0)
+bv:set_bitfield(0, 31, 0x12345678)
+print(bv:to_hex_str())  --> "12345678"
+```
+
+#### `set_bitfield_hex_str(s, e, hex_str)`
+使用十六进制字符串设置位域。
+
+```lua
+local bv = BitVec(0)
+bv:set_bitfield_hex_str(16, 31, "abcd")
+print(bv:to_hex_str())  --> "abcd0000"
+```
+
+#### `set_bitfield_vec(s, e, u32_vec)`
+使用 u32 表设置位域。
+
+```lua
+local bv = BitVec(0)
+bv:set_bitfield_vec(0, 63, { 0x12345678, 0x9ABCDEF0 })
+print(bv:to_hex_str())  --> "9abcdef012345678"
+```
+
+### 更新整个值
+
+#### `update_value(data)`
+用新数据替换 BitVec 的整个值。支持的类型与构造函数相同。
+
+```lua
+local bv = BitVec(0)
+bv:update_value("deadbeef")
+print(bv:to_hex_str())  --> "deadbeef"
+```
+
+### 输出与转换
+
+#### `to_hex_str()`
+返回十六进制字符串（MSB 到 LSB），并且严格遵循 `bit_width`：
+- 返回长度是 `ceil(bit_width/4)`。
+- 当 `bit_width` 不是 4 的倍数时，最高 nibble 会按有效位掩码。
+
+```lua
+local bv = BitVec(0xFFFFFFFF, 30)
+print(bv:to_hex_str())  --> "3fffffff"
+
+local bv2 = BitVec(0x12345678, 28)
+print(bv2:to_hex_str()) --> "2345678"
+```
+
+#### `dump_str()`
+返回十六进制字符串（与 `to_hex_str()` 相同）。
+
+#### `dump()`
+打印十六进制字符串。
+
+#### `tonumber()`
+返回低 32 位数值（Lua 数字）。
+
+#### `tonumber64()`
+返回整个值作为 `uint64_t`（cdata）。
+
+```lua
+local bv = BitVec(0x1234567890ABCDEFULL)
+print(bv:tonumber())      --> 0x90ABCDEF (数字)
+print(bv:tonumber64())    --> 0x1234567890ABCDEFULL
+```
+
+### 子位域视图（`__call`）
+
+通过 `bv(s, e)` 可以创建一个子位域对象，支持直接读写该位域的值。这是高效且方便的位域访问方式。
+
+```lua
+local bv = BitVec(0x12345678)
+local sub = bv(0, 15)      -- 获取低 16 位的视图
+sub:set(0xABCD)            -- 设置低 16 位
+print(bv:to_hex_str())     --> "1234abcd"
+
+-- 子位域对象也支持类似的方法
+print(sub:get_hex_str())   --> "abcd"
+```
+
+子位域对象的方法：
+- `set(v)` / `set_hex_str(hex_str)` / `set_vec(u32_vec)`
+- `get()` / `get_hex_str()` / `get_vec()`
+- `dump()` / `dump_str()`
+- 元方法：`__tostring`, `__len`, `__eq`
+
+### 元方法
+
+- `#bv`：返回位宽。
+- `tostring(bv)`：返回十六进制字符串（等同于 `dump_str()`）。
+- `bv == other`：比较两个 BitVec 的值是否相等。
+
+```lua
+local bv1 = BitVec("dead")
+local bv2 = BitVec("dead")
+assert(bv1 == bv2)
+
+local bv3 = BitVec("beef")
+assert(bv1 ~= bv3)
+
+assert(#bv1 == 16)
+```
+
+## 完整示例
+
+```lua
+local BitVec = require "verilua.utils.BitVec"
+
+-- 创建一个 128 位的 BitVec
+local bv = BitVec("0", 128)
+
+-- 设置高 32 位为 0xdead
+bv(96, 127):set(0xdead)
+print(bv:to_hex_str())  --> "000000000000000000000000dead0000"
+
+-- 提取中间 64 位
+local mid = bv(32, 95)
+print(mid:get_hex_str()) --> "0000000000000000"
+
+-- 更新这 64 位
+mid:set_hex_str("1234567890abcdef")
+print(bv:to_hex_str())  --> "00000000000000001234567890abcdef"
+
+-- 检查位域是否相等
+assert(bv(32, 95) == BitVec("1234567890abcdef", 64))
+```
+
+## 性能说明
+
+- `BitVec` 内部使用 `u32` 数组存储数据，所有位操作均在 Lua 层面进行，对于常用的小位宽（≤64）操作效率较高。
+- 对于大位宽（>64）且频繁的操作，建议使用子位域视图或直接操作 `u32_vec` 以提高性能。
+- 位域宽度超过 64 时，`get_bitfield` 和 `set_bitfield` 无法使用，应使用 `get_bitfield_hex_str`/`set_bitfield_hex_str` 或 `get_bitfield_vec`/`set_bitfield_vec` 方法。
+
+## 相关模块
+
+- [CallableHDL](./data_structure.mdx#callablehdl) 中提供了 `get_bitvec()` 方法，可以直接从信号获取 `BitVec` 对象。
+- [StrBitsUtils](./str_bits_utils.mdx) 提供了字符串形式的位操作工具。
