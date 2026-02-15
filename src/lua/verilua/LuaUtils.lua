@@ -1263,23 +1263,6 @@ function utils.report_luacov()
     end, "luacov.report.lock")
 end
 
---- Attempts to get a function pointer through FFI cast or declaration.
----@nodiscard Return value should not be discarded
----@param func_ptr_str string The function pointer type string, e.g. "void (*)(const char*)"
----@param ffi_func_decl_str string The FFI function declaration string, e.g. "void my_func(const char*);"
----@param func_name string The function name to search for, e.g. "my_func"
----@return fun(any, ...): any The function pointer
-function utils.try_ffi_cast(func_ptr_str, ffi_func_decl_str, func_name)
-    local SymbolHelper = require("SymbolHelper")
-    if SymbolHelper.get_global_symbol_addr(func_name) ~= 0 then
-        return SymbolHelper.ffi_cast(func_ptr_str, func_name) --[[@as fun(any, ...): any]]
-    else
-        ffi.cdef(ffi_func_decl_str)
-        assert(ffi.C[func_name], "[utils.try_ffi_cast] Failed to get symbol: " .. ffi_func_decl_str)
-        return ffi.C[func_name] --[[@as fun(any, ...): any]]
-    end
-end
-
 ---@type fun(cmd: string): string?
 local iorun_cfunc
 --- Run a command and return the output(stdout or stderr if stdout is empty)
@@ -1288,7 +1271,8 @@ local iorun_cfunc
 ---@return string The command output from stdout or stderr
 function utils.iorun(cmd)
     if not iorun_cfunc then
-        local _iorun = utils.try_ffi_cast(
+        local SymbolHelper = require "verilua.utils.SymbolHelper"
+        local _iorun = SymbolHelper.try_ffi_cast(
             "const char*(*)(const char*)",
             "const char* iorun(const char*);",
             "iorun"

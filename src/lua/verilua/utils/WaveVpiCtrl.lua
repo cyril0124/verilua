@@ -1,6 +1,6 @@
 ---@diagnostic disable: unnecessary-assert
 
-local SymbolHelper = require "SymbolHelper"
+local SymbolHelper = require "verilua.utils.SymbolHelper"
 local Logger = require "verilua.utils.Logger"
 
 local logger = Logger.new("WaveVpiCtrl")
@@ -8,16 +8,6 @@ local logger = Logger.new("WaveVpiCtrl")
 local f = string.format
 
 assert(cfg.simulator == "wave_vpi", "WaveVpiCtrl.lua can only be used with the wave_vpi simulator")
-
-local function try_ffi_cast(type_str, type_str_ffi, value)
-    if SymbolHelper.get_global_symbol_addr(value) ~= 0 then
-        return SymbolHelper.ffi_cast(type_str, value)
-    else
-        ffi.cdef(type_str_ffi)
-        assert(ffi.C[value], "[WaveVpiCtrl] Failed to get symbol: " .. type_str_ffi)
-        return ffi.C[value]
-    end
-end
 
 ---@alias verilua.utils.WaveVpiJitOptionNames
 --- | "enable"
@@ -53,7 +43,7 @@ local WaveVpiCtrl = {
     jit_options = {
         set = function(self, opt_name, value)
             if not self.set_jit_options_cfunc then
-                self.set_jit_options_cfunc = try_ffi_cast(
+                self.set_jit_options_cfunc = SymbolHelper.try_ffi_cast(
                     "void (*)(const char*, uint64_t)",
                     "void wave_vpi_ctrl_set_jit_options(const char* opt_name, uint64_t value);",
                     "wave_vpi_ctrl_set_jit_options"
@@ -86,7 +76,7 @@ local WaveVpiCtrl = {
 
         get = function(self, opt_name)
             if not self.get_jit_options_cfunc then
-                local get_jit_options_cfunc = try_ffi_cast(
+                local get_jit_options_cfunc = SymbolHelper.try_ffi_cast(
                     "uint64_t (*)(const char*)",
                     "uint64_t wave_vpi_ctrl_get_jit_options(const char* opt_name);",
                     "wave_vpi_ctrl_get_jit_options"
@@ -109,7 +99,7 @@ local WaveVpiCtrl = {
 
 function WaveVpiCtrl:get_cursor_index()
     if not self.get_cursor_index_cfunc then
-        self.get_cursor_index_cfunc = try_ffi_cast(
+        self.get_cursor_index_cfunc = SymbolHelper.try_ffi_cast(
             "uint64_t (*)()",
             "uint64_t wave_vpi_ctrl_get_cursor_index();",
             "wave_vpi_ctrl_get_cursor_index"
@@ -121,7 +111,7 @@ end
 
 function WaveVpiCtrl:get_max_cursor_index()
     if not self.get_max_cursor_index_cfunc then
-        self.get_max_cursor_index_cfunc = try_ffi_cast(
+        self.get_max_cursor_index_cfunc = SymbolHelper.try_ffi_cast(
             "uint64_t (*)()",
             "uint64_t wave_vpi_ctrl_get_max_cursor_index();",
             "wave_vpi_ctrl_get_max_cursor_index"
@@ -133,7 +123,7 @@ end
 
 function WaveVpiCtrl:get_max_cursor_time()
     if not self.get_max_cursor_time_cfunc then
-        self.get_max_cursor_time_cfunc = try_ffi_cast(
+        self.get_max_cursor_time_cfunc = SymbolHelper.try_ffi_cast(
             "uint64_t (*)()",
             "uint64_t wave_vpi_ctrl_get_max_cursor_time();",
             "wave_vpi_ctrl_get_max_cursor_time"
@@ -155,7 +145,7 @@ end
 
 function WaveVpiCtrl:set_cursor_index(index, flush_scheduler)
     if not self.set_cursor_index_cfunc then
-        self.set_cursor_index_cfunc = try_ffi_cast(
+        self.set_cursor_index_cfunc = SymbolHelper.try_ffi_cast(
             "void (*)(uint64_t)",
             "void wave_vpi_ctrl_set_cursor_index(uint64_t index);",
             "wave_vpi_ctrl_set_cursor_index"
@@ -193,7 +183,7 @@ end
 
 function WaveVpiCtrl:to_percent(percent, flush_scheduler)
     if not self.set_cursor_index_percent_cfunc then
-        self.set_cursor_index_percent_cfunc = try_ffi_cast(
+        self.set_cursor_index_percent_cfunc = SymbolHelper.try_ffi_cast(
             "void (*)(double)",
             "void wave_vpi_ctrl_set_cursor_index_percent(double percent);",
             "wave_vpi_ctrl_set_cursor_index_percent"
@@ -221,7 +211,7 @@ end
 
 function WaveVpiCtrl:set_cursor_time(time, flush_scheduler)
     if not self.set_cursor_time_cfunc then
-        self.set_cursor_time_cfunc = try_ffi_cast(
+        self.set_cursor_time_cfunc = SymbolHelper.try_ffi_cast(
             "void (*)(uint64_t)",
             "void wave_vpi_ctrl_set_cursor_time(uint64_t time);",
             "wave_vpi_ctrl_set_cursor_time"

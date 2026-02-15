@@ -63,16 +63,37 @@ end
 ---      assert(false, path)
 --- ```
 ---
+
+--- Attempts to get a function pointer through FFI cast or declaration.
+--- First tries to find the symbol in the global symbol table and cast it.
+--- If not found, falls back to FFI declaration.
+---@nodiscard Return value should not be discarded
+---@param func_ptr_str string The function pointer type string, e.g. "void (*)(const char*)"
+---@param ffi_func_decl_str string The FFI function declaration string, e.g. "void my_func(const char*);"
+---@param func_name string The function name to search for, e.g. "my_func"
+---@return function The function pointer
+local try_ffi_cast = function(func_ptr_str, ffi_func_decl_str, func_name)
+    if get_global_symbol_addr(func_name) ~= 0 then
+        return ffi_cast(func_ptr_str, func_name) --[[@as function]]
+    else
+        ffi.cdef(ffi_func_decl_str)
+        assert(ffi.C[func_name], "[SymbolHelper.try_ffi_cast] Failed to get symbol: " .. ffi_func_decl_str)
+        return ffi.C[func_name]
+    end
+end
+
 ---@class (exact) verilua.utils.SymbolHelper
 ---@field get_executable_name fun(): string
 ---@field get_self_cmdline fun(): string
 ---@field get_global_symbol_addr fun(symbol_name: string): integer
 ---@field ffi_cast fun(type_str: ffi.ct*, value: string|integer|ffi.cdata*): ffi.cdata*
+---@field try_ffi_cast fun(func_ptr_str: string, ffi_func_decl_str: string, func_name: string): function
 local SymbolHelper = {
     get_executable_name = get_executable_name,
     get_self_cmdline = get_self_cmdline,
     get_global_symbol_addr = get_global_symbol_addr,
     ffi_cast = ffi_cast,
+    try_ffi_cast = try_ffi_cast,
 }
 
 return SymbolHelper

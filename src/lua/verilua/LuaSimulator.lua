@@ -6,6 +6,7 @@ local ffi = require "ffi"
 local path = require "pl.path"
 local utils = require "verilua.LuaUtils"
 local vpiml = require "verilua.vpiml.vpiml"
+local SymbolHelper = require "verilua.utils.SymbolHelper"
 
 local assert = assert
 local ffi_new = ffi.new
@@ -26,12 +27,12 @@ local is_nosim = simulator == "nosim"
 ---@type fun(scope_name: string?)
 local set_dpi_scope
 if is_verilator or is_vcs or is_xcelium then
-    local svSetScope = utils.try_ffi_cast(
+    local svSetScope = SymbolHelper.try_ffi_cast(
         "void (*)(void *)",
         "void svSetScope(void *scope)",
         "svSetScope"
     )
-    local svGetScopeFromName = utils.try_ffi_cast(
+    local svGetScopeFromName = SymbolHelper.try_ffi_cast(
         "void *(*)(const char *)",
         "void svGetScopeFromName(const char *name)",
         "svGetScopeFromName"

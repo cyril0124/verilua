@@ -30,7 +30,7 @@ local showCoverageCount
 if simulator == "verilator" then
     --- In `Verilator`, we can't get DPI functions directly by `ffi.cdef` and `ffi.C`, so we use
     --- `SymbolHelper` to get them as a workaround.
-    SymbolHelper = require "SymbolHelper"
+    SymbolHelper = require "verilua.utils.SymbolHelper"
     svSetScope = SymbolHelper.ffi_cast("void *(*)(void *)", "svSetScope");
     svGetScopeFromName = SymbolHelper.ffi_cast("void *(*)(const char *)", "svGetScopeFromName");
 

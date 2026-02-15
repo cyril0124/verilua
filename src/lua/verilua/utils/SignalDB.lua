@@ -138,7 +138,7 @@ local function get_check_file()
     if cfg.simulator == "nosim" then
         return nil
     else
-        local SymbolHelper = require "SymbolHelper"
+        local SymbolHelper = require "verilua.utils.SymbolHelper"
 
         local check_file = nil
         if cfg.simulator == "iverilog" then

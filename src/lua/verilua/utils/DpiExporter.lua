@@ -2,7 +2,7 @@
 
 local json = require "json"
 local stringx = require "pl.stringx"
-local SymbolHelper = require "SymbolHelper"
+local SymbolHelper = require "verilua.utils.SymbolHelper"
 
 local cfg = _G.cfg
 local f = string.format
@@ -44,16 +44,6 @@ local function to_hierpath_name(hierpath)
     t = stringx.replace(t, "[", "_")
     t = stringx.replace(t, "]", "_")
     return t
-end
-
-local function try_ffi_cast(type_str, type_str_ffi, value)
-    if SymbolHelper.get_global_symbol_addr(value) ~= 0 then
-        return SymbolHelper.ffi_cast(type_str, value)
-    else
-        ffi.cdef(type_str_ffi)
-        assert(ffi.C[value], "[DpiExporter] Failed to get symbol: " .. type_str_ffi)
-        return ffi.C[value]
-    end
 end
 
 -- Auto detect meta_file
@@ -151,7 +141,7 @@ function DpiExporter:fetch_trigger_func(trigger_name)
     if trigger_name then
         trigger_func_name = "dpi_exporter_sensitive_trigger_" .. trigger_name
     end
-    local func = try_ffi_cast(
+    local func = SymbolHelper.try_ffi_cast(
         "bool (*)()",
         f("bool %s();", trigger_func_name),
         trigger_func_name
@@ -169,7 +159,7 @@ function DpiExporter:fetch_get_value_func(hierpath)
     end
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET", to_hierpath_name(signal_hierpath))
-    local func = try_ffi_cast(
+    local func = SymbolHelper.try_ffi_cast(
         "uint32_t (*)()",
         f("uint32_t %s();", func_name),
         func_name
@@ -187,7 +177,7 @@ function DpiExporter:fetch_get64_value_func(hierpath)
     end
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET64", to_hierpath_name(signal_hierpath))
-    local func = try_ffi_cast(
+    local func = SymbolHelper.try_ffi_cast(
         "uint64_t (*)()",
         f("uint64_t %s();", func_name),
         func_name
@@ -205,7 +195,7 @@ function DpiExporter:fetch_get_vec_value_func(hierpath)
     end
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET_VEC", to_hierpath_name(signal_hierpath))
-    local func = try_ffi_cast(
+    local func = SymbolHelper.try_ffi_cast(
         "void (*)(uint32_t *)",
         f("void %s(uint32_t *vec);", func_name),
         func_name
@@ -223,7 +213,7 @@ function DpiExporter:fetch_get_hex_str_value_func(hierpath)
     end
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET_HEX_STR", to_hierpath_name(signal_hierpath))
-    local func = try_ffi_cast(
+    local func = SymbolHelper.try_ffi_cast(
         "void (*)(char *)",
         f("void %s(char *hex_str);", func_name),
         func_name
