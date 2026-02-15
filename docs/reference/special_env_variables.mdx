@@ -1,152 +1,180 @@
 # 特殊环境变量
 
-Verilua 支持通过环境变量来控制其行为和配置。所有环境变量都是可选的，如果不设置，Verilua 会使用合理的默认值。环境变量可以通过配置文件设置，也可以直接在 shell 中设置。
+Verilua 支持通过环境变量来控制其行为和配置。所有环境变量都是可选的，如果不设置，Verilua 会使用合理的默认值。环境变量可以在 shell 中永久设置（通过 `export`，仅当前 shell 有效），也可以在每次命令前临时指定，两者灵活搭配。
+
+:::tip
+环境变量的优先级通常高于配置文件中的同名设置，但具体规则请参考各变量的说明。
+:::
+
+## 变量概览
+
+| 变量名       | 简要说明 |
+| ------------ | ---------- |
+| `SIM`        | 指定使用的仿真器类型 |
+| `DUT_TOP`    | 指定设计的顶层模块名称 |
+| `PRJ_DIR`    | 指定项目根目录 |
+| `SEED`       | 设置仿真随机种子 |
+| `VL_DEBUG`   | 启用 Verilua debug 输出 |
+| `VL_QUIET`   | 静默模式，禁用日志输出 |
+| `VL_PERF_TIME` | 启用性能时间统计 |
+| `LUA_SCRIPT` | 指定 Lua 主脚本文件 |
+
+---
 
 ## 核心环境变量
 
-### SIM (可选，需谨慎使用)
+### `SIM` (可选，需谨慎使用)
 
-指定使用的仿真器类型。
+指定使用的仿真器类型。**此变量应与编译时使用的仿真器保持一致**，否则可能导致运行时错误。
 
-**默认值**：自动检测（通过 vpiml）
+- **默认值**：自动检测（通过 vpiml）
+- **可选值**：
+  - `verilator` – Verilator 仿真器
+  - `vcs` – Synopsys VCS 仿真器
+  - `xcelium` – Cadence Xcelium 仿真器
+- `iverilog` – Icarus Verilog 仿真器
+  - `wave_vpi` – Verilua 波形分析后端（WAL 模式）
+- **优先级**：`cfg.simulator` 配置文件 > `SIM` 环境变量 > 自动检测
+- **相关配置影响**：
+  - 设置 `cfg.simulator` 值
+  - 当值为 `wave_vpi` 时，自动设置 `cfg.is_wal = true`
+  - 当值为其他仿真器且设置了 `cfg.is_hse = true` 时，为 HSE 模式
+  - `cfg.is_hse` 和 `cfg.is_wal` 不能同时为 true
+- **示例**：
+  ```bash
+  # 临时指定（仅本次命令生效）
+  SIM=vcs xmake run -P . <target_name>
+  SIM=verilator xmake build -P . <target_name> && SIM=verilator xmake run -P . <target_name>
 
-**可选值**：
-- `verilator` - Verilator 仿真器
-- `vcs` - Synopsys VCS 仿真器
-- `xcelium` - Cadence Xcelium 仿真器
-- `iverilog` - Icarus Verilog 仿真器
-- `wave_vpi` - Verilua 波形分析后端（WAL 模式）
-
-**优先级**：`cfg.simulator` 配置文件 > `SIM` 环境变量 > 自动检测
-
-**重要提示**：**SIM 环境变量应该与编译时使用的仿真器保持一致**。如果两者不一致，可能会导致运行时错误或不可预期的行为。如果不清楚编译时使用的仿真器，建议让 Verilua 自动检测或通过配置文件设置。
-
-**相关配置影响**：
-- 设置 `cfg.simulator` 值
-- 当值为 `wave_vpi` 时，自动设置 `cfg.is_wal = true`
-- 当值为其他仿真器时，如果设置 `cfg.is_hse = true`，则为 HSE 模式
-- `cfg.is_hse` 和 `cfg.is_wal` 不能同时为 true
-
-**示例**：
-
-```bash
-SIM=vcs xmake r -P .
-SIM=verilator xmake b -P . && xmake r -P .
-```
-
----
-
-### DUT_TOP (可选)
-
-指定设计的顶层模块名称。
-
-**默认值**：通过 VPI 接口自动获取
-
-**对应 cfg 字段**：`cfg.top`
-
-**自动获取方式**：当未设置时，Verilua 会通过 vpiml 使用 VPI 接口遍历当前设计中的模块，获取第一个模块的名称作为顶层模块。
-
-**示例**：
-
-```bash
-export DUT_TOP=tb_top
-```
+  # 永久设置（当前 shell 及子进程有效）
+  export SIM=iverilog
+  xmake build -P . <target_name>
+  xmake run -P . <target_name>
+  ```
 
 ---
 
-### PRJ_DIR (可选)
+### `LUA_SCRIPT` (可选)
 
-指定项目根目录。
+指定 Lua 主脚本文件。通常由 xmake 配置 `cfg.lua_main` 设置，也可通过此环境变量覆盖。
 
-**默认值**：`.`（当前目录）
-
-**对应 cfg 字段**：`cfg.prj_dir`
-
-**示例**：
-
-```bash
-export PRJ_DIR=/path/to/project
-```
+- **默认值**：由 `cfg.lua_main` 决定
+- **示例**：
+  ```bash
+  LUA_SCRIPT=/path/to/main.lua xmake run -P . <target_name>
+  ```
 
 ---
 
-### SEED (可选)
+### `DUT_TOP` (可选)
 
-设置仿真随机种子。
+指定设计的顶层模块名称。若未设置，Verilua 会自动通过 VPI 接口获取第一个模块的名称作为顶层模块。
 
-**默认值**：`1234`
+- **默认值**：自动获取
+- **对应 cfg 字段**：`cfg.top`
+- **自动获取方式**：通过 vpiml 遍历当前设计中的模块，取第一个模块的名称。
+- **示例**：
+  ```bash
+  # 临时指定
+  DUT_TOP=tb_top xmake run -P . <target_name>
 
-**对应 cfg 字段**：`cfg.seed`
-
-**优先级说明**：环境变量 `SEED` 的优先级高于配置文件中的 `cfg.seed`，如果设置了环境变量会覆盖配置文件的值。
-
-**示例**：
-
-```bash
-export SEED=42
-```
-
----
-
-## 调试和日志变量
-
-### VL_DEBUG (可选)
-
-启用 Verilua debug 输出。
-
-**默认值**：未启用
-
-**使用效果**：启用后会输出 `verilua_debug()` 调试信息
-
-**示例**：
-
-```bash
-export VL_DEBUG=1
-```
-
-**性能影响**：未设置时零开销
+  # 永久设置（当前 shell 有效）
+  export DUT_TOP=tb_top
+  ```
 
 ---
 
-### VL_QUIET (可选)
+### `PRJ_DIR` (可选)
 
-静默模式，禁用所有日志输出。
+指定项目根目录。Verilua 在加载依赖时会参考此路径。
 
-**默认值**：未启用（正常输出日志）
+- **默认值**：`.`（当前目录）
+- **对应 cfg 字段**：`cfg.prj_dir`
+- **示例**：
+  ```bash
+  # 临时指定
+  PRJ_DIR=/path/to/project xmake run -P . <target_name>
 
-**影响范围**：当启用时，以下输出会被禁用：
-- Logger 模块的所有日志输出：
-  - `info()` 方法
-  - `debug()` 方法
-  - `warning()` 方法
-  - `error()` 方法
-  - `success()` 方法
-- 仿真结束时 Rust 层输出的统计信息表格（VERILUA STATISTIC），包含：
-  - `total_time_taken` - 总耗时
-  - `lua_time_taken` - Lua 执行耗时
-  - `lua_overhead` - Lua 开销百分比
-
-**注意**：VL_QUIET 仅影响 Verilua 框架内部的 Logger 模块输出，不会影响用户代码中的 `print()` 函数调用。这是因为 Logger 模块使用的是局部的 `print` 变量，而用户代码使用的是全局的 `print` 函数。
-
-**示例**：
-
-```bash
-export VL_QUIET=1
-```
+  # 永久设置（当前 shell 有效）
+  export PRJ_DIR=/path/to/project
+  ```
 
 ---
 
-### VL_PERF_TIME (可选)
+### `SEED` (可选)
 
-启用性能时间统计。
+设置仿真随机种子，用于保证随机数序列的可重复性。
 
-**默认值**：未启用
+- **默认值**：`1234`
+- **对应 cfg 字段**：`cfg.seed`
+- **优先级说明**：环境变量 `SEED` 的优先级高于配置文件中的 `cfg.seed`，即如果同时设置，环境变量会覆盖配置文件的值。
+- **示例**：
+  ```bash
+  # 临时指定
+  SEED=42 xmake run -P . <target_name>
 
-**示例**：
+  # 永久设置（当前 shell 有效）
+  export SEED=42
+  ```
 
-```bash
-export VL_PERF_TIME=1
-```
+---
+
+## 调试与日志变量
+
+### `VL_DEBUG` (可选)
+
+启用 Verilua 调试输出。设置后，代码中的 `verilua_debug()` 调用将输出调试信息。
+
+- **默认值**：未启用
+- **使用效果**：启用后会输出 `verilua_debug()` 调试信息
+- **性能影响**：未设置时零开销（`verilua_debug` 为空函数）
+- **示例**：
+  ```bash
+  # 临时启用
+  VL_DEBUG=1 xmake run -P . <target_name>
+
+  # 永久启用（当前 shell 有效）
+  export VL_DEBUG=1
+  ```
+
+---
+
+### `VL_QUIET` (可选)
+
+静默模式，禁用 Verilua 框架内部的日志输出。此模式不影响用户代码中的 `print()` 调用。
+
+- **默认值**：未启用（正常输出日志）
+- **影响范围**：
+  - Logger 模块的所有方法：`info()`、`debug()`、`warning()`、`error()`、`success()`
+  - 仿真结束时 Rust 层输出的统计信息表格（VERILUA STATISTIC），包含：
+    - `total_time_taken` – 总耗时
+    - `lua_time_taken` – Lua 执行耗时
+    - `lua_overhead` – Lua 开销百分比
+- **注意**：仅影响 Verilua 框架内部的 Logger 模块输出，用户代码中的 `print()` 函数不受影响（因为 Logger 模块使用的是局部的 `print` 变量，而用户代码使用的是全局 `print` 函数）。
+- **示例**：
+  ```bash
+  # 临时启用静默模式
+  VL_QUIET=1 xmake run -P . <target_name>
+
+  # 永久启用（当前 shell 有效）
+  export VL_QUIET=1
+  ```
+
+---
+
+### `VL_PERF_TIME` (可选)
+
+启用性能时间统计。仿真结束时，Verilua 会输出任务级的耗时统计，帮助定位性能瓶颈。
+
+- **默认值**：未启用
+- **示例**：
+  ```bash
+  # 临时启用
+  VL_PERF_TIME=1 xmake run -P . <target_name>
+
+  # 永久启用（当前 shell 有效）
+  export VL_PERF_TIME=1
+  ```
 
 ---
 

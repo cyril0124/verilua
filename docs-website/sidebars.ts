@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
         'reference/testbench_generate',
         'reference/xmake_params',
         'reference/global_configuration',
+        'reference/special_env_variables',
       ],
     },
   ],
