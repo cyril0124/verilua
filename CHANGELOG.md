@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
     - **dummy_vpi**: Add `vpiTimePrecision` property support with configurable `DUMMY_VPI_TIME_PRECISION` macro (default: -9 for ns)
 - **LuaSimulator**: Add function guards to prevent calling unsupported APIs in HSE/WAL scenarios
 - **Queue**/**StaticQueue**: Add push_waitable(), pop_waitable() and wait_not_empty() methods for blocking queue operations
+- **BitVec**: Add `to_hex_str_1()` method for full 32-bit aligned hex output (faster path without bit_width trimming)
 
 ### 🐛 Fixed
 
@@ -28,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Cleans up event task list entries when `remove_task()` is called
   - Clears stale `user_removal_tasks_set` flags in `append_task()` and `try_wakeup_task()` to prevent task reuse issues
   - Prioritizes user_removal checks in `wakeup_task()` to handle removal-before-wakeup scenarios correctly
+- **BitVec**: Fixed `to_hex_str()` to respect `bit_width` and mask unused high bits, ensuring bit-precise output for non-32-bit-aligned widths (e.g., 28-bit, 30-bit, 31-bit)
+
 
 ---
 

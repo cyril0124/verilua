@@ -80,7 +80,7 @@ describe("BitVec test", function()
 
         for _, test in ipairs(tests) do
             local bitvec = BitVec(test.data)
-            bitvec:set_bitfield(test.s, test.e, test.value)
+            bitvec:set_bitfield(test.s, test.e, test.value --[[@as integer|uint64_t]])
             local result = bitvec.u32_vec
             for i, val in ipairs(result) do
                 assert(val == test.expected[i],
@@ -295,8 +295,8 @@ describe("BitVec test", function()
 
     it("should work properly for __tostring", function()
         local bitvec = BitVec("a")
-        expect.equal(tostring(bitvec), "0000000a")
-        expect.equal(bitvec:dump_str(), "0000000a")
+        expect.equal(tostring(bitvec), "a")
+        expect.equal(bitvec:dump_str(), "a")
 
         local bitvec = BitVec({ 0x123, 0x456 })
         expect.equal(bitvec:dump_str(), "0000045600000123")
@@ -393,6 +393,10 @@ describe("BitVec test", function()
 
         bitvec:update_value(0x1234000056780000ULL)
         expect.equal(bitvec:dump_str(), "000000001234000056780000")
+
+        expect.fail(function()
+            bitvec:update_value({ 0x1, 0x2, 0x3, 0x4 })
+        end, "must not exceed")
     end)
 
     it("should work properly for creating BitVec using ULL (uint64_t)", function()
@@ -414,7 +418,7 @@ describe("BitVec test", function()
         expect.equal(tostring(bitvec), "000000000000000001234567" .. "89abcdef")
 
         -- Test ULL with smaller bit_width
-        local bitvec = BitVec(0xFFFFFFFFFFFFFFFFULL, 32)
+        local bitvec = BitVec(ffi.new("uint64_t", 0xFFFFFFFFFFFFFFFFULL), 32)
         expect.equal(#bitvec, 32)
         expect.equal(#(bitvec.u32_vec), 1)
         expect.equal(bitvec.u32_vec[1], 0xFFFFFFFF)
@@ -475,12 +479,25 @@ describe("BitVec test", function()
         local bitvec = BitVec("AABBCCDD")
         expect.equal(bitvec:to_hex_str(), "aabbccdd")
 
-        -- Test with different bit widths (to_hex_str doesn't consider bit_width)
+        -- Test with different bit widths (to_hex_str respects bit_width)
         local bitvec = BitVec(0x12345678, 28)
-        expect.equal(bitvec:to_hex_str(), "12345678")
+        expect.equal(bitvec:to_hex_str(), "2345678")
 
         local bitvec = BitVec({ 0x12345678, 0x9ABCDEF0 }, 56)
-        expect.equal(bitvec:to_hex_str(), "9abcdef012345678")
+        expect.equal(bitvec:to_hex_str(), "bcdef012345678")
+
+        -- Test non-4-bit-aligned widths
+        local bitvec = BitVec(0xFFFFFFFF, 30)
+        expect.equal(bitvec:to_hex_str(), "3fffffff")
+
+        local bitvec = BitVec(0xFFFFFFFF, 31)
+        expect.equal(bitvec:to_hex_str(), "7fffffff")
+
+        local bitvec = BitVec(0xFFFFFFFF, 1)
+        expect.equal(bitvec:to_hex_str(), "1")
+
+        local bitvec = BitVec(0x2, 1)
+        expect.equal(bitvec:to_hex_str(), "0")
 
         -- Test multiple calls to verify buffer reuse
         local bitvec = BitVec(0xDEADBEEF)
@@ -503,6 +520,9 @@ describe("BitVec test", function()
         local bitvec = BitVec(0x123456789ABCDEFULL)
         expect.equal(bitvec:to_hex_str(), "0123456789abcdef")
 
+        local bitvec = BitVec(ffi.new("uint64_t", 0xFFFFFFFFFFFFFFFFULL), 60)
+        expect.equal(bitvec:to_hex_str(), "fffffffffffffff")
+
         -- Test with zeros
         local bitvec = BitVec(0)
         expect.equal(bitvec:to_hex_str(), "00000000")
@@ -516,5 +536,69 @@ describe("BitVec test", function()
 
         local bitvec = BitVec({ 0xFFFFFFFF, 0xFFFFFFFF })
         expect.equal(bitvec:to_hex_str(), "ffffffffffffffff")
+    end)
+
+    it("should work properly for to_hex_str_1()", function()
+        -- Test single u32 (always returns 8 hex digits)
+        local bitvec = BitVec(0x12345678)
+        expect.equal(bitvec:to_hex_str_1(), "12345678")
+
+        -- Test multiple u32 (always returns full 32-bit aligned)
+        local bitvec = BitVec({ 0x12345678, 0xABCDEF00, 0x11223344, 0x55667788 })
+        expect.equal(bitvec:to_hex_str_1(), "5566778811223344abcdef0012345678")
+
+        -- Test with hex string initialization
+        local bitvec = BitVec("AABBCCDD")
+        expect.equal(bitvec:to_hex_str_1(), "aabbccdd")
+
+        -- Key difference from to_hex_str: to_hex_str_1 does NOT trim to bit_width
+        -- It always returns full 32-bit aligned hex strings
+        local bitvec = BitVec(0x12345678, 28)
+        expect.equal(bitvec:to_hex_str_1(), "02345678") -- NOT trimmed to "2345678"
+
+        local bitvec = BitVec({ 0x12345678, 0x9ABCDEF0 }, 56)
+        expect.equal(bitvec:to_hex_str_1(), "00bcdef012345678") -- NOT trimmed to "bcdef012345678"
+
+        -- Test non-4-bit-aligned widths (no masking applied)
+        local bitvec = BitVec(0xFFFFFFFF, 30)
+        expect.equal(bitvec:to_hex_str_1(), "3fffffff") -- NOT masked to "3fffffff"
+
+        local bitvec = BitVec(0xFFFFFFFF, 31)
+        expect.equal(bitvec:to_hex_str_1(), "7fffffff") -- NOT masked to "7fffffff"
+
+        -- Test multiple calls to verify buffer reuse
+        local bitvec = BitVec(0xDEADBEEF)
+        local result1 = bitvec:to_hex_str_1()
+        local result2 = bitvec:to_hex_str_1()
+        local result3 = bitvec:to_hex_str_1()
+        expect.equal(result1, "deadbeef")
+        expect.equal(result2, "deadbeef")
+        expect.equal(result3, "deadbeef")
+
+        -- Test after updating value
+        local bitvec = BitVec(0x11111111)
+        expect.equal(bitvec:to_hex_str_1(), "11111111")
+        bitvec:update_value(0x22222222)
+        expect.equal(bitvec:to_hex_str_1(), "22222222")
+        bitvec:update_value(0x33333333)
+        expect.equal(bitvec:to_hex_str_1(), "33333333")
+
+        -- Test with ULL
+        local bitvec = BitVec(0x123456789ABCDEFULL)
+        expect.equal(bitvec:to_hex_str_1(), "0123456789abcdef")
+
+        -- Test with zeros
+        local bitvec = BitVec(0)
+        expect.equal(bitvec:to_hex_str_1(), "00000000")
+
+        local bitvec = BitVec({ 0, 0, 0 })
+        expect.equal(bitvec:to_hex_str_1(), "000000000000000000000000")
+
+        -- Test with all ones
+        local bitvec = BitVec(0xFFFFFFFF)
+        expect.equal(bitvec:to_hex_str_1(), "ffffffff")
+
+        local bitvec = BitVec({ 0xFFFFFFFF, 0xFFFFFFFF })
+        expect.equal(bitvec:to_hex_str_1(), "ffffffffffffffff")
     end)
 end)

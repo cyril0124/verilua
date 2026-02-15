@@ -20,7 +20,12 @@ local bit_lshift = bit.lshift
 local math_floor = math.floor
 local math_max = math.max
 local string_rep = string.rep
+local string_sub = string.sub
 local setmetatable = setmetatable
+
+-- Lookup tables for to_hex_str optimization
+local hex_digits = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f" }
+local nibble_masks = { 0x1, 0x3, 0x7 } -- valid_bits: 1, 2, 3
 
 ---@class (exact) verilua.utils.SubBitVec
 ---@field __type string
@@ -47,6 +52,7 @@ local setmetatable = setmetatable
 ---@field nr_u32_vec integer
 ---@field bit_width integer
 ---@field beat_size integer
+---@field hex_str_len integer
 ---@field _update_u32_vec fun(self: verilua.utils.BitVec, data: integer|integer[])
 ---@field update_value fun(self: verilua.utils.BitVec, data: integer[]|integer|uint64_t|verilua.utils.BitVec.HexStr)
 ---@field get_bitfield fun(self: verilua.utils.BitVec, s: integer, e: integer): uint64_t
@@ -87,6 +93,14 @@ local function hex_str_to_u32_vec(hex_str)
     end
 
     return u32_vec
+end
+
+local function get_hex_str_len(bit_width)
+    return math_floor((bit_width + 3) / 4)
+end
+
+local function get_beat_size(bit_width)
+    return math_floor((bit_width + 31) / 32)
 end
 
 --
@@ -133,7 +147,7 @@ function BitVec:_init(data, bit_width)
         if ffi.istype("uint64_t", data) then
             auto_bit_width = 64
             if bit_width then
-                local beat_size = math_floor(math_floor(bit_width + 31) / 32)
+                local beat_size = get_beat_size(bit_width)
                 self.u32_vec = table_new(beat_size, 0) --[[@as table<integer, integer>]]
 
                 self.u32_vec[1] = tonumber(bit_band(data, 0x00000000FFFFFFFFULL))
@@ -152,7 +166,7 @@ function BitVec:_init(data, bit_width)
                 self.bit_width = auto_bit_width
             end
 
-            self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
+            self.beat_size = get_beat_size(self.bit_width)
             if self.beat_size == 1 then
                 self._update_u32_vec = function(t, data1)
                     ---@cast data1 integer
@@ -168,6 +182,9 @@ function BitVec:_init(data, bit_width)
 
             self.nr_u32_vec = #self.u32_vec
             self.to_hex_str_buffer = string_buffer.new()
+            self.hex_str_len = get_hex_str_len(self.bit_width)
+
+            self:_mask_unused_high_bits()
 
             self.tonumber = function(this)
                 return tonumber(this.u32_vec[1]) --[[@as integer]]
@@ -190,7 +207,7 @@ function BitVec:_init(data, bit_width)
         auto_bit_width = data_len * 32
 
         if bit_width then
-            local beat_size = math_floor(math_floor(bit_width + 31) / 32)
+            local beat_size = get_beat_size(bit_width)
             self.u32_vec = table_new(beat_size, 0)
 
             for i = 1, data_len do
@@ -217,7 +234,7 @@ function BitVec:_init(data, bit_width)
         ---@cast data integer
         auto_bit_width = 32
         if bit_width then
-            local beat_size = math_floor(math_floor(bit_width + 31) / 32)
+            local beat_size = get_beat_size(bit_width)
 
             self.u32_vec = table_new(beat_size, 0) --[[@as table<integer, integer>]]
             self.u32_vec[1] = data
@@ -234,7 +251,7 @@ function BitVec:_init(data, bit_width)
         auto_bit_width = #data * 4
         if bit_width then
             local hex_str = data
-            local hex_str_len = math_floor(math_floor(bit_width + 3) / 4)
+            local hex_str_len = get_hex_str_len(bit_width)
 
             if #hex_str > hex_str_len then
                 assert(false, "Input hex_str length: " .. #hex_str .. " must not exceed " .. hex_str_len)
@@ -256,8 +273,9 @@ function BitVec:_init(data, bit_width)
 
     self.nr_u32_vec = #self.u32_vec
     self.to_hex_str_buffer = string_buffer.new()
+    self.hex_str_len = get_hex_str_len(self.bit_width)
 
-    self.beat_size = math_floor(math_floor(self.bit_width + 31) / 32)
+    self.beat_size = get_beat_size(self.bit_width)
     if self.beat_size == 1 then
         self._update_u32_vec = function(t, data1)
             ---@cast data1 integer
@@ -284,6 +302,26 @@ function BitVec:_init(data, bit_width)
             return this.u32_vec[1] + 0ULL
         end
     end
+
+    self:_mask_unused_high_bits()
+end
+
+--- Ensure unused high bits above `bit_width` are always zero.
+--- This keeps bit-precise semantics consistent for all constructors and updates.
+function BitVec:_mask_unused_high_bits()
+    local beat_size = self.beat_size or #self.u32_vec
+    if beat_size <= 0 then
+        return
+    end
+
+    local valid_bits_in_top = self.bit_width % 32
+    if valid_bits_in_top == 0 then
+        return
+    end
+
+    local top_index = beat_size
+    local mask = bit_lshift(1ULL, valid_bits_in_top) - 1
+    self.u32_vec[top_index] = tonumber(bit_band((self.u32_vec[top_index] or 0) + 0ULL, mask))
 end
 
 function BitVec:update_value(data)
@@ -296,6 +334,10 @@ function BitVec:update_value(data)
         local t = type(data[1])
         if t ~= "number" then
             assert(false, "Unsupported type: " .. t)
+        end
+
+        if data_len > beat_size then
+            assert(false, "Input u32_vec length: " .. data_len .. " must not exceed " .. beat_size)
         end
 
         for i = 1, data_len do
@@ -332,7 +374,7 @@ function BitVec:update_value(data)
         end
     elseif typ == "string" then
         local hex_str = data
-        local hex_str_len = math_floor(math_floor(self.bit_width + 3) / 4)
+        local hex_str_len = get_hex_str_len(self.bit_width)
 
         if #hex_str > hex_str_len then
             assert(false, "Input hex_str length: " .. #hex_str .. " must not exceed " .. hex_str_len)
@@ -347,6 +389,7 @@ function BitVec:update_value(data)
         assert(false, "Unsupported type: " .. typ)
     end
 
+    self:_mask_unused_high_bits()
     self.nr_u32_vec = #self.u32_vec
 end
 
@@ -556,11 +599,7 @@ function BitVec:dump()
 end
 
 function BitVec:__tostring()
-    local result = ""
-    for i = 1, #self.u32_vec do
-        result = bit_tohex(self.u32_vec[i]) .. result
-    end
-    return result
+    return self:dump_str()
 end
 
 --- Convert BitVec to hexadecimal string (MSB to LSB)
@@ -596,18 +635,47 @@ end
 ---
 ---   -- With different bit widths
 ---   local bv = BitVec(0x12345678, 28)  -- bit_width = 28
----   -- Note: to_hex_str ignores bit_width, returns full u32_vec
----   bv:to_hex_str()  -- Returns: "12345678"
---- ```
+---   -- to_hex_str respects bit_width and keeps only valid bits
+---   bv:to_hex_str()  -- Returns: "2345678"
 ---
---- **Performance Note:**
----   This method uses string.buffer for high performance (~1.26x-3.10x faster than
----   traditional bit.tohex + table.concat approach). The buffer is reused across
----   multiple calls to avoid memory allocations.
+---   local bv2 = BitVec(0xFFFFFFFF, 30)
+---   bv2:to_hex_str() -- Returns: "3fffffff"
+--- ```
 ---
 ---@nodiscard Return value should not be discarded
 ---@return verilua.utils.BitVec.HexStr Hexadecimal string (MSB first)
 function BitVec:to_hex_str()
+    local hex_str = self:to_hex_str_1()
+    local hex_str_len = self.hex_str_len
+
+    if #hex_str > hex_str_len then
+        hex_str = string_sub(hex_str, #hex_str - hex_str_len + 1)
+    end
+
+    local valid_bits = self.bit_width % 4
+    if valid_bits ~= 0 and #hex_str > 0 then
+        -- Use lookup tables to avoid string.format and bit_lshift + tonumber overhead
+        local top_nibble = tonumber(string_sub(hex_str, 1, 1), 16) or 0
+        ---@cast valid_bits 1|2|3
+        top_nibble = bit_band(top_nibble, nibble_masks[valid_bits])
+        hex_str = hex_digits[top_nibble + 1] .. string_sub(hex_str, 2)
+    end
+
+    return hex_str
+end
+
+--- Converts BitVec to hexadecimal string without trimming to bit_width.
+--- Note: This always returns full 32-bit aligned hex (may include leading zeros).
+---
+--- Performance note:
+--- - to_hex_str_1 is faster than to_hex_str because it writes fixed-width 32-bit chunks
+---   directly into the string buffer and returns the result as-is.
+--- - to_hex_str performs extra work (trimming to bit_width, top-nibble masking and string
+---   slicing), which adds branching, string operations and small allocations.
+---
+---@nodiscard Return value should not be discarded
+---@return verilua.utils.BitVec.HexStr Hexadecimal string (MSB first, full 32-bit aligned)
+function BitVec:to_hex_str_1()
     local buffer = self.to_hex_str_buffer
     local nr_u32_vec = self.nr_u32_vec or #self.u32_vec
     for i = nr_u32_vec, 1, -1 do
