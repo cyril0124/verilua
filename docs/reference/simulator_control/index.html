@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">仿真器控制 | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/reference/simulator_control"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="仿真器控制 | Verilua"><meta data-rh="true" name="description" content="Verilua 提供了一些接口用来控制底层的仿真器："><meta data-rh="true" property="og:description" content="Verilua 提供了一些接口用来控制底层的仿真器："><link data-rh="true" rel="icon" href="/verilua/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/reference/simulator_control"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/simulator_control" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/simulator_control" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"仿真器控制","item":"https://cyril0124.github.io/verilua/docs/reference/simulator_control"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.b7591dbf.css">
-<script src="/verilua/assets/js/runtime~main.03ae3832.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.1b1fc308.js" defer="defer"></script>
 <script src="/verilua/assets/js/main.a70c66d8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,10 +15,24 @@
 <p>Verilua 提供了一些接口用来控制底层的仿真器：</p>
 <ol>
 <li class="">
-<p><code>sim.dump_wave(wave_file)</code></p>
-<p>用来控制仿真器开始生成波形，<code>wave_file</code> 是一个可选的波形文件名，如果没有指定，那么默认生成的波形文件名为 <code>test.vcd</code>（或者 <code>test.vcd.fsdb</code>）。</p>
-<p>需要注意的是如果仿真器使用的是 Verilator，那么还需要在 xmake.lua 中添加下面的信息来开启波形生成功能：</p>
-<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token function" style="color:#d73a49">add_values</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;verilator.flags&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;--trace&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;--no-trace-top&quot;</span><span class="token punctuation" style="color:#393A34">)</span><br></span></code></pre></div></div>
+<p><code>sim.dump_wave(trace_file_path)</code></p>
+<p>用来控制仿真器开始生成波形。</p>
+<ul>
+<li class=""><strong>参数</strong>：<!-- -->
+<ul>
+<li class=""><code>trace_file_path</code> (可选, string)：波形文件名。如果未指定，默认生成 <code>test.vcd</code>（或 <code>test.vcd.fsdb</code>）。</li>
+</ul>
+</li>
+<li class=""><strong>说明</strong>：<!-- -->
+<ul>
+<li class="">对于 Verilator，需要在 <code>xmake.lua</code> 中添加 <code>add_values(&quot;verilator.flags&quot;, &quot;--trace&quot;, &quot;--no-trace-top&quot;)</code> 以启用波形生成。</li>
+<li class="">对于 Xcelium，若未指定文件名，将使用 <code>waves.shm</code>；若指定，则根据文件扩展名决定波形格式（<code>.vcd</code> 为 VCD，<code>.fsdb</code> 为 FSDB）。FSDB 格式需设置 <code>VERDI_HOME</code> 并启用相应宏。</li>
+</ul>
+</li>
+<li class=""><strong>示例</strong>：<!-- -->
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">sim</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">dump_wave</span><span class="token punctuation" style="color:#393A34">(</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><span class="token comment" style="color:#999988;font-style:italic">-- 默认 test.vcd</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">sim</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">dump_wave</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;./wave/trace.vcd&quot;</span><span class="token punctuation" style="color:#393A34">)</span><br></span></code></pre></div></div>
+</li>
+</ul>
 </li>
 <li class="">
 <p><code>sim.disable_trace()</code></p>
@@ -27,6 +41,27 @@
 <li class="">
 <p><code>sim.finish()</code></p>
 <p>用来控制结束仿真。</p>
+</li>
+<li class="">
+<p><code>sim.get_sim_time(unit?)</code></p>
+<p>获取当前仿真时间。</p>
+<ul>
+<li class=""><strong>参数</strong>：<!-- -->
+<ul>
+<li class=""><code>unit</code> (可选, string)：时间单位，支持 <code>&quot;fs&quot;</code>, <code>&quot;ps&quot;</code>, <code>&quot;ns&quot;</code>, <code>&quot;us&quot;</code>, <code>&quot;ms&quot;</code>, <code>&quot;s&quot;</code>。若不指定，返回仿真器原始步数（steps）。</li>
+</ul>
+</li>
+<li class=""><strong>返回值</strong>：number 类型的仿真时间值。</li>
+<li class=""><strong>说明</strong>：<!-- -->
+<ul>
+<li class="">返回的时间值与仿真器的时间精度相关。默认 Verilua 的 <code>timescale</code> 为 <code>1ns/1ps</code>，因此原始步数单位是 1ps。</li>
+<li class="">可通过 <code>cfg.time_precision</code> 和 <code>cfg.time_unit</code> 查看当前精度。</li>
+</ul>
+</li>
+<li class=""><strong>示例</strong>：<!-- -->
+<div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token keyword" style="color:#00009f">local</span><span class="token plain"> steps </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> sim</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">get_sim_time</span><span class="token punctuation" style="color:#393A34">(</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain">       </span><span class="token comment" style="color:#999988;font-style:italic">-- 原始步数</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">local</span><span class="token plain"> ns </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> sim</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">get_sim_time</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;ns&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain">      </span><span class="token comment" style="color:#999988;font-style:italic">-- 转换为纳秒</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">local</span><span class="token plain"> ps </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> sim</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">get_sim_time</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;ps&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain">      </span><span class="token comment" style="color:#999988;font-style:italic">-- 转换为皮秒</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token function" style="color:#d73a49">print</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">string</span><span class="token punctuation" style="color:#393A34">.</span><span class="token function" style="color:#d73a49">format</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;Time: %d ns&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> ns</span><span class="token punctuation" style="color:#393A34">)</span><span class="token punctuation" style="color:#393A34">)</span><br></span></code></pre></div></div>
+</li>
+</ul>
 </li>
 </ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/cyril0124/verilua/tree/master/../docs/reference/simulator_control.mdx" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/verilua/docs/reference/slcp"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">String Literal Constructor Pattern (SLCP)</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/verilua/docs/reference/testbench_generate"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Testbench 自动生成流程</div></a></nav></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2023 - 2026 Chuyu Zheng. Built with Docusaurus.</div></div></div></footer></div>
 </body>
