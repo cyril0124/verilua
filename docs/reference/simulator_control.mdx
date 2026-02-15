@@ -2,14 +2,20 @@
 
 Verilua 提供了一些接口用来控制底层的仿真器：
 
-1. `sim.dump_wave(wave_file)`
+1. `sim.dump_wave(trace_file_path)`
 
-    用来控制仿真器开始生成波形，`wave_file` 是一个可选的波形文件名，如果没有指定，那么默认生成的波形文件名为 `test.vcd`（或者 `test.vcd.fsdb`）。
+    用来控制仿真器开始生成波形。
 
-    需要注意的是如果仿真器使用的是 Verilator，那么还需要在 xmake.lua 中添加下面的信息来开启波形生成功能：
-    ```lua
-    add_values("verilator.flags", "--trace", "--no-trace-top")
-    ```
+    - **参数**：
+        - `trace_file_path` (可选, string)：波形文件名。如果未指定，默认生成 `test.vcd`（或 `test.vcd.fsdb`）。
+    - **说明**：
+        - 对于 Verilator，需要在 `xmake.lua` 中添加 `add_values("verilator.flags", "--trace", "--no-trace-top")` 以启用波形生成。
+        - 对于 Xcelium，若未指定文件名，将使用 `waves.shm`；若指定，则根据文件扩展名决定波形格式（`.vcd` 为 VCD，`.fsdb` 为 FSDB）。FSDB 格式需设置 `VERDI_HOME` 并启用相应宏。
+    - **示例**：
+        ```lua
+        sim.dump_wave() -- 默认 test.vcd
+        sim.dump_wave("./wave/trace.vcd")
+        ```
 
 2. `sim.disable_trace()`
 
@@ -18,3 +24,22 @@ Verilua 提供了一些接口用来控制底层的仿真器：
 3. `sim.finish()`
 
     用来控制结束仿真。
+
+4. `sim.get_sim_time(unit?)`
+
+    获取当前仿真时间。
+
+    - **参数**：
+        - `unit` (可选, string)：时间单位，支持 `"fs"`, `"ps"`, `"ns"`, `"us"`, `"ms"`, `"s"`。若不指定，返回仿真器原始步数（steps）。
+    - **返回值**：number 类型的仿真时间值。
+    - **说明**：
+        - 返回的时间值与仿真器的时间精度相关。默认 Verilua 的 `timescale` 为 `1ns/1ps`，因此原始步数单位是 1ps。
+        - 可通过 `cfg.time_precision` 和 `cfg.time_unit` 查看当前精度。
+    - **示例**：
+        ```lua
+        local steps = sim.get_sim_time()       -- 原始步数
+        local ns = sim.get_sim_time("ns")      -- 转换为纳秒
+        local ps = sim.get_sim_time("ps")      -- 转换为皮秒
+        print(string.format("Time: %d ns", ns))
+        ```
+
