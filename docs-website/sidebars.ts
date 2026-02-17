@@ -42,6 +42,7 @@ const sidebars: SidebarsConfig = {
         'reference/xmake_params',
         'reference/global_configuration',
         'reference/special_env_variables',
+        'reference/symbol_helper',
       ],
     },
   ],

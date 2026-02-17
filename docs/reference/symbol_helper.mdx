@@ -1,0 +1,184 @@
+# SymbolHelper
+
+`SymbolHelper` 是 Verilua 提供的一个实用工具模块，用于在运行时获取**任意全局符号**（函数、变量）的地址，并动态调用 C 函数。它主要应用于以下场景：
+
+- 调用任意 C 函数（包括 DPI-C 导出的函数、仿真器内部函数、系统库函数、自定义函数等）
+- 调试或性能测量时获取符号信息
+- 动态绑定未通过 FFI 声明的函数
+
+该模块基于 LuaJIT 的 FFI 和 Verilua 内置的 `get_symbol_address` 功能实现。
+
+## 初始化
+
+`SymbolHelper` 不需要显式初始化，直接 require 即可使用。
+
+```lua
+local SymbolHelper = require "verilua.utils.SymbolHelper"
+```
+
+## 函数参考
+
+### `get_executable_name()`
+
+获取当前可执行文件的完整路径。
+
+- **返回值**：`string` 路径字符串
+- **示例**：
+  ```lua
+  local path = SymbolHelper.get_executable_name()
+  print("Executable:", path)
+  -- 可能的输出：Executable: /home/user/verilua/project/simv
+  ```
+
+### `get_self_cmdline()`
+
+获取启动当前进程的命令行参数（以空格分隔）。
+
+- **返回值**：`string` 命令行字符串
+- **示例**：
+  ```lua
+  local cmdline = SymbolHelper.get_self_cmdline()
+  print("Command line:", cmdline)
+  -- 可能的输出：Command line: ./simv +vcs+initreg+0
+  ```
+
+### `get_global_symbol_addr(symbol_name)`
+
+获取指定符号在可执行文件或动态库中的运行时内存地址。
+
+- **参数**：
+  - `symbol_name` (`string`)：符号名称（函数名、变量名等）
+- **返回值**：`integer` 符号的地址（64 位整数），若符号不存在则返回 `0`
+- **说明**：该函数会解析当前进程的 ELF 符号表，并考虑 ASLR 偏移，返回最终可用的地址。
+- **示例**：
+  ```lua
+  local addr = SymbolHelper.get_global_symbol_addr("svSetScope")
+  if addr ~= 0 then
+      print("svSetScope address: 0x" .. bit.tohex(addr))
+  end
+  -- 可能的输出：svSetScope address: 0x7f8d4a2b1c00
+  ```
+
+### `ffi_cast(type_str, value)`
+
+将给定的值（符号名或地址）转换为指定类型的 C 函数指针或数据指针。
+
+- **参数**：
+  - `type_str` (`string`)：FFI 类型描述，例如 `"void (*)(void *)"`、`"int (*)(int)"`
+  - `value`：可以是符号名字符串、整数地址或已存在的 `cdata` 对象
+- **返回值**：对应类型的 `cdata` 函数指针或数据指针
+- **注意**：如果 `value` 是字符串，内部会自动调用 `get_global_symbol_addr` 获取地址，如果地址为 0 则会触发断言错误。
+- **示例**：
+  ```lua
+  -- 通过符号名获取函数指针
+  local svSetScope = SymbolHelper.ffi_cast("void *(*)(void *)", "svSetScope")
+  local scope = svSetScope(some_scope_handle)
+
+  -- 通过地址转换
+  local addr = SymbolHelper.get_global_symbol_addr("my_function")
+  local my_func = SymbolHelper.ffi_cast("int (*)(int)", addr)
+  print(my_func(42))
+  ```
+
+### `try_ffi_cast(func_ptr_str, ffi_func_decl_str, func_name)`
+
+尝试获取函数指针，如果符号存在则通过 `ffi_cast` 转换，否则回退到 FFI 声明。这是调用任意 C 函数最安全的方式。
+
+- **参数**：
+  - `func_ptr_str` (`string`)：函数指针类型描述，例如 `"bool (*)()"`
+  - `ffi_func_decl_str` (`string`)：完整的 FFI 声明字符串，例如 `"bool my_func();"`
+  - `func_name` (`string`)：函数名称
+- **返回值**：`function` 可调用的 Lua 函数
+- **说明**：首先尝试在全局符号表中查找 `func_name`，如果找到则用 `ffi_cast` 转换；如果未找到，则执行 `ffi.cdef(ffi_func_decl_str)` 并返回 `ffi.C[func_name]`（如果存在）。如果两种方式都失败，会触发错误。
+- **示例**：
+  ```lua
+  -- 尝试获取 svSetScope，如果符号不存在则使用 FFI 声明
+  local svSetScope = SymbolHelper.try_ffi_cast(
+      "void *(*)(void *)",
+      "void *svSetScope(void *scope);",
+      "svSetScope"
+  )
+  ```
+
+## 使用场景示例
+
+### 1. 调用任意 C 函数（包括仿真器内部函数和自定义函数）
+
+`SymbolHelper` 可以获取并调用任何全局可见的 C 函数，无论是仿真器提供的内部函数（如 `svSetScope`）、DPIC 导出的函数，还是您自己编写的 C 函数。
+
+#### 示例：调用仿真器内部函数 `svSetScope` 和 `svGetScopeFromName`
+
+```lua
+local SymbolHelper = require "verilua.utils.SymbolHelper"
+
+-- 绑定 svSetScope 和 svGetScopeFromName
+local svSetScope = SymbolHelper.try_ffi_cast(
+    "void *(*)(void *)",
+    "void *svSetScope(void *scope);",
+    "svSetScope"
+)
+local svGetScopeFromName = SymbolHelper.try_ffi_cast(
+    "void *(*)(const char *)",
+    "void *svGetScopeFromName(const char *name);",
+    "svGetScopeFromName"
+)
+
+-- 使用
+local scope = svGetScopeFromName("tb_top")
+svSetScope(scope)
+```
+
+#### 示例：调用自定义 C 函数
+
+假设您在 `dpic.cpp` 中定义了一个函数：
+
+```cpp
+#include <iostream>
+extern "C" void hello_from_c(const char* name) {
+    std::cout << "Hello, " << name << " from C!" << std::endl;
+}
+```
+
+编译后，在 Lua 中通过 `SymbolHelper` 调用它：
+
+```lua
+local SymbolHelper = require "verilua.utils.SymbolHelper"
+
+-- 方式1：直接 ffi_cast（符号必须存在）
+local hello = SymbolHelper.ffi_cast("void (*)(const char*)", "hello_from_c")
+hello("Verilua")
+
+-- 方式2：使用 try_ffi_cast 更安全
+local hello_safe = SymbolHelper.try_ffi_cast(
+    "void (*)(const char*)",
+    "void hello_from_c(const char* name);",
+    "hello_from_c"
+)
+hello_safe("World")
+```
+
+### 2. 获取当前可执行文件路径
+
+```lua
+local exe = SymbolHelper.get_executable_name()
+print("Running from:", exe)
+-- 可能的输出：Running from: /home/user/verilua/project/simv
+```
+
+### 3. 调试时打印函数地址
+
+```lua
+local addr = SymbolHelper.get_global_symbol_addr("vpi_control")
+if addr ~= 0 then
+    print("vpi_control @ 0x" .. bit.tohex(addr))
+end
+-- 可能的输出：vpi_control @ 0x7f8d4a2b1c00
+```
+
+## 注意事项
+
+- **符号可见性**：某些符号可能被编译器优化掉（例如未使用的静态函数），或者被链接器隐藏。为确保符号可被找到，编译时需要保留符号（如使用 `-rdynamic` 或 `-Wl,--export-dynamic`）。
+- **性能**：`get_global_symbol_addr` 首次调用时会解析 ELF 文件并缓存结果，后续调用极快。
+- **线程安全**：该模块内部使用互斥锁保护缓存，可在多线程环境中安全使用（但 Verilua 仿真通常是单线程）。
+- **错误处理**：`ffi_cast` 在符号不存在时会触发错误，建议在不确定时使用 `try_ffi_cast`。
+
