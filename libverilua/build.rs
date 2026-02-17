@@ -8,7 +8,7 @@ fn main() {
             println!("cargo:rustc-link-search=native={iverilog_home}/lib");
         }
         if let Ok(paths) = std::env::var("LD_LIBRARY_PATH") {
-            for path in paths.split(':') {
+            for path in paths.split(':').filter(|p| !p.is_empty()) {
                 println!("cargo:rustc-link-search=native={path}");
             }
         }
