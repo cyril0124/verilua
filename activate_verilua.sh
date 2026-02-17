@@ -56,7 +56,6 @@ $VERILUA_HOME/src/lua/verilua/random/?.lua;\
 $VERILUA_HOME/src/lua/verilua/utils/?.lua;\
 $VERILUA_HOME/src/lua/thirdparty_lib/?.lua;\
 $VERILUA_HOME/extern/luafun/?.lua;\
-$VERILUA_HOME/extern/LuaPanda/Debugger/?.lua;\
 $VERILUA_HOME/extern/debugger.lua/?.lua;\
 $VERILUA_HOME/extern/luajit_tcc/?.lua;\
 "
@@ -68,7 +67,6 @@ $VERILUA_HOME/extern/luajit_tcc/?.lua;\
 export LUA_CPATH="\
 $VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?.so;\
 $VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?/?.so;\
-$VERILUA_HOME/extern/LuaPanda/Debugger/debugger_lib/?.so;\
 "
 
 # -----------------------------------------------------------------------------

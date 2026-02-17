@@ -288,19 +288,6 @@ if cfg.simulator == "vcs" or cfg.simulator == "xcelium" then
 end
 
 --
--- setup breakpoint
---
-_G.bp = function() print("[Breakpoint] Invalid breakpoint!") end
-if os.getenv("VL_DEBUGGER") == "1" then
-    _G.verilua_debug("VL_DEBUGGER is 1")
-    _G.bp = function()
-        require("LuaPanda").start("localhost", 8818)
-        ---@diagnostic disable-next-line: undefined-global
-        local ret = LuaPanda and LuaPanda.BP and LuaPanda.BP()
-    end
-end
-
---
 -- Setup some environment variables
 --
 do
