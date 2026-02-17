@@ -1,59 +1,63 @@
 # Install Verilua
-本节主要介绍如何安装 Verilua。
 
-Verilua 支持两种安装方式：
-1. **Release 安装**（推荐）：使用预编译的 Release 包，无需编译，快速安装
-2. **源码安装**：从源码编译安装，适合需要自定义或开发的场景
+本节主要介绍如何安装 Verilua。Verilua 支持两种安装方式，您可以根据需求选择合适的方式：
+
+| 安装方式 | 适用场景 | 优点 |
+|---------|---------|------|
+| **Release 安装（推荐）** | 普通用户，快速上手使用 | 无需编译，即下即用 |
+| **源码安装** | 开发者，需要自定义或参与贡献 | 可修改源码，获得最新特性 |
+
+---
 
 ## 方式一：使用 Release 安装（推荐）
 
 这是最简单的安装方式，直接下载预编译的 Release 包即可使用。
 
-:::tip[获取最新构建包]
-除了下载正式发布的 Release 包外，你也可以从 GitHub Actions 的 artifacts 中获取最新的构建包。每当有新的 commit 推送到主分支时，CI 会自动运行回归测试并生成完整的 release 包。由于正式 Release 包的发布通常不及时，从 artifacts 获取可以让你使用最新的功能和修复。
+### 1. 下载 Release 包
 
-访问 [Actions 页面](https://github.com/cyril0124/verilua/actions/workflows/regression.yml)，选择最新的成功运行的 "Regression" 工作流，下载以下 artifact 之一：
-- `verilua-x64-ubuntu-22.04-xxxxxxx` (Ubuntu 22.04)
-- `verilua-x64-centos-7-xxxxxxx` (CentOS 7)
+#### 方法 A：从 GitHub Releases 下载（稳定版）
 
-其中 `xxxxxxx` 是 commit 的短哈希。这些包包含完整的预编译 Verilua 环境，可以直接使用。
+访问 [GitHub Releases 页面](https://github.com/cyril0124/verilua/releases)，选择适合您操作系统的版本下载。例如：
 
-如果没有找到适合你系统的包，可以使用 CentOS 7 的包，因为 CentOS 7 使用较低版本的 glibc 2.17，通常能够兼容更高版本 glibc 的系统。
-:::
-
-### 1. 下载并解压
+- `verilua-x64-ubuntu-22.04.zip` (Ubuntu 22.04)
+- `verilua-x64-centos-7.zip` (CentOS 7)
 
 ```bash
-# 下载最新的 Release 包（以 Ubuntu 22.04 为例）
+# 以 Ubuntu 22.04 为例
 wget https://github.com/cyril0124/verilua/releases/download/v2.0.0/verilua-x64-ubuntu-22.04.zip
-
-# 解压
 unzip verilua-x64-ubuntu-22.04.zip
 ```
 
-:::tip[其他平台]
-请前往 [GitHub Releases](https://github.com/cyril0124/verilua/releases) 页面查看所有可用的预编译包。
-:::
+#### 方法 B：从 GitHub Actions 获取最新开发版（尝鲜）
 
-### 2. 激活 Verilua 环境
+如果您想体验最新功能（可能尚未正式发布），可以从 CI 构建的 artifacts 中获取：
+
+1. 打开 [Actions 页面](https://github.com/cyril0124/verilua/actions/workflows/regression.yml)
+2. 选择最近一次成功运行的 **Regression** 工作流
+3. 下载对应平台的 artifact（例如 `verilua-x64-ubuntu-22.04-xxxxxxx`）
+
+> 💡 **提示**：这些包基于最新代码构建，包含最新的功能和修复。若没有适合您系统的包，可尝试使用 CentOS 7 的包（基于 glibc 2.17，通常兼容更高版本系统）。
+
+### 2. 解压并激活环境
 
 ```bash
-# 进入解压后的目录
-cd verilua-x64-ubuntu-22.04
-
-# 激活 Verilua 环境
-source verilua.sh
+cd verilua-x64-ubuntu-22.04       # 进入解压后的目录
+source verilua.sh                  # 激活 Verilua 环境
 ```
+
+激活后，您将可以在当前 shell 中使用 Verilua 提供的命令（如 `test_verilua`、`xmake` 等）。
 
 ### 3. 验证安装
 
+执行以下命令测试 Verilua 是否正常工作：
+
 ```bash
-# 运行测试命令验证安装是否成功
 test_verilua
 ```
 
-如果 Verilua 安装成功，则应该会看到 Terminal 最下面有类似的输出：
-```shell title="Terminal"
+如果安装成功，您将看到类似下面的输出：
+
+```text
 Test Results:
   ✓ Passed: 2
   ✗ Failed: 0
@@ -65,66 +69,142 @@ Test Results:
 
 ## 方式二：从源码安装
 
-如果你需要自定义编译或参与开发，可以选择从源码安装。为了确保安装能够成功，需要全程确保网络环境可用。
+适用于需要自定义编译或参与开发的用户。请确保网络环境良好，以便下载依赖。
 
-### Prerequisites
-- gcc >= 11.0（需要支持 C++20）
-- 安装 [xmake](https://xmake.io/)
-- 安装 [rust](https://www.rust-lang.org/tools/install)
-- 安装 python3.xx
-- 根据需求安装下列硬件仿真器
-    - [verilator](https://github.com/verilator/verilator) >= 5.026
-    - [iverilog](https://github.com/steveicarus/iverilog)
+### 前提条件
 
-        :::danger[iverilog 版本问题]
-        由于 iverilog 在 [v12_0 release 版本](https://github.com/steveicarus/iverilog/releases/tag/v12_0) 下存在 VPI 的 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会对 Verilua 的多任务调度功能造成影响。所以需要使用目前 iverilog 官方仓库下的 master 分支版本（或者叫 v13-devel 版本, 经过测试 `s20250103` 这个 tag 也可以用），这需要自行编译安装！
+#### 基础工具链
 
-        安装完成后，需要设置环境变量 `IVERILOG_HOME` 指向刚刚安装的 iverilog 目录（包含 `bin` 和 `lib` 的目录）。
+- **gcc >= 11.0**（需支持 C++20）
+- **xmake**：安装参考 [xmake 官方文档](https://xmake.io/#/guide/installation)
+- **Rust**：安装参考 [rustup](https://rustup.rs/)
+- **Python 3.x**（某些脚本依赖）
 
-        :::note[iverilog 安装命令]
-        ```shell
-            git clone https://github.com/steveicarus/iverilog.git
-            cd iverilog
-            git checkout s20250103
-            sh autoconf.sh
-            ./configure
-            make
-            sudo make install
-        ```
-        :::
+#### 硬件仿真器（至少选择一个）
 
-    - Synopsys VCS
-    - Cadence Xcelium
+根据您的需求安装以下仿真器之一：
+
+- **[Verilator](https://github.com/verilator/verilator) >= 5.026**
+- **[Icarus Verilog](https://github.com/steveicarus/iverilog)**（注意版本问题，见下文）
+- **Synopsys VCS**（商业软件）
+- **Cadence Xcelium**（商业软件）
+
+##### ⚠️ Icarus Verilog 版本注意事项
+
+iverilog 的 v12_0 版本存在 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会影响 Verilua 的多任务调度。**请使用 master 分支（v13-devel）或 `s20250103` 标签**。
+
+```bash
+git clone https://github.com/steveicarus/iverilog.git
+cd iverilog
+git checkout s20250103                # 或使用 master 分支
+sh autoconf.sh
+./configure
+make
+sudo make install
+```
+
+安装后，设置环境变量 `IVERILOG_HOME` 指向安装目录（包含 `bin` 和 `lib` 的目录）：
+
+```bash
+export IVERILOG_HOME=/path/to/iverilog   # 添加到 shell 配置文件
+```
 
 ### 安装步骤
-```shell
-xmake install verilua
-```
-:::warning[安装失败]
-如果安装过程失败了，那么可以重新执行上述命令，尝试再次安装。
-:::
 
-### 测试安装是否成功
-使用 shell 打印出 `VERILUA_HOME` 这一环境变量，如果 `VERILUA_HOME` 指向了当前的 Verilua 工程目录，那么就说明安装成功了。
-也可以执行下面命令进行更完整的安装测试：
-```shell
-xmake run test
-```
-如果 Verilua 安装成功，则应该会看到 Terminal 最下面有这样的输出：
-```shell title="Terminal"
-  _____         _____ _____ 
- |  __ \ /\    / ____/ ____|
- | |__) /  \  | (___| (___  
- |  ___/ /\ \  \___ \\___ \ 
- | |  / ____ \ ____) |___) |
- |_| /_/    \_\_____/_____/ 
-```
+1. **克隆 Verilua 仓库**（如果尚未下载源码）
+
+   ```bash
+   git clone --recursive https://github.com/cyril0124/verilua.git
+   cd verilua
+   ```
+
+2. **执行安装命令**
+
+   ```bash
+   xmake install verilua
+   ```
+
+   该命令会自动安装所有依赖、编译工具并配置环境。
+
+3. **（可选）如果安装失败**，可以重新执行上述命令，网络问题或临时错误可能会被解决。
+
+### 验证安装
+
+- 检查环境变量 `VERILUA_HOME` 是否指向 Verilua 源码目录：
+
+  ```bash
+  echo $VERILUA_HOME
+  ```
+
+- 运行完整测试套件：
+
+  ```bash
+  xmake run test
+  ```
+
+  成功时您将看到 Verilua 的 ASCII 艺术 Logo：
+
+  ```text
+    _____         _____ _____ 
+   |  __ \ /\    / ____/ ____|
+   | |__) /  \  | (___| (___  
+   |  ___/ /\ \  \___ \\___ \ 
+   | |  / ____ \ ____) |___) |
+   |_| /_/    \_\_____/_____/ 
+  ```
 
 ---
 
-## 常见安装问题（TODO：）
+## 常见问题
 
+### Q1：安装后 `test_verilua` 命令找不到？
+
+- **原因**：未正确激活环境，或 `verilua.sh` 未被 source。
+- **解决**：确保进入解压目录并执行 `source verilua.sh`。
+
+### Q2：源码安装时 `xmake install verilua` 失败，提示缺少依赖？
+
+- **解决**：手动安装缺失的依赖（如 gcc、rust 等），然后重试。如果网络问题导致下载失败，可以尝试使用代理或重新运行。
+
+### Q3：如何切换 Verilua 版本？
+
+- **Release 安装**：重新下载新版本包，解压并重新 source。
+- **源码安装**：`git pull` 拉取最新代码，然后再次运行 `xmake install verilua`。
+
+### Q4：iverilog 安装后 Verilua 仍报版本错误？
+
+- **确认** `iverilog -V` 显示的版本是否为正确的 commit 或 tag。确保 `IVERILOG_HOME` 设置正确。
+
+---
 
 ## 推荐的 Lua 开发插件
 
-推荐使用 [lua-language-server](https://github.com/LuaLS/lua-language-server) / [EmmyLuaLs](https://github.com/EmmyLuaLs/emmylua-analyzer-rust) 作为 Lua 的开发插件，可以获得更好的代码补全、跳转、类型标注的功能。
+为获得更好的代码补全、跳转和类型标注体验，您可以选择以下插件之一（更推荐使用 EmmyLuaLs）：
+
+- **[lua-language-server](https://github.com/LuaLS/lua-language-server)**（VS Code 插件：Lua）
+- **[EmmyLuaLs](https://github.com/EmmyLuaLs/emmylua-analyzer-rust)**（支持 EmmyLua 注解）
+
+### 配置 EmmyLuaLs
+
+EmmyLuaLs 需要一个 `.emmyrc.json` 配置文件放置在项目根目录（或工作区）。您可以根据需要创建该文件，一个最小配置示例如下：
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
+  "runtime": {
+    "version": "LuaJIT"
+  },
+  "hint.enable": true,
+  "workspace": {
+    "library": [
+      "$VERILUA_HOME/src/lua",
+      "$VERILUA_HOME/src/lua/verilua"
+    ]
+  }
+}
+```
+
+**说明**：
+- `$VERILUA_HOME` 会被自动替换为 Verilua 的安装路径，前提是该环境变量已在 shell 中设置。
+- 该配置仅包含识别 Verilua 库的必要项，完整的功能配置请参考 [EmmyLuaLs 官方文档](https://emmylualangs.github.io/)。
+
