@@ -1,6 +1,7 @@
 has_changes:
   - "!.gitignore"
   - "!**/*.md"
+  - "!**/*.mdx"
   - "!LICENSE"
   - "!**/images/**"
 docs_has_changes:
