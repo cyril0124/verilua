@@ -134,9 +134,8 @@ pub extern "C" fn promote_luajit_symbols() {
 /// 3. `bootstrap_register_final_callback`: Cleanup when simulation ends
 #[cfg(not(feature = "dpi"))]
 #[unsafe(no_mangle)]
-pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 5] = [
+pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 4] = [
     Some(promote_luajit_symbols),
-    Some(vpi_callback::bootstrap_register_next_sim_time_callback),
     Some(vpi_callback::bootstrap_register_start_callback),
     Some(vpi_callback::bootstrap_register_final_callback),
     None,

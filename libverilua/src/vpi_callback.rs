@@ -240,7 +240,11 @@ pub unsafe extern "C" fn bootstrap_register_start_callback() {
 unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     log::info!("start_callback");
 
-    unsafe { verilua_env::verilua_init() };
+    unsafe { 
+        verilua_env::verilua_init();
+        bootstrap_register_next_sim_time_callback();
+    }
+
     0
 }
 
@@ -500,10 +504,21 @@ fn libverilua_do_register_next_sim_time_cb() {
     unsafe { vpi_free_object(handle) };
 }
 
+/// Bootstrap function to register the next simulation time callback.
+///
+/// # Important Note (IEEE 1800 LRM 36.10.2)
+///
+/// According to the SystemVerilog LRM section 36.10.2, `vpi_register_cb()` with `cbNextSimTime`
+/// **MUST NOT** be called from within `vlog_startup_routines`. The LRM specifies that:
+///
+/// > "The cbNextSimTime callback shall not be allowed in vlog_startup_routines."
+///
+/// Therefore, this function should only be called during the simulation initialization phase
+/// (e.g., from within a `cbStartOfSimulation` callback), not directly from the startup routines array.
+///
+/// This function is expected to be called only once as a bootstrap step.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bootstrap_register_next_sim_time_callback() {
-    // `bootstrap_register_next_sim_time_callback` is expected to be called only once as a bootstrap step
-    // The simulator should execute this at the very beginning of simulation
     let env = get_verilua_env_no_init();
     if env.has_next_sim_time_cb {
         return;
