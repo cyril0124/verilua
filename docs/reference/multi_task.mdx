@@ -16,8 +16,30 @@ Verilua 实现了一个基于事件轮询调度的调度器（Scheduler），用
   <figcaption>Scheduler workflow</figcaption>
 </figure>
 
-这一过程实现了任务的调度，且回调注册是异步的，任务无需等待回调完成即可继续执行其他任务，任务之间不存在依赖运行。
+以下是一个典型的任务调度时序示例，展示了任务、调度器、VPI 回调与仿真器之间的交互过程：
 
+```mermaid
+sequenceDiagram
+    box Verilua
+        participant Task as 任务
+        participant Scheduler as 调度器
+    end
+
+    box C/C++ (Hardware Simulator)
+        participant VPI as VPI 回调
+        participant Sim as 仿真器
+    end
+
+    Task ->> Scheduler: 注册回调（如 posedge）
+    Scheduler ->> VPI: 注册 VPI 回调
+    VPI ->> Sim: 等待事件
+    Sim -->> VPI: 事件触发
+    VPI -->> Scheduler: 回调触发
+    Scheduler ->> Task: 唤醒任务
+    Task ->> Task: 继续执行
+```
+
+这一过程实现了任务的调度，且回调注册是异步的，任务无需等待回调完成即可继续执行其他任务，任务之间不存在依赖运行。
 
 ## 创建任务
 在 Verilua 中，我们可以通过 `fork` 来创建任务，并将其添加到 Scheduler 中，同时被创建的任务会随机分配一个唯一的任务 ID。例如：
