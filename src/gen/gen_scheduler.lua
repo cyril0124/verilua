@@ -25,7 +25,6 @@ local class = require "pl.class"
 local coroutine = require "coroutine"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
-local vpiml = require "verilua.vpiml.vpiml"
 local vl = require "verilua.Verilua"
 local Logger = require "verilua.utils.Logger"
 
@@ -44,19 +43,7 @@ if _G.ACC_TIME then
     os_clock = os.clock
 end
 
-local Timer = 0
-local PosedgeHDL = 1
-local NegedgeHDL = 2
-local PosedgeAlways = 3
-local PosedgeAlwaysHDL = 4
-local NegedgeAlways = 5
-local NegedgeAlwaysHDL = 6
-local EdgeHDL = 7
-local EarlyExit = 8
-local Event = 9
-local ReadWrite = 10
-local ReadOnly = 11
-local NextSimTime = 12
+local EarlyExit = 4444
 local NOOP = 5555
 
 ---@class (exact) verilua.scheduler.LuaScheduler_gen
@@ -85,7 +72,7 @@ local NOOP = 5555
 ---@field private _alloc_task_id fun(self: verilua.scheduler.LuaScheduler_gen): verilua.scheduler.TaskID Allocates a new task ID
 ---@field private _alloc_event_id fun(self: verilua.scheduler.LuaScheduler_gen): verilua.scheduler.EventID Allocates a new event ID
 ---@field private _remove_task fun(self: verilua.scheduler.LuaScheduler_gen, task_id: verilua.scheduler.TaskID) Removes a task by ID
----@field private _register_callback fun(self: verilua.scheduler.LuaScheduler_gen, task_id: verilua.scheduler.TaskID, callback_type: verilua.scheduler.TaskCallbackType, integer_value: integer) Registers a callback for a task
+---@field register_event fun(self: verilua.scheduler.LuaScheduler_gen, event_id: verilua.scheduler.EventID, task_id: verilua.scheduler.TaskID) Registers an event for a task
 ---@field NULL_TASK_ID verilua.scheduler.TaskID Constant representing an invalid task ID(0)
 ---@field curr_task_id verilua.scheduler.TaskID Current task ID
 ---@field curr_wakeup_event_id verilua.scheduler.EventID Current wakeup event ID
@@ -279,60 +266,12 @@ function Scheduler:remove_task(id)
     end
 end
 
-function Scheduler:_register_callback(id, cb_type, integer_value)
-    if _G.NORMAL then
-        if cb_type == PosedgeHDL then
-            vpiml.vpiml_register_posedge_callback(integer_value, id)
-        elseif cb_type == PosedgeAlwaysHDL then
-            vpiml.vpiml_register_posedge_callback_always(integer_value, id)
-        elseif cb_type == NegedgeHDL then
-            vpiml.vpiml_register_negedge_callback(integer_value, id)
-        elseif cb_type == NegedgeAlwaysHDL then
-            vpiml.vpiml_register_negedge_callback_always(integer_value, id)
-        elseif cb_type == ReadWrite then
-            vpiml.vpiml_register_rw_synch_callback(id)
-        elseif cb_type == ReadOnly then
-            vpiml.vpiml_register_rd_synch_callback(id)
-        elseif cb_type == NextSimTime then
-            vpiml.vpiml_register_next_sim_time_callback(id)
-        elseif cb_type == Timer then
-            vpiml.vpiml_register_time_callback(integer_value, id)
-        elseif cb_type == Event then
-            if self.event_name_map[integer_value] == nil then
-                assert(false, "Unknown event => " .. integer_value)
-            end
-            self.task_id_to_event_id_map[id] = integer_value
-            table_insert(self.event_task_id_list_map[integer_value], id)
-        elseif cb_type == NOOP then
-            -- do nothing
-        else
-            assert(false, "Unknown YieldType => " .. tostring(cb_type))
-        end
-    elseif _G.STEP then
-        if cb_type == Event then
-            if self.event_name_map[integer_value] == nil then
-                assert(false, "Unknown event => " .. integer_value)
-            end
-            table_insert(self.event_task_id_list_map[integer_value], id)
-            self.task_id_to_event_id_map[id] = integer_value
-        end
-    elseif _G.EDGE_STEP then
-        if cb_type == PosedgeHDL or cb_type == PosedgeAlwaysHDL or cb_type == Timer then
-            self.posedge_tasks[id] = true
-        elseif cb_type == NegedgeHDL or cb_type == NegedgeAlwaysHDL then
-            self.negedge_tasks[id] = true
-        elseif cb_type == NOOP then
-            -- do nothing
-        elseif cb_type == Event then
-            if self.event_name_map[integer_value] == nil then
-                assert(false, "Unknown event => " .. integer_value)
-            end
-            table_insert(self.event_task_id_list_map[integer_value], id)
-            self.task_id_to_event_id_map[id] = integer_value
-        else
-            assert(false, "Unknown YieldType => " .. tostring(cb_type))
-        end
+function Scheduler:register_event(event_id, task_id)
+    if self.event_name_map[event_id] == nil then
+        assert(false, "Unknown event => " .. event_id)
     end
+    self.task_id_to_event_id_map[task_id] = event_id
+    table_insert(self.event_task_id_list_map[event_id], task_id)
 end
 
 -- Used for creating a new coroutine task
@@ -515,12 +454,10 @@ function Scheduler:schedule_task(id)
 
     local ok
     local cb_type_or_err
-    local integer_value
-    ok, cb_type_or_err, integer_value = coro_resume(self.task_coroutine_map[id])
+    ok, cb_type_or_err = coro_resume(self.task_coroutine_map[id])
 
     ---@cast ok boolean
     ---@cast cb_type_or_err verilua.scheduler.TaskCallbackType
-    ---@cast integer_value integer
 
     self.curr_task_id                 = old_curr_task_id
     if not ok then
@@ -538,8 +475,8 @@ function Scheduler:schedule_task(id)
 
     if cb_type_or_err == nil or cb_type_or_err == EarlyExit then
         self:_remove_task(id)
-    else
-        self:_register_callback(id, cb_type_or_err, integer_value)
+    elseif cb_type_or_err ~= NOOP then
+        assert(false, "Unknown callback type yielded by task! callback type: " .. tostring(cb_type_or_err))
     end
 
     if _G.ACC_TIME then
@@ -781,7 +718,9 @@ function Scheduler:new_event_hdl(name, user_event_id)
             return #self.event_task_id_list_map[this.event_id] > 0
         end,
         wait = function(this)
-            coro_yield(Event, this.event_id)
+            ---@diagnostic disable-next-line
+            this._scheduler:register_event(this.event_id, this._scheduler.curr_task_id)
+            coro_yield(NOOP)
         end,
         send = function(this)
             this._scheduler:send_event(this.event_id)

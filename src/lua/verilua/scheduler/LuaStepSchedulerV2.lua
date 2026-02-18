@@ -30,7 +30,6 @@ local class = require "pl.class"
 local coroutine = require "coroutine"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
-require "verilua.vpiml.vpiml"
 local vl = require "verilua.Verilua"
 local Logger = require "verilua.utils.Logger"
 
@@ -49,16 +48,8 @@ local coro_create = coroutine.create
 
 
 
-
-
-
-
-
-
-
-
-local EarlyExit = 8
-local Event = 9
+local EarlyExit = 4444
+local NOOP = 5555
 
 ---@class (exact) verilua.LuaScheduler_gen_LuaStepSchedulerV2
 ---@field private task_coroutine_map table<verilua.scheduler.TaskID, thread> Map of task IDs to coroutine threads
@@ -86,7 +77,7 @@ local Event = 9
 ---@field private _alloc_task_id fun(self: verilua.LuaScheduler_gen_LuaStepSchedulerV2): verilua.scheduler.TaskID Allocates a new task ID
 ---@field private _alloc_event_id fun(self: verilua.LuaScheduler_gen_LuaStepSchedulerV2): verilua.scheduler.EventID Allocates a new event ID
 ---@field private _remove_task fun(self: verilua.LuaScheduler_gen_LuaStepSchedulerV2, task_id: verilua.scheduler.TaskID) Removes a task by ID
----@field private _register_callback fun(self: verilua.LuaScheduler_gen_LuaStepSchedulerV2, task_id: verilua.scheduler.TaskID, callback_type: verilua.scheduler.TaskCallbackType, integer_value: integer) Registers a callback for a task
+---@field register_event fun(self: verilua.LuaScheduler_gen_LuaStepSchedulerV2, event_id: verilua.scheduler.EventID, task_id: verilua.scheduler.TaskID) Registers an event for a task
 ---@field NULL_TASK_ID verilua.scheduler.TaskID Constant representing an invalid task ID(0)
 ---@field curr_task_id verilua.scheduler.TaskID Current task ID
 ---@field curr_wakeup_event_id verilua.scheduler.EventID Current wakeup event ID
@@ -107,10 +98,6 @@ local Event = 9
 ---@field get_running_tasks fun(self: verilua.LuaScheduler_gen_LuaStepSchedulerV2): table<integer, verilua.scheduler.TaskInfo> Get all running tasks
 ---@field get_curr_task_id fun(self: verilua.scheduler.LuaScheduler): verilua.scheduler.TaskID Get current task ID
 ---@field get_curr_task_name fun(self: verilua.scheduler.LuaScheduler): string Get current task name
-
-
-
-
 local Scheduler = class()
 
 -- `0` represents invalid task id/event id
@@ -284,60 +271,12 @@ function Scheduler:remove_task(id)
     end
 end
 
-function Scheduler:_register_callback(id, cb_type, integer_value)
-do        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-if cb_type == Event then
-            if self.event_name_map[integer_value] == nil then
-                assert(false, "Unknown event => " .. integer_value)
-            end
-            table_insert(self.event_task_id_list_map[integer_value], id)
-            self.task_id_to_event_id_map[id] = integer_value
-        end
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function Scheduler:register_event(event_id, task_id)
+    if self.event_name_map[event_id] == nil then
+        assert(false, "Unknown event => " .. event_id)
+    end
+    self.task_id_to_event_id_map[task_id] = event_id
+    table_insert(self.event_task_id_list_map[event_id], task_id)
 end
 
 -- Used for creating a new coroutine task
@@ -520,12 +459,10 @@ local old_curr_task_id            = self.curr_task_id
 
     local ok
     local cb_type_or_err
-    local integer_value
-    ok, cb_type_or_err, integer_value = coro_resume(self.task_coroutine_map[id])
+    ok, cb_type_or_err = coro_resume(self.task_coroutine_map[id])
 
     ---@cast ok boolean
     ---@cast cb_type_or_err verilua.scheduler.TaskCallbackType
-    ---@cast integer_value integer
 
     self.curr_task_id                 = old_curr_task_id
     if not ok then
@@ -543,8 +480,8 @@ local old_curr_task_id            = self.curr_task_id
 
     if cb_type_or_err == nil or cb_type_or_err == EarlyExit then
         self:_remove_task(id)
-    else
-        self:_register_callback(id, cb_type_or_err, integer_value)
+    elseif cb_type_or_err ~= NOOP then
+        assert(false, "Unknown callback type yielded by task! callback type: " .. tostring(cb_type_or_err))
     end
 
     
@@ -786,7 +723,9 @@ local event_id = user_event_id
             return #self.event_task_id_list_map[this.event_id] > 0
         end,
         wait = function(this)
-            coro_yield(Event, this.event_id)
+            ---@diagnostic disable-next-line
+            this._scheduler:register_event(this.event_id, this._scheduler.curr_task_id)
+            coro_yield(NOOP)
         end,
         send = function(this)
             this._scheduler:send_event(this.event_id)

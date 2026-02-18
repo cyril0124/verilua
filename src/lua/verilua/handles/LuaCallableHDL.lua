@@ -27,10 +27,6 @@ local HexStr = _G.HexStr
 local BinStr = _G.BinStr
 local DecStr = _G.DecStr
 local verilua_debug = _G.verilua_debug
-local await_posedge_hdl = _G.await_posedge_hdl
-local await_negedge_hdl = _G.await_negedge_hdl
-local always_await_posedge_hdl = _G.always_await_posedge_hdl
-local await_noop = _G.await_noop
 
 local DpiExporter
 
@@ -482,6 +478,10 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
+    local await_posedge_hdl = _G.await_posedge_hdl
+    local await_negedge_hdl = _G.await_negedge_hdl
+    local always_await_posedge_hdl = _G.always_await_posedge_hdl
+    local await_noop = _G.await_noop
     if self.width == 1 then
         --
         -- Example:

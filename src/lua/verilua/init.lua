@@ -312,14 +312,6 @@ end
 --
 _G.verilua_debug("SchedulerMode is " .. cfg.mode)
 
---
--- import scheduler functions
---
-local scommon = require "verilua.scheduler.LuaSchedulerCommonV2"
-for key, value in pairs(scommon) do
-    _G[key] = value
-end
-
 -- Extend some Lua standard libraries
 require "verilua.ext.tablex"
 require "verilua.ext.stringx"
@@ -884,6 +876,14 @@ end
 
 _G.sim = require "LuaSimulator"
 _G.scheduler = scheduler
+
+--
+-- Import scheduler functions to global
+--
+local scommon = require "verilua.scheduler.LuaSchedulerCommonV2"
+for key, value in pairs(scommon) do
+    _G[key] = value
+end
 
 ---@type verilua.handles.ProxyTableHandle
 _G.dut = (require "LuaDut").create_proxy(cfg.top)

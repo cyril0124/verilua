@@ -50,7 +50,7 @@ local cfg = _G.cfg
 ---@field private _alloc_task_id fun(self: verilua.scheduler.LuaScheduler): verilua.scheduler.TaskID Allocates a new task ID
 ---@field private _alloc_event_id fun(self: verilua.scheduler.LuaScheduler): verilua.scheduler.EventID Allocates a new event ID
 ---@field private _remove_task fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID) Removes a task by ID
----@field private _register_callback fun(self: verilua.scheduler.LuaScheduler, task_id: verilua.scheduler.TaskID, callback_type: verilua.scheduler.TaskCallbackType, integer_value: integer) Registers a callback for a task
+---@field register_event fun(self: verilua.scheduler.LuaScheduler, event_id: verilua.scheduler.EventID, task_id: verilua.scheduler.TaskID) Registers an event for a task
 ---@field NULL_TASK_ID verilua.scheduler.TaskID Constant representing an invalid task ID(0)
 ---@field curr_task_id verilua.scheduler.TaskID Current task ID
 ---@field curr_wakeup_event_id verilua.scheduler.EventID Current wakeup event ID
