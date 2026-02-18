@@ -1,13 +1,12 @@
 ---@diagnostic disable: need-check-nil
 
 local os = require "os"
-local scheduler = require "verilua.scheduler.LuaScheduler"
 local Logger = require "verilua.utils.Logger"
 
-local type = type
-local print = print
-local assert = assert
-local ipairs = ipairs
+--- Lazy load scheduler to avoid circular dependency with verilua.scheduler.LuaScheduler(loaded at `start_callback`)
+---@type verilua.scheduler.LuaScheduler
+local scheduler
+
 local table_insert = table.insert
 
 local verilua_info = _G.verilua_info
@@ -24,20 +23,30 @@ end
 ---@class verilua.VeriluaCore
 ---@field private start_time number Start time of the simulation
 ---@field private end_time number End time of the simulation
+---@field private got_error boolean Indicates if an error occurred during the simulation
 ---@field private start_callback_vec table<integer, fun()>
----@field private finish_callback_vec table<integer, fun()|fun(VERILUA_GOT_ERROR: boolean)>
+---@field private finish_callback_vec table<integer, fun()|fun(got_error: boolean)>
+---@field record_error fun()
 ---@field append_start_callback fun(func: fun())
----@field append_finish_callback fun(func: fun()|fun(VERILUA_GOT_ERROR: boolean))
+---@field append_finish_callback fun(func: fun()|fun(got_error: boolean))
 ---@field register_start_callback fun(func: fun()) Alias of `append_start_callback`
----@field register_finish_callback fun(func: fun()|fun(VERILUA_GOT_ERROR: boolean)) Alias of `append_finish_callback`
+---@field register_finish_callback fun(func: fun()|fun(got_error: boolean)) Alias of `append_finish_callback`
 ---@field start_callback fun()
 ---@field finish_callback fun()
 local verilua = {
     start_time = 0.0,
     end_time = 0.0,
+    got_error = false,
     start_callback_vec = {},
     finish_callback_vec = {}
 }
+
+--- Records that an error has occurred during task execution.
+--- Called by the scheduler when a task fails.
+verilua.record_error = function()
+    assert(not verilua.got_error, "Error has already been recorded!")
+    verilua.got_error = true
+end
 
 verilua.start_callback = function()
     verilua_hello()
@@ -55,12 +64,18 @@ verilua.start_callback = function()
 
     verilua_info("Initialization sequence finished.")
 
+    scheduler = require "verilua.scheduler.LuaScheduler"
     scheduler:schedule_all_tasks()
 end
 
 verilua.finish_callback = function()
     print()
     logger:header("[Verilua] Finalization Start", 56)
+
+    if not scheduler then
+        scheduler = require "verilua.scheduler.LuaScheduler"
+    end
+
     scheduler:list_tasks()
 
     -- Automatically save default coverage group into json file
@@ -73,10 +88,24 @@ verilua.finish_callback = function()
     if #verilua.finish_callback_vec == 0 then
         -- verilua_warning("[finish_callback] Not implemented!")
     else
-        -- Set by the scheduler when there is an error while executing a task
-        local VERILUA_GOT_ERROR = _G.VERILUA_GOT_ERROR
         for _, callback_func in ipairs(verilua.finish_callback_vec) do
-            callback_func(VERILUA_GOT_ERROR)
+            --- e.g.
+            --- ```lua
+            ---     fork {
+            ---         function()
+            ---             -- ...
+            ---             assert(false, "Error occurred")
+            ---             -- ...
+            ---         end
+            ---     }
+            ---
+            ---     final {
+            ---         function(got_error)
+            ---             assert(got_error == true)
+            ---         end
+            ---     }
+            --- ```
+            callback_func(verilua.got_error)
         end
     end
 

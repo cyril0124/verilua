@@ -31,6 +31,7 @@ local coroutine = require "coroutine"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
 local vpiml = require "verilua.vpiml.vpiml"
+local vl = require "verilua.Verilua"
 local Logger = require "verilua.utils.Logger"
 
 local f = string.format
@@ -534,7 +535,7 @@ local old_curr_task_id            = self.curr_task_id
         ))
         io.flush()
 
-        _G.VERILUA_GOT_ERROR = true
+        vl.record_error()
         assert(false)
     end
 

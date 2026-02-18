@@ -218,25 +218,6 @@ do
     cfg:post_config()
 end
 
---- Set by the scheduler when there is an error while executing a task
---- e.g.
---- ```lua
----     fork {
----         function()
----             -- ...
----             assert(false, "Error occurred")
----             -- ...
----         end
----     }
----
----     final {
----         function(got_error)
----             assert(got_error == true)
----         end
----     }
---- ```
-_G.VERILUA_GOT_ERROR = false --[[@as boolean]]
-
 --
 -- add source_file/dependencies package path
 --
@@ -531,7 +512,7 @@ do
 end
 
 local scheduler = require "verilua.scheduler.LuaScheduler"
-local vl = require "Verilua"
+local vl = require "verilua.Verilua"
 local unnamed_task_count = 0
 do
     local verilua_debug = _G.verilua_debug

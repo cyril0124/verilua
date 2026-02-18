@@ -11,9 +11,6 @@
 
 _G.GLOBAL_VERILUA_ENV = {} --[[@as lightuserdata]]
 
---- Set by the scheduler when there is an error while executing a task
-_G.VERILUA_GOT_ERROR = false --[[@as boolean]]
-
 _G.dut = {} --[[@as verilua.handles.ProxyTableHandle]]
 
 _G.scheduler = {} --[[@as verilua.scheduler.LuaScheduler]]
