@@ -69,6 +69,8 @@ local cfg = _G.cfg
 ---@field schedule_negedge_tasks fun(self: verilua.scheduler.LuaScheduler)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
 ---@field list_tasks fun(self: verilua.scheduler.LuaScheduler) List all running tasks
 ---@field get_running_tasks fun(self: verilua.scheduler.LuaScheduler): table<integer, verilua.scheduler.TaskInfo> Get all running tasks
+---@field get_curr_task_id fun(self: verilua.scheduler.LuaScheduler): verilua.scheduler.TaskID Get current task ID
+---@field get_curr_task_name fun(self: verilua.scheduler.LuaScheduler): string Get current task name
 
 local scheduler
 do

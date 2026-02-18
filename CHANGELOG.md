@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **LuaSimulator**: Add function guards to prevent calling unsupported APIs in HSE/WAL scenarios
 - **Queue**/**StaticQueue**: Add push_waitable(), pop_waitable() and wait_not_empty() methods for blocking queue operations
 - **BitVec**: Add `to_hex_str_1()` method for full 32-bit aligned hex output (faster path without bit_width trimming)
+- **scheduler**: Add `get_curr_task_id()` and `get_curr_task_name()` APIs for querying current task execution context
 
 ### 🐛 Fixed
 

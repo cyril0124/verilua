@@ -11,10 +11,24 @@ local function wait_for_task_removal(task_id, max_nsim)
     return wait_count
 end
 
+assert(
+    scheduler:get_curr_task_id() == scheduler.NULL_TASK_ID,
+    "Expected scheduler.curr_task_id to be NULL_TASK_ID when not inside a task"
+)
+
 --==============================================================================
 -- All tests must be in one fork because Verilua entry point is fork
 fork {
-    function()
+    main_task = function()
+        assert(
+            scheduler:get_curr_task_id() ~= scheduler.NULL_TASK_ID,
+            "Expected scheduler.curr_task_id to be non-NULL_TASK_ID at any point inside a task"
+        )
+        assert(
+            scheduler:get_curr_task_name() == "main_task",
+            "Expected current task name to be 'main_task'"
+        )
+
         print("=== Verilua Scheduler Test Started ===")
 
         -- Get signal handles for testing

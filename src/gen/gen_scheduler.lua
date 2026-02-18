@@ -91,7 +91,6 @@ local NOOP = 5555
 ---@field curr_wakeup_event_id verilua.scheduler.EventID Current wakeup event ID
 ---@field private new_event_hdl fun(self: verilua.scheduler.LuaScheduler_gen, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Creates a new event handle
 ---@field private get_event_hdl fun(self: verilua.scheduler.LuaScheduler_gen, event_name: string, user_event_id?: verilua.scheduler.EventID): verilua.handles.EventHandle Alias for new_event_hdl
----@field get_running_tasks fun(self: verilua.scheduler.LuaScheduler_gen): table<integer, verilua.scheduler.TaskInfo> Get all running tasks
 ---@field private send_event fun(self: verilua.scheduler.LuaScheduler_gen, event_id: verilua.scheduler.EventID) Sends an event
 ---@field remove_task fun(self: verilua.scheduler.LuaScheduler_gen, task_id: verilua.scheduler.TaskID) Removes a task by ID
 ---@field check_task_exists fun(self: verilua.scheduler.LuaScheduler_gen, task_id: verilua.scheduler.TaskID): boolean Checks if a task exists
@@ -104,6 +103,9 @@ local NOOP = 5555
 ---@field schedule_posedge_tasks fun(self: verilua.scheduler.LuaScheduler_gen)|nil Schedules positive edge tasks (available only when EDGE_STEP is enabled)
 ---@field schedule_negedge_tasks fun(self: verilua.scheduler.LuaScheduler_gen)|nil Schedules negative edge tasks (available only when EDGE_STEP is enabled)
 ---@field list_tasks fun(self: verilua.scheduler.LuaScheduler_gen) List all running tasks
+---@field get_running_tasks fun(self: verilua.scheduler.LuaScheduler_gen): table<integer, verilua.scheduler.TaskInfo> Get all running tasks
+---@field get_curr_task_id fun(self: verilua.scheduler.LuaScheduler): verilua.scheduler.TaskID Get current task ID
+---@field get_curr_task_name fun(self: verilua.scheduler.LuaScheduler): string Get current task name
 local Scheduler = class()
 
 -- `0` represents invalid task id/event id
@@ -713,6 +715,24 @@ function Scheduler:get_running_tasks()
         end
     end
     return tasks
+end
+
+function Scheduler:get_curr_task_id()
+    return self.curr_task_id
+end
+
+function Scheduler:get_curr_task_name()
+    local curr_task_id = self.curr_task_id
+    if curr_task_id == self.NULL_TASK_ID then
+        assert(false, "[Scheduler] Current task id is NULL_TASK_ID(0), which means you are not in a task context!")
+    end
+
+    local task_name = self.task_name_map_running[curr_task_id]
+    if not task_name then
+        assert(false, "[Scheduler] Current task id " .. curr_task_id .. " is not in task_name_map_running!")
+    end
+
+    return task_name
 end
 
 function Scheduler:send_event(event_id)
