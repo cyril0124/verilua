@@ -17,14 +17,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
     - **wave_vpi**: Implement `vpi_get_time()` for FSDB and Wellen backends with automatic timescale detection from waveform files
     - **dummy_vpi**: Add `vpiTimePrecision` property support with configurable `DUMMY_VPI_TIME_PRECISION` macro (default: -9 for ns)
 - **LuaSimulator**: Add function guards to prevent calling unsupported APIs in HSE/WAL scenarios
-- **Queue**/**StaticQueue**: Add push_waitable(), pop_waitable() and wait_not_empty() methods for blocking queue operations
+- **Queue**/**StaticQueue**: Add `push_waitable()`, `pop_waitable()` and `wait_not_empty()` methods for blocking queue operations
 - **BitVec**: Add `to_hex_str_1()` method for full 32-bit aligned hex output (faster path without bit_width trimming)
 - **scheduler**: Add `get_curr_task_id()` and `get_curr_task_name()` APIs for querying current task execution context
 
 ### 🐛 Fixed
 
 - **verilator_main.cpp**: Fixed incorrect clock period for timescale 1ns/1ps
-- **scheduler**: Fixed race condition in event wakeup where tasks that call wait() again during wakeup would be immediately scheduled in the same cycle. Now uses a snapshot pattern to ensure re-waiting tasks are properly queued for the next event send
+- **scheduler**: Fixed race condition in event wakeup where tasks that call `wait()` again during wakeup would be immediately scheduled in the same cycle. Now uses a snapshot pattern to ensure re-waiting tasks are properly queued for the next event send
 - **scheduler**: Fixed task event list cleanup issue where `remove_task()` did not remove the task ID from `event_task_id_list_map`, causing incorrect wake-up behavior when the same task ID was reused. This fix:
   - Adds `task_id_to_event_id_map` field to track task-to-event bidirectional mapping
   - Cleans up event task list entries when `remove_task()` is called
