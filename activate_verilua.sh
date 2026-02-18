@@ -55,7 +55,6 @@ $VERILUA_HOME/src/lua/verilua/scheduler/?.lua;\
 $VERILUA_HOME/src/lua/verilua/random/?.lua;\
 $VERILUA_HOME/src/lua/verilua/utils/?.lua;\
 $VERILUA_HOME/src/lua/thirdparty_lib/?.lua;\
-$VERILUA_HOME/extern/luafun/?.lua;\
 $VERILUA_HOME/extern/debugger.lua/?.lua;\
 $VERILUA_HOME/extern/luajit_tcc/?.lua;\
 "
