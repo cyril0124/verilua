@@ -699,7 +699,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
                         let t = complex_handle
                             .posedge_cb_count
                             .get_mut(&user_data.task_id)
-                            .unwrap();
+                            .unwrap_unchecked();
                         *t -= 1;
                         *t == 0
                     }
@@ -707,7 +707,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
                         let t = complex_handle
                             .negedge_cb_count
                             .get_mut(&user_data.task_id)
-                            .unwrap();
+                            .unwrap_unchecked();
                         *t -= 1;
                         *t == 0
                     }
@@ -715,7 +715,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
                         let t = complex_handle
                             .edge_cb_count
                             .get_mut(&user_data.task_id)
-                            .unwrap();
+                            .unwrap_unchecked();
                         *t -= 1;
                         *t == 0
                     }

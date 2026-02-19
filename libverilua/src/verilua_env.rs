@@ -496,7 +496,7 @@ impl VeriluaEnv {
                     complex_handle.vpi_handle,
                     &mut v as *mut _,
                     std::ptr::null_mut(),
-                    complex_handle.put_value_flag.take().unwrap() as _,
+                    complex_handle.put_value_flag.take().unwrap_unchecked() as _,
                 )
             };
         });
@@ -584,7 +584,7 @@ macro_rules! gen_verilua_step {
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
 
-            if let Err(e) = env.$field.as_ref().unwrap().call::<()>(()) {
+            if let Err(e) = env.$field.as_ref().unwrap_unchecked().call::<()>(()) {
                 panic!("Error calling {}: {}", stringify!($field), e);
             };
 
@@ -620,7 +620,7 @@ macro_rules! gen_verilua_step_safe {
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
 
-            if let Err(e) = env.$field.as_ref().unwrap().call::<()>(()) {
+            if let Err(e) = env.$field.as_ref().unwrap_unchecked().call::<()>(()) {
                 HAS_ERROR.with(|has_error| unsafe { *has_error.get() = true; });
                 println!(concat!("[", stringify!($name), "] Error calling ", stringify!($field), ": {}"), e);
             };
