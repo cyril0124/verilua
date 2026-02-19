@@ -1,7 +1,7 @@
 --- You can use `fork` to create multiple tasks.
 --- Each task is a function with no arguments.
 fork {
-    function()
+    main_task = function()
         print("hello from first `fork`")
 
         --- Dump the wave file
@@ -609,6 +609,78 @@ fork {
         clock:posedge(10)
         assert(a == 138) --- `a` is not changed since the task is removed
 
+
+        --- EventHandle allows tasks to wait for and send events, providing a simple
+        --- synchronization mechanism between tasks.
+        do
+            local ev = ("demo_event"):ehdl() -- Create a named event handle
+
+            local s_cycles = 0
+            local w_cycles = 0
+            fork {
+                event_sender = function()
+                    print("[Event] Sender: waiting 5 clock cycles before sending...")
+                    clock:posedge(5)
+                    ev:send()
+                    s_cycles = dut.cycles:get()
+                    print("[Event] Sender: event sent.")
+                end,
+
+                event_waiter = function()
+                    print("[Event] Waiter: waiting for event...")
+                    ev:wait()
+                    w_cycles = dut.cycles:get()
+                    print("[Event] Waiter: event received, continuing. cycles: " .. tostring(w_cycles))
+                    assert(w_cycles == s_cycles) -- Verify that the waiter resumes immediately after the sender sends the event
+                end
+            }
+
+            --- Allow enough time for the sender/waiter to complete
+            clock:posedge(10)
+        end
+
+        --- Verilua provides functions to wait for a specified amount of simulation time,
+        --- independent of clock edges. This is useful for generating delays that are
+        --- not tied to a clock.
+        do
+            local t0 = sim.get_sim_time("ns")
+            print("[Time] Waiting 50 ns..., cycles: " .. dut.cycles:get())
+            await_time_ns(50)
+            local t1 = sim.get_sim_time("ns")
+            assert(t1 - t0 == 50)
+            print(string.format("[Time] Waited %d ns, cycles: %d", t1 - t0, dut.cycles:get()))
+
+            -- Also demonstrate other units:
+            await_time_ps(100) -- 100 picoseconds
+            print(string.format("[Time] Waited 100 ps, cycles: %d", dut.cycles:get()))
+            await_time_us(1)   -- 1 microsecond
+            print(string.format("[Time] Waited 1 us, cycles: %d", dut.cycles:get()))
+        end
+
+        --- The `scheduler` provides two methods to obtain information about the
+        --- currently executing task: `get_curr_task_id()` returns the task ID,
+        --- and `get_curr_task_name()` returns the task name.
+        do
+            assert(
+                scheduler:get_curr_task_id() ~= scheduler.NULL_TASK_ID,
+                "get_curr_task_id() should return a valid task ID inside a task"
+            )
+            assert(
+                scheduler:get_curr_task_name() == "main_task",
+                "get_curr_task_name() should return 'main_task' for the main task"
+            )
+
+            fork {
+                named_task = function()
+                    local id = scheduler:get_curr_task_id()
+                    local name = scheduler:get_curr_task_name()
+                    assert(name == "named_task")
+                    print(string.format("[TaskInfo] Current task ID: %d, name: %s", id, name))
+                end
+            }
+            dut.clock:posedge(5) -- allow the task to run
+        end
+
         -- TODO: Fake CHDL
 
         --- Finish the simulation, you must call this function manually otherwise the simulation will be stuck and never finish
@@ -630,6 +702,23 @@ fork {
     end
 }
 
+--- Demonstrate that outside of a task context:
+---   - `scheduler:get_curr_task_id()` returns `scheduler.NULL_TASK_ID` (0).
+---   - `scheduler:get_curr_task_name()` raises an error because there is no running task.
+do
+    local tid = scheduler:get_curr_task_id()
+    assert(tid == scheduler.NULL_TASK_ID, "get_curr_task_id() should return NULL_TASK_ID outside a task")
+
+    local success, err = pcall(function()
+        local _name = scheduler:get_curr_task_name()
+    end)
+    assert(not success, "get_curr_task_name() should fail outside a task")
+    ---@cast err string
+    assert(
+        err:contains("you are not in a task context!"),
+        "Error message should indicate missing task context"
+    )
+end
 
 --- You can use `initial` to create tasks which will be executed at the start of simulation.
 initial {
