@@ -1055,6 +1055,8 @@ ${reset}]])
                 { path.join(prj_dir, "tests", "test_dpic"),              "test_dpic" },
                 { path.join(prj_dir, "examples", "guided_tour"),         "guided_tour" },
                 { path.join(prj_dir, "examples", "simple_mux"),          "simple_mux" },
+                { path.join(prj_dir, "examples", "async_queue_native"),  "async_queue_native" },
+                { path.join(prj_dir, "examples", "async_queue_lua"),     "async_queue_lua" },
             }
             os.setenvs(old_env)
 
