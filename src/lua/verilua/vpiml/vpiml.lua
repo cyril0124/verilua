@@ -40,4 +40,6 @@ vpiml.vpiml_handle_by_name_safe = function(name)
     return handle
 end
 
+---@cast vpiml verilua.vpiml.VpimlNormal
+
 return vpiml

@@ -43,6 +43,7 @@
 
 #![allow(non_upper_case_globals)]
 mod complex_handle;
+mod native_clock;
 mod utils;
 mod verilator_helper;
 mod verilua_env;

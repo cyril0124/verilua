@@ -240,7 +240,7 @@ pub unsafe extern "C" fn bootstrap_register_start_callback() {
 unsafe extern "C" fn start_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     log::info!("start_callback");
 
-    unsafe { 
+    unsafe {
         verilua_env::verilua_init();
         bootstrap_register_next_sim_time_callback();
     }

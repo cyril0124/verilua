@@ -113,9 +113,16 @@ ffi.cdef [[
 
     int vpiml_get_time_precision();
     uint64_t vpiml_get_sim_time();
+
+    // NativeClock functions
+    void* vpiml_native_clock_new(int64_t complex_handle_raw);
+    int vpiml_native_clock_start(void *handle, uint64_t period, uint64_t high, uint8_t start_high);
+    void vpiml_native_clock_stop(void *handle);
+    uint8_t vpiml_native_clock_is_running(void *handle);
+    void vpiml_native_clock_destroy(void *handle);
 ]]
 
----@class VpimlNormal
+---@class verilua.vpiml.VpimlNormal
 local vpiml = {
     ---@type fun(): string
     vpiml_get_top_module = C.vpiml_get_top_module,
@@ -337,6 +344,18 @@ local vpiml = {
     vpiml_get_sim_time = function()
         return tonumber(C.vpiml_get_sim_time()) --[[@as integer]]
     end,
+
+    -- NativeClock functions
+    ---@type fun(signal_hdl: ffi.cdata*): ffi.cdata*
+    vpiml_native_clock_new = C.vpiml_native_clock_new,
+    ---@type fun(handle: ffi.cdata*, period: integer, high: integer, start_high: integer): integer
+    vpiml_native_clock_start = C.vpiml_native_clock_start,
+    ---@type fun(handle: ffi.cdata*)
+    vpiml_native_clock_stop = C.vpiml_native_clock_stop,
+    ---@type fun(handle: ffi.cdata*): integer
+    vpiml_native_clock_is_running = C.vpiml_native_clock_is_running,
+    ---@type fun(handle: ffi.cdata*)
+    vpiml_native_clock_destroy = C.vpiml_native_clock_destroy,
 }
 
 return vpiml

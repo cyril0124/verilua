@@ -1,0 +1,199 @@
+# NativeClock
+
+`NativeClock` 是 Verilua 中用于高性能时钟驱动的工具类。它完全在 Rust 原生代码中实现时钟信号的切换，避免了每次时钟边沿都需要返回 Lua 的开销，从而显著提高了纯时钟驱动场景的性能。
+
+## 工作原理
+
+传统的 Lua 时钟驱动方式需要：
+1. Lua 设置时钟值
+2. 等待仿真时间推进
+3. 返回 Lua 更新时钟值
+4. 重复以上过程
+
+`NativeClock` 则使用 VPI 的 `cbAfterDelay` 回调机制在 native 层完成时钟切换，无需每次都返回 Lua，大幅减少了上下文切换开销。
+
+## 创建 NativeClock
+
+### 语法
+
+```lua
+local NativeClock = require "verilua.utils.NativeClock"
+local clk = NativeClock(chdl)
+```
+
+### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| `chdl` | `CallableHDL` | 时钟信号的 CallableHDL 句柄，通过 `dut.clock:chdl()` 获取 |
+
+### 示例
+
+```lua
+local dut = verilua.dut
+local NativeClock = require "verilua.utils.NativeClock"
+
+-- 从 CallableHDL 创建
+local clk = NativeClock(dut.clock:chdl())
+```
+
+## 启动时钟
+
+### `start(period, unit, opts)`
+
+启动时钟，以指定周期和时间单位运行。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| `period` | `number` | 时钟周期 |
+| `unit` | `string` | 时间单位：`"step"`, `"fs"`, `"ps"`, `"ns"`, `"us"`, `"ms"`, `"s"` |
+| `opts` | `table` (可选) | 配置选项 |
+
+#### 配置选项 (opts)
+
+| 选项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `high` | `number` | `period / 2` | 高电平持续时间（与 `period` 使用相同单位） |
+| `start_high` | `boolean` | `true` | 是否从高电平开始 |
+
+#### 示例
+
+```lua
+-- 10ns 周期，50% 占空比，从高电平开始
+clk:start(10, "ns")
+
+-- 10ns 周期，30% 占空比，从低电平开始
+clk:start(10, "ns", { high = 3, start_high = false })
+
+-- 使用仿真步数
+clk:start(100, "step", { high = 40 })
+```
+
+## 停止时钟
+
+### `stop()`
+
+停止时钟。时钟信号将保持最后的值。
+
+```lua
+clk:stop()
+```
+
+## 检查时钟状态
+
+### `is_running()`
+
+返回时钟是否正在运行。
+
+```lua
+if clk:is_running() then
+    print("Clock is running")
+end
+```
+
+## 重启时钟
+
+### `restart(period, unit, opts)`
+
+便捷方法，先停止时钟再以新参数重新启动。参数与 `start()` 相同。
+
+```lua
+-- 将时钟周期从 10ns 改为 20ns
+clk:restart(20, "ns")
+```
+
+## 销毁实例
+
+### `destroy()`
+
+销毁 `NativeClock` 实例并释放资源。调用后实例不可再使用。
+
+```lua
+clk:destroy()
+```
+
+:::note
+当 `NativeClock` 实例被垃圾回收时，`destroy()` 会自动调用。但建议在不需要时显式调用 `destroy()` 以尽早释放资源。
+:::
+
+## 完整示例
+
+```lua
+local dut = verilua.dut
+local NativeClock = require "verilua.utils.NativeClock"
+
+fork {
+    function()
+        -- 创建时钟驱动器
+        local clk = NativeClock(dut.clock:chdl())
+        
+        -- 启动 10ns 周期时钟
+        clk:start(10, "ns")
+        
+        -- 等待若干时钟周期
+        for i = 1, 100 do
+            dut.clock:posedge()
+        end
+        
+        -- 重启为 20ns 周期
+        clk:restart(20, "ns", { high = 5 })
+        
+        for i = 1, 50 do
+            dut.clock:posedge()
+        end
+        
+        -- 清理
+        clk:stop()
+        clk:destroy()
+        
+        sim.finish()
+    end
+}
+```
+
+## 错误处理
+
+`NativeClock` 会在以下情况抛出错误：
+
+| 错误情况 | 错误信息 |
+| --- | --- |
+| 在已销毁的实例上调用 `start()` | `"NativeClock:start() called on destroyed instance"` |
+| 在已运行的时钟上调用 `start()` | `"NativeClock:start() called on already running clock. Call stop() first."` |
+| 另一个 `NativeClock` 已在驱动同一信号 | `"Another NativeClock is already driving this signal..."` |
+| 参数无效（周期太小等） | 相应的参数验证错误 |
+
+### 示例
+
+```lua
+-- 检测错误的双重启动
+local ok, err = pcall(function()
+    clk:start(10, "ns")
+    clk:start(20, "ns")  -- 错误：时钟已在运行
+end)
+if not ok then
+    print("Error:", err)
+end
+
+-- 正确的方式：先停止再启动
+clk:stop()
+clk:start(20, "ns")
+```
+
+## 使用限制
+
+1. **单一驱动**: 同一信号在同一时间只能被一个 `NativeClock` 驱动。
+2. **Verilator TIMING_MODE**: 使用 Verilator 时需要启用 TIMING_MODE（`--timing` 编译选项）。
+3. **仅限 HVL 模式**: `NativeClock` 不支持 HSE 和 WAL 模式。
+
+## 性能说明
+
+与 Lua 协程时钟驱动相比，`NativeClock` 可以获得显著的性能提升。这主要是因为 `NativeClock` 避免了每个时钟周期的 Lua-VPI 上下文切换开销。
+
+性能排序：**Internal Clock** > **NativeClock** > **Lua Clock**
+
+## 相关模块
+
+- [CallableHDL](./data_structure.mdx#callablehdl) - 提供 `chdl()` 方法获取时钟句柄
+- [多任务](./multi_task.mdx) - 使用 `fork` 创建并行任务

@@ -287,6 +287,7 @@ end
 ---@field get_mode fun(): integer
 ---@field print_hierarchy fun(max_level?: integer)
 ---@field iterate_vpi_type fun(module_name: string, type: integer)
+---@field get_sim_time fun(unit?: "fs"|"ps"|"ns"|"us"|"ms"|"s"): integer
 local LuaSimulator = {
     set_dpi_scope     = set_dpi_scope,
     initialize_trace  = initialize_trace,

@@ -1050,6 +1050,7 @@ ${reset}]])
                 { path.join(prj_dir, "tests", "test_bitvec_signal"),     "test_bitvec_signal" },
                 { path.join(prj_dir, "tests", "test_no_internal_clock"), "test_no_internal_clock" },
                 { path.join(prj_dir, "tests", "test_handles"),           "test_handles" },
+                { path.join(prj_dir, "tests", "test_native_clock"),      "test_native_clock" },
                 { path.join(prj_dir, "tests", "test_queue_waitable"),    "test_queue_waitable" },
                 { path.join(prj_dir, "tests", "test_dpic"),              "test_dpic" },
                 { path.join(prj_dir, "examples", "guided_tour"),         "guided_tour" },

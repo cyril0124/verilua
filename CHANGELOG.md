@@ -20,6 +20,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Queue**/**StaticQueue**: Add `push_waitable()`, `pop_waitable()` and `wait_not_empty()` methods for blocking queue operations
 - **BitVec**: Add `to_hex_str_1()` method for full 32-bit aligned hex output (faster path without bit_width trimming)
 - **scheduler**: Add `get_curr_task_id()` and `get_curr_task_name()` APIs for querying current task execution context
+- **NativeClock**: Add high-performance native clock driver for HVL mode
+    - Drives clock signals entirely in Rust native code using VPI `cbAfterDelay` callbacks
+    - Avoids Lua context switching overhead for each clock edge
+    - Supports configurable period, duty cycle, and start phase
+    - Supports time units: `step`, `fs`, `ps`, `ns`, `us`, `ms`, `s`
+    - Only available in HVL mode (not supported in HSE/WAL modes)
 
 ### 🐛 Fixed
 

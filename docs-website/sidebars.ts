@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'how-to-guides/simple_ut_env',
         'how-to-guides/write_reusable_component',
+        'how-to-guides/clock_driving',
       ],
     },
     {
@@ -39,6 +40,7 @@ const sidebars: SidebarsConfig = {
         'reference/slcp',
         'reference/simulator_control',
         'reference/testbench_generate',
+        'reference/native_clock',
         'reference/xmake_params',
         'reference/global_configuration',
         'reference/special_env_variables',
