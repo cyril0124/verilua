@@ -7,6 +7,15 @@ local logger = Logger.new("WaveVpiCtrl")
 
 local f = string.format
 
+local UNIT_TO_EXPONENT = {
+    fs = -15,
+    ps = -12,
+    ns = -9,
+    us = -6,
+    ms = -3,
+    s = 0,
+}
+
 assert(cfg.simulator == "wave_vpi", "WaveVpiCtrl.lua can only be used with the wave_vpi simulator")
 
 ---@alias verilua.utils.WaveVpiJitOptionNames
@@ -28,12 +37,12 @@ assert(cfg.simulator == "wave_vpi", "WaveVpiCtrl.lua can only be used with the w
 ---
 ---@field get_cursor_index fun(self: verilua.utils.WaveVpiCtrl): integer
 ---@field get_max_cursor_index fun(self: verilua.utils.WaveVpiCtrl): integer
----@field get_max_cursor_time fun(self: verilua.utils.WaveVpiCtrl): integer Get the maximum time in the waveform file (in femtoseconds)
+---@field get_max_cursor_time fun(self: verilua.utils.WaveVpiCtrl, unit?: "fs"|"ps"|"ns"|"us"|"ms"|"s"|"step"): number Get the maximum time in the waveform file, optionally converted to the specified unit
 ---@field set_cursor_index fun(self: verilua.utils.WaveVpiCtrl, index: integer, flush_scheduler: boolean?)
 ---@field jit_options verilua.utils.WaveVpiJitOptions
 ---@field to_end fun(self: verilua.utils.WaveVpiCtrl, flush_scheduler: boolean?) Move the cursor to the end of the waveform file .
 ---@field to_percent fun(self: verilua.utils.WaveVpiCtrl, percent: number, flush_scheduler: boolean?) Move the cursor to the specified percent of the waveform file .
----@field set_cursor_time fun(self: verilua.utils.WaveVpiCtrl, time: integer, flush_scheduler: boolean?) Move the cursor to the specified time (in femtoseconds)
+---@field set_cursor_time fun(self: verilua.utils.WaveVpiCtrl, time: number, unit?: "fs"|"ps"|"ns"|"us"|"ms"|"s"|"step", flush_scheduler: boolean?) Move the cursor to the specified time, optionally with a unit
 ---@field protected get_max_cursor_index_cfunc fun(): integer
 ---@field protected get_max_cursor_time_cfunc fun(): integer
 ---@field protected set_cursor_index_cfunc fun(index: integer)
@@ -121,7 +130,7 @@ function WaveVpiCtrl:get_max_cursor_index()
     return self.get_max_cursor_index_cfunc()
 end
 
-function WaveVpiCtrl:get_max_cursor_time()
+function WaveVpiCtrl:get_max_cursor_time(unit)
     if not self.get_max_cursor_time_cfunc then
         self.get_max_cursor_time_cfunc = SymbolHelper.try_ffi_cast(
             "uint64_t (*)()",
@@ -130,7 +139,20 @@ function WaveVpiCtrl:get_max_cursor_time()
         ) --[[@as fun(): integer]]
     end
 
-    return self.get_max_cursor_time_cfunc()
+    local raw_time = self.get_max_cursor_time_cfunc()
+
+    if unit == nil or unit == "step" then
+        return raw_time
+    end
+
+    local target_exp = UNIT_TO_EXPONENT[unit]
+    if target_exp == nil then
+        assert(false, "Unknown time unit: " .. tostring(unit))
+    end
+
+    local precision = cfg.time_precision
+    local scale = 10 ^ (precision - target_exp)
+    return tonumber(raw_time) --[[@as number]] * scale
 end
 
 local function do_flush_scheduler()
@@ -150,6 +172,15 @@ function WaveVpiCtrl:set_cursor_index(index, flush_scheduler)
             "void wave_vpi_ctrl_set_cursor_index(uint64_t index);",
             "wave_vpi_ctrl_set_cursor_index"
         ) --[[@as fun(index: integer)]]
+    end
+
+    local max_index = self:get_max_cursor_index()
+    if index < 0 or index >= max_index then
+        assert(false, f(
+            "[WaveVpiCtrl::set_cursor_index] index out of range: %d (valid: 0 ~ %d)",
+            index,
+            max_index - 1
+        ))
     end
 
     local curr_index = self:get_cursor_index()
@@ -190,7 +221,7 @@ function WaveVpiCtrl:to_percent(percent, flush_scheduler)
         ) --[[@as fun(percent: number)]]
     end
 
-    assert(percent <= 100)
+    assert(percent >= 0 and percent <= 100)
 
     if flush_scheduler then
         logger:warning(f(
@@ -209,7 +240,7 @@ function WaveVpiCtrl:to_percent(percent, flush_scheduler)
     self.set_cursor_index_percent_cfunc(percent)
 end
 
-function WaveVpiCtrl:set_cursor_time(time, flush_scheduler)
+function WaveVpiCtrl:set_cursor_time(time, unit, flush_scheduler)
     if not self.set_cursor_time_cfunc then
         self.set_cursor_time_cfunc = SymbolHelper.try_ffi_cast(
             "void (*)(uint64_t)",
@@ -218,18 +249,35 @@ function WaveVpiCtrl:set_cursor_time(time, flush_scheduler)
         ) --[[@as fun(time: integer)]]
     end
 
-    if time < 0 then
+    -- Convert time to simulation steps if unit is specified
+    ---@type integer
+    local step_time
+    if unit ~= nil and unit ~= "step" then
+        local target_exp = UNIT_TO_EXPONENT[unit]
+        if target_exp == nil then
+            assert(false, "Unknown time unit: " .. tostring(unit))
+        end
+
+        local precision = cfg.time_precision
+        -- Convert from target unit to simulation steps: time_in_steps = time * 10^(target_exp - precision)
+        local scale = 10 ^ (target_exp - precision)
+        step_time = math.floor(tonumber(time) --[[@as number]] * scale)
+    else
+        step_time = math.floor(tonumber(time) --[[@as number]])
+    end
+
+    if step_time < 0 then
         assert(false, f(
             "[WaveVpiCtrl::set_cursor_time] time must be >= 0, got: %d",
-            time
+            step_time
         ))
     end
 
     local max_time = self:get_max_cursor_time()
-    if time > max_time then
+    if step_time > max_time then
         assert(false, f(
             "[WaveVpiCtrl::set_cursor_time] time exceeds maximum waveform time: %d > %d",
-            time,
+            step_time,
             max_time
         ))
     end
@@ -246,15 +294,15 @@ function WaveVpiCtrl:set_cursor_time(time, flush_scheduler)
         logger:warning(f(
             [[::set_cursor_time
     `flush_scheduler` is `true`, all tasks except the current task will be removed!
-    The cursor is set to time %d fs.
+    The cursor is set to time %d (steps).
     This may cause unexpected behavior.
 ]],
-            time
+            step_time
         ))
         do_flush_scheduler()
     end
 
-    self.set_cursor_time_cfunc(time)
+    self.set_cursor_time_cfunc(step_time)
 end
 
 return WaveVpiCtrl

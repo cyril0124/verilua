@@ -137,13 +137,89 @@ elseif tc_name == "set_cursor_time" then
             assert(max_time > 0, "max_time should be positive")
 
             local half_time = math.floor(max_time / 2)
-            wctrl:set_cursor_time(half_time, false)
+            wctrl:set_cursor_time(half_time, nil, false)
 
             local half_cycles = wtype == "fsdb" and 56 or 57
             dut.cycles:expect(half_cycles)
 
-            wctrl:set_cursor_time(max_time, true)
+            wctrl:set_cursor_time(max_time, nil, true)
             dut.cycles:expect(final_cycles)
+
+            tc_finish()
+        end
+    }
+elseif tc_name == "get_max_cursor_time_unit" then
+    fork {
+        function()
+            local function approx_eq(a, b, msg)
+                local eps = 1e-9
+                local diff = math.abs(a - b)
+                local scale = math.max(math.abs(a), math.abs(b), 1)
+                assert(diff / scale < eps, msg .. string.format(" (got %g vs %g)", a, b))
+            end
+
+            -- Raw step value
+            local max_time_step = tonumber(wctrl:get_max_cursor_time()) --[[@as number]]
+            assert(max_time_step > 0, "max_time should be positive")
+
+            -- Default (nil) should equal step
+            local max_time_default = tonumber(wctrl:get_max_cursor_time(nil)) --[[@as number]]
+            assert(max_time_step == max_time_default, "nil unit should return same as no argument")
+
+            -- "step" should equal raw
+            local max_time_step_explicit = tonumber(wctrl:get_max_cursor_time("step")) --[[@as number]]
+            assert(max_time_step == max_time_step_explicit, '"step" unit should return same as raw')
+
+            -- Different units should all be positive
+            local max_time_ns = tonumber(wctrl:get_max_cursor_time("ns")) --[[@as number]]
+            local max_time_ps = tonumber(wctrl:get_max_cursor_time("ps")) --[[@as number]]
+            local max_time_fs = tonumber(wctrl:get_max_cursor_time("fs")) --[[@as number]]
+            local max_time_us = tonumber(wctrl:get_max_cursor_time("us")) --[[@as number]]
+            assert(max_time_ns > 0, "max_time_ns should be positive")
+            assert(max_time_ps > 0, "max_time_ps should be positive")
+            assert(max_time_fs > 0, "max_time_fs should be positive")
+            assert(max_time_us > 0, "max_time_us should be positive")
+
+            -- Verify unit conversion relationships: larger unit => smaller numeric value
+            assert(max_time_fs > max_time_ps, "fs value should be > ps value")
+            assert(max_time_ps > max_time_ns, "ps value should be > ns value")
+            assert(max_time_ns > max_time_us, "ns value should be > us value")
+
+            -- Verify conversion ratio consistency (use approx_eq for floating point)
+            approx_eq(max_time_fs, max_time_ps * 1000, "fs should be 1000x ps")
+            approx_eq(max_time_ps, max_time_ns * 1000, "ps should be 1000x ns")
+            approx_eq(max_time_ns, max_time_us * 1000, "ns should be 1000x us")
+
+            tc_finish()
+        end
+    }
+elseif tc_name == "set_cursor_time_unit" then
+    fork {
+        function()
+            -- Get max time in different units
+            local max_time_step = tonumber(wctrl:get_max_cursor_time()) --[[@as number]]
+            local max_time_ps = tonumber(wctrl:get_max_cursor_time("ps")) --[[@as number]]
+            assert(max_time_step > 0, "max_time should be positive")
+            assert(max_time_ps > 0, "max_time_ps should be positive")
+
+            -- set_cursor_time with ps unit should work the same as raw steps
+            local half_time_ps = math.floor(max_time_ps / 2)
+            wctrl:set_cursor_time(half_time_ps, "ps", false)
+
+            local half_cycles = wtype == "fsdb" and 56 or 57
+            dut.cycles:expect(half_cycles)
+
+            -- set_cursor_time with raw steps (no unit) should still work
+            wctrl:set_cursor_time(max_time_step, nil, true)
+            dut.cycles:expect(final_cycles)
+
+            -- set_cursor_time with "step" unit should be same as no unit
+            wctrl:to_percent(0, true)
+            dut.cycles:expect(0)
+
+            local half_time_step = math.floor(max_time_step / 2)
+            wctrl:set_cursor_time(half_time_step, "step", false)
+            dut.cycles:expect(half_cycles)
 
             tc_finish()
         end

@@ -26,6 +26,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
     - Supports configurable period, duty cycle, and start phase
     - Supports time units: `step`, `fs`, `ps`, `ns`, `us`, `ms`, `s`
     - Only available in HVL mode (not supported in HSE/WAL modes)
+- **WaveVpiCtrl**: Add optional `unit` parameter to `get_max_cursor_time()` and `set_cursor_time()` for automatic time unit conversion
+    - Supported units: `"fs"`, `"ps"`, `"ns"`, `"us"`, `"ms"`, `"s"`, `"step"`
+    - Reuses the same `UNIT_TO_EXPONENT` pattern as `sim.get_sim_time(unit)`
+    - `set_cursor_time` parameter order changed to `(time, unit?, flush_scheduler?)`
 
 ### 🐛 Fixed
 
@@ -37,7 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Clears stale `user_removal_tasks_set` flags in `append_task()` and `try_wakeup_task()` to prevent task reuse issues
   - Prioritizes user_removal checks in `wakeup_task()` to handle removal-before-wakeup scenarios correctly
 - **BitVec**: Fixed `to_hex_str()` to respect `bit_width` and mask unused high bits, ensuring bit-precise output for non-32-bit-aligned widths (e.g., 28-bit, 30-bit, 31-bit)
-
+- **WaveVpiCtrl**: Fix LuaJIT FFI `uint64_t` cdata arithmetic truncation when multiplying with fractional scale factors (e.g., converting ps to ns). Now uses `tonumber()` to convert cdata to Lua number before scaling
+- **WaveVpiCtrl**: Add missing boundary checks — `to_percent` now validates `percent >= 0`, `set_cursor_index` now validates `index < maxIndex`
 
 ---
 

@@ -78,7 +78,9 @@ target("run_test", function()
             "to_end",
             "to_end_1",
             "to_end_2",
-            "set_cursor_time"
+            "set_cursor_time",
+            "get_max_cursor_time_unit",
+            "set_cursor_time_unit"
         }
 
         local wtypes = {
