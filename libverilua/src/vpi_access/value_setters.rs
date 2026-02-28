@@ -402,6 +402,7 @@ macro_rules! impl_gen_set_force_value_multi_beat {
     ($action:ident, $count:literal, $flag:ident, $($i:literal),*) => {
         paste::paste! {
             impl VeriluaEnv {
+                #[allow(clippy::too_many_arguments)]
                 pub fn [<vpiml_ $action _value_multi_beat_ $count>](&mut self, complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
                     if $flag == vpiForceFlag && cfg!(feature = "verilator") {
                         panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
@@ -441,7 +442,7 @@ macro_rules! impl_gen_set_force_value_multi_beat {
                         }
                     }
                 }
-
+                #[allow(clippy::too_many_arguments)]
                 pub fn [<vpiml_ $action _imm_value_multi_beat_ $count>](&mut self, complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
                     if $flag == vpiForceFlag && cfg!(feature = "verilator") {
                         panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
@@ -620,18 +621,16 @@ impl VeriluaEnv {
                     vpiInertialDelay as _,
                 )
             };
-        } else {
-            if complex_handle.try_put_value(self, &vpiReleaseFlag, &(v.format as u32)) {
-                complex_handle.put_value_integer = unsafe { v.value.integer } as _;
-                for i in 0..complex_handle.beat_num {
-                    complex_handle.put_value_vectors[i].aval =
-                        unsafe { v.value.vector.add(i as _).read().aval } as _;
-                    complex_handle.put_value_vectors[i].bval =
-                        unsafe { v.value.vector.add(i as _).read().bval } as _;
-                }
-
-                self.do_push_hdl_put_value(complex_handle_raw);
+        } else if complex_handle.try_put_value(self, &vpiReleaseFlag, &(v.format as u32)) {
+            complex_handle.put_value_integer = unsafe { v.value.integer } as _;
+            for i in 0..complex_handle.beat_num {
+                complex_handle.put_value_vectors[i].aval =
+                    unsafe { v.value.vector.add(i as _).read().aval } as _;
+                complex_handle.put_value_vectors[i].bval =
+                    unsafe { v.value.vector.add(i as _).read().bval } as _;
             }
+
+            self.do_push_hdl_put_value(complex_handle_raw);
         }
     }
 

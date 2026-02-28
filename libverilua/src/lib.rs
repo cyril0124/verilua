@@ -58,7 +58,7 @@ pub type TaskID = u32;
 pub type EdgeCallbackID = u32;
 
 // Use mimalloc as global allocator for better performance (except in DPI mode)
-#[cfg(all(not(feature = "dpi")))]
+#[cfg(not(feature = "dpi"))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

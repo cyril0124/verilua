@@ -278,7 +278,7 @@ impl Drop for NativeClock {
 /// This function is called by the simulator at the scheduled time to toggle
 /// the clock and schedule the next toggle.
 unsafe extern "C" fn native_clock_toggle_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
-    let clock = &mut *((*cb_data).user_data as *mut NativeClock);
+    let clock = unsafe { &mut *((*cb_data).user_data as *mut NativeClock) };
 
     // Mark that we're inside the callback (prevents premature destruction)
     clock.in_callback = true;
@@ -295,7 +295,7 @@ unsafe extern "C" fn native_clock_toggle_callback(cb_data: *mut t_cb_data) -> PL
     // If destroy was requested while we were in the callback, do it now
     if clock.destroy_pending {
         // Drop the clock by reconstructing the Box
-        let _ = Box::from_raw(clock as *mut NativeClock);
+        let _ = unsafe { Box::from_raw(clock as *mut NativeClock) };
     }
 
     0

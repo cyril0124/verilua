@@ -439,7 +439,7 @@ pub extern "C" fn iorun(cmd: *const c_char) -> *const c_char {
     };
 
     let output = if cfg!(target_os = "windows") {
-        Command::new("cmd").args(&["/C", cmd_str]).output()
+        Command::new("cmd").args(["/C", cmd_str]).output()
     } else {
         Command::new("sh").arg("-c").arg(cmd_str).output()
     };

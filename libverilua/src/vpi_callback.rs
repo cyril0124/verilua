@@ -307,7 +307,7 @@ unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_rd_synch_callback(task_id: TaskID) {
-    let user_data = Box::into_raw(Box::new(NormalCbData { task_id: task_id }));
+    let user_data = Box::into_raw(Box::new(NormalCbData { task_id }));
 
     let mut cb_data = s_cb_data {
         reason: cbReadOnlySynch as _,
@@ -350,7 +350,7 @@ unsafe extern "C" fn rd_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_rw_synch_callback(task_id: TaskID) {
-    let user_data = Box::into_raw(Box::new(NormalCbData { task_id: task_id }));
+    let user_data = Box::into_raw(Box::new(NormalCbData { task_id }));
 
     let mut cb_data = s_cb_data {
         reason: cbReadWriteSynch as _,
@@ -393,7 +393,7 @@ unsafe extern "C" fn rw_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_next_sim_time_callback(task_id: TaskID) {
-    let user_data = Box::into_raw(Box::new(NormalCbData { task_id: task_id }));
+    let user_data = Box::into_raw(Box::new(NormalCbData { task_id }));
 
     let mut t = t_vpi_time {
         type_: vpiSimTime as _,
@@ -437,7 +437,6 @@ unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT3
     0
 }
 
-#[inline(always)]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn libverilua_register_rw_synch_cb() {
     // `ReadWriteSynch` callback is used to settle value changes(e.g. put value or force value) in Verilua
@@ -591,7 +590,11 @@ pub unsafe extern "C" fn libverilua_next_sim_time_cb(cb_data: *mut t_cb_data) ->
                     )
                 };
 
-                if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
+                if env
+                    .edge_cb_hdl_map
+                    .insert(edge_cb_id, cb_hdl as _)
+                    .is_some()
+                {
                     // TODO: Check ?
                     // panic!("duplicate edge callback id => {}", edge_cb_id);
                 };
@@ -863,7 +866,7 @@ macro_rules! gen_vpiml_register_edge_callback {
                             &edge_cb_id
                         ) };
 
-                        if let Some(_) = env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _) {
+                        if env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _).is_some() {
                             // TODO: Check ?
                             // panic!("duplicate edge callback id => {}", edge_cb_id);
                         };

@@ -70,13 +70,18 @@ use mlua::prelude::*;
 use std::cell::UnsafeCell;
 use std::ffi::{CStr, CString};
 use std::fmt::{self, Debug};
-use std::time::{Duration, Instant};
+use std::time::Instant;
+#[allow(unused_imports)]
+use std::time::Duration;
 
+#[allow(unused_imports)]
+use crate::EdgeCallbackID;
+#[allow(unused_imports)]
+use crate::TaskID;
 use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
 use crate::vpi_access;
 use crate::vpi_callback::{self, CallbackInfo};
 use crate::vpi_user::*;
-use crate::{EdgeCallbackID, TaskID};
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Singleton Management
@@ -245,11 +250,15 @@ impl VeriluaEnv {
         log_feature!("merge_cb");
         log_feature!("chunk_task");
 
-        if cfg!(feature = "verilator_inner_step_callback") {
-            assert!(
-                cfg!(feature = "verilator"),
-                "`feature = \"verilator_inner_step_callback\"` requires `feature = \"verilator\"`"
-            );
+        #[cfg(feature = "verilator_inner_step_callback")]
+        {
+            #[allow(clippy::assertions_on_constants)]
+            {
+                assert!(
+                    cfg!(feature = "verilator"),
+                    "`feature = \"verilator_inner_step_callback\"` requires `feature = \"verilator\"`"
+                );
+            }
         }
 
         if self.initialized {
@@ -584,7 +593,7 @@ macro_rules! gen_verilua_step {
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
 
-            if let Err(e) = env.$field.as_ref().unwrap_unchecked().call::<()>(()) {
+            if let Err(e) = unsafe { env.$field.as_ref().unwrap_unchecked() }.call::<()>(()) {
                 panic!("Error calling {}: {}", stringify!($field), e);
             };
 
@@ -620,7 +629,7 @@ macro_rules! gen_verilua_step_safe {
             #[cfg(feature = "acc_time")]
             let s = Instant::now();
 
-            if let Err(e) = env.$field.as_ref().unwrap_unchecked().call::<()>(()) {
+            if let Err(e) = unsafe { env.$field.as_ref().unwrap_unchecked() }.call::<()>(()) {
                 HAS_ERROR.with(|has_error| unsafe { *has_error.get() = true; });
                 println!(concat!("[", stringify!($name), "] Error calling ", stringify!($field), ": {}"), e);
             };

@@ -196,6 +196,8 @@ fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
     match_vec.into_iter().take(n).map(|(_, s)| s).collect()
 }
 
+/// # Safety
+/// `filename` must be a valid, non-null, null-terminated C string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     let c_str = unsafe {
@@ -380,6 +382,8 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     log::info!("[wave_vpi::wellen_initialize] init finish...");
 }
 
+/// # Safety
+/// Must be called after `wellen_initialize` and only once.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_finalize() {
     log::info!("[wave_vpi::wellen_finalize] ... ");
@@ -426,6 +430,8 @@ pub unsafe extern "C" fn wellen_finalize() {
     }
 }
 
+/// # Safety
+/// `name` must be a valid, non-null, null-terminated C string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut c_void {
     let name = unsafe {
@@ -480,7 +486,7 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
 
         let var = &hierarchy[*var_ref];
         let ids = [var.signal_ref(); 1];
-        let loaded = get_wave_source().load_signals(&ids, &hierarchy, LOAD_OPTS.multi_thread);
+        let loaded = get_wave_source().load_signals(&ids, hierarchy, LOAD_OPTS.multi_thread);
         let (loaded_id, loaded_signal) = loaded.into_iter().next().unwrap();
         assert_eq!(loaded_id, ids[0], "Failed to load signal, name: {}", name);
 
@@ -517,7 +523,7 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
 #[inline]
 fn bytes_to_u32s_be(bytes: &[u8]) -> Vec<u32> {
     let len = bytes.len();
-    let capacity = (len + 3) / 4;
+    let capacity = len.div_ceil(4);
     let mut u32s = Vec::with_capacity(capacity);
 
     // Handle padding for non-aligned bytes
@@ -560,6 +566,8 @@ fn find_nearest_time_index(time_table: &[u64], time: u64) -> usize {
     }
 }
 
+/// # Safety
+/// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_idx: u64) -> u32 {
     let handle = unsafe { *{ handle as *mut vpiHandle } };
@@ -589,6 +597,8 @@ pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_id
     }
 }
 
+/// # Safety
+/// `handle` must be a valid pointer. `value_p` must point to a valid `t_vpi_value`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
     handle: *mut c_void,
@@ -616,11 +626,11 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                 match v_format as u32 {
                     vpiVectorVal => {
                         let mut vecvals = Vec::new();
-                        for i in 0..words.len() {
+                        for word in &words {
                             vecvals.insert(
                                 0,
                                 t_vpi_vecval {
-                                    aval: words[i] as i32,
+                                    aval: *word as i32,
                                     bval: 0,
                                 },
                             );
@@ -644,7 +654,7 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
 
                         let len = signal_bit_string.len();
                         let padding = (4 - (len % 4)) % 4;
-                        let hex_len = (len + padding + 3) / 4;
+                        let hex_len = (len + padding).div_ceil(4);
 
                         let mut hex_chars = Vec::with_capacity(hex_len);
                         let bytes = signal_bit_string.as_bytes();
@@ -653,8 +663,8 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                         let mut idx = 0;
                         if padding > 0 {
                             let mut nibble = 0u8;
-                            for i in 0..(4 - padding) {
-                                nibble = (nibble << 1) | (bytes[i] - b'0');
+                            for byte in bytes.iter().take(4 - padding) {
+                                nibble = (nibble << 1) | (byte - b'0');
                             }
                             hex_chars.push(if nibble < 10 {
                                 b'0' + nibble
@@ -783,6 +793,8 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
     // println!("[wellen_vpi_get_value] handle is {:?} format is {:?} value is {:?} signal_v is {:?}", handle, v_format, signal_bit_string, signal_v);
 }
 
+/// # Safety
+/// `handle` must be a valid pointer. `value_p` must point to a valid `t_vpi_value`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_get_value(
     handle: *mut c_void,
@@ -795,6 +807,8 @@ pub unsafe extern "C" fn wellen_vpi_get_value(
     }
 }
 
+/// # Safety
+/// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_get_value_str(
     handle: *mut c_void,
@@ -821,6 +835,8 @@ pub unsafe extern "C" fn wellen_get_value_str(
     }
 }
 
+/// # Safety
+/// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_get(property: PLI_INT32, handle: *mut c_void) -> PLI_INT32 {
     let handle = unsafe { *{ handle as *mut vpiHandle } };
@@ -843,6 +859,8 @@ pub unsafe extern "C" fn wellen_vpi_get(property: PLI_INT32, handle: *mut c_void
     }
 }
 
+/// # Safety
+/// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_get_str(
     property: PLI_INT32,
@@ -860,6 +878,7 @@ pub unsafe extern "C" fn wellen_vpi_get_str(
             match var_type {
                 VarType::Reg => CString::new("vpiReg").unwrap(),
                 VarType::Wire => CString::new("vpiNet").unwrap(),
+                VarType::Logic => CString::new("vpiReg").unwrap(), // Logic is treated as vpiReg
                 _ => {
                     todo!("{:#?}", var_type)
                 } // TODO: vpiRegArray vpiNetArray vpiMemory
@@ -873,6 +892,8 @@ pub unsafe extern "C" fn wellen_vpi_get_str(
     c_string.into_raw() as *mut c_void
 }
 
+/// # Safety
+/// `refHandle` must be a valid pointer or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_iterate(
     _type: PLI_INT32,
@@ -930,6 +951,8 @@ pub extern "C" fn wellen_get_index_from_time(time: u64) -> u64 {
     find_nearest_time_index(time_table, time) as u64
 }
 
+/// # Safety
+/// Must be called after `wellen_initialize`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_get_max_index() -> u64 {
     let time_table = get_time_table();
