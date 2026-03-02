@@ -216,8 +216,7 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::vector<
         auto absPath            = std::filesystem::absolute(metaInfoFilePath);
         metaInfoFilePathForCode = std::filesystem::relative(absPath, cwd).string();
     } else {
-        // Use just the filename (default behavior for compatibility)
-        metaInfoFilePathForCode = std::filesystem::path(metaInfoFilePath).filename().string();
+        metaInfoFilePathForCode = metaInfoFilePath;
     }
 
     bool hasSensitiveSignals = false;
