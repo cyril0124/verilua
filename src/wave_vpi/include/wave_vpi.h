@@ -10,6 +10,7 @@
 #include <queue>
 #include <string>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 #ifndef FALSE

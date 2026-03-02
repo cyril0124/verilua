@@ -19,7 +19,7 @@ int main(int argc, const char *argv[]) {
 #ifdef USE_CPPTRACE
         cpptrace::generate_trace().print(std::cerr, true);
 #endif
-        exit(1);
+        _exit(1);
     });
 
     signal(SIGSEGV, [](int sig) {
@@ -27,7 +27,7 @@ int main(int argc, const char *argv[]) {
 #ifdef USE_CPPTRACE
         cpptrace::generate_trace().print(std::cerr, true);
 #endif
-        exit(1);
+        _exit(1);
     });
 
 #ifdef USE_FSDB

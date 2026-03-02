@@ -20,7 +20,7 @@ void sigint_handler(int unused) {
 
     vpi_compat::endOfSimulation();
 
-    exit(0);
+    _exit(0);
 }
 
 void sigabrt_handler(int unused) {
