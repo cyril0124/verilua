@@ -86,11 +86,11 @@ jobs:
           nix profile install nixpkgs#cmake --accept-flake-config
           nix profile install nixpkgs#xmake --accept-flake-config
           nix profile install nixpkgs#git --accept-flake-config
-          nix profile install nixpkgs#conan --accept-flake-config
           nix profile install nixpkgs#gperf --accept-flake-config
           nix profile install nixpkgs#pixi --accept-flake-config
           nix profile install nixpkgs#patchelf --accept-flake-config
           nix profile install nixpkgs#python3 --accept-flake-config
+          pip install conan
 
       - name: Cache Icarus Verilog installation
         id: cache-iverilog
@@ -206,7 +206,7 @@ jobs:
           fi
           echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
 
-          xmake run clean_all        
+          xmake run clean_all
           bash ./ci/package.sh ./artifact/${PACKAGE_NAME}.zip
           unzip ./artifact/${PACKAGE_NAME}.zip -d ./artifact/${PACKAGE_NAME}_unzipped
 

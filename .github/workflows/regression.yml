@@ -122,11 +122,11 @@ jobs:
           nix profile install nixpkgs#cmake --accept-flake-config
           nix profile install nixpkgs#xmake --accept-flake-config
           nix profile install nixpkgs#git --accept-flake-config
-          nix profile install nixpkgs#conan --accept-flake-config
           nix profile install nixpkgs#gperf --accept-flake-config
           nix profile install nixpkgs#pixi --accept-flake-config
           nix profile install nixpkgs#patchelf --accept-flake-config
           nix profile install nixpkgs#python3 --accept-flake-config
+          pip install conan
 
       - name: Cache Icarus Verilog installation
         id: cache-iverilog
