@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
     - Supported units: `"fs"`, `"ps"`, `"ns"`, `"us"`, `"ms"`, `"s"`, `"step"`
     - Reuses the same `UNIT_TO_EXPONENT` pattern as `sim.get_sim_time(unit)`
     - `set_cursor_time` parameter order changed to `(time, unit?, flush_scheduler?)`
+- **wave_vpi**: Support X/Z state preservation in `get_hex_str()` and `get_bin_str()` for both Wellen and FSDB backends. Previously X/Z values were silently converted to `0`; now correctly output `'x'`/`'z'` characters in string representations
+- **wave_vpi**: Add JIT limitation documentation — JIT optimization uses 2-state(`uint32_t`) storage, which cannot represent X/Z. Disable JIT via `WAVE_VPI_ENABLE_JIT=0` or `WaveVpiCtrl.jit_options:set("enableJIT", false)` when X/Z information is needed
 
 ### 🐛 Fixed
 

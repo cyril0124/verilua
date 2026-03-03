@@ -2,6 +2,12 @@
 #include "wave_vpi.h"
 
 namespace jit_options {
+// NOTE: JIT optimization pre-computes signal values into `optValueVec` (uint32_t),
+// which is a 2-state representation and CANNOT represent X/Z states.
+// If X/Z state information is required (e.g., via get_hex_str/get_bin_str),
+// JIT must be disabled. This can be done by:
+//   1. Setting the environment variable: WAVE_VPI_ENABLE_JIT=0
+//   2. Using WaveVpiCtrl.jit_options:set("enableJIT", false) at runtime
 bool enableJIT                     = true;
 bool verboseJIT                    = false;
 std::atomic<uint32_t> optThreadCnt = 0;

@@ -1,0 +1,140 @@
+$date
+	Tue Mar  3 01:22:35 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module tb_top $end
+$var wire 16 ! data_wide [15:0] $end
+$var wire 8 " data_b [7:0] $end
+$var wire 8 # data_a [7:0] $end
+$var reg 1 $ clock $end
+$var reg 64 % cycles [63:0] $end
+$var reg 1 & reset $end
+$var reg 1 ' simulation_disableTrace $end
+$var reg 1 ( simulation_disableTrace_latch $end
+$var reg 1 ) simulation_enableTrace $end
+$var reg 1 * simulation_enableTrace_latch $end
+$var reg 1 + simulation_initializeTrace $end
+$var reg 1 , simulation_initializeTrace_latch $end
+$scope module u_Design $end
+$var wire 1 $ clock $end
+$var wire 1 & reset $end
+$var wire 8 - data_b [7:0] $end
+$var reg 8 . data_a [7:0] $end
+$var reg 4 / data_b_hi [3:0] $end
+$var reg 4 0 data_b_lo [3:0] $end
+$var reg 16 1 data_wide [15:0] $end
+$var reg 1 2 uninit_flag $end
+$upscope $end
+$scope module u_others $end
+$var wire 1 $ clock $end
+$var wire 1 & reset $end
+$upscope $end
+$scope begin $unm_blk_12 $end
+$var integer 32 3 file [31:0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+$end
+#10000
+$dumpvars
+b10000000000000000000000000000011 3
+x2
+b1101111010101101 1
+bx 0
+b1010 /
+b10101011 .
+b1010xxxx -
+1,
+1+
+1*
+1)
+0(
+0'
+1&
+b1 %
+1$
+b10101011 #
+b1010xxxx "
+b1101111010101101 !
+$end
+#20000
+0$
+#30000
+b10 %
+1$
+#40000
+0$
+#50000
+b11 %
+1$
+#60000
+0$
+#70000
+0&
+b100 %
+1$
+#80000
+0$
+#90000
+b11111111 "
+b11111111 -
+b10101100 #
+b10101100 .
+b1111 0
+b1111 /
+b1101111010101110 !
+b1101111010101110 1
+b101 %
+1$
+#100000
+0$
+#110000
+b110 %
+b1101111010101111 !
+b1101111010101111 1
+b10101101 #
+b10101101 .
+1$
+#120000
+0$
+#130000
+b10101110 #
+b10101110 .
+b1101111010110000 !
+b1101111010110000 1
+b111 %
+1$
+#140000
+0$
+#150000
+b1000 %
+b1101111010110001 !
+b1101111010110001 1
+b10101111 #
+b10101111 .
+1$
+#160000
+0$
+#170000
+b10110000 #
+b10110000 .
+b1101111010110010 !
+b1101111010110010 1
+b1001 %
+1$
+#180000
+0$
+#190000
+b1010 %
+b1101111010110011 !
+b1101111010110011 1
+b10110001 #
+b10110001 .
+1$

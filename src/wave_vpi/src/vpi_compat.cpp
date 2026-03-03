@@ -740,6 +740,9 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
         jit_options::statistic.readFromOpt++;
 #endif
 
+        // JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
+        // X/Z states are NOT preserved here. To get X/Z information, disable JIT
+        // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
         switch (value_p->format) {
         case vpiIntVal: {
             value_p->value.integer = fsdbSigHdl->optValueVec[cursor.index];
@@ -926,6 +929,8 @@ ReadFromFSDB:
             int bufferIdx = 0;
             int tmpVal    = 0;
             int tmpIdx    = 0;
+            bool hasX     = false;
+            bool hasZ     = false;
             int chunkSize = 0;
             if ((bitSize % 4) == 0) {
                 chunkSize = bitSize / 4;
@@ -941,24 +946,34 @@ ReadFromFSDB:
                     tmpVal += 1 << tmpIdx;
                     break;
                 case FSDB_BT_VCD_X:
-                    // treat `X` as `0`
+                    hasX = true;
                     break;
                 case FSDB_BT_VCD_Z:
-                    // treat `Z` as `0`
+                    hasZ = true;
                     break;
                 default:
                     VL_FATAL(false, "unknown verilog bit type found. i: {}", i);
                 }
                 tmpIdx++;
                 if (tmpIdx == 4) {
-                    buffer[chunkSize - 1 - bufferIdx] = hexLookUpTable[tmpVal];
-                    tmpVal                            = 0;
-                    tmpIdx                            = 0;
+                    if (hasX)
+                        buffer[chunkSize - 1 - bufferIdx] = 'x';
+                    else if (hasZ)
+                        buffer[chunkSize - 1 - bufferIdx] = 'z';
+                    else
+                        buffer[chunkSize - 1 - bufferIdx] = hexLookUpTable[tmpVal];
+                    tmpVal = tmpIdx = 0;
+                    hasX = hasZ = false;
                     bufferIdx++;
                 }
             }
             if (tmpIdx != 0) {
-                buffer[chunkSize - 1 - bufferIdx] = hexLookUpTable[tmpVal];
+                if (hasX)
+                    buffer[chunkSize - 1 - bufferIdx] = 'x';
+                else if (hasZ)
+                    buffer[chunkSize - 1 - bufferIdx] = 'z';
+                else
+                    buffer[chunkSize - 1 - bufferIdx] = hexLookUpTable[tmpVal];
                 bufferIdx++;
             }
             buffer[bufferIdx] = '\0';
@@ -989,12 +1004,10 @@ ReadFromFSDB:
                     buffer[i] = '1';
                     break;
                 case FSDB_BT_VCD_X:
-                    // treat `X` as `0`
-                    buffer[i] = '0';
+                    buffer[i] = 'x';
                     break;
                 case FSDB_BT_VCD_Z:
-                    // treat `Z` as `0`
-                    buffer[i] = '0';
+                    buffer[i] = 'z';
                     break;
                 default:
                     VL_FATAL(false, "unknown verilog bit type found.");
@@ -1051,6 +1064,9 @@ ReadFromFSDB:
         jit_options::statistic.readFromOpt++;
 #endif
 
+        // JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
+        // X/Z states are NOT preserved here. To get X/Z information, disable JIT
+        // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
         switch (value_p->format) {
         case vpiIntVal: {
             value_p->value.integer = _sigHdl->optValueVec[cursor.index];

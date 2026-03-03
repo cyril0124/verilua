@@ -556,6 +556,40 @@ pub const fn cover_with_32(size: usize) -> usize {
     size.div_ceil(32)
 }
 
+/// Convert a bit string (may contain 'x'/'z') to a hex string.
+/// If any bit in a 4-bit nibble is 'x', the nibble becomes 'x'.
+/// If any bit is 'z' (and none is 'x'), the nibble becomes 'z'.
+fn bit_string_to_hex_with_xz(bit_str: &str) -> String {
+    let len = bit_str.len();
+    if len == 0 {
+        return String::from("0");
+    }
+    let padding = (4 - (len % 4)) % 4;
+    let padded: String = "0".repeat(padding) + bit_str;
+    let mut hex = String::with_capacity(padded.len() / 4);
+
+    for chunk in padded.as_bytes().chunks(4) {
+        let has_x = chunk.contains(&b'x');
+        let has_z = chunk.contains(&b'z');
+        if has_x {
+            hex.push('x');
+        } else if has_z {
+            hex.push('z');
+        } else {
+            let mut nibble = 0u8;
+            for &b in chunk {
+                nibble = (nibble << 1) | (b - b'0');
+            }
+            hex.push(if nibble < 10 {
+                (b'0' + nibble) as char
+            } else {
+                (b'a' + nibble - 10) as char
+            });
+        }
+    }
+    hex
+}
+
 #[inline]
 fn find_nearest_time_index(time_table: &[u64], time: u64) -> usize {
     match time_table.binary_search(&time) {
@@ -731,6 +765,16 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                     vpiIntVal => unsafe {
                         (*value_p).value.integer = 0;
                     },
+                    vpiHexStrVal => {
+                        let signal_bit_string =
+                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                        let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
+                        let c_string = CString::new(hex_string).expect("CString::new failed");
+                        let c_str_ptr = c_string.into_raw();
+                        unsafe {
+                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                        }
+                    }
                     vpiBinStrVal => {
                         let signal_bit_string =
                             loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
