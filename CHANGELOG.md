@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **wave_vpi**: Fix SIGSEGV race condition on process exit by using `_exit(0)` instead of `exit(0)` to skip C++ static destructors that conflict with background threads
+
 ## v3.1.0 - 2026-03-03
 
 ### ✨ Added

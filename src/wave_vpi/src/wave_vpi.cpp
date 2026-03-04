@@ -180,5 +180,5 @@ void wave_vpi_loop() {
     }
 
     vpi_compat::endOfSimulation();
-    exit(0);
+    _exit(0);
 }
