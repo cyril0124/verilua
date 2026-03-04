@@ -22,6 +22,14 @@ fork {
             string.format("Expected X-state in data_b bin_str, got: %s", bin_b)
         )
 
+        -- get_dec_str should return "x" when X-state is present
+        local dec_b = data_b:get_dec_str()
+        print("[cycle 1] data_b dec_str: " .. dec_b)
+        assert(
+            dec_b == "x",
+            string.format("Expected 'x' for data_b dec_str with X-state, got: %s", dec_b)
+        )
+
         -- Advance past reset deassert (reset deasserts around cycle 4 in the gen wave)
         clock:posedge(5)
 
@@ -37,6 +45,14 @@ fork {
         assert(
             bin_b2 == "11111111",
             string.format("Expected data_b bin_str '11111111' after reset deassert, got: %s", bin_b2)
+        )
+
+        -- data_b = 0xFF = 255 in decimal
+        local dec_b2 = data_b:get_dec_str()
+        print("[after reset deassert] data_b dec_str: " .. dec_b2)
+        assert(
+            dec_b2 == "255",
+            string.format("Expected data_b dec_str '255' after reset deassert, got: %s", dec_b2)
         )
 
         -- data_wide should also be non-X after reset

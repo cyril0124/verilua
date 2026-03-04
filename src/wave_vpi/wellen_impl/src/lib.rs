@@ -742,6 +742,17 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
                     }
+                    vpiDecStrVal => {
+                        // Binary (2-state): no X/Z possible, convert integer to decimal
+                        let value = words[words.len() - 1] as u64;
+                        let dec_string = value.to_string();
+                        let c_string =
+                            CString::new(dec_string).expect("CString::new failed");
+                        let c_str_ptr = c_string.into_raw();
+                        unsafe {
+                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                        }
+                    }
                     _ => {
                         todo!("v_format => {}", v_format)
                     }
@@ -786,6 +797,26 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
                     }
+                    vpiDecStrVal => {
+                        // FourValue (4-state): check for X/Z in hex representation
+                        let signal_bit_string =
+                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                        let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
+                        let dec_string = if hex_string.contains('x') || hex_string.contains('z') {
+                            "x".to_string()
+                        } else {
+                            match u128::from_str_radix(&hex_string, 16) {
+                                Ok(value) => value.to_string(),
+                                Err(_) => "x".to_string(),
+                            }
+                        };
+                        let c_string =
+                            CString::new(dec_string).expect("CString::new failed");
+                        let c_str_ptr = c_string.into_raw();
+                        unsafe {
+                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                        }
+                    }
                     _ => {
                         todo!("v_format => {}", v_format)
                     }
@@ -823,6 +854,14 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
             vpiBinStrVal => {
                 let bin_string = String::from("0");
                 let c_string = CString::new(bin_string).expect("CString::new failed");
+                let c_str_ptr = c_string.into_raw();
+                unsafe {
+                    (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                }
+            }
+            vpiDecStrVal => {
+                let dec_string = String::from("0");
+                let c_string = CString::new(dec_string).expect("CString::new failed");
                 let c_str_ptr = c_string.into_raw();
                 unsafe {
                     (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;

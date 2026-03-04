@@ -770,6 +770,14 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
             value_p->value.str = (char *)buffer;
             break;
         }
+        case vpiDecStrVal: {
+            // JIT path: 2-state only, no X/Z possible
+            // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
+            // Update this if optValueVec type changes to a wider integer type.
+            snprintf(reinterpret_cast<char *>(buffer), 16, "%u", fsdbSigHdl->optValueVec[cursor.index]);
+            value_p->value.str = (char *)buffer;
+            break;
+        }
         default:
             VL_FATAL(false, "Unsupported format: {}", value_p->format);
         }
@@ -1028,6 +1036,48 @@ ReadFromFSDB:
         value_p->value.str = (char *)buffer;
         break;
     }
+    case vpiDecStrVal: {
+        // Get the value as integer first, then convert to decimal string.
+        // For X/Z values, iterate bits to check for X/Z presence.
+        switch (bpb) {
+        [[likely]] case FSDB_BYTES_PER_BIT_1B: {
+            uint64_t intVal = 0;
+            bool hasXZ      = false;
+            for (int i = 0; i < bitSize; i++) {
+                switch (retVC[i]) {
+                case FSDB_BT_VCD_0:
+                    break;
+                case FSDB_BT_VCD_1:
+                    intVal += static_cast<uint64_t>(1) << (bitSize - i - 1);
+                    break;
+                case FSDB_BT_VCD_X:
+                case FSDB_BT_VCD_Z:
+                    hasXZ = true;
+                    break;
+                default:
+                    VL_FATAL(false, "unknown verilog bit type found.");
+                }
+            }
+            if (hasXZ) {
+                buffer[0] = 'x';
+                buffer[1] = '\0';
+            } else {
+                snprintf(reinterpret_cast<char *>(buffer), sizeof(buffer), "%" PRIu64, intVal);
+            }
+            break;
+        }
+        case FSDB_BYTES_PER_BIT_4B:
+            VL_FATAL(false, "TODO: FSDB_BYTES_PER_BIT_4B");
+            break;
+        case FSDB_BYTES_PER_BIT_8B:
+            VL_FATAL(false, "TODO: FSDB_BYTES_PER_BIT_8B");
+            break;
+        default:
+            VL_FATAL(false, "Should not reach here!");
+        }
+        value_p->value.str = (char *)buffer;
+        break;
+    }
     default: {
         VL_FATAL(false, "Unknown value format: {}", value_p->format);
     }
@@ -1091,6 +1141,14 @@ ReadFromFSDB:
                 _buffer[bitSize - 1 - i] = (value & (1 << i)) ? '1' : '0';
             }
             _buffer[bitSize]   = '\0';
+            value_p->value.str = (char *)_buffer;
+            break;
+        }
+        case vpiDecStrVal: {
+            // JIT path: 2-state only, no X/Z possible
+            // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
+            // Update this if optValueVec type changes to a wider integer type.
+            snprintf(reinterpret_cast<char *>(_buffer), 16, "%u", _sigHdl->optValueVec[cursor.index]);
             value_p->value.str = (char *)_buffer;
             break;
         }

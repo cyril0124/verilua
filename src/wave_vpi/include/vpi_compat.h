@@ -2,6 +2,7 @@
 
 #include "boost_unordered.hpp"
 #include "jit_options.h"
+#include <cinttypes>
 #include <wave_vpi.h>
 
 namespace vpi_compat {
