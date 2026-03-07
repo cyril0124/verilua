@@ -1,7 +1,6 @@
 fn main() {
     if std::env::var("CARGO_FEATURE_IVERILOG_VPI_MOD").is_ok() {
         println!("cargo:rustc-link-lib=static=vpi");
-        println!("cargo:rustc-link-lib=static=veriuser");
 
         println!("cargo:rustc-link-search=native=/usr/local/lib");
         if let Ok(iverilog_home) = std::env::var("IVERILOG_HOME") {
