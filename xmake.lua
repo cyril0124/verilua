@@ -23,6 +23,7 @@ end
 
 target("update_submodules", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         os.exec("git submodule update --init --recursive")
     end)
@@ -30,6 +31,7 @@ end)
 
 target("install_luarocks", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luarocks_version = "3.12.2"
@@ -61,6 +63,7 @@ end)
 
 target("install_luajit", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
@@ -89,6 +92,7 @@ end)
 
 target("reinstall_luajit", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
@@ -111,6 +115,7 @@ end)
 
 target("install_libgmp", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         if os.getenv("CI_USE_CONAN_CACHE") and os.isfile(libs_dir, "lib", "libgmp.so") then
             print("[xmake.lua] [install_libgmp] Using cached libgmp...")
@@ -145,6 +150,7 @@ end)
 
 target("install_other_libs", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
         if os.getenv("CI_USE_CONAN_CACHE") then
@@ -196,6 +202,7 @@ end)
 
 target("install_lua_modules", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
@@ -230,6 +237,7 @@ end)
 
 target("install_tinycc", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         os.cd(path.join(prj_dir, "extern", "luajit_tcc"))
         os.exec("make init")
@@ -240,6 +248,7 @@ end)
 
 target("build_all_tools", function()
     set_kind("phony")
+    set_default(false)
     on_run(function()
         local tools_target = {
             "testbench_gen",
@@ -265,20 +274,32 @@ target("lsp-check-lua", function()
     set_default(false)
     on_run(function()
         import("lib.detect.find_file")
-        if not find_file("emmylua_check", { "$(env PATH)" }) then
+        local lua_checker = "emmylua_check"
+        if not find_file(lua_checker, { "$(env PATH)" }) then
             raise("emmylua_check tool is not found! Please install it via `cargo install emmylua_check`")
         end
 
         local emmyrc = path.join(prj_dir, ".emmyrc-lsp-check.json")
         local F = os.getenv("F") -- F is the filename to check
         if F then
+            local is_absolute_f = path.is_absolute(F)
+            local has_slash = F:find("/") ~= nil
+
             local src_lua_dir = path.join(prj_dir, "src", "lua")
             local src_gen_dir = path.join(prj_dir, "src", "gen")
             local tests_lua_dir = path.join(prj_dir, "tests")
+            local search_dirs = { path.join(src_lua_dir, "**"), src_gen_dir, tests_lua_dir }
 
-            local file = find_file(F, { path.join(src_lua_dir, "**"), src_gen_dir, tests_lua_dir })
-            assert(file ~= nil, "file not found: " .. F)
-            assert(type(file) == "string", "multiple files found for: " .. F)
+            local file = nil
+            if is_absolute_f then
+                file = F
+            elseif has_slash then
+                file = path.absolute(F)
+            else
+                file = find_file(F, search_dirs)
+                assert(file ~= nil, "file not found: " .. F)
+                assert(type(file) == "string", "multiple files found for: " .. F)
+            end
             assert(os.isfile(file), "file not found: " .. file)
             print("[lsp-check-lua] Checking file: " .. file)
 
@@ -292,20 +313,23 @@ target("lsp-check-lua", function()
             os.cp(path.join(src_gen_dir, "*.lua"), tmp_lib_dir)
             os.cp(path.join(tests_lua_dir, "*.lua"), tmp_lib_dir)
 
-            local _file = find_file(F, { path.join(tmp_lib_dir, "**"), tmp_lib_dir })
-            assert(_file ~= nil, "file not found in tmp_lib_dir: " .. F)
-            os.rm(_file)
+            local file_name = path.filename(file)
+            local _file = find_file(file_name, { path.join(tmp_lib_dir, "**"), tmp_lib_dir })
+            if _file then
+                assert(type(_file) == "string", "multiple files found in tmp_lib_dir: " .. file_name)
+                os.rm(_file)
+            end
 
             try {
                 function()
-                    os.exec("emmylua_check --config " .. emmyrc .. " " .. tmp_file_dir)
+                    os.exec(lua_checker .. " --config " .. emmyrc .. " " .. tmp_file_dir)
                 end
             }
 
             os.exec("rm -rf " .. tmp_file_dir)
             os.exec("rm -rf " .. tmp_lib_dir)
         else
-            os.exec("emmylua_check --config " .. emmyrc .. " " .. prj_dir)
+            os.exec(lua_checker .. " --config " .. emmyrc .. " " .. prj_dir)
         end
     end)
 end)
