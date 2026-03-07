@@ -387,6 +387,9 @@ local force_path_table = {}
 ---@type table<string, verilua.handles.ProxyTableHandle>
 local proxy_handle_cache = {}
 
+---@type table<string, verilua.handles.CallableHDL>
+local chdl_cache = {}
+
 ---@param path string
 ---@param use_prefix? boolean
 ---@return verilua.handles.ProxyTableHandle
@@ -788,18 +791,21 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        --
-        -- [Deprecated] please use <LuaDut>:set(...) or <LuaDut>:set_str(...)
-        --
+        -- Assign value to the signal, supports the same types as <chdl>.value = xxx
+        -- Supported types: number, string, table (BitVec, multi-beat), cdata (uint64_t, uint32_t[]), boolean
+        -- This syntax (`dut.xxx = v`) is convenience-oriented for quick/temporary access.
+        -- Prefer cached CallableHDL (`local sig = dut.xxx:chdl()`) in hot paths for better clarity/perf.
         __newindex = function(t, k, v)
             local fullpath = local_path .. '.' .. k
-            -- print('assign ' .. v .. ' to ' .. fullpath .. "  " .. local_path) -- debug info
-            vpiml.vpiml_set_imm_value(vpiml.vpiml_handle_by_name(fullpath), v)
+            local chdl = chdl_cache[fullpath]
+            if not chdl then
+                chdl = CallableHDL(fullpath, "")
+                chdl_cache[fullpath] = chdl
+            end
+            chdl.value = v
         end,
 
-        --
         -- [Deprecated] please use <LuaDut>:get(...) or <LuaDut>:get_str(...)
-        --
         __call = function(t, v)
             local data_type = v or "integer"
             if data_type == "integer" then

@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **wave_vpi**: Fix SIGSEGV race condition on process exit by using `_exit(0)` instead of `exit(0)` to skip C++ static destructors that conflict with background threads
 
+### 💥 Breaking Changes
+
+- **LuaDut**: `dut.signal = value` (`__newindex`) now delegates to `CallableHDL.value` instead of directly calling `vpiml_set_imm_value`. This changes from immediate-set (`set_imm`) to end-of-step-set (`set`) semantics, and adds support for `string`, `table` (BitVec, multi-beat), `cdata` (uint64_t, uint32_t[]), and `boolean` value types
+
 ## v3.1.0 - 2026-03-03
 
 ### ✨ Added
