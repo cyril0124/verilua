@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### 🐛 Fixed
 
 - **wave_vpi**: Fix SIGSEGV race condition on process exit by using `_exit(0)` instead of `exit(0)` to skip C++ static destructors that conflict with background threads
+- **wave_vpi**: Flush `stdout/stderr` before normal `_exit(0)` in `wave_vpi_loop()` to prevent losing buffered Lua output when running with pipes (e.g. `bash run.sh | tee t.log`)
 
 ### 💥 Breaking Changes
 

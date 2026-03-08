@@ -1,6 +1,7 @@
 #include "wave_vpi.h"
 #include "jit_options.h"
 #include "vpi_compat.h"
+#include <cstdio>
 
 #ifdef USE_FSDB
 #include "fsdb_wave_vpi.h"
@@ -180,5 +181,7 @@ void wave_vpi_loop() {
     }
 
     vpi_compat::endOfSimulation();
+    fflush(stdout);
+    fflush(stderr);
     _exit(0);
 }
