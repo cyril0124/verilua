@@ -70,9 +70,9 @@ use mlua::prelude::*;
 use std::cell::UnsafeCell;
 use std::ffi::{CStr, CString};
 use std::fmt::{self, Debug};
-use std::time::Instant;
 #[allow(unused_imports)]
 use std::time::Duration;
+use std::time::Instant;
 
 #[allow(unused_imports)]
 use crate::EdgeCallbackID;

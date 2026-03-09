@@ -4,12 +4,12 @@ local io = require "io"
 local os = require "os"
 local ffi = require "ffi"
 local path = require "pl.path"
-local utils = require "verilua.LuaUtils"
 local vpiml = require "verilua.vpiml.vpiml"
 local SymbolHelper = require "verilua.utils.SymbolHelper"
 
 local assert = assert
-local ffi_new = ffi.new
+local table_insert = table.insert
+local table_sort = table.sort
 
 local cfg = _G.cfg
 local simulator = cfg.simulator
@@ -60,6 +60,9 @@ ffi.cdef [[
     void c_simulator_control(long long cmd);
 
     void vpiml_iterate_vpi_type(const char *module_name, int type);
+    typedef void (*vpiml_hierarchy_cb_t)(const char *full_path, const char *name, int level);
+    void vpiml_collect_hierarchy(int max_level, vpiml_hierarchy_cb_t cb);
+    int wildmatch(const char *pattern, const char *str);
 ]]
 
 local default_wave_name = "test"
@@ -186,22 +189,161 @@ local bypass_initial = function()
     await_nsim()
 end
 
----@type any
-local print_hierarchy_lib
-local print_hierarchy = function(max_level)
-    max_level = max_level or 0
+---@class verilua.PrintHierarchyOptions
+---@field max_level? integer Maximum traversal depth. `0` means no limit.
+---@field wildcard? string Wildcard pattern matched against full hierarchy path (e.g. `top.path.*.to.some`).
 
-    if not print_hierarchy_lib then
-        local VERILUA_HOME = assert(os.getenv("VERILUA_HOME"), "[LuaSimulator] VERILUA_HOME is not set")
-        print_hierarchy_lib = (utils.read_file_str(VERILUA_HOME .. "/src/lua/verilua/tcc_snippet/print_hierarchy.c"))
-            :tcc_compile {
-                {
-                    sym = "print_hierarchy",
-                    ptr = "void (*)(unsigned int*, int)"
-                }
-            }
+---@class verilua.NormalizedHierarchyOptions
+---@field max_level integer
+---@field wildcard? string
+
+---@return "tree"|"compact"
+local function get_print_hierarchy_style()
+    local style = os.getenv("VERILUA_PRINT_HIER_STYLE")
+    if style == "compact" then
+        return "compact"
     end
-    print_hierarchy_lib.print_hierarchy(ffi_new("unsigned int*", nil), max_level)
+    return "tree"
+end
+
+---@param options? verilua.PrintHierarchyOptions
+---@return verilua.NormalizedHierarchyOptions
+local function normalize_hierarchy_options(options)
+    if options == nil then
+        options = {}
+    end
+    assert(type(options) == "table", "[print_hierarchy/get_hierarchy] options must be a table")
+
+    local max_level = 0
+    ---@type string?
+    local wildcard = nil
+
+    if options.max_level ~= nil then
+        assert(type(options.max_level) == "number", "[print_hierarchy/get_hierarchy] options.max_level must be number")
+        max_level = options.max_level
+    end
+    if options.wildcard ~= nil then
+        assert(type(options.wildcard) == "string", "[print_hierarchy/get_hierarchy] options.wildcard must be string")
+        wildcard = options.wildcard
+    end
+
+    assert(max_level >= 0, "[print_hierarchy/get_hierarchy] max_level must be >= 0")
+    assert(math.floor(max_level) == max_level, "[print_hierarchy/get_hierarchy] max_level must be an integer")
+
+    return {
+        max_level = max_level,
+        wildcard = wildcard,
+    }
+end
+
+---@param name string
+---@param level integer
+---@param style "tree"|"compact"
+---@return string
+local function render_hierarchy_line(name, level, style)
+    if style == "compact" then
+        local prefix = string.rep("  ", level)
+        return string.format("[L%d] %s%s", level, prefix, name)
+    end
+
+    if level == 0 then
+        return name
+    else
+        local prefix = string.rep("|   ", level - 1)
+        return prefix .. "|-- " .. name
+    end
+end
+
+---@param normalized_options verilua.NormalizedHierarchyOptions
+---@return table<integer, string>
+local function collect_hierarchy_paths(normalized_options)
+    ---@type table<integer, string>
+    local hierarchy_paths = {}
+    local seen_paths = {}
+    local callback = ffi.cast("vpiml_hierarchy_cb_t", function(full_path_c, _name_c, _level)
+        local full_path = ffi.string(full_path_c)
+        if normalized_options.wildcard ~= nil and ffi.C.wildmatch(normalized_options.wildcard, full_path) ~= 1 then
+            return
+        end
+
+        if seen_paths[full_path] then
+            return
+        end
+        seen_paths[full_path] = true
+        table_insert(hierarchy_paths, full_path)
+    end)
+    ffi.C.vpiml_collect_hierarchy(normalized_options.max_level, callback)
+    callback = nil
+
+    return hierarchy_paths
+end
+
+---@param full_path string
+---@return table<integer, string>
+local function get_hierarchy_path_segments(full_path)
+    local segments = {}
+    for seg in full_path:gmatch("[^%.]+") do
+        table_insert(segments, seg)
+    end
+    return segments
+end
+
+---@param all_paths table<integer, string>
+---@param wildcard string
+---@return table<integer, string>
+local function build_wildcard_tree_paths(all_paths, wildcard)
+    local visible_path_set = {}
+    for _, full_path in ipairs(all_paths) do
+        if ffi.C.wildmatch(wildcard, full_path) == 1 then
+            local prefix = ""
+            for _, seg in ipairs(get_hierarchy_path_segments(full_path)) do
+                prefix = (prefix == "") and seg or (prefix .. "." .. seg)
+                visible_path_set[prefix] = true
+            end
+        end
+    end
+
+    local visible_paths = {}
+    for full_path, _ in pairs(visible_path_set) do
+        table_insert(visible_paths, full_path)
+    end
+    table_sort(visible_paths)
+    return visible_paths
+end
+
+---@param options? verilua.PrintHierarchyOptions
+--- Returns hierarchy full paths, e.g. `tb_top.u_top.u_mid`.
+---@return table<integer, string>
+local get_hierarchy = function(options)
+    local normalized_options = normalize_hierarchy_options(options)
+    return collect_hierarchy_paths(normalized_options)
+end
+
+---@param options? verilua.PrintHierarchyOptions
+local print_hierarchy = function(options)
+    local normalized_options = normalize_hierarchy_options(options)
+    local style = get_print_hierarchy_style()
+    if normalized_options.wildcard then
+        print(string.format("[print_hierarchy] max_level=%d style=%s wildcard=%s", normalized_options.max_level, style, normalized_options.wildcard))
+    else
+        print(string.format("[print_hierarchy] max_level=%d style=%s", normalized_options.max_level, style))
+    end
+
+    local hierarchy_paths = get_hierarchy(options)
+    if normalized_options.wildcard ~= nil and style == "tree" then
+        local all_paths = collect_hierarchy_paths {
+            max_level = normalized_options.max_level,
+            wildcard = nil,
+        }
+        hierarchy_paths = build_wildcard_tree_paths(all_paths, normalized_options.wildcard)
+    end
+
+    for _, full_path in ipairs(hierarchy_paths) do
+        local _, level = full_path:gsub("%.", "")
+        local name = full_path:match("([^%.]+)$") or full_path
+        print(render_hierarchy_line(name, level, style))
+    end
+    print("")
 end
 
 local iterate_vpi_type = function(module_name, type)
@@ -259,18 +401,35 @@ if is_hse or is_wal then
         assert(false, "[dump_wave] not supported for HSE/WAL scenario")
     end
 
-    print_hierarchy = function()
-        assert(false, "[print_hierarchy] not supported for HSE/WAL scenario")
-    end
-
     iterate_vpi_type = function()
         assert(false, "[iterate_vpi_type] not supported for HSE/WAL scenario")
     end
 end
 
 if is_hse then
+    print_hierarchy = function()
+        assert(false, "[print_hierarchy] not supported for HSE scenario (dummy_vpi does not implement vpi_iterate/vpi_scan)")
+    end
+
+    get_hierarchy = function()
+        assert(false, "[get_hierarchy] not supported for HSE scenario (dummy_vpi does not implement vpi_iterate/vpi_scan)")
+        return {}
+    end
+
     get_sim_time = function()
         assert(false, "[get_sim_time] not supported for HSE scenario")
+        return 0
+    end
+end
+
+if is_wal and not is_wave_vpi then
+    print_hierarchy = function()
+        assert(false, "[print_hierarchy] not supported for WAL(non-wave_vpi) scenario (dummy_vpi may not implement vpi_iterate/vpi_scan)")
+    end
+
+    get_hierarchy = function()
+        assert(false, "[get_hierarchy] not supported for WAL(non-wave_vpi) scenario (dummy_vpi may not implement vpi_iterate/vpi_scan)")
+        return {}
     end
 end
 
@@ -285,7 +444,8 @@ end
 ---@field finish fun()
 ---@field bypass_initial fun()
 ---@field get_mode fun(): integer
----@field print_hierarchy fun(max_level?: integer)
+---@field print_hierarchy fun(options?: verilua.PrintHierarchyOptions)
+---@field get_hierarchy fun(options?: verilua.PrintHierarchyOptions): table<integer, string>
 ---@field iterate_vpi_type fun(module_name: string, type: integer)
 ---@field get_sim_time fun(unit?: "fs"|"ps"|"ns"|"us"|"ms"|"s"): integer
 local LuaSimulator = {
@@ -299,6 +459,7 @@ local LuaSimulator = {
     finish            = finish,
     bypass_initial    = bypass_initial,
     print_hierarchy   = print_hierarchy,
+    get_hierarchy     = get_hierarchy,
     iterate_vpi_type  = iterate_vpi_type,
     get_sim_time      = get_sim_time,
 }

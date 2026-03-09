@@ -83,6 +83,7 @@ void *wellen_vpi_handle_by_name(const char *name);
 PLI_INT32 wellen_vpi_get(PLI_INT32 property, void *handle);
 PLI_BYTE8 *wellen_vpi_get_str(PLI_INT32 property, void *object);
 void *wellen_vpi_iterate(PLI_INT32 type, void *refHandle);
+void *wellen_vpi_scan(void *iterator);
 }
 
 using CursorTime_t = uint64_t;

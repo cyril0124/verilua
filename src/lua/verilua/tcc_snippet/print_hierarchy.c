@@ -1,48 +1,48 @@
-#include <string.h>
-#include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <vpi_user.h>
 
+typedef void (*hierarchy_item_cb_t)(const char *full_path, const char *name, int level);
 
-void do_print_hierarchy(vpiHandle module, int level, int max_level) {
-    vpiHandle iter, child_module;
+static void collect_hierarchy_recursive(
+    vpiHandle module,
+    const char *parent_path,
+    int level,
+    int max_level,
+    hierarchy_item_cb_t cb
+) {
+    if (max_level != 0 && level > max_level) {
+        return;
+    }
 
-    char prefix[256] = {0};
-    for (int i = 0; i < level; i++)
-        strcat(prefix, "\t┃");
-
-    if(level != 0)
-        strcat(prefix, "➔ ");
-
-    iter = vpi_iterate(vpiModule, module);
+    vpiHandle iter = vpi_iterate(vpiModule, module);
     if (iter == NULL) {
-        return;  
+        return;
     }
 
+    vpiHandle child_module;
     while ((child_module = vpi_scan(iter)) != NULL) {
-        if(level <= max_level || max_level == 0)
-            printf("%s [%d] %s\n", prefix, level, vpi_get_str(vpiName, child_module));
-        do_print_hierarchy(child_module, level + 1, max_level);
+        const char *name = vpi_get_str(vpiName, child_module);
+        if (name == NULL) {
+            continue;
+        }
+
+        char full_path[4096];
+        if (parent_path != NULL && parent_path[0] != '\0') {
+            snprintf(full_path, sizeof(full_path), "%s.%s", parent_path, name);
+        } else {
+            snprintf(full_path, sizeof(full_path), "%s", name);
+        }
+
+        cb(full_path, name, level);
+        collect_hierarchy_recursive(child_module, full_path, level + 1, max_level, cb);
     }
 }
 
-// typedef unsigned int    PLI_UINT32;
-// typedef PLI_UINT32 *vpiHandle;
-void print_hierarchy(vpiHandle ref, int max_level) {
-    char str[256] = {0};
-
-    if (ref != NULL) {
-        vpiHandle hdl = vpi_iterate(vpiModule, ref);
-        assert(hdl != NULL);
-        
-        sprintf(str, "▂▂▂▂▂ print module hierarchy ref: %s max_level: %d ▂▂▂▂▂\n", vpi_get_str(vpiName, hdl), max_level);
-        printf("%s", str);
-    } else {
-        sprintf(str, "▂▂▂▂▂ print module hierarchy max_level: %d ▂▂▂▂▂\n", max_level);
-        printf("%s",str);
+void collect_hierarchy(vpiHandle ref, int max_level, void *cb_raw) {
+    if (cb_raw == NULL) {
+        return;
     }
-    do_print_hierarchy(ref, 0, max_level);
-
-    printf("\n");
+    hierarchy_item_cb_t cb = (hierarchy_item_cb_t)cb_raw;
+    collect_hierarchy_recursive(ref, "", 0, max_level, cb);
 }
-

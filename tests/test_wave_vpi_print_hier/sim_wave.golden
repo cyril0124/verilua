@@ -1,0 +1,83 @@
+[gen_wave]
+[print_hierarchy] max_level=3 style=tree
+tb_top
+|-- clock
+|-- cycles
+|-- cycles_o
+|-- reset
+|-- u_others
+|   |-- clock
+|   |-- reset
+|-- u_top
+|   |-- clock
+|   |-- data
+|   |-- reset
+|   |-- u_mid
+|   |   |-- clock
+|   |   |-- data
+|   |   |-- reset
+|   |   |-- u_leaf
+
+[golden_gen_get_hierarchy_u_mid_count] 1
+[golden_gen_get_hierarchy_u_mid] tb_top.u_top.u_mid
+[golden_gen_get_hierarchy_clock_count] 5
+[golden_gen_get_hierarchy_clock] tb_top.clock
+[golden_gen_get_hierarchy_clock] tb_top.u_others.clock
+[golden_gen_get_hierarchy_clock] tb_top.u_top.clock
+[golden_gen_get_hierarchy_clock] tb_top.u_top.u_mid.clock
+[golden_gen_get_hierarchy_clock] tb_top.u_top.u_mid.u_leaf.clock
+
+[sim_wave]
+[print_hierarchy] max_level=3 style=tree
+tb_top
+|-- clock
+|-- reset
+|-- cycles_o
+|-- cycles
+|-- u_others
+|   |-- clock
+|   |-- reset
+|-- u_top
+|   |-- clock
+|   |-- reset
+|   |-- data
+|   |-- u_mid
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- data
+|   |   |-- u_leaf
+
+[print_hierarchy] max_level=1 style=tree
+tb_top
+|-- clock
+|-- reset
+|-- cycles_o
+|-- cycles
+|-- u_others
+|-- u_top
+
+[print_hierarchy] max_level=3 style=tree wildcard=*u_mid
+tb_top
+|-- u_top
+|   |-- u_mid
+
+[golden_get_hierarchy_u_mid_count] 1
+[golden_get_hierarchy_u_mid] tb_top.u_top.u_mid
+[golden_get_hierarchy_clock_count] 5
+[golden_get_hierarchy_clock] tb_top.clock
+[golden_get_hierarchy_clock] tb_top.u_others.clock
+[golden_get_hierarchy_clock] tb_top.u_top.clock
+[golden_get_hierarchy_clock] tb_top.u_top.u_mid.clock
+[golden_get_hierarchy_clock] tb_top.u_top.u_mid.u_leaf.clock
+[print_hierarchy] max_level=4 style=tree wildcard=*clock
+tb_top
+|-- clock
+|-- u_others
+|   |-- clock
+|-- u_top
+|   |-- clock
+|   |-- u_mid
+|   |   |-- clock
+|   |   |-- u_leaf
+|   |   |   |-- clock
+

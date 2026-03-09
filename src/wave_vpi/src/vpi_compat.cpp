@@ -1,6 +1,8 @@
 #include "vpi_compat.h"
 #include "jit_options.h"
 #include "wave_vpi.h"
+#include <unordered_map>
+#include <unordered_set>
 
 #ifdef USE_FSDB
 #include "fsdb_wave_vpi.h"
@@ -13,6 +15,8 @@
 //      OK => vpi_get_value(handle, &v);
 //      OK => vpi_get_str(vpiType, actual_handle);
 //      OK => vpi_get(vpiSize, actual_handle);
+//      OK => vpi_iterate(vpiModule, ...)
+//      OK => vpi_scan(iterator)
 //      OK => vpi_handle_by_name(name)
 //      OK => vpi_release_handle()
 //      OK => vpi_free_object()
@@ -24,8 +28,6 @@
 //      vpi_remove_cb()            OK
 //
 // TODO:
-//      vpi_iterate
-//      vpi_scan
 //      vpi_handle_by_index
 
 extern WaveCursor cursor;
@@ -51,6 +53,229 @@ std::vector<vpiHandleRaw> willRemoveValueCb;
 
 // The vpiHandleAllocator is a counter that counts the number of vpiHandles allocated which make it easy to provide unique vpiHandle values.
 vpiHandleRaw vpiHandleAllcator = 0;
+
+// Handle sets used as a lightweight RTTI layer for opaque `vpiHandle`.
+// This prevents us from decoding a module/iterator handle as a signal handle.
+std::unordered_set<void *> signalHandleSet;
+std::unordered_set<void *> moduleHandleSet;
+std::unordered_set<void *> iteratorHandleSet;
+std::unordered_map<void *, PLI_INT32> iteratorTypeMap;
+
+struct ModuleHandle_t {
+#ifdef USE_FSDB
+    int32_t fsdbNodeIdx;
+#else
+    void *wellenModuleHandle;
+#endif
+};
+using ModuleHandle    = ModuleHandle_t;
+using ModuleHandlePtr = ModuleHandle_t *;
+
+#ifdef USE_FSDB
+enum class IteratorItemType {
+    Module,
+    Signal,
+};
+
+struct FsdbSignalEntry {
+    std::string name;
+    fsdbVarIdcode varIdCode;
+};
+
+struct IteratorHandle_t {
+    IteratorItemType itemType = IteratorItemType::Module;
+    std::vector<int32_t> moduleNodeIdxVec;
+    std::vector<FsdbSignalEntry> signalEntryVec;
+    size_t index = 0;
+};
+using IteratorHandle    = IteratorHandle_t;
+using IteratorHandlePtr = IteratorHandle_t *;
+
+struct FsdbModuleNode {
+    std::string name;
+    int32_t parent = -1;
+    std::vector<int32_t> children;
+    std::vector<FsdbSignalEntry> signals;
+};
+
+std::vector<FsdbModuleNode> fsdbModuleTree;
+bool fsdbModuleTreeBuilt = false;
+
+struct FsdbModuleTreeContext {
+    std::vector<int32_t> scopeStack;
+};
+
+static std::string normalizeFsdbSignalName(std::string_view rawName) {
+    std::string normalized(rawName);
+    std::size_t start = 0;
+    while ((start = normalized.find('[', start)) != std::string::npos) {
+        auto end = normalized.find(']', start);
+        if (end == std::string::npos) {
+            break;
+        }
+        normalized.erase(start, end - start + 1);
+    }
+    return normalized;
+}
+
+static bool isIgnoredFsdbModuleName(std::string_view name) {
+    // FSDB may expose internal/generated scopes that are not user-facing RTL modules.
+    // We skip those pseudo scopes but keep traversing their children.
+    if (!name.empty() && name.front() == '$') {
+        return true;
+    }
+    if (name.size() >= 4 && name.substr(name.size() - 4) == "_pkg") {
+        return true;
+    }
+    if (name.find("unnamed$$_") != std::string_view::npos) {
+        return true;
+    }
+    return false;
+}
+
+static void collectVisibleFsdbModuleNodeIdxVec(int32_t nodeIdx, std::vector<int32_t> &outputNodeIdxVec) {
+    if (nodeIdx < 0 || nodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+        return;
+    }
+
+    const auto &node = fsdbModuleTree[nodeIdx];
+    if (isIgnoredFsdbModuleName(node.name)) {
+        // Flatten ignored wrappers to keep visible RTL hierarchy contiguous.
+        for (auto childNodeIdx : node.children) {
+            collectVisibleFsdbModuleNodeIdxVec(childNodeIdx, outputNodeIdxVec);
+        }
+    } else {
+        outputNodeIdxVec.emplace_back(nodeIdx);
+    }
+}
+
+static void collectFsdbSignalsFromIgnoredScopes(int32_t nodeIdx, std::vector<FsdbSignalEntry> &outputSignalVec) {
+    if (nodeIdx < 0 || nodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+        return;
+    }
+
+    const auto &node = fsdbModuleTree[nodeIdx];
+    if (!isIgnoredFsdbModuleName(node.name)) {
+        return;
+    }
+
+    outputSignalVec.insert(outputSignalVec.end(), node.signals.begin(), node.signals.end());
+    for (auto childNodeIdx : node.children) {
+        collectFsdbSignalsFromIgnoredScopes(childNodeIdx, outputSignalVec);
+    }
+}
+
+static bool_T fsdbModuleTreeCb(fsdbTreeCBType cbType, void *cbClientData, void *cbData) {
+    auto *ctx = reinterpret_cast<FsdbModuleTreeContext *>(cbClientData);
+    switch (cbType) {
+    case FSDB_TREE_CBT_SCOPE: {
+        auto *scopeData = reinterpret_cast<fsdbTreeCBDataScope *>(cbData);
+        int32_t parent  = ctx->scopeStack.empty() ? -1 : ctx->scopeStack.back();
+        int32_t nodeIdx = static_cast<int32_t>(fsdbModuleTree.size());
+        fsdbModuleTree.emplace_back(FsdbModuleNode{
+            .name   = std::string(scopeData->name),
+            .parent = parent,
+        });
+        if (parent >= 0) {
+            fsdbModuleTree[parent].children.emplace_back(nodeIdx);
+        }
+        ctx->scopeStack.emplace_back(nodeIdx);
+        break;
+    }
+    case FSDB_TREE_CBT_VAR: {
+        if (!ctx->scopeStack.empty()) {
+            auto *varData      = reinterpret_cast<fsdbTreeCBDataVar *>(cbData);
+            auto parentNodeIdx = ctx->scopeStack.back();
+            auto signalName    = normalizeFsdbSignalName(varData->name);
+            if (!signalName.empty()) {
+                fsdbModuleTree[parentNodeIdx].signals.emplace_back(FsdbSignalEntry{
+                    .name      = std::move(signalName),
+                    .varIdCode = varData->u.idcode,
+                });
+            }
+        }
+        break;
+    }
+    case FSDB_TREE_CBT_UPSCOPE:
+        if (!ctx->scopeStack.empty()) {
+            ctx->scopeStack.pop_back();
+        }
+        break;
+    default:
+        break;
+    }
+    return TRUE;
+}
+
+static void ensureFsdbModuleTreeBuilt() {
+    if (fsdbModuleTreeBuilt) {
+        return;
+    }
+
+    fsdbModuleTree.clear();
+    FsdbModuleTreeContext ctx;
+    fsdb_wave_vpi::fsdbWaveVpi->fsdbObj->ffrReadScopeVarTree2(fsdbModuleTreeCb, reinterpret_cast<void *>(&ctx));
+    fsdbModuleTreeBuilt = true;
+}
+
+static std::vector<int32_t> getFsdbTopModuleNodeIdxVec() {
+    ensureFsdbModuleTreeBuilt();
+    std::vector<int32_t> topModuleNodeIdxVec;
+    for (int32_t i = 0; i < static_cast<int32_t>(fsdbModuleTree.size()); i++) {
+        if (fsdbModuleTree[i].parent == -1) {
+            collectVisibleFsdbModuleNodeIdxVec(i, topModuleNodeIdxVec);
+        }
+    }
+
+    if (topModuleNodeIdxVec.empty()) {
+        for (int32_t i = 0; i < static_cast<int32_t>(fsdbModuleTree.size()); i++) {
+            if (fsdbModuleTree[i].parent == -1) {
+                topModuleNodeIdxVec.emplace_back(i);
+            }
+        }
+    }
+
+    return topModuleNodeIdxVec;
+}
+
+static std::vector<int32_t> getFsdbVisibleChildModuleNodeIdxVec(int32_t parentNodeIdx) {
+    ensureFsdbModuleTreeBuilt();
+    std::vector<int32_t> childModuleNodeIdxVec;
+    if (parentNodeIdx < 0 || parentNodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+        return childModuleNodeIdxVec;
+    }
+
+    for (auto childNodeIdx : fsdbModuleTree[parentNodeIdx].children) {
+        collectVisibleFsdbModuleNodeIdxVec(childNodeIdx, childModuleNodeIdxVec);
+    }
+
+    return childModuleNodeIdxVec;
+}
+
+static std::vector<FsdbSignalEntry> getFsdbVisibleSignalEntryVec(int32_t parentNodeIdx) {
+    ensureFsdbModuleTreeBuilt();
+    std::vector<FsdbSignalEntry> signalEntryVec;
+    if (parentNodeIdx < 0 || parentNodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+        return signalEntryVec;
+    }
+
+    const auto &parentNode = fsdbModuleTree[parentNodeIdx];
+    signalEntryVec.insert(signalEntryVec.end(), parentNode.signals.begin(), parentNode.signals.end());
+    for (auto childNodeIdx : parentNode.children) {
+        collectFsdbSignalsFromIgnoredScopes(childNodeIdx, signalEntryVec);
+    }
+
+    std::unordered_set<std::string> seenSignalNames;
+    std::vector<FsdbSignalEntry> dedupSignalEntryVec;
+    dedupSignalEntryVec.reserve(signalEntryVec.size());
+    for (auto &entry : signalEntryVec) {
+        if (seenSignalNames.insert(entry.name).second) {
+            dedupSignalEntryVec.emplace_back(std::move(entry));
+        }
+    }
+    return dedupSignalEntryVec;
+}
+#endif
 
 // boost::unordered_flat_map<vpiHandle, std::string> hdlToNameMap; // For debug purpose
 
@@ -297,6 +522,7 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     auto vpiHdl = reinterpret_cast<vpiHandle>(sigHdl);
 #endif
 
+    signalHandleSet.insert(reinterpret_cast<void *>(vpiHdl));
     // hdlToNameMap[vpiHdl] = std::string(name); // For debug purpose
     return vpiHdl;
 }
@@ -329,14 +555,188 @@ vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 indx) {
 }
 
 vpiHandle vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
-    // TODO: consider slang
-    // return reinterpret_cast<vpiHandle>(wellen_vpi_iterate(type, reinterpret_cast<void *>(refHandle)));
-    return nullptr;
+    if (type != vpiModule && type != vpiNet && type != vpiReg && type != vpiMemory) {
+        return nullptr;
+    }
+
+#ifdef USE_FSDB
+    auto iter = new IteratorHandle{};
+    if (type == vpiModule) {
+        std::vector<int32_t> moduleNodeIdxVec;
+        if (refHandle == nullptr) {
+            moduleNodeIdxVec = getFsdbTopModuleNodeIdxVec();
+        } else {
+            auto refHandleRaw = reinterpret_cast<void *>(refHandle);
+            if (!moduleHandleSet.contains(refHandleRaw)) {
+                delete iter;
+                return nullptr;
+            }
+
+            auto moduleHdl = reinterpret_cast<ModuleHandlePtr>(refHandle);
+            auto nodeIdx   = moduleHdl->fsdbNodeIdx;
+            if (nodeIdx < 0 || nodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+                delete iter;
+                return nullptr;
+            }
+            // `refHandle` is already a module handle: iterate direct visible children.
+            moduleNodeIdxVec = getFsdbVisibleChildModuleNodeIdxVec(nodeIdx);
+        }
+
+        if (moduleNodeIdxVec.empty()) {
+            delete iter;
+            return nullptr;
+        }
+
+        iter->itemType         = IteratorItemType::Module;
+        iter->moduleNodeIdxVec = std::move(moduleNodeIdxVec);
+    } else {
+        if (refHandle == nullptr) {
+            delete iter;
+            return nullptr;
+        }
+        auto refHandleRaw = reinterpret_cast<void *>(refHandle);
+        if (!moduleHandleSet.contains(refHandleRaw)) {
+            delete iter;
+            return nullptr;
+        }
+
+        auto moduleHdl = reinterpret_cast<ModuleHandlePtr>(refHandle);
+        auto nodeIdx   = moduleHdl->fsdbNodeIdx;
+        if (nodeIdx < 0 || nodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+            delete iter;
+            return nullptr;
+        }
+
+        auto signalEntryVec = getFsdbVisibleSignalEntryVec(nodeIdx);
+        if (signalEntryVec.empty()) {
+            delete iter;
+            return nullptr;
+        }
+
+        iter->itemType       = IteratorItemType::Signal;
+        iter->signalEntryVec = std::move(signalEntryVec);
+    }
+
+    auto ret = reinterpret_cast<vpiHandle>(iter);
+    iteratorHandleSet.insert(reinterpret_cast<void *>(ret));
+    iteratorTypeMap.insert_or_assign(reinterpret_cast<void *>(ret), type);
+    return ret;
+#else
+    // In wellen mode, Rust returns a backend iterator pointer directly.
+    auto iter = reinterpret_cast<vpiHandle>(wellen_vpi_iterate(type, reinterpret_cast<void *>(refHandle)));
+    if (iter != nullptr) {
+        iteratorHandleSet.insert(reinterpret_cast<void *>(iter));
+        iteratorTypeMap.insert_or_assign(reinterpret_cast<void *>(iter), type);
+    }
+    return iter;
+#endif
 }
 
 vpiHandle vpi_scan(vpiHandle iterator) {
-    // TODO: consider slang
+    if (iterator == nullptr) {
+        return nullptr;
+    }
+
+    auto iteratorRaw = reinterpret_cast<void *>(iterator);
+    if (!iteratorHandleSet.contains(iteratorRaw)) {
+        return nullptr;
+    }
+
+    auto iterType = vpiModule;
+    if (auto iterTypeIt = iteratorTypeMap.find(iteratorRaw); iterTypeIt != iteratorTypeMap.end()) {
+        iterType = iterTypeIt->second;
+    }
+
+#ifdef USE_FSDB
+    auto iter = reinterpret_cast<IteratorHandlePtr>(iterator);
+    if (iter->itemType == IteratorItemType::Module) {
+        if (iter->index >= iter->moduleNodeIdxVec.size()) {
+            // End of iteration: free iterator immediately to match VPI scan semantics.
+            iteratorHandleSet.erase(iteratorRaw);
+            iteratorTypeMap.erase(iteratorRaw);
+            delete iter;
+            return nullptr;
+        }
+
+        auto nodeIdx = iter->moduleNodeIdxVec[iter->index];
+        iter->index++;
+        auto moduleHdl = new ModuleHandle{.fsdbNodeIdx = nodeIdx};
+        auto ret       = reinterpret_cast<vpiHandle>(moduleHdl);
+        moduleHandleSet.insert(reinterpret_cast<void *>(ret));
+        return ret;
+    }
+
+    while (iter->index < iter->signalEntryVec.size()) {
+        auto signalEntry = iter->signalEntryVec[iter->index];
+        iter->index++;
+
+        auto hdl = fsdb_wave_vpi::fsdbWaveVpi->fsdbObj->ffrCreateVCTrvsHdl(signalEntry.varIdCode);
+        if (hdl == nullptr) {
+            continue;
+        }
+
+        auto varType = hdl->ffrGetVarType();
+        if (iterType == vpiNet && varType != FSDB_VT_VCD_WIRE) {
+            hdl->ffrFree();
+            continue;
+        }
+        if (iterType == vpiReg && varType == FSDB_VT_VCD_WIRE) {
+            hdl->ffrFree();
+            continue;
+        }
+        if (iterType == vpiMemory) {
+            hdl->ffrFree();
+            continue;
+        }
+
+        auto bitSize    = static_cast<size_t>(hdl->ffrGetBitSize());
+        auto fsdbSigHdl = new fsdb_wave_vpi::FsdbSignalHandle{
+            .name      = signalEntry.name,
+            .vcTrvsHdl = hdl,
+            .varIdCode = signalEntry.varIdCode,
+            .bitSize   = bitSize,
+        };
+        fsdbSigHdl->canOpt = bitSize <= 32;
+        auto ret           = reinterpret_cast<vpiHandle>(fsdbSigHdl);
+        signalHandleSet.insert(reinterpret_cast<void *>(ret));
+        return ret;
+    }
+
+    iteratorHandleSet.erase(iteratorRaw);
+    iteratorTypeMap.erase(iteratorRaw);
+    delete iter;
     return nullptr;
+#else
+    while (true) {
+        auto next = reinterpret_cast<vpiHandle>(wellen_vpi_scan(reinterpret_cast<void *>(iterator)));
+        if (next == nullptr) {
+            // Rust side already freed iterator storage when scan reaches the end.
+            iteratorHandleSet.erase(iteratorRaw);
+            iteratorTypeMap.erase(iteratorRaw);
+            return nullptr;
+        }
+
+        if (iterType == vpiModule) {
+            moduleHandleSet.insert(reinterpret_cast<void *>(next));
+            return next;
+        }
+
+        auto signalNamePtr = reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(vpiName, reinterpret_cast<void *>(next)));
+        if (signalNamePtr == nullptr) {
+            continue;
+        }
+        auto bitSize = wellen_vpi_get(vpiSize, reinterpret_cast<void *>(next));
+        auto sigHdl  = new SignalHandle{
+             .name    = std::string(reinterpret_cast<char *>(signalNamePtr)),
+             .vpiHdl  = next,
+             .bitSize = static_cast<size_t>(bitSize),
+        };
+        sigHdl->canOpt = bitSize <= 32;
+        auto ret       = reinterpret_cast<vpiHandle>(sigHdl);
+        signalHandleSet.insert(reinterpret_cast<void *>(ret));
+        return ret;
+    }
+#endif
 }
 
 /// Convert FSDB scale unit string to VPI time precision exponent
@@ -388,6 +788,10 @@ static int32_t fsdbScaleUnitToVpiPrecision(const char *scaleUnit) {
 PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle sigHdl) {
     switch (property) {
     case vpiSize:
+        if (moduleHandleSet.contains(reinterpret_cast<void *>(sigHdl))) {
+            // Module handles are container nodes, not packed value objects.
+            return 0;
+        }
 #ifdef USE_FSDB
         return reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(sigHdl)->bitSize;
 #else
@@ -433,8 +837,42 @@ void vpi_get_time(vpiHandle object, p_vpi_time time_p) {
 }
 
 PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
+    auto sigHdlRaw = reinterpret_cast<void *>(sigHdl);
     switch (property) {
+    case vpiName: {
+        // Resolve by handle kind first because module/signal handles are both opaque pointers.
+        if (moduleHandleSet.contains(sigHdlRaw)) {
+#ifdef USE_FSDB
+            auto moduleHdl = reinterpret_cast<ModuleHandlePtr>(sigHdl);
+            auto nodeIdx   = moduleHdl->fsdbNodeIdx;
+            if (nodeIdx < 0 || nodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+                return nullptr;
+            }
+            return const_cast<PLI_BYTE8 *>(fsdbModuleTree[nodeIdx].name.c_str());
+#else
+            return reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(property, sigHdlRaw));
+#endif
+        }
+
+#ifdef USE_FSDB
+        if (signalHandleSet.contains(sigHdlRaw)) {
+            return const_cast<PLI_BYTE8 *>(reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(sigHdl)->name.c_str());
+        }
+#else
+        if (signalHandleSet.contains(sigHdlRaw)) {
+            return const_cast<PLI_BYTE8 *>(reinterpret_cast<SignalHandlePtr>(sigHdl)->name.c_str());
+        }
+#endif
+        return nullptr;
+    }
     case vpiType: {
+        if (moduleHandleSet.contains(sigHdlRaw)) {
+#ifdef USE_FSDB
+            return const_cast<PLI_BYTE8 *>("vpiModule");
+#else
+            return reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(property, sigHdlRaw));
+#endif
+        }
 #ifdef USE_FSDB
         auto varType = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandle *>(sigHdl)->vcTrvsHdl->ffrGetVarType();
         switch (varType) {
@@ -443,7 +881,7 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
         case FSDB_VT_VCD_WIRE:
             return const_cast<PLI_BYTE8 *>("vpiNet");
         default:
-            VL_FATAL(false, "Unknown fsdbVarType: {}", static_cast<int>(varType));
+            return const_cast<PLI_BYTE8 *>("vpiReg");
         }
 #else
         auto vpiHdl = reinterpret_cast<SignalHandlePtr>(sigHdl)->vpiHdl;

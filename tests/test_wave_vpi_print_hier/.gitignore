@@ -1,0 +1,7 @@
+build/
+.xmake/
+test.fst
+test.vcd
+test.vcd.fsdb
+run.log
+run_*.log

@@ -55,7 +55,30 @@ static mut WAVE_SOURCE: Option<UnsafeCell<SignalSource>> = None;
 static mut SIGNAL_REF_CACHE: Option<UnsafeCell<HashMap<String, SignalRef>>> = None;
 static mut SIGNAL_REF_CACHE_NULL: Option<UnsafeCell<HashSet<String>>> = None;
 static mut SIGNAL_CACHE: Option<UnsafeCell<HashMap<SignalRef, SignalInfo>>> = None;
+static mut SIGNAL_NAME_CACHE: Option<UnsafeCell<HashMap<SignalRef, CString>>> = None;
 static mut HAS_NEWLY_ADD_SIGNAL_REF: bool = false;
+// ScopeRef -> stable C handle storage.
+// We keep module handles stable across scans to avoid returning dangling pointers.
+static mut MODULE_HANDLE_CACHE: Option<UnsafeCell<HashMap<ScopeRef, *mut WellenModuleHandle>>> = None;
+// Raw handle address -> ScopeRef reverse lookup for iterate(ref) / get_str(ref).
+static mut MODULE_HANDLE_PTR_MAP: Option<UnsafeCell<HashMap<usize, ScopeRef>>> = None;
+// Live iterator addresses returned to C++. Used to validate and reclaim iterators.
+static mut ITERATOR_HANDLE_PTR_SET: Option<UnsafeCell<HashSet<usize>>> = None;
+
+struct WellenModuleHandle {
+    name: CString,
+}
+
+#[derive(Clone, Copy)]
+enum WellenIteratorItem {
+    Module(ScopeRef),
+    Signal(*mut c_void),
+}
+
+struct WellenModuleIterator {
+    items: Vec<WellenIteratorItem>,
+    index: usize,
+}
 
 #[static_init::constructor(0)]
 extern "C" fn init_env_logger() {
@@ -153,6 +176,30 @@ fn try_get_signal_cache() -> Option<&'static mut HashMap<SignalRef, SignalInfo>>
 }
 
 #[inline(always)]
+fn get_signal_name_cache() -> &'static mut HashMap<SignalRef, CString> {
+    unsafe {
+        match SIGNAL_NAME_CACHE {
+            Some(ref mut signal_name_cache) => &mut *signal_name_cache.get(),
+            None => {
+                panic!(
+                    "SIGNAL_NAME_CACHE is not initialized! Please call `wave_vpi::wellen_initialize` first."
+                )
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn try_get_signal_name_cache() -> Option<&'static mut HashMap<SignalRef, CString>> {
+    unsafe {
+        match SIGNAL_NAME_CACHE {
+            Some(_) => Some(get_signal_name_cache()),
+            None => None,
+        }
+    }
+}
+
+#[inline(always)]
 fn get_wave_source() -> &'static mut SignalSource {
     unsafe {
         match WAVE_SOURCE {
@@ -164,6 +211,97 @@ fn get_wave_source() -> &'static mut SignalSource {
             }
         }
     }
+}
+
+#[inline(always)]
+fn get_module_handle_cache() -> &'static mut HashMap<ScopeRef, *mut WellenModuleHandle> {
+    unsafe {
+        match MODULE_HANDLE_CACHE {
+            Some(ref mut module_handle_cache) => &mut *module_handle_cache.get(),
+            None => {
+                panic!(
+                    "MODULE_HANDLE_CACHE is not initialized! Please call `wave_vpi::wellen_initialize` first."
+                )
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn try_get_module_handle_cache() -> Option<&'static mut HashMap<ScopeRef, *mut WellenModuleHandle>>
+{
+    unsafe {
+        match MODULE_HANDLE_CACHE {
+            Some(_) => Some(get_module_handle_cache()),
+            None => None,
+        }
+    }
+}
+
+#[inline(always)]
+fn get_module_handle_ptr_map() -> &'static mut HashMap<usize, ScopeRef> {
+    unsafe {
+        match MODULE_HANDLE_PTR_MAP {
+            Some(ref mut module_handle_ptr_map) => &mut *module_handle_ptr_map.get(),
+            None => {
+                panic!(
+                    "MODULE_HANDLE_PTR_MAP is not initialized! Please call `wave_vpi::wellen_initialize` first."
+                )
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn try_get_module_handle_ptr_map() -> Option<&'static mut HashMap<usize, ScopeRef>> {
+    unsafe {
+        match MODULE_HANDLE_PTR_MAP {
+            Some(_) => Some(get_module_handle_ptr_map()),
+            None => None,
+        }
+    }
+}
+
+#[inline(always)]
+fn get_iterator_handle_ptr_set() -> &'static mut HashSet<usize> {
+    unsafe {
+        match ITERATOR_HANDLE_PTR_SET {
+            Some(ref mut iterator_handle_ptr_set) => &mut *iterator_handle_ptr_set.get(),
+            None => {
+                panic!(
+                    "ITERATOR_HANDLE_PTR_SET is not initialized! Please call `wave_vpi::wellen_initialize` first."
+                )
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn try_get_iterator_handle_ptr_set() -> Option<&'static mut HashSet<usize>> {
+    unsafe {
+        match ITERATOR_HANDLE_PTR_SET {
+            Some(_) => Some(get_iterator_handle_ptr_set()),
+            None => None,
+        }
+    }
+}
+
+#[inline(always)]
+fn get_or_create_module_handle(scope_ref: ScopeRef) -> *mut WellenModuleHandle {
+    if let Some(cached) = get_module_handle_cache().get(&scope_ref) {
+        return *cached;
+    }
+
+    // Materialize a C-stable module object once, then reuse it by scope id.
+    let hierarchy = get_hierarchy();
+    let scope = &hierarchy[scope_ref];
+    let handle = Box::new(WellenModuleHandle {
+        name: CString::new(scope.name(hierarchy)).expect("scope name contains NUL"),
+    });
+    let handle_ptr = Box::into_raw(handle);
+    get_module_handle_cache().insert(scope_ref, handle_ptr);
+    get_module_handle_ptr_map().insert(handle_ptr as usize, scope_ref);
+    handle_ptr
 }
 
 #[inline]
@@ -377,6 +515,20 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
                 SIGNAL_CACHE = Some(UnsafeCell::new(HashMap::new()));
             }
         }
+
+        if try_get_signal_name_cache().is_none() {
+            SIGNAL_NAME_CACHE = Some(UnsafeCell::new(HashMap::new()));
+        }
+
+        if try_get_module_handle_cache().is_none() {
+            MODULE_HANDLE_CACHE = Some(UnsafeCell::new(HashMap::new()));
+        }
+        if try_get_module_handle_ptr_map().is_none() {
+            MODULE_HANDLE_PTR_MAP = Some(UnsafeCell::new(HashMap::new()));
+        }
+        if try_get_iterator_handle_ptr_set().is_none() {
+            ITERATOR_HANDLE_PTR_SET = Some(UnsafeCell::new(HashSet::new()));
+        }
     }
 
     log::info!("[wave_vpi::wellen_initialize] init finish...");
@@ -428,6 +580,34 @@ pub unsafe extern "C" fn wellen_finalize() {
             SIGNAL_REF_COUNT_THRESHOLD
         );
     }
+
+    unsafe {
+        if let Some(ref cache_cell) = SIGNAL_NAME_CACHE {
+            (&mut *cache_cell.get()).clear();
+        }
+
+        if let Some(ref cache_cell) = ITERATOR_HANDLE_PTR_SET {
+            // Reclaim any iterator not fully exhausted by caller.
+            let iterator_ptrs: Vec<usize> = (&*cache_cell.get()).iter().copied().collect();
+            for ptr in iterator_ptrs {
+                let _ = Box::from_raw(ptr as *mut WellenModuleIterator);
+            }
+            (&mut *cache_cell.get()).clear();
+        }
+
+        if let Some(ref cache_cell) = MODULE_HANDLE_CACHE {
+            // Reclaim module handles cached for C-side pointer stability.
+            let module_ptrs: Vec<*mut WellenModuleHandle> = (&*cache_cell.get()).values().copied().collect();
+            for ptr in module_ptrs {
+                let _ = Box::from_raw(ptr);
+            }
+            (&mut *cache_cell.get()).clear();
+        }
+
+        if let Some(ref cache_cell) = MODULE_HANDLE_PTR_MAP {
+            (&mut *cache_cell.get()).clear();
+        }
+    }
 }
 
 /// # Safety
@@ -444,6 +624,10 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
     let id_opt = get_signal_ref_cache().get(&name.to_string());
     if let Some(id) = id_opt {
         log::debug!("find vpiHandle in cache => name: {} id: {:?}", name, id);
+        if !get_signal_name_cache().contains_key(id) {
+            get_signal_name_cache()
+                .insert(*id, CString::new(name).expect("signal name contains NUL"));
+        }
         let value = Box::new(*id as vpiHandle);
         return Box::into_raw(value) as *mut c_void;
     }
@@ -458,7 +642,7 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
         let path_slice: &[&str] = &path_vec;
 
         let hierarchy = get_hierarchy();
-        let var_ref_opt = &hierarchy.lookup_var(path_slice, &signal_name);
+        let var_ref_opt = &hierarchy.lookup_var(path_slice, signal_name);
         if var_ref_opt.is_none() {
             let v = get_most_likely_signal_name(name, 5);
             log::debug!(
@@ -496,6 +680,10 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
                 signal: loaded_signal,
                 var_type: var.var_type(),
             },
+        );
+        get_signal_name_cache().insert(
+            loaded_id,
+            CString::new(name).expect("signal name contains NUL"),
         );
 
         Some(loaded_id as vpiHandle)
@@ -949,30 +1137,125 @@ pub unsafe extern "C" fn wellen_vpi_get_str(
     property: PLI_INT32,
     handle: *mut c_void,
 ) -> *mut c_void {
-    let handle = unsafe { *{ handle as *mut vpiHandle } };
-    let var_type = get_signal_cache()
-        .get(&(handle as vpiHandle))
-        .unwrap()
-        .var_type
-        .borrow();
-
-    let c_string = match property as u32 {
-        vpiType => {
-            match var_type {
-                VarType::Reg => CString::new("vpiReg").unwrap(),
-                VarType::Wire => CString::new("vpiNet").unwrap(),
-                VarType::Logic => CString::new("vpiReg").unwrap(), // Logic is treated as vpiReg
-                _ => {
-                    todo!("{:#?}", var_type)
-                } // TODO: vpiRegArray vpiNetArray vpiMemory
+    let handle_addr = handle as usize;
+    // First check module handle registry. Signal handles and module handles are both opaque pointers.
+    if get_module_handle_ptr_map().contains_key(&handle_addr) {
+        let module_handle = unsafe { &*(handle as *const WellenModuleHandle) };
+        match property as u32 {
+            vpiName => module_handle.name.as_ptr() as *mut c_void,
+            vpiType => c"vpiModule".as_ptr() as *mut c_void,
+            _ => std::ptr::null_mut(),
+        }
+    } else {
+        let handle = unsafe { *{ handle as *mut vpiHandle } };
+        match property as u32 {
+            vpiName => get_signal_name_cache()
+                .get(&(handle as vpiHandle))
+                .map(|name| name.as_ptr() as *mut c_void)
+                .unwrap_or(std::ptr::null_mut()),
+            vpiType => {
+                let var_type = get_signal_cache()
+                    .get(&(handle as vpiHandle))
+                    .unwrap()
+                    .var_type
+                    .borrow();
+                match var_type {
+                    VarType::Wire => c"vpiNet".as_ptr() as *mut c_void,
+                    VarType::Reg | VarType::Logic => c"vpiReg".as_ptr() as *mut c_void,
+                    _ => c"vpiReg".as_ptr() as *mut c_void,
+                }
             }
+            _ => std::ptr::null_mut(),
         }
-        _ => {
-            todo!("property => {}", property)
-        }
+    }
+}
+
+#[inline]
+fn is_valid_top_module_scope(hierarchy: &Hierarchy, scope_ref: ScopeRef) -> bool {
+    let scope = &hierarchy[scope_ref];
+    if scope.scope_type() != ScopeType::Module {
+        return false;
+    }
+
+    let scope_name = scope.name(hierarchy);
+    !(scope_name.starts_with('$') || scope_name.ends_with("_pkg"))
+}
+
+#[inline]
+fn collect_module_scopes(_type: PLI_INT32, refHandle: *mut c_void) -> Vec<ScopeRef> {
+    if _type as u32 != vpiModule {
+        return Vec::new();
+    }
+
+    let hierarchy = get_hierarchy();
+    if refHandle.is_null() {
+        // vpi_iterate(vpiModule, NULL): top-level modules only.
+        hierarchy
+            .scopes()
+            .filter(|scope_ref| is_valid_top_module_scope(hierarchy, *scope_ref))
+            .collect()
+    } else {
+        // vpi_iterate(vpiModule, module_handle): direct module children.
+        let handle_addr = refHandle as usize;
+        let scope_ref = match get_module_handle_ptr_map().get(&handle_addr).copied() {
+            Some(scope_ref) => scope_ref,
+            None => return Vec::new(),
+        };
+
+        hierarchy[scope_ref]
+            .scopes(hierarchy)
+            .filter(|child_scope_ref| hierarchy[*child_scope_ref].scope_type() == ScopeType::Module)
+            .collect()
+    }
+}
+
+#[inline]
+fn map_var_type_to_vpi_iter_type(var_type: VarType) -> PLI_INT32 {
+    match var_type {
+        VarType::Wire => vpiNet as PLI_INT32,
+        VarType::SparseArray => vpiMemory as PLI_INT32,
+        _ => vpiReg as PLI_INT32,
+    }
+}
+
+#[inline]
+fn collect_signal_handles(_type: PLI_INT32, refHandle: *mut c_void) -> Vec<*mut c_void> {
+    if _type as u32 != vpiNet && _type as u32 != vpiReg && _type as u32 != vpiMemory {
+        return Vec::new();
+    }
+    if refHandle.is_null() {
+        return Vec::new();
+    }
+
+    let handle_addr = refHandle as usize;
+    let scope_ref = match get_module_handle_ptr_map().get(&handle_addr).copied() {
+        Some(scope_ref) => scope_ref,
+        None => return Vec::new(),
     };
 
-    c_string.into_raw() as *mut c_void
+    let hierarchy = get_hierarchy();
+    let mut signal_handles = Vec::new();
+    let mut visited_signal_refs = HashSet::new();
+    for var_ref in hierarchy[scope_ref].vars(hierarchy) {
+        let var = &hierarchy[var_ref];
+        if map_var_type_to_vpi_iter_type(var.var_type()) != _type {
+            continue;
+        }
+
+        let signal_ref = var.signal_ref();
+        if !visited_signal_refs.insert(signal_ref) {
+            continue;
+        }
+
+        let full_name = var.full_name(hierarchy);
+        let full_name_cstr = CString::new(full_name.as_str()).expect("signal name contains NUL");
+        let signal_handle = unsafe { wellen_vpi_handle_by_name(full_name_cstr.as_ptr()) };
+        if signal_handle.is_null() {
+            continue;
+        }
+        signal_handles.push(signal_handle);
+    }
+    signal_handles
 }
 
 /// # Safety
@@ -982,43 +1265,58 @@ pub unsafe extern "C" fn wellen_vpi_iterate(
     _type: PLI_INT32,
     refHandle: *mut c_void,
 ) -> *mut c_void {
-    let hier = get_hierarchy();
-    let scopes = hier.scopes();
-
-    if refHandle.is_null() {
-        match _type as u32 {
-            vpiModule => {
-                let r = scopes.into_iter().find_map(|scope_ref| {
-                    let scope = &hier[scope_ref];
-                    let full_name = scope.full_name(hier);
-                    if scope.scope_type() == ScopeType::Module {
-                        let scope_name = scope.name(hier);
-                        if scope_name.starts_with("$") || scope_name.ends_with("_pkg") {
-                            None
-                        } else {
-                            log::debug!(
-                                "{:#?} scope_ref => {:?} name => {} full_name => {}",
-                                scope,
-                                scope_ref,
-                                scope_name,
-                                full_name
-                            );
-                            Some(scope_name)
-                        }
-                    } else {
-                        None
-                    }
-                });
-                log::debug!("iterate name => {}", r.unwrap());
-            }
-            _ => {
-                panic!("type => {}", _type)
-            }
-        }
-
-        panic!()
+    let items = if _type as u32 == vpiModule {
+        collect_module_scopes(_type, refHandle)
+            .into_iter()
+            .map(WellenIteratorItem::Module)
+            .collect::<Vec<_>>()
+    } else if _type as u32 == vpiNet || _type as u32 == vpiReg || _type as u32 == vpiMemory {
+        collect_signal_handles(_type, refHandle)
+            .into_iter()
+            .map(WellenIteratorItem::Signal)
+            .collect::<Vec<_>>()
     } else {
-        todo!()
+        Vec::new()
+    };
+
+    if items.is_empty() {
+        return std::ptr::null_mut();
+    }
+
+    let iterator = Box::new(WellenModuleIterator { items, index: 0 });
+    let iterator_ptr = Box::into_raw(iterator);
+    // Track iterator ownership so invalid pointers can be rejected in wellen_vpi_scan.
+    get_iterator_handle_ptr_set().insert(iterator_ptr as usize);
+    iterator_ptr as *mut c_void
+}
+
+/// # Safety
+/// `iterator` must be a valid pointer returned by `wellen_vpi_iterate`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wellen_vpi_scan(iterator: *mut c_void) -> *mut c_void {
+    if iterator.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    let iterator_addr = iterator as usize;
+    if !get_iterator_handle_ptr_set().contains(&iterator_addr) {
+        return std::ptr::null_mut();
+    }
+
+    let iter = unsafe { &mut *(iterator as *mut WellenModuleIterator) };
+    if iter.index >= iter.items.len() {
+        // Match VPI behavior: once exhausted, iterator is consumed and released.
+        get_iterator_handle_ptr_set().remove(&iterator_addr);
+        let _ = unsafe { Box::from_raw(iterator as *mut WellenModuleIterator) };
+        return std::ptr::null_mut();
+    }
+
+    let item = iter.items[iter.index];
+    iter.index += 1;
+
+    match item {
+        WellenIteratorItem::Module(scope_ref) => get_or_create_module_handle(scope_ref) as *mut c_void,
+        WellenIteratorItem::Signal(handle) => handle,
     }
 }
 

@@ -1140,6 +1140,10 @@ ${reset}]])
             os.setenvs(old_env)
             os.cd(path.join(prj_dir, "tests", "test_wave_vpi_x"))
             run_cmd("xmake run -P .")
+
+            os.setenvs(old_env)
+            os.cd(path.join(prj_dir, "tests", "test_wave_vpi_print_hier"))
+            run_cmd("xmake run -P .")
         end
 
         --
