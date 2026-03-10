@@ -67,7 +67,7 @@ jobs:
 
     strategy:
       matrix:
-        iverilog-tag: [ 's20250103' ]
+        iverilog-tag: [ 'v13_0' ]
 
     steps:
       - name: Checkout code

@@ -34,7 +34,8 @@ jobs:
         os: [ 'ubuntu-22.04' ]
         # os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
         verilator-version: [ 'v5.026', 'v5.032', 'v5.038', 'v5.042' ]
-        iverilog-tag: [ 's20250103', 'v13_0' ]
+        # iverilog-tag: [ 's20250103', 'v13_0' ]
+        iverilog-tag: [ 'v13_0' ]
 
     steps:
       - name: Checkout
