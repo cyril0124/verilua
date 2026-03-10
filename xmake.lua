@@ -572,32 +572,31 @@ target("test", function()
             end
         end
 
+        local border_line = string.rep("=", 78)
+
         local function print_header()
             cprint("")
-            cprint("${bright}╔══════════════════════════════════════════════════════════════════════════════╗${reset}")
-            cprint("${bright}║                                                                              ║${reset}")
-            cprint(
-                "${bright}║${reset}                     ${cyan}V E R I L U A${reset}   ${white}T E S T   S U I T E${reset}                      ${bright}║${reset}")
-            cprint("${bright}║                                                                              ║${reset}")
-            cprint("${bright}╚══════════════════════════════════════════════════════════════════════════════╝${reset}")
+            cprint("${bright}%s${reset}", border_line)
+            cprint("${cyan}VERILUA${reset} ${white}TEST SUITE${reset}")
+            cprint("${bright}%s${reset}", border_line)
             cprint("")
         end
 
         local function print_section(section_num, total_sections, title)
             cprint("")
-            cprint("${bright}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${reset}")
-            cprint("${bright}┃${reset} ${yellow}[%d/%d]${reset} ${cyan}%s${reset}", section_num, total_sections, title)
-            cprint("${bright}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${reset}")
+            cprint("${bright}%s${reset}", border_line)
+            cprint("${yellow}[%d/%d]${reset} ${cyan}%s${reset}", section_num, total_sections, title)
+            cprint("${bright}%s${reset}", border_line)
         end
 
         local function print_test_start(test_name, simulator, extra_info)
             test_stats.total = test_stats.total + 1
             local info_str = extra_info and string.format(" ${dim}(%s)${reset}", extra_info) or ""
             if verbose then
-                cprint("  ${bright}├─${reset} ${white}[%s]${reset} Running: ${green}%s${reset} @ ${magenta}%s${reset}%s",
+                cprint("  ${bright}=${reset} ${white}[%s]${reset} Running: ${green}%s${reset} @ ${magenta}%s${reset}%s",
                     get_time_str(), test_name, simulator, info_str)
             else
-                cprint("  ${bright}├─${reset} ${white}[%d]${reset} ${green}%s${reset} @ ${magenta}%s${reset}%s",
+                cprint("  ${bright}=${reset} ${white}[%d]${reset} ${green}%s${reset} @ ${magenta}%s${reset}%s",
                     test_stats.total, test_name, simulator, info_str)
             end
         end
@@ -621,18 +620,18 @@ target("test", function()
             local duration_str = format_duration(duration)
             if success then
                 if verbose then
-                    cprint("  ${bright}└─${reset} ${white}[%s]${reset} ${green}✓ PASSED${reset} ${dim}(%s)${reset}%s",
+                    cprint("  ${bright}=${reset} ${white}[%s]${reset} ${green}✓ PASSED${reset} ${dim}(%s)${reset}%s",
                         get_time_str(), duration_str, info_str)
                 else
-                    cprint("  ${bright}└─${reset} ${green}✓ PASSED${reset} ${dim}(%s)${reset}%s",
+                    cprint("  ${bright}=${reset} ${green}✓ PASSED${reset} ${dim}(%s)${reset}%s",
                         duration_str, info_str)
                 end
             else
                 if verbose then
-                    cprint("  ${bright}└─${reset} ${white}[%s]${reset} ${red}✗ FAILED${reset} ${dim}(%s)${reset}%s",
+                    cprint("  ${bright}=${reset} ${white}[%s]${reset} ${red}✗ FAILED${reset} ${dim}(%s)${reset}%s",
                         get_time_str(), duration_str, info_str)
                 else
-                    cprint("  ${bright}└─${reset} ${red}✗ FAILED${reset} ${dim}(%s)${reset}%s",
+                    cprint("  ${bright}=${reset} ${red}✗ FAILED${reset} ${dim}(%s)${reset}%s",
                         duration_str, info_str)
                 end
 
@@ -650,36 +649,19 @@ target("test", function()
             local pass_rate = test_stats.total > 0 and (test_stats.passed / test_stats.total * 100) or 0
 
             cprint("")
-            cprint("${bright}╔══════════════════════════════════════════════════════════════════════════════╗${reset}")
-            cprint(
-                "${bright}║${reset}                           ${cyan}TEST SUMMARY${reset}                                     ${bright}║${reset}")
-            cprint("${bright}╠══════════════════════════════════════════════════════════════════════════════╣${reset}")
-            cprint(
-                "${bright}║${reset}                                                                              ${bright}║${reset}")
-            cprint(
-                "${bright}║${reset}   ${white}Total Tests:${reset}  ${bright}%d${reset}                                                            ${bright}║${reset}",
-                test_stats.total)
-            cprint(
-                "${bright}║${reset}   ${green}Passed:${reset}       ${green}%d${reset}                                                            ${bright}║${reset}",
-                test_stats.passed)
+            cprint("${bright}%s${reset}", border_line)
+            cprint("${cyan}TEST SUMMARY${reset}")
+            cprint("${bright}%s${reset}", border_line)
+            cprint("  ${white}Total Tests:${reset} ${bright}%d${reset}", test_stats.total)
+            cprint("  ${green}Passed:${reset}      ${green}%d${reset}", test_stats.passed)
             if test_stats.failed > 0 then
-                cprint(
-                    "${bright}║${reset}   ${red}Failed:${reset}       ${red}%d${reset}                                                            ${bright}║${reset}",
-                    test_stats.failed)
+                cprint("  ${red}Failed:${reset}      ${red}%d${reset}", test_stats.failed)
             else
-                cprint(
-                    "${bright}║${reset}   ${dim}Failed:${reset}       ${dim}%d${reset}                                                            ${bright}║${reset}",
-                    test_stats.failed)
+                cprint("  ${dim}Failed:${reset}      ${dim}%d${reset}", test_stats.failed)
             end
-            cprint(
-                "${bright}║${reset}   ${white}Pass Rate:${reset}    ${bright}%.1f%%${reset}                                                        ${bright}║${reset}",
-                pass_rate)
-            cprint(
-                "${bright}║${reset}   ${white}Duration:${reset}     ${bright}%s${reset}                                                         ${bright}║${reset}",
-                format_duration(total_duration))
-            cprint(
-                "${bright}║${reset}                                                                              ${bright}║${reset}")
-            cprint("${bright}╚══════════════════════════════════════════════════════════════════════════════╝${reset}")
+            cprint("  ${white}Pass Rate:${reset}   ${bright}%.1f%%${reset}", pass_rate)
+            cprint("  ${white}Duration:${reset}    ${bright}%s${reset}", format_duration(total_duration))
+            cprint("${bright}%s${reset}", border_line)
         end
 
         local function print_final_result()
@@ -767,10 +749,19 @@ ${reset}]])
         assert(#simulators > 0, "No simulators found!")
 
         local verilator_version
+        local min_supported_verilator_version = 5.032
         if has_verilator then
             local s = os.iorun("verilator --version")
             local v = s:match("Verilator%s+([%d.]+)")
             verilator_version = tonumber(v)
+            assert(verilator_version ~= nil, "Failed to parse Verilator version from `verilator --version` output")
+            if verilator_version < min_supported_verilator_version then
+                raise(
+                    "Unsupported Verilator version: %s (minimum required is %.3f)",
+                    v,
+                    min_supported_verilator_version
+                )
+            end
         end
 
         --
@@ -826,12 +817,7 @@ ${reset}]])
             os.cd(path.join(prj_dir, "examples", "WAL"))
             local should_skip = false
             for _, sim in ipairs(simulators) do
-                if sim == "verilator" then
-                    if verilator_version <= 5.026 then
-                        -- Skip Verilator tests for WAL if Verilator version <= 5.026 where the generated VCD waveform is broken
-                        should_skip = true
-                    end
-                elseif sim == "xcelium" then
+                if sim == "xcelium" then
                     should_skip = true
                 else
                     should_skip = false
@@ -1122,6 +1108,7 @@ ${reset}]])
                         end,
                         catch { function(e) success = false end }
                     }
+                    ---@diagnostic disable-next-line:param-type-mismatch
                     os.setenv("CFG_USE_INERTIAL_PUT", nil)
                     print_test_result(test_name, "verilator", success, os.time() - start_time, "inertial_put")
                 end
@@ -1180,6 +1167,7 @@ ${reset}]])
                         print_test_result(test_name, sim, success, os.time() - start_time, "no_internal_clock")
                     end
                 end
+                ---@diagnostic disable-next-line:param-type-mismatch
                 os.setenv("NO_INTERNAL_CLOCK", nil)
             end
         end
@@ -1230,6 +1218,7 @@ ${reset}]])
                         end,
                         catch { function(e) success = false end }
                     }
+                    ---@diagnostic disable-next-line:param-type-mismatch
                     os.setenv("CFG_USE_INERTIAL_PUT", nil)
                     print_test_result("benchmark/" .. case, "verilator", success, os.time() - start_time, "inertial_put")
                 end

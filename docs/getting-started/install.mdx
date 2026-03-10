@@ -84,19 +84,19 @@ Test Results:
 
 根据您的需求安装以下仿真器之一：
 
-- **[Verilator](https://github.com/verilator/verilator) >= 5.026**
+- **[Verilator](https://github.com/verilator/verilator) >= 5.032**
 - **[Icarus Verilog](https://github.com/steveicarus/iverilog)**（注意版本问题，见下文）
 - **Synopsys VCS**（商业软件）
 - **Cadence Xcelium**（商业软件）
 
 ##### ⚠️ Icarus Verilog 版本注意事项
 
-iverilog 的 v12_0 版本存在 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会影响 Verilua 的多任务调度。**请使用 master 分支（v13-devel）或 `s20250103` 标签**。
+iverilog 的 v12_0 版本存在 [cbNextSimTime 无限循环问题](https://github.com/steveicarus/iverilog/pull/1098)，会影响 Verilua 的多任务调度。**当前推荐使用 `v13_0` 标签**（也可使用 master 分支 `v13-devel`）。
 
 ```bash
 git clone https://github.com/steveicarus/iverilog.git
 cd iverilog
-git checkout s20250103                # 或使用 master 分支
+git checkout v13_0                    # 推荐；也可使用 master 分支
 sh autoconf.sh
 ./configure
 make
@@ -173,7 +173,7 @@ export IVERILOG_HOME=/path/to/iverilog   # 添加到 shell 配置文件
 
 ### Q4：iverilog 安装后 Verilua 仍报版本错误？
 
-- **确认** `iverilog -V` 显示的版本是否为正确的 commit 或 tag。确保 `IVERILOG_HOME` 设置正确。
+- **确认** `iverilog -V` 显示的版本是否为正确的 commit 或 tag（推荐 `v13_0`）。确保 `IVERILOG_HOME` 设置正确。
 
 ---
 
@@ -207,4 +207,3 @@ EmmyLuaLs 需要一个 `.emmyrc.json` 配置文件放置在项目根目录（或
 **说明**：
 - `$VERILUA_HOME` 会被自动替换为 Verilua 的安装路径，前提是该环境变量已在 shell 中设置。
 - 该配置仅包含识别 Verilua 库的必要项，完整的功能配置请参考 [EmmyLuaLs 官方文档](https://emmylualangs.github.io/)。
-
