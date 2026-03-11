@@ -25,7 +25,10 @@ local function wave_vpi_main_common()
 
     add_files(
         path.join(curr_dir, "*.cpp"),
-        path.join(curr_dir, "src", "*.cpp")
+        path.join(curr_dir, "src", "control.cpp"),
+        path.join(curr_dir, "src", "wave_vpi.cpp"),
+        path.join(curr_dir, "src", "jit_options.cpp"),
+        path.join(curr_dir, "src", "fsdb_wave_vpi.cpp")
     )
 
     add_includedirs(
@@ -84,6 +87,7 @@ end
 
 target("wave_vpi_main", function()
     wave_vpi_main_common()
+    add_files(path.join(curr_dir, "src", "vpi_compat_wellen.cpp"))
 
     if not os.getenv("NO_DEPS") then
         add_deps("libverilua_wave_vpi", "wave_vpi_wellen_impl")
@@ -97,6 +101,7 @@ end)
 target("wave_vpi_main_fsdb", function()
     if os.getenv("VERDI_HOME") then
         wave_vpi_main_common()
+        add_files(path.join(curr_dir, "src", "vpi_compat_fsdb.cpp"))
 
         if not os.getenv("NO_DEPS") then
             add_deps("libverilua_wave_vpi")

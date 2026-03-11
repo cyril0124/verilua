@@ -1,12 +1,10 @@
-#include "vpi_compat.h"
 #include "jit_options.h"
+#include "vpi_compat.h"
 #include "wave_vpi.h"
 #include <unordered_map>
 #include <unordered_set>
 
-#ifdef USE_FSDB
 #include "fsdb_wave_vpi.h"
-#endif
 
 // Unsupported:
 //      vpi_put_value(handle, &v, NULL, vpiNoDelay); // wave_vpi is considered a read-only waveform simulate backend in verilua
@@ -62,16 +60,11 @@ std::unordered_set<void *> iteratorHandleSet;
 std::unordered_map<void *, PLI_INT32> iteratorTypeMap;
 
 struct ModuleHandle_t {
-#ifdef USE_FSDB
     int32_t fsdbNodeIdx;
-#else
-    void *wellenModuleHandle;
-#endif
 };
 using ModuleHandle    = ModuleHandle_t;
 using ModuleHandlePtr = ModuleHandle_t *;
 
-#ifdef USE_FSDB
 enum class IteratorItemType {
     Module,
     Signal,
@@ -281,7 +274,6 @@ static std::vector<FsdbSignalEntry> getFsdbVisibleSignalEntryVec(int32_t parentN
     }
     return dedupSignalEntryVec;
 }
-#endif
 
 // boost::unordered_flat_map<vpiHandle, std::string> hdlToNameMap; // For debug purpose
 
@@ -296,9 +288,6 @@ void endOfSimulation() {
 
     if (endOfSimulationCb && !called) {
         called = true;
-#ifndef USE_FSDB
-        wellen_finalize();
-#endif
         endOfSimulationCb->cb_rtn(endOfSimulationCb.get());
 #ifdef PROFILE_JIT
         jit_options::reportStatistic();
@@ -306,7 +295,6 @@ void endOfSimulation() {
     }
 }
 
-#ifdef USE_FSDB
 std::string fsdbGetBinStr(vpiHandle object) {
     s_vpi_value v;
     v.format = vpiBinStrVal;
@@ -319,56 +307,7 @@ uint32_t fsdbGetSingleBitValue(vpiHandle object) {
     v.format = vpiIntVal;
     vpi_get_value(object, &v); // Use `vpi_get_value` since we have JIT-like feature in `vpi_get_value`
     return v.value.integer;
-
-    // auto fsdbSigHdl = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(object);
-    // auto vcTrvsHdl = fsdbSigHdl->vcTrvsHdl;
-    // byte_T *retVC;
-    // fsdbBytesPerBit bpb;
-
-    // auto time = fsdb_wave_vpi::fsdbWaveVpi->xtagVec[cursor.index];
-    // time.hltag.L = time.hltag.L + 1; // Move a little bit further to ensure we are not in the sensitive clock edge which may lead to signal value confusion.
-    // if(FSDB_RC_SUCCESS != vcTrvsHdl->ffrGotoXTag(&time)) [[unlikely]] {
-    //     auto currIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
-    //     auto maxIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.maxIndex];
-    //     VL_FATAL(false, "vcTrvsHdl->ffrGotoXTag() failed! time.hltag.L: {}, time.hltag.H: {}, maxIndexTime: {}, currIndexTime: {}, cursor.maxIndex: {}, cursor.index: {}", time.hltag.L, time.hltag.H, maxIndexTime, currIndexTime, cursor.maxIndex, cursor.index);
-    // }
-    // if(FSDB_RC_SUCCESS != vcTrvsHdl->ffrGetVC(&retVC)) [[unlikely]] {
-    //     VL_FATAL(false, "vcTrvsHdl->ffrGetVC() failed!");
-    // }
-
-    // bpb = vcTrvsHdl->ffrGetBytesPerBit();
-
-    // switch (bpb) {
-    // [[likely]] case FSDB_BYTES_PER_BIT_1B: {
-    //     switch (retVC[0]) {
-    //         case FSDB_BT_VCD_X: // treat `X` as `0`
-    //         case FSDB_BT_VCD_Z: // treat `Z` as `0`
-    //         case FSDB_BT_VCD_0:
-    //             return 0;
-    //         case FSDB_BT_VCD_1:
-    //             return 1;
-    //         default:
-    //             VL_FATAL(false, "unknown verilog bit type found.");
-    //     }
-    //     break;
-    // }
-    // case FSDB_BYTES_PER_BIT_4B:
-    // case FSDB_BYTES_PER_BIT_8B:
-    //     VL_FATAL(false, "TODO: FSDB_BYTES_PER_BIT_4B/8B, bpb: {}", static_cast<int>(bpb));
-    //     break;
-    // default:
-    //     VL_FATAL(false, "Should not reach here!");
-    // }
-
-    // VL_FATAL(false, "Should not come here...");
 }
-#else
-std::string _wellen_get_value_str(vpiHandle sigHdl) {
-    VL_FATAL(sigHdl != nullptr, "sigHdl is nullptr");
-    auto vpiHdl = reinterpret_cast<SignalHandlePtr>(sigHdl)->vpiHdl;
-    return std::string(wellen_get_value_str(reinterpret_cast<void *>(vpiHdl), cursor.index));
-}
-#endif
 
 }; // namespace vpi_compat
 
@@ -390,8 +329,7 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
         VL_FATAL(cb_data_p->time != nullptr && cb_data_p->time->type == vpiSuppressTime, "cb_data_p->time is nullptr or cb_data_p->time->type is not vpiSuppressTime");
         VL_FATAL(cb_data_p->value != nullptr && cb_data_p->value->format == vpiIntVal, "cb_data_p->value is nullptr or cb_data_p->value->format is not vpiIntVal");
 
-        auto t = *cb_data_p;
-#ifdef USE_FSDB
+        auto t         = *cb_data_p;
         size_t bitSize = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(cb_data_p->obj)->bitSize;
         if (bitSize == 1) [[likely]] {
             willAppendValueCb.emplace_back(std::make_pair(vpiHandleAllcator, ValueCbInfo{
@@ -410,33 +348,18 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
                                                                                  .valueStr = fsdbGetBinStr(cb_data_p->obj),
                                                                              }));
         }
-#else
-        willAppendValueCb.emplace_back(std::make_pair(vpiHandleAllcator, ValueCbInfo{
-                                                                             .cbData   = std::make_shared<t_cb_data>(*cb_data_p),
-                                                                             .handle   = cb_data_p->obj,
-                                                                             .valueStr = _wellen_get_value_str(cb_data_p->obj),
-                                                                         }));
-#endif
         break;
     }
     case cbAfterDelay: {
         VL_FATAL(cb_data_p->time != nullptr && cb_data_p->time->type == vpiSimTime, "cb_data_p->time is nullptr or cb_data_p->time->type is not vpiSimTime");
 
-        uint64_t time = (((uint64_t)cb_data_p->time->high << 32) | (cb_data_p->time->low));
-#ifdef USE_FSDB
+        uint64_t time       = (((uint64_t)cb_data_p->time->high << 32) | (cb_data_p->time->low));
         uint64_t targetTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index] + time;
-#else
-        uint64_t targetTime = wellen_get_time_from_index(cursor.index) + time;
-#endif
         if (targetTime > cursor.maxTime) {
             break;
         }
 
-#ifdef USE_FSDB
         uint64_t targetIndex = fsdb_wave_vpi::fsdbWaveVpi->findNearestTimeIndex(targetTime);
-#else
-        uint64_t targetIndex = wellen_get_index_from_time(targetTime);
-#endif
         // VL_FATAL(targetTime <= cursor.maxTime, "targetTime: {}, cursor.maxTime: {}", targetTime, cursor.maxTime);
 
         willAppendTimeCbQueue.emplace_back(std::make_pair(targetIndex, std::make_shared<t_cb_data>(*cb_data_p)));
@@ -495,7 +418,6 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     // TODO: scope?
     VL_FATAL(scope == nullptr, "TODO: scope is not supported for now");
 
-#ifdef USE_FSDB
     auto varIdCode = fsdb_wave_vpi::fsdbWaveVpi->getVarIdCodeByName(name);
     if (varIdCode == -1) {
         return nullptr;
@@ -513,20 +435,6 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     fsdbSigHdl->canOpt = bitSize <= 32;
 
     auto vpiHdl = reinterpret_cast<vpiHandle>(fsdbSigHdl);
-#else
-    auto _vpiHdl = reinterpret_cast<vpiHandle>(wellen_vpi_handle_by_name(name));
-    if (_vpiHdl == nullptr) {
-        return nullptr;
-    }
-
-    auto bitSize = wellen_vpi_get(vpiSize, reinterpret_cast<void *>(_vpiHdl));
-    auto sigHdl  = new SignalHandle{.name = std::string(name), .vpiHdl = _vpiHdl, .bitSize = (size_t)bitSize};
-
-    // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
-    sigHdl->canOpt = bitSize <= 32;
-
-    auto vpiHdl = reinterpret_cast<vpiHandle>(sigHdl);
-#endif
 
     signalHandleSet.insert(reinterpret_cast<void *>(vpiHdl));
     // hdlToNameMap[vpiHdl] = std::string(name); // For debug purpose
@@ -565,7 +473,6 @@ vpiHandle vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
         return nullptr;
     }
 
-#ifdef USE_FSDB
     auto iter = new IteratorHandle{};
     if (type == vpiModule) {
         std::vector<int32_t> moduleNodeIdxVec;
@@ -627,15 +534,6 @@ vpiHandle vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
     iteratorHandleSet.insert(reinterpret_cast<void *>(ret));
     iteratorTypeMap.insert_or_assign(reinterpret_cast<void *>(ret), type);
     return ret;
-#else
-    // In wellen mode, Rust returns a backend iterator pointer directly.
-    auto iter = reinterpret_cast<vpiHandle>(wellen_vpi_iterate(type, reinterpret_cast<void *>(refHandle)));
-    if (iter != nullptr) {
-        iteratorHandleSet.insert(reinterpret_cast<void *>(iter));
-        iteratorTypeMap.insert_or_assign(reinterpret_cast<void *>(iter), type);
-    }
-    return iter;
-#endif
 }
 
 vpiHandle vpi_scan(vpiHandle iterator) {
@@ -653,7 +551,6 @@ vpiHandle vpi_scan(vpiHandle iterator) {
         iterType = iterTypeIt->second;
     }
 
-#ifdef USE_FSDB
     auto iter = reinterpret_cast<IteratorHandlePtr>(iterator);
     if (iter->itemType == IteratorItemType::Module) {
         if (iter->index >= iter->moduleNodeIdxVec.size()) {
@@ -712,37 +609,6 @@ vpiHandle vpi_scan(vpiHandle iterator) {
     iteratorTypeMap.erase(iteratorRaw);
     delete iter;
     return nullptr;
-#else
-    while (true) {
-        auto next = reinterpret_cast<vpiHandle>(wellen_vpi_scan(reinterpret_cast<void *>(iterator)));
-        if (next == nullptr) {
-            // Rust side already freed iterator storage when scan reaches the end.
-            iteratorHandleSet.erase(iteratorRaw);
-            iteratorTypeMap.erase(iteratorRaw);
-            return nullptr;
-        }
-
-        if (iterType == vpiModule) {
-            moduleHandleSet.insert(reinterpret_cast<void *>(next));
-            return next;
-        }
-
-        auto signalNamePtr = reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(vpiName, reinterpret_cast<void *>(next)));
-        if (signalNamePtr == nullptr) {
-            continue;
-        }
-        auto bitSize = wellen_vpi_get(vpiSize, reinterpret_cast<void *>(next));
-        auto sigHdl  = new SignalHandle{
-             .name    = std::string(reinterpret_cast<char *>(signalNamePtr)),
-             .vpiHdl  = next,
-             .bitSize = static_cast<size_t>(bitSize),
-        };
-        sigHdl->canOpt = bitSize <= 32;
-        auto ret       = reinterpret_cast<vpiHandle>(sigHdl);
-        signalHandleSet.insert(reinterpret_cast<void *>(ret));
-        return ret;
-    }
-#endif
 }
 
 /// Convert FSDB scale unit string to VPI time precision exponent
@@ -798,20 +664,11 @@ PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle sigHdl) {
             // Module handles are container nodes, not packed value objects.
             return 0;
         }
-#ifdef USE_FSDB
         return reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(sigHdl)->bitSize;
-#else
-        return reinterpret_cast<SignalHandlePtr>(sigHdl)->bitSize;
-#endif
-    case vpiTimePrecision:
-#ifdef USE_FSDB
-    {
+    case vpiTimePrecision: {
         auto scaleUnit = fsdb_wave_vpi::fsdbWaveVpi->fsdbObj->ffrGetScaleUnit();
         return fsdbScaleUnitToVpiPrecision(scaleUnit);
     }
-#else
-        return wellen_get_time_precision();
-#endif
     default:
         VL_FATAL(false, "Unimplemented property: {}", property);
     }
@@ -823,11 +680,7 @@ void vpi_get_time(vpiHandle object, p_vpi_time time_p) {
     }
 
     uint64_t simTime = 0;
-#ifdef USE_FSDB
-    simTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
-#else
-    simTime = wellen_get_time_from_index(cursor.index);
-#endif
+    simTime          = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
 
     switch (time_p->type) {
     case vpiSimTime:
@@ -848,38 +701,23 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
     case vpiName: {
         // Resolve by handle kind first because module/signal handles are both opaque pointers.
         if (moduleHandleSet.contains(sigHdlRaw)) {
-#ifdef USE_FSDB
             auto moduleHdl = reinterpret_cast<ModuleHandlePtr>(sigHdl);
             auto nodeIdx   = moduleHdl->fsdbNodeIdx;
             if (nodeIdx < 0 || nodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
                 return nullptr;
             }
             return const_cast<PLI_BYTE8 *>(fsdbModuleTree[nodeIdx].name.c_str());
-#else
-            return reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(property, sigHdlRaw));
-#endif
         }
 
-#ifdef USE_FSDB
         if (signalHandleSet.contains(sigHdlRaw)) {
             return const_cast<PLI_BYTE8 *>(reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(sigHdl)->name.c_str());
         }
-#else
-        if (signalHandleSet.contains(sigHdlRaw)) {
-            return const_cast<PLI_BYTE8 *>(reinterpret_cast<SignalHandlePtr>(sigHdl)->name.c_str());
-        }
-#endif
         return nullptr;
     }
     case vpiType: {
         if (moduleHandleSet.contains(sigHdlRaw)) {
-#ifdef USE_FSDB
             return const_cast<PLI_BYTE8 *>("vpiModule");
-#else
-            return reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(property, sigHdlRaw));
-#endif
         }
-#ifdef USE_FSDB
         auto varType = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandle *>(sigHdl)->vcTrvsHdl->ffrGetVarType();
         switch (varType) {
         case FSDB_VT_VCD_REG:
@@ -889,16 +727,11 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
         default:
             return const_cast<PLI_BYTE8 *>("vpiReg");
         }
-#else
-        auto vpiHdl = reinterpret_cast<SignalHandlePtr>(sigHdl)->vpiHdl;
-        return wellen_vpi_get_str(property, reinterpret_cast<void *>(vpiHdl));
-#endif
     }
     case vpiDefName: {
         if (!moduleHandleSet.contains(sigHdlRaw)) {
             return nullptr;
         }
-#ifdef USE_FSDB
         // FSDB backend provides module definition names from scope tree metadata.
         auto moduleHdl = reinterpret_cast<ModuleHandlePtr>(sigHdl);
         auto nodeIdx   = moduleHdl->fsdbNodeIdx;
@@ -907,17 +740,12 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
         }
         const auto &moduleName = fsdbModuleTree[nodeIdx].moduleName;
         return moduleName.empty() ? nullptr : const_cast<PLI_BYTE8 *>(moduleName.c_str());
-#else
-        // Non-FSDB path delegates to wellen_impl; def-name is intentionally null under FSDB-only policy.
-        return reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(property, sigHdlRaw));
-#endif
     }
     default:
         VL_FATAL(false, "Unimplemented property: {}", property);
     }
 };
 
-#ifdef USE_FSDB
 static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVec, fsdb_wave_vpi::FsdbSignalHandlePtr fsdbSigHdl) {
     if (vpiControlTerminate) {
         return;
@@ -1087,100 +915,12 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
         fflush(stdout);
     }
 }
-#else
-static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
-    if (vpiControlTerminate) {
-        return;
-    }
-
-    // static std::mutex optMutex;
-
-    // std::unique_lock<std::mutex> lock(optMutex);
-
-#ifdef PROFILE_JIT
-    jit_options::statistic.jitOptTaskCnt.store(jit_options::statistic.jitOptTaskCnt.load() + 1);
-#endif
-
-    auto optFunc = [sigHdl](uint64_t startIdx, uint64_t finishIdx) {
-        auto &optValueVec = sigHdl->optValueVec;
-        for (auto idx = startIdx; idx < finishIdx; idx++) {
-            optValueVec[idx] = wellen_get_int_value(sigHdl->vpiHdl, idx);
-        }
-    };
-
-    auto verboseJIT = jit_options::verboseJIT;
-
-    auto currentCursorIdx = cursor.index;
-    auto optFinishIdx     = currentCursorIdx + jit_options::compileWindowSize;
-    optFinishIdx          = std::min(optFinishIdx, cursor.maxIndex);
-
-    if (verboseJIT && !is_quiet_mode()) {
-        fmt::println("[wellenOptThreadTask] First optimization start! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", sigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
-        fflush(stdout);
-    }
-
-    sigHdl->optValueVec.reserve(cursor.maxIndex);
-
-    optFunc(currentCursorIdx, optFinishIdx);
-
-    sigHdl->optFinish    = true;
-    sigHdl->optFinishIdx = optFinishIdx;
-
-    // lock.unlock();
-
-#ifdef PROFILE_JIT
-    jit_options::statistic.jitOptTaskFirstFinishCnt.store(jit_options::statistic.jitOptTaskFirstFinishCnt.load() + 1);
-#endif
-
-    if (verboseJIT && !is_quiet_mode()) {
-        fmt::println("[wellenOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", sigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
-        fflush(stdout);
-    }
-
-    int optCnt = 0;
-    std::unique_lock<std::mutex> continueOptLock(sigHdl->mtx);
-    while (true) {
-        sigHdl->cv.wait(continueOptLock, [sigHdl]() { return sigHdl->continueOpt; });
-
-        // Continue optimization
-        auto optFinish    = false;
-        auto optStartIdx  = std::max(cursor.index, sigHdl->optFinishIdx);
-        auto optFinishIdx = optStartIdx + jit_options::compileWindowSize;
-        if (optFinishIdx >= cursor.maxIndex) {
-            optFinishIdx = cursor.maxIndex;
-            optFinish    = true;
-        }
-        optFunc(optStartIdx, optFinishIdx);
-
-        sigHdl->optFinishIdx = optFinishIdx;
-        sigHdl->continueOpt  = false;
-        optCnt++;
-
-        if (verboseJIT && !is_quiet_mode()) {
-            fmt::println("[wellenOptThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, sigHdl->name, optStartIdx, optFinishIdx);
-            fflush(stdout);
-        }
-
-        if (optFinish) {
-            break;
-        }
-    }
-
-    jit_options::optThreadCnt.store(jit_options::optThreadCnt.load() - 1);
-
-    if (verboseJIT && !is_quiet_mode()) {
-        fmt::println("[wellenOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, sigHdl->name);
-        fflush(stdout);
-    }
-}
-#endif
 
 void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
 #ifdef PROFILE_JIT
     auto _totalReadStart = std::chrono::high_resolution_clock::now();
 #endif
 
-#ifdef USE_FSDB
     static byte_T buffer[FSDB_MAX_BIT_SIZE + 1];
     static s_vpi_vecval vpiValueVecs[100];
     auto fsdbSigHdl = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(sigHdl);
@@ -1551,116 +1291,4 @@ ReadFromFSDB:
     jit_options::statistic.readFromNormalTime += _normalElapsedTime;
     jit_options::statistic.totalReadTime += _normalElapsedTime;
 #endif
-
-#else // USE_FSDB
-    static char _buffer[1024 * 1024];
-    static s_vpi_vecval _vpiValueVecs[100];
-
-    auto _sigHdl = reinterpret_cast<SignalHandlePtr>(sigHdl);
-    auto vpiHdl  = _sigHdl->vpiHdl;
-
-    if (!_sigHdl->canOpt || !jit_options::enableJIT)
-        goto ReadFromWellen;
-
-    if (_sigHdl->optFinish) {
-        if (cursor.index >= _sigHdl->optFinishIdx) {
-            // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, _sigHdl->optFinishIdx, _sigHdl->name);
-            goto ReadFromWellen;
-        } else if (!_sigHdl->continueOpt && cursor.index >= (_sigHdl->optFinishIdx - jit_options::recompileWindowSize)) {
-            // fmt::println("[WARN] continue optimization... {} cursot.index:{} optFinishIdx:{}", _sigHdl->name, cursor.index, _sigHdl->optFinishIdx);
-            _sigHdl->continueOpt = true;
-            _sigHdl->cv.notify_all();
-        }
-
-#ifdef PROFILE_JIT
-        jit_options::statistic.readFromOpt++;
-#endif
-
-        // JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
-        // X/Z states are NOT preserved here. To get X/Z information, disable JIT
-        // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
-        switch (value_p->format) {
-        case vpiIntVal: {
-            value_p->value.integer = _sigHdl->optValueVec[cursor.index];
-            break;
-        }
-        case vpiVectorVal: {
-            _vpiValueVecs[0].aval = _sigHdl->optValueVec[cursor.index];
-            _vpiValueVecs[0].bval = 0;
-            value_p->value.vector = _vpiValueVecs;
-            break;
-        }
-        case vpiHexStrVal: {
-            const int bufferSize = 8; // TODO: 4 * 8 = 32, if support 64 bit signal, this value should be set to 16.
-            snprintf(reinterpret_cast<char *>(_buffer), bufferSize, "%x", _sigHdl->optValueVec[cursor.index]);
-            value_p->value.str = (char *)_buffer;
-            break;
-        }
-        case vpiBinStrVal: {
-            auto &bitSize = _sigHdl->bitSize;
-            auto value    = _sigHdl->optValueVec[cursor.index];
-            for (int i = 0; i < bitSize; i++) {
-                _buffer[bitSize - 1 - i] = (value & (1 << i)) ? '1' : '0';
-            }
-            _buffer[bitSize]   = '\0';
-            value_p->value.str = (char *)_buffer;
-            break;
-        }
-        case vpiDecStrVal: {
-            // JIT path: 2-state only, no X/Z possible
-            // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
-            // Update this if optValueVec type changes to a wider integer type.
-            snprintf(reinterpret_cast<char *>(_buffer), 16, "%u", _sigHdl->optValueVec[cursor.index]);
-            value_p->value.str = (char *)_buffer;
-            break;
-        }
-        default:
-            VL_FATAL(false, "Unsupported format: {}", value_p->format);
-        }
-
-#ifdef PROFILE_JIT
-        auto _optEnd         = std::chrono::high_resolution_clock::now();
-        auto _optElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_optEnd - _totalReadStart).count();
-        jit_options::statistic.readFromOptTime += _optElapsedTime;
-        jit_options::statistic.totalReadTime += _optElapsedTime;
-#endif
-        return;
-    } else if (!_sigHdl->doOpt) {
-        _sigHdl->readCnt++;
-        // fmt::println("[WARN] readCnt: {} signalName: {} doOpt: {} bitSize: {}", _sigHdl->readCnt, _sigHdl->name, _sigHdl->doOpt, _sigHdl->bitSize);
-
-        // Doing somthing like JIT(Just-In-Time)...
-        if (_sigHdl->readCnt >= jit_options::hotAccessThreshold) {
-            auto _jitOptThreadCnt = jit_options::optThreadCnt.load();
-            if (_jitOptThreadCnt <= jit_options::maxOptThreads) {
-                jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);
-                _sigHdl->doOpt       = true;
-                _sigHdl->continueOpt = false;
-                _sigHdl->optThread   = std::thread([_sigHdl] { wellenOptThreadTask(_sigHdl); });
-            } else {
-#ifdef PROFILE_JIT
-                jit_options::statistic.optThreadNotEnough++;
-#endif
-            }
-        }
-    }
-
-ReadFromWellen:
-
-#ifdef PROFILE_JIT
-    jit_options::statistic.readFromNormal++;
-    if (!_sigHdl->canOpt) {
-        jit_options::statistic.unOptimizableRead++;
-    }
-#endif
-
-    wellen_vpi_get_value_from_index(reinterpret_cast<void *>(vpiHdl), cursor.index, value_p);
-
-#ifdef PROFILE_JIT
-    auto _normalEnd         = std::chrono::high_resolution_clock::now();
-    auto _normalElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_normalEnd - _totalReadStart).count();
-    jit_options::statistic.readFromNormalTime += _normalElapsedTime;
-    jit_options::statistic.totalReadTime += _normalElapsedTime;
-#endif
-#endif // USE_FSDB
 }
