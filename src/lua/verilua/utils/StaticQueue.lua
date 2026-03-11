@@ -51,7 +51,6 @@ function StaticQueue:_init(size, name)
         assert(type(name) == "string", "name must be a string")
     end
 
-    self.name = name or "Unknown_StaticQueue"
     if name then
         self.name = name
     else

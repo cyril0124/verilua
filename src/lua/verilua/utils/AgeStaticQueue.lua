@@ -39,6 +39,7 @@ local math_random = math.random
 local AgeStaticQueue = class() --[[@as verilua.utils.AgeStaticQueue]]
 
 local DEFAULT_MAX_AGE = 10000ULL
+local q_idx = 0
 
 ---@param size integer
 ---@param max_age? integer
@@ -54,7 +55,12 @@ function AgeStaticQueue:_init(size, max_age, name)
         assert(type(name) == "string", "name must be a string")
     end
 
-    self.name = name or "Unknown_AgeStaticQueue"
+    if name then
+        self.name = name
+    else
+        self.name = "AgeStaticQueue_" .. q_idx
+        q_idx = q_idx + 1
+    end
     self.first_ptr = 1
     self.last_ptr = 0
     self._size = size
