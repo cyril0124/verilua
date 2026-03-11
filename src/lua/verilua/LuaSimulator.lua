@@ -59,7 +59,7 @@ ffi.cdef [[
     void c_simulator_control(long long cmd);
 
     void vpiml_iterate_vpi_type(const char *module_name, int type);
-    typedef void (*vpiml_hierarchy_cb_t)(const char *full_path, const char *name, const char *module_name, int level);
+    typedef void (*vpiml_hierarchy_cb_t)(const char *full_path, const char *name, const char *module_name, const char *sig_type, int level);
     const char *vpiml_collect_hierarchy(
         int max_level,
         const char *wildcard,
@@ -196,15 +196,17 @@ end
 
 ---@class verilua.PrintHierarchyOptions
 ---@field max_level? integer Maximum traversal depth. `0` means no limit.
----@field wildcard? string Wildcard pattern matched against full hierarchy path (e.g. `top.path.*.to.some`).
+---@field wildcard? string Wildcard pattern(s) matched against full hierarchy path. Supports comma-separated patterns (e.g. `*clock,*data`).
 ---@field module_name? string Module definition name filter. Works with wildcard using AND semantics.
 ---@field show_def_name? boolean Print module definition name suffix in hierarchy output.
+---@field show_sig_type? boolean Print signal type suffix (`wire`/`reg`) in hierarchy output.
 
 ---@class verilua.NormalizedHierarchyOptions
 ---@field max_level integer
 ---@field wildcard? string
 ---@field module_name? string
 ---@field show_def_name boolean
+---@field show_sig_type boolean
 
 ---@return "tree"|"compact"
 local function get_print_hierarchy_style()
@@ -229,6 +231,7 @@ local function normalize_hierarchy_options(options)
     ---@type string?
     local module_name = nil
     local show_def_name = false
+    local show_sig_type = false
 
     if options.max_level ~= nil then
         assert(type(options.max_level) == "number", "[print_hierarchy/get_hierarchy] options.max_level must be number")
@@ -246,6 +249,10 @@ local function normalize_hierarchy_options(options)
         assert(type(options.show_def_name) == "boolean", "[print_hierarchy/get_hierarchy] options.show_def_name must be boolean")
         show_def_name = options.show_def_name
     end
+    if options.show_sig_type ~= nil then
+        assert(type(options.show_sig_type) == "boolean", "[print_hierarchy/get_hierarchy] options.show_sig_type must be boolean")
+        show_sig_type = options.show_sig_type
+    end
 
     assert(max_level >= 0, "[print_hierarchy/get_hierarchy] max_level must be >= 0")
     assert(math.floor(max_level) == max_level, "[print_hierarchy/get_hierarchy] max_level must be an integer")
@@ -255,6 +262,7 @@ local function normalize_hierarchy_options(options)
         wildcard = wildcard,
         module_name = module_name,
         show_def_name = show_def_name,
+        show_sig_type = show_sig_type,
     }
 end
 
@@ -279,19 +287,27 @@ end
 ---@param normalized_options verilua.NormalizedHierarchyOptions Validated and normalized hierarchy options.
 ---@param include_tree_prefixes boolean Include wildcard-matched path prefixes for tree rendering.
 ---@param require_module_name_data boolean Require module def-name capability for this request.
----@return table<integer, string>, table<string, string>
+---@return table<integer, string>, table<string, string>, table<string, string>
 local function collect_hierarchy_paths(normalized_options, include_tree_prefixes, require_module_name_data)
     ---@type table<integer, string>
     local hierarchy_paths = {}
     ---@type table<string, string>
     local module_name_by_path = {}
-    local callback = ffi.cast("vpiml_hierarchy_cb_t", function(full_path_c, _name_c, module_name_c, _level)
+    ---@type table<string, string>
+    local sig_type_by_path = {}
+    local callback = ffi.cast("vpiml_hierarchy_cb_t", function(full_path_c, _name_c, module_name_c, sig_type_c, _level)
         local full_path = ffi.string(full_path_c)
         if module_name_c ~= nil then
             local module_name_raw = ffi.string(module_name_c)
             if module_name_raw ~= "" then
                 -- Only module scopes carry def-name; leaf objects (net/reg/memory) pass null/empty.
                 module_name_by_path[full_path] = module_name_raw
+            end
+        end
+        if sig_type_c ~= nil then
+            local sig_type_raw = ffi.string(sig_type_c)
+            if sig_type_raw ~= "" then
+                sig_type_by_path[full_path] = sig_type_raw
             end
         end
 
@@ -312,7 +328,7 @@ local function collect_hierarchy_paths(normalized_options, include_tree_prefixes
         assert(false, ffi.string(err_msg_c))
     end
 
-    return hierarchy_paths, module_name_by_path
+    return hierarchy_paths, module_name_by_path, sig_type_by_path
 end
 
 ---@param options? verilua.PrintHierarchyOptions Optional filters/limits for hierarchy collection.
@@ -320,8 +336,22 @@ end
 ---@return table<integer, string>
 local get_hierarchy = function(options)
     local normalized_options = normalize_hierarchy_options(options)
-    local hierarchy_paths = collect_hierarchy_paths(normalized_options, false, false)
-    return hierarchy_paths
+    local hierarchy_paths, _, sig_type_by_path = collect_hierarchy_paths(normalized_options, false, false)
+    if not normalized_options.show_sig_type then
+        return hierarchy_paths
+    end
+
+    local typed_paths = {}
+    for _, full_path in ipairs(hierarchy_paths) do
+        local sig_type = sig_type_by_path[full_path]
+        if sig_type ~= nil then
+            typed_paths[#typed_paths + 1] = string.format("%s (%s)", full_path, sig_type)
+        else
+            typed_paths[#typed_paths + 1] = full_path
+        end
+    end
+
+    return typed_paths
 end
 
 ---@param options? verilua.PrintHierarchyOptions Optional filters/display options for hierarchy output.
@@ -339,10 +369,13 @@ local print_hierarchy = function(options)
     if normalized_options.show_def_name then
         header = string.format("%s show_def_name=true", header)
     end
+    if normalized_options.show_sig_type then
+        header = string.format("%s show_sig_type=true", header)
+    end
     print(header)
 
     local include_tree_prefixes = normalized_options.wildcard ~= nil and style == "tree"
-    local hierarchy_paths, module_name_by_path =
+    local hierarchy_paths, module_name_by_path, sig_type_by_path =
         collect_hierarchy_paths(normalized_options, include_tree_prefixes, normalized_options.show_def_name)
 
     for _, full_path in ipairs(hierarchy_paths) do
@@ -352,6 +385,11 @@ local print_hierarchy = function(options)
             local module_name = module_name_by_path[full_path]
             if module_name ~= nil then
                 name = string.format("%s (%s)", name, module_name)
+            end
+        elseif normalized_options.show_sig_type then
+            local sig_type = sig_type_by_path[full_path]
+            if sig_type ~= nil then
+                name = string.format("%s (%s)", name, sig_type)
             end
         end
         print(render_hierarchy_line(name, level, style))

@@ -1,6 +1,7 @@
 local table_sort = table.sort
 local table_concat = table.concat
 local ONLY_FSDB_SUBSTR = "only supported for FSDB waveform in wave_vpi backend"
+local known_sig_types = { "wire", "reg" }
 local report_file = os.getenv("MODULE_NAME_REPORT_FILE")
 local report_lines = {}
 
@@ -32,6 +33,17 @@ local function extract_hierarchy_lines(captured_lines)
         end
     end
     return lines
+end
+
+local function extract_sig_type(captured_lines)
+    for _, line in ipairs(captured_lines) do
+        for _, sig_type in ipairs(known_sig_types) do
+            if line:find("(" .. sig_type .. ")", 1, true) then
+                return sig_type
+            end
+        end
+    end
+    return nil
 end
 
 local function sort_and_print_paths(tag, paths)
@@ -85,6 +97,87 @@ local function capture_print(fn)
     return captured
 end
 
+local function run_show_sig_type_checks(wtype)
+    local function run_sig_type_case(case_tag, wildcard, expected_sig_type)
+        local paths = sim.get_hierarchy {
+            wildcard = wildcard,
+            show_sig_type = true,
+        }
+        assert(#paths > 0, string.format("[%s_paths] expected non-empty result", case_tag))
+        for _, path in ipairs(paths) do
+            assert(
+                extract_sig_type { path } == expected_sig_type,
+                string.format("[%s_paths] expected `%s` suffix", case_tag, expected_sig_type)
+            )
+        end
+        sort_and_print_paths(case_tag .. "_paths", paths)
+
+        emit_line("[" .. case_tag .. "_tree_begin]")
+        local captured = capture_print(function()
+            sim.print_hierarchy {
+                max_level = 4,
+                wildcard = wildcard,
+                show_sig_type = true,
+            }
+        end)
+        for _, line in ipairs(extract_hierarchy_lines(captured)) do
+            emit_line(line)
+        end
+        emit_line("[" .. case_tag .. "_tree_end]")
+
+        local detected_sig_type = extract_sig_type(captured)
+        assert(detected_sig_type == expected_sig_type, string.format("[%s] expected `%s`", case_tag, expected_sig_type))
+        emit_line("[" .. case_tag .. "_contains] " .. detected_sig_type)
+    end
+
+    local expected_data_sig_type = (wtype == "fst") and "wire" or "reg"
+    run_sig_type_case("show_sig_type", "*u_mid_a.data", expected_data_sig_type)
+    run_sig_type_case("show_sig_type_wire", "*u_mid_a.leaf_data", "wire")
+end
+
+local function run_multi_wildcard_checks()
+    local multi_wild_paths = sim.get_hierarchy {
+        wildcard = "*u_mid_a.data,*u_mid_b.data",
+    }
+    assert(#multi_wild_paths >= 2, "[multi_wild_paths] expected at least two paths")
+    local has_mid_a_data = false
+    local has_mid_b_data = false
+    for _, path in ipairs(multi_wild_paths) do
+        if path == "tb_top.u_top.u_mid_a.data" then
+            has_mid_a_data = true
+        elseif path == "tb_top.u_top.u_mid_b.data" then
+            has_mid_b_data = true
+        end
+    end
+    assert(has_mid_a_data and has_mid_b_data, "[multi_wild_paths] expected both u_mid_a.data and u_mid_b.data")
+    sort_and_print_paths("multi_wild_paths", multi_wild_paths)
+
+    emit_line("[multi_wild_tree_begin]")
+    local captured_multi_wild = capture_print(function()
+        sim.print_hierarchy {
+            max_level = 4,
+            wildcard = "*u_mid_a.data,*u_mid_b.data",
+        }
+    end)
+    for _, line in ipairs(extract_hierarchy_lines(captured_multi_wild)) do
+        emit_line(line)
+    end
+    emit_line("[multi_wild_tree_end]")
+
+    local has_mid_a_tree = false
+    local has_mid_b_tree = false
+    for _, line in ipairs(captured_multi_wild) do
+        if line:find("u_mid_a", 1, true) then
+            has_mid_a_tree = true
+        end
+        if line:find("u_mid_b", 1, true) then
+            has_mid_b_tree = true
+        end
+    end
+    assert(has_mid_a_tree and has_mid_b_tree, "[multi_wild_tree] expected both u_mid_a and u_mid_b in output")
+    emit_line("[multi_wild_contains] u_mid_a,u_mid_b")
+end
+
 fork {
     function()
         local wtype = os.getenv("WTYPE") or "fst"
@@ -97,6 +190,9 @@ fork {
             expect_error(wtype .. "_show_def_name_error", function()
                 sim.print_hierarchy { show_def_name = true }
             end, ONLY_FSDB_SUBSTR)
+
+            run_multi_wildcard_checks()
+            run_show_sig_type_checks(wtype)
 
             emit_line("[module_name_test] PASS " .. wtype)
             emit_line("[module_name_test] end")
@@ -179,6 +275,9 @@ fork {
         end
         assert(has_mid_def_name_no_wildcard, "[show_def_name_no_wildcard] expected output to contain `(MidMod)`")
         emit_line("[show_def_name_no_wildcard_contains] MidMod")
+
+        run_multi_wildcard_checks()
+        run_show_sig_type_checks(wtype)
 
         emit_line("[module_name_test] PASS " .. wtype)
         emit_line("[module_name_test] end")

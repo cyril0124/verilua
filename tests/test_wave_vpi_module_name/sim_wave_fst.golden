@@ -52,6 +52,19 @@ tb_top (tb_top)
 [gen_mid_wild_paths] tb_top.u_top.u_mid_a
 [gen_none_paths_count] 0
 [module_name_gen_show_def_name_contains] LeafMod
+[gen_multi_wild_paths_count] 2
+[gen_multi_wild_paths] tb_top.u_top.u_mid_a.data
+[gen_multi_wild_paths] tb_top.u_top.u_mid_b.data
+[gen_multi_wild_tree_begin]
+[print_hierarchy] max_level=4 style=tree wildcard=*u_mid_a.data,*u_mid_b.data
+tb_top
+|-- u_top
+|   |-- u_mid_a
+|   |   |-- data
+|   |-- u_mid_b
+|   |   |-- data
+[gen_multi_wild_tree_end]
+[gen_multi_wild_contains] u_mid_a,u_mid_b
 [gen_show_def_name_no_wildcard_tree_begin]
 [print_hierarchy] max_level=4 style=tree show_def_name=true
 tb_top (tb_top)
@@ -102,11 +115,54 @@ tb_top (tb_top)
 |   |   |   |-- reset
 [gen_show_def_name_no_wildcard_tree_end]
 [module_name_gen_show_def_name_no_wildcard_contains] MidMod
+[gen_show_sig_type_tree_begin]
+[print_hierarchy] max_level=4 style=tree wildcard=*u_mid_a.data show_sig_type=true
+tb_top
+|-- u_top
+|   |-- u_mid_a
+|   |   |-- data (reg)
+[gen_show_sig_type_tree_end]
+[module_name_gen_show_sig_type_contains] reg
+[gen_show_sig_type_paths_count] 1
+[gen_show_sig_type_paths] tb_top.u_top.u_mid_a.data (reg)
 [module_name_gen_test] PASS verilator
 [module_name_gen_test] end
 [sim_wave]
 [module_name_test] begin
 [fst_module_name_error] matched_expected_error
 [fst_show_def_name_error] matched_expected_error
+[multi_wild_paths_count] 2
+[multi_wild_paths] tb_top.u_top.u_mid_a.data
+[multi_wild_paths] tb_top.u_top.u_mid_b.data
+[multi_wild_tree_begin]
+[print_hierarchy] max_level=4 style=tree wildcard=*u_mid_a.data,*u_mid_b.data
+tb_top
+|-- u_top
+|   |-- u_mid_a
+|   |   |-- data
+|   |-- u_mid_b
+|   |   |-- data
+[multi_wild_tree_end]
+[multi_wild_contains] u_mid_a,u_mid_b
+[show_sig_type_paths_count] 1
+[show_sig_type_paths] tb_top.u_top.u_mid_a.data (wire)
+[show_sig_type_tree_begin]
+[print_hierarchy] max_level=4 style=tree wildcard=*u_mid_a.data show_sig_type=true
+tb_top
+|-- u_top
+|   |-- u_mid_a
+|   |   |-- data (wire)
+[show_sig_type_tree_end]
+[show_sig_type_contains] wire
+[show_sig_type_wire_paths_count] 1
+[show_sig_type_wire_paths] tb_top.u_top.u_mid_a.leaf_data (wire)
+[show_sig_type_wire_tree_begin]
+[print_hierarchy] max_level=4 style=tree wildcard=*u_mid_a.leaf_data show_sig_type=true
+tb_top
+|-- u_top
+|   |-- u_mid_a
+|   |   |-- leaf_data (wire)
+[show_sig_type_wire_tree_end]
+[show_sig_type_wire_contains] wire
 [module_name_test] PASS fst
 [module_name_test] end

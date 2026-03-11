@@ -624,10 +624,10 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
     let id_opt = get_signal_ref_cache().get(&name.to_string());
     if let Some(id) = id_opt {
         log::debug!("find vpiHandle in cache => name: {} id: {:?}", name, id);
-        if !get_signal_name_cache().contains_key(id) {
-            get_signal_name_cache()
-                .insert(*id, CString::new(name).expect("signal name contains NUL"));
-        }
+        // SignalRef may be shared by aliased names (e.g. parent net vs child port).
+        // Always refresh to the currently queried full path so hierarchy wildcard/path
+        // matching remains stable for the active traversal context.
+        get_signal_name_cache().insert(*id, CString::new(name).expect("signal name contains NUL"));
         let value = Box::new(*id as vpiHandle);
         return Box::into_raw(value) as *mut c_void;
     }

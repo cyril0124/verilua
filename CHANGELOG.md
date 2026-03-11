@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **wave_vpi**: Add `vpiDecStrVal` support for decimal string value retrieval across all backends (FSDB JIT/normal, Wellen JIT/Binary/FourValue). Returns `"x"` when X/Z state is present, decimal number string otherwise
 - **wave_vpi/libverilua**: Add backend support for Lua APIs `sim.print_hierarchy` and `sim.get_hierarchy`
 - **wave_vpi/libverilua**: Add module definition name (`vpiDefName`) support for hierarchy collection and expose Lua hierarchy options `module_name` (filter) and `show_def_name` (display)
+- **wave_vpi/libverilua**: `sim.get_hierarchy()` / `sim.print_hierarchy()` wildcard now supports comma-separated patterns (e.g. `*clock,*data`) with OR semantics.
 - **AgeStaticQueue**: enhance `list_data` output
 - **AgeStaticQueue**: Add `push_waitable()`, `pop_waitable()` and `wait_not_empty()` methods for blocking queue operations
 

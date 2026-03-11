@@ -120,7 +120,7 @@ target("run_test", function()
                 string.format("missing marker `%s` for case sim=%s wave=%s", expected_marker, sim, wave_type)
             )
 
-            os.setenv("MODULE_NAME_REPORT_FILE", nil)
+            os.setenv("MODULE_NAME_REPORT_FILE", "")
 
             local golden_expected = io.readfile(prj_dir .. "/" .. golden_file)
             assert(golden_expected ~= nil, "golden file not found: " .. golden_file)

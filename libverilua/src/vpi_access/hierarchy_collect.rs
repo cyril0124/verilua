@@ -2,7 +2,7 @@ use super::*;
 use std::collections::HashSet;
 
 type HierarchyItemCallback =
-    unsafe extern "C" fn(*const c_char, *const c_char, *const c_char, PLI_INT32);
+    unsafe extern "C" fn(*const c_char, *const c_char, *const c_char, *const c_char, PLI_INT32);
 
 const HIER_ERR_MODULE_NAME_ONLY_FSDB: &[u8] =
     b"[get_hierarchy] `module_name` is only supported for FSDB waveform in wave_vpi backend.\0";
@@ -23,6 +23,7 @@ fn err_ptr(msg: &'static [u8]) -> *const c_char {
 struct HierarchyEntry {
     full_path: String,
     module_name: Option<String>,
+    sig_type: Option<String>,
     level: PLI_INT32,
 }
 
@@ -31,15 +32,24 @@ fn push_hierarchy_entry(
     seen_paths: &mut HashSet<String>,
     full_path: String,
     module_name: Option<String>,
+    sig_type: Option<String>,
     level: PLI_INT32,
 ) {
     // Merge module-scan + leaf-scan output into a unique full-path set.
     if !seen_paths.insert(full_path.clone()) {
+        // Some backends may expose the same logical path via multiple aliases.
+        // Keep the stronger signal type when a duplicate arrives later.
+        if sig_type.as_deref() == Some("reg")
+            && let Some(existing) = entries.iter_mut().find(|entry| entry.full_path == full_path)
+        {
+            existing.sig_type = Some("reg".to_string());
+        }
         return;
     }
     entries.push(HierarchyEntry {
         full_path,
         module_name,
+        sig_type,
         level,
     });
 }
@@ -87,6 +97,7 @@ fn vpiml_collect_hierarchy_recursive(
             seen_paths,
             full_path.clone(),
             module_name,
+            None,
             level,
         );
 
@@ -125,6 +136,20 @@ fn vpiml_collect_hierarchy_recursive(
                         obj_full_path,
                         // Leaf objects have no module def-name metadata.
                         None,
+                        Some(
+                            match object_type {
+                                vpiNet => "wire",
+                                // Keep hierarchy sig-type output minimal/stable as {wire, reg}.
+                                // `vpiMemory` is folded into `reg` by policy.
+                                // NOTE: In wave_vpi (especially FST), waveform metadata may classify
+                                // some `output reg` ports as net-like objects; this semantic
+                                // difference should
+                                // be documented rather than surfaced as extra sig-type variants.
+                                vpiReg | vpiMemory => "reg",
+                                _ => "reg",
+                            }
+                            .to_string(),
+                        ),
                         level + 1,
                     );
                 }
@@ -154,18 +179,35 @@ fn collect_hierarchy_entries(max_level: PLI_INT32) -> Vec<HierarchyEntry> {
         &mut entries,
         &mut seen_paths,
     );
+    entries.sort_by(|a, b| a.full_path.cmp(&b.full_path).then_with(|| a.level.cmp(&b.level)));
     entries
 }
 
 fn entry_matches(
     entry: &HierarchyEntry,
-    wildcard: Option<&wildmatch::WildMatch>,
+    wildcard_matchers: &[wildmatch::WildMatch],
     module_name_filter: Option<&str>,
 ) -> bool {
-    let wildcard_match = wildcard.is_none_or(|matcher| matcher.matches(entry.full_path.as_str()));
+    let wildcard_match = wildcard_matchers.is_empty()
+        || wildcard_matchers
+            .iter()
+            .any(|matcher| matcher.matches(entry.full_path.as_str()));
     let module_name_match = module_name_filter
         .is_none_or(|filter| entry.module_name.as_deref() == Some(filter));
     wildcard_match && module_name_match
+}
+
+fn parse_wildcard_matchers(wildcard: *const c_char) -> Vec<wildmatch::WildMatch> {
+    let Some(raw_pattern) = (unsafe { utils::c_char_to_str_opt(wildcard) }) else {
+        return Vec::new();
+    };
+
+    raw_pattern
+        .split(',')
+        .map(str::trim)
+        .filter(|pattern| !pattern.is_empty())
+        .map(wildmatch::WildMatch::new)
+        .collect()
 }
 
 fn emit_hierarchy_entry(entry: &HierarchyEntry, cb: HierarchyItemCallback) {
@@ -187,8 +229,23 @@ fn emit_hierarchy_entry(entry: &HierarchyEntry, cb: HierarchyItemCallback) {
     let module_name_ptr = module_name_cstr
         .as_ref()
         .map_or(std::ptr::null(), |name| name.as_ptr());
+    let sig_type_cstr = entry
+        .sig_type
+        .as_ref()
+        .and_then(|sig_type| CString::new(sig_type.as_str()).ok());
+    let sig_type_ptr = sig_type_cstr
+        .as_ref()
+        .map_or(std::ptr::null(), |sig_type| sig_type.as_ptr());
     // CStrings stay alive for the duration of cb call.
-    unsafe { cb(full_path_cstr.as_ptr(), name_cstr.as_ptr(), module_name_ptr, entry.level) };
+    unsafe {
+        cb(
+            full_path_cstr.as_ptr(),
+            name_cstr.as_ptr(),
+            module_name_ptr,
+            sig_type_ptr,
+            entry.level,
+        )
+    };
 }
 
 #[unsafe(no_mangle)]
@@ -210,9 +267,7 @@ pub unsafe extern "C" fn vpiml_collect_hierarchy(
     let Some(cb) = cb else {
         return err_ptr(HIER_ERR_INTERNAL_NULL_CB);
     };
-    let wildcard_matcher = unsafe { utils::c_char_to_str_opt(wildcard) }
-        .filter(|pattern| !pattern.is_empty())
-        .map(wildmatch::WildMatch::new);
+    let wildcard_matchers = parse_wildcard_matchers(wildcard);
     let module_name_filter =
         unsafe { utils::c_char_to_str_opt(module_name) }.filter(|name| !name.is_empty());
 
@@ -227,15 +282,11 @@ pub unsafe extern "C" fn vpiml_collect_hierarchy(
         };
     }
 
-    if include_tree_prefixes != 0 && wildcard_matcher.is_some() {
+    if include_tree_prefixes != 0 && !wildcard_matchers.is_empty() {
         // Tree mode wildcard keeps ancestor prefixes so output remains readable.
         let mut visible_paths = HashSet::new();
         for entry in entries.iter() {
-            if !entry_matches(
-                entry,
-                wildcard_matcher.as_ref(),
-                module_name_filter,
-            ) {
+            if !entry_matches(entry, wildcard_matchers.as_slice(), module_name_filter) {
                 continue;
             }
 
@@ -257,7 +308,7 @@ pub unsafe extern "C" fn vpiml_collect_hierarchy(
         }
     } else {
         for entry in entries.iter() {
-            if entry_matches(entry, wildcard_matcher.as_ref(), module_name_filter) {
+            if entry_matches(entry, wildcard_matchers.as_slice(), module_name_filter) {
                 emit_hierarchy_entry(entry, cb);
             }
         }
