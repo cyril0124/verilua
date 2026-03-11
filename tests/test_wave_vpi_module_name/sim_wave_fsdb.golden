@@ -1,0 +1,181 @@
+[gen_wave]
+[module_name_gen_test] begin
+[gen_show_def_name_wildcard_tree_begin]
+[print_hierarchy] max_level=4 style=tree wildcard=*u_mid* show_def_name=true
+tb_top (tb_top)
+|-- u_top (top)
+|   |-- u_mid_a (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_mid_b (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_mid_out (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+[gen_show_def_name_wildcard_tree_end]
+[module_name_gen_leaf_def_name] LeafMod
+[gen_leaf_paths_count] 4
+[gen_leaf_paths] tb_top.u_top.u_leaf_top
+[gen_leaf_paths] tb_top.u_top.u_mid_a.u_leaf
+[gen_leaf_paths] tb_top.u_top.u_mid_b.u_leaf
+[gen_leaf_paths] tb_top.u_top.u_mid_out.u_leaf
+[gen_leaf_wild_paths_count] 4
+[gen_leaf_wild_paths] tb_top.u_top.u_leaf_top
+[gen_leaf_wild_paths] tb_top.u_top.u_mid_a.u_leaf
+[gen_leaf_wild_paths] tb_top.u_top.u_mid_b.u_leaf
+[gen_leaf_wild_paths] tb_top.u_top.u_mid_out.u_leaf
+[module_name_gen_mid_def_name] MidMod
+[gen_mid_paths_count] 3
+[gen_mid_paths] tb_top.u_top.u_mid_a
+[gen_mid_paths] tb_top.u_top.u_mid_b
+[gen_mid_paths] tb_top.u_top.u_mid_out
+[gen_mid_wild_paths_count] 1
+[gen_mid_wild_paths] tb_top.u_top.u_mid_a
+[gen_none_paths_count] 0
+[module_name_gen_show_def_name_contains] LeafMod
+[gen_show_def_name_no_wildcard_tree_begin]
+[print_hierarchy] max_level=4 style=tree show_def_name=true
+tb_top (tb_top)
+|-- clock
+|-- reset
+|-- cycles
+|-- u_top (top)
+|   |-- clock
+|   |-- reset
+|   |-- mid_a_data
+|   |-- mid_b_data
+|   |-- mid_out_data
+|   |-- leaf_top_data
+|   |-- u_mid_a (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_mid_b (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_mid_out (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_leaf_top (LeafMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- data
+|-- u_others (Others)
+|   |-- clock
+|   |-- reset
+[gen_show_def_name_no_wildcard_tree_end]
+[module_name_gen_show_def_name_no_wildcard_contains] MidMod
+[module_name_gen_test] PASS vcs
+[module_name_gen_test] end
+[sim_wave]
+[module_name_test] begin
+[mid_paths_count] 3
+[mid_paths] tb_top.u_top.u_mid_a
+[mid_paths] tb_top.u_top.u_mid_b
+[mid_paths] tb_top.u_top.u_mid_out
+[mid_wild_paths_count] 1
+[mid_wild_paths] tb_top.u_top.u_mid_a
+[leaf_wild_paths_count] 4
+[leaf_wild_paths] tb_top.u_top.u_leaf_top
+[leaf_wild_paths] tb_top.u_top.u_mid_a.u_leaf
+[leaf_wild_paths] tb_top.u_top.u_mid_b.u_leaf
+[leaf_wild_paths] tb_top.u_top.u_mid_out.u_leaf
+[none_paths_count] 0
+[show_def_name_wildcard_tree_begin]
+[print_hierarchy] max_level=4 style=tree wildcard=*u_mid* module_name=MidMod show_def_name=true
+tb_top (tb_top)
+|-- u_top (top)
+|   |-- u_mid_a (MidMod)
+|   |-- u_mid_b (MidMod)
+|   |-- u_mid_out (MidMod)
+[show_def_name_wildcard_tree_end]
+[show_def_name_contains] MidMod
+[show_def_name_no_wildcard_tree_begin]
+[print_hierarchy] max_level=4 style=tree show_def_name=true
+tb_top (tb_top)
+|-- clock
+|-- reset
+|-- cycles
+|-- dump_file
+|-- dump_start_cycle
+|-- u_top (top)
+|   |-- clock
+|   |-- reset
+|   |-- mid_a_data
+|   |-- mid_b_data
+|   |-- mid_out_data
+|   |-- leaf_top_data
+|   |-- u_mid_a (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_mid_b (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_mid_out (MidMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- leaf_data
+|   |   |-- data
+|   |   |-- u_leaf (LeafMod)
+|   |   |   |-- clock
+|   |   |   |-- reset
+|   |   |   |-- data
+|   |-- u_leaf_top (LeafMod)
+|   |   |-- clock
+|   |   |-- reset
+|   |   |-- data
+|-- u_others (Others)
+|   |-- clock
+|   |-- reset
+[show_def_name_no_wildcard_tree_end]
+[show_def_name_no_wildcard_contains] MidMod
+[module_name_test] PASS fsdb
+[module_name_test] end

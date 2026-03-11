@@ -1,0 +1,188 @@
+local table_sort = table.sort
+local table_concat = table.concat
+local ONLY_FSDB_SUBSTR = "only supported for FSDB waveform in wave_vpi backend"
+local report_file = os.getenv("MODULE_NAME_REPORT_FILE")
+local report_lines = {}
+
+local function emit_line(line)
+    print(line)
+    if report_file ~= nil and report_file ~= "" then
+        report_lines[#report_lines + 1] = line
+    end
+end
+
+local function flush_report()
+    if report_file == nil or report_file == "" then
+        return
+    end
+
+    local file, err = io.open(report_file, "w")
+    assert(file, "[module_name_test] failed to write report file: " .. tostring(err))
+    for _, line in ipairs(report_lines) do
+        file:write(line, "\n")
+    end
+    file:close()
+end
+
+local function extract_hierarchy_lines(captured_lines)
+    local lines = {}
+    for _, line in ipairs(captured_lines) do
+        if line:find("[print_hierarchy]", 1, true) == 1 or line:find("tb_top", 1, true) == 1 or line:find("|", 1, true) == 1 then
+            lines[#lines + 1] = line
+        end
+    end
+    return lines
+end
+
+local function sort_and_print_paths(tag, paths)
+    table_sort(paths)
+    emit_line(string.format("[%s_count] %d", tag, #paths))
+    for _, path in ipairs(paths) do
+        emit_line(string.format("[%s] %s", tag, path))
+    end
+end
+
+local function assert_paths_equal(tag, got, expected)
+    table_sort(got)
+    table_sort(expected)
+    assert(#got == #expected, string.format("[%s] expected %d paths, got %d", tag, #expected, #got))
+    for i = 1, #expected do
+        assert(
+            got[i] == expected[i],
+            string.format("[%s] path mismatch at index %d, expected=%s got=%s", tag, i, expected[i], tostring(got[i]))
+        )
+    end
+    sort_and_print_paths(tag, got)
+end
+
+local function expect_error(tag, fn, expected_substr)
+    local ok, err = pcall(fn)
+    assert(not ok, string.format("[%s] expected error, but succeeded", tag))
+    local err_str = tostring(err)
+    assert(
+        err_str:find(expected_substr, 1, true) ~= nil,
+        string.format("[%s] unexpected error message: %s", tag, err_str)
+    )
+    emit_line(string.format("[%s] matched_expected_error", tag))
+end
+
+local function capture_print(fn)
+    local old_print = rawget(_G, "print")
+    local captured = {}
+    rawset(_G, "print", function(...)
+        local parts = {}
+        for i = 1, select("#", ...) do
+            parts[#parts + 1] = tostring(select(i, ...))
+        end
+        local line = table_concat(parts, " ")
+        captured[#captured + 1] = line
+        old_print(...)
+    end)
+
+    local ok, err = pcall(fn)
+    rawset(_G, "print", old_print)
+    assert(ok, tostring(err))
+    return captured
+end
+
+fork {
+    function()
+        local wtype = os.getenv("WTYPE") or "fst"
+        emit_line("[module_name_test] begin")
+
+        if wtype ~= "fsdb" then
+            expect_error(wtype .. "_module_name_error", function()
+                sim.get_hierarchy { module_name = "MidMod" }
+            end, ONLY_FSDB_SUBSTR)
+            expect_error(wtype .. "_show_def_name_error", function()
+                sim.print_hierarchy { show_def_name = true }
+            end, ONLY_FSDB_SUBSTR)
+
+            emit_line("[module_name_test] PASS " .. wtype)
+            emit_line("[module_name_test] end")
+            flush_report()
+            sim.finish()
+            return
+        end
+
+        local mid_paths = sim.get_hierarchy { module_name = "MidMod" }
+        assert_paths_equal("mid_paths", mid_paths, {
+            "tb_top.u_top.u_mid_a",
+            "tb_top.u_top.u_mid_b",
+            "tb_top.u_top.u_mid_out",
+        })
+
+        local mid_wild_paths = sim.get_hierarchy {
+            wildcard = "*u_mid_a*",
+            module_name = "MidMod",
+        }
+        assert_paths_equal("mid_wild_paths", mid_wild_paths, {
+            "tb_top.u_top.u_mid_a",
+        })
+
+        local leaf_wild_paths = sim.get_hierarchy {
+            wildcard = "*u_leaf*",
+            module_name = "LeafMod",
+        }
+        assert_paths_equal("leaf_wild_paths", leaf_wild_paths, {
+            "tb_top.u_top.u_leaf_top",
+            "tb_top.u_top.u_mid_a.u_leaf",
+            "tb_top.u_top.u_mid_b.u_leaf",
+            "tb_top.u_top.u_mid_out.u_leaf",
+        })
+
+        local none_paths = sim.get_hierarchy { module_name = "NoSuchMod" }
+        assert(#none_paths == 0, "[none_paths] expected empty result")
+        emit_line("[none_paths_count] 0")
+
+        emit_line("[show_def_name_wildcard_tree_begin]")
+        local captured = capture_print(function()
+            sim.print_hierarchy {
+                max_level = 4,
+                wildcard = "*u_mid*",
+                module_name = "MidMod",
+                show_def_name = true,
+            }
+        end)
+        for _, line in ipairs(extract_hierarchy_lines(captured)) do
+            emit_line(line)
+        end
+        emit_line("[show_def_name_wildcard_tree_end]")
+
+        local has_mid_def_name = false
+        for _, line in ipairs(captured) do
+            if line:find("(MidMod)", 1, true) then
+                has_mid_def_name = true
+                break
+            end
+        end
+        assert(has_mid_def_name, "[show_def_name] expected output to contain `(MidMod)`")
+        emit_line("[show_def_name_contains] MidMod")
+
+        emit_line("[show_def_name_no_wildcard_tree_begin]")
+        local captured_no_wildcard = capture_print(function()
+            sim.print_hierarchy {
+                max_level = 4,
+                show_def_name = true,
+            }
+        end)
+        for _, line in ipairs(extract_hierarchy_lines(captured_no_wildcard)) do
+            emit_line(line)
+        end
+        emit_line("[show_def_name_no_wildcard_tree_end]")
+        local has_mid_def_name_no_wildcard = false
+        for _, line in ipairs(captured_no_wildcard) do
+            if line:find("(MidMod)", 1, true) then
+                has_mid_def_name_no_wildcard = true
+                break
+            end
+        end
+        assert(has_mid_def_name_no_wildcard, "[show_def_name_no_wildcard] expected output to contain `(MidMod)`")
+        emit_line("[show_def_name_no_wildcard_contains] MidMod")
+
+        emit_line("[module_name_test] PASS " .. wtype)
+        emit_line("[module_name_test] end")
+        flush_report()
+        sim.finish()
+    end
+}

@@ -1,0 +1,5 @@
+build/
+test.fst
+test.vcd
+test.vcd.fsdb
+iverilog_trace_name.txt

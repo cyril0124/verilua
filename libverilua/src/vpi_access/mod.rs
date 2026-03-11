@@ -10,6 +10,7 @@ use crate::verilua_env::VeriluaEnv;
 use crate::vpi_user::*;
 
 mod handle_getters;
+mod hierarchy_collect;
 mod meta_getters;
 mod value_getters;
 mod value_setters;

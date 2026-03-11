@@ -1143,6 +1143,8 @@ pub unsafe extern "C" fn wellen_vpi_get_str(
         let module_handle = unsafe { &*(handle as *const WellenModuleHandle) };
         match property as u32 {
             vpiName => module_handle.name.as_ptr() as *mut c_void,
+            // Def-name is intentionally FSDB-only in current policy.
+            vpiDefName => std::ptr::null_mut(),
             vpiType => c"vpiModule".as_ptr() as *mut c_void,
             _ => std::ptr::null_mut(),
         }

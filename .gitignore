@@ -1,5 +1,6 @@
 .metals/
 .vscode/
+.cache/
 */.nfs*
 .nfs*
 .luajit_pro/

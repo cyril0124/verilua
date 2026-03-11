@@ -1,7 +1,4 @@
 use super::*;
-use std::collections::HashSet;
-
-type HierarchyItemCallback = unsafe extern "C" fn(*const c_char, *const c_char, PLI_INT32);
 
 impl VeriluaEnv {
     pub fn vpiml_iterate_vpi_type(&mut self, module_name: *mut c_char, vpi_type: u32) {
@@ -44,85 +41,6 @@ impl VeriluaEnv {
     }
 }
 
-fn vpiml_collect_hierarchy_recursive(
-    module: vpiHandle,
-    parent_path: &str,
-    level: PLI_INT32,
-    max_level: PLI_INT32,
-    cb: HierarchyItemCallback,
-) {
-    if max_level != 0 && level > max_level {
-        return;
-    }
-
-    let iter = unsafe { vpi_iterate(vpiModule as _, module) };
-    if iter.is_null() {
-        return;
-    }
-
-    loop {
-        let child = unsafe { vpi_scan(iter) };
-        if child.is_null() {
-            break;
-        }
-
-        let name_ptr = unsafe { vpi_get_str(vpiName as _, child) } as *const c_char;
-        let Some(name) = (unsafe { utils::c_char_to_str_opt(name_ptr) }) else {
-            continue;
-        };
-
-        let full_path = if parent_path.is_empty() {
-            name.to_string()
-        } else {
-            format!("{parent_path}.{name}")
-        };
-
-        let Ok(full_path_cstr) = CString::new(full_path.as_str()) else {
-            continue;
-        };
-        unsafe { cb(full_path_cstr.as_ptr(), name_ptr, level) };
-
-        // Collect leaf objects under this module node (e.g. nets/regs/memory).
-        // Some backends may not support these iterate types; null iterators are skipped.
-        if max_level == 0 || level < max_level {
-            let mut visited_name_set = HashSet::new();
-            for object_type in [vpiNet, vpiReg, vpiMemory] {
-                let obj_iter = unsafe { vpi_iterate(object_type as _, child) };
-                if obj_iter.is_null() {
-                    continue;
-                }
-
-                loop {
-                    let obj = unsafe { vpi_scan(obj_iter) };
-                    if obj.is_null() {
-                        break;
-                    }
-
-                    let obj_name_ptr = unsafe { vpi_get_str(vpiName as _, obj) } as *const c_char;
-                    let Some(obj_name) = (unsafe { utils::c_char_to_str_opt(obj_name_ptr) }) else {
-                        continue;
-                    };
-                    if !visited_name_set.insert(obj_name.to_string()) {
-                        continue;
-                    }
-
-                    let obj_full_path = if obj_name.contains('.') {
-                        obj_name.to_string()
-                    } else {
-                        format!("{full_path}.{obj_name}")
-                    };
-                    let Ok(obj_full_path_cstr) = CString::new(obj_full_path.as_str()) else {
-                        continue;
-                    };
-                    unsafe { cb(obj_full_path_cstr.as_ptr(), obj_name_ptr, level + 1) };
-                }
-            }
-        }
-
-        vpiml_collect_hierarchy_recursive(child, full_path.as_str(), level + 1, max_level, cb);
-    }
-}
-
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_iterate_vpi_type(
     env: *mut c_void,
@@ -162,17 +80,6 @@ pub unsafe extern "C" fn vpiml_get_top_module() -> *const c_char {
     }
 
     top_module_name as _
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_collect_hierarchy(
-    max_level: PLI_INT32,
-    cb: Option<HierarchyItemCallback>,
-) {
-    let Some(cb) = cb else {
-        return;
-    };
-    vpiml_collect_hierarchy_recursive(std::ptr::null_mut(), "", 0, max_level, cb);
 }
 
 #[unsafe(no_mangle)]

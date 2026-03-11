@@ -93,6 +93,9 @@ using IteratorHandlePtr = IteratorHandle_t *;
 
 struct FsdbModuleNode {
     std::string name;
+    // Module definition name from FSDB scope metadata (e.g. "MidMod").
+    // Empty means reader did not provide this field.
+    std::string moduleName;
     int32_t parent = -1;
     std::vector<int32_t> children;
     std::vector<FsdbSignalEntry> signals;
@@ -172,9 +175,12 @@ static bool_T fsdbModuleTreeCb(fsdbTreeCBType cbType, void *cbClientData, void *
         auto *scopeData = reinterpret_cast<fsdbTreeCBDataScope *>(cbData);
         int32_t parent  = ctx->scopeStack.empty() ? -1 : ctx->scopeStack.back();
         int32_t nodeIdx = static_cast<int32_t>(fsdbModuleTree.size());
+        // `scopeData->module` is the def-name source used by vpi_get_str(vpiDefName, ...).
+        auto moduleName = scopeData->module ? std::string(scopeData->module) : std::string();
         fsdbModuleTree.emplace_back(FsdbModuleNode{
-            .name   = std::string(scopeData->name),
-            .parent = parent,
+            .name       = std::string(scopeData->name),
+            .moduleName = std::move(moduleName),
+            .parent     = parent,
         });
         if (parent >= 0) {
             fsdbModuleTree[parent].children.emplace_back(nodeIdx);
@@ -886,6 +892,24 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
 #else
         auto vpiHdl = reinterpret_cast<SignalHandlePtr>(sigHdl)->vpiHdl;
         return wellen_vpi_get_str(property, reinterpret_cast<void *>(vpiHdl));
+#endif
+    }
+    case vpiDefName: {
+        if (!moduleHandleSet.contains(sigHdlRaw)) {
+            return nullptr;
+        }
+#ifdef USE_FSDB
+        // FSDB backend provides module definition names from scope tree metadata.
+        auto moduleHdl = reinterpret_cast<ModuleHandlePtr>(sigHdl);
+        auto nodeIdx   = moduleHdl->fsdbNodeIdx;
+        if (nodeIdx < 0 || nodeIdx >= static_cast<int32_t>(fsdbModuleTree.size())) {
+            return nullptr;
+        }
+        const auto &moduleName = fsdbModuleTree[nodeIdx].moduleName;
+        return moduleName.empty() ? nullptr : const_cast<PLI_BYTE8 *>(moduleName.c_str());
+#else
+        // Non-FSDB path delegates to wellen_impl; def-name is intentionally null under FSDB-only policy.
+        return reinterpret_cast<PLI_BYTE8 *>(wellen_vpi_get_str(property, sigHdlRaw));
 #endif
     }
     default:
