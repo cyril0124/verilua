@@ -92,6 +92,11 @@ fork {
 
         test(sq)
 
+        local AgeStaticQueue = require("verilua.utils.AgeStaticQueue")
+        local asq = AgeStaticQueue(10) --[[@as verilua.utils.AgeStaticQueue<integer>]]
+
+        test(asq)
+
         sim.finish()
     end,
 }

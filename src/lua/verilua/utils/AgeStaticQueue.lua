@@ -17,12 +17,16 @@ local math_random = math.random
 ---@field private last_ptr integer Pointer to the last element in the queue
 ---@field private _size integer Maximum capacity of the queue
 ---@field private data table<integer, T> Internal storage array for queue elements
+---@field private ehdl verilua.handles.EventHandle Event handle for waitable operations
 ---@field private global_age integer Global age counter for tracking element ages
 ---@field private ages table<integer, integer|uint64_t> Array storing the insertion age of each slot
 ---@field private MAX_AGE integer Maximum age threshold for shuffle protection
 ---@field count integer Current number of elements in the queue
 ----@field push fun(self: verilua.utils.AgeStaticQueue, value: T): verilua.utils.AgeStaticQueue.success|verilua.utils.AgeStaticQueue.failed Push a value to the end of the queue
+----@field push_waitable fun(self: verilua.utils.AgeStaticQueue, value: T): verilua.utils.AgeStaticQueue.success|verilua.utils.AgeStaticQueue.failed Push a value and notify waiters when successful
 ---@field pop fun(self: verilua.utils.AgeStaticQueue): T Remove and return the first element from the queue
+---@field pop_waitable fun(self: verilua.utils.AgeStaticQueue): T Remove and return the first element, waiting if queue is empty
+---@field wait_not_empty fun(self: verilua.utils.AgeStaticQueue): boolean Wait until the queue is not empty
 ---@field query_first fun(self: verilua.utils.AgeStaticQueue): T Get the first element without removing it
 ---@field front fun(self: verilua.utils.AgeStaticQueue): T Alias of query_first
 ---@field last fun(self: verilua.utils.AgeStaticQueue): T Get the last element without removing it
@@ -40,6 +44,7 @@ local AgeStaticQueue = class() --[[@as verilua.utils.AgeStaticQueue]]
 
 local DEFAULT_MAX_AGE = 10000ULL
 local q_idx = 0
+local q_idx_for_ehdl = 0
 
 ---@param size integer
 ---@param max_age? integer
@@ -67,6 +72,21 @@ function AgeStaticQueue:_init(size, max_age, name)
     self.count = 0
 
     self.data = table_new(size, 0)
+
+    if string.ehdl then
+        self.ehdl = (self.name .. "::ehdl_" .. q_idx_for_ehdl):ehdl()
+        q_idx_for_ehdl = q_idx_for_ehdl + 1
+    else
+        ---@diagnostic disable-next-line
+        self.ehdl = {
+            send = function()
+                assert(false, "EventHandle not supported in this environment")
+            end,
+            wait = function()
+                assert(false, "EventHandle not supported in this environment")
+            end
+        } --[[@as verilua.handles.EventHandle]]
+    end
 
     self.global_age = 0ULL
     self.ages = table_new(size, 0)
@@ -118,6 +138,31 @@ function AgeStaticQueue:pop()
     self.ages[first_ptr] = 0ULL
 
     return value
+end
+
+---@nodiscard Need check success, `0` for success, `1` for failed
+---@param value T
+---@return integer
+function AgeStaticQueue:push_waitable(value)
+    local ret = self:push(value)
+    if ret == 0 then
+        self.ehdl:send()
+    end
+    return ret
+end
+
+function AgeStaticQueue:pop_waitable()
+    while self:is_empty() do
+        self.ehdl:wait()
+    end
+    return self:pop()
+end
+
+function AgeStaticQueue:wait_not_empty()
+    while self:is_empty() do
+        self.ehdl:wait()
+    end
+    return true
 end
 
 function AgeStaticQueue:query_first()
