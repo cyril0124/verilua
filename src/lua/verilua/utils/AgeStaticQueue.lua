@@ -214,16 +214,37 @@ function AgeStaticQueue:get_all_data()
 end
 
 function AgeStaticQueue:list_data()
+    local count = self.count
+    local size = self._size
+    local index = self.first_ptr
+    ---@type number
+    local max_age = 0
+
+    if count ~= 0 then
+        for _ = 1, count do
+            local age = self.global_age - self.ages[index]
+            if age > max_age then
+                max_age = age
+            end
+            index = (index % size) + 1
+        end
+    end
+
     print("╔══════════════════════════════════════════════════════════════════════")
     print(f("║ [%s] List Data:", self.name))
     print("╠══════════════════════════════════════════════════════════════════════")
-    print(f("║ first_ptr: %d, last_ptr: %d, count: %d", self.first_ptr, self.last_ptr, self.count))
+    print(f("║ first_ptr: %d, last_ptr: %d, count: %d, max_age: %d, MAX_AGE: %d", self.first_ptr, self.last_ptr, count,
+        tonumber(max_age), tonumber(self.MAX_AGE)))
     print("╟──────────────────────────────────────────────────────────────────────")
 
-    local datas = self:get_all_data()
-    if #datas ~= 0 then
-        for i, data in ipairs(datas) do
-            print("║ [" .. i .. "]", tostring(data))
+    if count ~= 0 then
+        local data = self.data
+        local ages = self.ages
+        index = self.first_ptr
+        for i = 1, count do
+            local age = self.global_age - ages[index]
+            print(f("║ [%3d]\tage: %4d\tdata: %s", i, tonumber(age), tostring(data[index])))
+            index = (index % size) + 1
         end
     else
         print("║ No data")
