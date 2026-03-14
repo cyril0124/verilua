@@ -26,6 +26,8 @@ tools/wave_vpi_*
 tools/verilua_prebuild
 tools/nosim
 scripts/.xmake/linux
-.wave_vpi*.yaml
-.wave_vpi_fsdb.*
+.wave_vpi.meta.yaml
+.wave_vpi.signal.yaml
+.wave_vpi_fsdb.meta.json
+.wave_vpi_fsdb.timetable
 .verilua_hierarchy_cache

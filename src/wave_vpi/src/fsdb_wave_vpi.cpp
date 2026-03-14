@@ -152,44 +152,29 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         uint64_t maxIndexVarCode = setupMaxIndexVarCode(TIME_TABLE_MAX_INDEX_VAR_CODE);
 
         bool useCachedData = false;
-        std::ifstream lastModifiedTimeFile(LAST_MODIFIED_TIME_FILE);
         auto waveFileSize  = std::filesystem::file_size(waveFileName);
         auto lastWriteTime = (uint64_t)std::filesystem::last_write_time(waveFileName).time_since_epoch().count();
 
-        auto updateLastModifiedTimeFile = [&waveFileSize, &lastWriteTime]() {
-            std::ofstream _lastModifiedTimeFile(LAST_MODIFIED_TIME_FILE);
-            _lastModifiedTimeFile << waveFileSize << "\n";
-            _lastModifiedTimeFile << lastWriteTime << "\n";
-            _lastModifiedTimeFile.close();
-        };
-
-        if (lastModifiedTimeFile.is_open()) {
-            std::string waveFileSizeStr;
-            std::string lastModifiedTimeStr;
-            std::string isFinish;
-
-            try {
-                std::getline(lastModifiedTimeFile, waveFileSizeStr);
-                std::getline(lastModifiedTimeFile, lastModifiedTimeStr);
-                std::getline(lastModifiedTimeFile, isFinish);
-                lastModifiedTimeFile.close();
-
-                auto _waveFileSize     = std::stoull(waveFileSizeStr);
-                auto _lastModifiedTime = std::stoull(lastModifiedTimeStr);
-
-                if (_waveFileSize == waveFileSize && _lastModifiedTime == lastWriteTime) {
-                    useCachedData = true;
-                } else {
-                    updateLastModifiedTimeFile();
+        // Load meta file and check freshness.
+        json cachedMeta;
+        bool metaLoaded = false;
+        {
+            std::ifstream metaFile(META_FILE);
+            if (metaFile.is_open()) {
+                try {
+                    cachedMeta      = json::parse(metaFile);
+                    metaLoaded      = true;
+                    auto cachedSize = cachedMeta["modified"]["size"].get<uint64_t>();
+                    auto cachedTime = cachedMeta["modified"]["time"].get<uint64_t>();
+                    if (cachedSize == waveFileSize && cachedTime == lastWriteTime) {
+                        useCachedData = true;
+                    }
+                } catch (const std::exception &e) {
+                    if (!is_quiet_mode()) {
+                        fmt::println("[wave_vpi::fsdb_wave_vpi] ERROR while reading meta file: {}", e.what());
+                    }
                 }
-            } catch (std::invalid_argument &e) {
-                if (!is_quiet_mode()) {
-                    fmt::println("[wave_vpi::fsdb_wave_vpi] ERROR while reading:{}! => std::invalid_argument", LAST_MODIFIED_TIME_FILE);
-                }
-                updateLastModifiedTimeFile();
             }
-        } else {
-            updateLastModifiedTimeFile();
         }
 
         if (!is_quiet_mode()) {
@@ -197,11 +182,9 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         }
 
         if (useCachedData) {
-            std::ifstream usedVarIdCodeCacheFile(USED_VAR_ID_CODE_CACHE_FILE);
-            if (usedVarIdCodeCacheFile.is_open()) {
-                json j             = json::parse(usedVarIdCodeCacheFile);
-                usedVarIdCodeCache = j.get<std::unordered_map<std::string, fsdbVarIdcode>>();
-                usedVarIdCodeCacheFile.close();
+            // Load used var id code cache from meta file.
+            if (metaLoaded && cachedMeta.contains("used_var_id_code_cache")) {
+                usedVarIdCodeCache = cachedMeta["used_var_id_code_cache"].get<std::unordered_map<std::string, fsdbVarIdcode>>();
             }
 
             std::ifstream timeTableFile(TIME_TABLE_FILE, std::ios::binary);
@@ -316,10 +299,17 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
 
 FsdbWaveVpi::~FsdbWaveVpi() {
     if (hasNewlyAddedVarIdCode) {
-        json j = usedVarIdCodeCache;
-        std::ofstream o(USED_VAR_ID_CODE_CACHE_FILE);
+        // Save meta file (mtime + used var id code cache).
+        auto waveFileSize  = std::filesystem::file_size(waveFileName);
+        auto lastWriteTime = (uint64_t)std::filesystem::last_write_time(waveFileName).time_since_epoch().count();
 
-        o << j.dump(4) << "\n";
+        json meta;
+        meta["modified"]["size"]       = waveFileSize;
+        meta["modified"]["time"]       = lastWriteTime;
+        meta["used_var_id_code_cache"] = usedVarIdCodeCache;
+
+        std::ofstream o(META_FILE);
+        o << meta.dump(4) << "\n";
         o.close();
     }
 }

@@ -13,6 +13,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::os::raw::{c_char, c_void};
 use std::os::unix::fs::MetadataExt;
+use std::ptr::addr_of;
 use std::time::UNIX_EPOCH;
 use wellen::*;
 
@@ -22,10 +23,19 @@ use vpi_user::*;
 #[allow(non_camel_case_types)]
 type vpiHandle = SignalRef;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct FileModifiedInfo {
     size: u64,
     time: u64,
+}
+
+/// Lightweight metadata aggregating small caches into a single file.
+#[derive(Debug, Serialize, Deserialize)]
+struct WaveVpiMeta {
+    modified: FileModifiedInfo,
+    sigref_count: usize,
+    sigref: HashMap<String, SignalRef>,
+    sigref_null: HashSet<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -42,15 +52,13 @@ const LOAD_OPTS: LoadOptions = LoadOptions {
 // If the cached signal ref count is greater than this, we will not use the cached data.
 const SIGNAL_REF_COUNT_THRESHOLD: usize = 15;
 
-const LAST_MODIFIED_TIME_FILE: &str = ".wave_vpi.mtime.yaml";
-const SIGNAL_REF_COUNT_FILE: &str = ".wave_vpi.sigref-count.yaml";
-const SIGNAL_REF_CACHE_FILE: &str = ".wave_vpi.sigref.yaml";
-const SIGNAL_REF_CACHE_NULL_FILE: &str = ".wave_vpi.sigref-null.yaml";
+const META_FILE: &str = ".wave_vpi.meta.yaml";
 const SIGNAL_CACHE_FILE: &str = ".wave_vpi.signal.yaml";
 
 static mut TIME_TABLE: Option<UnsafeCell<Vec<u64>>> = None;
 static mut HIERARCHY: Option<UnsafeCell<Hierarchy>> = None;
 static mut WAVE_SOURCE: Option<UnsafeCell<SignalSource>> = None;
+static mut WAVE_FILE_MODIFIED: Option<FileModifiedInfo> = None;
 
 static mut SIGNAL_REF_CACHE: Option<UnsafeCell<HashMap<String, SignalRef>>> = None;
 static mut SIGNAL_REF_CACHE_NULL: Option<UnsafeCell<HashSet<String>>> = None;
@@ -370,82 +378,58 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
         );
     }
 
-    // If the wave file has not been modified, we can use the cached data to speed up the simulation.
+    // Load meta file and check wave file freshness.
     let mut use_cached_data = false;
-    if let Ok(file) = File::open(LAST_MODIFIED_TIME_FILE) {
-        let reader = BufReader::new(file);
-        let modified_time: FileModifiedInfo = serde_yaml::from_reader(reader)
-            .unwrap_or_else(|_| panic!("Failed to parse {}", LAST_MODIFIED_TIME_FILE));
-        let last_modified_timestamp = modified_time.time;
-        let last_file_size = modified_time.size;
+    let metadata = fs::metadata(filename).expect("Failed to get file metadata");
+    let file_size = metadata.size();
+    let modified_timestamp = metadata
+        .modified()
+        .expect("Failed to get modified time")
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
 
-        let metadata = fs::metadata(filename).expect("Failed to get file metadata");
-        let file_size = metadata.size();
-        let modified = metadata.modified().expect("Failed to get modified time");
-        let duration_since_epoch = modified.duration_since(UNIX_EPOCH).unwrap();
-        let modified_timestamp = duration_since_epoch.as_secs();
+    // Store for finalize to write back.
+    unsafe {
+        WAVE_FILE_MODIFIED = Some(FileModifiedInfo {
+            size: file_size,
+            time: modified_timestamp,
+        });
+    }
 
-        // Update the timestamp if the file has been modified.
-        if last_modified_timestamp != modified_timestamp || last_file_size != file_size {
-            let file = File::create(LAST_MODIFIED_TIME_FILE).unwrap();
-            let writer = BufWriter::new(file);
+    let cached_meta: Option<WaveVpiMeta> = File::open(META_FILE).ok().and_then(|f| {
+        let reader = BufReader::new(f);
+        serde_yaml::from_reader(reader).ok()
+    });
 
-            let modified_time = FileModifiedInfo {
-                size: file_size,
-                time: modified_timestamp,
-            };
-
+    if let Some(ref meta) = cached_meta {
+        if meta.modified.time == modified_timestamp && meta.modified.size == file_size {
+            // Wave file unchanged — check sigref count threshold.
             log::info!(
-                "[wave_vpi::wellen_initialize] modified_timestamp: last({}) curr({})  file_size: last({}) curr({})",
-                last_modified_timestamp,
-                modified_timestamp,
-                last_file_size,
-                file_size
+                "[wave_vpi::wellen_initialize] sigref_count: {} threshold: {}",
+                meta.sigref_count,
+                SIGNAL_REF_COUNT_THRESHOLD
             );
-
-            serde_yaml::to_writer(writer, &modified_time).unwrap();
-        } else if let Ok(file) = File::open(SIGNAL_REF_COUNT_FILE) {
-            let reader: BufReader<File> = BufReader::new(file);
-            let signal_ref_count: usize = serde_yaml::from_reader(reader)
-                .unwrap_or_else(|_| panic!("Failed to parse {}", SIGNAL_REF_COUNT_FILE));
-
-            let signal_ref_count_threshold = SIGNAL_REF_COUNT_THRESHOLD;
-            log::info!(
-                "[wave_vpi::wellen_initialize] signal_ref_count: {} signal_ref_count_threshold: {}",
-                signal_ref_count,
-                signal_ref_count_threshold
-            );
-
-            if signal_ref_count >= signal_ref_count_threshold {
+            if meta.sigref_count >= SIGNAL_REF_COUNT_THRESHOLD {
                 use_cached_data = true;
             }
         } else {
-            use_cached_data = true;
+            log::info!(
+                "[wave_vpi::wellen_initialize] modified_timestamp: last({}) curr({})  file_size: last({}) curr({})",
+                meta.modified.time,
+                modified_timestamp,
+                meta.modified.size,
+                file_size
+            );
         }
     } else {
-        // Create new file if it does not exist.
-        let metadata = fs::metadata(filename).expect("Failed to get file metadata");
-        let file_size = metadata.size();
-        let modified = metadata.modified().expect("Failed to get modified time");
-        let duration_since_epoch = modified.duration_since(UNIX_EPOCH).unwrap();
-        let modified_timestamp = duration_since_epoch.as_secs();
-
-        let file = File::create(LAST_MODIFIED_TIME_FILE).unwrap();
-        let writer = BufWriter::new(file);
-
-        let modified_time = FileModifiedInfo {
-            size: file_size,
-            time: modified_timestamp,
-        };
-
         log::info!(
             "[wave_vpi::wellen_initialize] modified_timestamp(new): {}  file_size(new): {}",
             modified_timestamp,
             file_size
         );
-
-        serde_yaml::to_writer(writer, &modified_time).unwrap();
     }
+
     log::info!(
         "[wave_vpi::wellen_initialize] use_cached_data => {} {}",
         use_cached_data,
@@ -455,39 +439,14 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     unsafe {
         if try_get_signal_ref_cache().is_none() {
             if use_cached_data {
+                let meta = cached_meta.as_ref().unwrap();
                 log::info!(
-                    "[wave_vpi::wellen_initialize] start read {}",
-                    SIGNAL_REF_CACHE_FILE
+                    "[wave_vpi::wellen_initialize] loading sigref cache from meta ({} entries, {} null)",
+                    meta.sigref.len(),
+                    meta.sigref_null.len()
                 );
-                let _file = File::open(SIGNAL_REF_CACHE_FILE);
-                if let Ok(file) = _file {
-                    let reader = BufReader::new(file);
-                    SIGNAL_REF_CACHE =
-                        Some(UnsafeCell::new(serde_yaml::from_reader(reader).unwrap()));
-                } else {
-                    log::warn!(
-                        "[wave_vpi::wellen_initialize] Failed to open {}",
-                        SIGNAL_REF_CACHE_FILE
-                    );
-                    SIGNAL_REF_CACHE = Some(UnsafeCell::new(HashMap::new()));
-                }
-
-                log::info!(
-                    "[wave_vpi::wellen_initialize] start read {}",
-                    SIGNAL_REF_CACHE_NULL_FILE
-                );
-                let _file = File::open(SIGNAL_REF_CACHE_NULL_FILE);
-                if let Ok(file) = _file {
-                    let reader = BufReader::new(file);
-                    SIGNAL_REF_CACHE_NULL =
-                        Some(UnsafeCell::new(serde_yaml::from_reader(reader).unwrap()));
-                } else {
-                    log::warn!(
-                        "[wave_vpi::wellen_initialize] Failed to open {}",
-                        SIGNAL_REF_CACHE_NULL_FILE
-                    );
-                    SIGNAL_REF_CACHE_NULL = Some(UnsafeCell::new(HashSet::new()));
-                }
+                SIGNAL_REF_CACHE = Some(UnsafeCell::new(meta.sigref.clone()));
+                SIGNAL_REF_CACHE_NULL = Some(UnsafeCell::new(meta.sigref_null.clone()));
             } else {
                 SIGNAL_REF_CACHE = Some(UnsafeCell::new(HashMap::new()));
                 SIGNAL_REF_CACHE_NULL = Some(UnsafeCell::new(HashSet::new()));
@@ -544,31 +503,27 @@ pub unsafe extern "C" fn wellen_finalize() {
     if signal_ref_cache.len() >= SIGNAL_REF_COUNT_THRESHOLD {
         unsafe {
             if HAS_NEWLY_ADD_SIGNAL_REF {
-                log::info!("[wave_vpi::wellen_finalize] save signal ref into cache file");
+                log::info!("[wave_vpi::wellen_finalize] saving cache files");
 
-                if let Some(ref cache) = SIGNAL_REF_CACHE {
-                    let c = &*cache.get();
-                    let file: File = File::create(SIGNAL_REF_COUNT_FILE).unwrap();
-                    serde_yaml::to_writer(file, &c.len()).unwrap();
+                // Save meta file (lightweight: mtime + sigref + sigref_null).
+                if let Some(modified) = (*addr_of!(WAVE_FILE_MODIFIED)).clone() {
+                    let sigref = get_signal_ref_cache();
+                    let sigref_null = get_signal_ref_cache_null();
+                    let meta = WaveVpiMeta {
+                        modified,
+                        sigref_count: sigref.len(),
+                        sigref: sigref.clone(),
+                        sigref_null: sigref_null.clone(),
+                    };
+                    let file = File::create(META_FILE).unwrap();
+                    let writer = BufWriter::new(file);
+                    serde_yaml::to_writer(writer, &meta).unwrap();
                 }
 
-                if let Some(ref cache) = SIGNAL_REF_CACHE {
-                    let c = &*cache.get();
-                    let file = File::create(SIGNAL_REF_CACHE_FILE).unwrap();
-                    serde_yaml::to_writer(file, c).unwrap();
-                }
-
-                if let Some(ref cache) = SIGNAL_REF_CACHE_NULL {
-                    let c = &*cache.get();
-                    let file = File::create(SIGNAL_REF_CACHE_NULL_FILE).unwrap();
-                    serde_yaml::to_writer(file, c).unwrap();
-                }
-
-                if let Some(ref cache) = SIGNAL_CACHE {
-                    let c = &*cache.get();
-                    let file = File::create(SIGNAL_CACHE_FILE).unwrap();
-                    serde_yaml::to_writer(file, c).unwrap();
-                }
+                // Save signal cache (large, kept separate).
+                let signal_cache = get_signal_cache();
+                let file = File::create(SIGNAL_CACHE_FILE).unwrap();
+                serde_yaml::to_writer(file, signal_cache).unwrap();
             } else {
                 log::info!("[wave_vpi::wellen_finalize] no newly added signal ref")
             }

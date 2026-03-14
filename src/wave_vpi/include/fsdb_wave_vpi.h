@@ -13,9 +13,8 @@
 #include <thread>
 #include <vector>
 
-#define LAST_MODIFIED_TIME_FILE ".wave_vpi_fsdb.mtime"
+#define META_FILE ".wave_vpi_fsdb.meta.json"
 #define TIME_TABLE_FILE ".wave_vpi_fsdb.timetable"
-#define USED_VAR_ID_CODE_CACHE_FILE ".wave_vpi_fsdb.varidcache"
 
 #define MAX_SCOPE_DEPTH 100
 #define TIME_TABLE_MAX_INDEX_VAR_CODE 10
