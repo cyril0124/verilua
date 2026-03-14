@@ -420,10 +420,18 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 #endif
 
     auto optFunc = [sigHdl](uint64_t startIdx, uint64_t finishIdx) {
-        auto &optValueVec = sigHdl->optValueVec;
+        constexpr uint64_t PROGRESS_BATCH = 1024;
+        auto &optValueVec                 = sigHdl->optValueVec;
+        auto baseIdx                      = sigHdl->optBaseIdx.load(std::memory_order_relaxed);
         for (auto idx = startIdx; idx < finishIdx; idx++) {
-            optValueVec[idx] = wellen_get_int_value(sigHdl->vpiHdl, idx);
+            optValueVec[idx - baseIdx] = wellen_get_int_value(sigHdl->vpiHdl, idx);
+            // Progressive read: update optFinishIdx periodically so vpi_get_value
+            // can start using fast path before the entire window is compiled.
+            if ((idx - startIdx + 1) % PROGRESS_BATCH == 0) {
+                sigHdl->optFinishIdx.store(idx + 1, std::memory_order_release);
+            }
         }
+        sigHdl->optFinishIdx.store(finishIdx, std::memory_order_release);
     };
 
     auto verboseJIT = jit_options::verboseJIT;
@@ -437,12 +445,15 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
         fflush(stdout);
     }
 
-    sigHdl->optValueVec.reserve(cursor.maxIndex);
+    // Sliding window: allocate only what's needed instead of the full waveform.
+    // Use min(windowCapacity, maxIndex) to avoid over-allocating for small waveforms.
+    auto windowCapacity = std::min(jit_options::compileWindowSize * 2, cursor.maxIndex);
+    sigHdl->optBaseIdx.store(currentCursorIdx, std::memory_order_relaxed);
+    sigHdl->optValueVec.resize(windowCapacity);
 
     optFunc(currentCursorIdx, optFinishIdx);
 
-    sigHdl->optFinish    = true;
-    sigHdl->optFinishIdx = optFinishIdx;
+    // No longer need optFinish flag — optFinishIdx is progressively updated by optFunc
 
     // lock.unlock();
 
@@ -462,16 +473,28 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 
         // Continue optimization
         auto optFinish    = false;
-        auto optStartIdx  = std::max(cursor.index, sigHdl->optFinishIdx);
+        auto optStartIdx  = std::max(cursor.index, sigHdl->optFinishIdx.load(std::memory_order_relaxed));
         auto optFinishIdx = optStartIdx + jit_options::compileWindowSize;
         if (optFinishIdx >= cursor.maxIndex) {
             optFinishIdx = cursor.maxIndex;
             optFinish    = true;
         }
+
+        // Sliding window: check if the next window fits in the current allocation.
+        // If not, slide the window forward by resetting baseIdx and resizing.
+        auto neededEnd = optFinishIdx - sigHdl->optBaseIdx.load(std::memory_order_relaxed);
+        if (neededEnd > sigHdl->optValueVec.size()) {
+            // Reset optFinishIdx first to force main thread onto slow path during the slide.
+            sigHdl->optFinishIdx.store(0, std::memory_order_release);
+            sigHdl->optBaseIdx.store(optStartIdx, std::memory_order_release);
+            auto newCapacity = std::min(jit_options::compileWindowSize * 2, cursor.maxIndex - optStartIdx);
+            sigHdl->optValueVec.resize(newCapacity);
+        }
+
         optFunc(optStartIdx, optFinishIdx);
 
-        sigHdl->optFinishIdx = optFinishIdx;
-        sigHdl->continueOpt  = false;
+        // optFinishIdx is already updated progressively by optFunc
+        sigHdl->continueOpt = false;
         optCnt++;
 
         if (verboseJIT && !is_quiet_mode()) {
@@ -484,7 +507,7 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
         }
     }
 
-    jit_options::optThreadCnt.store(jit_options::optThreadCnt.load() - 1);
+    jit_options::optThreadCnt.fetch_sub(1, std::memory_order_relaxed);
 
     if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[wellenOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, sigHdl->name);
@@ -506,86 +529,102 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
     if (!_sigHdl->canOpt || !jit_options::enableJIT)
         goto ReadFromWellen;
 
-    if (_sigHdl->optFinish) {
-        if (cursor.index >= _sigHdl->optFinishIdx) {
-            // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, _sigHdl->optFinishIdx, _sigHdl->name);
-            goto ReadFromWellen;
-        } else if (!_sigHdl->continueOpt && cursor.index >= (_sigHdl->optFinishIdx - jit_options::recompileWindowSize)) {
-            // fmt::println("[WARN] continue optimization... {} cursot.index:{} optFinishIdx:{}", _sigHdl->name, cursor.index, _sigHdl->optFinishIdx);
-            _sigHdl->continueOpt = true;
-            _sigHdl->cv.notify_all();
-        }
-
-#ifdef PROFILE_JIT
-        jit_options::statistic.readFromOpt++;
-#endif
-
-        // Hot-Prefetch JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
-        // X/Z states are NOT preserved here. To get X/Z information, disable Hot-Prefetch JIT
-        // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
-        switch (value_p->format) {
-        case vpiIntVal: {
-            value_p->value.integer = _sigHdl->optValueVec[cursor.index];
-            break;
-        }
-        case vpiVectorVal: {
-            _vpiValueVecs[0].aval = _sigHdl->optValueVec[cursor.index];
-            _vpiValueVecs[0].bval = 0;
-            value_p->value.vector = _vpiValueVecs;
-            break;
-        }
-        case vpiHexStrVal: {
-            const int bufferSize = 8; // TODO: 4 * 8 = 32, if support 64 bit signal, this value should be set to 16.
-            snprintf(reinterpret_cast<char *>(_buffer), bufferSize, "%x", _sigHdl->optValueVec[cursor.index]);
-            value_p->value.str = (char *)_buffer;
-            break;
-        }
-        case vpiBinStrVal: {
-            auto &bitSize = _sigHdl->bitSize;
-            auto value    = _sigHdl->optValueVec[cursor.index];
-            for (int i = 0; i < bitSize; i++) {
-                _buffer[bitSize - 1 - i] = (value & (1 << i)) ? '1' : '0';
+    {
+        // Progressive read: check optFinishIdx (atomic) to determine if fast path is available.
+        // No need to wait for the entire compilation window to finish.
+        auto _optFinishIdx = _sigHdl->optFinishIdx.load(std::memory_order_acquire);
+        if (_sigHdl->doOpt && _optFinishIdx > 0) {
+            auto _optBaseIdx = _sigHdl->optBaseIdx.load(std::memory_order_acquire);
+            if (cursor.index < _optBaseIdx || cursor.index >= _optFinishIdx) {
+                // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, _optFinishIdx, _sigHdl->name);
+                goto ReadFromWellen;
             }
-            _buffer[bitSize]   = '\0';
-            value_p->value.str = (char *)_buffer;
-            break;
-        }
-        case vpiDecStrVal: {
-            // Hot-Prefetch JIT path: 2-state only, no X/Z possible
-            // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
-            // Update this if optValueVec type changes to a wider integer type.
-            snprintf(reinterpret_cast<char *>(_buffer), 16, "%u", _sigHdl->optValueVec[cursor.index]);
-            value_p->value.str = (char *)_buffer;
-            break;
-        }
-        default:
-            VL_FATAL(false, "Unsupported format: {}", value_p->format);
-        }
+
+            if (!_sigHdl->continueOpt && cursor.index >= (_optFinishIdx - jit_options::recompileWindowSize)) {
+                // fmt::println("[WARN] continue optimization... {} cursor.index:{} optFinishIdx:{}", _sigHdl->name, cursor.index, _optFinishIdx);
+                _sigHdl->continueOpt = true;
+                _sigHdl->cv.notify_one();
+            }
 
 #ifdef PROFILE_JIT
-        auto _optEnd         = std::chrono::high_resolution_clock::now();
-        auto _optElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_optEnd - _totalReadStart).count();
-        jit_options::statistic.readFromOptTime += _optElapsedTime;
-        jit_options::statistic.totalReadTime += _optElapsedTime;
+            jit_options::statistic.readFromOpt++;
 #endif
-        return;
-    } else if (!_sigHdl->doOpt) {
+
+            // Hot-Prefetch JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
+            // X/Z states are NOT preserved here. To get X/Z information, disable Hot-Prefetch JIT
+            // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
+            // Sliding window: use offset indexing (cursor.index - optBaseIdx).
+            auto _optLocalIdx = cursor.index - _optBaseIdx;
+            switch (value_p->format) {
+            case vpiIntVal: {
+                value_p->value.integer = _sigHdl->optValueVec[_optLocalIdx];
+                break;
+            }
+            case vpiVectorVal: {
+                _vpiValueVecs[0].aval = _sigHdl->optValueVec[_optLocalIdx];
+                _vpiValueVecs[0].bval = 0;
+                value_p->value.vector = _vpiValueVecs;
+                break;
+            }
+            case vpiHexStrVal: {
+                const int bufferSize = 8; // TODO: 4 * 8 = 32, if support 64 bit signal, this value should be set to 16.
+                uint32_to_hex_str(reinterpret_cast<char *>(_buffer), bufferSize, _sigHdl->optValueVec[_optLocalIdx]);
+                value_p->value.str = (char *)_buffer;
+                break;
+            }
+            case vpiBinStrVal: {
+                auto &bitSize = _sigHdl->bitSize;
+                auto value    = _sigHdl->optValueVec[_optLocalIdx];
+                for (int i = 0; i < bitSize; i++) {
+                    _buffer[bitSize - 1 - i] = (value & (1 << i)) ? '1' : '0';
+                }
+                _buffer[bitSize]   = '\0';
+                value_p->value.str = (char *)_buffer;
+                break;
+            }
+            case vpiDecStrVal: {
+                // Hot-Prefetch JIT path: 2-state only, no X/Z possible
+                // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
+                // Update this if optValueVec type changes to a wider integer type.
+                uint32_to_dec_str(reinterpret_cast<char *>(_buffer), 16, _sigHdl->optValueVec[_optLocalIdx]);
+                value_p->value.str = (char *)_buffer;
+                break;
+            }
+            default:
+                VL_FATAL(false, "Unsupported format: {}", value_p->format);
+            }
+
+#ifdef PROFILE_JIT
+            auto _optEnd         = std::chrono::high_resolution_clock::now();
+            auto _optElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_optEnd - _totalReadStart).count();
+            jit_options::statistic.readFromOptTime += _optElapsedTime;
+            jit_options::statistic.totalReadTime += _optElapsedTime;
+#endif
+            return;
+        }
+    }
+
+    if (!_sigHdl->doOpt) {
         _sigHdl->readCnt++;
         // fmt::println("[WARN] readCnt: {} signalName: {} doOpt: {} bitSize: {}", _sigHdl->readCnt, _sigHdl->name, _sigHdl->doOpt, _sigHdl->bitSize);
 
         // Hot-Prefetch JIT: trigger prefetch when read count exceeds threshold
         if (_sigHdl->readCnt >= jit_options::hotAccessThreshold) {
-            auto _jitOptThreadCnt = jit_options::optThreadCnt.load();
-            if (_jitOptThreadCnt <= jit_options::maxOptThreads) {
-                jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);
-                _sigHdl->doOpt       = true;
-                _sigHdl->continueOpt = false;
-                _sigHdl->optThread   = std::thread([_sigHdl] { wellenOptThreadTask(_sigHdl); });
-            } else {
-#ifdef PROFILE_JIT
-                jit_options::statistic.optThreadNotEnough++;
-#endif
+            auto _jitOptThreadCnt = jit_options::optThreadCnt.load(std::memory_order_relaxed);
+            while (_jitOptThreadCnt <= jit_options::maxOptThreads) {
+                if (jit_options::optThreadCnt.compare_exchange_weak(_jitOptThreadCnt, _jitOptThreadCnt + 1, std::memory_order_relaxed)) {
+                    _sigHdl->doOpt       = true;
+                    _sigHdl->continueOpt = false;
+                    _sigHdl->optThread   = std::thread([_sigHdl] { wellenOptThreadTask(_sigHdl); });
+                    break;
+                }
+                // compare_exchange_weak updates _jitOptThreadCnt on failure, loop re-checks
             }
+#ifdef PROFILE_JIT
+            if (_jitOptThreadCnt > jit_options::maxOptThreads) {
+                jit_options::statistic.optThreadNotEnough++;
+            }
+#endif
         }
     }
 

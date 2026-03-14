@@ -3,7 +3,34 @@
 #include "boost_unordered.hpp"
 #include "jit_options.h"
 #include <cinttypes>
+#include <cstdio>
 #include <wave_vpi.h>
+
+#if __cplusplus >= 201703L
+#include <charconv>
+#endif
+
+// Fast integer-to-string conversion for JIT hot path.
+// Uses std::to_chars (C++17) when available, falls back to snprintf.
+inline char *uint32_to_hex_str(char *buf, size_t buf_size, uint32_t value) {
+#if __cplusplus >= 201703L
+    auto [ptr, ec] = std::to_chars(buf, buf + buf_size, value, 16);
+    *ptr           = '\0';
+#else
+    snprintf(buf, buf_size, "%x", value);
+#endif
+    return buf;
+}
+
+inline char *uint32_to_dec_str(char *buf, size_t buf_size, uint32_t value) {
+#if __cplusplus >= 201703L
+    auto [ptr, ec] = std::to_chars(buf, buf + buf_size, value);
+    *ptr           = '\0';
+#else
+    snprintf(buf, buf_size, "%u", value);
+#endif
+    return buf;
+}
 
 namespace vpi_compat {
 

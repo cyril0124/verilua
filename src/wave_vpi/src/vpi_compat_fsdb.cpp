@@ -777,7 +777,6 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
     VL_FATAL(bitSize <= 32, "For now we only optimize signals with bitSize <= 32, bitSize: {}", bitSize);
 
     auto &optValueVec = fsdbSigHdl->optValueVec;
-    optValueVec.reserve(xtagVec.size());
 
     auto currentCursorIdx = cursor.index;
     auto optFinishIdx     = currentCursorIdx + jit_options::compileWindowSize;
@@ -786,11 +785,18 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
         optFinishIdx = xtagVec.size() - 1;
     }
 
+    // Sliding window: allocate only what's needed instead of the full waveform.
+    auto windowCapacity = std::min(jit_options::compileWindowSize * 2, xtagVec.size());
+    fsdbSigHdl->optBaseIdx.store(currentCursorIdx, std::memory_order_relaxed);
+    optValueVec.resize(windowCapacity);
+
     auto optFunc = [&hdl, &xtagVec, &bitSize, &fsdbFileName, fsdbSigHdl](uint64_t startIdx, uint64_t finishIdx) {
+        constexpr uint64_t PROGRESS_BATCH = 1024;
         byte_T *retVC;
         fsdbBytesPerBit bpb;
 
         auto &optValueVec = fsdbSigHdl->optValueVec;
+        auto baseIdx      = fsdbSigHdl->optBaseIdx.load(std::memory_order_relaxed);
 
         for (auto idx = startIdx; idx < finishIdx; idx++) {
             uint32_t tmpVal = 0;
@@ -814,10 +820,10 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
                     case FSDB_BT_VCD_X: // treat `X` as `0`
                     case FSDB_BT_VCD_Z: // treat `Z` as `0`
                     case FSDB_BT_VCD_0:
-                        optValueVec[idx] = 0;
+                        optValueVec[idx - baseIdx] = 0;
                         break;
                     case FSDB_BT_VCD_1:
-                        optValueVec[idx] = 1;
+                        optValueVec[idx - baseIdx] = 1;
                         break;
                     default:
                         VL_FATAL(false, "unknown verilog bit type found.");
@@ -856,15 +862,21 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
                 default:
                     VL_FATAL(false, "Should not reach here!");
                 }
-                optValueVec[idx] = tmpVal;
+                optValueVec[idx - baseIdx] = tmpVal;
+            }
+
+            // Progressive read: update optFinishIdx periodically so vpi_get_value
+            // can start using fast path before the entire window is compiled.
+            if ((idx - startIdx + 1) % PROGRESS_BATCH == 0) {
+                fsdbSigHdl->optFinishIdx.store(idx + 1, std::memory_order_release);
             }
         }
+        fsdbSigHdl->optFinishIdx.store(finishIdx, std::memory_order_release);
     };
 
     optFunc(currentCursorIdx, optFinishIdx);
 
-    fsdbSigHdl->optFinish    = true;
-    fsdbSigHdl->optFinishIdx = optFinishIdx;
+    // No longer need optFinish flag — optFinishIdx is progressively updated by optFunc
 
     lock.unlock();
 
@@ -884,16 +896,27 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
         // Continue optimization
         auto optFinish    = false;
-        auto optStartIdx  = std::max(cursor.index, fsdbSigHdl->optFinishIdx);
+        auto optStartIdx  = std::max(cursor.index, fsdbSigHdl->optFinishIdx.load(std::memory_order_relaxed));
         auto optFinishIdx = optStartIdx + jit_options::compileWindowSize;
         if (optFinishIdx >= xtagVec.size()) {
             optFinishIdx = xtagVec.size() - 1;
             optFinish    = true;
         }
+
+        // Sliding window: check if the next window fits in the current allocation.
+        auto neededEnd = optFinishIdx - fsdbSigHdl->optBaseIdx.load(std::memory_order_relaxed);
+        if (neededEnd > fsdbSigHdl->optValueVec.size()) {
+            // Reset optFinishIdx first to force main thread onto slow path during the slide.
+            fsdbSigHdl->optFinishIdx.store(0, std::memory_order_release);
+            fsdbSigHdl->optBaseIdx.store(optStartIdx, std::memory_order_release);
+            auto newCapacity = std::min(jit_options::compileWindowSize * 2, xtagVec.size() - optStartIdx);
+            fsdbSigHdl->optValueVec.resize(newCapacity);
+        }
+
         optFunc(optStartIdx, optFinishIdx);
 
-        fsdbSigHdl->optFinishIdx = optFinishIdx;
-        fsdbSigHdl->continueOpt  = false;
+        // optFinishIdx is already updated progressively by optFunc
+        fsdbSigHdl->continueOpt = false;
 
         optCnt++;
 
@@ -907,7 +930,7 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
         }
     }
 
-    jit_options::optThreadCnt.store(jit_options::optThreadCnt.load() - 1);
+    jit_options::optThreadCnt.fetch_sub(1, std::memory_order_relaxed);
 
     // fsdbObj->ffrClose();
     if (verboseJIT && !is_quiet_mode()) {
@@ -928,87 +951,103 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
     if (!fsdbSigHdl->canOpt || !jit_options::enableJIT)
         goto ReadFromFSDB;
 
-    if (fsdbSigHdl->optFinish) {
-        if (cursor.index >= fsdbSigHdl->optFinishIdx) {
-            // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, fsdbSigHdl->optFinishIdx, fsdbSigHdl->name);
-            goto ReadFromFSDB;
-        } else if (!fsdbSigHdl->continueOpt && cursor.index >= (fsdbSigHdl->optFinishIdx - jit_options::recompileWindowSize)) {
-            // fmt::println("[WARN] continue optimization... {} cursot.index:{} optFinishIdx:{}", fsdbSigHdl->name, cursor.index, fsdbSigHdl->optFinishIdx);
-            fsdbSigHdl->continueOpt = true;
-            fsdbSigHdl->cv.notify_all();
-        }
-
-#ifdef PROFILE_JIT
-        jit_options::statistic.readFromOpt++;
-#endif
-
-        // Hot-Prefetch JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
-        // X/Z states are NOT preserved here. To get X/Z information, disable Hot-Prefetch JIT
-        // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
-        switch (value_p->format) {
-        case vpiIntVal: {
-            value_p->value.integer = fsdbSigHdl->optValueVec[cursor.index];
-            break;
-        }
-        case vpiVectorVal: {
-            vpiValueVecs[0].aval  = fsdbSigHdl->optValueVec[cursor.index];
-            vpiValueVecs[0].bval  = 0;
-            value_p->value.vector = vpiValueVecs;
-            break;
-        }
-        case vpiHexStrVal: {
-            const int bufferSize = 8; // TODO: 4 * 8 = 32, if support 64 bit signal, this value should be set to 16.
-            snprintf(reinterpret_cast<char *>(buffer), bufferSize, "%x", fsdbSigHdl->optValueVec[cursor.index]);
-            value_p->value.str = (char *)buffer;
-            break;
-        }
-        case vpiBinStrVal: {
-            auto &bitSize = fsdbSigHdl->bitSize;
-            auto value    = fsdbSigHdl->optValueVec[cursor.index];
-            for (int i = 0; i < bitSize; i++) {
-                buffer[bitSize - 1 - i] = (value & (1 << i)) ? '1' : '0';
+    {
+        // Progressive read: check optFinishIdx (atomic) to determine if fast path is available.
+        // No need to wait for the entire compilation window to finish.
+        auto _optFinishIdx = fsdbSigHdl->optFinishIdx.load(std::memory_order_acquire);
+        if (fsdbSigHdl->doOpt && _optFinishIdx > 0) {
+            auto _optBaseIdx = fsdbSigHdl->optBaseIdx.load(std::memory_order_acquire);
+            if (cursor.index < _optBaseIdx || cursor.index >= _optFinishIdx) {
+                // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, _optFinishIdx, fsdbSigHdl->name);
+                goto ReadFromFSDB;
             }
-            buffer[bitSize]    = '\0';
-            value_p->value.str = (char *)buffer;
-            break;
-        }
-        case vpiDecStrVal: {
-            // Hot-Prefetch JIT path: 2-state only, no X/Z possible
-            // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
-            // Update this if optValueVec type changes to a wider integer type.
-            snprintf(reinterpret_cast<char *>(buffer), 16, "%u", fsdbSigHdl->optValueVec[cursor.index]);
-            value_p->value.str = (char *)buffer;
-            break;
-        }
-        default:
-            VL_FATAL(false, "Unsupported format: {}", value_p->format);
-        }
+
+            if (!fsdbSigHdl->continueOpt && cursor.index >= (_optFinishIdx - jit_options::recompileWindowSize)) {
+                // fmt::println("[WARN] continue optimization... {} cursor.index:{} optFinishIdx:{}", fsdbSigHdl->name, cursor.index, _optFinishIdx);
+                fsdbSigHdl->continueOpt = true;
+                fsdbSigHdl->cv.notify_one();
+            }
 
 #ifdef PROFILE_JIT
-        auto _optEnd         = std::chrono::high_resolution_clock::now();
-        auto _optElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_optEnd - _totalReadStart).count();
-        jit_options::statistic.readFromOptTime += _optElapsedTime;
-        jit_options::statistic.totalReadTime += _optElapsedTime;
+            jit_options::statistic.readFromOpt++;
 #endif
-        return;
-    } else if (!fsdbSigHdl->doOpt) {
+
+            // Hot-Prefetch JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
+            // X/Z states are NOT preserved here. To get X/Z information, disable Hot-Prefetch JIT
+            // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
+            // Sliding window: use offset indexing (cursor.index - optBaseIdx).
+            auto _optLocalIdx = cursor.index - _optBaseIdx;
+            switch (value_p->format) {
+            case vpiIntVal: {
+                value_p->value.integer = fsdbSigHdl->optValueVec[_optLocalIdx];
+                break;
+            }
+            case vpiVectorVal: {
+                vpiValueVecs[0].aval  = fsdbSigHdl->optValueVec[_optLocalIdx];
+                vpiValueVecs[0].bval  = 0;
+                value_p->value.vector = vpiValueVecs;
+                break;
+            }
+            case vpiHexStrVal: {
+                const int bufferSize = 8; // TODO: 4 * 8 = 32, if support 64 bit signal, this value should be set to 16.
+                uint32_to_hex_str(reinterpret_cast<char *>(buffer), bufferSize, fsdbSigHdl->optValueVec[_optLocalIdx]);
+                value_p->value.str = (char *)buffer;
+                break;
+            }
+            case vpiBinStrVal: {
+                auto &bitSize = fsdbSigHdl->bitSize;
+                auto value    = fsdbSigHdl->optValueVec[_optLocalIdx];
+                for (int i = 0; i < bitSize; i++) {
+                    buffer[bitSize - 1 - i] = (value & (1 << i)) ? '1' : '0';
+                }
+                buffer[bitSize]    = '\0';
+                value_p->value.str = (char *)buffer;
+                break;
+            }
+            case vpiDecStrVal: {
+                // Hot-Prefetch JIT path: 2-state only, no X/Z possible
+                // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
+                // Update this if optValueVec type changes to a wider integer type.
+                uint32_to_dec_str(reinterpret_cast<char *>(buffer), 16, fsdbSigHdl->optValueVec[_optLocalIdx]);
+                value_p->value.str = (char *)buffer;
+                break;
+            }
+            default:
+                VL_FATAL(false, "Unsupported format: {}", value_p->format);
+            }
+
+#ifdef PROFILE_JIT
+            auto _optEnd         = std::chrono::high_resolution_clock::now();
+            auto _optElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(_optEnd - _totalReadStart).count();
+            jit_options::statistic.readFromOptTime += _optElapsedTime;
+            jit_options::statistic.totalReadTime += _optElapsedTime;
+#endif
+            return;
+        }
+    }
+
+    if (!fsdbSigHdl->doOpt) {
         fsdbSigHdl->readCnt++;
         // fmt::println("[WARN] readCnt: {} signalName: {} doOpt: {} bitSize: {}", fsdbSigHdl->readCnt, fsdbSigHdl->name, fsdbSigHdl->doOpt, fsdbSigHdl->bitSize);
 
         // Hot-Prefetch JIT: trigger prefetch when read count exceeds threshold
         // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
         if (fsdbSigHdl->readCnt >= jit_options::hotAccessThreshold) {
-            auto _jitOptThreadCnt = jit_options::optThreadCnt.load();
-            if (_jitOptThreadCnt <= jit_options::maxOptThreads) {
-                jit_options::optThreadCnt.store(_jitOptThreadCnt + 1);
-                fsdbSigHdl->doOpt       = true;
-                fsdbSigHdl->continueOpt = false;
-                fsdbSigHdl->optThread   = std::thread([fsdbSigHdl] { fsdbOptThreadTask(fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl); });
-            } else {
-#ifdef PROFILE_JIT
-                jit_options::statistic.optThreadNotEnough++;
-#endif
+            auto _jitOptThreadCnt = jit_options::optThreadCnt.load(std::memory_order_relaxed);
+            while (_jitOptThreadCnt <= jit_options::maxOptThreads) {
+                if (jit_options::optThreadCnt.compare_exchange_weak(_jitOptThreadCnt, _jitOptThreadCnt + 1, std::memory_order_relaxed)) {
+                    fsdbSigHdl->doOpt       = true;
+                    fsdbSigHdl->continueOpt = false;
+                    fsdbSigHdl->optThread   = std::thread([fsdbSigHdl] { fsdbOptThreadTask(fsdb_wave_vpi::fsdbWaveVpi->waveFileName, fsdb_wave_vpi::fsdbWaveVpi->xtagVec, fsdbSigHdl); });
+                    break;
+                }
+                // compare_exchange_weak updates _jitOptThreadCnt on failure, loop re-checks
             }
+#ifdef PROFILE_JIT
+            if (_jitOptThreadCnt > jit_options::maxOptThreads) {
+                jit_options::statistic.optThreadNotEnough++;
+            }
+#endif
         }
     }
 

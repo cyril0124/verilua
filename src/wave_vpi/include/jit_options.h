@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <fmt/core.h>
 #include <thread>
 
