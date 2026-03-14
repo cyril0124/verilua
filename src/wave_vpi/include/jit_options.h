@@ -14,6 +14,8 @@
 #define JIT_DEFAULT_MAX_OPT_THREADS 900 // Maximum threads(default) that are allowed to be run for JIT optimization.
 #endif
 
+// Hot-Prefetch JIT Algorithm — configuration and runtime options.
+// See jit_options.cpp for algorithm description.
 namespace jit_options {
 extern bool enableJIT;
 extern bool verboseJIT;

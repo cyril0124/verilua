@@ -56,7 +56,7 @@ struct FsdbSignalHandle_t {
     fsdbVarIdcode varIdCode;
     size_t bitSize;
 
-    // Used by JIT-like feature
+    // Hot-Prefetch JIT fields
     uint64_t readCnt = 0;              // Number of times signal has been read, triggers JIT when reaching threshold
     std::thread optThread;             // Thread performing incremental pre-optimization
     bool doOpt       = false;          // Flag to start first optimization when readCnt reaches threshold

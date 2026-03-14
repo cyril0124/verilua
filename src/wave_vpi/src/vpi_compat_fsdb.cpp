@@ -305,7 +305,7 @@ std::string fsdbGetBinStr(vpiHandle object) {
 uint32_t fsdbGetSingleBitValue(vpiHandle object) {
     s_vpi_value v;
     v.format = vpiIntVal;
-    vpi_get_value(object, &v); // Use `vpi_get_value` since we have JIT-like feature in `vpi_get_value`
+    vpi_get_value(object, &v); // Use `vpi_get_value` since we have Hot-Prefetch JIT in `vpi_get_value`
     return v.value.integer;
 }
 
@@ -942,8 +942,8 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
         jit_options::statistic.readFromOpt++;
 #endif
 
-        // JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
-        // X/Z states are NOT preserved here. To get X/Z information, disable JIT
+        // Hot-Prefetch JIT path: reads from pre-computed optValueVec (uint32_t, 2-state only).
+        // X/Z states are NOT preserved here. To get X/Z information, disable Hot-Prefetch JIT
         // via WAVE_VPI_ENABLE_JIT=0 or WaveVpiCtrl.jit_options:set("enableJIT", false).
         switch (value_p->format) {
         case vpiIntVal: {
@@ -973,7 +973,7 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
             break;
         }
         case vpiDecStrVal: {
-            // JIT path: 2-state only, no X/Z possible
+            // Hot-Prefetch JIT path: 2-state only, no X/Z possible
             // Notice: buffer size 16 is sufficient for uint32_t max (4294967295 = 10 chars + '\0').
             // Update this if optValueVec type changes to a wider integer type.
             snprintf(reinterpret_cast<char *>(buffer), 16, "%u", fsdbSigHdl->optValueVec[cursor.index]);
@@ -995,7 +995,7 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
         fsdbSigHdl->readCnt++;
         // fmt::println("[WARN] readCnt: {} signalName: {} doOpt: {} bitSize: {}", fsdbSigHdl->readCnt, fsdbSigHdl->name, fsdbSigHdl->doOpt, fsdbSigHdl->bitSize);
 
-        // Doing somthing like JIT(Just-In-Time)...
+        // Hot-Prefetch JIT: trigger prefetch when read count exceeds threshold
         // Only for signals with bitSize <= 32. TODO: Support signals with bitSize > 32.
         if (fsdbSigHdl->readCnt >= jit_options::hotAccessThreshold) {
             auto _jitOptThreadCnt = jit_options::optThreadCnt.load();
