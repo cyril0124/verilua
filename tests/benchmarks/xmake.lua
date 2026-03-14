@@ -165,7 +165,7 @@ target("benchmarks", function()
             raise("[benchmarks] hyperfine not found!")
         end
 
-        local warmup = 10
+        local warmup = 5
         local runs = 10
         local simulators = {
             "iverilog",
@@ -267,6 +267,10 @@ target("benchmarks", function()
         local run_wave_vpi = find_file("wave_vpi_main", { "$(env PATH)" })
 
         if run_wave_vpi then
+            -- Note: wave_vpi benchmarks are relatively slow, so we use smaller warmup/runs counts to reduce total benchmark time.
+            warmup = 2
+            runs = 4
+
             local wave_formats = {
                 { name = "fst", gen_target = "wave_vpi_gen",     bench_target = "wave_vpi_bench",     gen_envs = { SIM = "verilator" },            run_envs = {} },
                 { name = "vcd", gen_target = "wave_vpi_gen_vcd", bench_target = "wave_vpi_bench_vcd", gen_envs = { WAVE_DUMP_FILE = "bench.vcd" }, run_envs = {} },
