@@ -82,17 +82,33 @@ jobs:
           which mill
           mill --version
 
+      - name: Clone NHL2
+        id: nhl2-meta
+        run: |
+          git clone https://github.com/OpenXiangShan-Nanhu/NHL2.git NHL2
+          echo "sha=$(git -C NHL2 rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache NHL2 generated Verilog
+        id: cache-nhl2-verilog
+        uses: actions/cache@v4
+        with:
+          path: NHL2/build/Slice
+          key: ${{ runner.os }}-nhl2-slice-verilog-${{ steps.nhl2-meta.outputs.sha }}
+
       - name: Test verilua (NHL2)
         run: |
-          git clone https://github.com/OpenXiangShan-Nanhu/NHL2.git
-
           cd NHL2
           echo "Current dir is: $(pwd)"
           ls -l
 
           export SIM=iverilog
           xmake run -P . init
-          xmake build -P . Slice
+          if [ "${{ steps.cache-nhl2-verilog.outputs.cache-hit }}" != "true" ] || ! compgen -G "build/Slice/*.sv" > /dev/null; then
+            echo "NHL2 Slice Verilog cache miss, rebuilding..."
+            xmake build -P . Slice
+          else
+            echo "Using cached NHL2 Slice Verilog from build/Slice"
+          fi
           xmake build -P . TestSlice
           xmake run -P . TestSlice
 
@@ -260,4 +276,3 @@ jobs:
           path: "./artifact/${{ env.PACKAGE_NAME }}_unzipped/"
           include-hidden-files: true
           retention-days: 30
-
