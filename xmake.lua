@@ -1278,7 +1278,7 @@ ${reset}]])
             print_test_start("lua_unit_tests", "luajit")
             local success = true
             try {
-                function() run_cmd("xmake run -P . test_all") end,
+                function() run_cmd("xmake run -P . test-all-lua") end,
                 catch { function(e) success = false end }
             }
             print_test_result("lua_unit_tests", "luajit", success, os.time() - start_time)

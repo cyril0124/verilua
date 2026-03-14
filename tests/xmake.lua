@@ -1,14 +1,20 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
-target("test_all")
+local scriptdir = os.scriptdir()
+
+target("test-all-lua", function()
     set_kind("phony")
-    add_files("./test_*.lua")
-
-    on_run(function (target)
-        local files = target:sourcefiles()
-        for i, file in ipairs(files) do
-            print("=== [%d] start test %s ==================================", i, file)
-            os.exec("luajit %s --stop-on-fail --no-quiet", file)
-            print("")
+    set_default(false)
+    add_files(path.join(scriptdir, "test_*.lua"))
+    on_run(function(target)
+        local function run_lua_test_files(files)
+            for index, file in ipairs(files) do
+                print(string.format("=== [%d/%d] start test %s ==================================", index, #files, file))
+                os.exec("luajit %s --stop-on-fail --no-quiet", file)
+                print("")
+            end
         end
+
+        run_lua_test_files(target:sourcefiles())
     end)
+end)
