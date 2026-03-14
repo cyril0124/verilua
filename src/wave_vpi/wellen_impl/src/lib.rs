@@ -53,7 +53,7 @@ const LOAD_OPTS: LoadOptions = LoadOptions {
 const SIGNAL_REF_COUNT_THRESHOLD: usize = 15;
 
 const META_FILE: &str = ".wave_vpi.meta.yaml";
-const SIGNAL_CACHE_FILE: &str = ".wave_vpi.signal.yaml";
+const SIGNAL_CACHE_FILE: &str = ".wave_vpi.signal.bin";
 
 static mut TIME_TABLE: Option<UnsafeCell<Vec<u64>>> = None;
 static mut HIERARCHY: Option<UnsafeCell<Hierarchy>> = None;
@@ -470,13 +470,38 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
                 let t0 = Instant::now();
                 let _file = File::open(SIGNAL_CACHE_FILE);
                 if let Ok(file) = _file {
-                    let reader = BufReader::new(file);
-                    SIGNAL_CACHE = Some(UnsafeCell::new(serde_yaml::from_reader(reader).unwrap()));
-                    log::info!(
-                        "[wave_vpi::wellen_initialize] read {} in {:.3}s",
-                        SIGNAL_CACHE_FILE,
-                        t0.elapsed().as_secs_f64()
-                    );
+                    // Use mmap for zero-copy reading, then deserialize from the mapped bytes.
+                    let mmap = memmap2::Mmap::map(&file);
+                    match mmap {
+                        Ok(mmap) => match rmp_serde::from_slice::<HashMap<SignalRef, SignalInfo>>(
+                            &mmap,
+                        ) {
+                            Ok(cache) => {
+                                SIGNAL_CACHE = Some(UnsafeCell::new(cache));
+                                log::info!(
+                                    "[wave_vpi::wellen_initialize] read {} in {:.3}s (mmap)",
+                                    SIGNAL_CACHE_FILE,
+                                    t0.elapsed().as_secs_f64()
+                                );
+                            }
+                            Err(e) => {
+                                log::warn!(
+                                    "[wave_vpi::wellen_initialize] Failed to deserialize {}: {} (cache may be stale, rebuilding)",
+                                    SIGNAL_CACHE_FILE,
+                                    e
+                                );
+                                SIGNAL_CACHE = Some(UnsafeCell::new(HashMap::new()));
+                            }
+                        },
+                        Err(e) => {
+                            log::warn!(
+                                "[wave_vpi::wellen_initialize] Failed to mmap {}: {}",
+                                SIGNAL_CACHE_FILE,
+                                e
+                            );
+                            SIGNAL_CACHE = Some(UnsafeCell::new(HashMap::new()));
+                        }
+                    }
                 } else {
                     log::warn!(
                         "[wave_vpi::wellen_initialize] Failed to open signal cache file: {}",
@@ -540,11 +565,12 @@ pub unsafe extern "C" fn wellen_finalize() {
                     );
                 }
 
-                // Save signal cache (large, kept separate).
+                // Save signal cache (large binary format via rmp-serde + BufWriter).
                 let t0 = Instant::now();
                 let signal_cache = get_signal_cache();
                 let file = File::create(SIGNAL_CACHE_FILE).unwrap();
-                serde_yaml::to_writer(file, signal_cache).unwrap();
+                let mut writer = BufWriter::new(file);
+                rmp_serde::encode::write(&mut writer, signal_cache).unwrap();
                 log::info!(
                     "[wave_vpi::wellen_finalize] wrote {} in {:.3}s",
                     SIGNAL_CACHE_FILE,

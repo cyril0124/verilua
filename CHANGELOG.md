@@ -53,7 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
     - Reuses the same `UNIT_TO_EXPONENT` pattern as `sim.get_sim_time(unit)`
     - `set_cursor_time` parameter order changed to `(time, unit?, flush_scheduler?)`
 - **wave_vpi**: Support X/Z state preservation in `get_hex_str()` and `get_bin_str()` for both Wellen and FSDB backends. Previously X/Z values were silently converted to `0`; now correctly output `'x'`/`'z'` characters in string representations
-- **wave_vpi**: Add JIT limitation documentation — JIT optimization uses 2-state(`uint32_t`) storage, which cannot represent X/Z. Disable JIT via `WAVE_VPI_ENABLE_JIT=0` or `WaveVpiCtrl.jit_options:set("enableJIT", false)` when X/Z information is needed
+- **wave_vpi**: Add Hot-Prefetch JIT limitation documentation — Hot-Prefetch JIT optimization uses 2-state(`uint32_t`) storage, which cannot represent X/Z. Disable via `WAVE_VPI_ENABLE_JIT=0` or `WaveVpiCtrl.jit_options:set("enableJIT", false)` when X/Z information is needed
+- **wave_vpi/wellen_impl**: Switch the Wellen signal cache from YAML to a binary MessagePack format and load it through `memmap2` to reduce cache load/save overhead. Cache file name changed from `.wave_vpi.signal.yaml` to `.wave_vpi.signal.bin`
 
 ### 🐛 Fixed
 
