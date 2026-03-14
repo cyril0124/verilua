@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **libverilua**: Add hierarchy cache (`hierarchy_cache` feature) — binary file persistence with mmap reading and mtime-based cache invalidation to eliminate redundant VPI hierarchy traversals across calls and simulation restarts
 - **wave_vpi**: Add progressive read optimization to Hot-Prefetch JIT — `vpi_get_value` can use the fast path incrementally as compilation threads produce results, instead of waiting for the entire window to finish
 - **wave_vpi**: Add sliding window memory optimization to Hot-Prefetch JIT — limit `optValueVec` allocation to `2 × compileWindowSize` instead of the full waveform size, reducing memory usage for large waveforms
+- **wave_vpi**: Add zero-allocation `bytes_last_u32_be` helper to replace `Vec`-based conversion in `wellen_get_int_value`, eliminating a heap allocation on the int-value read hot path
 
 ### 🐛 Fixed
 

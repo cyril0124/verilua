@@ -746,6 +746,23 @@ fn bytes_to_u32s_be(bytes: &[u8]) -> Vec<u32> {
     u32s
 }
 
+/// Extract only the last u32 from a big-endian byte slice without heap allocation.
+/// Equivalent to `bytes_to_u32s_be(bytes).last().unwrap()` but zero-alloc.
+#[inline]
+fn bytes_last_u32_be(bytes: &[u8]) -> u32 {
+    let len = bytes.len();
+    if len >= 4 {
+        // The last aligned chunk is always the last 4 bytes,
+        // because bytes_to_u32s_be handles padding at the front.
+        BigEndian::read_u32(&bytes[len - 4..])
+    } else {
+        // Less than 4 bytes: pad with zeros on the left (MSB)
+        let mut buf = [0u8; 4];
+        buf[4 - len..].copy_from_slice(bytes);
+        u32::from_be_bytes(buf)
+    }
+}
+
 pub const fn cover_with_32(size: usize) -> usize {
     // (size + 31) / 32
     size.div_ceil(32)
@@ -810,8 +827,7 @@ pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_id
         let signal_v = loaded_signal.get_value_at(&off, 0);
         match signal_v {
             SignalValue::Binary(data, _bits) => {
-                let words = bytes_to_u32s_be(data);
-                let value = words[words.len() - 1] as i32;
+                let value = bytes_last_u32_be(data) as i32;
                 value as _
             }
             // If the value is a 4-value, which means it contains X or Z, we return 0 since X
