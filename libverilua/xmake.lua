@@ -4,7 +4,7 @@ local prj_dir = os.projectdir()
 local shared_dir = path.join(prj_dir, "shared")
 local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
 
-local common_features = "acc_time"
+local common_features = "acc_time hierarchy_cache"
 -- local common_features = "debug acc_time"
 
 local verilator_features = "chunk_task verilator_inner_step_callback " .. common_features

@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **AgeStaticQueue**: enhance `list_data` output
 - **AgeStaticQueue**: Add `push_waitable()`, `pop_waitable()` and `wait_not_empty()` methods for blocking queue operations
 - **libverilua**: Reuse a per-handle buffer for VCS/iVerilog string getters to avoid repeated `CString` allocations in `get_hex_str()` / `get_bin_str()` / `get_oct_str()` / `get_dec_str()` hot paths
+- **libverilua**: Add hierarchy cache (`hierarchy_cache` feature) — binary file persistence with mmap reading and mtime-based cache invalidation to eliminate redundant VPI hierarchy traversals across calls and simulation restarts
 
 ### 🐛 Fixed
 

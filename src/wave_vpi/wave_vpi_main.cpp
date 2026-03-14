@@ -67,6 +67,9 @@ int main(int argc, const char *argv[]) {
         std::cout << std::flush;
     }
 
+    // Expose the resolved waveform path for hierarchy cache mtime detection.
+    setenv("VERILUA_WAVEFORM_FILE", waveFile.c_str(), 1);
+
     wave_vpi_init(waveFile.c_str());
 
     if (!is_quiet_mode()) {

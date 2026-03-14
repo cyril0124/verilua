@@ -25,6 +25,7 @@ tabled = "0.18.0"
 cpp = "0.5"
 wildmatch = "2.4.0"
 fslock = "0.2.1"
+memmap2 = { version = "0.9", optional = true }
 
 [lib]
 name = "verilua"
@@ -40,6 +41,7 @@ iverilog_vpi_mod = []
 vcs = []
 wave_vpi = []
 nosim = []
+hierarchy_cache = ["memmap2"]
 
 verilator_inner_step_callback = []
 
