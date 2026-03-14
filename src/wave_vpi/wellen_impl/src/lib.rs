@@ -42,11 +42,11 @@ const LOAD_OPTS: LoadOptions = LoadOptions {
 // If the cached signal ref count is greater than this, we will not use the cached data.
 const SIGNAL_REF_COUNT_THRESHOLD: usize = 15;
 
-const LAST_MODIFIED_TIME_FILE: &str = "last_modified_time.wave_vpi.yaml";
-const SIGNAL_REF_COUNT_FILE: &str = "signal_ref_count.wave_vpi.yaml";
-const SIGNAL_REF_CACHE_FILE: &str = "signal_ref_cache.wave_vpi.yaml";
-const SIGNAL_REF_CACHE_NULL_FILE: &str = "signal_ref_cache_null.wave_vpi.yaml";
-const SIGNAL_CACHE_FILE: &str = "signal_cache.wave_vpi.yaml";
+const LAST_MODIFIED_TIME_FILE: &str = ".wave_vpi.mtime.yaml";
+const SIGNAL_REF_COUNT_FILE: &str = ".wave_vpi.sigref-count.yaml";
+const SIGNAL_REF_CACHE_FILE: &str = ".wave_vpi.sigref.yaml";
+const SIGNAL_REF_CACHE_NULL_FILE: &str = ".wave_vpi.sigref-null.yaml";
+const SIGNAL_CACHE_FILE: &str = ".wave_vpi.signal.yaml";
 
 static mut TIME_TABLE: Option<UnsafeCell<Vec<u64>>> = None;
 static mut HIERARCHY: Option<UnsafeCell<Hierarchy>> = None;
