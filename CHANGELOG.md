@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **wave_vpi/libverilua**: `sim.get_hierarchy()` / `sim.print_hierarchy()` wildcard now supports comma-separated patterns (e.g. `*clock,*data`) with OR semantics.
 - **AgeStaticQueue**: enhance `list_data` output
 - **AgeStaticQueue**: Add `push_waitable()`, `pop_waitable()` and `wait_not_empty()` methods for blocking queue operations
+- **libverilua**: Reuse a per-handle buffer for VCS/iVerilog string getters to avoid repeated `CString` allocations in `get_hex_str()` / `get_bin_str()` / `get_oct_str()` / `get_dec_str()` hot paths
 
 ### 🐛 Fixed
 

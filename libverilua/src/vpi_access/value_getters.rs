@@ -1,5 +1,56 @@
 use super::*;
 
+/// SAFETY:
+/// The returned pointer remains valid only until the next string-read call on the
+/// same `ComplexHandle`. Callers must copy it immediately and must not cache it.
+///
+/// The normalization intentionally matches the current backend-specific behavior:
+/// trim leading ASCII spaces when requested, and replace lowercase `x` with `0`
+/// only when `replace_lower_x_with_zero` is enabled.
+#[inline(always)]
+fn normalize_value_str_to_c_ptr(
+    complex_handle: &mut ComplexHandle,
+    raw_ptr: *const c_char,
+    trim_leading_space: bool,
+    replace_lower_x_with_zero: bool,
+) -> *const c_char {
+    if !trim_leading_space && !replace_lower_x_with_zero {
+        return raw_ptr;
+    }
+
+    let raw = unsafe { CStr::from_ptr(raw_ptr) }.to_bytes();
+    let start = if trim_leading_space {
+        // VCS is known to pad string values with leading ASCII spaces. Keep the
+        // current behavior narrow here instead of doing generic whitespace trimming.
+        raw.iter()
+            .position(|&byte| byte != b' ')
+            .unwrap_or(raw.len())
+    } else {
+        0
+    };
+    let normalized = &raw[start..];
+
+    if !replace_lower_x_with_zero && start == 0 {
+        return raw_ptr;
+    }
+
+    let buf = &mut complex_handle.get_value_str_buf;
+    buf.clear();
+
+    if replace_lower_x_with_zero && normalized.contains(&b'x') {
+        // Preserve the current iVerilog semantics: only lowercase `x` is resolved
+        // to `0` here, while other characters such as `X`/`Z` stay unchanged.
+        for &byte in normalized {
+            buf.push(if byte == b'x' { b'0' } else { byte });
+        }
+    } else {
+        buf.extend_from_slice(normalized);
+    }
+
+    buf.push(0);
+    buf.as_ptr() as *const c_char
+}
+
 impl VeriluaEnv {
     #[inline(always)]
     pub fn vpiml_get_value(&mut self, complex_handle_raw: ComplexHandleRaw) -> u32 {
@@ -107,23 +158,24 @@ macro_rules! impl_gen_get_value_str {
 
                 #[cfg(feature = "vcs")]
                 {
-                    // Remove leading `space`
-                    let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
-                    let trimmed_str = raw_str.to_string_lossy().trim_start().to_string();
-                    let trimmed_c_str = std::ffi::CString::new(trimmed_str).unwrap();
-                    trimmed_c_str.into_raw()
+                    normalize_value_str_to_c_ptr(
+                        complex_handle,
+                        unsafe { v.value.str_ },
+                        true,
+                        false,
+                    )
                 }
 
                 #[cfg(not(feature = "vcs"))]
                 {
                     if cfg!(feature = "iverilog") {
-                        let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
-                        let value_str = raw_str.to_string_lossy().trim_start().to_string();
-
                         if self.resolve_x_as_zero {
-                            std::ffi::CString::new(value_str.replace("x", "0"))
-                                .unwrap()
-                                .into_raw()
+                            normalize_value_str_to_c_ptr(
+                                complex_handle,
+                                unsafe { v.value.str_ },
+                                true,
+                                true,
+                            )
                         } else {
                             unsafe { v.value.str_ }
                         }
@@ -183,24 +235,19 @@ impl VeriluaEnv {
 
             #[cfg(feature = "vcs")]
             {
-                // TODO:
-                // Remove leading `space`
-                let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
-                let trimmed_str = raw_str.to_string_lossy().trim_start().to_string();
-                let trimmed_c_str = std::ffi::CString::new(trimmed_str).unwrap();
-                trimmed_c_str.into_raw()
+                normalize_value_str_to_c_ptr(complex_handle, unsafe { v.value.str_ }, true, false)
             }
 
             #[cfg(not(feature = "vcs"))]
             {
                 if cfg!(feature = "iverilog") {
-                    let raw_str = unsafe { CStr::from_ptr(v.value.str_) };
-                    let value_str = raw_str.to_string_lossy().trim_start().to_string();
-
                     if self.resolve_x_as_zero {
-                        std::ffi::CString::new(value_str.replace("x", "0"))
-                            .unwrap()
-                            .into_raw()
+                        normalize_value_str_to_c_ptr(
+                            complex_handle,
+                            unsafe { v.value.str_ },
+                            true,
+                            true,
+                        )
                     } else {
                         unsafe { v.value.str_ }
                     }

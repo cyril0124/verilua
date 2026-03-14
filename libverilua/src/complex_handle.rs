@@ -119,6 +119,11 @@ pub struct ComplexHandle {
     /// String value for string-format writes
     pub put_value_str: String,
 
+    /// Reusable buffer for string-format reads to avoid per-call CString allocation.
+    /// `ComplexHandle::new()` reserves 128 bytes as a heuristic for the common short
+    /// string case while still allowing wider values to grow the buffer on demand.
+    pub get_value_str_buf: Vec<u8>,
+
     /// Vector value buffer using SmallVec to avoid heap for common cases
     pub put_value_vectors: smallvec::SmallVec<[t_vpi_vecval; MAX_VECTOR_SIZE]>,
 
@@ -168,6 +173,7 @@ impl ComplexHandle {
                 put_value_flag: None,
                 put_value_integer: 0,
                 put_value_str: String::new(),
+                get_value_str_buf: Vec::with_capacity(128),
                 put_value_vectors: smallvec::smallvec![t_vpi_vecval {
                     aval: 0,
                     bval: 0,
@@ -203,6 +209,7 @@ impl ComplexHandle {
                 put_value_flag: None,
                 put_value_integer: 0,
                 put_value_str: String::new(),
+                get_value_str_buf: Vec::with_capacity(128),
                 put_value_vectors: smallvec::smallvec![t_vpi_vecval {
                     aval: 0,
                     bval: 0,
