@@ -14,7 +14,7 @@ use std::io::{BufReader, BufWriter};
 use std::os::raw::{c_char, c_void};
 use std::os::unix::fs::MetadataExt;
 use std::ptr::addr_of;
-use std::time::UNIX_EPOCH;
+use std::time::{Instant, UNIX_EPOCH};
 use wellen::*;
 
 mod vpi_user;
@@ -397,10 +397,18 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
         });
     }
 
+    let t0 = Instant::now();
     let cached_meta: Option<WaveVpiMeta> = File::open(META_FILE).ok().and_then(|f| {
         let reader = BufReader::new(f);
         serde_yaml::from_reader(reader).ok()
     });
+    if cached_meta.is_some() {
+        log::info!(
+            "[wave_vpi::wellen_initialize] read {} in {:.3}s",
+            META_FILE,
+            t0.elapsed().as_secs_f64()
+        );
+    }
 
     if let Some(ref meta) = cached_meta {
         if meta.modified.time == modified_timestamp && meta.modified.size == file_size {
@@ -459,10 +467,16 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
                     "[wave_vpi::wellen_initialize] start read {}",
                     SIGNAL_CACHE_FILE
                 );
+                let t0 = Instant::now();
                 let _file = File::open(SIGNAL_CACHE_FILE);
                 if let Ok(file) = _file {
                     let reader = BufReader::new(file);
                     SIGNAL_CACHE = Some(UnsafeCell::new(serde_yaml::from_reader(reader).unwrap()));
+                    log::info!(
+                        "[wave_vpi::wellen_initialize] read {} in {:.3}s",
+                        SIGNAL_CACHE_FILE,
+                        t0.elapsed().as_secs_f64()
+                    );
                 } else {
                     log::warn!(
                         "[wave_vpi::wellen_initialize] Failed to open signal cache file: {}",
@@ -507,6 +521,7 @@ pub unsafe extern "C" fn wellen_finalize() {
 
                 // Save meta file (lightweight: mtime + sigref + sigref_null).
                 if let Some(modified) = (*addr_of!(WAVE_FILE_MODIFIED)).clone() {
+                    let t0 = Instant::now();
                     let sigref = get_signal_ref_cache();
                     let sigref_null = get_signal_ref_cache_null();
                     let meta = WaveVpiMeta {
@@ -518,12 +533,23 @@ pub unsafe extern "C" fn wellen_finalize() {
                     let file = File::create(META_FILE).unwrap();
                     let writer = BufWriter::new(file);
                     serde_yaml::to_writer(writer, &meta).unwrap();
+                    log::info!(
+                        "[wave_vpi::wellen_finalize] wrote {} in {:.3}s",
+                        META_FILE,
+                        t0.elapsed().as_secs_f64()
+                    );
                 }
 
                 // Save signal cache (large, kept separate).
+                let t0 = Instant::now();
                 let signal_cache = get_signal_cache();
                 let file = File::create(SIGNAL_CACHE_FILE).unwrap();
                 serde_yaml::to_writer(file, signal_cache).unwrap();
+                log::info!(
+                    "[wave_vpi::wellen_finalize] wrote {} in {:.3}s",
+                    SIGNAL_CACHE_FILE,
+                    t0.elapsed().as_secs_f64()
+                );
             } else {
                 log::info!("[wave_vpi::wellen_finalize] no newly added signal ref")
             }

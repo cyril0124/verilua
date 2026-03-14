@@ -282,6 +282,7 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
             xtagU64Vec.assign(xtagU64Set.begin(), xtagU64Set.end());
 
             // Save time table into file so that we do not require much time to parse time table.
+            auto ttStart = std::chrono::steady_clock::now();
             std::ofstream timeTableFile(TIME_TABLE_FILE, std::ios::binary);
             std::size_t vecSize = xtagU64Vec.size();
             VL_FATAL(timeTableFile.is_open(), "Failed to open TIME_TABLE_FILE({})!", TIME_TABLE_FILE);
@@ -289,6 +290,11 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
             timeTableFile.write(reinterpret_cast<char *>(xtagU64Vec.data()), vecSize * sizeof(uint64_t));
             VL_FATAL(timeTableFile, "Failed to write to file({})!", TIME_TABLE_FILE);
             timeTableFile.close();
+            auto ttEnd  = std::chrono::steady_clock::now();
+            double ttMs = std::chrono::duration<double, std::milli>(ttEnd - ttStart).count();
+            if (!is_quiet_mode()) {
+                fmt::println("[wave_vpi::fsdb_wave_vpi] wrote {} in {:.3f}ms", TIME_TABLE_FILE, ttMs);
+            }
         }
 
         // Recreate tbVcTrvsHdl to reset the xtag to start point
@@ -300,6 +306,7 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
 FsdbWaveVpi::~FsdbWaveVpi() {
     if (hasNewlyAddedVarIdCode) {
         // Save meta file (mtime + used var id code cache).
+        auto t0            = std::chrono::steady_clock::now();
         auto waveFileSize  = std::filesystem::file_size(waveFileName);
         auto lastWriteTime = (uint64_t)std::filesystem::last_write_time(waveFileName).time_since_epoch().count();
 
@@ -311,6 +318,12 @@ FsdbWaveVpi::~FsdbWaveVpi() {
         std::ofstream o(META_FILE);
         o << meta.dump(4) << "\n";
         o.close();
+
+        auto t1       = std::chrono::steady_clock::now();
+        double metaMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        if (!is_quiet_mode()) {
+            fmt::println("[wave_vpi::fsdb_wave_vpi] wrote {} in {:.3f}ms", META_FILE, metaMs);
+        }
     }
 }
 
