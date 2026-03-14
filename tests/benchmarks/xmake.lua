@@ -1,7 +1,8 @@
----@diagnostic disable
+---@diagnostic disable: undefined-global, undefined-field
 
 local curr_dir = os.scriptdir()
 local rtl_dir = path.join(os.scriptdir(), "..", "rtl")
+local wave_vpi_rtl_dir = path.join(os.scriptdir(), "rtl")
 
 local function target_common()
     add_rules("verilua")
@@ -57,6 +58,101 @@ target("matrix_multiplier_no_internal_clock", function()
     set_values("cfg.no_internal_clock", "1")
     set_values("cfg.build_dir_name", "matrix_multiplier_no_internal_clock")
     set_values("cfg.lua_main", path.join(curr_dir, "cases", "matrix_multiplier_no_internal_clock.lua"))
+end)
+
+target("wave_vpi_gen", function()
+    set_default(false)
+    add_rules("verilua")
+    add_toolchains("@verilator")
+    add_files(path.join(wave_vpi_rtl_dir, "wave_vpi_bench.sv"))
+    add_values("verilator.flags", "--trace", "--trace-fst")
+    set_values("cfg.top", "wave_vpi_bench")
+    set_values("cfg.build_dir_name", "wave_vpi_gen")
+    set_values("cfg.lua_main", path.join(curr_dir, "cases", "wave_vpi_gen.lua"))
+
+    after_run(function()
+        assert(os.isfile("bench.fst"), "bench.fst not found after wave_vpi_gen run")
+        local waves_dir = path.join(curr_dir, "waves")
+        os.mkdir(waves_dir)
+        os.cp("bench.fst", waves_dir)
+    end)
+end)
+
+target("wave_vpi_bench", function()
+    set_default(false)
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")
+    add_files(path.join(curr_dir, "waves", "bench.fst"))
+    set_values("cfg.top", "tb_top")
+    set_values("cfg.build_dir_name", "wave_vpi_bench")
+    set_values("cfg.lua_main", path.join(curr_dir, "cases", "wave_vpi_bench.lua"))
+end)
+
+target("wave_vpi_gen_vcd", function()
+    set_default(false)
+    add_rules("verilua")
+    add_toolchains("@verilator")
+    add_files(path.join(wave_vpi_rtl_dir, "wave_vpi_bench.sv"))
+    add_values("verilator.flags", "--trace")
+    set_values("cfg.top", "wave_vpi_bench")
+    set_values("cfg.build_dir_name", "wave_vpi_gen_vcd")
+    set_values("cfg.lua_main", path.join(curr_dir, "cases", "wave_vpi_gen.lua"))
+
+    after_run(function()
+        assert(os.isfile("bench.vcd"), "bench.vcd not found after wave_vpi_gen_vcd run")
+        local waves_dir = path.join(curr_dir, "waves")
+        os.mkdir(waves_dir)
+        os.cp("bench.vcd", waves_dir)
+    end)
+end)
+
+target("wave_vpi_bench_vcd", function()
+    set_default(false)
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")
+    add_files(path.join(curr_dir, "waves", "bench.vcd"))
+    set_values("cfg.top", "tb_top")
+    set_values("cfg.build_dir_name", "wave_vpi_bench_vcd")
+    set_values("cfg.lua_main", path.join(curr_dir, "cases", "wave_vpi_bench.lua"))
+end)
+
+target("wave_vpi_gen_fsdb", function()
+    set_default(false)
+    add_rules("verilua")
+
+    on_config(function(target)
+        import("lib.detect.find_file")
+        local has_fsdb = find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
+            and find_file("vcs", { "$(env PATH)" })
+            and os.getenv("VERDI_HOME")
+        if has_fsdb then
+            target:set("toolchains", "@vcs")
+        else
+            target:set("toolchains", "@iverilog")
+        end
+    end)
+
+    add_files(path.join(wave_vpi_rtl_dir, "wave_vpi_bench.sv"))
+    set_values("cfg.top", "wave_vpi_bench")
+    set_values("cfg.build_dir_name", "wave_vpi_gen_fsdb")
+    set_values("cfg.lua_main", path.join(curr_dir, "cases", "wave_vpi_gen.lua"))
+
+    after_run(function()
+        local waves_dir = path.join(curr_dir, "waves")
+        os.mkdir(waves_dir)
+        assert(os.isfile("bench.vcd.fsdb"), "bench.vcd.fsdb not found after wave_vpi_gen_fsdb run")
+        os.cp("bench.vcd.fsdb", waves_dir)
+    end)
+end)
+
+target("wave_vpi_bench_fsdb", function()
+    set_default(false)
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")
+    add_files(path.join(curr_dir, "waves", "bench.vcd.fsdb"))
+    set_values("cfg.top", "tb_top")
+    set_values("cfg.build_dir_name", "wave_vpi_bench_fsdb")
+    set_values("cfg.lua_main", path.join(curr_dir, "cases", "wave_vpi_bench.lua"))
 end)
 
 target("benchmarks", function()
@@ -165,6 +261,89 @@ target("benchmarks", function()
 
         print("results:", results)
         print("merged_resutls:", merged_resutls)
+
+        -- wave_vpi benchmarks: Hot-Prefetch JIT on/off × hot signal count × waveform format
+        local wave_vpi_hot_counts = { 5, 10, 100, 1000 }
+        local run_wave_vpi = find_file("wave_vpi_main", { "$(env PATH)" })
+
+        if run_wave_vpi then
+            local wave_formats = {
+                { name = "fst", gen_target = "wave_vpi_gen",     bench_target = "wave_vpi_bench",     gen_envs = { SIM = "verilator" },            run_envs = {} },
+                { name = "vcd", gen_target = "wave_vpi_gen_vcd", bench_target = "wave_vpi_bench_vcd", gen_envs = { WAVE_DUMP_FILE = "bench.vcd" }, run_envs = {} },
+            }
+
+            local has_fsdb = find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
+                and find_file("vcs", { "$(env PATH)" })
+                and os.getenv("VERDI_HOME")
+            if has_fsdb then
+                table.insert(wave_formats, {
+                    name = "fsdb",
+                    gen_target = "wave_vpi_gen_fsdb",
+                    bench_target = "wave_vpi_bench_fsdb",
+                    gen_envs = { WAVE_DUMP_FILE = "bench.vcd" },
+                    run_envs = {},
+                })
+            else
+                cprint(
+                    "${yellow}[WARN] skip wave_vpi FSDB benchmarks: wave_vpi_main_fsdb/vcs/VERDI_HOME not found${clear}")
+            end
+
+            for _, fmt in ipairs(wave_formats) do
+                -- Generate waveform
+                os.tryrm(path.join(curr_dir, "build"))
+                os.execv("xmake", { "build", "-P", curr_dir, fmt.gen_target }, {
+                    envs = fmt.gen_envs,
+                })
+                os.execv("xmake", { "run", "-P", curr_dir, fmt.gen_target }, {
+                    envs = fmt.gen_envs,
+                })
+
+                -- Benchmark with hot signal counts × JIT on/off
+                local wave_sum = {}
+                for _, jit_v in ipairs({ "on", "off" }) do
+                    wave_sum[jit_v] = 0
+                    for _, hot_count in ipairs(wave_vpi_hot_counts) do
+                        local command_name = format("wave_vpi_%s_hot%d__jit_%s", fmt.name, hot_count, jit_v)
+
+                        os.tryrm(path.join(curr_dir, "build", "wave_vpi"))
+                        os.execv("xmake", { "build", "-P", curr_dir, fmt.bench_target })
+                        os.execv("hyperfine", {
+                            "-w", warmup,
+                            "-r", runs,
+                            "--command-name", command_name,
+                            "--export-json", command_name .. ".json",
+                            format("xmake run -P %s %s", curr_dir, fmt.bench_target),
+                        }, {
+                            envs = {
+                                WAVE_VPI_ENABLE_JIT = jit_v == "on" and "1" or "0",
+                                HOT_SIGNAL_COUNT = tostring(hot_count),
+                            },
+                        })
+
+                        local v = json.loadfile(path.join(curr_dir, command_name .. ".json")).results[1].mean * 1000
+                        results[#results + 1] = {
+                            name = format("[benchmarks] wave_vpi_%s_hot%d - wave_vpi jit `%s`", fmt.name, hot_count,
+                                jit_v),
+                            unit = "ms",
+                            value = v,
+                            extra = format("wave_vpi %s Hot-Prefetch JIT %s", fmt.name:upper(), jit_v),
+                        }
+                        wave_sum[jit_v] = wave_sum[jit_v] + v
+                    end
+
+                    merged_resutls[#merged_resutls + 1] = {
+                        name = format("[benchmarks] merged resutls - wave_vpi_%s jit `%s`", fmt.name, jit_v),
+                        unit = "ms",
+                        value = wave_sum[jit_v],
+                        extra = format("wave_vpi %s Hot-Prefetch JIT %s", fmt.name:upper(), jit_v),
+                    }
+                end
+            end
+        else
+            cprint("${yellow}[WARN] skip wave_vpi benchmarks: wave_vpi_main not found${clear}")
+        end
+
+        print("wave_vpi results added")
 
         local final_results = {}
         table.join2(final_results, merged_resutls)

@@ -51,6 +51,11 @@ jobs:
           verilator-version: ${{ env.verilator-version }}
           iverilog-tag: ${{ env.iverilog-tag }}
 
+      - name: Build wave_vpi
+        run: |
+          SIM=wave_vpi xmake run build_libverilua
+          xmake b wave_vpi_main
+
       - name: Run benchmarks
         run: |
           cd ./tests/benchmarks
