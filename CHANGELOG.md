@@ -21,11 +21,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **LuaSimulator**: Add `sim.collect_signals(hier_path)` API for VPI-based signal introspection
 - **LuaSimulator**: Implement `auto_bundle_via_hierarchy()` — optimized auto_bundle path using VPI hierarchy API instead of SignalDB
 - **wave_vpi**: Add hierarchy-only mode (`--hierarchy-only` CLI flag / `WAVE_VPI_HIERARCHY_ONLY` env var) — skips signal data loading and time table parsing during wave_vpi initialization, reducing hierarchy query startup time from ~5s to ~0.7s (with cache hit) for large FSDB waveforms
+- **wave_vpi**: Share single `ffrObject` across all FSDB JIT threads instead of creating per-thread instances, eliminating ~190 MiB memory overhead from separate decompression buffers
 
 ### 🐛 Fixed
 
 - **wave_vpi**: Fix SIGSEGV race condition on process exit by using `_exit(0)` instead of `exit(0)` to skip C++ static destructors that conflict with background threads
 - **wave_vpi**: Flush `stdout/stderr` before normal `_exit(0)` in `wave_vpi_loop()` to prevent losing buffered Lua output when running with pipes (e.g. `bash run.sh | tee t.log`)
+- **wave_vpi**: Fix FSDB JIT recompilation running without mutex protection — recompilation is now serialized under `optMutex` to match FsdbReader's thread-safety requirements
+- **wave_vpi**: Fix signed/unsigned comparison in FSDB JIT bitwise parsing loop (`int` → `uint_T`)
 
 ### 💥 Breaking Changes
 

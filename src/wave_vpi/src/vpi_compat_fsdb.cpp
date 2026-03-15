@@ -746,15 +746,16 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle sigHdl) {
     }
 };
 
-static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xtagVec, fsdb_wave_vpi::FsdbSignalHandlePtr fsdbSigHdl) {
+static void fsdbOptThreadTask(const std::string &fsdbFileName, const std::vector<fsdbXTag> &xtagVec, fsdb_wave_vpi::FsdbSignalHandlePtr fsdbSigHdl) {
     if (vpiControlTerminate) {
         return;
     }
 
     static std::mutex optMutex;
-
-    // Ensure only one `fsdbObj` can be processed for all the optimization threads. (It seems like a bug that FsdbReader did not allow multiple ffrObjects to be processed at multiple threads. )
-    std::unique_lock<std::mutex> lock(optMutex);
+    // Shared ffrObject: all JIT threads share one FSDB file handle (under optMutex)
+    // to avoid per-thread memory overhead from separate decompression buffers.
+    // Intentionally never freed — lives until process exit.
+    static ffrObject *sharedFsdbObj = nullptr;
 
 #ifdef PROFILE_JIT
     jit_options::statistic.jitOptTaskCnt.store(jit_options::statistic.jitOptTaskCnt.load() + 1);
@@ -762,35 +763,12 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
 
     auto verboseJIT = jit_options::verboseJIT;
 
-    if (verboseJIT && !is_quiet_mode()) {
-        fmt::println("[fsdbOptThreadTask] First optimization start! {} currentCursorIdx:{}, windowSize:{}", fsdbSigHdl->name, cursor.index, jit_options::compileWindowSize);
-        fflush(stdout);
-    }
+    // VCTrvsHdl — updated before each optFunc call, captured by reference in lambda.
+    // ffrVCTrvsHdl is already a pointer type (ffrVCIterOne*).
+    ffrVCTrvsHdl hdlPtr = nullptr;
+    uint_T bitSize      = 0;
 
-    ffrObject *fsdbObj = ffrObject::ffrOpenNonSharedObj(const_cast<char *>(fsdbFileName.c_str()));
-    VL_FATAL(fsdbObj != nullptr, "Failed to open fsdbObj, fsdbFileName: {}", fsdbFileName);
-    fsdbObj->ffrReadScopeVarTree();
-
-    auto hdl     = fsdbObj->ffrCreateVCTrvsHdl(fsdbSigHdl->varIdCode);
-    auto bitSize = hdl->ffrGetBitSize();
-    VL_FATAL(hdl != nullptr, "Failed to create hdl, fsdbFileName: {}, fsdbSigHdl->name: {}, fsdbSigHdl->varIdCode: {}", fsdbFileName, fsdbSigHdl->name, fsdbSigHdl->varIdCode);
-    VL_FATAL(bitSize <= 32, "For now we only optimize signals with bitSize <= 32, bitSize: {}", bitSize);
-
-    auto &optValueVec = fsdbSigHdl->optValueVec;
-
-    auto currentCursorIdx = cursor.index;
-    auto optFinishIdx     = currentCursorIdx + jit_options::compileWindowSize;
-
-    if (optFinishIdx >= xtagVec.size()) {
-        optFinishIdx = xtagVec.size() - 1;
-    }
-
-    // Sliding window: allocate only what's needed instead of the full waveform.
-    auto windowCapacity = std::min(jit_options::compileWindowSize * 2, xtagVec.size());
-    fsdbSigHdl->optBaseIdx.store(currentCursorIdx, std::memory_order_relaxed);
-    optValueVec.resize(windowCapacity);
-
-    auto optFunc = [&hdl, &xtagVec, &bitSize, &fsdbFileName, fsdbSigHdl](uint64_t startIdx, uint64_t finishIdx) {
+    auto optFunc = [&hdlPtr, &bitSize, &xtagVec, &fsdbFileName, fsdbSigHdl](uint64_t startIdx, uint64_t finishIdx) {
         constexpr uint64_t PROGRESS_BATCH = 1024;
         byte_T *retVC;
         fsdbBytesPerBit bpb;
@@ -803,15 +781,15 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
             auto time       = xtagVec[idx];
             time.hltag.L    = time.hltag.L + 1;
 
-            if (FSDB_RC_SUCCESS != hdl->ffrGotoXTag(&time)) [[unlikely]] {
+            if (FSDB_RC_SUCCESS != hdlPtr->ffrGotoXTag(&time)) [[unlikely]] {
                 VL_FATAL(false, "Failed to call hdl->ffrGotoXtag(), time.hltag.L: {}, time.hltag.H: {}, idx: {}, fsdbSigHdl->name: {}, fsdbFileName: {}", time.hltag.L, time.hltag.H, idx, fsdbSigHdl->name, fsdbFileName);
             }
 
-            if (FSDB_RC_SUCCESS != hdl->ffrGetVC(&retVC)) [[unlikely]] {
+            if (FSDB_RC_SUCCESS != hdlPtr->ffrGetVC(&retVC)) [[unlikely]] {
                 VL_FATAL(false, "hdl->ffrGetVC() failed!");
             }
 
-            bpb = hdl->ffrGetBytesPerBit();
+            bpb = hdlPtr->ffrGetBytesPerBit();
 
             if (bitSize == 1) {
                 switch (bpb) {
@@ -840,7 +818,7 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
             } else {
                 switch (bpb) {
                 [[likely]] case FSDB_BYTES_PER_BIT_1B: {
-                    for (int i = 0; i < bitSize; i++) {
+                    for (uint_T i = 0; i < bitSize; i++) {
                         switch (retVC[i]) {
                         case FSDB_BT_VCD_X: // treat `X` as `0`
                         case FSDB_BT_VCD_Z: // treat `Z` as `0`
@@ -874,65 +852,118 @@ static void fsdbOptThreadTask(std::string fsdbFileName, std::vector<fsdbXTag> xt
         fsdbSigHdl->optFinishIdx.store(finishIdx, std::memory_order_release);
     };
 
-    optFunc(currentCursorIdx, optFinishIdx);
+    // Helper: create VCTrvsHdl on the shared ffrObject for this signal.
+    auto createHdl = [&hdlPtr, &bitSize, &fsdbSigHdl, &fsdbFileName]() {
+        hdlPtr = sharedFsdbObj->ffrCreateVCTrvsHdl(fsdbSigHdl->varIdCode);
+        VL_FATAL(hdlPtr != nullptr, "Failed to create hdl, fsdbFileName: {}, fsdbSigHdl->name: {}, fsdbSigHdl->varIdCode: {}", fsdbFileName, fsdbSigHdl->name, fsdbSigHdl->varIdCode);
+        bitSize = hdlPtr->ffrGetBitSize();
+        VL_FATAL(bitSize <= 32, "For now we only optimize signals with bitSize <= 32, bitSize: {}", bitSize);
+    };
 
-    // No longer need optFinish flag — optFinishIdx is progressively updated by optFunc
+    // Helper: free the VCTrvsHdl after compilation.
+    auto freeHdl = [&hdlPtr]() {
+        if (hdlPtr) {
+            hdlPtr->ffrFree();
+            hdlPtr = nullptr;
+        }
+    };
 
-    lock.unlock();
+    // === Initial compilation (under optMutex) ===
+    {
+        std::lock_guard<std::mutex> lock(optMutex);
+
+        // Lazy init shared ffrObject
+        if (!sharedFsdbObj) {
+            sharedFsdbObj = ffrObject::ffrOpenNonSharedObj(const_cast<char *>(fsdbFileName.c_str()));
+            VL_FATAL(sharedFsdbObj != nullptr, "Failed to open fsdbObj, fsdbFileName: {}", fsdbFileName);
+            sharedFsdbObj->ffrReadScopeVarTree();
+        }
+
+        if (verboseJIT && !is_quiet_mode()) {
+            fmt::println("[fsdbOptThreadTask] First optimization start! {} currentCursorIdx:{}, windowSize:{}", fsdbSigHdl->name, cursor.index, jit_options::compileWindowSize);
+            fflush(stdout);
+        }
+
+        createHdl();
+
+        auto &optValueVec     = fsdbSigHdl->optValueVec;
+        auto currentCursorIdx = cursor.index;
+        auto optFinishIdx     = currentCursorIdx + jit_options::compileWindowSize;
+
+        if (optFinishIdx >= xtagVec.size()) {
+            optFinishIdx = xtagVec.size() - 1;
+        }
+
+        // Sliding window: allocate only what's needed instead of the full waveform.
+        auto windowCapacity = std::min(jit_options::compileWindowSize * 2, xtagVec.size());
+        fsdbSigHdl->optBaseIdx.store(currentCursorIdx, std::memory_order_relaxed);
+        optValueVec.resize(windowCapacity);
+
+        optFunc(currentCursorIdx, optFinishIdx);
+        freeHdl();
+    }
+    // optMutex released
 
 #ifdef PROFILE_JIT
     jit_options::statistic.jitOptTaskFirstFinishCnt.store(jit_options::statistic.jitOptTaskFirstFinishCnt.load() + 1);
 #endif
 
     if (verboseJIT && !is_quiet_mode()) {
-        fmt::println("[fsdbOptThreadTask] First optimization finish! {} currentCursorIdx:{} optFinishIdx:{} windowSize:{}", fsdbSigHdl->name, currentCursorIdx, optFinishIdx, jit_options::compileWindowSize);
+        fmt::println("[fsdbOptThreadTask] First optimization finish! {} windowSize:{}", fsdbSigHdl->name, jit_options::compileWindowSize);
         fflush(stdout);
     }
 
+    // === Recompilation loop ===
+    // Recompilation also acquires optMutex because FsdbReader is not thread-safe.
     int optCnt = 0;
     std::unique_lock<std::mutex> continueOptLock(fsdbSigHdl->mtx);
     while (true) {
         fsdbSigHdl->cv.wait(continueOptLock, [fsdbSigHdl]() { return fsdbSigHdl->continueOpt; });
 
-        // Continue optimization
-        auto optFinish    = false;
-        auto optStartIdx  = std::max(cursor.index, fsdbSigHdl->optFinishIdx.load(std::memory_order_relaxed));
-        auto optFinishIdx = optStartIdx + jit_options::compileWindowSize;
-        if (optFinishIdx >= xtagVec.size()) {
-            optFinishIdx = xtagVec.size() - 1;
-            optFinish    = true;
+        {
+            std::lock_guard<std::mutex> lock(optMutex);
+
+            createHdl();
+
+            auto optFinish    = false;
+            auto optStartIdx  = std::max(cursor.index, fsdbSigHdl->optFinishIdx.load(std::memory_order_relaxed));
+            auto optFinishIdx = optStartIdx + jit_options::compileWindowSize;
+            if (optFinishIdx >= xtagVec.size()) {
+                optFinishIdx = xtagVec.size() - 1;
+                optFinish    = true;
+            }
+
+            // Sliding window: check if the next window fits in the current allocation.
+            auto neededEnd = optFinishIdx - fsdbSigHdl->optBaseIdx.load(std::memory_order_relaxed);
+            if (neededEnd > fsdbSigHdl->optValueVec.size()) {
+                // Reset optFinishIdx first to force main thread onto slow path during the slide.
+                fsdbSigHdl->optFinishIdx.store(0, std::memory_order_release);
+                fsdbSigHdl->optBaseIdx.store(optStartIdx, std::memory_order_release);
+                auto newCapacity = std::min(jit_options::compileWindowSize * 2, xtagVec.size() - optStartIdx);
+                fsdbSigHdl->optValueVec.resize(newCapacity);
+            }
+
+            optFunc(optStartIdx, optFinishIdx);
+            freeHdl();
+
+            // optFinishIdx is already updated progressively by optFunc
+            fsdbSigHdl->continueOpt = false;
+            optCnt++;
+
+            if (optFinish) {
+                break;
+            }
         }
-
-        // Sliding window: check if the next window fits in the current allocation.
-        auto neededEnd = optFinishIdx - fsdbSigHdl->optBaseIdx.load(std::memory_order_relaxed);
-        if (neededEnd > fsdbSigHdl->optValueVec.size()) {
-            // Reset optFinishIdx first to force main thread onto slow path during the slide.
-            fsdbSigHdl->optFinishIdx.store(0, std::memory_order_release);
-            fsdbSigHdl->optBaseIdx.store(optStartIdx, std::memory_order_release);
-            auto newCapacity = std::min(jit_options::compileWindowSize * 2, xtagVec.size() - optStartIdx);
-            fsdbSigHdl->optValueVec.resize(newCapacity);
-        }
-
-        optFunc(optStartIdx, optFinishIdx);
-
-        // optFinishIdx is already updated progressively by optFunc
-        fsdbSigHdl->continueOpt = false;
-
-        optCnt++;
+        // optMutex released
 
         if (verboseJIT && !is_quiet_mode()) {
-            fmt::println("[fsdbOptThreadTask] [{}] Continue optimization... {} optStartIdx:{} optFinishIdx:{}", optCnt, fsdbSigHdl->name, optStartIdx, optFinishIdx);
+            fmt::println("[fsdbOptThreadTask] [{}] Continue optimization... {}", optCnt, fsdbSigHdl->name);
             fflush(stdout);
-        }
-
-        if (optFinish) {
-            break;
         }
     }
 
     jit_options::optThreadCnt.fetch_sub(1, std::memory_order_relaxed);
 
-    // fsdbObj->ffrClose();
     if (verboseJIT && !is_quiet_mode()) {
         fmt::println("[fsdbOptThreadTask] Optimization finish! total compile times:{} signalName:{}", optCnt, fsdbSigHdl->name);
         fflush(stdout);
