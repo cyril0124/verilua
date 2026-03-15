@@ -830,34 +830,6 @@ target("test", function()
             state.remainder = buffer
         end
 
-        local function run_xmake_pair(ctx, dir, envs, build_cmd, run_cmd, opt)
-            if not (opt and opt.skip_clean) then
-                ctx.clean(path.join(dir, "build"))
-            end
-            ctx.run(dir, build_cmd, envs)
-            return ctx.run(dir, run_cmd, envs, { allow_fail = opt and opt.allow_fail_run or false })
-        end
-
-        -- Run xmake build+run for all simulators, optionally with cfg_use_inertial_put variant
-        local function run_xmake_for_all_sims(ctx, dir, name, opt)
-            opt = opt or {}
-            local build_cmd = opt.build_cmd or "xmake build -v -P ."
-            local run_cmdline = opt.run_cmd or "xmake run -v -P ."
-            for _, sim in ipairs(simulators) do
-                local allow_fail_run = opt.allow_fail_sims and opt.allow_fail_sims[sim]
-                ctx.run_case(join_case_parts(name, sim), function()
-                    return run_xmake_pair(ctx, dir, { SIM = sim }, build_cmd, run_cmdline, {
-                        allow_fail_run = allow_fail_run,
-                    })
-                end, allow_fail_run and { false_status = "allow_fail" } or nil)
-            end
-            if has_verilator and opt.cfg_use_inertial_put then
-                ctx.run_case(join_case_parts(name, "verilator", "cfg_use_inertial_put"), function()
-                    run_xmake_pair(ctx, dir, { SIM = "verilator", CFG_USE_INERTIAL_PUT = "1" }, build_cmd, run_cmdline)
-                end)
-            end
-        end
-
         -- =====================================================================
         -- Job Registration (add/remove tests here)
         -- =====================================================================
@@ -873,7 +845,21 @@ target("test", function()
             name = "examples-core",
             run = function(ctx)
                 for _, name in ipairs(core_examples) do
-                    run_xmake_for_all_sims(ctx, path.join(examples_dir, name), name, { cfg_use_inertial_put = true })
+                    local dir = path.join(examples_dir, name)
+                    for _, sim in ipairs(simulators) do
+                        ctx.run_case(join_case_parts(name, sim), function()
+                            ctx.clean(path.join(dir, "build"))
+                            ctx.run(dir, "xmake build -v -P .", { SIM = sim })
+                            ctx.run(dir, "xmake run -v -P .", { SIM = sim })
+                        end)
+                    end
+                    if has_verilator then
+                        ctx.run_case(join_case_parts(name, "verilator", "cfg_use_inertial_put"), function()
+                            ctx.clean(path.join(dir, "build"))
+                            ctx.run(dir, "xmake build -v -P .", { SIM = "verilator", CFG_USE_INERTIAL_PUT = "1" })
+                            ctx.run(dir, "xmake run -v -P .", { SIM = "verilator", CFG_USE_INERTIAL_PUT = "1" })
+                        end)
+                    end
                 end
             end,
         })
@@ -881,19 +867,29 @@ target("test", function()
         push_job({
             name = "tutorial-example",
             run = function(ctx)
-                run_xmake_for_all_sims(ctx, path.join(examples_dir, "tutorial_example"), "tutorial_example", {
-                    allow_fail_sims = { vcs = true },
-                })
+                local dir = path.join(examples_dir, "tutorial_example")
+                for _, sim in ipairs(simulators) do
+                    local allow_fail = sim == "vcs"
+                    ctx.run_case(join_case_parts("tutorial_example", sim), function()
+                        ctx.clean(path.join(dir, "build"))
+                        ctx.run(dir, "xmake build -v -P .", { SIM = sim })
+                        return ctx.run(dir, "xmake run -v -P .", { SIM = sim }, { allow_fail = allow_fail })
+                    end, allow_fail and { false_status = "allow_fail" } or nil)
+                end
             end,
         })
 
         push_job({
             name = "simple-ut-env",
             run = function(ctx)
-                run_xmake_for_all_sims(ctx, path.join(examples_dir, "simple_ut_env"), "simple_ut_env", {
-                    build_cmd = "xmake build -P . test_counter",
-                    run_cmd = "xmake run -v -P . test_counter",
-                })
+                local dir = path.join(examples_dir, "simple_ut_env")
+                for _, sim in ipairs(simulators) do
+                    ctx.run_case(join_case_parts("simple_ut_env", sim), function()
+                        ctx.clean(path.join(dir, "build"))
+                        ctx.run(dir, "xmake build -P . test_counter", { SIM = sim })
+                        ctx.run(dir, "xmake run -v -P . test_counter", { SIM = sim })
+                    end)
+                end
             end,
         })
 
@@ -967,14 +963,34 @@ target("test", function()
 
         -- Test targets defined in tests/xmake.lua (add/remove entries to register)
         local test_targets = {
-            "test-core-basic",
-            "test-core-extended",
+            -- Sim-based tests (one per directory)
+            "test-edge",
+            "test-set-value",
+            "test-basic-signal",
+            "test-scheduler",
+            "test-comb",
+            "test-comb-1",
+            "test-bitvec-signal",
+            "test-no-internal-clock",
+            "test-handles",
+            "test-native-clock",
+            "test-queue-waitable",
+            "test-dpic",
+            -- Wave VPI tests (one per directory)
             "test-wave-vpi",
-            "test-wave-padding",
+            "test-wave-vpi-x",
+            "test-wave-vpi-print-hier",
+            "test-wave-vpi-module-name",
+            -- Benchmarks
             "test-benchmarks",
             "test-benchmarks-wave-vpi",
+            -- Testbench gen
             "test-testbench-gen",
-            "test-tools",
+            -- Tool tests (one per directory)
+            "test-dpi-exporter",
+            "test-cov-exporter",
+            "test-signal-db",
+            -- Standalone Lua tests
             "test-all-lua",
         }
         for _, name in ipairs(test_targets) do

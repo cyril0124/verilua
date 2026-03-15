@@ -139,7 +139,7 @@ elseif tc_name == "set_cursor_time" then
             local half_time = math.floor(max_time / 2)
             wctrl:set_cursor_time(half_time, nil, false)
 
-            local half_cycles = wtype == "fsdb" and 56 or 57
+            local half_cycles = 56
             dut.cycles:expect(half_cycles)
 
             wctrl:set_cursor_time(max_time, nil, true)
@@ -206,7 +206,7 @@ elseif tc_name == "set_cursor_time_unit" then
             local half_time_ps = math.floor(max_time_ps / 2)
             wctrl:set_cursor_time(half_time_ps, "ps", false)
 
-            local half_cycles = wtype == "fsdb" and 56 or 57
+            local half_cycles = 56
             dut.cycles:expect(half_cycles)
 
             -- set_cursor_time with raw steps (no unit) should still work
@@ -220,6 +220,18 @@ elseif tc_name == "set_cursor_time_unit" then
             local half_time_step = math.floor(max_time_step / 2)
             wctrl:set_cursor_time(half_time_step, "step", false)
             dut.cycles:expect(half_cycles)
+
+            tc_finish()
+        end
+    }
+elseif tc_name == "padding" then
+    -- Test reading a 50-bit register (non-power-of-2 width) to verify padding correctness
+    fork {
+        function()
+            dut.reset:expect(1)
+            clock:posedge()
+            -- During reset, 50-bit value should be 0x10000000
+            dut.u_top.value:expect_hex_str("10000000")
 
             tc_finish()
         end

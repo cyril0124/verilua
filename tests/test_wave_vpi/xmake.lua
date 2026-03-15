@@ -80,7 +80,8 @@ target("run_test", function()
             "to_end_2",
             "set_cursor_time",
             "get_max_cursor_time_unit",
-            "set_cursor_time_unit"
+            "set_cursor_time_unit",
+            "padding"
         }
 
         local wtypes = {
