@@ -38,7 +38,7 @@ end
 local function extract_sig_type(captured_lines)
     for _, line in ipairs(captured_lines) do
         for _, sig_type in ipairs(known_sig_types) do
-            if line:find("(" .. sig_type .. ")", 1, true) then
+            if line:find("(type: " .. sig_type .. ")", 1, true) then
                 return sig_type
             end
         end
@@ -247,12 +247,12 @@ fork {
 
         local has_mid_def_name = false
         for _, line in ipairs(captured) do
-            if line:find("(MidMod)", 1, true) then
+            if line:find("(module: MidMod)", 1, true) then
                 has_mid_def_name = true
                 break
             end
         end
-        assert(has_mid_def_name, "[show_def_name] expected output to contain `(MidMod)`")
+        assert(has_mid_def_name, "[show_def_name] expected output to contain `(module: MidMod)`")
         emit_line("[show_def_name_contains] MidMod")
 
         emit_line("[show_def_name_no_wildcard_tree_begin]")
@@ -268,12 +268,12 @@ fork {
         emit_line("[show_def_name_no_wildcard_tree_end]")
         local has_mid_def_name_no_wildcard = false
         for _, line in ipairs(captured_no_wildcard) do
-            if line:find("(MidMod)", 1, true) then
+            if line:find("(module: MidMod)", 1, true) then
                 has_mid_def_name_no_wildcard = true
                 break
             end
         end
-        assert(has_mid_def_name_no_wildcard, "[show_def_name_no_wildcard] expected output to contain `(MidMod)`")
+        assert(has_mid_def_name_no_wildcard, "[show_def_name_no_wildcard] expected output to contain `(module: MidMod)`")
         emit_line("[show_def_name_no_wildcard_contains] MidMod")
 
         run_multi_wildcard_checks()

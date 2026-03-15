@@ -819,6 +819,57 @@ fork {
         assert(abdl_formatted == "alias_a(orig_signal_0)=0x11 | alias_b(orig_signal_1)=0x22", "Got: " .. abdl_formatted)
 
         -- ========================================================================
+        -- Test: sim.collect_signals
+        -- ========================================================================
+        test_section("sim.collect_signals")
+
+        local signals = sim.collect_signals("tb_top.u_top")
+        assert(type(signals) == "table")
+
+        -- VPI hierarchy may return empty on some simulators (e.g. VCS)
+        if #signals > 0 then
+            -- Each entry should be {signal_name, bitwidth, vpi_type}
+            local found_data_0 = false
+            for _, info in ipairs(signals) do
+                assert(type(info[1]) == "string", "signal name should be string")
+                assert(type(info[2]) == "number", "bitwidth should be number")
+                assert(info[3] == "vpiNet" or info[3] == "vpiReg",
+                    "vpi_type should be vpiNet or vpiReg, got: " .. tostring(info[3]))
+                if info[1] == "data_0" then
+                    found_data_0 = true
+                    assert(info[2] == 8, "data_0 should be 8 bits wide, got: " .. info[2])
+                end
+            end
+            assert(found_data_0, "collect_signals should find data_0")
+        else
+            print("  [SKIP] collect_signals returned empty (VPI hierarchy not supported on this simulator)")
+        end
+
+        -- ========================================================================
+        -- Test: string.auto_bundle - use_signal_db fallback
+        -- ========================================================================
+        test_section("string.auto_bundle - use_signal_db fallback")
+
+        local auto_bdl_sdb = ("tb_top.u_top"):auto_bundle {
+            startswith = "data_",
+            use_signal_db = true,
+        }
+        assert(auto_bdl_sdb.__type == "Bundle")
+        assert(auto_bdl_sdb.data_0.__type == "CallableHDL")
+
+        -- ========================================================================
+        -- Test: ProxyTableHandle:auto_bundle - use_signal_db fallback
+        -- ========================================================================
+        test_section("ProxyTableHandle:auto_bundle - use_signal_db fallback")
+
+        local proxy_auto_bdl_sdb = dut.u_top:auto_bundle {
+            startswith = "data_",
+            use_signal_db = true,
+        }
+        assert(proxy_auto_bdl_sdb.__type == "Bundle")
+        assert(proxy_auto_bdl_sdb.data_0.__type == "CallableHDL")
+
+        -- ========================================================================
         -- All tests passed
         -- ========================================================================
         print("[TEST] All handle tests passed successfully!")

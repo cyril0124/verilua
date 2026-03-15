@@ -59,7 +59,7 @@ ffi.cdef [[
     void c_simulator_control(long long cmd);
 
     void vpiml_iterate_vpi_type(const char *module_name, int type);
-    typedef void (*vpiml_hierarchy_cb_t)(const char *full_path, const char *name, const char *module_name, const char *sig_type, int level);
+    typedef void (*vpiml_hierarchy_cb_t)(const char *full_path, const char *name, const char *module_name, const char *sig_type, int level, int bitwidth);
     const char *vpiml_collect_hierarchy(
         int max_level,
         const char *wildcard,
@@ -68,6 +68,8 @@ ffi.cdef [[
         int require_module_name_data,
         vpiml_hierarchy_cb_t cb
     );
+
+    int wildmatch(const char *pattern, const char *str);
 ]]
 
 local default_wave_name = "test"
@@ -200,6 +202,7 @@ end
 ---@field module_name? string Module definition name filter. Works with wildcard using AND semantics.
 ---@field show_def_name? boolean Print module definition name suffix in hierarchy output.
 ---@field show_sig_type? boolean Print signal type suffix (`wire`/`reg`) in hierarchy output.
+---@field show_bitwidth? boolean Print signal bit width suffix (e.g. `(width: 8)`) in hierarchy output.
 
 ---@class verilua.NormalizedHierarchyOptions
 ---@field max_level integer
@@ -207,6 +210,7 @@ end
 ---@field module_name? string
 ---@field show_def_name boolean
 ---@field show_sig_type boolean
+---@field show_bitwidth boolean
 
 ---@return "tree"|"compact"
 local function get_print_hierarchy_style()
@@ -232,6 +236,7 @@ local function normalize_hierarchy_options(options)
     local module_name = nil
     local show_def_name = false
     local show_sig_type = false
+    local show_bitwidth = false
 
     if options.max_level ~= nil then
         assert(type(options.max_level) == "number", "[print_hierarchy/get_hierarchy] options.max_level must be number")
@@ -253,6 +258,10 @@ local function normalize_hierarchy_options(options)
         assert(type(options.show_sig_type) == "boolean", "[print_hierarchy/get_hierarchy] options.show_sig_type must be boolean")
         show_sig_type = options.show_sig_type
     end
+    if options.show_bitwidth ~= nil then
+        assert(type(options.show_bitwidth) == "boolean", "[print_hierarchy/get_hierarchy] options.show_bitwidth must be boolean")
+        show_bitwidth = options.show_bitwidth
+    end
 
     assert(max_level >= 0, "[print_hierarchy/get_hierarchy] max_level must be >= 0")
     assert(math.floor(max_level) == max_level, "[print_hierarchy/get_hierarchy] max_level must be an integer")
@@ -263,6 +272,7 @@ local function normalize_hierarchy_options(options)
         module_name = module_name,
         show_def_name = show_def_name,
         show_sig_type = show_sig_type,
+        show_bitwidth = show_bitwidth,
     }
 end
 
@@ -287,7 +297,7 @@ end
 ---@param normalized_options verilua.NormalizedHierarchyOptions Validated and normalized hierarchy options.
 ---@param include_tree_prefixes boolean Include wildcard-matched path prefixes for tree rendering.
 ---@param require_module_name_data boolean Require module def-name capability for this request.
----@return table<integer, string>, table<string, string>, table<string, string>
+---@return table<integer, string>, table<string, string>, table<string, string>, table<string, integer>
 local function collect_hierarchy_paths(normalized_options, include_tree_prefixes, require_module_name_data)
     ---@type table<integer, string>
     local hierarchy_paths = {}
@@ -295,7 +305,9 @@ local function collect_hierarchy_paths(normalized_options, include_tree_prefixes
     local module_name_by_path = {}
     ---@type table<string, string>
     local sig_type_by_path = {}
-    local callback = ffi.cast("vpiml_hierarchy_cb_t", function(full_path_c, _name_c, module_name_c, sig_type_c, _level)
+    ---@type table<string, integer>
+    local bitwidth_by_path = {}
+    local callback = ffi.cast("vpiml_hierarchy_cb_t", function(full_path_c, _name_c, module_name_c, sig_type_c, _level, bitwidth)
         local full_path = ffi.string(full_path_c)
         if module_name_c ~= nil then
             local module_name_raw = ffi.string(module_name_c)
@@ -309,6 +321,9 @@ local function collect_hierarchy_paths(normalized_options, include_tree_prefixes
             if sig_type_raw ~= "" then
                 sig_type_by_path[full_path] = sig_type_raw
             end
+        end
+        if bitwidth >= 0 then
+            bitwidth_by_path[full_path] = bitwidth
         end
 
         table_insert(hierarchy_paths, full_path)
@@ -328,7 +343,7 @@ local function collect_hierarchy_paths(normalized_options, include_tree_prefixes
         assert(false, ffi.string(err_msg_c))
     end
 
-    return hierarchy_paths, module_name_by_path, sig_type_by_path
+    return hierarchy_paths, module_name_by_path, sig_type_by_path, bitwidth_by_path
 end
 
 ---@param options? verilua.PrintHierarchyOptions Optional filters/limits for hierarchy collection.
@@ -336,16 +351,24 @@ end
 ---@return table<integer, string>
 local get_hierarchy = function(options)
     local normalized_options = normalize_hierarchy_options(options)
-    local hierarchy_paths, _, sig_type_by_path = collect_hierarchy_paths(normalized_options, false, false)
-    if not normalized_options.show_sig_type then
+    local hierarchy_paths, _, sig_type_by_path, bitwidth_by_path = collect_hierarchy_paths(normalized_options, false, false)
+    if not normalized_options.show_sig_type and not normalized_options.show_bitwidth then
         return hierarchy_paths
     end
 
     local typed_paths = {}
     for _, full_path in ipairs(hierarchy_paths) do
-        local sig_type = sig_type_by_path[full_path]
+        local parts = {}
+        local sig_type = normalized_options.show_sig_type and sig_type_by_path[full_path] or nil
+        local bitwidth = normalized_options.show_bitwidth and bitwidth_by_path[full_path] or nil
         if sig_type ~= nil then
-            typed_paths[#typed_paths + 1] = string.format("%s (%s)", full_path, sig_type)
+            parts[#parts + 1] = "type: " .. sig_type
+        end
+        if bitwidth ~= nil then
+            parts[#parts + 1] = string.format("width: %d", bitwidth)
+        end
+        if #parts > 0 then
+            typed_paths[#typed_paths + 1] = string.format("%s (%s)", full_path, table.concat(parts, ", "))
         else
             typed_paths[#typed_paths + 1] = full_path
         end
@@ -372,25 +395,38 @@ local print_hierarchy = function(options)
     if normalized_options.show_sig_type then
         header = string.format("%s show_sig_type=true", header)
     end
+    if normalized_options.show_bitwidth then
+        header = string.format("%s show_bitwidth=true", header)
+    end
     print(header)
 
     local include_tree_prefixes = normalized_options.wildcard ~= nil and style == "tree"
-    local hierarchy_paths, module_name_by_path, sig_type_by_path =
+    local hierarchy_paths, module_name_by_path, sig_type_by_path, bitwidth_by_path =
         collect_hierarchy_paths(normalized_options, include_tree_prefixes, normalized_options.show_def_name)
 
     for _, full_path in ipairs(hierarchy_paths) do
         local _, level = full_path:gsub("%.", "")
         local name = full_path:match("([^%.]+)$") or full_path
+        local parts = {}
         if normalized_options.show_def_name then
             local module_name = module_name_by_path[full_path]
             if module_name ~= nil then
-                name = string.format("%s (%s)", name, module_name)
+                parts[#parts + 1] = "module: " .. module_name
             end
         elseif normalized_options.show_sig_type then
             local sig_type = sig_type_by_path[full_path]
             if sig_type ~= nil then
-                name = string.format("%s (%s)", name, sig_type)
+                parts[#parts + 1] = "type: " .. sig_type
             end
+        end
+        if normalized_options.show_bitwidth then
+            local bitwidth = bitwidth_by_path[full_path]
+            if bitwidth ~= nil then
+                parts[#parts + 1] = string.format("width: %d", bitwidth)
+            end
+        end
+        if #parts > 0 then
+            name = string.format("%s (%s)", name, table.concat(parts, ", "))
         end
         print(render_hierarchy_line(name, level, style))
     end
@@ -484,6 +520,164 @@ if is_wal and not is_wave_vpi then
     end
 end
 
+--- Map hierarchy sig_type ("wire"/"reg") to SignalDB vpi_type ("vpiNet"/"vpiReg").
+local SIG_TYPE_TO_VPI_TYPE = {
+    wire = "vpiNet",
+    reg = "vpiReg",
+}
+
+--- Collect signals under a given hierarchy path using VPI.
+--- Returns an array of SignalInfo tuples compatible with SignalDB format.
+---@param hier_path string Hierarchy path, e.g. "tb_top.u_top"
+---@return verilua.utils.SignalInfo[]
+local collect_signals = function(hier_path)
+    local normalized_options = normalize_hierarchy_options({ wildcard = hier_path .. ".*" })
+    local hierarchy_paths, _, sig_type_by_path, bitwidth_by_path =
+        collect_hierarchy_paths(normalized_options, false, false)
+
+    ---@type verilua.utils.SignalInfo[]
+    local signals = {}
+    local prefix = hier_path .. "."
+    local prefix_len = #prefix
+
+    for _, full_path in ipairs(hierarchy_paths) do
+        local bw = bitwidth_by_path[full_path]
+        if bw == nil then
+            -- Skip module scopes (no bitwidth)
+            goto continue
+        end
+
+        -- Only include direct children (no nested sub-hierarchy signals)
+        local leaf_name = full_path:sub(prefix_len + 1)
+        if leaf_name:find(".", 1, true) then
+            goto continue
+        end
+
+        local raw_sig_type = sig_type_by_path[full_path] or "wire"
+        local vpi_type = SIG_TYPE_TO_VPI_TYPE[raw_sig_type] or "vpiNet"
+        signals[#signals + 1] = { leaf_name, bw, vpi_type }
+
+        ::continue::
+    end
+
+    return signals
+end
+
+--- Create a Bundle from VPI hierarchy signals matching specified criteria.
+--- Uses the same params as SignalDB:auto_bundle but gets data from VPI hierarchy API.
+---@param hier_path string The hierarchy path to search (e.g., "tb_top.u_top")
+---@param params verilua.utils.SignalDB.auto_bundle.params Matching parameters
+---@return verilua.handles.Bundle
+local auto_bundle_via_hierarchy = function(hier_path, params)
+    local inspect = require "inspect"
+    local stringx = require "pl.stringx"
+    local texpect = require "verilua.TypeExpect"
+
+    texpect.expect_table(params, "params", {
+        "name",
+        "filter",
+        "matches",
+        "wildmatch",
+        "startswith",
+        "endswith",
+        "prefix",
+        "use_signal_db",
+    })
+
+    assert(
+        type(params.filter) == "function"
+            or type(params.matches) == "string"
+            or type(params.wildmatch) == "string"
+            or type(params.startswith) == "string"
+            or type(params.endswith) == "string"
+            or type(params.prefix) == "string",
+        "[auto_bundle] One of the `startswith`, `endswith`, `prefix`, `matches` or `filter` should be valid!"
+    )
+
+    ---@type verilua.utils.SignalInfo[]
+    local signals_info = collect_signals(hier_path)
+    if #signals_info == 0 then
+        -- Fallback to SignalDB when VPI hierarchy returns no signals (e.g., some VCS configurations)
+        return require("verilua.utils.SignalDB"):auto_bundle(hier_path, params)
+    end
+
+    ---@type string[]
+    local signals = {}
+    local default_filter = function(_name, _width) return true end
+    local filter = params.filter or default_filter
+
+    local native_wildmatch = function(pattern, str)
+        return ffi.C.wildmatch(pattern, str) == 1
+    end
+
+    for i = 1, #signals_info do
+        local signal_info = signals_info[i]
+        local signal_name = signal_info[1]
+        local signal_bitwidth = signal_info[2]
+
+        if params.matches then
+            if signal_name:match(params.matches) then
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
+            end
+        elseif params.wildmatch then
+            if native_wildmatch(params.wildmatch, signal_name) then
+                if filter(signal_name, signal_bitwidth) then
+                    if params.prefix and stringx.startswith(signal_name, params.prefix) then
+                        table_insert(signals, signal_name:sub(#params.prefix + 1))
+                    else
+                        table_insert(signals, signal_name)
+                    end
+                end
+            end
+        elseif params.startswith and params.endswith then
+            if stringx.startswith(signal_name, params.startswith) and stringx.endswith(signal_name, params.endswith) then
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
+            end
+        elseif params.prefix then
+            if stringx.startswith(signal_name, params.prefix) then
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name:sub(#params.prefix + 1))
+                end
+            end
+        elseif params.startswith then
+            if stringx.startswith(signal_name, params.startswith) then
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
+            end
+        elseif params.endswith then
+            if stringx.endswith(signal_name, params.endswith) then
+                if filter(signal_name, signal_bitwidth) then
+                    table_insert(signals, signal_name)
+                end
+            end
+        elseif params.filter then
+            if filter(signal_name, signal_bitwidth) then
+                table_insert(signals, signal_name)
+            end
+        end
+    end
+
+    assert(#signals > 0, "[auto_bundle] No signals found! params: " .. inspect(params))
+
+    local Bundle = require "verilua.handles.LuaBundle"
+    local name = "auto_bundle"
+    if params.name then
+        assert(type(params.name) == "string", "[auto_bundle] `name` should be a string!")
+        name = name .. "@" .. params.name
+    end
+
+    if params.prefix then
+        return Bundle(signals, params.prefix, hier_path, name, false, {})
+    else
+        return Bundle(signals, "", hier_path, name, false, {})
+    end
+end
+
 ---@class verilua.LuaSimulator
 ---@field SimCtrl table<string, integer>
 ---@field set_dpi_scope fun(scope_name?: string)
@@ -499,6 +693,8 @@ end
 ---@field get_hierarchy fun(options?: verilua.PrintHierarchyOptions): table<integer, string>
 ---@field iterate_vpi_type fun(module_name: string, type: integer)
 ---@field get_sim_time fun(unit?: "fs"|"ps"|"ns"|"us"|"ms"|"s"): integer
+---@field collect_signals fun(hier_path: string): verilua.utils.SignalInfo[]
+---@field auto_bundle_via_hierarchy fun(hier_path: string, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle
 local LuaSimulator = {
     set_dpi_scope     = set_dpi_scope,
     initialize_trace  = initialize_trace,
@@ -513,6 +709,8 @@ local LuaSimulator = {
     get_hierarchy     = get_hierarchy,
     iterate_vpi_type  = iterate_vpi_type,
     get_sim_time      = get_sim_time,
+    collect_signals   = collect_signals,
+    auto_bundle_via_hierarchy = auto_bundle_via_hierarchy,
 }
 
 return LuaSimulator

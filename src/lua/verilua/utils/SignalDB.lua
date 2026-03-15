@@ -92,6 +92,7 @@ local cfg = _G.cfg
 ---@field startswith? string
 ---@field endswith? string
 ---@field prefix? string
+---@field use_signal_db? boolean Force using SignalDB instead of VPI hierarchy API
 
 ---@class (exact) verilua.utils.SignalDB
 --- SignalDB is a singleton class that manages RTL signal information database.
@@ -753,6 +754,7 @@ function SignalDB:auto_bundle(hier_path, params)
         "startswith",
         "endswith",
         "prefix",
+        "use_signal_db",
     })
 
     ---@type string[]

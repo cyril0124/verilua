@@ -7,8 +7,14 @@ use std::sync::{Arc, RwLock};
 #[cfg(feature = "hierarchy_cache")]
 use once_cell::sync::Lazy;
 
-type HierarchyItemCallback =
-    unsafe extern "C" fn(*const c_char, *const c_char, *const c_char, *const c_char, PLI_INT32);
+type HierarchyItemCallback = unsafe extern "C" fn(
+    *const c_char,
+    *const c_char,
+    *const c_char,
+    *const c_char,
+    PLI_INT32,
+    PLI_INT32,
+);
 
 const HIER_ERR_MODULE_NAME_ONLY_FSDB: &[u8] =
     b"[get_hierarchy] `module_name` is only supported for FSDB waveform in wave_vpi backend.\0";
@@ -22,7 +28,7 @@ const HIER_ERR_UNSUPPORTED_DPI: &[u8] =
 #[cfg(feature = "hierarchy_cache")]
 const HIERARCHY_CACHE_DEFAULT_PATH: &str = ".verilua_hierarchy_cache";
 #[cfg(feature = "hierarchy_cache")]
-const HIERARCHY_CACHE_MAGIC: u32 = 0x56484945; // "VHIE" (Verilua HIErarchy)
+const HIERARCHY_CACHE_MAGIC: u32 = 0x56484932; // "VHI2" (Verilua HIErarchy v2, with bitwidth)
 #[cfg(feature = "hierarchy_cache")]
 const HIERARCHY_CACHE_FIXED_HEADER_SIZE: usize = 16; // magic(4) + mtime(8) + count(4)
 
@@ -42,6 +48,8 @@ struct HierarchyEntry {
     module_name: Option<String>,
     sig_type: Option<String>,
     level: PLI_INT32,
+    /// Signal bit width. -1 for module scopes, >=1 for leaf signals (net/reg/memory).
+    bitwidth: PLI_INT32,
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -101,6 +109,7 @@ fn save_cache(
         write_len_prefixed_opt_str(&mut w, entry.module_name.as_deref())?;
         write_len_prefixed_opt_str(&mut w, entry.sig_type.as_deref())?;
         w.write_all(&entry.level.to_le_bytes())?;
+        w.write_all(&entry.bitwidth.to_le_bytes())?;
     }
     w.flush()
 }
@@ -201,11 +210,13 @@ fn try_load_cache(
         };
 
         let level = read_i32_le(data, &mut pos)?;
+        let bitwidth = read_i32_le(data, &mut pos)?;
         entries.push(HierarchyEntry {
             full_path,
             module_name,
             sig_type,
             level,
+            bitwidth,
         });
     }
 
@@ -294,6 +305,7 @@ fn push_hierarchy_entry(
     module_name: Option<String>,
     sig_type: Option<String>,
     level: PLI_INT32,
+    bitwidth: PLI_INT32,
 ) {
     // Merge module-scan + leaf-scan output into a unique full-path set.
     if !seen_paths.insert(full_path.clone()) {
@@ -313,6 +325,7 @@ fn push_hierarchy_entry(
         module_name,
         sig_type,
         level,
+        bitwidth,
     });
 }
 
@@ -361,6 +374,7 @@ fn vpiml_collect_hierarchy_recursive(
             module_name,
             None,
             level,
+            -1, // module scopes have no bitwidth
         );
 
         // Collect leaf objects under this module node (e.g. nets/regs/memory).
@@ -392,6 +406,7 @@ fn vpiml_collect_hierarchy_recursive(
                     } else {
                         format!("{full_path}.{obj_name}")
                     };
+                    let obj_bitwidth = unsafe { vpi_get(vpiSize as _, obj) };
                     push_hierarchy_entry(
                         entries,
                         seen_paths,
@@ -413,6 +428,7 @@ fn vpiml_collect_hierarchy_recursive(
                             .to_string(),
                         ),
                         level + 1,
+                        obj_bitwidth,
                     );
                 }
             }
@@ -510,6 +526,7 @@ fn emit_hierarchy_entry(entry: &HierarchyEntry, cb: HierarchyItemCallback) {
             module_name_ptr,
             sig_type_ptr,
             entry.level,
+            entry.bitwidth,
         )
     };
 }
@@ -611,24 +628,28 @@ mod tests {
                 module_name: None,
                 sig_type: None,
                 level: 0,
+                bitwidth: -1,
             },
             HierarchyEntry {
                 full_path: "tb_top.u_top".to_string(),
                 module_name: Some("TopMod".to_string()),
                 sig_type: None,
                 level: 1,
+                bitwidth: -1,
             },
             HierarchyEntry {
                 full_path: "tb_top.u_top.clk".to_string(),
                 module_name: None,
                 sig_type: Some("wire".to_string()),
                 level: 2,
+                bitwidth: 1,
             },
             HierarchyEntry {
                 full_path: "tb_top.u_top.data".to_string(),
                 module_name: None,
                 sig_type: Some("reg".to_string()),
                 level: 2,
+                bitwidth: 32,
             },
         ]
     }
@@ -648,6 +669,7 @@ mod tests {
             assert_eq!(a.module_name, b.module_name);
             assert_eq!(a.sig_type, b.sig_type);
             assert_eq!(a.level, b.level);
+            assert_eq!(a.bitwidth, b.bitwidth);
         }
 
         std::fs::remove_file(path).ok();

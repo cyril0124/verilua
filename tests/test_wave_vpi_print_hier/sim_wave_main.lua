@@ -29,6 +29,19 @@ fork {
 
         sim.print_hierarchy { max_level = 4, wildcard = "*clock" }
 
+        -- show_bitwidth tests
+        sim.print_hierarchy { max_level = 3, show_bitwidth = true }
+
+        local bitwidth_clock_paths = sim.get_hierarchy { wildcard = "*clock", show_bitwidth = true }
+        print_sorted_paths("golden_get_hierarchy_bitwidth_clock", bitwidth_clock_paths)
+
+        local bitwidth_data_paths = sim.get_hierarchy { wildcard = "*data", show_bitwidth = true }
+        print_sorted_paths("golden_get_hierarchy_bitwidth_data", bitwidth_data_paths)
+
+        -- show_sig_type + show_bitwidth combined
+        local combined_clock_paths = sim.get_hierarchy { wildcard = "*clock", show_sig_type = true, show_bitwidth = true }
+        print_sorted_paths("golden_get_hierarchy_combined_clock", combined_clock_paths)
+
         print("[golden] end")
 
         sim.finish()

@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **wave_vpi**: Add progressive read optimization to Hot-Prefetch JIT — `vpi_get_value` can use the fast path incrementally as compilation threads produce results, instead of waiting for the entire window to finish
 - **wave_vpi**: Add sliding window memory optimization to Hot-Prefetch JIT — limit `optValueVec` allocation to `2 × compileWindowSize` instead of the full waveform size, reducing memory usage for large waveforms
 - **wave_vpi**: Add zero-allocation `bytes_last_u32_be` helper to replace `Vec`-based conversion in `wellen_get_int_value`, eliminating a heap allocation on the int-value read hot path
+- **libverilua/wave_vpi**: Add signal bitwidth tracking to hierarchy collection API — `sim.get_hierarchy()` and `sim.print_hierarchy()` now support `show_bitwidth` option to display bit widths (e.g., `signal_name (width: 8)`). Bitwidth data is retrieved via `vpi_get(vpiSize)` and included in hierarchy cache format v2
+- **LuaSimulator**: Add `sim.collect_signals(hier_path)` API for VPI-based signal introspection
+- **LuaSimulator**: Implement `auto_bundle_via_hierarchy()` — optimized auto_bundle path using VPI hierarchy API instead of SignalDB
 
 ### 🐛 Fixed
 

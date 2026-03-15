@@ -26,33 +26,68 @@ tb_top
 [golden_gen_get_hierarchy_clock] tb_top.u_top.clock
 [golden_gen_get_hierarchy_clock] tb_top.u_top.u_mid.clock
 [golden_gen_get_hierarchy_clock] tb_top.u_top.u_mid.u_leaf.clock
+[print_hierarchy] max_level=3 style=tree show_bitwidth=true
+tb_top
+|-- clock (width: 1)
+|-- cycles (width: 64)
+|-- cycles_o (width: 64)
+|-- reset (width: 1)
+|-- u_others
+|   |-- clock (width: 1)
+|   |-- reset (width: 1)
+|-- u_top
+|   |-- clock (width: 1)
+|   |-- data (width: 8)
+|   |-- reset (width: 1)
+|   |-- u_mid
+|   |   |-- clock (width: 1)
+|   |   |-- data (width: 8)
+|   |   |-- reset (width: 1)
+|   |   |-- u_leaf
+
+[golden_gen_get_hierarchy_bitwidth_clock_count] 5
+[golden_gen_get_hierarchy_bitwidth_clock] tb_top.clock (width: 1)
+[golden_gen_get_hierarchy_bitwidth_clock] tb_top.u_others.clock (width: 1)
+[golden_gen_get_hierarchy_bitwidth_clock] tb_top.u_top.clock (width: 1)
+[golden_gen_get_hierarchy_bitwidth_clock] tb_top.u_top.u_mid.clock (width: 1)
+[golden_gen_get_hierarchy_bitwidth_clock] tb_top.u_top.u_mid.u_leaf.clock (width: 1)
+[golden_gen_get_hierarchy_bitwidth_data_count] 3
+[golden_gen_get_hierarchy_bitwidth_data] tb_top.u_top.data (width: 8)
+[golden_gen_get_hierarchy_bitwidth_data] tb_top.u_top.u_mid.data (width: 8)
+[golden_gen_get_hierarchy_bitwidth_data] tb_top.u_top.u_mid.u_leaf.data (width: 8)
+[golden_gen_get_hierarchy_combined_clock_count] 5
+[golden_gen_get_hierarchy_combined_clock] tb_top.clock (type: reg, width: 1)
+[golden_gen_get_hierarchy_combined_clock] tb_top.u_others.clock (type: reg, width: 1)
+[golden_gen_get_hierarchy_combined_clock] tb_top.u_top.clock (type: reg, width: 1)
+[golden_gen_get_hierarchy_combined_clock] tb_top.u_top.u_mid.clock (type: reg, width: 1)
+[golden_gen_get_hierarchy_combined_clock] tb_top.u_top.u_mid.u_leaf.clock (type: reg, width: 1)
 
 [sim_wave]
 [print_hierarchy] max_level=3 style=tree
 tb_top
 |-- clock
-|-- reset
-|-- cycles_o
 |-- cycles
+|-- cycles_o
+|-- reset
 |-- u_others
 |   |-- clock
 |   |-- reset
 |-- u_top
 |   |-- clock
-|   |-- reset
 |   |-- data
+|   |-- reset
 |   |-- u_mid
 |   |   |-- clock
-|   |   |-- reset
 |   |   |-- data
+|   |   |-- reset
 |   |   |-- u_leaf
 
 [print_hierarchy] max_level=1 style=tree
 tb_top
 |-- clock
-|-- reset
-|-- cycles_o
 |-- cycles
+|-- cycles_o
+|-- reset
 |-- u_others
 |-- u_top
 
@@ -80,4 +115,40 @@ tb_top
 |   |   |-- clock
 |   |   |-- u_leaf
 |   |   |   |-- clock
+
+[print_hierarchy] max_level=3 style=tree show_bitwidth=true
+tb_top
+|-- clock (width: 1)
+|-- cycles (width: 64)
+|-- cycles_o (width: 64)
+|-- reset (width: 1)
+|-- u_others
+|   |-- clock (width: 1)
+|   |-- reset (width: 1)
+|-- u_top
+|   |-- clock (width: 1)
+|   |-- data (width: 8)
+|   |-- reset (width: 1)
+|   |-- u_mid
+|   |   |-- clock (width: 1)
+|   |   |-- data (width: 8)
+|   |   |-- reset (width: 1)
+|   |   |-- u_leaf
+
+[golden_get_hierarchy_bitwidth_clock_count] 5
+[golden_get_hierarchy_bitwidth_clock] tb_top.clock (width: 1)
+[golden_get_hierarchy_bitwidth_clock] tb_top.u_others.clock (width: 1)
+[golden_get_hierarchy_bitwidth_clock] tb_top.u_top.clock (width: 1)
+[golden_get_hierarchy_bitwidth_clock] tb_top.u_top.u_mid.clock (width: 1)
+[golden_get_hierarchy_bitwidth_clock] tb_top.u_top.u_mid.u_leaf.clock (width: 1)
+[golden_get_hierarchy_bitwidth_data_count] 3
+[golden_get_hierarchy_bitwidth_data] tb_top.u_top.data (width: 8)
+[golden_get_hierarchy_bitwidth_data] tb_top.u_top.u_mid.data (width: 8)
+[golden_get_hierarchy_bitwidth_data] tb_top.u_top.u_mid.u_leaf.data (width: 8)
+[golden_get_hierarchy_combined_clock_count] 5
+[golden_get_hierarchy_combined_clock] tb_top.clock (type: wire, width: 1)
+[golden_get_hierarchy_combined_clock] tb_top.u_others.clock (type: wire, width: 1)
+[golden_get_hierarchy_combined_clock] tb_top.u_top.clock (type: wire, width: 1)
+[golden_get_hierarchy_combined_clock] tb_top.u_top.u_mid.clock (type: wire, width: 1)
+[golden_get_hierarchy_combined_clock] tb_top.u_top.u_mid.u_leaf.clock (type: wire, width: 1)
 

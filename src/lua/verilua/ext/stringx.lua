@@ -810,6 +810,12 @@ end
 ---      - prefix + filter
 ---      - startswith + filter
 ---      - endswith + filter
+---      - use_signal_db: force SignalDB path (default: false)
 string.auto_bundle = function(str, params)
-    return require("verilua.utils.SignalDB"):auto_bundle(str, params)
+    local cfg = _G.cfg
+    if (params and params.use_signal_db) or cfg.simulator == "nosim" then
+        return require("verilua.utils.SignalDB"):auto_bundle(str, params)
+    else
+        return require("verilua.LuaSimulator").auto_bundle_via_hierarchy(str, params)
+    end
 end

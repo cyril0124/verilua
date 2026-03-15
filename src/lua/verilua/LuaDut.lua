@@ -779,7 +779,12 @@ local function create_proxy(path, use_prefix)
         end,
 
         auto_bundle = function(t, params)
-            return require("verilua.utils.SignalDB"):auto_bundle(local_path, params)
+            local cfg = _G.cfg
+            if (params and params.use_signal_db) or cfg.simulator == "nosim" then
+                return require("verilua.utils.SignalDB"):auto_bundle(local_path, params)
+            else
+                return require("verilua.LuaSimulator").auto_bundle_via_hierarchy(local_path, params)
+            end
         end
     }, {
         __index = function(t, k)

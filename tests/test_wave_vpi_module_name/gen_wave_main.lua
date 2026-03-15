@@ -66,7 +66,8 @@ end
 local function extract_def_name(captured_lines, instance_name)
     for _, line in ipairs(captured_lines) do
         if line:find(instance_name, 1, true) then
-            local def_name = line:match("%(([^()]+)%)")
+            -- Match "(module: XXX)" format
+            local def_name = line:match("%(module: ([^()]+)%)")
             if def_name ~= nil and def_name ~= "" then
                 return def_name
             end
@@ -78,7 +79,7 @@ end
 local function extract_sig_type(captured_lines)
     for _, line in ipairs(captured_lines) do
         for _, sig_type in ipairs(known_sig_types) do
-            if line:find("(" .. sig_type .. ")", 1, true) then
+            if line:find("(type: " .. sig_type .. ")", 1, true) then
                 return sig_type
             end
         end
@@ -207,7 +208,7 @@ fork {
         emit_line("[gen_show_def_name_no_wildcard_tree_end]")
         local expected_def_name_no_wildcard = mid_module_name or leaf_module_name
         local has_def_name_no_wildcard = false
-        local expected_def_name_fragment = "(" .. expected_def_name_no_wildcard .. ")"
+        local expected_def_name_fragment = "(module: " .. expected_def_name_no_wildcard .. ")"
         for _, line in ipairs(captured_no_wildcard) do
             if line:find(expected_def_name_fragment, 1, true) then
                 has_def_name_no_wildcard = true

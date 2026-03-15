@@ -149,6 +149,7 @@ target("run_test", function()
 
             assert_contains_snippets(gen_golden_section, {
                 "[print_hierarchy] max_level=3 style=tree",
+                "[print_hierarchy] max_level=3 style=tree show_bitwidth=true",
                 "tb_top",
                 "|-- u_top",
                 "|   |-- u_mid",
@@ -159,11 +160,14 @@ target("run_test", function()
                 "[print_hierarchy] max_level=1 style=tree",
                 "[print_hierarchy] max_level=3 style=tree wildcard=*u_mid",
                 "[print_hierarchy] max_level=4 style=tree wildcard=*clock",
+                "[print_hierarchy] max_level=3 style=tree show_bitwidth=true",
                 "tb_top",
                 "|-- u_top",
                 "|-- u_others",
                 "|   |-- u_mid",
                 "|   |   |-- u_leaf",
+                "(width: 1)",
+                "(width: 8)",
             }, "sim_wave hierarchy output")
 
             local golden_section = string.format("[gen_wave]\n%s\n\n[sim_wave]\n%s\n", gen_golden_section,
