@@ -295,6 +295,22 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
             if (!is_quiet_mode()) {
                 fmt::println("[wave_vpi::fsdb_wave_vpi] wrote {} in {:.3f}ms", TIME_TABLE_FILE, ttMs);
             }
+
+            // Write meta file immediately so the cached time table can be reused
+            // on subsequent runs, even when no signal lookups are performed
+            {
+                json meta;
+                meta["modified"]["size"]       = waveFileSize;
+                meta["modified"]["time"]       = lastWriteTime;
+                meta["used_var_id_code_cache"] = json::object();
+
+                std::ofstream o(META_FILE);
+                o << meta.dump(4) << "\n";
+                o.close();
+                if (!is_quiet_mode()) {
+                    fmt::println("[wave_vpi::fsdb_wave_vpi] wrote {} (initial)", META_FILE);
+                }
+            }
         }
 
         // Recreate tbVcTrvsHdl to reset the xtag to start point
