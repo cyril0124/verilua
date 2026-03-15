@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **wave_vpi**: Flush `stdout/stderr` before normal `_exit(0)` in `wave_vpi_loop()` to prevent losing buffered Lua output when running with pipes (e.g. `bash run.sh | tee t.log`)
 - **wave_vpi**: Fix FSDB JIT recompilation running without mutex protection — recompilation is now serialized under `optMutex` to match FsdbReader's thread-safety requirements
 - **wave_vpi**: Fix signed/unsigned comparison in FSDB JIT bitwise parsing loop (`int` → `uint_T`)
+- **rules/xmake**: Fix `table.concat` crash when simulator flags (`wave_vpi.flags`, `wave_vpi.run_flags`) contain only a single value — `target:values()` may return a string instead of a table
 
 ### 💥 Breaking Changes
 

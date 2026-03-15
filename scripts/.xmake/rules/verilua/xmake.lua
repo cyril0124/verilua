@@ -869,6 +869,9 @@ rule("verilua", function()
         end
 
         local sim_flags = target:values(sim .. ".flags") or {}
+        if type(sim_flags) == "string" then
+            sim_flags = { sim_flags }
+        end
         local sim_flags_str = table.concat(sim_flags, " ")
         if sim_flags_str == "" then
             sim_flags_str = "<No flags>"
@@ -1887,6 +1890,9 @@ verdi -f filelist.f -sv -nologo $@]]
             local run_flags = { "--wave-file", waveform_file }
             local _run_flags = target:values("wave_vpi.run_flags")
             if _run_flags then
+                if type(_run_flags) == "string" then
+                    _run_flags = { _run_flags }
+                end
                 table.join2(run_flags, _run_flags)
             end
 
