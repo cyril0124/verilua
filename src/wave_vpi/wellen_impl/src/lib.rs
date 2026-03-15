@@ -214,7 +214,7 @@ fn get_wave_source() -> &'static mut SignalSource {
             Some(ref mut signal_source) => &mut *signal_source.get(),
             None => {
                 panic!(
-                    "SIGNAL_CACHE is not initialized! Please call `wave_vpi::wellen_initialize` first."
+                    "WAVE_SOURCE is not initialized! This may happen if hierarchy-only mode is enabled (--hierarchy-only / WAVE_VPI_HIERARCHY_ONLY=1), which skips signal data loading."
                 )
             }
         }
@@ -357,6 +357,32 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     let header =
         viewers::read_header_from_file(filename, &LOAD_OPTS).expect("Failed to load file!");
     let hierarchy = header.hierarchy;
+
+    // In hierarchy-only mode, skip loading the waveform body (signal data).
+    let hierarchy_only = std::env::var("WAVE_VPI_HIERARCHY_ONLY")
+        .is_ok_and(|v| v == "1");
+
+    if hierarchy_only {
+        log::info!(
+            "[wave_vpi::wellen_initialize] hierarchy-only mode: skipping body loading. Hierarchy takes up at least {} of memory.",
+            ByteSize::b(hierarchy.size_in_memory() as u64)
+        );
+
+        unsafe {
+            TIME_TABLE = Some(UnsafeCell::new(Vec::new()));
+            HIERARCHY = Some(UnsafeCell::new(hierarchy));
+            SIGNAL_REF_CACHE = Some(UnsafeCell::new(HashMap::new()));
+            SIGNAL_REF_CACHE_NULL = Some(UnsafeCell::new(HashSet::new()));
+            SIGNAL_CACHE = Some(UnsafeCell::new(HashMap::new()));
+            SIGNAL_NAME_CACHE = Some(UnsafeCell::new(HashMap::new()));
+            MODULE_HANDLE_CACHE = Some(UnsafeCell::new(HashMap::new()));
+            MODULE_HANDLE_PTR_MAP = Some(UnsafeCell::new(HashMap::new()));
+            ITERATOR_HANDLE_PTR_SET = Some(UnsafeCell::new(HashSet::new()));
+        }
+
+        log::info!("[wave_vpi::wellen_initialize] hierarchy-only init finish...");
+        return;
+    }
 
     let body = viewers::read_body(header.body, &hierarchy, None).expect("Failed to load body!");
     let wave_source = body.source;
@@ -1383,5 +1409,38 @@ pub extern "C" fn wellen_get_time_precision() -> i32 {
     } else {
         log::warn!("[wave_vpi] Wave file has no timescale info, defaulting to ns (-9)");
         -9
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bytes_last_u32_be_matches_full_conversion() {
+        // Verify bytes_last_u32_be matches bytes_to_u32s_be().last()
+        let test_cases: Vec<Vec<u8>> = vec![
+            vec![0x05],                                     // 1 byte
+            vec![0xAB, 0xCD],                               // 2 bytes
+            vec![0x01, 0x02, 0x03],                         // 3 bytes
+            vec![0x01, 0x02, 0x03, 0x04],                   // 4 bytes (aligned)
+            vec![0x01, 0x02, 0x03, 0x04, 0x05],             // 5 bytes
+            vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06],       // 6 bytes
+            vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07], // 7 bytes
+            vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], // 8 bytes (aligned)
+            vec![0xFF],                                     // single max byte
+            vec![0xFF, 0xFF, 0xFF, 0xFF],                   // max u32
+        ];
+
+        for data in &test_cases {
+            let full = bytes_to_u32s_be(data);
+            let last_full = *full.last().unwrap();
+            let last_opt = bytes_last_u32_be(data);
+            assert_eq!(
+                last_full, last_opt,
+                "Mismatch for data {:?}: full={:#010x}, opt={:#010x}",
+                data, last_full, last_opt
+            );
+        }
     }
 }

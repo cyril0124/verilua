@@ -40,13 +40,17 @@ void wave_vpi_init(const char *filename) {
 #ifdef USE_FSDB
     fsdb_wave_vpi::fsdbWaveVpi = std::make_shared<fsdb_wave_vpi::FsdbWaveVpi>(ffrObject::ffrOpenNonSharedObj((char *)filename), std::string(filename));
 
-    cursor.maxIndex = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1;
-    cursor.maxTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.at(fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1);
+    if (!is_hierarchy_only_mode()) {
+        cursor.maxIndex = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1;
+        cursor.maxTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.at(fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1);
+    }
 #else
     wellen_initialize(filename);
 
-    cursor.maxIndex = wellen_get_max_index();
-    cursor.maxTime  = wellen_get_time_from_index(cursor.maxIndex);
+    if (!is_hierarchy_only_mode()) {
+        cursor.maxIndex = wellen_get_max_index();
+        cursor.maxTime  = wellen_get_time_from_index(cursor.maxIndex);
+    }
 #endif
 }
 
@@ -70,6 +74,12 @@ void wave_vpi_loop() {
     vpi_compat::appendValueCb();
 
     // Start wave_vpi evaluation loop
+    if (is_hierarchy_only_mode()) {
+        // In hierarchy-only mode, skip the evaluation loop entirely.
+        vpi_compat::endOfSimulation();
+        return;
+    }
+
     VL_FATAL(cursor.maxIndex != 0, "cursor.maxIndex should not be 0");
     if (!is_quiet_mode()) {
         fmt::println("[wave_vpi::loop] START! cursor.maxIndex => {} cursor.maxTime => {}", cursor.maxIndex, cursor.maxTime);

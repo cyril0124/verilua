@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **libverilua/wave_vpi**: Add signal bitwidth tracking to hierarchy collection API — `sim.get_hierarchy()` and `sim.print_hierarchy()` now support `show_bitwidth` option to display bit widths (e.g., `signal_name (width: 8)`). Bitwidth data is retrieved via `vpi_get(vpiSize)` and included in hierarchy cache format v2
 - **LuaSimulator**: Add `sim.collect_signals(hier_path)` API for VPI-based signal introspection
 - **LuaSimulator**: Implement `auto_bundle_via_hierarchy()` — optimized auto_bundle path using VPI hierarchy API instead of SignalDB
+- **wave_vpi**: Add hierarchy-only mode (`--hierarchy-only` CLI flag / `WAVE_VPI_HIERARCHY_ONLY` env var) — skips signal data loading and time table parsing during wave_vpi initialization, reducing hierarchy query startup time from ~5s to ~0.7s (with cache hit) for large FSDB waveforms
 
 ### 🐛 Fixed
 

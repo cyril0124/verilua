@@ -144,6 +144,15 @@ FsdbWaveVpi::FsdbWaveVpi(ffrObject *fsdbObj, std::string_view waveFileName) : fs
         fsdbObj->ffrReadScopeVarTree();
         maxVarIdcode = fsdbObj->ffrGetMaxVarIdcode();
 
+        // In hierarchy-only mode, skip signal loading and time table parsing.
+        if (is_hierarchy_only_mode()) {
+            if (!is_quiet_mode()) {
+                fmt::println("[wave_vpi::fsdb_wave_vpi] hierarchy-only mode: skipping signal loading and time table parsing");
+                fflush(stdout);
+            }
+            return;
+        }
+
         if (!is_quiet_mode()) {
             fmt::println("[wave_vpi::fsdb_wave_vpi] start load all signals...");
             fflush(stdout);

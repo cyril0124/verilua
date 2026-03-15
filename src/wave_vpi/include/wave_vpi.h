@@ -40,6 +40,18 @@ inline bool is_quiet_mode() {
     return cached == 1;
 }
 
+// Check if hierarchy-only mode is enabled (skip signal loading and time table parsing).
+// NOTE: When using --hierarchy-only CLI flag, setenv("WAVE_VPI_HIERARCHY_ONLY")
+// must be called before the first invocation of this function.
+inline bool is_hierarchy_only_mode() {
+    static int cached = -1;
+    if (cached == -1) {
+        const char *val = std::getenv("WAVE_VPI_HIERARCHY_ONLY");
+        cached          = (val != nullptr && std::string(val) == "1") ? 1 : 0;
+    }
+    return cached == 1;
+}
+
 #define VL_INFO(...)                                                                                                                                                                                                                                                                                                                                                                                           \
     do {                                                                                                                                                                                                                                                                                                                                                                                                       \
         fmt::print("[{}:{}:{}] [{}INFO{}] ", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_MAGENTA, ANSI_COLOR_RESET);                                                                                                                                                                                                                                                                                          \
