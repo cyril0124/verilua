@@ -16,6 +16,11 @@ local UNIT_TO_EXPONENT = {
     s = 0,
 }
 
+-- LuaJIT numbers are IEEE-754 doubles, so integers greater than 2^53 - 1
+-- lose exact precision after uint64_t -> Lua number conversion.
+-- Keep both number and uint64_t forms to compare in cdata domain first.
+local MAX_SAFE_LUA_INTEGER_U64 = 9007199254740991ULL
+
 assert(cfg.simulator == "wave_vpi", "WaveVpiCtrl.lua can only be used with the wave_vpi simulator")
 
 ---@alias verilua.utils.WaveVpiJitOptionNames
@@ -127,7 +132,13 @@ function WaveVpiCtrl:get_max_cursor_index()
         ) --[[@as fun(): integer]]
     end
 
-    return self.get_max_cursor_index_cfunc()
+    local max_index_u64 = self.get_max_cursor_index_cfunc()
+    assert(max_index_u64 <= MAX_SAFE_LUA_INTEGER_U64, f(
+        "[WaveVpiCtrl::get_max_cursor_index] TODO: max cursor index exceeds Lua safe integer range: %s > %d",
+        tostring(max_index_u64),
+        MAX_SAFE_LUA_INTEGER_U64
+    ))
+    return tonumber(max_index_u64) --[[@as integer]]
 end
 
 function WaveVpiCtrl:get_max_cursor_time(unit)
