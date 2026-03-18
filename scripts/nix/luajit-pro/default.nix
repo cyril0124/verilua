@@ -4,7 +4,6 @@ let
   pkgs = import npinsed.nixpkgs {};
   luajit-pro = (pkgs.luajit_openresty.override {
     self = luajit-pro;
-    version = "pro";
     src = npinsed.luajit2;
   }).overrideAttrs (old: {
     postPatch = ''
