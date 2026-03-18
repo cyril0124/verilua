@@ -29,6 +29,19 @@
       "url": null,
       "hash": "sha256-rAJLzFpTQOPqvfsOPr5qcoxWxKFFgmMy9/lIOEADDqk="
     },
+    "luajit2": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cyril0124",
+        "repo": "luajit2"
+      },
+      "branch": "op53-dev",
+      "submodules": false,
+      "revision": "3c7b05b4f8d2912be1876e4cbcbe81eb8ae2d120",
+      "url": "https://github.com/cyril0124/luajit2/archive/3c7b05b4f8d2912be1876e4cbcbe81eb8ae2d120.tar.gz",
+      "hash": "sha256-nTuCVXPn3yuCz15eaZoQP87GsOEK8hUqOh1IOiObkX8="
+    },
     "mimalloc": {
       "type": "GitRelease",
       "repository": {
