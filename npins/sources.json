@@ -1,5 +1,21 @@
 {
   "pins": {
+    "libassert": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "jeremy-rifkin",
+        "repo": "libassert"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v2.2.1",
+      "revision": "bd33ba116f209bf71761c58dccc2f3bf277e0824",
+      "url": "https://api.github.com/repos/jeremy-rifkin/libassert/tarball/refs/tags/v2.2.1",
+      "hash": "sha256-ognudQ3NgpYxiDEucbIRWYQPs0XLRUQwg1eMxJm+aPs="
+    },
     "mimalloc": {
       "type": "GitRelease",
       "repository": {
