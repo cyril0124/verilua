@@ -2,10 +2,7 @@
 let
   npinsed = import ../../npins;
   pkgs = import npinsed.nixpkgs {};
-  mimalloc = pkgs.mimalloc.overrideAttrs (old: {
-    version = npinsed.mimalloc.version;
-    src = npinsed.mimalloc;
-  });
+  mimalloc2 = import ./mimalloc2.nix;
 in {
   shared ? false,
 }: pkgs.stdenv.mkDerivation {
@@ -25,7 +22,7 @@ in {
   ];
   buildInputs = [
     (pkgs.fmt.override {enableShared = shared;})
-    mimalloc
+    mimalloc2
   ];
   cmakeFlags = [
     "-DSLANG_INCLUDE_TOOLS=OFF"
