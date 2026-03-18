@@ -1,0 +1,19 @@
+let
+  npinsed = import ./npins;
+  pkgs = import npinsed.nixpkgs {};
+in pkgs.stdenv.mkDerivation {
+  name = "verilua";
+  nativeBuildInputs = [
+    pkgs.xmake
+  ];
+  # TODO: ./conanfile.py is redundant, can be removed
+  buildInputs = [
+    (import ./scripts/nix/slang.nix {})
+    pkgs.sol2
+    pkgs.argparse
+    pkgs.inja
+    (import ./scripts/nix/libassert.nix)
+    pkgs.fmt_11
+    (import ./scripts/nix/mimalloc2.nix)
+  ];
+}
