@@ -15,5 +15,7 @@ in pkgs.stdenv.mkDerivation {
     (import ./scripts/nix/libassert.nix)
     pkgs.fmt_11
     (import ./scripts/nix/mimalloc2.nix)
+    # TODO: the install_libgmp in ./xmake.lua is redundant, can be removed
+    pkgs.gmp
   ];
 }
