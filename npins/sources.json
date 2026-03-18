@@ -1,5 +1,21 @@
 {
   "pins": {
+    "mimalloc": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "microsoft",
+        "repo": "mimalloc"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v2.2.3",
+      "revision": "d8791e5336c6c31966c8514b22a890fa01754a4a",
+      "url": "https://api.github.com/repos/microsoft/mimalloc/tarball/refs/tags/v2.2.3",
+      "hash": "sha256-B0gngv16WFLBtrtG5NqA2m5e95bYVcQraeITcOX9A74="
+    },
     "nixpkgs": {
       "type": "Git",
       "repository": {
