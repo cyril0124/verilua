@@ -1,0 +1,18 @@
+{
+  "pins": {
+    "nixpkgs": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "NixOS",
+        "repo": "nixpkgs"
+      },
+      "branch": "nixos-25.11",
+      "submodules": false,
+      "revision": "48652e9d5aea46e555b3df87354280d4f29cd3a3",
+      "url": "https://github.com/NixOS/nixpkgs/archive/48652e9d5aea46e555b3df87354280d4f29cd3a3.tar.gz",
+      "hash": "sha256-xB30bbAp0e7ogSEYyc126mAJMt4FRFh8wtm6ADE1xuM="
+    }
+  },
+  "version": 7
+}
