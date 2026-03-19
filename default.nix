@@ -18,6 +18,21 @@ in pkgs.stdenv.mkDerivation {
     # TODO: the install_libgmp in ./xmake.lua is redundant, can be removed
     pkgs.gmp
     # TODO: Why <prj_dir>/xmake.lua rebuilds luajit_pro_helper after install luarocks?
-    (import ./scripts/nix/luajit-pro)
+    ((import ./scripts/nix/luajit-pro).withPackages (luapkgs: [
+      luapkgs.penlight
+      luapkgs.luasocket
+      luapkgs.linenoise
+      luapkgs.argparse
+      (luapkgs.callPackage ./scripts/nix/lua-modules/cluacov.nix {})
+      (luapkgs.callPackage ./scripts/nix/lua-modules/lsqlite.nix {
+        complete = false;
+        nixpkgs_sqlite = pkgs.sqlite;
+      })
+      (luapkgs.callPackage ./scripts/nix/lua-modules/lsqlite.nix {
+        complete = true;
+        nixpkgs_sqlite = pkgs.sqlite;
+        nixpkgs_glibc = pkgs.glibc;
+      })
+    ]))
   ];
 }
