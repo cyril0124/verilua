@@ -40,5 +40,6 @@ in pkgs.stdenv.mkDerivation {
     ]))
     pkgs.tinycc
     (import ./scripts/nix/libverilua.nix)
+    # TODO: What does $VERILUA_HOME/tools have? Is this directory necessary in nix?
   ];
 }

@@ -1,5 +1,21 @@
 {
   "pins": {
+    "boost_unordered": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "MikePopoloski",
+        "repo": "boost_unordered"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v1.85.1",
+      "revision": "0c35831302a5730052582de15b31a71c2c52f1e4",
+      "url": "https://api.github.com/repos/MikePopoloski/boost_unordered/tarball/refs/tags/v1.85.1",
+      "hash": "sha256-II3LhaZTAmqn0xcWuSF01czy/IGobvpiGAgZ4EjJ6aY="
+    },
     "debugger-lua": {
       "type": "Git",
       "repository": {
@@ -96,6 +112,19 @@
       "revision": "48652e9d5aea46e555b3df87354280d4f29cd3a3",
       "url": "https://github.com/NixOS/nixpkgs/archive/48652e9d5aea46e555b3df87354280d4f29cd3a3.tar.gz",
       "hash": "sha256-xB30bbAp0e7ogSEYyc126mAJMt4FRFh8wtm6ADE1xuM="
+    },
+    "slang-common": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cyril0124",
+        "repo": "slang-common"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "fa648a420351fe66c6f9dbe508657dfcdd26e626",
+      "url": "https://github.com/cyril0124/slang-common/archive/fa648a420351fe66c6f9dbe508657dfcdd26e626.tar.gz",
+      "hash": "sha256-wYFbbSOHJqZUhwJf6KFRDjg6EMB6yiR7sqUd7Dlo4nw="
     }
   },
   "version": 7

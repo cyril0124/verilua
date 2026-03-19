@@ -21,7 +21,7 @@ in {
     pkgs.python3
   ];
   buildInputs = [
-    (pkgs.fmt.override {enableShared = shared;})
+    (pkgs.fmt_11.override {enableShared = shared;})
     mimalloc2
   ];
   cmakeFlags = [
