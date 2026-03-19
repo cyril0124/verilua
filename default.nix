@@ -39,5 +39,6 @@ in pkgs.stdenv.mkDerivation {
       (luapkgs.callPackage ./scripts/nix/lua-modules/debugger-lua.nix {})
     ]))
     pkgs.tinycc
+    (import ./scripts/nix/libverilua.nix)
   ];
 }
