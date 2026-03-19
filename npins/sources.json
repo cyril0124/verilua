@@ -42,6 +42,19 @@
       "url": "https://github.com/cyril0124/luajit2/archive/3c7b05b4f8d2912be1876e4cbcbe81eb8ae2d120.tar.gz",
       "hash": "sha256-nTuCVXPn3yuCz15eaZoQP87GsOEK8hUqOh1IOiObkX8="
     },
+    "luajit_tcc": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cyril0124",
+        "repo": "luajit_tcc"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "349f4c497f46d9b4c87932ae3cacf70e28bc9ea3",
+      "url": "https://github.com/cyril0124/luajit_tcc/archive/349f4c497f46d9b4c87932ae3cacf70e28bc9ea3.tar.gz",
+      "hash": "sha256-957AhWsBYBdhE/I9RRSvE8uwQBpKclF3kC2Dl0zfBfI="
+    },
     "mimalloc": {
       "type": "GitRelease",
       "repository": {

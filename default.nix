@@ -33,6 +33,8 @@ in pkgs.stdenv.mkDerivation {
         nixpkgs_sqlite = pkgs.sqlite;
         nixpkgs_glibc = pkgs.glibc;
       })
+      (luapkgs.callPackage ./scripts/nix/lua-modules/tcc.nix {})
     ]))
+    pkgs.tinycc
   ];
 }
