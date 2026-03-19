@@ -9,7 +9,6 @@ in pkgs.stdenv.mkDerivation {
   # TODO: ./conanfile.py is redundant, can be removed
   buildInputs = [
     pkgs.argparse
-    pkgs.inja
     # TODO: the install_libgmp in ./xmake.lua is redundant, can be removed
     pkgs.gmp
     # TODO: Why <prj_dir>/xmake.lua rebuilds luajit_pro_helper after install luarocks?
