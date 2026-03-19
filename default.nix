@@ -17,5 +17,7 @@ in pkgs.stdenv.mkDerivation {
     (import ./scripts/nix/mimalloc2.nix)
     # TODO: the install_libgmp in ./xmake.lua is redundant, can be removed
     pkgs.gmp
+    # TODO: Why <prj_dir>/xmake.lua rebuilds luajit_pro_helper after install luarocks?
+    (import ./scripts/nix/luajit-pro)
   ];
 }
