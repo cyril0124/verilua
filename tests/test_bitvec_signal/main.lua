@@ -1,5 +1,5 @@
 local lester = require "lester"
-local BitVec = require "BitVec"
+local BitVec = require "verilua.utils.BitVec"
 local expect = lester.expect
 
 fork {

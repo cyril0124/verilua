@@ -3,7 +3,7 @@
 local lester = require 'lester'
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
-local ctx = require "SVAContext"
+local ctx = require "verilua.sva.SVAContext"
 
 lester.parse_args()
 
@@ -30,6 +30,7 @@ test: cover property (_GEN_test_PROPERTY);
         ret = ctx:add "cover" {
             name = "test1",
             expr = "test1 + $(a) + $(bb)",
+            ---@diagnostic disable-next-line: need-check-nil
             envs = cat({ a = 123 }) + cat({ bb = 456 })
         }
         expect.equal(ret, nil)
@@ -198,7 +199,7 @@ test: cover property (_GEN_test_PROPERTY);
         local make_fake_pt = function(fullpath)
             return {
                 __type = "ProxyTableHandle",
-                chdl = function(t)
+                chdl = function(_t)
                     return {
                         __type = "CallableHDL",
                         fullpath = fullpath
@@ -310,7 +311,7 @@ default clocking @(posedge path.to.clock); endclocking
 
         local clock_dut_signal = {
             __type = "ProxyTableHandle",
-            chdl = function(t)
+            chdl = function(_t)
                 return clock_signal
             end
         }

@@ -1,7 +1,7 @@
 local lester = require 'lester'
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
-local WeightedRandom = require "WeightedRandom"
+local WeightedRandom = require "verilua.random.WeightedRandom"
 local assert, print, format = assert, print, string.format
 
 lester.parse_args()

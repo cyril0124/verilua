@@ -2,7 +2,7 @@ local lester = require 'lester'
 local describe, it, expect = lester.describe, lester.it, lester.expect
 local assert, print, format = assert, print, string.format
 
-local CyclicRandom = require "CyclicRandom"
+local CyclicRandom = require "verilua.random.CyclicRandom"
 
 lester.parse_args()
 

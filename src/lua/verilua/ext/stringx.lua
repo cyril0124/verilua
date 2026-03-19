@@ -294,7 +294,7 @@ string.bit_vec = string.bv -- Alias of `string.bv`
 ---     assert(lib.get_count() == 1)
 --- ```
 string.tcc_compile = function(str, sym_ptr_tbls)
-    local tcc = require "TccWrapper"
+    local tcc = require "verilua.TccWrapper"
     local state = tcc.new()
     assert(state:set_output_type(tcc.OUTPUT.MEMORY))
     assert(state:compile_string(str))

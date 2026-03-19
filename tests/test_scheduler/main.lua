@@ -99,6 +99,7 @@ fork {
 
         -- Count running tasks accurately (using pairs since task IDs may not be consecutive)
         local running_task_count = 0
+        ---@diagnostic disable-next-line: access-invisible
         for _ in pairs(scheduler.task_name_map_running) do
             running_task_count = running_task_count + 1
         end
@@ -310,7 +311,7 @@ fork {
 
         print("\n--- 5. Remove task test ---")
 
-        local scheduler = require "LuaScheduler"
+        local scheduler = require "verilua.scheduler.LuaScheduler"
 
         -- Test 1: Remove a continuously running task
         local task1_counter = 0
@@ -530,7 +531,8 @@ fork {
             scheduler:wakeup_task(running_wakeup_task_id)
         end)
         assert(not success_running, "Should fail when waking up running task")
-        assert(string.find(error_msg_running, "Task already running"), "Should mention task already running")
+        assert(error_msg_running and string.find(error_msg_running, "Task already running"),
+            "Should mention task already running")
 
         join(running_wakeup_ehdl)
         print("✓ Running task wakeup error test passed")
@@ -540,7 +542,7 @@ fork {
             scheduler:wakeup_task(99999)
         end)
         assert(not success, "Should fail when waking up unregistered task")
-        assert(string.find(error_msg, "Task not registered"), "Should mention task not registered")
+        assert(error_msg and string.find(error_msg, "Task not registered"), "Should mention task not registered")
         print("✓ Unregistered task error test passed")
 
         print("✓ wakeup_task test passed")
@@ -608,7 +610,8 @@ fork {
             scheduler:try_wakeup_task(88888)
         end)
         assert(not success2, "Should fail when try_wakeup unregistered task")
-        assert(string.find(error_msg2, "Task not registered"), "Should mention task not registered")
+        assert(error_msg2 and string.find(error_msg2, "Task not registered"),
+            "Should mention task not registered")
         print("✓ Unregistered task try_wakeup error test passed")
 
         print("✓ try_wakeup_task test passed")

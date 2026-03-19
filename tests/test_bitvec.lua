@@ -2,7 +2,7 @@
 
 local ffi = require "ffi"
 local lester = require "lester"
-local BitVec = require "BitVec"
+local BitVec = require "verilua.utils.BitVec"
 
 local describe, it, expect = lester.describe, lester.it, lester.expect
 local assert, print, f = assert, print, string.format

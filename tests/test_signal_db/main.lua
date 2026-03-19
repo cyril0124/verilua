@@ -8,7 +8,8 @@ end
 
 fork {
     function()
-        local sd = require("SignalDB"):init()
+        local SignalDB = require "verilua.utils.SignalDB"
+        local sd = SignalDB:init()
 
         local expect_db_data = {
             tb_top = {

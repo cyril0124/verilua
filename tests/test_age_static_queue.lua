@@ -3,7 +3,7 @@
 local lester = require 'lester'
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
-local AgeStaticQueue = require "AgeStaticQueue"
+local AgeStaticQueue = require "verilua.utils.AgeStaticQueue"
 
 lester.parse_args()
 

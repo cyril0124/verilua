@@ -1,5 +1,5 @@
 local stringx = require "pl.stringx"
-local template = require "SVATemplate"
+local template = require "verilua.sva.SVATemplate"
 
 local type = type
 local pairs = pairs
@@ -83,7 +83,7 @@ function SVAContext:add(typ)
 
     -- Concat tables
     _G.cat = setmetatable({}, {
-        __add = function(this, other)
+        __add = function(this, _other)
             return this
         end,
         __call = function(this, ...)
@@ -107,7 +107,8 @@ function SVAContext:add(typ)
         assert(type(params.name) == "string", "[SVAContext] add error: `params.name` should be a string")
         assert(type(params.expr) == "string", "[SVAContext] add error: `params.expr` should be a string")
 
-        local final_envs = cat(params.envs or {}, self.global_envs)
+        local cat_fn = assert(cat)
+        local final_envs = cat_fn(params.envs or {}, self.global_envs)
         for _, v in pairs(final_envs) do
             if type(v) == "table" and v.__type then
                 if v.__type == "Sequence" then

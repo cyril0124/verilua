@@ -1,6 +1,7 @@
 ---@diagnostic disable: unnecessary-assert
 
-local SignalDB = require("SignalDB"):init()
+local SignalDB = require "verilua.utils.SignalDB"
+SignalDB:init()
 
 local f = string.format
 

@@ -422,7 +422,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     if not DpiExporter and cfg.enable_dpi_exporter then
-        DpiExporter = require "DpiExporter"
+        DpiExporter = require "verilua.utils.DpiExporter"
     end
 
     -- Check if DPI exporter is enabled

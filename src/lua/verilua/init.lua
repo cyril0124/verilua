@@ -22,7 +22,7 @@ local math_random = math.random
 local getmetatable = getmetatable
 
 -- Strict mode, all global variables must be declared first
-require "strict"
+require "verilua.strict"
 
 _G.inspect           = require "inspect"
 
@@ -177,7 +177,7 @@ end
 ---   export VERILUA_CFG=/home/user/simulator/mysim_config.lua
 --- ```
 --- If `VERILUA_CFG` is not set, Verilua will not load any user configuration file.
-_G.cfg = require "LuaSimConfig"
+_G.cfg = require "verilua.LuaSimConfig"
 
 local cfg_name, cfg_path
 do
@@ -397,7 +397,8 @@ do
         end
 
         if ok then
-            return table_unpack(results, 2, results.n)
+            local result_count = assert(results.n)
+            return table_unpack(results, 2, result_count)
         end
     end
 end
@@ -599,7 +600,7 @@ do
         elseif cmd == "appendFinishTasks" then
             return function(task_table)
                 assert(type(task_table) == "table")
-                for k, func in pairs(task_table) do
+                for _k, func in pairs(task_table) do
                     assert(type(func) == "function")
                     vl.append_finish_callback(func)
                 end
@@ -607,7 +608,7 @@ do
         elseif cmd == "appendStartTasks" then
             return function(task_table)
                 assert(type(task_table) == "table")
-                for k, func in pairs(task_table) do
+                for _k, func in pairs(task_table) do
                     assert(type(func) == "function")
                     vl.append_start_callback(func)
                 end
@@ -821,7 +822,7 @@ do
     ---@param task_table table<verilua.scheduler.TaskName|integer, verilua.scheduler.TaskFunction>
     _G.initial = function(task_table)
         assert(type(task_table) == "table")
-        for k, func in pairs(task_table) do
+        for _k, func in pairs(task_table) do
             assert(type(func) == "function")
             vl.append_start_callback(func)
         end
@@ -845,7 +846,7 @@ do
     ---@param task_table table<verilua.scheduler.TaskName|integer, verilua.scheduler.TaskFunction>
     _G.final = function(task_table)
         assert(type(task_table) == "table")
-        for k, func in pairs(task_table) do
+        for _k, func in pairs(task_table) do
             assert(type(func) == "function")
             vl.append_finish_callback(func)
         end
@@ -874,7 +875,7 @@ _G.urandom_range = function(min, max)
     return math_random(min, max)
 end
 
-_G.sim = require "LuaSimulator"
+_G.sim = require "verilua.LuaSimulator"
 _G.scheduler = scheduler
 
 --
@@ -886,4 +887,4 @@ for key, value in pairs(scommon) do
 end
 
 ---@type verilua.handles.ProxyTableHandle
-_G.dut = (require "LuaDut").create_proxy(cfg.top)
+_G.dut = (require "verilua.LuaDut").create_proxy(cfg.top)
