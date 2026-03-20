@@ -27,11 +27,12 @@ in {
   # "xcelium"
   # "xcelium_dpi"
   # "iverilog"
-  # "wave_vpi"
   # "nosim"
   buildFeatures = (
-    if simulator == "verilator" then [
+    if        simulator == "verilator" then [
       "verilator" "chunk_task" "verilator_inner_step_callback"
+    ] else if simulator == "wave_vpi" then [
+      "wave_vpi" "chunk_task"
     ] else throw "Unknown simulator ${simulator}"
   ) ++ [
     # Common features

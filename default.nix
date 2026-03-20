@@ -34,6 +34,7 @@ in pkgs.stdenv.mkDerivation {
     ]))
     pkgs.tinycc
     (import ./scripts/nix/libverilua.nix {simulator="verilator";})
+    (import ./scripts/nix/libverilua.nix {simulator="wave_vpi";})
     (import ./src/signal_db_gen)
     (import ./src/testbench_gen)
     (import ./src/dpi_exporter)
