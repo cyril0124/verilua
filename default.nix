@@ -8,7 +8,6 @@ in pkgs.stdenv.mkDerivation {
   ];
   # TODO: ./conanfile.py is redundant, can be removed
   buildInputs = [
-    pkgs.argparse
     # TODO: the install_libgmp in ./xmake.lua is redundant, can be removed
     pkgs.gmp
     # TODO: Why <prj_dir>/xmake.lua rebuilds luajit_pro_helper after install luarocks?
@@ -34,11 +33,10 @@ in pkgs.stdenv.mkDerivation {
     ]))
     pkgs.tinycc
     (import ./scripts/nix/libverilua.nix {simulator="verilator";})
-    (import ./scripts/nix/libverilua.nix {simulator="wave_vpi";})
     (import ./src/signal_db_gen)
     (import ./src/testbench_gen)
     (import ./src/dpi_exporter)
     (import ./src/cov_exporter)
-    # TODO: What does $VERILUA_HOME/tools have? Is this directory necessary in nix?
+    (import ./src/wave_vpi/wellen_impl)
   ];
 }
