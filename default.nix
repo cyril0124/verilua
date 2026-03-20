@@ -33,7 +33,7 @@ in pkgs.stdenv.mkDerivation {
       (luapkgs.callPackage ./scripts/nix/lua-modules/debugger-lua.nix {})
     ]))
     pkgs.tinycc
-    (import ./scripts/nix/libverilua.nix)
+    (import ./scripts/nix/libverilua.nix {simulator="verilator";})
     (import ./src/signal_db_gen)
     (import ./src/testbench_gen)
     (import ./src/dpi_exporter)

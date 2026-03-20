@@ -1,8 +1,10 @@
 let
   npinsed = import ../../npins;
   pkgs = import npinsed.nixpkgs {};
-in pkgs.rustPlatform.buildRustPackage {
-  name = "libverilua";
+in {
+  simulator,
+}: pkgs.rustPlatform.buildRustPackage {
+  name = "libverilua_${simulator}";
   src = ../../libverilua;
   # TODO: separate libverilua as a standalone repo, and add a Cargo.lock for it.
   postPatch = ''
@@ -17,11 +19,25 @@ in pkgs.rustPlatform.buildRustPackage {
   buildInputs = [
     (import ./luajit-pro)
   ];
-  # TODO: support other EDA tools.
-  buildFeatures = [
-    # Verilator features
-    "chunk_task" "verilator_inner_step_callback"
+  # TODO: support other simulators
+  # "verilator_i"
+  # "verilator_dpi"
+  # "vcs"
+  # "vcs_dpi"
+  # "xcelium"
+  # "xcelium_dpi"
+  # "iverilog"
+  # "wave_vpi"
+  # "nosim"
+  buildFeatures = (
+    if simulator == "verilator" then [
+      "verilator" "chunk_task" "verilator_inner_step_callback"
+    ] else throw "Unknown simulator ${simulator}"
+  ) ++ [
     # Common features
     "acc_time" "hierarchy_cache"
   ];
+  postInstall = ''
+    mv $out/lib/libverilua.so $out/lib/libverilua_${simulator}.so
+  '';
 }
