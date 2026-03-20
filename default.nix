@@ -3,9 +3,6 @@ let
   pkgs = import npinsed.nixpkgs {};
 in pkgs.stdenv.mkDerivation {
   name = "verilua";
-  nativeBuildInputs = [
-    pkgs.xmake
-  ];
   # TODO: ./conanfile.py is redundant, can be removed
   buildInputs = [
     # TODO: the install_libgmp in ./xmake.lua is redundant, can be removed
