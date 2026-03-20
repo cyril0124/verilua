@@ -37,6 +37,7 @@ in pkgs.stdenv.mkDerivation {
     (import ./src/signal_db_gen)
     (import ./src/testbench_gen)
     (import ./src/dpi_exporter)
+    (import ./src/cov_exporter)
     # TODO: What does $VERILUA_HOME/tools have? Is this directory necessary in nix?
   ];
 }
