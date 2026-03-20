@@ -38,5 +38,6 @@ in pkgs.stdenv.mkDerivation {
     (import ./src/dpi_exporter)
     (import ./src/cov_exporter)
     (import ./src/wave_vpi/wellen_impl)
+    (import ./scripts/.xmake)
   ];
 }
