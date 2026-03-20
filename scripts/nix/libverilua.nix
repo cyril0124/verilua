@@ -1,3 +1,4 @@
+# TODO: move this file to <prj_dir>/libverilua/default.nix
 let
   npinsed = import ../../npins;
   pkgs = import npinsed.nixpkgs {};
@@ -27,12 +28,13 @@ in {
   # "xcelium"
   # "xcelium_dpi"
   # "iverilog"
-  # "nosim"
   buildFeatures = (
     if        simulator == "verilator" then [
       "verilator" "chunk_task" "verilator_inner_step_callback"
     ] else if simulator == "wave_vpi" then [
       "wave_vpi" "chunk_task"
+    ] else if simulator == "nosim" then [
+      "nosim" "chunk_task"
     ] else throw "Unknown simulator ${simulator}"
   ) ++ [
     # Common features
