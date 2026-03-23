@@ -31,3 +31,4 @@ scripts/.xmake/linux
 .wave_vpi_fsdb.meta.json
 .wave_vpi_fsdb.timetable
 .verilua_hierarchy_cache
+.direnv
