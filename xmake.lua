@@ -840,6 +840,7 @@ target("test", function()
             "simple_mux",
             "async_queue_native",
             "async_queue_lua",
+            "fork_basics",
         }
         push_job({
             name = "examples-core",
