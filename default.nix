@@ -63,4 +63,12 @@ in pkgs.mkShell {
       mkdir -p $out/shared
     '';
   };
+
+  # As nixpkgs has auto set LUA_PATH and LUA_CPATH of luajit-pro.withPackages(...),
+  # why we still need to export?
+  # Because of xmake!
+  # Xmake embed a lua/luajit in its binary. It does not utilize the user's lua.
+  # So to xmake happy (xmake needs to access verilua lua files), we need to export LUA_PATH and LUA_CPATH.
+  LUA_PATH = luajit-pro.luaPath;
+  LUA_CPATH = luajit-pro.luaCpath;
 }
