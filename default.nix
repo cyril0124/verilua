@@ -19,6 +19,7 @@ let
     (luapkgs.callPackage ./scripts/nix/lua-modules/tcc.nix {})
     (luapkgs.callPackage ./scripts/nix/lua-modules/verilua.nix {})
     (luapkgs.callPackage ./scripts/nix/lua-modules/thirdparty_lib.nix {})
+    (luapkgs.callPackage ./scripts/nix/lua-modules/TODO-src-lua.nix {})
     # TODO: The submodule debugger.lua is redundant, can be removed
     (luapkgs.callPackage ./scripts/nix/lua-modules/debugger-lua.nix {})
   ]);
