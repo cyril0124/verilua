@@ -41,11 +41,11 @@ in pkgs.mkShell {
   #   (import ./src/signal_db_gen)
   #   (import ./src/dpi_exporter)
   #   (import ./src/cov_exporter)
-  #   (import ./src/wave_vpi/wellen_impl)
   # ];
   buildInputs = [
     luajit-pro
     (import ./scripts/nix/libverilua.nix {simulator="verilator";})
+    (import ./src/wave_vpi)
   ];
   VERILUA_HOME = pkgs.symlinkJoin {
     name = "VERILUA_HOME";
