@@ -95,7 +95,9 @@ fork {
         assert(elem0_updated:get() == 0x55)
 
         -- Test set_index_all
-        arr:set_index_all({ 0xAA, 0xBB, 0xCC, 0xDD })
+        ---@type table<integer, integer>
+        local array_values = { 0xAA, 0xBB, 0xCC, 0xDD }
+        arr:set_index_all(array_values)
         clock:posedge() -- Wait for set to take effect
         assert(arr:get_index(0) == 0xAA)
         assert(arr:get_index(1) == 0xBB)
@@ -494,6 +496,12 @@ fork {
 
         local hex_str = dut.u_top.data_wide:get_hex_str()
         assert(type(hex_str) == "string")
+
+        dut.u_top.data_2:set_imm(0x02)
+        local bin_str = dut.u_top.data_2:get_bin_str()
+        assert(type(bin_str) == "string")
+        assert(#bin_str == 8)
+        assert(bin_str == "00000010")
 
         -- ========================================================================
         -- Test: ProxyTableHandle - hdl() method

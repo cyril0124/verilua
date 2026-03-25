@@ -132,6 +132,14 @@ local force_path_table = {}
 --- ```
 ---@field get_hex_str fun(self: verilua.handles.ProxyTableHandle): string
 ---
+--- Get the signal value as a binary string.
+--- e.g.
+--- ```lua
+--- local bin_str = dut.cycles:get_bin_str()
+--- assert(bin_str == "1010")
+--- ```
+---@field get_bin_str fun(self: verilua.handles.ProxyTableHandle): string
+---
 --- Set the signal value using a string (hex or binary with prefix).
 --- e.g.
 --- ```lua
@@ -492,6 +500,14 @@ local function create_proxy(path, use_prefix)
                 assert(false, f("No handle found => %s", local_path))
             end
             return ffi_string(vpiml.vpiml_get_value_str(hdl, HexStr))
+        end,
+
+        get_bin_str = function(t)
+            local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
+            if hdl == -1 then
+                assert(false, f("No handle found => %s", local_path))
+            end
+            return ffi_string(vpiml.vpiml_get_value_str(hdl, BinStr))
         end,
 
         set_str = function(t, str)
