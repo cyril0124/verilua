@@ -17,14 +17,14 @@ local count4 = dut.count4:chdl()
 local is_verilator = cfg.simulator == "verilator"
 local is_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT") == "1"
 
----@param clock verilua.handles.CallableHDL
+---@param clk verilua.handles.CallableHDL
 ---@return verilua.scheduler.TaskFunction
-local gen_clock = function(clock, period)
+local gen_clock = function(clk, period)
     return function()
         while true do
-            clock.value = 1
+            clk.value = 1
             await_time_ns(period)
-            clock.value = 0
+            clk.value = 0
             await_time_ns(period)
         end
     end
@@ -154,7 +154,53 @@ fork {
 
         test_posedge()
 
-        -- TODO: negedge
+        local test_negedge = function()
+            local e = jfork {
+                function()
+                    clock:negedge()
+                    local curr = assert(tonumber(count:get()))
+                    clock:negedge()
+                    assert(tonumber(count:get()) == curr + 1)
+
+                    clock:negedge(5)
+                    assert(tonumber(count:get()) == curr + 6)
+
+                    print("test clock negedge done")
+                end
+            }
+
+            local e1 = jfork {
+                function()
+                    clock1:negedge()
+                    local curr = assert(tonumber(count1:get()))
+                    clock1:negedge()
+                    assert(tonumber(count1:get()) == curr + 1)
+
+                    clock1:negedge(5)
+                    assert(tonumber(count1:get()) == curr + 6)
+
+                    print("test clock1 negedge done")
+                end
+            }
+
+            local e2 = jfork {
+                function()
+                    clock2:negedge()
+                    local curr = assert(tonumber(count2:get()))
+                    clock2:negedge()
+                    assert(tonumber(count2:get()) == curr + 1)
+
+                    clock2:negedge(5)
+                    assert(tonumber(count2:get()) == curr + 6)
+
+                    print("test clock2 negedge done")
+                end
+            }
+
+            join({ e, e1, e2 })
+        end
+
+        test_negedge()
 
         -- Clock dependency test
         -- clock -> clock3 -> clock4
