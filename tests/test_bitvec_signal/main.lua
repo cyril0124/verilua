@@ -5,16 +5,18 @@ local expect = lester.expect
 fork {
     function()
         local clock = dut.clock:chdl()
-        local value16 = dut.value16:chdl()
+        local _value16 = dut.value16:chdl()
         local value32 = dut.value32:chdl()
         local value64 = dut.value64:chdl()
         local value128 = dut.value128:chdl()
+        local value256 = dut.value256:chdl()
 
         dut.reset:set(1)
         clock:negedge(10)
         dut.reset:set(0)
 
         expect.equal(value128:get_width(), 128)
+        expect.equal(value256:get_width(), 256)
 
         local value_u32_vec = { 0x123, 0x456, 0x789, 0xabc }
         clock:negedge()
@@ -157,13 +159,24 @@ fork {
         end
 
         do
+            local wide_hex = "567890abcdef1234567890abcdef1235557997aaceee1d35557997aaceee0d24"
+            local wide_dec = "39111925109246501386369182914050076954787546807815414363092987815966389701924"
+
+            clock:negedge()
+            value256:set_hex_str(wide_hex)
+            clock:negedge()
+            expect.equal(value256:get_hex_str(), wide_hex)
+            expect.equal(value256:get_dec_str(), wide_dec)
+        end
+
+        do
             clock:negedge()
             value128.value = 0
             clock:negedge()
             value128:dump()
 
             assert(value128 == v(0))
-            assert(value128 == v("0")) -- TODO: It seems that there is a bug in verilator(v5.034) when directly retrieving dec string via vpiDecStrVal.
+            assert(value128 == v("0"))
             assert(value128 == v("0x0"))
             assert(value128 == v("0b0"))
             assert(value128 == v(BitVec(0)))

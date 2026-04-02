@@ -1,4 +1,5 @@
 use super::*;
+use num_bigint::BigUint;
 
 /// SAFETY:
 /// The returned pointer remains valid only until the next string-read call on the
@@ -210,21 +211,43 @@ impl VeriluaEnv {
             unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
             let raw_hex_str = unsafe { CStr::from_ptr(v.value.str_) };
+            let raw_hex_bytes = raw_hex_str.to_bytes();
+            let start = raw_hex_bytes
+                .iter()
+                .position(|&byte| byte != b' ')
+                .unwrap_or(raw_hex_bytes.len());
+            let normalized_hex = &raw_hex_bytes[start..];
             let hex_str = raw_hex_str.to_string_lossy();
-            let clean_hex_str = hex_str.replace(['x', 'X', 'z', 'Z'], "0");
 
-            match u128::from_str_radix(&clean_hex_str, 16) {
-                Ok(value) => {
-                    let dec_string = value.to_string();
-                    std::ffi::CString::new(dec_string).unwrap().into_raw()
-                }
-                Err(e) => {
-                    panic!(
-                        "Failed to parse cleaned hex string '{}' (from original '{}') from Verilator: {}",
-                        clean_hex_str, hex_str, e
-                    );
-                }
+            let buf = &mut complex_handle.get_value_str_buf;
+            buf.clear();
+
+            if normalized_hex.is_empty() {
+                buf.extend_from_slice(b"0");
+                buf.push(0);
+                return buf.as_ptr() as *const c_char;
             }
+
+            for &byte in normalized_hex {
+                buf.push(match byte {
+                    b'x' | b'X' | b'z' | b'Z' => b'0',
+                    _ => byte,
+                });
+            }
+
+            let value = BigUint::parse_bytes(buf.as_slice(), 16).unwrap_or_else(|| {
+                panic!(
+                    "Failed to parse cleaned hex string '{}' (from original '{}') from Verilator",
+                    String::from_utf8_lossy(buf.as_slice()),
+                    hex_str,
+                )
+            });
+
+            let dec_string = value.to_str_radix(10);
+            buf.clear();
+            buf.extend_from_slice(dec_string.as_bytes());
+            buf.push(0);
+            buf.as_ptr() as *const c_char
         } else {
             let mut v = s_vpi_value {
                 format: vpiDecStrVal as _,

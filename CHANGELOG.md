@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **libverilua/verilator**: Fix `get_dec_str()` fallback for wide signals by switching the Verilator hex-to-decimal workaround from `u128` parsing to arbitrary-precision conversion and reusing the per-handle string buffer
 - **xmake/nosim**: Fix toolchain detection log to print the resolved `nosim` binary name instead of the unrelated `wave_vpi_main` value
 - **wave_vpi/wellen_impl**: Reuse a thread-local buffer for string value returns to avoid repeated `CString` allocations on the hot path
 
