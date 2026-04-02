@@ -742,7 +742,7 @@ mod tests {
         let path = tmp.to_str().unwrap();
 
         // File too short for header
-        std::fs::write(path, &[0u8; 8]).unwrap();
+        std::fs::write(path, [0u8; 8]).unwrap();
         let loaded = try_load_cache(path, Some(42), None);
         assert!(loaded.is_none());
 

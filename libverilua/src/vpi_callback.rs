@@ -197,8 +197,8 @@ fn edge_type_to_value(edge_type: &EdgeType) -> EdgeValue {
 // Chunk Task Generated Code
 // ────────────────────────────────────────────────────────────────────────────────
 
-/// Includes generated callback registration functions for chunk_task optimization.
-/// These functions batch multiple edge callbacks for the same signal type.
+// Includes generated callback registration functions for chunk_task optimization.
+// These functions batch multiple edge callbacks for the same signal type.
 #[cfg(feature = "chunk_task")]
 include!("./gen/gen_register_callback_func.rs");
 
@@ -537,8 +537,8 @@ pub unsafe extern "C" fn libverilua_next_sim_time_cb(cb_data: *mut t_cb_data) ->
         #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
         {
             #[inline(always)]
-            fn process_cb_chunk<'a>(
-                cb_chunk: &'a HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
+            fn process_cb_chunk(
+                cb_chunk: &HashMap<EdgeCallbackID, (ComplexHandleRaw, Vec<TaskID>)>,
                 cb_map: &mut HashMap<ComplexHandleRaw, Vec<TaskID>>,
             ) {
                 for (_, (complex_handle_raw, task_id_vec)) in cb_chunk {
@@ -699,26 +699,32 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
 
                 let remove_cb = match user_data.edge_type {
                     EdgeType::Posedge => {
-                        let t = complex_handle
-                            .posedge_cb_count
-                            .get_mut(&user_data.task_id)
-                            .unwrap_unchecked();
+                        let t = unsafe {
+                            complex_handle
+                                .posedge_cb_count
+                                .get_mut(&user_data.task_id)
+                                .unwrap_unchecked()
+                        };
                         *t -= 1;
                         *t == 0
                     }
                     EdgeType::Negedge => {
-                        let t = complex_handle
-                            .negedge_cb_count
-                            .get_mut(&user_data.task_id)
-                            .unwrap_unchecked();
+                        let t = unsafe {
+                            complex_handle
+                                .negedge_cb_count
+                                .get_mut(&user_data.task_id)
+                                .unwrap_unchecked()
+                        };
                         *t -= 1;
                         *t == 0
                     }
                     EdgeType::Edge => {
-                        let t = complex_handle
-                            .edge_cb_count
-                            .get_mut(&user_data.task_id)
-                            .unwrap_unchecked();
+                        let t = unsafe {
+                            complex_handle
+                                .edge_cb_count
+                                .get_mut(&user_data.task_id)
+                                .unwrap_unchecked()
+                        };
                         *t -= 1;
                         *t == 0
                     }

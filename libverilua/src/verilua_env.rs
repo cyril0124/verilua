@@ -80,7 +80,7 @@ use crate::EdgeCallbackID;
 use crate::TaskID;
 use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
 use crate::vpi_access;
-use crate::vpi_callback::{self, CallbackInfo};
+use crate::vpi_callback;
 use crate::vpi_user::*;
 
 // ────────────────────────────────────────────────────────────────────────────────
