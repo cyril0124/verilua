@@ -5,7 +5,7 @@ use byteorder::{BigEndian, ByteOrder};
 use bytesize::ByteSize;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use std::cell::UnsafeCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString};
 use std::fs;
@@ -67,11 +67,30 @@ static mut SIGNAL_NAME_CACHE: Option<UnsafeCell<HashMap<SignalRef, CString>>> = 
 static mut HAS_NEWLY_ADD_SIGNAL_REF: bool = false;
 // ScopeRef -> stable C handle storage.
 // We keep module handles stable across scans to avoid returning dangling pointers.
-static mut MODULE_HANDLE_CACHE: Option<UnsafeCell<HashMap<ScopeRef, *mut WellenModuleHandle>>> = None;
+static mut MODULE_HANDLE_CACHE: Option<UnsafeCell<HashMap<ScopeRef, *mut WellenModuleHandle>>> =
+    None;
 // Raw handle address -> ScopeRef reverse lookup for iterate(ref) / get_str(ref).
 static mut MODULE_HANDLE_PTR_MAP: Option<UnsafeCell<HashMap<usize, ScopeRef>>> = None;
 // Live iterator addresses returned to C++. Used to validate and reclaim iterators.
 static mut ITERATOR_HANDLE_PTR_SET: Option<UnsafeCell<HashSet<usize>>> = None;
+
+thread_local! {
+    static VALUE_STR_BUFFER: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Store a temporary C string in a thread-local buffer owned by the backend.
+/// The returned pointer stays valid until the next string-return call on the
+/// same thread, so callers must copy it immediately.
+#[inline(always)]
+fn store_value_str(value: &str) -> *mut c_char {
+    VALUE_STR_BUFFER.with(|buf| {
+        let mut buf = buf.borrow_mut();
+        buf.clear();
+        buf.extend_from_slice(value.as_bytes());
+        buf.push(0);
+        buf.as_mut_ptr().cast()
+    })
+}
 
 struct WellenModuleHandle {
     name: CString,
@@ -359,8 +378,7 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     let hierarchy = header.hierarchy;
 
     // In hierarchy-only mode, skip loading the waveform body (signal data).
-    let hierarchy_only = std::env::var("WAVE_VPI_HIERARCHY_ONLY")
-        .is_ok_and(|v| v == "1");
+    let hierarchy_only = std::env::var("WAVE_VPI_HIERARCHY_ONLY").is_ok_and(|v| v == "1");
 
     if hierarchy_only {
         log::info!(
@@ -499,26 +517,26 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
                     // Use mmap for zero-copy reading, then deserialize from the mapped bytes.
                     let mmap = memmap2::Mmap::map(&file);
                     match mmap {
-                        Ok(mmap) => match rmp_serde::from_slice::<HashMap<SignalRef, SignalInfo>>(
-                            &mmap,
-                        ) {
-                            Ok(cache) => {
-                                SIGNAL_CACHE = Some(UnsafeCell::new(cache));
-                                log::info!(
-                                    "[wave_vpi::wellen_initialize] read {} in {:.3}s (mmap)",
-                                    SIGNAL_CACHE_FILE,
-                                    t0.elapsed().as_secs_f64()
-                                );
+                        Ok(mmap) => {
+                            match rmp_serde::from_slice::<HashMap<SignalRef, SignalInfo>>(&mmap) {
+                                Ok(cache) => {
+                                    SIGNAL_CACHE = Some(UnsafeCell::new(cache));
+                                    log::info!(
+                                        "[wave_vpi::wellen_initialize] read {} in {:.3}s (mmap)",
+                                        SIGNAL_CACHE_FILE,
+                                        t0.elapsed().as_secs_f64()
+                                    );
+                                }
+                                Err(e) => {
+                                    log::warn!(
+                                        "[wave_vpi::wellen_initialize] Failed to deserialize {}: {} (cache may be stale, rebuilding)",
+                                        SIGNAL_CACHE_FILE,
+                                        e
+                                    );
+                                    SIGNAL_CACHE = Some(UnsafeCell::new(HashMap::new()));
+                                }
                             }
-                            Err(e) => {
-                                log::warn!(
-                                    "[wave_vpi::wellen_initialize] Failed to deserialize {}: {} (cache may be stale, rebuilding)",
-                                    SIGNAL_CACHE_FILE,
-                                    e
-                                );
-                                SIGNAL_CACHE = Some(UnsafeCell::new(HashMap::new()));
-                            }
-                        },
+                        }
                         Err(e) => {
                             log::warn!(
                                 "[wave_vpi::wellen_initialize] Failed to mmap {}: {}",
@@ -630,7 +648,8 @@ pub unsafe extern "C" fn wellen_finalize() {
 
         if let Some(ref cache_cell) = MODULE_HANDLE_CACHE {
             // Reclaim module handles cached for C-side pointer stability.
-            let module_ptrs: Vec<*mut WellenModuleHandle> = (&*cache_cell.get()).values().copied().collect();
+            let module_ptrs: Vec<*mut WellenModuleHandle> =
+                (&*cache_cell.get()).values().copied().collect();
             for ptr in module_ptrs {
                 let _ = Box::from_raw(ptr);
             }
@@ -962,8 +981,7 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                         }
 
                         let hex_string = unsafe { String::from_utf8_unchecked(hex_chars) };
-                        let c_string = CString::new(hex_string).expect("CString::new failed");
-                        let c_str_ptr = c_string.into_raw();
+                        let c_str_ptr = store_value_str(&hex_string);
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
@@ -971,9 +989,7 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                     vpiBinStrVal => {
                         let signal_bit_string =
                             loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-                        let c_string =
-                            CString::new(signal_bit_string).expect("CString::new failed");
-                        let c_str_ptr = c_string.into_raw();
+                        let c_str_ptr = store_value_str(&signal_bit_string);
 
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
@@ -983,9 +999,7 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                         // Binary (2-state): no X/Z possible, convert integer to decimal
                         let value = words[words.len() - 1] as u64;
                         let dec_string = value.to_string();
-                        let c_string =
-                            CString::new(dec_string).expect("CString::new failed");
-                        let c_str_ptr = c_string.into_raw();
+                        let c_str_ptr = store_value_str(&dec_string);
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
@@ -1017,8 +1031,7 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                         let signal_bit_string =
                             loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
                         let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
-                        let c_string = CString::new(hex_string).expect("CString::new failed");
-                        let c_str_ptr = c_string.into_raw();
+                        let c_str_ptr = store_value_str(&hex_string);
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
@@ -1026,9 +1039,7 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                     vpiBinStrVal => {
                         let signal_bit_string =
                             loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-                        let c_string =
-                            CString::new(signal_bit_string).expect("CString::new failed");
-                        let c_str_ptr = c_string.into_raw();
+                        let c_str_ptr = store_value_str(&signal_bit_string);
 
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
@@ -1047,9 +1058,7 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                                 Err(_) => "x".to_string(),
                             }
                         };
-                        let c_string =
-                            CString::new(dec_string).expect("CString::new failed");
-                        let c_str_ptr = c_string.into_raw();
+                        let c_str_ptr = store_value_str(&dec_string);
                         unsafe {
                             (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
@@ -1081,25 +1090,19 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                 (*value_p).value.integer = 0;
             },
             vpiHexStrVal => {
-                let hex_string = String::from("0");
-                let c_string = CString::new(hex_string).expect("CString::new failed");
-                let c_str_ptr = c_string.into_raw();
+                let c_str_ptr = store_value_str("0");
                 unsafe {
                     (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                 }
             }
             vpiBinStrVal => {
-                let bin_string = String::from("0");
-                let c_string = CString::new(bin_string).expect("CString::new failed");
-                let c_str_ptr = c_string.into_raw();
+                let c_str_ptr = store_value_str("0");
                 unsafe {
                     (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                 }
             }
             vpiDecStrVal => {
-                let dec_string = String::from("0");
-                let c_string = CString::new(dec_string).expect("CString::new failed");
-                let c_str_ptr = c_string.into_raw();
+                let c_str_ptr = store_value_str("0");
                 unsafe {
                     (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                 }
@@ -1144,14 +1147,12 @@ pub unsafe extern "C" fn wellen_get_value_str(
 
     if let Some(off) = off {
         let signal_bit_string = loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-        let c_string = CString::new(signal_bit_string).expect("CString::new failed");
-        c_string.into_raw()
+        store_value_str(&signal_bit_string)
     } else {
         // No value found at time index 0, use default value: 0
         assert!(time_table_idx == 0);
 
-        let c_string = CString::new("0").expect("CString::new failed");
-        c_string.into_raw()
+        store_value_str("0")
     }
 }
 
@@ -1366,7 +1367,9 @@ pub unsafe extern "C" fn wellen_vpi_scan(iterator: *mut c_void) -> *mut c_void {
     iter.index += 1;
 
     match item {
-        WellenIteratorItem::Module(scope_ref) => get_or_create_module_handle(scope_ref) as *mut c_void,
+        WellenIteratorItem::Module(scope_ref) => {
+            get_or_create_module_handle(scope_ref) as *mut c_void
+        }
         WellenIteratorItem::Signal(handle) => handle,
     }
 }
@@ -1420,16 +1423,16 @@ mod tests {
     fn test_bytes_last_u32_be_matches_full_conversion() {
         // Verify bytes_last_u32_be matches bytes_to_u32s_be().last()
         let test_cases: Vec<Vec<u8>> = vec![
-            vec![0x05],                                     // 1 byte
-            vec![0xAB, 0xCD],                               // 2 bytes
-            vec![0x01, 0x02, 0x03],                         // 3 bytes
-            vec![0x01, 0x02, 0x03, 0x04],                   // 4 bytes (aligned)
-            vec![0x01, 0x02, 0x03, 0x04, 0x05],             // 5 bytes
-            vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06],       // 6 bytes
-            vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07], // 7 bytes
+            vec![0x05],                                           // 1 byte
+            vec![0xAB, 0xCD],                                     // 2 bytes
+            vec![0x01, 0x02, 0x03],                               // 3 bytes
+            vec![0x01, 0x02, 0x03, 0x04],                         // 4 bytes (aligned)
+            vec![0x01, 0x02, 0x03, 0x04, 0x05],                   // 5 bytes
+            vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06],             // 6 bytes
+            vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],       // 7 bytes
             vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], // 8 bytes (aligned)
-            vec![0xFF],                                     // single max byte
-            vec![0xFF, 0xFF, 0xFF, 0xFF],                   // max u32
+            vec![0xFF],                                           // single max byte
+            vec![0xFF, 0xFF, 0xFF, 0xFF],                         // max u32
         ];
 
         for data in &test_cases {

@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### 🐛 Fixed
 
 - **xmake/nosim**: Fix toolchain detection log to print the resolved `nosim` binary name instead of the unrelated `wave_vpi_main` value
+- **wave_vpi/wellen_impl**: Reuse a thread-local buffer for string value returns to avoid repeated `CString` allocations on the hot path
 
 ### 💥 Breaking Changes
 
