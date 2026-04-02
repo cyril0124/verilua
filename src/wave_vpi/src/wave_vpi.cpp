@@ -41,8 +41,9 @@ void wave_vpi_init(const char *filename) {
     fsdb_wave_vpi::fsdbWaveVpi = std::make_shared<fsdb_wave_vpi::FsdbWaveVpi>(ffrObject::ffrOpenNonSharedObj((char *)filename), std::string(filename));
 
     if (!is_hierarchy_only_mode()) {
-        cursor.maxIndex = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1;
-        cursor.maxTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.at(fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size() - 1);
+        auto xtagSize   = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.size();
+        cursor.maxIndex = xtagSize > 0 ? xtagSize - 1 : 0;
+        cursor.maxTime  = xtagSize > 0 ? fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec.at(xtagSize - 1) : 0;
     }
 #else
     wellen_initialize(filename);
@@ -80,7 +81,15 @@ void wave_vpi_loop() {
         return;
     }
 
-    VL_FATAL(cursor.maxIndex != 0, "cursor.maxIndex should not be 0");
+    if (cursor.maxIndex == 0) {
+        if (!is_quiet_mode()) {
+            fmt::println("[wave_vpi::loop] short waveform, skip main loop. cursor.maxIndex => {} cursor.maxTime => {}", cursor.maxIndex, cursor.maxTime);
+        }
+        vpi_compat::endOfSimulation();
+        fflush(stdout);
+        fflush(stderr);
+        _exit(0);
+    }
     if (!is_quiet_mode()) {
         fmt::println("[wave_vpi::loop] START! cursor.maxIndex => {} cursor.maxTime => {}", cursor.maxIndex, cursor.maxTime);
     }

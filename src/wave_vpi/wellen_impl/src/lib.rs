@@ -1391,7 +1391,7 @@ pub extern "C" fn wellen_get_index_from_time(time: u64) -> u64 {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_get_max_index() -> u64 {
     let time_table = get_time_table();
-    (time_table.len() - 1) as u64
+    time_table.len().saturating_sub(1) as u64
 }
 
 /// Get time precision from waveform file
