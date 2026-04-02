@@ -18,7 +18,7 @@ toolchain("nosim", function()
         local nosim = find_file("nosim", table.join2({ paths }, "$(env PATH)"))
         if nosim then
             toolchain:config_set("nosim", nosim)
-            cprint("${dim}checking for nosim ... ${color.success}%s", path.filename(wave_vpi_main))
+            cprint("${dim}checking for nosim ... ${color.success}%s", path.filename(nosim))
         else
             cprint("${dim}checking for nosim ... ${color.nothing}${text.nothing}")
             raise("[toolchain] nosim not found!")
