@@ -285,7 +285,12 @@ fn get_or_init_hierarchy_cache() -> Arc<Vec<HierarchyEntry>> {
     *guard = Some(Arc::clone(&collected));
 
     // Persist to file for next run.
-    if let Err(e) = save_cache(&cache_path, &collected, current_mtime, source_path.as_deref()) {
+    if let Err(e) = save_cache(
+        &cache_path,
+        &collected,
+        current_mtime,
+        source_path.as_deref(),
+    ) {
         log::warn!("[hierarchy_cache] Failed to save cache file: {}", e);
     } else {
         log::info!(
@@ -690,8 +695,11 @@ mod tests {
 
     #[test]
     fn test_binary_cache_missing_file() {
-        let loaded =
-            try_load_cache("/tmp/verilua_nonexistent_bin_cache_xyz", Some(123), Some("/a"));
+        let loaded = try_load_cache(
+            "/tmp/verilua_nonexistent_bin_cache_xyz",
+            Some(123),
+            Some("/a"),
+        );
         assert!(loaded.is_none());
     }
 

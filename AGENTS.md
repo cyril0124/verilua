@@ -59,7 +59,7 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 
 - If you need to check multiple Lua files, run `xmake r lsp-check-lua` serially, one file at a time. Do not run multiple checks in parallel.
 - Make sure the output contains no errors or warnings.
-- After modifying any Rust code, run `cargo clippy --all-targets --all-features -- -D warnings` and fix all warnings.
+- After modifying any Rust code, run `cargo fmt` and then `cargo clippy --all-targets --all-features -- -D warnings`; fix all warnings.
 
 ## Running Tests
 
