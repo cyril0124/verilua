@@ -1,0 +1,131 @@
+{
+  "pins": {
+    "boost_unordered": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "MikePopoloski",
+        "repo": "boost_unordered"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v1.85.1",
+      "revision": "0c35831302a5730052582de15b31a71c2c52f1e4",
+      "url": "https://api.github.com/repos/MikePopoloski/boost_unordered/tarball/refs/tags/v1.85.1",
+      "hash": "sha256-II3LhaZTAmqn0xcWuSF01czy/IGobvpiGAgZ4EjJ6aY="
+    },
+    "debugger-lua": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "slembcke",
+        "repo": "debugger.lua"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "834dc0c5db329b2e7eab8c471b62a7d69023076a",
+      "url": "https://github.com/slembcke/debugger.lua/archive/834dc0c5db329b2e7eab8c471b62a7d69023076a.tar.gz",
+      "hash": "sha256-LkFuFPc8uWh0pi44bCnthboRzUsJqKfotoW1Kms64MY="
+    },
+    "libassert": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "jeremy-rifkin",
+        "repo": "libassert"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v2.2.1",
+      "revision": "bd33ba116f209bf71761c58dccc2f3bf277e0824",
+      "url": "https://api.github.com/repos/jeremy-rifkin/libassert/tarball/refs/tags/v2.2.1",
+      "hash": "sha256-ognudQ3NgpYxiDEucbIRWYQPs0XLRUQwg1eMxJm+aPs="
+    },
+    "luajit-pro": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cyril0124",
+        "repo": "luajit-pro"
+      },
+      "branch": "master",
+      "submodules": true,
+      "revision": "a26604a0ca677d88fb60cf86f9d68970dca95eed",
+      "url": null,
+      "hash": "sha256-rAJLzFpTQOPqvfsOPr5qcoxWxKFFgmMy9/lIOEADDqk="
+    },
+    "luajit2": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cyril0124",
+        "repo": "luajit2"
+      },
+      "branch": "op53-dev",
+      "submodules": false,
+      "revision": "3c7b05b4f8d2912be1876e4cbcbe81eb8ae2d120",
+      "url": "https://github.com/cyril0124/luajit2/archive/3c7b05b4f8d2912be1876e4cbcbe81eb8ae2d120.tar.gz",
+      "hash": "sha256-nTuCVXPn3yuCz15eaZoQP87GsOEK8hUqOh1IOiObkX8="
+    },
+    "luajit_tcc": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cyril0124",
+        "repo": "luajit_tcc"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "349f4c497f46d9b4c87932ae3cacf70e28bc9ea3",
+      "url": "https://github.com/cyril0124/luajit_tcc/archive/349f4c497f46d9b4c87932ae3cacf70e28bc9ea3.tar.gz",
+      "hash": "sha256-957AhWsBYBdhE/I9RRSvE8uwQBpKclF3kC2Dl0zfBfI="
+    },
+    "mimalloc": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "microsoft",
+        "repo": "mimalloc"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v2.2.3",
+      "revision": "d8791e5336c6c31966c8514b22a890fa01754a4a",
+      "url": "https://api.github.com/repos/microsoft/mimalloc/tarball/refs/tags/v2.2.3",
+      "hash": "sha256-B0gngv16WFLBtrtG5NqA2m5e95bYVcQraeITcOX9A74="
+    },
+    "nixpkgs": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "NixOS",
+        "repo": "nixpkgs"
+      },
+      "branch": "nixos-25.11",
+      "submodules": false,
+      "revision": "48652e9d5aea46e555b3df87354280d4f29cd3a3",
+      "url": "https://github.com/NixOS/nixpkgs/archive/48652e9d5aea46e555b3df87354280d4f29cd3a3.tar.gz",
+      "hash": "sha256-xB30bbAp0e7ogSEYyc126mAJMt4FRFh8wtm6ADE1xuM="
+    },
+    "slang-common": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cyril0124",
+        "repo": "slang-common"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "fa648a420351fe66c6f9dbe508657dfcdd26e626",
+      "url": "https://github.com/cyril0124/slang-common/archive/fa648a420351fe66c6f9dbe508657dfcdd26e626.tar.gz",
+      "hash": "sha256-wYFbbSOHJqZUhwJf6KFRDjg6EMB6yiR7sqUd7Dlo4nw="
+    }
+  },
+  "version": 7
+}
