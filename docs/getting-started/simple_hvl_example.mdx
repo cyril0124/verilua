@@ -38,7 +38,7 @@ endmodule
 ## 1. 创建一个 Lua 脚本文件
 下面是本节中使用到的 Lua 脚本文件，它将会在 Verilua 中被调用，从而控制硬件仿真的过程，这类似 C 语言中的 main 函数。
 ```lua title="main.lua"
-verilua "appendTasks" {
+fork {
     function()
         -- sim.dump_wave("./wave/hello_world.vcd") -- dump wave file
 
@@ -106,9 +106,9 @@ final {
 <details>
 <summary>上述代码的相关语法解释</summary>
 
-* `verilua "appendTasks" ` 这个语句用于创建一个新的 task， Verilua 中所有的 task 能够以类似并行的方式进行调用；
-:::tip[更简洁的方式创建 task]
-推荐使用 `fork` 来创建 task，例如: 
+* `fork` 这个语句用于创建一个或多个新的 task，Verilua 中所有的 task 能够以类似并行的方式进行调度；
+:::tip[创建 task]
+推荐直接使用 `fork` 来创建 task，例如: 
 ```lua
 fork {
     function ()

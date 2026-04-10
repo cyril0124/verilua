@@ -1,4 +1,4 @@
-verilua "appendTasks" {
+fork {
     function()
         -- sim.dump_wave("./wave/hello_world.vcd") -- dump wave file
 
