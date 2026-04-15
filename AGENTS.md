@@ -38,7 +38,8 @@
 
 ## Code Style
 
-- Lua code must include EmmyLua or LuaCATS type annotations.
+- Lua code must include LuaCATS type annotations written for EmmyLuaLs: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust`.
+- Annotation reference: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust/tree/main/docs/emmylua_doc/annotations_EN`
 - Lua code must follow LuaJIT best practices and account for JIT performance characteristics.
 - Follow the best practices already used in the existing codebase.
 - Add concise English comments for important or non-obvious code blocks when they improve readability.
