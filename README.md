@@ -1,22 +1,5 @@
 <div align="center">
-  <h1 align="center">
-    Verilua
-    <br />
-    <a href="https://cyril0124.github.io/verilua/" style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background-color: #ffffff;
-        border-radius: 16px;
-        width: 100%;
-        max-width: 800px;
-        height: 200px;
-        margin: 0 auto;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    ">
-      <img src="./docs-website/static/img/logo.svg" height="200" alt="Verilua">
-    </a>
-  </h1>
+  <img src="./docs-website/static/img/logo.svg" height="96" alt="Verilua alternate logo">
 </div>
 
 <div align="center">
@@ -88,4 +71,3 @@ verilua/
 - **[Cocotb](https://github.com/cocotb/cocotb)** - A source of inspiration for Verilua's design and functionality.
 - **[Slang](https://github.com/MikePopoloski/slang)** - A robust parser for Verilog/SystemVerilog files, integral to many tools in this repository.
 - **[Xmake](https://github.com/xmake-io/xmake)** - The foundation of our streamlined and efficient build system.
-

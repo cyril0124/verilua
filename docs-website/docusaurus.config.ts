@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Verilua',
   tagline: 'An Open Source Versatile Framework for Efficient Hardware Verification and Analysis Using LuaJIT',
-  favicon: 'img/favicon.svg',
+  favicon: 'img/logo-no-wordmark.svg',
 
   // Set the production url of your site here
   url: 'https://cyril0124.github.io',
@@ -83,7 +83,7 @@ const config: Config = {
       title: 'Verilua',
       logo: {
         alt: 'Verilua Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo-no-wordmark.svg',
       },
       items: [
         {

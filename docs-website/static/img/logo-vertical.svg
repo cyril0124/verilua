@@ -1,7 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="23 23 408 154" role="img" aria-labelledby="logo-title logo-desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="82 24 196 210" role="img" aria-labelledby="logo-title logo-desc">
   <title id="logo-title">Verilua logo</title>
-  <desc id="logo-desc">A minimalist Verilua logo with a stylized V mark and wordmark.</desc>
+  <desc id="logo-desc">A minimalist Verilua logo with a stylized V mark and wordmark, vertical layout.</desc>
   <defs>
+    <!-- userSpaceOnUse coords are in the path's local coordinate system, unchanged from original -->
     <linearGradient id="mark-gradient" x1="28" y1="24" x2="116" y2="132" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#29C2FF"/>
       <stop offset="1" stop-color="#5B5DFF"/>
@@ -24,17 +25,20 @@
       .wordmark {
         fill: #0F172A;
         font-family: "Inter", "Segoe UI", "Arial", sans-serif;
-        font-size: 74px;
+        font-size: 52px;
         font-weight: 700;
         letter-spacing: 0.5px;
+        text-anchor: middle;
       }
     </style>
   </defs>
 
-  <g transform="translate(24 24)">
+  <!-- V mark centered horizontally: center of V is x=72, canvas center x=180, so translate x=108 -->
+  <g transform="translate(108 24)">
     <path class="mark" d="M20 20 L72 132 L124 20"/>
     <path class="accent" d="M46 58 H72 V84 H90"/>
   </g>
 
-  <text class="wordmark" x="180" y="125">Verilua</text>
+  <!-- Wordmark centered below the V mark (V bottom is at y=156, text baseline at y=225) -->
+  <text class="wordmark" x="180" y="215">Verilua</text>
 </svg>

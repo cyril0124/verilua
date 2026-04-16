@@ -1,7 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="23 23 408 154" role="img" aria-labelledby="logo-title logo-desc">
-  <title id="logo-title">Verilua logo</title>
-  <desc id="logo-desc">A minimalist Verilua logo with a stylized V mark and wordmark.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="107 23 146 154" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">Verilua mark</title>
+  <desc id="logo-desc">A minimalist Verilua V mark.</desc>
   <defs>
+    <!-- userSpaceOnUse coords are in the path's local coordinate system -->
     <linearGradient id="mark-gradient" x1="28" y1="24" x2="116" y2="132" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#29C2FF"/>
       <stop offset="1" stop-color="#5B5DFF"/>
@@ -21,20 +22,11 @@
         stroke-linecap: round;
         stroke-linejoin: round;
       }
-      .wordmark {
-        fill: #0F172A;
-        font-family: "Inter", "Segoe UI", "Arial", sans-serif;
-        font-size: 74px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-      }
     </style>
   </defs>
 
-  <g transform="translate(24 24)">
+  <g transform="translate(108 24)">
     <path class="mark" d="M20 20 L72 132 L124 20"/>
     <path class="accent" d="M46 58 H72 V84 H90"/>
   </g>
-
-  <text class="wordmark" x="180" y="125">Verilua</text>
 </svg>
