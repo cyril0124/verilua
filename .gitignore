@@ -1,33 +1,53 @@
+# Local notes and prompts
+brainstorm-*.md
+review-*.md
+prompt.md
+
+# Editor and language server files
+.cache/
 .metals/
 .vscode/
-.cache/
+compile_commands.json
+
+# NFS temporary files
 */.nfs*
 .nfs*
+
+# Local tool environments and caches
 .luajit_pro/
-tmp/
-shared/
-build/
-test/
-/.xmake
 .verilua/
+/.xmake
+scripts/.xmake/cache
+scripts/.xmake/linux
 conan_installed/
-tmp/
-*.log
-result
-FsdbReader
+
+# Build, test, and temporary outputs
+build/
 target/
+test/
+tmp/
 tmp_lua_file_dir/
 tmp_lua_lib_dir/
-tools/dpi_exporter
+shared/
+result
+*.log
+
+# Generated tool binaries
 tools/cov_exporter
-tools/testbench_gen
-tools/signal_db_gen
-tools/wave_vpi_*
-tools/verilua_prebuild
+tools/dpi_exporter
 tools/nosim
-scripts/.xmake/linux
+tools/signal_db_gen
+tools/testbench_gen
+tools/verilua_prebuild
+tools/wave_vpi_*
+
+# Waveform and simulator artifacts
 .wave_vpi.meta.yaml
 .wave_vpi.signal.bin
 .wave_vpi_fsdb.meta.json
 .wave_vpi_fsdb.timetable
 .verilua_hierarchy_cache
+.bpad
+bpad_*
+FsdbReader
+xcelium.d/

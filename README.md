@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./docs-website/static/img/logo.svg" height="96" alt="Verilua alternate logo">
+  <img src="./docs-website/static/img/logo.svg" height="96" alt="Verilua logo">
 </div>
 
 <div align="center">
