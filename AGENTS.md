@@ -67,6 +67,7 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 - Run only the smallest relevant build or test commands for the files you changed. Do not run a full-project build such as `xmake b`.
 - When adding or changing features, include relevant tests.
 - To run the broader regression suite, use `xmake run test`.
+- To run the full regression suite in one command, use `./test-all.sh` (sets `VL_TEST_JOBS` to `nproc/2` automatically). Extra env vars such as `STOP_ON_FAIL=1` or `VL_TEST_FILTER=<token>` can be prepended as usual.
 - To control parallelism for `xmake run test`, set `VL_TEST_JOBS=<n>`. The default is `4`.
     - Use `VL_TEST_FILTER=<token1,token2>` to run only matching test jobs.
     - Use `VL_TEST_LIST=1` to list matched test jobs without running them.
