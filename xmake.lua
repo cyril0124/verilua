@@ -263,8 +263,15 @@ target("build_all_tools", function()
         end
 
         import("lib.detect.find_file")
-        if find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
-            os.exec("xmake build -y -v wave_vpi_main_fsdb")
+        if find_file("verdi", { "$(env PATH)" }) then
+            local ok = try { function()
+                os.exec("xmake build -y -v wave_vpi_main_fsdb")
+                return true
+            end }
+            if not ok then
+                cprint(
+                    "${yellow}[WARN] skip wave_vpi_main_fsdb build: verdi was found but FSDB dependencies are not usable${clear}")
+            end
         end
     end)
 end)
@@ -741,9 +748,9 @@ target("test", function()
             has_vcs = true
             table.insert(simulators, "vcs")
         end
-        if find_file("xrun", { "$(env PATH)" }) then
-            table.insert(simulators, "xcelium")
-        end
+        -- if find_file("xrun", { "$(env PATH)" }) then
+        --     table.insert(simulators, "xcelium")
+        -- end
         assert(#simulators > 0, "No simulators found!")
 
         local verilator_version

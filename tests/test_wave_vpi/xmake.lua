@@ -89,7 +89,7 @@ target("run_test", function()
         }
 
         import("lib.detect.find_file")
-        if find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
+        if find_file("wave_vpi_main_fsdb", { "$(env PATH)" }) then
             wtypes[#wtypes + 1] = "fsdb"
         end
 

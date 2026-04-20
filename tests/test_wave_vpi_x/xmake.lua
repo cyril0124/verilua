@@ -84,7 +84,7 @@ target("run_test", function()
             os.exec("xmake r -P . gen_wave")
 
             -- Test with FSDB
-            if find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
+            if find_file("wave_vpi_main_fsdb", { "$(env PATH)" }) and find_file("verdi", { "$(env PATH)" }) then
                 os.setenv("WTYPE", "fsdb")
                 os.exec("xmake b -P . sim_wave")
                 os.exec("xmake r -P . sim_wave")

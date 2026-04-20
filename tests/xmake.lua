@@ -377,7 +377,7 @@ add_group_target("test-benchmarks-wave-vpi", function(ctx)
     -- FSDB benchmark (conditional: requires vcs + verdi + wave_vpi_main_fsdb)
     local has_fsdb = ctx.find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
         and ctx.find_file("vcs", { "$(env PATH)" })
-        and os.getenv("VERDI_HOME")
+        and ctx.find_file("verdi", { "$(env PATH)" })
     if has_fsdb then
         ctx.run_case("wave_vpi_bench_fsdb/gen", function()
             ctx.run_cmd(cwd, "xmake build -P . wave_vpi_gen_fsdb")

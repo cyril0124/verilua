@@ -99,34 +99,38 @@ target("wave_vpi_main", function()
 end)
 
 target("wave_vpi_main_fsdb", function()
-    if os.getenv("VERDI_HOME") then
-        wave_vpi_main_common()
-        add_files(path.join(curr_dir, "src", "vpi_compat_fsdb.cpp"))
+    wave_vpi_main_common()
+    add_files(path.join(curr_dir, "src", "vpi_compat_fsdb.cpp"))
 
-        if not os.getenv("NO_DEPS") then
-            add_deps("libverilua_wave_vpi")
-        end
-
-        local verdi_home = os.getenv("VERDI_HOME")
-
-        add_includedirs(path.join(verdi_home, "share", "FsdbReader"))
-
-        add_links("nffr", "nsys", "z")
-        add_linkdirs(path.join(verdi_home, "share", "FsdbReader", "LINUX64"))
-        add_rpathdirs(path.join(verdi_home, "share", "FsdbReader", "LINUX64"))
-
-        add_defines("USE_FSDB")
-
-        before_build(function(target)
-            assert(os.host() == "linux", "[wave_vpi_main_fsdb] `wave_vpi_main_fsdb` is only supported on linux")
-            print("[wave_vpi_main_fsdb] verdi_home: " .. verdi_home)
-        end)
-    else
-        set_kind("phony")
-        on_build(function(target)
-            raise("[wave_vpi_main_fsdb] VERDI_HOME is not defined!")
-        end)
+    if not os.getenv("NO_DEPS") then
+        add_deps("libverilua_wave_vpi")
     end
+
+    add_links("nffr", "nsys", "z")
+    add_defines("USE_FSDB")
+
+    before_build(function(target)
+        assert(os.host() == "linux", "[wave_vpi_main_fsdb] `wave_vpi_main_fsdb` is only supported on linux")
+
+        local verdi = try { function() return os.iorunv("which", { "verdi" }):trim() end }
+        assert(verdi and verdi ~= "", "[wave_vpi_main_fsdb] `verdi` is not found in PATH!")
+
+        local verdi_realpath = try { function() return os.iorunv("realpath", { verdi }):trim() end }
+        assert(verdi_realpath and verdi_realpath ~= "", "[wave_vpi_main_fsdb] failed to resolve verdi real path")
+        local verdi_bin = verdi_realpath
+        local verdi_home = path.directory(path.directory(verdi_bin))
+        local fsdb_reader_dir = path.join(verdi_home, "share", "FsdbReader")
+        local fsdb_reader_lib_dir = path.join(fsdb_reader_dir, "LINUX64")
+
+        assert(os.isdir(fsdb_reader_dir), "[wave_vpi_main_fsdb] FsdbReader directory not found: " .. fsdb_reader_dir)
+        assert(os.isdir(fsdb_reader_lib_dir), "[wave_vpi_main_fsdb] FsdbReader LINUX64 directory not found: " .. fsdb_reader_lib_dir)
+
+        target:add("includedirs", fsdb_reader_dir)
+        target:add("linkdirs", fsdb_reader_lib_dir)
+        target:add("rpathdirs", fsdb_reader_lib_dir)
+
+        print("[wave_vpi_main_fsdb] verdi_home: " .. verdi_home)
+    end)
 end)
 
 target("wave_vpi_wellen_impl", function()

@@ -158,10 +158,10 @@ target("run_test", function()
             cprint("${yellow}[WARN] skip vcd case: iverilog not found${clear}")
         end
 
-        if find_file("vcs", { "$(env PATH)" }) and find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
+        if find_file("vcs", { "$(env PATH)" }) and find_file("verdi", { "$(env PATH)" }) and find_file("wave_vpi_main_fsdb", { "$(env PATH)" }) then
             run_case("vcs", "fsdb", "[module_name_test] PASS fsdb", "sim_wave_fsdb.golden")
         else
-            cprint("${yellow}[WARN] skip fsdb case: vcs/verdi not found${clear}")
+            cprint("${yellow}[WARN] skip fsdb case: vcs/verdi/wave_vpi_main_fsdb not found${clear}")
         end
     end)
 end)

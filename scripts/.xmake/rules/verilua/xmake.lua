@@ -779,6 +779,7 @@ rule("verilua", function()
                     for j, eflag in ipairs(extra_xcelium_flags) do
                         if eflag:startswith("-timescale") then
                             local _timescale = xcelium_uflags[i + 1]
+                            assert(_timescale, "[on_build] `-timescale` should be followed by a value")
                             assert(
                                 _timescale:find("/"),
                                 "[on_build] timescale value for `-timescale` option may not be a valid timescale value(e.g. 1ns/1ns)"
@@ -818,11 +819,18 @@ rule("verilua", function()
             ---     add_values("xcelium.flags", "+define+XCELIUM_DUMP_VCD")
             --- ```
             if xcelium_dump_fsdb then
-                local verdi_home = os.getenv("VERDI_HOME")
+                local verdi = find_file("verdi", { "$(env PATH)" })
+                local verdi_realpath = verdi and try { function() return os.iorunv("realpath", { verdi }):trim() end }
+                local verdi_bin = assert(verdi_realpath,
+                    "[on_build] failed to resolve verdi real path when using XCELIUM_DUMP_FSDB")
+                local verdi_home = path.directory(path.directory(verdi_bin))
                 local verdi_pli_dir = path.join(verdi_home, "share", "PLI", "IUS", "LINUX64")
                 local ld_library_path = os.getenv("LD_LIBRARY_PATH") or ""
 
-                assert(verdi_home, "[on_build] VERDI_HOME is not set when using XCELIUM_DUMP_FSDB")
+                assert(os.isdir(verdi_pli_dir), "[on_build] Xcelium Verdi PLI directory not found: " .. verdi_pli_dir)
+                assert(os.isfile(path.join(verdi_pli_dir, "boot", "debpli.so")),
+                    "[on_build] Xcelium Verdi PLI boot library not found: " ..
+                    path.join(verdi_pli_dir, "boot", "debpli.so"))
                 os.setenv("LD_LIBRARY_PATH", verdi_pli_dir .. ":" .. ld_library_path)
 
                 extra_xcelium_flags[#extra_xcelium_flags + 1] =
@@ -1821,11 +1829,19 @@ verdi -f filelist.f -sv -nologo $@]]
 
                 -- By default, xcelium dump SHM waveform, fsdb waveform is only enabled when user explicitly define `XCELIUM_DUMP_FSDB` macro
                 if xcelium_dump_fsdb then
-                    local verdi_home = os.getenv("VERDI_HOME")
+                    local verdi = find_file("verdi", { "$(env PATH)" })
+                    local verdi_realpath = verdi and
+                        try { function() return os.iorunv("realpath", { verdi }):trim() end }
+                    local verdi_bin = assert(verdi_realpath,
+                        "[on_run] failed to resolve verdi real path when using XCELIUM_DUMP_FSDB")
+                    local verdi_home = path.directory(path.directory(verdi_bin))
                     local verdi_pli_dir = path.join(verdi_home, "share", "PLI", "IUS", "LINUX64")
                     local ld_library_path = os.getenv("LD_LIBRARY_PATH") or ""
 
-                    assert(verdi_home, "[on_run] VERDI_HOME is not set when using XCELIUM_DUMP_FSDB")
+                    assert(os.isdir(verdi_pli_dir), "[on_run] Xcelium Verdi PLI directory not found: " .. verdi_pli_dir)
+                    assert(os.isfile(path.join(verdi_pli_dir, "boot", "debpli.so")),
+                        "[on_run] Xcelium Verdi PLI boot library not found: " ..
+                        path.join(verdi_pli_dir, "boot", "debpli.so"))
                     os.setenv("LD_LIBRARY_PATH", verdi_pli_dir .. ":" .. ld_library_path)
 
                     run_flags[#run_flags + 1] =

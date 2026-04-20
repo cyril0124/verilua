@@ -94,7 +94,7 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
     - `SIM=xcelium xmake run build_libverilua`
     - `SIM=wave_vpi xmake run build_libverilua`
 - If you modify `wave_vpi`, run `xmake b wave_vpi_main`.
-- Run `xmake b wave_vpi_main_fsdb` only on Linux with `VERDI_HOME` set.
+- Run `xmake b wave_vpi_main_fsdb` only on Linux with `verdi` available in `PATH`.
 - If you modify `testbench_gen`, run `xmake b testbench_gen`.
 - If you modify `signal_db_gen`, run `xmake b signal_db_gen` and `xmake b libsignal_db_gen`.
 - If you modify `dpi_exporter`, run `xmake b dpi_exporter`.

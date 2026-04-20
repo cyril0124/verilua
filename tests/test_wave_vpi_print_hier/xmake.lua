@@ -185,10 +185,10 @@ target("run_test", function()
         run_case("verilator", "fst", "sim_wave.golden")
 
         import("lib.detect.find_file")
-        if find_file("vcs", { "$(env PATH)" }) and find_file("verdi", { "$(env PATH)" }) and os.getenv("VERDI_HOME") then
+        if find_file("vcs", { "$(env PATH)" }) and find_file("verdi", { "$(env PATH)" }) and find_file("wave_vpi_main_fsdb", { "$(env PATH)" }) then
             run_case("vcs", "fsdb", "sim_wave_fsdb.golden")
         else
-            cprint("${yellow}[WARN] skip fsdb golden case: vcs/verdi not found${clear}")
+            cprint("${yellow}[WARN] skip fsdb golden case: vcs/verdi/wave_vpi_main_fsdb not found${clear}")
         end
     end)
 end)
