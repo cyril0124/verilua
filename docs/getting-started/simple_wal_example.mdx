@@ -10,6 +10,18 @@ WAL 是一种利用编程语言自动化波形分析的方法。Verilua 采用 L
 
 本节所使用的示例代码可以在 [这里](https://github.com/cyril0124/verilua/tree/master/examples/WAL) 找到。
 
+```mermaid
+flowchart LR
+    A[RTL Counter.v] --> B[HVL target gen_wave]
+    C[main.lua] --> B
+    D[Monitor.lua] --> B
+    B --> E[Generate waveform test.vcd]
+    E --> F[WAL target sim_wave]
+    G[main_for_wal.lua] --> F
+    D --> F
+    F --> H[Replay waveform and analyze signals]
+```
+
 ## 1. 生成波形
 
 生成波形主要是使用到了 Verilua 的 HVL 场景，可以现查看[这里](./simple_hvl_example.mdx)的内容对 HVL 场景的使用有一个基本的了解。
@@ -251,6 +263,16 @@ Verilua 会自动调用 testbench_gen 工具生成一个名为 `tb_top` 的 test
 4. 添加 DPI 接口
 
 因此波形文件的顶层是 `tb_top`，而不是 `Counter`。
+
+```mermaid
+flowchart TD
+    A[gen_wave HVL run] --> B[testbench_gen creates tb_top]
+    B --> C[tb_top wraps DUT and dumps waveform]
+    C --> D[test.vcd top module is tb_top]
+    D --> E[sim_wave WAL run]
+    E --> F[cfg.top = tb_top]
+    F --> G[Access testbench signals and DUT internals]
+```
 
 访问方式：
 - `cfg.top = "tb_top"` → 从 testbench 层访问（当前设置）

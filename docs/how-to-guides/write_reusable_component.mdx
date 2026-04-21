@@ -33,6 +33,27 @@ return Monitor
 
 如果直接将此组件用于 DUT_B，就必须修改组件内部代码（将 `valid` 改为 `vld`，`value` 改为 `value_2`），这样组件就失去了复用性。
 
+```mermaid
+flowchart LR
+    subgraph Without AliasBundle
+        M1[Monitor uses valid and value]
+        A1[DUT_A signals: valid and value]
+        B1[DUT_B signals: vld and value_2]
+        M1 --> A1
+        M1 -. rewrite needed .-> B1
+    end
+
+    subgraph With AliasBundle
+        M2[Monitor uses aliases valid and value]
+        AB[AliasBundle surface]
+        A2[DUT_A mapping]
+        B2[DUT_B mapping]
+        M2 --> AB
+        A2 --> AB
+        B2 --> AB
+    end
+```
+
 ## 解决方案一：使用 Bundle（仍不理想）
 
 使用 `Bundle` 可以将信号打包，但信号名称仍然固定。在 DUT_A 中可以这样使用：
@@ -127,6 +148,31 @@ local mon = Monitor(signals_bdl)
 我们的 `Monitor` 期望同时接收 `valid` 和 `value`，直接复用会失败。此时可以使用 **虚拟信号（fake_chdl）** 来解决。
 
 虚拟信号是一个实现了 `CallableHDL` 接口的 Lua 对象，可以模拟真实信号的行为。通过将虚拟信号注入到 `AliasBundle` 中，我们可以满足组件对信号的依赖。
+
+```mermaid
+flowchart LR
+    subgraph Component
+        M[Monitor]
+    end
+
+    subgraph AliasBundle
+        V[valid]
+        X[value]
+    end
+
+    subgraph DUT_B
+        DV[vld]
+    end
+
+    subgraph Adapter
+        F[fake_chdl for value]
+    end
+
+    M --> V
+    M --> X
+    DV --> V
+    F --> X
+```
 
 ### 示例：在 DUT_B 中注入虚拟 value 信号
 

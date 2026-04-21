@@ -25,6 +25,46 @@ import TabItem from '@theme/TabItem';
 
     用于任务同步与通信，通过事件机制实现任务间的协调，用户可创建不同 `ehdl` 来同步任务执行顺序。需要注意的是，Event Handle 并非用于直接操作信号，而是用于管理任务之间的同步与通信，确保任务按预期顺序执行。
 
+下面的 Mermaid 图与下方原图保持同一组概念关系，主要用于快速浏览各数据结构之间的联系：
+
+```mermaid
+flowchart TD
+    subgraph SV["Verilog / SystemVerilog"]
+        RTL([RTL signal])
+    end
+
+    subgraph VL["Verilua"]
+        direction TB
+
+        subgraph VP["VPIML"]
+            CH[ComplexHandle]
+        end
+
+        C([CallableHDL])
+        P([ProxyTable Handle])
+        B([Bundle])
+        AB([Alias Bundle])
+        DB([Decoupled<br/>Bundle])
+        VB([Valid<br/>Bundle])
+        NB([Normal<br/>Bundle])
+        EH([Event Handle])
+        TS[Task Synchronization]
+    end
+
+    RTL --> CH
+    CH --> C
+    CH --> P
+
+    C --> B
+    C --> AB
+
+    B --> DB
+    B --> VB
+    B --> NB
+
+    EH --> TS
+```
+
 <figure>
   <img src={require('./images/verilua_dsl_datastructure.png').default} alt="Verilua data structure" style={{width: '100%'}} />
   <figcaption>Verilua data structure</figcaption>

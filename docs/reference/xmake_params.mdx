@@ -208,6 +208,19 @@ fork {
 
 ## 仿真运行配置
 
+```mermaid
+flowchart LR
+    A[xmake target] --> B[add_rules / add_toolchains / add_files]
+    B --> C[cfg.tb_gen_flags]
+    C --> D[testbench_gen phase]
+    D --> E[Generated tb_top.sv]
+    E --> F[sim.flags compile phase]
+    F --> G[Simulator binary or backend target]
+    H[sim.run_prefix] --> G
+    G --> I[sim.run_flags]
+    I --> J[Final run command]
+```
+
 ### 添加编译参数
 
 对应配置：`set_values("<sim>.flags", <flags used in compilation>)` / `add_values("<sim>.flags", "<flags used in compilation>")`
