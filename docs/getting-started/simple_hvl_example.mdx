@@ -221,9 +221,9 @@ endmodule
 
 * `sim.finish()` 用于控制仿真器结束仿真。
 
-* `verilua "startTask"` 用于添加仿真开始执行时调用的函数，而 `verilua "finishTask"` 则用于添加仿真结束执行时调用的函数。这两个函数都能添加多个 function 块，例如：
+* `initial { ... }` 用于添加仿真开始执行时调用的函数，而 `final { ... }` 则用于添加仿真结束执行时调用的函数。这两个函数都能添加多个 function 块，例如：
     ```lua
-    verilua "startTask" {
+    initial {
         function ()
             print("Simulation started! 1")
         end,

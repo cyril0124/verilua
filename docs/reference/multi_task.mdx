@@ -44,7 +44,7 @@ sequenceDiagram
 ## 创建任务
 在 Verilua 中，我们可以通过 `fork` 来创建任务，并将其添加到 Scheduler 中，同时被创建的任务会随机分配一个唯一的任务 ID。例如：
 ```lua
-fork { -- 也可以使用 `verilua "appendTasks"`，不过目前推荐使用 fork 来创建任务
+fork {
     function ()
         print("fork task 1")
     end,
@@ -387,7 +387,7 @@ xmake run TestDesign
 
 Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，分别称为 Start Task 和 Finish Task。
 
-- 通过 `initial { ... }` / `verilua "startTask" { ... }` 创建 Start Task；
+- 通过 `initial { ... }` 创建 Start Task；
 
     Start Task 可以由多个函数组成。
 
@@ -398,30 +398,14 @@ Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，
         end,
         -- Other tasks...
     }
-
-    -- or
-    verilua "startTask" {
-        function ()
-            print("Simulation started!")
-        end,
-        -- Other tasks...
-    }
     ```
 
-- 通过 `final { ... }` / `verilua "finishTask" { ... }` 创建 Finish Task。
+- 通过 `final { ... }` 创建 Finish Task。
 
     Finish Task 可以由多个函数组成。
 
     ```lua
     final {
-        function ()
-            print("Simulation finished!")
-        end,
-        -- Other tasks...
-    }
-
-    -- or
-    verilua "finishTask" {
         function ()
             print("Simulation finished!")
         end,
