@@ -128,7 +128,7 @@ target("wave_vpi_gen_fsdb", function()
         import("lib.detect.find_file")
         local has_fsdb = find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
             and find_file("vcs", { "$(env PATH)" })
-            and os.getenv("VERDI_HOME")
+            and find_file("verdi", { "$(env PATH)" })
         if has_fsdb then
             target:set("toolchains", "@vcs")
         else
@@ -145,7 +145,7 @@ target("wave_vpi_gen_fsdb", function()
         import("lib.detect.find_file")
         local has_fsdb = find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
             and find_file("vcs", { "$(env PATH)" })
-            and os.getenv("VERDI_HOME")
+            and find_file("verdi", { "$(env PATH)" })
         local sim = has_fsdb and "vcs" or "iverilog"
         local build_dir = path.join(curr_dir, "build", sim, "wave_vpi_gen_fsdb")
         local fsdb_file = path.join(build_dir, "bench.vcd.fsdb")
@@ -222,7 +222,7 @@ target("benchmarks", function()
 
         for _, sim in ipairs(simulators) do
             for _, jit_v in ipairs({ "on", "off" }) do
-                local sum_value = 0
+                local sum_value = 0.0
                 local extra_info = format("sim version: %s", simulator_versions[sim])
                 for _, case in ipairs(cases) do
                     local command_name = case .. "__sim_" .. sim .. "__jit_" .. jit_v
@@ -289,7 +289,7 @@ target("benchmarks", function()
 
             local has_fsdb = find_file("wave_vpi_main_fsdb", { "$(env PATH)" })
                 and find_file("vcs", { "$(env PATH)" })
-                and os.getenv("VERDI_HOME")
+                and find_file("verdi", { "$(env PATH)" })
             if has_fsdb then
                 table.insert(wave_formats, {
                     name = "fsdb",
@@ -300,7 +300,7 @@ target("benchmarks", function()
                 })
             else
                 cprint(
-                    "${yellow}[WARN] skip wave_vpi FSDB benchmarks: wave_vpi_main_fsdb/vcs/VERDI_HOME not found${clear}")
+                    "${yellow}[WARN] skip wave_vpi FSDB benchmarks: wave_vpi_main_fsdb/vcs/verdi not found${clear}")
             end
 
             for _, fmt in ipairs(wave_formats) do
