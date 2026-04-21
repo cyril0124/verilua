@@ -10,7 +10,7 @@ Verilua 提供了一些接口用来控制底层的仿真器：
         - `trace_file_path` (可选, string)：波形文件名。如果未指定，默认生成 `test.vcd`（或 `test.vcd.fsdb`）。
     - **说明**：
         - 对于 Verilator，需要在 `xmake.lua` 中添加 `add_values("verilator.flags", "--trace", "--no-trace-top")` 以启用波形生成。
-        - 对于 Xcelium，若未指定文件名，将使用 `waves.shm`；若指定，则根据文件扩展名决定波形格式（`.vcd` 为 VCD，`.fsdb` 为 FSDB）。FSDB 格式需设置 `VERDI_HOME` 并启用相应宏。
+        - 对于 Xcelium，若未指定文件名，将使用 `waves.shm`；若指定，则根据文件扩展名决定波形格式（`.vcd` 为 VCD，`.fsdb` 为 FSDB）。FSDB 格式需要 `PATH` 中可找到 `verdi`，Verilua 会从其真实路径推导安装目录并启用相应宏。
     - **示例**：
         ```lua
         sim.dump_wave() -- 默认 test.vcd
@@ -42,4 +42,3 @@ Verilua 提供了一些接口用来控制底层的仿真器：
         local ps = sim.get_sim_time("ps")      -- 转换为皮秒
         print(string.format("Time: %d ns", ns))
         ```
-

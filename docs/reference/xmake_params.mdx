@@ -6,72 +6,86 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
 :::
 
-## 必要参数
+## 概览
 
-必要参数为必须在 xmake.lua 中对应的 target 添加的，否则进行编译的时候会报错。
+这一页介绍 Verilua 在 `xmake.lua` 中常用的配置项，以及它们分别影响什么。
 
-1. `add_rules("verilua")`
+## 必需配置
 
-    对于所有的 HVL/WAL 场景下的工程，都需要在 xmake 的 target 中添加这一句配置，否则将无法正常使用 Verilua。
+这些配置必须在 `xmake.lua` 中对应的 target 里设置，否则构建或运行时会报错。
 
-1. `add_toolchains(<toolchain>)`
+### 启用 Verilua
 
-    添加具体的仿真器（Verilua 中称为仿真后端（Backend））。
-    
-    - 对于 HVL 场景，目前 `<toolchain>` 的可选值为 `@verilator`、`@iverilog`、`@vcs`、 `@xcelium`，分别对应了开源的 [Verilator](https://github.com/verilator/verilator)、开源的 [Icarus Verilog](https://github.com/steveicarus/iverilog)、商业的 Synopsys VCS、Cadence Xcelium 等仿真器。
-    - 对于 WAL 场景，目前 `<toolchain>` 的可选值为 `@wave_vpi`，`wave_vpi` 是 Verilua 开发的一个用于仿真波形的仿真后端，目前支持的波形格式为: VCD、FST、FSDB。
+对应配置：`add_rules("verilua")`
 
-2. `add_files(...)`
-    
-    添加需要进行仿真的文件，可以在一个语句中同时添加多个文件，也可以分为多个语句来添加多个文件。
-    
-    - 对于 HVL 场景，可以是 Verilog/SystemVerilog 文件、Lua 文件。
-        ```lua title="xmake.lua"
-        target("test", function()
-            add_rules("verilua")
-            add_toolchains("@verilator")
-            add_files("src/main.sv", "src/main.lua")
-            add_files("src/other.v")
+对于所有的 HVL/WAL 场景下的工程，都需要在 xmake 的 target 中添加这一句配置，否则将无法正常使用 Verilua。
 
-            -- ...
-        end)
-        ```
-    - 对于 WAL 场景，可以是波形文件、Lua文件。
-        ```lua title="xmake.lua"
-        target("test", function()
-            add_rules("verilua")
-            add_toolchains("@wave_vpi")
-            add_files("./test.vcd", "test.lua")
+### 选择仿真后端
 
-            -- ...
-        end)
-        ```
+对应配置：`add_toolchains(<toolchain>)`
 
-        :::warning[此时 `add_files` 只能添加**一个**波形文件]
+添加具体的仿真器（Verilua 中称为仿真后端（Backend））。
 
-        :::
+- 对于 HVL 场景，目前 `<toolchain>` 的可选值为 `@verilator`、`@iverilog`、`@vcs`、 `@xcelium`，分别对应了开源的 [Verilator](https://github.com/verilator/verilator)、开源的 [Icarus Verilog](https://github.com/steveicarus/iverilog)、商业的 Synopsys VCS、Cadence Xcelium 等仿真器。
+- 对于 WAL 场景，目前 `<toolchain>` 的可选值为 `@wave_vpi`，`wave_vpi` 是 Verilua 开发的一个用于仿真波形的仿真后端，目前支持的波形格式为: VCD、FST、FSDB。
 
-3. `set_values("cfg.top", <top module name>)`
+### 添加输入文件
 
-    <div id="cfg-top"></div>
+对应配置：`add_files(...)`
 
-    设置顶层模块的名称，这是 Verilua 访问信号层次结构的根节点，对于 HVL/WAL 场景，这个参数必须设置。
+添加需要进行仿真的文件，可以在一个语句中同时添加多个文件，也可以分为多个语句来添加多个文件。
 
-    - **HVL 场景**：通常设置为实际的顶层 DUT 名称（如 `Design`、`Counter`）
-      或 testbench_gen 生成的 testbench 名称（`tb_top`）
-    - **WAL 场景**：根据波形文件的层次结构设置，详见下方说明
+对于 HVL 场景，可以是 Verilog/SystemVerilog 文件、Lua 文件。
 
-    例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们顶层 DUT 模块的名称是 `Design`，因此可以这么设置：`set_values("cfg.top", "Design")`。
+```lua title="xmake.lua"
+target("test", function()
+    add_rules("verilua")
+    add_toolchains("@verilator")
+    add_files("src/main.sv", "src/main.lua")
+    add_files("src/other.v")
 
-4. `set_values("cfg.lua_main", <lua main file>)`
+    -- ...
+end)
+```
 
-    设置仿真时候执行的 lua 主脚本文件，对于 HVL/WAL 场景，这个参数必须设置，例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们的 lua 主脚本文件是 `LuaMain.lua`，因此可以这么设置：`set_values("cfg.lua_main", "LuaMain.lua")`。
+对于 WAL 场景，可以是波形文件、Lua文件。
 
-    `<lua main file>` 是一个具体的文件，可以包含路径。
+```lua title="xmake.lua"
+target("test", function()
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")
+    add_files("./test.vcd", "test.lua")
 
-### cfg.top 在不同场景下的设置指南
+    -- ...
+end)
+```
 
-#### HVL 场景（使用 @verilator、@iverilog、@vcs、@xcelium）
+:::warning[此时 `add_files` 只能添加**一个**波形文件]
+:::
+
+### 指定顶层模块
+
+<div id="cfg-top"></div>
+
+对应配置：`set_values("cfg.top", <top module name>)`
+
+设置顶层模块的名称，这是 Verilua 访问信号层次结构的根节点，对于 HVL/WAL 场景，这个参数必须设置。
+
+- **HVL 场景**：通常设置为实际的顶层 DUT 名称（如 `Design`、`Counter`）
+  或 testbench_gen 生成的 testbench 名称（`tb_top`）
+- **WAL 场景**：根据波形文件的层次结构设置，详见下方说明
+
+例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们顶层 DUT 模块的名称是 `Design`，因此可以这么设置：`set_values("cfg.top", "Design")`。
+
+### 指定 Lua 入口脚本
+
+对应配置：`set_values("cfg.lua_main", <lua main file>)`
+
+设置仿真时候执行的 lua 主脚本文件，对于 HVL/WAL 场景，这个参数必须设置，例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们的 lua 主脚本文件是 `LuaMain.lua`，因此可以这么设置：`set_values("cfg.lua_main", "LuaMain.lua")`。
+
+`<lua main file>` 是一个具体的文件，可以包含路径。
+
+### 顶层模块的设置指南
 
 通常情况下，cfg.top 应该指向实际的顶层模块名称：
 
@@ -85,8 +99,6 @@ cfg.top 应该指向生成的 testbench 模块：
 ```lua
 set_values("cfg.top", "tb_top")  -- 指向 testbench_gen 生成的模块
 ```
-
-#### WAL 场景（使用 @wave_vpi）
 
 cfg.top 应该设置为波形文件中的顶层模块名称。这取决于波形是如何生成的：
 
@@ -124,153 +136,182 @@ set_values("cfg.top", "top")  -- 或者你的实际顶层模块名
 :::
 
 
-## 可选参数
+## `testbench_gen` 配置
+
+### 传递额外的 `testbench_gen` 参数
+
+对应配置：`set_values("cfg.tb_gen_flags", <flags for testbench_gen>)` / `add_values("cfg.tb_gen_flags", "<flags for testbench_gen>")`
+
+设置需要传递给 `testbench_gen` 的额外参数，具体支持的 flags 可以参考 [这里](./testbench_generate.mdx) 的介绍。
+
+:::tip[xmake 中 `set_values` 和 `add_values` 的区别]
+- `set_values(<key>, <value>)` 对 `<key>` 进行单次赋值，调用多次 `set_values` 时，会覆盖之前的值，一个 `set_values` 只能有一个 `<value>`；
+
+```lua
+set_values("key", "value1") -- "key" = "value1"
+set_values("key", "value2") -- "key" = "value2", the previous value "value1" is overwritten
+```
+
+- `add_values(<key>, <value> ...)` 对 `<key>` 进行多次赋值，调用多次 `add_values` 时，会合并之前的值，一个 `add_values` 可以有多个 `<value>`。
+
+```lua
+add_values("key", "value1") -- "key" = "value1"
+add_values("key", "value2") -- "key" = {"value1", "value2"}, the previous value "value1" is merged
+
+-- equivalent to
+
+set_values("key", "value1", "value2")
+```
+
+- 也可以参考 xmake 文档中[此处](https://xmake.io/#/zh-cn/manual/specification)的说明。
+
+:::
+
+### 控制内部时钟生成
+
+对应配置：`set_values("cfg.no_internal_clock", "1")`
+
+禁用自动时钟生成，适用于需要自定义时钟的场景。此时需在主 Lua 文件中手动生成时钟信号。
+
+示例：
+
+```lua title="xmake.lua"
+target("my_test", function()
+    add_rules("verilua")
+    add_toolchains("@verilator")
+    set_values("cfg.top", "Top")
+    set_values("cfg.lua_main", "main.lua")
+    add_files("Top.v", "main.lua")
+    set_values("cfg.no_internal_clock", "1") -- 禁用自动时钟生成
+end)
+```
+
+对应的 main.lua 需手动生成时钟信号：
+
+```lua title="main.lua"
+fork {
+    clock_gen_task = function()
+        local clock = dut.clock:chdl()
+        while true do
+            clock:set(1)
+            await_time_ns(2)
+            clock:set(0)
+            await_time_ns(2)
+        end
+    end,
+
+    another_task = function()
+        -- ...
+    end
+}
+```
+
+## 仿真运行配置
+
+### 添加编译参数
+
+对应配置：`set_values("<sim>.flags", <flags used in compilation>)` / `add_values("<sim>.flags", "<flags used in compilation>")`
+
+用来添加需要传递给仿真器进行编译的额外参数，具体支持的 flags 可以与使用的仿真器相关。
+
+:::warning[注意]
+- 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs` 、 `xcelium`。
+- 对于 WAL 场景，这一设置不起作用。
+:::
+
+### 添加运行参数
+
+对应配置：`set_values("<sim>.run_flags", <flags used at runtime>)` / `add_values("<sim>.run_flags", "<flags used at runtime>")`
+
+用来添加需要传递给编译后的二进制文件运行时的额外参数。例如 Verilator 编译得到的二进制文件通常叫 `Vtb_top`，则可以使用 `set_values("verilator.run_flags", "--help")` 来添加一个运行时参数，这样在 xmake 执行 run 的时候就会加上这个参数。运行仿真的时候等价于 `Vtb_top --help`。
+
+:::warning[注意]
+- 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`、 `xcelium`。
+- 对于 WAL 场景，这一设置不起作用。
+:::
+
+### 添加运行前缀
+
+对应配置：`set_values("<sim>.run_prefix", <prefix flags used at runtime>)` / `add_values("<sim>.run_prefix", "<prefix flags used at runtime>")`
+
+用来添加需要传递给编译后的二进制文件运行时的额外前缀参数。例如 Verilator 编译得到的二进制文件通常叫 `Vtb_top`，则可以使用 `set_values("verilator.run_prefix", "gdb --args")` 来添加一个运行时前缀参数，这样在 xmake 执行 run 的时候就会加上这个参数。运行仿真的时候等价于 `gdb --args Vtb_top`。
+
+:::warning[注意]
+- 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`、 `xcelium`。
+- 对于 WAL 场景，这一设置不起作用。
+:::
+
+:::tip[`run_prefix` 和 `run_flags` 的位置区别]
+`<run_prefix> <binary> <run_flags>`
+:::
+
+## 构建目录配置
+
+### 设置构建目录名称
+
+对应配置：`set_values("cfg.build_dir_name", <build directory name>)`
+
+设置构建目录的名称，如果不设置，默认为 [`set_values("cfg.top", <top module name>)`](#cfg-top) 的值。
+
+:::note[构建目录生成的位置]
+默认情况下为：`./build/<simulator>/<top module name>`，如果使用了 `set_values("cfg.build_dir_name", "SomeName")`，那么会使用用户自定义的名称：`./build/<simulator>/SomeName`。这里的 `./` 默认表示当前工程中 `xmake.lua` 所在的目录；文档中的命令示例也默认在该目录下执行。
+:::
+
+### 设置构建目录位置
+
+对应配置：`set_values("cfg.build_dir_path", <build directory path>)`
+
+设置构建目录的父路径。例如：
+
+```lua
+set_values("cfg.build_dir_path", "/tmp/builds")
+```
+
+最终构建目录为 `<build_dir_path>/<build_dir_name>`，如未设置 `build_dir_name`，则默认为顶层模块名。如果 `cfg.build_dir_path` 使用相对路径，则同样默认相对于当前工程中 `xmake.lua` 所在的目录解析。
+
+## 其他配置
+
+### 加载用户自定义配置
 
 <div id="cfg-user-cfg"></div>
 
-1. `set_values("cfg.user_cfg", <user cfg file>)`
+对应配置：`set_values("cfg.user_cfg", <user cfg file>)`
 
-    设置用户自定义的配置文件，这个配置文件是一个 Lua 脚本，格式如下所示：
+设置用户自定义的配置文件，这个配置文件是一个 Lua 脚本，格式如下所示：
 
-    ```lua title="my_cfg.lua"
-    local cfg = {}
+```lua title="my_cfg.lua"
+local cfg = {}
 
-    cfg.value1 = 123
-    cfg.value2 = "hello"
+cfg.value1 = 123
+cfg.value2 = "hello"
 
-    return cfg
-    ```
+return cfg
+```
 
-    重点在于这个 Lua 脚本要返回一个 key-value 格式的 table。
+重点在于这个 Lua 脚本要返回一个 key-value 格式的 table。
 
-    当用户在 xmake.lua 中设置了这个配置文件的时候（`set_values("cfg.user_cfg", "my_cfg.lua")`），那么在仿真进行的时候，可以通过全局变量 `cfg` 获取到这个 table 中的值，例如：
-    
-    ```lua title="main.lua"
-    fork {
-        function ()
-            print("cfg.value1 => ", cfg.value1)
-            print("cfg.value2 => ", cfg.value2)
-        
-            assert(cfg.value1 == 123)
-            assert(cfg.value2 == "hello")
-        end
-    }
-    ```
+当用户在 xmake.lua 中设置了这个配置文件的时候（`set_values("cfg.user_cfg", "my_cfg.lua")`），那么在仿真进行的时候，可以通过全局变量 `cfg` 获取到这个 table 中的值，例如：
 
-2. `set_values("cfg.tb_gen_flags", <flags for testbench_gen>)` / `add_values("cfg.tb_gen_flags", "<flags for testbench_gen>")`
+```lua title="main.lua"
+fork {
+    function ()
+        print("cfg.value1 => ", cfg.value1)
+        print("cfg.value2 => ", cfg.value2)
 
-    设置需要传递给 `testbench_gen` 的额外参数，具体支持的 flags 可以参考 [这里](./testbench_generate.mdx) 的介绍。
+        assert(cfg.value1 == 123)
+        assert(cfg.value2 == "hello")
+    end
+}
+```
 
-    :::tip[xmake 中 `set_values` 和 `add_values` 的区别]
-    - `set_values(<key>, <value>)` 对 `<key>` 进行单次赋值，调用多次 `set_values` 时，会覆盖之前的值，一个 `set_values` 只能有一个 `<value>`； 
-        ```lua
-        set_values("key", "value1") -- "key" = "value1" 
-        set_values("key", "value2") -- "key" = "value2", the previous value "value1" is overwritten
-        ```
-    - `add_values(<key>, <value> ...)` 对 `<key>` 进行多次赋值，调用多次 `add_values` 时，会合并之前的值，一个 `add_values` 可以有多个 `<value>`。
-        ```lua
-        add_values("key", "value1") -- "key" = "value1" 
-        add_values("key", "value2") -- "key" = {"value1", "value2"}, the previous value "value1" is merged
+### 限制最低 Verilua 版本
 
-        -- equivalent to
+对应配置：`set_values("cfg.version_required", "<version constraint>")`
 
-        set_values("key", "value1", "value2")
-        ```
-    - 也可以参考 xmake 文档中[此处](https://xmake.io/#/zh-cn/manual/specification)的说明。 
+指定最低 Verilua 版本要求。例如：
 
-    :::
+```lua
+set_values("cfg.version_required", ">=1.0.0")
+```
 
-3. `set_values("<sim>.flags", <flags used in compilation>)` / `add_values("<sim>.flags", "<flags used in compilation>")`
-    
-    用来添加需要传递给仿真器进行编译的额外参数，具体支持的 flags 可以与使用的仿真器相关。
-    
-    :::warning[注意]
-    - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs` 、 `xcelium`。
-    - 对于 WAL 场景，这一设置不起作用。
-
-    :::
-
-4. `set_values("<sim>.run_flags", <flags used at runtime>)` / `add_values("<sim>.run_flags", "<flags used at runtime>")`
-
-    用来添加需要传递给编译后的二进制文件运行时的额外参数。例如 Verilator 编译得到的二进制文件通常叫 `Vtb_top`，则可以使用 `set_values("verilator.run_flags", "--help")` 来添加一个运行时参数，这样在 xmake 执行 run 的时候就会加上这个参数。运行仿真的时候等价于 `Vtb_top --help`。
-
-    :::warning[注意]
-    - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`、 `xcelium`。
-    - 对于 WAL 场景，这一设置不起作用。
-
-    :::
-
-5. `set_values("<sim>.run_prefix", <prefix flags used at runtime>)` / `add_values("<sim>.run_prefix", "<prefix flags used at runtime>")`
-
-    用来添加需要传递给编译后的二进制文件运行时的额外**前缀**参数。例如 Verilator 编译得到的二进制文件通常叫 `Vtb_top`，则可以使用 `set_values("verilator.run_prefix", "gdb --args")` 来添加一个运行时前缀参数，这样在 xmake 执行 run 的时候就会加上这个参数。运行仿真的时候等价于 `gdb --args Vtb_top`。
-
-    :::warning[注意]
-    - 对于 HVL 场景，目前 `<sim>` 可选值为 `verilator`、`iverilog`、`vcs`、 `xcelium`。
-    - 对于 WAL 场景，这一设置不起作用。
-
-    :::
-
-    :::tip[`run_prefix` 和 `run_flags` 的位置区别]
-    `<run_prefix> <binary> <run_flags>`
-
-    :::
-
-6. `set_values("cfg.build_dir_name", <build directory name>)`
-
-    设置构建目录的名称，如果不设置，默认为 [`set_values("cfg.top", <top module name>)`](#cfg-top) 的值。
-
-    :::note[构建目录生成的位置]
-    默认情况下为：`./build/<simulator>/<top module name>`，如果使用了 `set_values("cfg.build_dir_name", "SomeName")`，那么会使用用户自定义的名称：`./build/<simulator>/SomeName`。不过请注意，`./build/<simulator>` 是必须存在的，不支持更改。
-
-    :::
-
-7. `set_values("cfg.build_dir_path", <build directory path>)`
-
-    设置构建目录的父路径。例如：
-    ```lua
-    set_values("cfg.build_dir_path", "/tmp/builds")
-    ```
-    最终构建目录为 `<build_dir_path>/<build_dir_name>`，如未设置 `build_dir_name`，则默认为顶层模块名。
-
-8. `set_values("cfg.version_required", "<version constraint>")`
-
-    指定最低 Verilua 版本要求。例如：
-    ```lua
-    set_values("cfg.version_required", ">=1.0.0")
-    ```
-    构建时会自动校验当前 Verilua 版本是否满足要求。
-
-9. `set_values("cfg.no_internal_clock", "1")`
-
-    禁用自动时钟生成，适用于需要自定义时钟的场景。此时需在主 Lua 文件中手动生成时钟信号。
-
-    示例：
-    ```lua title="xmake.lua"
-    target("my_test", function()
-        add_rules("verilua")
-        add_toolchains("@verilator")
-        set_values("cfg.top", "Top")
-        set_values("cfg.lua_main", "main.lua")
-        add_files("Top.v", "main.lua")
-        set_values("cfg.no_internal_clock", "1") -- 禁用自动时钟生成
-    end)
-    ```
-    
-    对应的 main.lua 需手动生成时钟信号：
-    ```lua title="main.lua"
-    fork {
-        clock_gen_task = function()
-            local clock = dut.clock:chdl()
-            while true do
-                clock:set(1)
-                await_time_ns(2)
-                clock:set(0)
-                await_time_ns(2)
-            end
-        end,
-        
-        another_task = function()
-            -- ...
-        end
-    }
-    ```
+构建时会自动校验当前 Verilua 版本是否满足要求。
