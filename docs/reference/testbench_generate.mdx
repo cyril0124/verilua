@@ -17,8 +17,10 @@ Verilua 中，Testbench 是全自动生成的 `testbench_gen` 工具实现（安
 | `--clock-signal <signal_name>` | 指定主时钟信号名；未指定时会自动检测。 |
 | `--reset-signal <signal_name>` | 指定复位信号名；未指定时会自动检测。 |
 | `--period <period_value>` | 指定内部自动生成时钟的周期，默认值为 `20`。 |
-| `--custom-code <file>` | 将文件内容插入到 testbench 模块底部。 |
-| `--custom-code-outer <file>` | 将文件内容插入到 testbench 模块顶部。 |
+| `--custom-code <file>` | 将文件内容插入到生成的 testbench 模块内部底部，即 `endmodule` 之前。 |
+| `--custom-code-str <string>` | 将字符串内容直接插入到生成的 testbench 模块内部底部，即 `endmodule` 之前。 |
+| `--custom-code-outer <file>` | 将文件内容插入到生成的 testbench `module` 声明之前。 |
+| `--custom-code-str-outer <string>` | 将字符串内容直接插入到生成的 testbench `module` 声明之前。 |
 | `--filelist <file/filelist>` | 指定输入文件或 filelist。 |
 | `--regen` | 强制重新生成 testbench。 |
 | `--verbose` | 输出更详细的日志信息。 |
@@ -31,6 +33,19 @@ Verilua 中，Testbench 是全自动生成的 `testbench_gen` 工具实现（安
 
 - `tb_top.sv`：主 Testbench 文件。
 - `others.sv`：用户自定义模块的占位文件。
+
+在 Verilua 的默认工作流中，这两个文件会生成到当前 target 的构建目录，而不是源码目录。构建目录的命名和位置可参考 [`cfg.build_dir_name` / `cfg.build_dir_path`](./xmake_params.mdx) 的说明；默认情况下，该目录通常是 `./build/<simulator>/<top module name>`。Verilua 调用 `testbench_gen` 时会自动把这个构建目录传给 `--out-dir`。如果直接手动运行 `testbench_gen`，未指定 `--out-dir` 时则默认输出到当前目录。
+
+```mermaid
+flowchart LR
+    A[testbench_gen outputs] --> B[tb_top.sv]
+    A --> C[others.sv]
+    D[custom-code-outer / custom-code-str-outer] --> B
+    E[custom-code / custom-code-str] --> B
+    B --> F[Regenerated on each refresh]
+    C --> G[User editable placeholder]
+    G --> H[Kept when already exists]
+```
 
 ### `tb_top.sv`
 
@@ -45,7 +60,8 @@ Verilua 中，Testbench 是全自动生成的 `testbench_gen` 工具实现（安
 ```verilog title="tb_top.sv"
 // -----------------------------------------
 // user custom code (outer)
-//    use `--custom-code-outer/-cco <file>` to pass in the custom code file.
+//    use `--custom-code-outer/-cco <file>` or
+//        `--custom-code-str-outer/-ccso <string>`.
 // -----------------------------------------
 
 module tb_top(
@@ -86,7 +102,8 @@ Others u_others(
 
 // -----------------------------------------
 // user custom code (inner)
-//    use `--custom-code/-cc <file>` to pass in the custom code file.
+//    use `--custom-code/-cc <file>` or
+//        `--custom-code-str/-ccs <string>`.
 // -----------------------------------------
 
 endmodule
@@ -108,22 +125,159 @@ endmodule
 
 ### 使用自定义代码插入
 
-当您需要在生成的 testbench 中添加额外逻辑时，可以使用以下参数：
+当您需要在生成的 `tb_top.sv` 中插入额外的 SystemVerilog 代码时，可以使用下面 4 个参数：
 
-- `--custom-code-outer <file>` 或 `--custom-code-str-outer <string>`：在 testbench 模块的最前面插入代码，通常位于端口声明之后、内部逻辑之前。
-- `--custom-code <file>` 或 `--custom-code-str <string>`：在 testbench 模块的最后面插入代码，通常位于 `endmodule` 之前。
+| 参数 | 传入形式 | 实际插入位置 | 典型用途 |
+| --- | --- | --- | --- |
+| `--custom-code-outer <file>` / `-cco` | 文件 | `module <tbtop>(...)` 之前 | 宏定义（如 `define`）、`include`、package import、辅助模块声明 |
+| `--custom-code-str-outer <string>` / `-ccso` | 字符串 | `module <tbtop>(...)` 之前 | 很短的宏定义或预处理语句 |
+| `--custom-code <file>` / `-cc` | 文件 | testbench 模块内部、`endmodule` 之前 | `initial` / `always` / assertion / monitor 逻辑 |
+| `--custom-code-str <string>` / `-ccs` | 字符串 | testbench 模块内部、`endmodule` 之前 | 很短的内联调试逻辑 |
 
-例如，假设您有一个文件 `my_debug_logic.sv` 需要插入到 testbench 顶部，可以在 xmake.lua 中设置：
+插入位置关系如下：
 
-```lua
-add_values("cfg.tb_gen_flags", "--custom-code-outer", "my_debug_logic.sv")
+```verilog
+// --custom-code-str-outer / --custom-code-outer inserted here
+
+module tb_top(...);
+
+// generated declarations
+// generated DUT instantiation
+// generated helper logic
+
+// --custom-code-str / --custom-code inserted here
+
+endmodule
 ```
 
-或者直接传递字符串：
+使用建议：
+
+- 需要插入多行代码、单独维护文件、或者包含复杂 `initial` / `always` 块时，优先使用 `--custom-code` 或 `--custom-code-outer`。
+- 只需要插入一两行简短宏定义或调试语句时，使用 `--custom-code-str` 或 `--custom-code-str-outer` 更方便。
+- `outer` 系列插入的是模块外部代码，适合预处理宏、`include`、package import、辅助 module/function/task 声明；不适合直接写依赖 testbench 内部信号的逻辑。
+- `inner` 系列插入的是模块内部代码，可以直接写 `initial`、`always`、assertion 和其他 testbench 逻辑。
+- 同一侧的 file 与 string 形式可以同时使用；若同时指定，`-str` 的内容会先插入，文件内容随后插入。
+- `--custom-code-str` 和 `--custom-code-str-outer` 本身支持多行字符串；`testbench_gen` 会按原样插入，不会自动重新排版。
+
+示例 1：在模块外部插入一个额外的宏定义文件
+
+```verilog title="tb_prelude.svh"
+`define TB_TIMEOUT 10000
+`define TB_TRACE_ENABLE 1
+```
 
 ```lua
-add_values("cfg.tb_gen_flags", "--custom-code-str-outer", "`define DEBUG 1")
+add_values("cfg.tb_gen_flags", "--custom-code-outer", "tb_prelude.svh")
 ```
+
+适用场景：需要把宏、`include` 或其他模块外定义放到 `tb_top.sv` 的 `module` 声明之前。
+
+示例 2：直接以内联字符串插入一个简单宏
+
+```lua
+add_values("cfg.tb_gen_flags", "--custom-code-str-outer", "`define TB_TIMEOUT 10000")
+```
+
+适用场景：只有一行简单内容，不想额外维护文件。
+
+示例 3：在模块内部插入一段监控逻辑文件
+
+```verilog title="tb_hooks.sv"
+initial begin
+    $display("[tb] simulation start");
+end
+
+always @(posedge clock) begin
+    if (!reset) begin
+        // user monitor logic
+    end
+end
+```
+
+```lua
+add_values("cfg.tb_gen_flags", "--custom-code", "tb_hooks.sv")
+```
+
+适用场景：插入多行 `initial` / `always` / assertion / monitor 逻辑。
+
+示例 4：直接以内联字符串插入一个简短的 `initial` 语句
+
+```lua
+add_values("cfg.tb_gen_flags", "--custom-code-str", 'initial $display("[tb] ready");')
+```
+
+适用场景：只想临时加一条很短的调试输出。
+
+示例 5：在 `xmake.lua` 中传入多行 `--custom-code-str`
+
+下面这个例子已经实际验证过，会把一个完整的多行 `initial` 块插入到 `tb_top.sv` 的 `endmodule` 之前：
+
+```lua
+add_values("cfg.tb_gen_flags", "--custom-code-str", [[
+initial begin
+    $display("[tb] xmake multiline inner");
+end
+]])
+```
+
+示例 6：在 `xmake.lua` 中传入多行 `--custom-code-str-outer`
+
+下面这个例子已经实际验证过，会把多行宏定义插入到 `module tb_top(...)` 之前：
+
+```lua
+add_values("cfg.tb_gen_flags", "--custom-code-str-outer", [[
+`define TB_XMAKE_OUTER 1
+`define TB_XMAKE_OUTER_2 2
+]])
+```
+
+示例 7：直接命令行传入多行 `--custom-code-str`
+
+下面这个例子已经实际验证过，会把一个完整的多行 `initial` 块插入到 `tb_top.sv` 的 `endmodule` 之前：
+
+```bash
+testbench_gen \
+  --top MinimalTop \
+  --out-dir ./build/verilator/MinimalTop \
+  --custom-code-str $'initial begin\n    $display("[tb] direct multiline inner");\n    $display("[tb] line2");\nend' \
+  minimal_top.sv
+```
+
+生成结果中的对应片段如下：
+
+```verilog
+initial begin
+    $display("[tb] direct multiline inner");
+    $display("[tb] line2");
+end
+```
+
+示例 8：直接命令行传入多行 `--custom-code-str-outer`
+
+下面这个例子已经实际验证过，会把多行宏定义插入到 `module tb_top(...)` 之前：
+
+```bash
+testbench_gen \
+  --top MinimalTop \
+  --out-dir ./build/verilator/MinimalTop \
+  --custom-code-str-outer $'`define TB_DIRECT_OUTER 1\n`define TB_DIRECT_OUTER_2 2' \
+  minimal_top.sv
+```
+
+生成结果中的对应片段如下：
+
+```verilog
+`define TB_DIRECT_OUTER 1
+`define TB_DIRECT_OUTER_2 2
+
+module tb_top(...);
+```
+
+注意事项：
+
+- 如果直接命令行调用 `testbench_gen`，`--custom-code-str` 和 `--custom-code-str-outer` 需要根据所用 shell 正确处理引号、反引号和换行；复杂内容通常更建议使用 file 形式。
+- 在 `xmake.lua` 中，`cfg.tb_gen_flags` 现在可以正确透传包含空格和换行的 `--custom-code-str` / `--custom-code-str-outer` 参数。
+- 如果内容较长、需要复用、或者需要避免 shell 引号问题，依然更推荐 `--custom-code <file>` 和 `--custom-code-outer <file>`。
 
 ## 时钟策略
 
