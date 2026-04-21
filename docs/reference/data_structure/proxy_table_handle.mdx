@@ -87,19 +87,19 @@ assert(b.__type == "ProxyTableHandle")
 
 11. `<dut>:get_str(fmt)`
 
-    作用类似 [`<chdl>:get_str(fmt)`](./callable_hdl.mdx#chdl-get_str)。
+    作用类似 [`<chdl>:get_str(fmt)`](./callable_hdl.mdx#chdl-get-str)。
 
 12. `<dut>:get_hex_str()`
 
-    作用类似 [`<chdl>:get_hex_str()`](./callable_hdl.mdx#chdl-get_hex_str)。
+    作用类似 [`<chdl>:get_hex_str()`](./callable_hdl.mdx#chdl-get-hex-str)。
 
 13. `<dut>:set_str(str)`
 
-    作用类似 [`<chdl>:set_str(str)`](./callable_hdl.mdx#chdl-set_str)。
+    作用类似 [`<chdl>:set_str(str)`](./callable_hdl.mdx#chdl-set-str)。
 
 14. `<dut>:set_hex_str(str)`
 
-    作用类似 [`<chdl>:set_hex_str(str)`](./callable_hdl.mdx#chdl-set_hex_str)。
+    作用类似 [`<chdl>:set_hex_str(str)`](./callable_hdl.mdx#chdl-set-hex-str)。
 
 15. `<dut>:set_force_str(str)`
 
@@ -115,11 +115,11 @@ assert(b.__type == "ProxyTableHandle")
 
 18. `<dut>:posedge_until(max_limit, func)`
 
-    作用类似 [`<chdl>:posedge_until(max_limit, func)`](./callable_hdl.mdx#chdl-posedge_until)。
+    作用类似 [`<chdl>:posedge_until(max_limit, func)`](./callable_hdl.mdx#chdl-posedge-until)。
 
 19. `<dut>:negedge_until(max_limit, func)`
 
-    作用类似 [`<chdl>:negedge_until(max_limit, func)`](./callable_hdl.mdx#chdl-negedge_until)。
+    作用类似 [`<chdl>:negedge_until(max_limit, func)`](./callable_hdl.mdx#chdl-negedge-until)。
 
 20. `<dut>:chdl()`
 
@@ -133,7 +133,7 @@ assert(b.__type == "ProxyTableHandle")
     local clock = ("tb_top.path.to.clock"):chdl()
     ```
 
-    [这里](./callable_hdl.mdx#dut-flex_create_chdl)介绍了有关使用 `<dut>:chdl()` 创建 `chdl` 的技巧。
+    [这里](./callable_hdl.mdx#dut-flex-create-chdl)介绍了有关使用 `<dut>:chdl()` 创建 `chdl` 的技巧。
 
 21. `<dut>:get_width()`
 
@@ -141,7 +141,7 @@ assert(b.__type == "ProxyTableHandle")
 
 22. `<dut>:dump()` / `<dut>:dump_str()`
 
-    作用类似 [`<chdl>:dump()`](./callable_hdl.mdx#chdl-dump) / [`<chdl>:dump_str()`](./callable_hdl.mdx#chdl-dump_str)。
+    作用类似 [`<chdl>:dump()`](./callable_hdl.mdx#chdl-dump) / [`<chdl>:dump_str()`](./callable_hdl.mdx#chdl-dump-str)。
 
 23. `<dut>:expect(value)` / `<dut>:expect_not(value)` / `<dut>:expect_hex_str(hex_value_str)` / `<dut>:expect_bin_str(bin_value_str)` / `<dut>:expect_dec_str(dec_value_str)` / `<dut>:expect_not_hex_str(hex_value_str)` / `<dut>:expect_not_bin_str(bin_value_str)` / `<dut>:expect_not_dec_str(dec_value_str)`
 
