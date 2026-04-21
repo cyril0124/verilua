@@ -27,6 +27,7 @@ const sidebars: SidebarsConfig = {
         'how-to-guides/simple_ut_env',
         'how-to-guides/write_reusable_component',
         'how-to-guides/clock_driving',
+        'how-to-guides/multi_clock_testing',
       ],
     },
     {

@@ -1,0 +1,324 @@
+# 多时钟域验证
+
+在现代芯片设计中，一个硬件模块往往工作在多个时钟域（例如系统主时钟、外设时钟、异步 FIFO 接口等）。验证跨时钟域（CDC，Clock Domain Crossing）的逻辑是否正确、是否满足时序约束，是硬件验证中的一个常见挑战。
+
+Verilua 允许您在同一个测试中驱动多个独立的时钟，支持两种方式：
+
+- **Lua Clock**：通过 Lua 协程手动驱动时钟，最灵活，可以模拟任意波形。
+- **NativeClock**：由 Rust 原生层驱动时钟，性能更高，适合固定频率的时钟。
+
+本章将结合一个**异步队列（Async FIFO）** 的实例，演示如何用 Verilua 进行多时钟域验证。完整的示例代码可以在以下位置找到：
+
+- [examples/async_queue_lua](https://github.com/cyril0124/verilua/tree/master/examples/async_queue_lua) – 使用 Lua Clock 驱动写时钟和读时钟
+- [examples/async_queue_native](https://github.com/cyril0124/verilua/tree/master/examples/async_queue_native) – 使用 NativeClock 驱动写时钟和读时钟
+
+## 1. 异步队列（Async FIFO）设计
+
+我们使用一个经典的异步 FIFO 设计作为 DUT。它有独立的写时钟域 `wr_clk` 和读时钟域 `rd_clk`，并且使用格雷码指针来保证跨时钟域的安全性。
+
+```verilog title="async_queue.sv"
+module async_queue #(
+    parameter DATA_WIDTH = 8,
+    parameter ADDR_WIDTH = 3  // Depth = 2^ADDR_WIDTH = 8
+)(
+    // Write clock domain
+    input  wire                  wr_clk,
+    input  wire                  wr_rst_n,
+    input  wire                  wr_en,
+    input  wire [DATA_WIDTH-1:0] wr_data,
+    output reg                   full,
+
+    // Read clock domain
+    input  wire                  rd_clk,
+    input  wire                  rd_rst_n,
+    input  wire                  rd_en,
+    output reg  [DATA_WIDTH-1:0] rd_data,
+    output reg                   empty
+);
+    // ... 内部实现（格雷码指针、存储器等）
+endmodule
+```
+
+在测试中，我们需要同时驱动 `wr_clk` 和 `rd_clk`，并且可以让它们的频率或相位不同，以充分验证跨时钟域逻辑。
+
+## 2. 禁用内部时钟生成
+
+默认情况下，Verilua 会为顶层设计自动生成一个内部时钟（通常名为 `clock`）。但在多时钟测试中，我们需要完全控制所有时钟，因此必须在 `xmake.lua` 中禁用内部时钟生成：
+
+```lua title="xmake.lua"
+target("test", function()
+    add_rules("verilua")
+    add_toolchains("@verilator")  -- 或其他仿真器
+
+    add_files("./async_queue.sv")
+
+    set_values("cfg.top", "async_queue")
+    set_values("cfg.lua_main", "./main.lua")
+
+    -- 对多时钟 DUT，显式指定主时钟和复位，避免依赖自动识别
+    add_values("cfg.tb_gen_flags", "--clock-signal", "wr_clk")
+    add_values("cfg.tb_gen_flags", "--reset-signal", "wr_rst_n")
+
+    -- 关键：禁用内部时钟
+    set_values("cfg.no_internal_clock", "1")
+
+    -- 如果使用 Verilator 且通过 await_time*() 推进时间，需要 --timing
+    set_values("verilator.flags", "--timing")
+end)
+```
+
+对于本文这个异步 FIFO，建议显式把 `wr_clk` / `wr_rst_n` 配成 `testbench_gen` 的主时钟 / 复位。这样在 Verilator 生成的 testbench 中，应通过 `dut.clock` / `dut.reset` 访问这对主时钟句柄；第二个时钟 `rd_clk` 仍直接使用 `dut.rd_clk`。
+
+## 3. 方法一：使用 Lua Clock 驱动多个时钟
+
+Lua Clock 方式是在 Lua 中为每个时钟创建一个无限循环的任务，使用 `await_time_ns()` 这类显式带单位的时间 API 来模拟时钟的翻转。
+
+`await_time()` 等待的是仿真原始 time step，不是固定的 `ns`，因此这里更推荐使用 `await_time_ns()`。
+
+**所有测试代码必须放在 `fork {}` 块中**，以保证任务被正确调度。
+
+### 3.1 精简 Lua Clock 示例
+
+```lua title="main.lua"
+local function test_async_queue()
+    -- Verilator 会把配置的主时钟 / 复位暴露为 dut.clock / dut.reset
+    local wr_clk_signal, wr_rst_signal
+    if cfg.simulator == "verilator" then
+        wr_clk_signal = dut.clock
+        wr_rst_signal = dut.reset
+    else
+        wr_clk_signal = dut.wr_clk
+        wr_rst_signal = dut.wr_rst_n
+    end
+
+    local wr_clk = wr_clk_signal:chdl()
+    local rd_clk = dut.rd_clk:chdl()
+
+    local stop_clocks = false
+
+    fork {
+        function()
+            while not stop_clocks do
+                wr_clk:set(1)
+                await_time_ns(5)
+                wr_clk:set(0)
+                await_time_ns(5)
+            end
+        end
+    }
+
+    fork {
+        function()
+            while not stop_clocks do
+                rd_clk:set(1)
+                await_time_ns(8)
+                rd_clk:set(0)
+                await_time_ns(8)
+            end
+        end
+    }
+
+    wr_rst_signal:set(0)
+    dut.rd_rst_n:set(0)
+    dut.wr_en:set(0)
+    dut.wr_data:set(0)
+    dut.rd_en:set(0)
+    await_time_ns(100)
+
+    wr_rst_signal:set(1)
+    dut.rd_rst_n:set(1)
+    await_time_ns(100)
+
+    local test_data = { 0x11, 0x22, 0x33, 0x44 }
+
+    for _, data in ipairs(test_data) do
+        dut.wr_en:set(1)
+        dut.wr_data:set(data)
+        await_time_ns(10)
+    end
+    dut.wr_en:set(0)
+
+    -- Wait for CDC synchronizers to update empty
+    await_time_ns(80)
+
+    for i, expected in ipairs(test_data) do
+        while dut.empty:get() == 1 do
+            await_time_ns(16)
+        end
+
+        dut.rd_en:set(1)
+        await_time_ns(16)
+        dut.rd_en:set(0)
+        await_time_ns(16)
+        assert(dut.rd_data:get() == expected, string.format(
+            "Data mismatch at index %d: expected 0x%02X, got 0x%02X",
+            i, expected, dut.rd_data:get()))
+    end
+
+    stop_clocks = true
+    await_time_ns(50)
+end
+
+fork {
+    function()
+        test_async_queue()
+        sim.finish()
+    end
+}
+```
+
+### 3.2 优点与局限
+
+- **优点**：完全灵活，可以任意调整频率、占空比、相位，甚至可以在运行时动态改变。
+- **局限**：每个时钟边沿都会引起 Lua 协程调度和 `await_time_*` 调用，性能开销较大。如果时钟频率很高（例如 100MHz），可能会影响仿真速度。
+
+## 4. 方法二：使用 NativeClock 驱动多个时钟
+
+`NativeClock` 在 Rust 原生层完成时钟切换，避免了频繁的 Lua 回调，性能远优于 Lua Clock。它的 API 同样简单，但只能驱动固定周期和占空比的时钟。
+
+**所有测试代码同样必须放在 `fork {}` 块中**。
+
+### 4.1 精简 NativeClock 示例
+
+```lua title="main.lua"
+local NativeClock = require "verilua.utils.NativeClock"
+
+local function test_async_queue()
+    local wr_clk_signal, wr_rst_signal
+    if cfg.simulator == "verilator" then
+        wr_clk_signal = dut.clock
+        wr_rst_signal = dut.reset
+    else
+        wr_clk_signal = dut.wr_clk
+        wr_rst_signal = dut.wr_rst_n
+    end
+
+    -- 创建 NativeClock 实例
+    local wr_clk_native = NativeClock(wr_clk_signal:chdl())
+    local rd_clk_native = NativeClock(dut.rd_clk:chdl())
+    wr_clk_native:start(10, "ns", { start_high = false })
+    rd_clk_native:start(16, "ns", { start_high = false })
+
+    wr_rst_signal:set(0)
+    dut.rd_rst_n:set(0)
+    dut.wr_en:set(0)
+    dut.wr_data:set(0)
+    dut.rd_en:set(0)
+    for _ = 1, 10 do
+        wr_clk_signal:posedge()
+    end
+
+    wr_rst_signal:set(1)
+    dut.rd_rst_n:set(1)
+    for _ = 1, 10 do
+        wr_clk_signal:posedge()
+    end
+
+    local test_data = { 0x11, 0x22, 0x33, 0x44 }
+
+    for _, data in ipairs(test_data) do
+        dut.wr_en:set(1)
+        dut.wr_data:set(data)
+        wr_clk_signal:posedge()
+    end
+    dut.wr_en:set(0)
+
+    -- Wait for CDC synchronizers to update empty
+    for _ = 1, 5 do
+        dut.rd_clk:posedge()
+    end
+
+    for i, expected in ipairs(test_data) do
+        while dut.empty:get() == 1 do
+            dut.rd_clk:posedge()
+        end
+
+        dut.rd_en:set(1)
+        dut.rd_clk:posedge()
+        dut.rd_en:set(0)
+        dut.rd_clk:posedge()
+        assert(dut.rd_data:get() == expected, string.format(
+            "Data mismatch at index %d: expected 0x%02X, got 0x%02X",
+            i, expected, dut.rd_data:get()))
+    end
+
+    wr_clk_native:stop()
+    rd_clk_native:stop()
+    wr_clk_native:destroy()
+    rd_clk_native:destroy()
+end
+
+fork {
+    function()
+        test_async_queue()
+        sim.finish()
+    end
+}
+```
+
+### 4.2 优点与局限
+
+- **优点**：性能好，每个时钟边沿不会触发 Lua 回调，适合高频或长时间仿真。
+- **局限**：不适合在每个周期实时改变波形；如果需要改固定周期参数，可以调用 `restart()`（其内部会先 `stop()` 再 `start()`）。另外，`NativeClock` 只能用于 HVL 模式，不支持 HSE/WAL。
+
+## 5. 时钟选择建议
+
+| 需求场景 | 推荐方式 |
+| --- | --- |
+| 简单多时钟测试，对性能要求不高，需要灵活调整 | **Lua Clock** |
+| 高频时钟、长时间仿真，固定频率即可 | **NativeClock** |
+| 需要在仿真中动态改变时钟频率（例如变频测试） | **Lua Clock** |
+| 需要精确的相位关系或非 50% 占空比 | **Lua Clock** |
+| 多个时钟驱动同一信号（不允许，会冲突） | – |
+
+## 6. 注意事项
+
+### 6.1 避免多个驱动器同时驱动同一信号
+
+无论是 Lua Clock 还是 `NativeClock`，都不能有两个或以上的驱动器同时驱动同一个信号。例如，不能在启用内部时钟的同时又用 Lua 驱动 `clock` 信号。在多时钟设计中，每个时钟信号应当只由一个驱动器（内部时钟、Lua Clock 或 `NativeClock`）负责。
+
+### 6.2 同步器与仿真时间推进
+
+在跨时钟域测试中，异步信号（如 `empty` 和 `full` 标志）需要经过两级同步器才能被另一个时钟域稳定采样。在编写测试代码时，需要在发送事件后等待足够的时间，让同步器稳定。如果数据输出本身也是目标时钟域中的寄存器输出（如本文示例中的 `rd_data`），在拉高 `rd_en` 后通常还需要再等待一个目标时钟周期，再去采样输出数据。例如：
+
+```lua
+-- 假设 wr_clk_signal 已按当前 simulator 适配好
+dut.wr_en:set(1)
+dut.wr_data:set(0xAA)
+wr_clk_signal:posedge()
+dut.wr_en:set(0)
+
+-- 等待读时钟域同步器更新 empty 标志
+for i = 1, 5 do
+    dut.rd_clk:posedge()
+end
+assert(dut.empty:get() == 0)
+
+dut.rd_en:set(1)
+dut.rd_clk:posedge()
+dut.rd_en:set(0)
+dut.rd_clk:posedge() -- rd_data is registered in read clock domain
+assert(dut.rd_data:get() == 0xAA)
+```
+
+### 6.3 Verilator 的 `--timing` 选项
+
+如果在 Verilator 中使用 `await_time_ns()` 或 `NativeClock`，必须添加编译选项 `--timing`。否则，时间推进行为不符合预期。在 `xmake.lua` 中设置：
+
+```lua
+add_values("verilator.flags", "--timing")
+```
+
+### 6.4 仿真器支持
+
+- **Verilator**：支持 Lua Clock 和 `NativeClock`（需 `--timing`）
+- **VCS / Xcelium**：支持 Lua Clock；`NativeClock` 依赖于 VPI `cbAfterDelay`，理论上也支持，但测试较少
+- **Icarus Verilog**：支持 Lua Clock（需要较新版本）；`NativeClock` 未测试
+
+## 7. 相关文档
+
+- [时钟驱动策略](./clock_driving.mdx) – 详细介绍了 Internal Clock、Lua Clock 和 NativeClock 的对比
+- [NativeClock API 参考](../reference/native_clock.mdx)
+- [多任务系统](../reference/multi_task.mdx) – 理解 `fork` 和 `await_time` 的原理
+- [示例：异步队列（Lua 时钟）](https://github.com/cyril0124/verilua/tree/master/examples/async_queue_lua)
+- [示例：异步队列（NativeClock）](https://github.com/cyril0124/verilua/tree/master/examples/async_queue_native)
