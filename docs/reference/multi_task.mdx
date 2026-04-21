@@ -122,10 +122,14 @@ join({ ehdl, ehdl2 }) -- or join { ehdl, ehdl2 }
 ## 注册任务回调
 Verilua 的 task 中支持 `posedge`、`negedge`、`edge`、`time` 仿真行为控制机制，能够满足大部分的硬件仿真交互场景。
 
-<figure>
-  <img src={require('./images/clock_edge.png').default} alt="Edge in the waveform" style={{width: '70%'}} />
-  <figcaption>Edge in the waveform</figcaption>
-</figure>
+```text
+clock     ________        ________        ________
+         |        |      |        |      |        |
+_________|        |______|        |______|        |______
+         ^        v      ^        v
+         |        |      |        |
+      posedge  negedge  edge     edge
+```
 
 其中`posedge`、`negedge`、`edge`只能作用在位宽为 1 bit 的信号上，并且可以由 `CallableHDL`、`ProxyTableHandle` 等数据结构来创建。
 下面是一个简单的例子：
@@ -250,12 +254,13 @@ assert(id3 == 123, "task_id should be 123")
 ### 列出所有任务
 `scheduler:list_tasks()` 用于列出所有注册的任务，并打印出其信息。下面是一个输出的示例：
 ```shell title="Terminal"
-[scheduler list tasks]:
------------------------------------------------------------
-[0] name: task_1    id: 1123     cnt:12
-[1] name: task_2    id: 2323     cnt:13
-[2] name: task_3    id: 3456     cnt:14
------------------------------------------------------------
+┌── Task Statistics ──────────────────────────────────────────────────────
+│ [ 0] name: main_task    id:     1  cnt:      130
+│ [ 1] name: test_task_1  id:     5  cnt:        0
+│ [ 2] name: test_task_2  id:     6  cnt:        0
+│ [ 3] name: test_task_3  id:     7  cnt:        0
+│ [ 4] name: test         id:    25  cnt:        1
+└─────────────────────────────────────────────────────────────────────────
 ```
 其中的 `id` 为任务的唯一标识，`cnt` 为任务在调度器中的执行次数。
 
@@ -292,29 +297,41 @@ xmake run TestDesign
 
 在仿真结束之后，Verilua 会自动调用 `scheduler:list_tasks()` 来输出任务性能统计信息，下面是一个输出的示例：
 ```shell title="Terminal"
-[scheduler list tasks]:
--------------------------------------------------------------
-[ 58254@fake_cmoclient_0/TLULAgent a task resolve]    0.39 ms   percent:  0.05%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[83942@fake_mmioclient_0/TLULAgent a task resolve]    1.93 ms   percent:  0.23%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[                       21509@unnamed_fork_task_0]    2.64 ms   percent:  0.31%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[           65687@fake_mmioclient_0 timeout check]    2.70 ms   percent:  0.32%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[               34459@fake_icache_0 timeout check]    3.46 ms   percent:  0.41%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[                                   49198@pf_init]    4.29 ms   percent:  0.50%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[     45191@fake_dcache_0/TLCAgent c task resolve]    7.32 ms   percent:  0.86%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[     49389@fake_dcache_0/TLCAgent e task resolve]    9.37 ms   percent:  1.10%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[75477@fake_mmioclient_0/TLULAgent d task resolve]   24.26 ms   percent:  2.84%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[ 87630@fake_cmoclient_0/TLULAgent d task resolve]   24.29 ms   percent:  2.85%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[    43364@fake_icache_0/TLULAgent a task resolve]   24.65 ms   percent:  2.89%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[     96595@fake_dcache_0/TLCAgent a task resolve]   25.38 ms   percent:  2.98%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[                               6330@send_pf_task]   26.54 ms   percent:  3.11%  ┃▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[                              87302@recv_tlb_req]   31.96 ms   percent:  3.75%  ┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[     28004@fake_dcache_0/TLCAgent b task resolve]   35.42 ms   percent:  4.15%  ┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[    28108@fake_icache_0/TLULAgent d task resolve]   36.69 ms   percent:  4.30%  ┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[     15833@fake_dcache_0/TLCAgent d task resolve]   40.14 ms   percent:  4.71%  ┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[                                 63208@main_task]   51.69 ms   percent:  6.06%  ┃█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[                   53008@fake_dcache_0 eval task]   175.71 ms   percent: 20.60% ┃██████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-[                              27178@monitor_task]   324.09 ms   percent: 38.00% ┃███████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┃
-total_time: 0.85 s / 852.91 ms
+┌── Task Statistics ──────────────────────────────────────────────────────
+│ [25@test                ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [28@finish_task         ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [14@waiter3             ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [33@running_task        ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [18@unnamed_fork_task_4 ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [13@waiter2             ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [12@waiter1             ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [22@unnamed_fork_task_8 ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [10@event_waiter_1      ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [2@unnamed_fork_task_0  ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [20@unnamed_fork_task_6 ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.1%
+│ [17@unnamed_fork_task_3 ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.2%
+│ [30@running_wakeup_task ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.2%
+│ [9@event_sender         ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.2%
+│ [8@unnamed_fork_task_2  ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.2%
+│ [31@jfork_try_task      ]    0.00 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.2%
+│ [32@try_task            ]    0.01 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.4%
+│ [21@unnamed_fork_task_7 ]    0.01 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.4%
+│ [27@counter_monitor     ]    0.01 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.7%
+│ [29@jfork_wakeup_task   ]    0.02 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   0.9%
+│ [11@event_sender        ]    0.03 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   1.3%
+│ [16@external_waiter2    ]    0.03 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   1.5%
+│ [15@external_waiter1    ]    0.03 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   1.5%
+│ [26@data_transfer       ]    0.04 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   1.8%
+│ [19@unnamed_fork_task_5 ]    0.04 ms  │░░░░░░░░░░░░░░░░░░░░░░░░░│   1.9%
+│ [1@main_task            ]    1.79 ms  │█████████████████████░░░░│  87.4%
+│ total_time: 0.00 s / 2.04 ms
+│ ──────────────────────────────────────────────────────────────────────
+│ [ 0] name: main_task    id:     1  cnt:      130
+│ [ 1] name: test_task_1  id:     5  cnt:        0
+│ [ 2] name: test_task_2  id:     6  cnt:        0
+│ [ 3] name: test_task_3  id:     7  cnt:        0
+│ [ 4] name: test         id:    25  cnt:        1
+└─────────────────────────────────────────────────────────────────────────
 ```
 
 ## 其他 Scheduler API
@@ -411,4 +428,3 @@ Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，
         -- Other tasks...
     }
     ```
-
