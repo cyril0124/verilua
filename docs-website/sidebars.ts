@@ -36,6 +36,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'reference/multi_task',
+        'reference/await_time',
         {
           type: 'category',
           label: 'Data Structure',
