@@ -357,7 +357,7 @@ end
 function Logger:section_start(title, width)
     width = width or CFG_BOX_WIDTH
     local tl, h = get_box("TL"), get_box("H")
-    local inner = width - 2 - #title - 2
+    local inner = width - 2 - #title - 3
     print(colorize(tl .. rep(h, 2) .. " " .. title .. " " .. rep(h, inner), FG_CYAN))
 end
 
