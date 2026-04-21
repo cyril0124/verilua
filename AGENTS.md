@@ -32,9 +32,10 @@
 
 ## Generated Code
 
-- Edit `./src/gen/gen_scheduler.lua` and run `cd src/gen && ./gen_scheduler.sh` instead of editing generated scheduler files directly. Generated files live in `./src/lua/verilua/scheduler`.
-- Edit `./src/gen/gen_chdl_access.lua` and run `cd src/gen && ./gen_chdl_access.sh` instead of editing generated CHDL access files directly. Generated files live in `./src/lua/verilua/handles`.
-- Edit `./libverilua/src/gen/gen.lua` and run `cd libverilua/src/gen && luajit gen.lua` instead of editing generated Rust outputs directly. Generated files live under `./libverilua/src/gen`.
+- Generated-code workflows are documented in `./DEVELOPMENT.md`; keep the detailed source-to-generated file mapping there to avoid duplication.
+- For scheduler changes, edit `./src/gen/gen_scheduler.lua` and regenerate from `./src/gen`.
+- For CHDL access changes, edit `./src/gen/gen_chdl_access.lua` and regenerate from `./src/gen`.
+- For generated Rust changes, edit `./libverilua/src/gen/gen.lua` and regenerate from `./libverilua/src/gen`.
 
 ## Code Style
 
@@ -61,6 +62,14 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 - If you need to check multiple Lua files, run `xmake r lsp-check-lua` serially, one file at a time. Do not run multiple checks in parallel.
 - Make sure the output contains no errors or warnings.
 - After modifying any Rust code, run `cargo fmt` and then `cargo clippy --all-targets --all-features -- -D warnings`; fix all warnings.
+
+## TDD Workflow
+
+- Use TDD by default for bug fixes and feature work.
+- Start with a failing test that reproduces the bug or captures the expected behavior before changing production code.
+- Prefer the smallest relevant test first: run one Lua test file with `cd tests && luajit test_xxx.lua --stop-on-fail --no-quiet`, or run one focused integration target with `xmake build -P tests/<case>` and `xmake run -P tests/<case>`.
+- Make the minimum code change needed to turn the test green, then refactor with the test still passing.
+- Before finishing, rerun the targeted test(s) you added or changed and then run the required format and static checks for the files you touched.
 
 ## Running Tests
 
