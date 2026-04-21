@@ -103,6 +103,11 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 - If building `wave_vpi_main` fails, build `wave_vpi_wellen_impl` first with `xmake b wave_vpi_wellen_impl`.
 - If you modify Rust code in `wellen_impl`, build `wave_vpi_wellen_impl` first with `xmake b wave_vpi_wellen_impl`.
 
+## Docs Style
+
+- Prefer concise, example-driven docs. Avoid restating what code already shows.
+- Collapse repetitive entries; group symmetric APIs into one item.
+
 ## Docs Sync
 
 - If you change user-facing behavior, commands, configuration, or workflows, update `./docs` as needed.
