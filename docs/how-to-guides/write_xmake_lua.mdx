@@ -1,0 +1,273 @@
+# Verilua xmake.lua 编写指南
+
+Verilua 的 HVL（硬件验证语言）和 WAL（波形分析语言）工程使用 [xmake](https://xmake.io/) 作为构建系统。每个验证项目都必须包含一个 `xmake.lua` 文件，用于定义目标、源文件、仿真后端和运行时配置。
+
+> **重要说明**：在 HVL 模式下，Verilua 会自动为您生成一个 testbench（默认名为 `tb_top.sv`），该 testbench 会例化您的顶层设计、提供时钟和复位生成、导出 DPI 接口等。您通常不需要手动编写 testbench。在 WAL 模式下，无需生成 testbench。
+
+---
+
+## 1. 基本结构
+
+### HVL 模式（硬件验证）
+
+```lua
+target("my_test", function()
+    add_rules("verilua")
+    add_toolchains("@verilator")                -- 仿真后端
+    add_files("src/design.v", "src/main.lua")   -- RTL 和 Lua 文件
+    set_values("cfg.top", "Design")             -- DUT 顶层模块名
+    set_values("cfg.lua_main", "src/main.lua")  -- Lua 入口脚本
+end)
+```
+
+### WAL 模式（波形分析）
+
+```lua
+target("wave_analysis", function()
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")                 -- 波形分析后端
+    add_files("path/to/waveform.vcd", "analyze.lua") -- 波形文件和 Lua 脚本
+    set_values("cfg.top", "tb_top")             -- 波形文件中的顶层模块名；若由 Verilua HVL 生成，常见为 tb_top
+    set_values("cfg.lua_main", "analyze.lua")
+end)
+```
+
+- `target("...")`：定义一个构建目标，名称可任意。
+- `add_rules("verilua")`：**必须**，引入 Verilua 的构建规则。
+- `add_toolchains("@...")`：指定后端，HVL 常用 `@verilator`、`@iverilog`、`@vcs`、`@xcelium`；WAL 必须使用 `@wave_vpi`。
+- `add_files(...)`：HVL 中通常添加 RTL 文件，以及需要参与工程管理的 Lua/C/C++ 文件；WAL 中添加波形文件和需要复用的 Lua 模块。`cfg.lua_main` 指向的 Lua 入口脚本通常也会放在这里，但不是强制要求。WAL 模式支持 `.vcd`、`.fst`、`.fsdb` 三种波形格式，且**只能添加一个波形文件**，添加多个会报错。
+- `set_values("cfg.top", "...")`：**必须**。
+  - HVL 中填写 DUT 顶层模块名，Verilua 会据此生成或包装 testbench。
+  - WAL 中填写波形文件中的顶层模块名；如果波形由 Verilua 的 HVL 流程生成，通常是 `tb_top`。
+- `set_values("cfg.lua_main", "...")`：**必须**，Lua 入口脚本。
+
+> **注意**：在 HVL 模式下，如果使用 Verilua 自动生成的 testbench，那么运行时 Lua 侧默认看到的根层次通常是 `tb_top`，而不是这里填写的 DUT 名称。`cfg.top` 和生成出来的 testbench 顶层名不是同一个概念。
+
+---
+
+## 2. 必要参数
+
+| 参数 | HVL 说明 | WAL 说明 |
+|------|----------|----------|
+| `add_rules("verilua")` | 必须 | 必须 |
+| `add_toolchains("@...")` | 指定仿真器 | 必须为 `@wave_vpi` |
+| `set_values("cfg.top", "...")` | DUT 顶层模块名 | 波形顶层模块名 |
+| `set_values("cfg.lua_main", "...")` | Lua 主脚本 | Lua 主脚本 |
+| `add_files(...)` | RTL + 可选 Lua/C/C++ | 1 个波形文件 + 可选 Lua |
+
+---
+
+## 3. 常用可选参数
+
+### 3.1 通用配置
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `set_values("cfg.user_cfg", "<file>")` | string | - | 用户自定义 Lua 配置文件，会合并到全局 `cfg` 表 |
+| `set_values("cfg.build_dir_name", "<name>")` | string | `cfg.top` | 构建目录名称（位于 `build/<sim>/` 下） |
+| `set_values("cfg.build_dir_path", "<path>")` | string | `build/<sim>` | 构建目录的父路径 |
+
+### 3.2 仿真器专用标志
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `add_values("verilator.flags", ...)` | Verilator 编译选项（HVL） | `add_values("verilator.flags", "--trace")` |
+| `add_values("iverilog.flags", ...)` | Icarus 编译选项（HVL） | `add_values("iverilog.flags", "-g2012")` |
+| `add_values("vcs.flags", ...)` | VCS 编译选项（HVL） | `add_values("vcs.flags", "-full64")` |
+| `add_values("xcelium.flags", ...)` | Xcelium 编译选项（HVL） | `add_values("xcelium.flags", "-64bit")` |
+| `add_values("verilator.run_flags", ...)` | Verilator 运行时参数 | `add_values("verilator.run_flags", "+verilator+coverage")` |
+| `set_values("verilator.run_prefix", ...)` | Verilator 运行时前缀（如 `gdb --args`） | `set_values("verilator.run_prefix", "gdb --args")` |
+| `add_values("wave_vpi.run_flags", ...)` | wave_vpi 运行时参数（WAL） | `add_values("wave_vpi.run_flags", "--dump-journal")` |
+| `set_values("wave_vpi.run_prefix", ...)` | wave_vpi 运行时前缀（WAL） | `set_values("wave_vpi.run_prefix", "gdb --args")` |
+
+> **`add_values` vs `set_values`**：`*.flags` 和 `*.run_flags` 系列参数请使用 `add_values`，它会追加到已有值；`set_values` 会覆盖，多次调用只保留最后一次的结果。`*.run_prefix` 是单值参数，用 `set_values` 即可。其他仿真器也有对应的 `.run_flags` 和 `.run_prefix`。其中 `.flags` 主要用于 HVL 编译阶段，`wave_vpi` 没有单独的编译阶段，但支持自己的运行参数。
+
+### 3.3 testbench 相关参数（HVL）
+
+如果使用 Verilua 自动生成 testbench，除了 `cfg.tb_gen_flags` 之外，还可以直接控制 testbench 顶层名或切换到自定义 testbench：
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `set_values("cfg.tb_top", "...")` | 指定生成的 testbench 顶层模块名，默认是 `tb_top` | `set_values("cfg.tb_top", "my_tb")` |
+| `set_values("cfg.tb_top_file", "...")` | 使用自定义 testbench 文件替代自动生成的 testbench | `set_values("cfg.tb_top_file", "tb/my_tb_top.sv")` |
+| `set_values("cfg.not_gen_tb", "1")` | 禁止自动生成 testbench | `set_values("cfg.not_gen_tb", "1")` |
+
+其中最常见的情况仍然是不改 `cfg.tb_top`，直接通过 `cfg.tb_gen_flags` 给 `testbench_gen` 传少量附加参数：
+
+```lua
+set_values("cfg.tb_gen_flags", "--clock-signal", "clk", "--period", "10")
+-- 或追加
+add_values("cfg.tb_gen_flags", "--verbose")
+```
+
+这里需要区分两个名字：
+
+- `cfg.top`：DUT 顶层模块名。
+- `cfg.tb_top`：生成的 testbench 顶层模块名，默认是 `tb_top`。
+
+更多 `testbench_gen` 参数请参考 [testbench_gen 命令行参数](../reference/testbench_generate.mdx)。
+
+---
+
+## 4. 构建与运行命令
+
+在包含 `xmake.lua` 的目录下执行：
+
+```bash
+# 构建目标
+xmake build -P . my_test
+
+# 运行仿真（或波形分析）
+xmake run -P . my_test
+
+# 清理构建产物
+xmake clean -P . my_test
+```
+
+`-P .` 指定当前目录为项目根目录，若已在项目根目录可省略。
+
+---
+
+## 5. 完整示例
+
+### 5.1 HVL 基础示例（Verilator + 波形）
+
+```lua
+target("counter_test", function()
+    add_rules("verilua")
+    add_toolchains("@verilator")
+    add_files("src/Counter.v", "src/main.lua")
+    set_values("cfg.top", "Counter")
+    set_values("cfg.lua_main", "src/main.lua")
+    add_values("verilator.flags", "--trace", "--no-trace-top")
+end)
+```
+
+### 5.2 HVL 多仿真器支持（通过环境变量选择）
+
+```lua
+target("multi_sim", function()
+    add_rules("verilua")
+    on_config(function(target)
+        local sim = os.getenv("SIM") or "verilator"
+        if sim == "iverilog" then
+            target:set("toolchains", "@iverilog")
+        elseif sim == "vcs" then
+            target:set("toolchains", "@vcs")
+        elseif sim == "xcelium" then
+            target:set("toolchains", "@xcelium")
+        elseif sim == "verilator" then
+            target:set("toolchains", "@verilator")
+        else
+            raise("unknown simulator: %s", sim)
+        end
+    end)
+    add_files("rtl/*.sv", "tb/main.lua")
+    set_values("cfg.top", "Top")
+    set_values("cfg.lua_main", "tb/main.lua")
+    add_values("verilator.flags", "--trace")
+end)
+```
+
+使用方式示例：
+
+```bash
+# 默认使用 verilator
+xmake run -P . multi_sim
+
+# 使用 iverilog
+SIM=iverilog xmake run -P . multi_sim
+
+# 使用 vcs
+SIM=vcs xmake run -P . multi_sim
+
+# 使用 xcelium
+SIM=xcelium xmake run -P . multi_sim
+```
+
+如果您希望先单独构建，再运行，也可以这样写：
+
+```bash
+SIM=vcs xmake build -P . multi_sim
+SIM=vcs xmake run -P . multi_sim
+```
+
+上面的 `xmake.lua` 会在配置阶段读取 `SIM` 环境变量，并自动切换到对应的 `toolchain`。如果没有设置 `SIM`，则默认使用 `verilator`；如果设置成了不支持的值，则会直接报错，避免静默回退到错误的后端。
+
+### 5.3 WAL 波形分析示例
+
+```lua
+target("wave_analysis", function()
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")
+    add_files("path/to/waveform.vcd", "analyze.lua")
+    set_values("cfg.top", "tb_top")
+    set_values("cfg.lua_main", "analyze.lua")
+end)
+```
+
+其中 `path/to/waveform.vcd` 只是占位写法，实际使用时既可以写绝对路径，也可以写相对于 `xmake.lua` 的路径。支持的波形格式为 `.vcd`、`.fst`、`.fsdb`，每个 target 只能指定一个波形文件。
+
+`cfg.top` 也不是固定必须写成 `tb_top`。如果波形是通过 Verilua 的 HVL 流程生成的，那么顶层通常是 `tb_top`；如果波形来自其他流程，则应填写该波形文件中的实际顶层模块名（例如 `top`、`Design` 等）。最直接的判断方法是用波形查看器打开文件，确认最外层层次名称。
+
+---
+
+## 6. 其他场景
+
+这篇指南主要覆盖常用写法。对于一些低频或进阶场景，建议直接查 reference 文档：
+
+- 手动生成时钟、禁用内部时钟：参考 [xmake 参数详细说明](../reference/xmake_params.mdx)
+- 更完整的 `cfg.*` / `<sim>.*` 参数说明：参考 [xmake 参数详细说明](../reference/xmake_params.mdx)
+- `testbench_gen` 的完整参数列表：参考 [testbench_gen 命令行参数](../reference/testbench_generate.mdx)
+
+### 6.1 添加 C/C++ 源文件（HVL）
+
+对于需要 DPI-C 或 VPI 扩展的项目，可直接添加 C/C++ 文件：
+
+```lua
+add_files("src/dpi_funcs.cpp")
+```
+
+Verilua 会将这些文件交给对应后端参与构建。某些仿真器或特定场景下，您可能还需要补充额外的链接标志或仿真器参数；如果遇到这类情况，建议参考仓库中的实际示例（如 `tests/test_dpic/xmake.lua`）。
+
+---
+
+## 7. 常见问题
+
+**Q1：编译时报错 `unknown toolchain`**  
+A：请确保 `add_toolchains` 中使用了正确的名称（`@verilator`, `@iverilog`, `@vcs`, `@xcelium`, `@wave_vpi`），且对应工具已安装在 `PATH` 中。
+
+**Q2：波形文件未生成（HVL）**  
+A：检查 `verilator.flags` 是否包含 `--trace` 或 `--trace-fst`，并在 Lua 中调用了 `sim.dump_wave()`。
+
+**Q3：WAL 模式下找不到波形文件**  
+A：`add_files` 中添加的波形文件路径必须是绝对路径或相对于 `xmake.lua` 的路径。确保文件存在。
+
+**Q4：Lua 脚本修改后是否需要重新编译？**  
+A：通常不需要。Lua 是解释执行的语言，修改 `main.lua` 或其他参与运行的 Lua 文件后，直接重新运行仿真即可。
+
+例如，第一次先构建并运行：
+
+```bash
+xmake build -P . my_test
+xmake run -P . my_test
+```
+
+之后如果您只修改了 Lua 脚本（例如 `main.lua` 或它 `require` 的其他 Lua 文件），通常只需要再次运行：
+
+```bash
+xmake run -P . my_test
+```
+
+只有在您修改了 RTL、C/C++ 文件，或变更了 `xmake.lua` 中的构建配置时，才通常需要重新构建。
+
+**Q5：WAL 模式下是否生成 testbench？**  
+A：不生成。WAL 模式直接读取波形文件，无需 RTL 仿真。
+
+---
+
+## 8. 参考资料
+
+- [xmake 官方文档](https://xmake.io/#/getting_started)
+- [Verilua xmake 参数详细说明](../reference/xmake_params.mdx)
+- [testbench_gen 命令行参数](../reference/testbench_generate.mdx)

@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
       label: 'How-to Guides',
       collapsed: false,
       items: [
+        'how-to-guides/write_xmake_lua',
         'how-to-guides/simple_ut_env',
         'how-to-guides/write_reusable_component',
         'how-to-guides/clock_driving',
