@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">一个简单的 HVL 示例 | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="一个简单的 HVL 示例 | Verilua"><meta data-rh="true" name="description" content="HVL 是 Hardware Verification Language（硬件验证语言）的缩写。"><meta data-rh="true" property="og:description" content="HVL 是 Hardware Verification Language（硬件验证语言）的缩写。"><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"一个简单的 HVL 示例","item":"https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.05755b1f.css">
-<script src="/verilua/assets/js/runtime~main.b1bdd5ee.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.a8bd3012.js" defer="defer"></script>
 <script src="/verilua/assets/js/main.db4f651d.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -34,7 +34,7 @@
 </li>
 <li class="">
 <p><code>dut.reset = 1</code> 和 <code>dut.reset = 0</code> 用于使用 dut 来给 reset 信号进行赋值，这种对信号赋值的方式是<strong>立即赋值</strong>，并且只对小于 32 bit 的信号可以这么使用，如果对大于 32 bit 的信号也使用这种方式进行赋值就会只赋值低 32 bit。
-也可以使用 <code>dut.reset:set_imm(1)</code> 和 <code>dut.reset:set_imm(0)</code> 来代替这两个方式，这里的 imm 是 immediate 的缩写，即立即（关于立即赋值与普通赋值的区别将会在后续的教程中进行介绍，具体可以看 <a class="" href="/verilua/docs/reference/data_structure/callable_hdl#set_and_set_imm">这里</a>）。</p>
+也可以使用 <code>dut.reset:set_imm(1)</code> 和 <code>dut.reset:set_imm(0)</code> 来代替这两个方式，这里的 imm 是 immediate 的缩写，即立即（关于立即赋值与普通赋值的区别将会在后续的教程中进行介绍，具体可以看 <a class="" href="/verilua/docs/reference/data_structure/callable_hdl#set-and-set-imm">这里</a>）。</p>
 </li>
 <li class="">
 <p><code>local clock = dut.clock:chdl()</code> 用于创建一个 Verilua 的 <code>CallableHDL</code> 对象（也叫 <code>chdl</code>），这个对象用于管理 <code>tb_top.clock</code> 这个信号（<code>dut</code> 默认代表的 Testbench 顶层是 <code>tb_top</code>，也可以进行修改，但是不建议这么做）。</p>
@@ -61,7 +61,7 @@
 <p><code>dut.value:is(2)</code> 的 <code>is</code> 方法用于判断信号的值是否等于某个值，如果等于则返回 <code>true</code>，否则返回 <code>false</code>。类似 <code>is</code> 的方法还有 <code>is_hex_str</code>、<code>is_dec_str</code>、<code>is_bin_str</code>，还有一个 <code>is_not</code> 方法，其功能和 <code>is</code> 相反，但是如果等于则返回 <code>false</code>，否则返回 <code>true</code>。</p>
 </li>
 <li class="">
-<p><code>dut.inc:set(1)</code> 的 <code>set</code> 方法用于设置信号的值，区别于立即赋值的 <code>dut.inc = 1</code>，<code>set</code> 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 <a class="" href="/verilua/docs/reference/data_structure/callable_hdl#set_and_set_imm">这里</a>）。<code>dut</code> 的 <code>set</code> 方法同样只能赋值最多 32 bit 位宽的信号。</p>
+<p><code>dut.inc:set(1)</code> 的 <code>set</code> 方法用于设置信号的值，区别于立即赋值的 <code>dut.inc = 1</code>，<code>set</code> 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 <a class="" href="/verilua/docs/reference/data_structure/callable_hdl#set-and-set-imm">这里</a>）。<code>dut</code> 的 <code>set</code> 方法同样只能赋值最多 32 bit 位宽的信号。</p>
 </li>
 <li class="">
 <p><code>dut.inc:get()</code> 的 <code>get</code> 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值，需要注意的是 <code>dut</code> 的 <code>get</code> 方法只能用来获得最多 32 bit 位宽信号的值。</p>
