@@ -30,9 +30,9 @@ local function test_async_queue()
         function()
             while not stop_clocks do
                 wr_clk:set(1)
-                await_time(5, "ns")
+                await_time_ns(5)
                 wr_clk:set(0)
-                await_time(5, "ns")
+                await_time_ns(5)
             end
         end
     }
@@ -42,9 +42,9 @@ local function test_async_queue()
         function()
             while not stop_clocks do
                 rd_clk:set(1)
-                await_time(8, "ns")
+                await_time_ns(8)
                 rd_clk:set(0)
-                await_time(8, "ns")
+                await_time_ns(8)
             end
         end
     }
@@ -59,14 +59,14 @@ local function test_async_queue()
     dut.rd_en:set(0)
 
     -- Wait for reset
-    await_time(100, "ns")
+    await_time_ns(100)
 
     -- Release reset
     wr_rst_signal:set(1)
     dut.rd_rst_n:set(1)
 
     -- Wait for reset to propagate through synchronizers
-    await_time(100, "ns")
+    await_time_ns(100)
 
     print("  Reset released")
 
@@ -84,13 +84,13 @@ local function test_async_queue()
     for i, data in ipairs(test_data) do
         dut.wr_en:set(1)
         dut.wr_data:set(data)
-        await_time(10, "ns") -- One write clock cycle
+        await_time_ns(10) -- One write clock cycle
         print(string.format("    Wrote[%d]: 0x%02X", i, data))
     end
     dut.wr_en:set(0)
 
     -- Wait for empty flag to update (CDC latency)
-    await_time(80, "ns")
+    await_time_ns(80)
 
     -- Verify queue is not empty
     empty_val = dut.empty:get()
@@ -105,7 +105,7 @@ local function test_async_queue()
         -- Wait for data to be available
         local timeout_count = 0
         while dut.empty:get() == 1 do
-            await_time(16, "ns")
+            await_time_ns(16)
             timeout_count = timeout_count + 1
             if timeout_count > 100 then
                 error("Timeout waiting for data")
@@ -113,9 +113,9 @@ local function test_async_queue()
         end
 
         dut.rd_en:set(1)
-        await_time(16, "ns") -- One read clock cycle
+        await_time_ns(16) -- One read clock cycle
         dut.rd_en:set(0)
-        await_time(16, "ns") -- One more cycle to latch data
+        await_time_ns(16) -- One more cycle to latch data
 
         local data = dut.rd_data:get()
         read_data[i] = data
@@ -132,7 +132,7 @@ local function test_async_queue()
     end
 
     -- Wait for empty flag to update
-    await_time(80, "ns")
+    await_time_ns(80)
 
     -- Verify queue is empty again
     empty_val = dut.empty:get()
@@ -141,7 +141,7 @@ local function test_async_queue()
 
     -- Stop clock drivers
     stop_clocks = true
-    await_time(50, "ns")
+    await_time_ns(50)
 
     print("  PASS: Async queue test (Lua Clock) completed successfully")
 end

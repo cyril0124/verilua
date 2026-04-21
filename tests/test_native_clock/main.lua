@@ -141,9 +141,9 @@ local function test_native_clock_multiple_signals()
     assert(clk1:is_running(), "clk1 should be running")
     assert(clk2:is_running(), "clk2 should be running")
 
-    -- Wait for a few clock cycles using await_time to avoid the scheduler issue
+    -- Wait for a few clock cycles using await_time_ns to avoid the scheduler issue
     -- with posedge on non-registered clock signals
-    await_time(50, "ns")
+    await_time_ns(50)
 
     -- Verify both clocks are still running
     assert(clk1:is_running(), "clk1 should still be running")
