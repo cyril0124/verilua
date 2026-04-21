@@ -1,0 +1,246 @@
+# Bundle
+
+## 创建 Bundle
+
+### 使用 class 创建
+
+`Bundle` 是一个 class，因此可以使用类似 `class` 的方式创建，例如：
+
+```lua
+local Bundle = require "LuaBundle"
+
+local bdl = Bundle(
+    {"valid", "ready", "opcode", "data"}, -- 1. <signals_table>
+    "some_prefix_",                       -- 2. <prefix>
+    "path.to.hier",                       -- 3. <hierarchy>
+    "name of bundle",                     -- 4. <name>
+    true,                                 -- 5. <is_decoupled>
+    nil                                   -- 6. <optional_signals>
+)
+```
+
+`Bundle` 接收六个参数：
+
+1. `signals_table` — 信号名称列表（table）。
+
+2. `prefix` — 信号前缀字符串，无前缀传 `""`。
+
+3. `hierarchy` — 信号的完整 hierarchy 路径，必填。
+
+4. `name` — Bundle 名称，可选，默认 `"Unknown"`。
+
+5. `is_decoupled`
+
+   用来表示这个 `Bundle` 是否是 Decoupled 类型（和 Chisel 中的 [Decoupled 定义](https://www.chisel-lang.org/docs/explanations/interfaces-and-connections#the-standard-ready-valid-interface-readyvalidio--decoupled)一致），可选参数，默认为 `false`，可以传入 `nil` 来使用默认值。
+
+   对于 Decoupled 类型的 `Bundle`，其中必须要在 `signals_table` 中包含 `valid`，而对于 `ready` 这个信号是可选的。针对 Decoupled 类型的 `Bundle`，有一个 `<bdl>:fire()` 的方法，用来判断信号的 `valid` 是否为 `1`（如果 `ready` 存在还会判断是否 `ready` 也为 1），例如：
+
+   ```lua
+   local bdl = Bundle({"valid", "ready", "opcode", "data"}, "some_prefix_", "path.to.hier", "name of bundle", true)
+   local valid = bdl.valid:chdl()
+   local ready = bdl.ready:chdl()
+
+   assert(bdl:fire())
+   assert(valid:get() == 1)
+   assert(ready:get() == 1)
+   ```
+
+   如果 `Bundle` 被标记为是 Decoupled 的，那么除了 `valid` 和 `ready` 之外，其他在 `signals_table` 中的信号都会被自动添加一个 `bits_` 的前缀，例如上面的 bdl 会有这些信号：
+
+   ```hl_lines="3 4"
+   path.to.hier.some_prefix_valid
+   path.to.hier.some_prefix_ready
+   path.to.hier.some_prefix_bits_opcode
+   path.to.hier.some_prefix_bits_data
+   ```
+
+   :::note[这样设计的目的是为了方便 Chisel 用户使用 Verilua 来创建 Bundle]
+
+   :::
+
+6. `optional_signals`
+
+   用来标记 `signals_table` 中的信号哪些是可选的，如果一个信号被标记为可选的，那么在构建 `Bundle` 的时候如果发现这个信号不存在，就会忽略这个信号的报错，否则就会报错。
+
+   :::tip[推荐使用方括号语法]
+   除了通过 `optional_signals` 参数指定可选信号外，还可以在信号列表中使用方括号 `[signal_name]` 来标记可选信号（推荐）：
+
+   ```lua
+   -- 使用 optional_signals 参数（旧方法，仍然有效）
+   local bdl = ("valid | data | nonexistent"):bdl {
+       hier = "tb_top",
+       optional_signals = {"nonexistent"}
+   }
+
+   -- 使用方括号语法（推荐）
+   local bdl = ("valid | data | [nonexistent]"):bdl {
+       hier = "tb_top"
+   }
+   ```
+
+   :::
+
+上述代码会将下面的信号加入到 `Bundle` 中：
+
+```
+path.to.hier.some_prefix_valid
+path.to.hier.some_prefix_ready
+path.to.hier.some_prefix_bits_opcode
+path.to.hier.some_prefix_bits_data
+```
+
+这里的每一个信号的访问方式如下：
+
+```lua
+local valid  = bdl.valid
+local ready  = bdl.ready
+local opcode = bdl.bits.opcode
+local data   = bdl.bits.data
+```
+
+:::note[这里的每一个信号都是一个 `chdl`]
+:::
+
+对于 Decoupled 类型的 `Bundle`，除了 `valid` 和 `ready` 之外，其他信号的访问需要在 `bits` 下进行访问。
+
+上面都是 Decoupled 类型的 `Bundle`，对于不是 Decoupled 类型的 `Bundle`，这里是另一个例子：
+
+```lua
+local bdl = Bundle({"data0", "data1", "data2"}, "some_prefix_", "path.to.hier", "name of bundle", false)
+
+local data0 = bdl.data0
+local data1 = bdl.data1
+local data2 = bdl.data2
+```
+
+### 使用 string literal 创建（推荐）
+
+和 `CallableHDL` 一样，`Bundle` 也可以使用 string literal 来创建，也就是 SLCP，详见 [SLCP](../slcp.mdx)，下面是一个例子：
+
+```lua
+local bdl = ([[
+    | valid
+    | ready
+    | opcode
+    | data
+]]):bdl({hier = "path.to.hier", prefix = "some_prefix_", name = "name of bundle", is_decoupled = false})
+```
+
+:::note[Lua 的 `[[ ]]` 用来表示多行的字符串]
+:::
+
+:::tip[Lua 中如果函数的参数只有一个，且这个参数的类型是 string 或者 table，那么就可以省略圆括号，因此上面的代码可以简化为：`local bdl = ([[ | valid | ready | opcode | data ]]):bdl {...}`]
+
+:::
+
+上述的代码中，每一个信号需要用 `|` 分隔开，换行不是必须的，因此下面的做法也是可以的：
+
+```lua
+local bdl = ("valid | ready | opcode | data"):bdl {...}
+local bdl = ("| valid | ready | opcode | data"):bdl {...}
+local bdl = ("| valid |      ready | opcode    | data |"):bdl {...}
+local bdl = ([[ valid | ready
+| opcode
+   | data
+]]):bdl {...}
+```
+
+使用 SLCP 进行构建的时候，参数用 table 的形式传入（key-value 的形式），因此这些参数名和使用 `class` 构建的时候的参数名一致。
+
+## Bundle 接口
+
+:::note[`Bundle` 的对于每一个信号的成员变量仍然还是一个 `CallableHDL`]
+如果要访问对应信号的值，和 `CallableHDL` 一样操作即可，例如：
+
+```lua
+local bdl = ("valid | ready | opcode | data"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = true}
+local valid_value = bdl.valid:get()
+local ready_value = bdl.ready:get()
+
+bdl.bits.opcode:set(0x123)
+bdl.bits.data:set(0x456)
+```
+
+:::
+
+1. `<bdl>:fire()`
+
+   判断信号的 `valid` 是否为 `1`（如果 `ready` 存在还会判断是否 `ready` 也为 1），例如：
+
+   ```lua
+   local bdl = ("valid | ready | opcode | data"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = true}
+   local valid = bdl.valid:chdl()
+   local ready = bdl.ready:chdl()
+
+   assert(bdl:fire())
+   assert(valid:get() == 1)
+   assert(ready:get() == 1)
+   ```
+
+   :::warning[只有 is_decoupled 为 `true` 的 `Bundle` 才有这个方法]
+
+   :::
+
+2. `<bdl>:get_all()`
+
+   获得所有的信号，并以 Lua table 的形式返回，例如：
+
+   ```lua
+   local bdl = ("opcode | data "):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = false}
+   local signals = bdl:get_all()
+   local opcode_value = signals[1]
+   local data_value = signals[2]
+   ```
+
+   :::warning[只有 is_decoupled 为 `false` 的 `Bundle` 才有这个方法]
+
+   :::
+
+3. `<bdl>:set_all(values_tbl)`
+
+   设置所有的信号，并以 Lua table 的形式返回，例如：
+
+   ```lua
+   local bdl = ("opcode | data"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = false}
+   local signals = bdl:set_all({0x123, 0x456})
+   ```
+
+   :::warning[只有 is_decoupled 为 `false` 的 `Bundle` 才有这个方法]
+
+   :::
+
+4. `<bdl>:dump()`
+
+   将 `Bundle` 中所有的信号当前的数值输出到控制台，可以用于查看信号的值，打印的内容如下所示：
+
+   ```shell title="Terminal"
+   [name of bundle] | valid: 0x1 | ready: 0x1 | opcode: 0x123 | data: 0x456
+   ```
+
+5. `<bdl>:dump_str()`
+
+   返回 `dump()` 的输出字符串，等价于 `print(<bdl>:dump_str())`。
+
+6. `<bdl>:format_dump(format_func)`
+
+   带自定义格式的 `dump()`，接受可选的 `format_func: fun(chdl, name: string): string`。若 `format_func` 返回非 `nil` 字符串，则替换该信号的默认输出，例如：
+
+   ```lua
+   local bdl = ("valid | value0 | value1 | other"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = false, name = "name of bundle"}
+
+   bdl:format_dump(function(chdl, name)
+       if chdl.width == 1 and name:contains(value) then
+           return name .. " is " .. chdl:get_hex_str()
+       end
+   end)
+   ```
+
+   输出结果：
+
+   ```shell title="Terminal"
+   [name of bundle] | valid: 0x1 | value0 is 0x1 | value1 is 0x0 | other: 0x0
+   ```
+
+7. `<bdl>:format_dump_str(format_func)`
+
+   返回 `format_dump()` 的输出字符串。

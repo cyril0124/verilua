@@ -1,0 +1,148 @@
+# AliasBundle
+
+## 创建 AliasBundle
+
+### 使用 class 创建
+
+`AliasBundle` 是一个 class，因此可以使用类似 `class` 的方式创建，例如：
+
+```lua
+local AliasBundle = require "LuaAliasBundle"
+local abdl = AliasBundle(
+    {
+        {"origin_signal_name", "alias_name"},
+        {"origin_signal_name_1", "alias_name_1"},
+    },                                    -- 1. <alias_signal_tbl>
+    "some_prefix",                       -- 2. <prefix>
+    "path.to.hier",                      -- 3. <hierarchy>
+    "name of alias bundle",              -- 4. <name>
+    nil                                   -- 5. <optional_signals>
+)
+```
+
+`AliasBundle` 接收五个参数：
+
+1. `alias_signal_tbl` — 包含 `{原始信号名, 别名}` 对的 table，别名可省略（此时退化为普通信号名）。
+
+2. `prefix` — 信号前缀字符串，无前缀传 `""`。
+
+3. `hierarchy` — 信号的完整 hierarchy 路径，必填。
+
+4. `name` — AliasBundle 名称，可选，默认 `"Unknown"`。
+
+5. `optional_signals`
+
+   用来标记 `signals_table` 中的信号哪些是可选的，如果一个信号被标记为可选的，那么在构建 `AliasBundle` 的时候如果发现这个信号不存在，就会忽略这个信号的报错，否则就会报错。
+
+   :::tip[推荐使用方括号语法]
+   除了通过 `optional_signals` 参数指定可选信号外，还可以在信号列表中使用方括号来标记可选信号（推荐）：
+
+   ```lua
+   -- 使用 optional_signals 参数（旧方法，仍然有效）
+   local abdl = ([[
+       | origin_signal_0 => alias_0
+       | nonexistent => alias_ne
+   ]]):abdl {
+       hier = "tb_top",
+       optional_signals = {"alias_ne"}
+   }
+
+   -- 使用方括号语法（推荐）
+   local abdl = ([[
+       | origin_signal_0 => alias_0
+       | [nonexistent => alias_ne]
+   ]]):abdl {
+       hier = "tb_top"
+   }
+
+   -- 也可以用于没有别名的信号
+   local abdl = ([[
+       | origin_signal_0
+       | [optional_signal]
+   ]]):abdl {
+       hier = "tb_top"
+   }
+   ```
+
+   :::
+
+上述代码会将下面的信号加入到 `AliasBundle` 中：
+
+```
+path.to.hier.some_prefix_origin_signal_name
+path.to.hier.some_prefix_origin_signal_name_1
+```
+
+由于 `AliasBundle` 能够为信号创建别名，因此可以直接**使用这些别名来访问信号**，例如对于上面的这个例子中，可以这样访问信号：
+
+```lua
+local value = abdl.alias_name:get()
+abdl.alias_name_1:set(123)
+```
+
+### 使用 string literal 创建（推荐）
+
+和 `Bundle` 一样，`AliasBundle` 也可以使用 string literal 来创建，也就是 SLCP，详见 [SLCP](../slcp.mdx)，下面是一个例子：
+
+```lua
+local abdl = ([[
+    | origin_signal_name => alias_name
+    | origin_signal_name_1 => alias_name_1
+]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
+```
+
+可以看到和 `Bundle` 不一样的地方在于可以使用 `=>` 来创建别名。实际上并不要求对于每一个信号都要有别名，因此下面这种情况也是允许的：
+
+```lua
+local abdl = ([[
+    | origin_signal_name
+    | origin_signal_name_1 => alias_name_1
+]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
+```
+
+甚至可以都不创建别名，这样就和 `Bundle` 一样了，因此下面这种情况也是允许的：
+
+```lua
+local abdl = ([[
+    | origin_signal_name
+    | origin_signal_name_1
+]]):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of alias bundle"}
+```
+
+## AliasBundle 接口
+
+1. `<abdl>:dump()`
+
+   将 `AliasBundle` 中所有的信号当前的数值输出到控制台，可以用于查看信号的值，打印的内容如下所示：
+
+   ```shell title="Terminal"
+   [name of alias bundle] | origin_signal_name -> alias_name: 0x1 | origin_signal_name_1 -> alias_name_1: 0x123
+   ```
+
+2. `<abdl>:dump_str()`
+
+   返回 `dump()` 的输出字符串，等价于 `print(<abdl>:dump_str())`。
+
+3. `<abdl>:format_dump(format_func)`
+
+   带自定义格式的 `dump()`，接受可选的 `format_func: fun(chdl, name: string, alias_name: string): string`。若 `format_func` 返回非 `nil` 字符串，则替换该信号的默认输出，例如：
+
+   ```lua
+   local abdl = ("valid | value0 -> v0 | value1 -> v1 | other -> o"):abdl {hier = "path.to.hier", prefix = "some_prefix_", name = "name of abdl"}
+
+   abdl:format_dump(function(chdl, name, alias_name)
+       if chdl.width == 1 and name:contains(value) then
+           return name .. " is " .. chdl:get_hex_str() .. " with alias name: " .. alias_name
+       end
+   end)
+   ```
+
+   输出结果：
+
+   ```shell title="Terminal"
+   [name of abdl] | valid: 0x1 | value0 is 0x1 with alias name: v0 | value1 is 0x0 with alias name: v1 | other -> o: 0x0
+   ```
+
+4. `<abdl>:format_dump_str(format_func)`
+
+   返回 `format_dump()` 的输出字符串。

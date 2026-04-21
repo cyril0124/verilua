@@ -188,7 +188,7 @@ endmodule
     ```
 
 * `dut.reset = 1` 和 `dut.reset = 0` 用于使用 dut 来给 reset 信号进行赋值，这种对信号赋值的方式是**立即赋值**，并且只对小于 32 bit 的信号可以这么使用，如果对大于 32 bit 的信号也使用这种方式进行赋值就会只赋值低 32 bit。
-也可以使用 `dut.reset:set_imm(1)` 和 `dut.reset:set_imm(0)` 来代替这两个方式，这里的 imm 是 immediate 的缩写，即立即（关于立即赋值与普通赋值的区别将会在后续的教程中进行介绍，具体可以看 [这里](../reference/data_structure.mdx#set_and_set_imm)）。
+也可以使用 `dut.reset:set_imm(1)` 和 `dut.reset:set_imm(0)` 来代替这两个方式，这里的 imm 是 immediate 的缩写，即立即（关于立即赋值与普通赋值的区别将会在后续的教程中进行介绍，具体可以看 [这里](../reference/data_structure/callable_hdl.mdx#set_and_set_imm)）。
 
 * `local clock = dut.clock:chdl()` 用于创建一个 Verilua 的 `CallableHDL` 对象（也叫 `chdl`），这个对象用于管理 `tb_top.clock` 这个信号（`dut` 默认代表的 Testbench 顶层是 `tb_top`，也可以进行修改，但是不建议这么做）。
     - `CallableHDL` 其内部包括了多种信息，包括信号位宽、hierarchy path 等。
@@ -215,7 +215,7 @@ endmodule
     ```
 * `dut.value:is(2)` 的 `is` 方法用于判断信号的值是否等于某个值，如果等于则返回 `true`，否则返回 `false`。类似 `is` 的方法还有 `is_hex_str`、`is_dec_str`、`is_bin_str`，还有一个 `is_not` 方法，其功能和 `is` 相反，但是如果等于则返回 `false`，否则返回 `true`。
 
-* `dut.inc:set(1)` 的 `set` 方法用于设置信号的值，区别于立即赋值的 `dut.inc = 1`，`set` 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 [这里](../reference/data_structure.mdx#set_and_set_imm)）。`dut` 的 `set` 方法同样只能赋值最多 32 bit 位宽的信号。
+* `dut.inc:set(1)` 的 `set` 方法用于设置信号的值，区别于立即赋值的 `dut.inc = 1`，`set` 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 [这里](../reference/data_structure/callable_hdl.mdx#set_and_set_imm)）。`dut` 的 `set` 方法同样只能赋值最多 32 bit 位宽的信号。
 
 * `dut.inc:get()` 的 `get` 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值，需要注意的是 `dut` 的 `get` 方法只能用来获得最多 32 bit 位宽信号的值。
 

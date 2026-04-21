@@ -1,0 +1,287 @@
+# ProxyTableHandle
+
+`ProxyTableHandle` 不需要用户创建，全局有且只有一个 `ProxyTableHandle` 对象，也就是 `dut` 这个全局变量。
+
+:::note[`ProxyTableHandle` 是一个代理表，其子变量仍然是 `<dut>`]
+
+```lua
+local a = dut.path.to.signal
+local b = dut.path.signal
+assert(dut.__type == "ProxyTableHandle")
+assert(a.__type == "ProxyTableHandle")
+assert(b.__type == "ProxyTableHandle")
+```
+
+:::tip[对于 `CallableHDL`、`Bundle`、`AliasBundle`、`ProxyTableHandle` 都可以使用 `__type` 字段来判断其类型]
+
+:::
+:::
+
+## ProxyTableHandle 接口
+
+1. `<dut>:get_local_path()`
+
+   获得当前的 hierarchy path，例如：
+
+   ```lua
+   assert(dut:get_local_path() == "tb_top") -- assume that the top module is `tb_top`
+   assert(dut.path.to.hier:get_local_path() == "tb_top.path.to.hier")
+   ```
+
+2. `<dut>:set(<value>)`
+
+   设置一个信号的值，`<value>` 只能是一个 Lua number 类型的值，例如：
+
+   ```lua
+   dut.value:set(0x123)
+   ```
+
+   :::warning[目前 `<dut>:set(<value>)` 只能赋值 32 bit 的数据到信号中]
+
+   :::
+
+3. `<dut>:set_imm(<value>)`
+
+   立即赋值版本的 `set`，除了立即赋值的属性之外，其他和 `set` 一样。
+
+4. `<dut>:set_shuffled(<value>)`
+
+   对信号进行随机赋值，这在验证中很常用。
+
+5. `<dut>:set_force(<value>)`
+
+   强制赋值，等同 SystemVerilog `force`，需配合 `set_release` 使用。`<value>` 只能是 Lua number。
+
+6. `<dut>:set_release()`
+
+   释放 `set_force` 的强制赋值（等同 SystemVerilog `release`）。未调用时信号值将保持不变。
+
+7. `<dut>:force_all()`
+
+   使用了 `<dut>:force_all()` 之后，接下来 `dut` 的所有赋值操作都会转化为 `force` 类型的赋值。
+
+8. `<dut>:release_all()`
+
+   解除 `<dut>:force_all()` 的作用。
+
+9. `<dut>:force_region(func)`
+
+   在一个区域内（也就是 `func`）强制赋值，这个区域内的所有赋值操作都会转化为 `force` 类型的赋值。
+
+   ```lua
+   dut:force_region(function ()
+       dut.value:set(0x123)
+       dut.value:set(0x456)
+   end)
+   ```
+
+10. `<dut>:get()`
+
+    获得一个信号的值，返回的值是一个 Lua 的 number 类型的值，例如：
+
+    ```lua
+    assert(dut.value:get() == 0x123)
+    ```
+
+    对于超过 32 bit 的信号，返回的值仍然是 32 bit 的数值。
+
+11. `<dut>:get_str(fmt)`
+
+    作用类似 [`<chdl>:get_str(fmt)`](./callable_hdl.mdx#chdl-get_str)。
+
+12. `<dut>:get_hex_str()`
+
+    作用类似 [`<chdl>:get_hex_str()`](./callable_hdl.mdx#chdl-get_hex_str)。
+
+13. `<dut>:set_str(str)`
+
+    作用类似 [`<chdl>:set_str(str)`](./callable_hdl.mdx#chdl-set_str)。
+
+14. `<dut>:set_hex_str(str)`
+
+    作用类似 [`<chdl>:set_hex_str(str)`](./callable_hdl.mdx#chdl-set_hex_str)。
+
+15. `<dut>:set_force_str(str)`
+
+    `force` 版本的 `<dut>:set_str(str)`。
+
+16. `<dut>:posedge(times, func)`
+
+    作用类似 [`<chdl>:posedge(times, func)`](./callable_hdl.mdx#chdl-posedge)。
+
+17. `<dut>:negedge(times, func)`
+
+    作用类似 [`<chdl>:negedge(times, func)`](./callable_hdl.mdx#chdl-negedge)。
+
+18. `<dut>:posedge_until(max_limit, func)`
+
+    作用类似 [`<chdl>:posedge_until(max_limit, func)`](./callable_hdl.mdx#chdl-posedge_until)。
+
+19. `<dut>:negedge_until(max_limit, func)`
+
+    作用类似 [`<chdl>:negedge_until(max_limit, func)`](./callable_hdl.mdx#chdl-negedge_until)。
+
+20. `<dut>:chdl()`
+
+    基于 `dut` 当前的 hierarchy path 返回一个 `chdl`，例如：
+
+    ```lua
+    local clock = dut.path.to.clock:chdl()
+
+    -- equivalent to
+
+    local clock = ("tb_top.path.to.clock"):chdl()
+    ```
+
+    [这里](./callable_hdl.mdx#dut-flex_create_chdl)介绍了有关使用 `<dut>:chdl()` 创建 `chdl` 的技巧。
+
+21. `<dut>:get_width()`
+
+    获得信号的位宽。
+
+22. `<dut>:dump()` / `<dut>:dump_str()`
+
+    作用类似 [`<chdl>:dump()`](./callable_hdl.mdx#chdl-dump) / [`<chdl>:dump_str()`](./callable_hdl.mdx#chdl-dump_str)。
+
+23. `<dut>:expect(value)` / `<dut>:expect_not(value)` / `<dut>:expect_hex_str(hex_value_str)` / `<dut>:expect_bin_str(bin_value_str)` / `<dut>:expect_dec_str(dec_value_str)` / `<dut>:expect_not_hex_str(hex_value_str)` / `<dut>:expect_not_bin_str(bin_value_str)` / `<dut>:expect_not_dec_str(dec_value_str)`
+
+    作用都和 `chdl` 的对应方法一样。
+
+24. `<dut>:is(value)` / `<dut>:is_not(value)` / `<dut>:is_hex_str(hex_value_str)` / `<dut>:is_bin_str(bin_value_str)` / `<dut>:is_dec_str(dec_value_str)`
+
+    作用都和 `chdl` 的对应方法一样。
+
+25. `<dut>:with_prefix(prefix_str)`
+
+    基于当前的 hierarchy path 创建一个新的 `ProxyTableHandle`，并且会对后续的任何信号访问加上 `prefix_str` 前缀。
+
+    ```lua
+    local io_in = dut.path.to.mod:with_prefix("io_in_")
+    assert(io_in.value:get_local_path() == "top.path.to.mod.io_in_value")
+    assert(io_in.data:get_local_path() == "top.path.to.mod.io_in_data")
+    ```
+
+26. `<dut>:auto_bundle(params)`
+
+    创建一个 `Bundle` 对象，并且会根据 `params` 的配置进行匹配，从而创建出一个符合特定信号名称规律的 `Bundle` 对象。
+
+    `params` 是一个 table，其中包含了一些可选的配置，具体的可选配置如下：
+
+    - `startswith`
+
+      匹配以指定字符串开头的信号名称。例如，如果设置 `startswith = "axi_"`，那么只有以 `axi_` 开头的信号会被包含在 `Bundle` 中。
+
+      ```lua
+      -- assume the following signals exist:
+      --      tb_top.path.to.mod.axi_aw_valid
+      --      tb_top.path.to.mod.axi_ar_valid
+      --      tb_top.path.to.mod.axi_w_valid
+      --      tb_top.path.to.mod.axi_r_valid
+      local bdl = dut.path.to.mod:auto_bundle { startswith = "axi_" }
+
+      assert(bdl.axi_aw_valid.__type == "CallableHDL")
+      assert(bdl.axi_ar_valid.__type == "CallableHDL")
+      assert(bdl.axi_w_valid.__type == "CallableHDL")
+      assert(bdl.axi_r_valid.__type == "CallableHDL")
+      ```
+
+    - `endswith`
+
+      匹配以指定字符串结尾的信号名称。例如，如果设置 `endswith = "_valid"`，那么只有以 `_valid` 结尾的信号会被包含在 `Bundle` 中。
+
+      ```lua
+      -- assume the following signals exist:
+      --      tb_top.path.to.mod.axi_aw_valid
+      --      tb_top.path.to.mod.axi_ar_valid
+      --      tb_top.path.to.mod.axi_w_valid
+      --      tb_top.path.to.mod.axi_r_valid
+      local bdl = dut.path.to.mod:auto_bundle { endswith = "_valid" }
+
+      assert(bdl.axi_aw_valid.__type == "CallableHDL")
+      assert(bdl.axi_ar_valid.__type == "CallableHDL")
+      assert(bdl.axi_w_valid.__type == "CallableHDL")
+      assert(bdl.axi_r_valid.__type == "CallableHDL")
+      ```
+
+      `endswith` 可以和 `startswith` 一起使用，例如：`startswith = "axi_", endswith = "_valid"`。
+
+    - `matches`
+
+      匹配某个正则表达式。例如，如果设置 `matches = "data_[0-9]+"`，那么只有符合 `data_[0-9]+` 正则表达式的信号（如 data_0、data_1 等）会被包含在 `Bundle` 中。
+
+    - `filter`
+
+      过滤函数，可以根据信号名称和信号宽度来过滤掉不需要的信号。该函数接受两个参数：信号名称和信号宽度，返回 true 表示保留该信号，返回 false 表示过滤掉该信号。
+
+      ```lua
+      -- assume the following signals exist:
+      --      tb_top.path.to.mod.value_0  -- width = 1
+      --      tb_top.path.to.mod.value_1  -- width = 32
+      --      tb_top.path.to.mod.value_2  -- width = 64
+      --      tb_top.path.to.mod.value_3  -- width = 128
+      local bdl = dut.path.to.mod:auto_bundle { filter = function (name, width)
+          return width > 1
+      end }
+
+      assert(bdl.value_0 == nil)
+      assert(bdl.value_1.__type == "CallableHDL")
+      assert(bdl.value_2.__type == "CallableHDL")
+      assert(bdl.value_3.__type == "CallableHDL")
+      ```
+
+    - `prefix`
+
+      和 `startswith` 类似，但是在匹配信号名称时会将 `prefix` 前缀加到信号名称中。
+
+      ```lua
+      -- assume the following signals exist:
+      --      tb_top.path.to.mod.io_in_value_0
+      --      tb_top.path.to.mod.io_in_value_1
+      --      tb_top.path.to.mod.io_in_value_2
+      --      tb_top.path.to.mod.io_in_value_3
+      local bdl = dut.path.to.mod:auto_bundle { prefix = "io_in_" }
+
+      assert(bdl.value_0.__type == "CallableHDL")
+      assert(bdl.value_1.__type == "CallableHDL")
+      assert(bdl.value_2.__type == "CallableHDL")
+      assert(bdl.value_3.__type == "CallableHDL")
+      ```
+
+    :::warning[上面的参数中，如果没有特别说明可以和另外的参数使用，那么就不能合并使用]
+
+    :::
+
+27. `<dut>:__newindex(k, v)`
+
+    `ProxyTableHandle` 实现了 `__newindex` 这个 Lua 的 metatable 元方法，可以用来设置一个信号的值，例如：
+
+    ```lua
+    dut.path.to.signal = 10
+    -- equivalent to
+    local signal = dut.path.to.signal:chdl()
+    signal.value = 10
+    ```
+
+    这种赋值方式的行为与 [`<chdl>.value = <value>`](./callable_hdl.mdx#chdl-auto-value-assignment) 完全一致，支持同样的输入类型（number / string / table / cdata / boolean）。
+    如需立即赋值语义，请显式使用 `<chdl>.value_imm = <value>` 或 `set_imm(...)` 系列接口。
+
+    :::warning[建议尽量避免在业务代码中大量使用 `dut.xxx = <value>`]
+    该写法更适合快速临时访问或调试；在高频赋值路径中，动态路径解析与代理访问会带来额外开销，也不如显式 `chdl` 句柄清晰。
+    建议优先缓存句柄后赋值，例如 `local sig = dut.path.to.signal:chdl(); sig.value = <value>`。
+    :::
+
+28. `<dut>:set_freeze()`
+
+    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<dut>:set_release()` 来取消冻结。
+
+## ProxyTableHandle 的使用
+
+我们可以使用临时的变量来保存一个特定 hierarchy path 的 `ProxyTableHandle`，这样能够方便我们后续的使用，例如：
+
+```lua
+local mod = dut.path.to.mod
+local another_mod = mode.path.to.another_mod
+
+assert(mod.value:get_local_path() == "tb_top.path.to.mod.value")
+assert(another_mod.value:get_local_path() == "tb_top.path.to.mode.path.to.another_mod.value")
+```

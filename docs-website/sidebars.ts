@@ -35,7 +35,18 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'reference/multi_task',
-        'reference/data_structure',
+        {
+          type: 'category',
+          label: 'Data Structure',
+          items: [
+            'reference/data_structure/index',
+            'reference/data_structure/callable_hdl',
+            'reference/data_structure/bundle',
+            'reference/data_structure/alias_bundle',
+            'reference/data_structure/proxy_table_handle',
+            'reference/data_structure/event_handle',
+          ],
+        },
         'reference/bitvec',
         'reference/str_bits_utils',
         'reference/slcp',
