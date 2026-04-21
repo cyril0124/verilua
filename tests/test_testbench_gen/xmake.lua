@@ -48,10 +48,32 @@ target("test_run_non_ansi", function()
     set_values("cfg.lua_main", "./main.lua")
 end)
 
+target("test_run_custom_code_str", function()
+    add_rules("verilua")
+    set_default(false)
+    add_toolchains("@nosim")
+
+    add_files("./top_ansi.sv")
+    set_values("cfg.top", "TopAnsi")
+    set_values("cfg.lua_main", "./main.lua")
+    set_values("cfg.build_dir", path.join(os.scriptdir(), "build", "custom_code_str"))
+
+    add_values("cfg.tb_gen_flags", "--custom-code-str", [[
+initial begin
+    $display("[tb] xmake multiline inner");
+end
+]])
+
+    add_values("cfg.tb_gen_flags", "--custom-code-str-outer", [[
+`define TB_XMAKE_OUTER 1
+`define TB_XMAKE_OUTER_2 2
+]])
+end)
+
 target("test", function()
     set_kind("phony")
     set_default(true)
-    on_run(function(target)
+    on_run(function(_target)
         -- Helper function to compare testbench output with golden file using diff
         local function compare_testbench(output_file, golden_file, test_name)
             if not os.isfile(output_file) then
@@ -83,6 +105,30 @@ target("test", function()
                 print("=" .. string.rep("=", 60))
                 return false
             end
+        end
+
+        local function compare_snippet(output_file, snippet, test_name)
+            if not os.isfile(output_file) then
+                print(string.format("[%s] FAILED: Output file not found: %s", test_name, output_file))
+                return false
+            end
+
+            local content = io.readfile(output_file)
+            if not content then
+                print(string.format("[%s] FAILED: Cannot read output file: %s", test_name, output_file))
+                return false
+            end
+
+            if content:find(snippet, 1, true) then
+                print(string.format("[%s] PASSED (snippet found)", test_name))
+                return true
+            end
+
+            print(string.format("[%s] FAILED: Expected snippet not found", test_name))
+            print(string.format("  Output: %s", output_file))
+            print("  Expected snippet:")
+            print(snippet)
+            return false
         end
 
         local test_dir = os.scriptdir()
@@ -168,6 +214,42 @@ target("test", function()
             all_passed = false
         end
 
+        -- Test cfg.tb_gen_flags preserves multiline custom code strings in xmake rule
+        test_count = test_count + 1
+        local custom_code_build_dir = path.join(build_dir, "custom_code_str")
+        local custom_code_output = path.join(custom_code_build_dir, "tb_top.sv")
+
+        print("\n[custom_code_str] Running xmake build for multiline custom code strings...")
+        os.tryrm(custom_code_build_dir)
+        local ok4 = try { function()
+            os.execv("xmake", { "build", "-P", test_dir, "test_run_custom_code_str" })
+            return true
+        end }
+        if ok4 then
+            print("[custom_code_str] xmake build PASSED")
+            local outer_ok = compare_snippet(
+                custom_code_output,
+                [[`define TB_XMAKE_OUTER 1
+`define TB_XMAKE_OUTER_2 2]],
+                "custom_code_str_outer"
+            )
+            local inner_ok = compare_snippet(
+                custom_code_output,
+                [[initial begin
+    $display("[tb] xmake multiline inner");
+end]],
+                "custom_code_str_inner"
+            )
+            if outer_ok and inner_ok then
+                pass_count = pass_count + 1
+            else
+                all_passed = false
+            end
+        else
+            print("[custom_code_str] FAILED: xmake build failed")
+            all_passed = false
+        end
+
         -- Print summary
         print("\n" .. string.rep("=", 60))
         print(string.format("Test Summary: %d/%d passed", pass_count, test_count))
@@ -182,7 +264,7 @@ end)
 target("regen_golden", function()
     set_kind("phony")
     set_default(false)
-    on_run(function(target)
+    on_run(function(_target)
         local test_dir = os.scriptdir()
         local golden_dir = path.join(test_dir, "golden")
         local build_dir = path.join(test_dir, "build")

@@ -970,26 +970,31 @@ rule("verilua", function()
                 "--out-dir", build_dir,
                 "--lua-meta-file", path.join("build", "meta.lua")
             }
-            local include_flag_str = ""
-            for _, includedir in ipairs(v_include_dirs) do
-                include_flag_str = include_flag_str .. "-I " .. includedir .. " "
-            end
             if u_tb_gen_flags then
                 tb_gen_flags = table.join2(tb_gen_flags, u_tb_gen_flags)
             end
+            local gen_argv = {}
+            table.join2(gen_argv, tb_gen_flags)
+
+            for _, includedir in ipairs(v_include_dirs) do
+                table.insert(gen_argv, "-I")
+                table.insert(gen_argv, includedir)
+            end
+
             -- Decide how to pass files based on file count
-            local file_str = ""
             if #vfiles >= FILE_COUNT_THRESHOLD then
                 -- Too many files, use filelist
                 local filelist_file = path.join(build_dir, "tb_gen_files.f")
                 io.writefile(filelist_file, table.concat(vfiles, "\n"))
-                file_str = "--fl " .. filelist_file
+                table.insert(gen_argv, "--fl")
+                table.insert(gen_argv, filelist_file)
             else
                 -- Fewer files, pass file paths directly
-                file_str = table.concat(vfiles, " ")
+                for _, vfile in ipairs(vfiles) do
+                    table.insert(gen_argv, vfile)
+                end
             end
-            local gen_cmd = path.join(verilua_tools_home, "testbench_gen") ..
-                " " .. table.concat(tb_gen_flags, " ") .. " " .. file_str .. " " .. include_flag_str
+            local gen_cmd = path.join(verilua_tools_home, "testbench_gen")
 
             --- You can also specify your own testbench top module file using `cfg.tb_top_file`.
             --- e.g. (in your xmake.lua)
@@ -1017,7 +1022,7 @@ rule("verilua", function()
                         "[on_build] Cannot find `testbench_gen`! You should build `testbench_gen` in `verilua` root directory via `xmake build testbench_gen`")
                 end
 
-                os.exec(gen_cmd)
+                os.execv(gen_cmd, gen_argv)
                 target:add("files", path.join(build_dir, tb_top .. ".sv"), path.join(build_dir, "others.sv"))
             else
                 target:add("files", input_tb_top_file)
@@ -1736,6 +1741,7 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.concat(run_prefix, " ") ..
                 " " .. vtb_top .. " " .. table.concat(run_flags, " ")
         elseif sim == "iverilog" then
+            ---@type string[]
             local run_flags = { "-M", verilua_libs_home, "-m", "libverilua_iverilog" }
             local _run_flags = target:values("iverilog.run_flags")
             if _run_flags then
