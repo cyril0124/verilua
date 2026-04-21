@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">数据结构 | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/reference/data_structure"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="数据结构 | Verilua"><meta data-rh="true" name="description" content="在 Verilua 中，硬件信号通常被建模为 Handle，这也是 Verilua 中数据结构的主要命名方式。Handle 有多种类型："><meta data-rh="true" property="og:description" content="在 Verilua 中，硬件信号通常被建模为 Handle，这也是 Verilua 中数据结构的主要命名方式。Handle 有多种类型："><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/reference/data_structure"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/data_structure" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/data_structure" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"数据结构","item":"https://cyril0124.github.io/verilua/docs/reference/data_structure"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.05755b1f.css">
-<script src="/verilua/assets/js/runtime~main.4db53118.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.fbf86852.js" defer="defer"></script>
 <script src="/verilua/assets/js/main.0e1d0674.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -35,6 +35,8 @@
 <p>用于任务同步与通信，通过事件机制实现任务间的协调，用户可创建不同 <code>ehdl</code> 来同步任务执行顺序。需要注意的是，Event Handle 并非用于直接操作信号，而是用于管理任务之间的同步与通信，确保任务按预期顺序执行。</p>
 </li>
 </ol>
+<p>下面的 Mermaid 图与下方原图保持同一组概念关系，主要用于快速浏览各数据结构之间的联系：</p>
+<!-- -->
 <figure><img src="/verilua/assets/images/verilua_dsl_datastructure-b366a896761d003c1eb1d16602f48d0b.png" alt="Verilua data structure" style="width:100%"><figcaption>Verilua data structure</figcaption></figure>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="callablehdl">CallableHDL<a href="#callablehdl" class="hash-link" aria-label="Direct link to CallableHDL" title="Direct link to CallableHDL" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="创建-callablehdl">创建 CallableHDL<a href="#创建-callablehdl" class="hash-link" aria-label="Direct link to 创建 CallableHDL" title="Direct link to 创建 CallableHDL" translate="no">​</a></h3>
