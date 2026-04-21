@@ -63,7 +63,7 @@ end)
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `set_values("cfg.user_cfg", "<file>")` | string | - | 用户自定义 Lua 配置文件，会合并到全局 `cfg` 表 |
+| `set_values("cfg.user_cfg", "<file>")` | string | - | 指定用户自定义 Lua 配置文件；其返回表的字段会合并到运行期全局 `cfg` 中 |
 | `set_values("cfg.build_dir_name", "<name>")` | string | `cfg.top` | 构建目录名称（位于 `build/<sim>/` 下） |
 | `set_values("cfg.build_dir_path", "<path>")` | string | `build/<sim>` | 构建目录的父路径 |
 

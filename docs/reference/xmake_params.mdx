@@ -286,36 +286,17 @@ set_values("cfg.build_dir_path", "/tmp/builds")
 
 ### 加载用户自定义配置
 
-<div id="cfg-user-cfg"></div>
-
 对应配置：`set_values("cfg.user_cfg", <user cfg file>)`
 
-设置用户自定义的配置文件，这个配置文件是一个 Lua 脚本，格式如下所示：
+用于指定一个用户自定义 Lua 配置文件。
 
-```lua title="my_cfg.lua"
-local cfg = {}
+这个 Lua 文件需要返回一个 table；在运行期，这个 table 里的字段会被合并到全局变量 `cfg` 中。
 
-cfg.value1 = 123
-cfg.value2 = "hello"
+:::warning[常见误解]
+这里的 `cfg.user_cfg` 只是 xmake 配置项名，不代表运行期存在 `cfg.user_cfg` 这个字段。
+:::
 
-return cfg
-```
-
-重点在于这个 Lua 脚本要返回一个 key-value 格式的 table。
-
-当用户在 xmake.lua 中设置了这个配置文件的时候（`set_values("cfg.user_cfg", "my_cfg.lua")`），那么在仿真进行的时候，可以通过全局变量 `cfg` 获取到这个 table 中的值，例如：
-
-```lua title="main.lua"
-fork {
-    function ()
-        print("cfg.value1 => ", cfg.value1)
-        print("cfg.value2 => ", cfg.value2)
-
-        assert(cfg.value1 == 123)
-        assert(cfg.value2 == "hello")
-    end
-}
-```
+完整的运行期行为说明见 [`global_configuration`](./global_configuration.mdx#cfg-user-cfg)。
 
 ### 限制最低 Verilua 版本
 
