@@ -7,6 +7,7 @@ const sidebars: SidebarsConfig = {
       id: 'index',
       label: 'Introduction',
     },
+    'navigation',
     {
       type: 'category',
       label: 'Getting Started',
@@ -51,6 +52,7 @@ const sidebars: SidebarsConfig = {
         },
         'reference/bitvec',
         'reference/str_bits_utils',
+        'reference/type_expect',
         'reference/slcp',
         'reference/simulator_control',
         'reference/testbench_generate',

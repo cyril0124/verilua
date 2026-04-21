@@ -1,0 +1,104 @@
+---
+title: 文档导航
+sidebar_position: 2
+description: Verilua 文档的推荐阅读路径与按目标快速入口。
+---
+
+# 文档导航
+
+这一页用于帮助你更快地找到合适的阅读路径。
+
+如果你是第一次接触 Verilua，建议先按照下面的推荐主线阅读；如果你已经知道自己要做什么，可以直接使用后面的“按目标快速入口”。
+
+## 推荐主线
+
+默认推荐的阅读顺序如下：
+
+```text
+安装 Verilua -> 跑通第一个 HVL 示例 -> 搭建一个简单的 UT 环境 -> 按需查阅 Reference
+```
+
+1. [安装 Verilua](./getting-started/install.mdx)
+
+   先完成环境准备。这篇文档同时覆盖 Release 安装和源码安装两种方式。
+
+2. [一个简单的 HVL 示例](./getting-started/simple_hvl_example.mdx)
+
+   安装完成后，从这里跑通最小可工作的示例，并理解 Verilua 的基本执行方式。
+
+3. [搭建一个简单的 UT 环境](./how-to-guides/simple_ut_env.mdx)
+
+   当你准备从最小示例进入更接近真实验证工作的流程时，继续阅读这一篇。
+
+4. [Reference](./reference/multi_task.mdx)
+
+   当你需要确认 API 行为、数据结构细节或配置项时，再切换到参考文档区。
+
+## 按目标快速入口
+
+如果你已经知道当前目标，可以直接选择对应路径。
+
+### 我想先跑通一个例子
+
+```text
+安装 Verilua -> HVL 示例
+```
+
+- [安装 Verilua](./getting-started/install.mdx)
+- [一个简单的 HVL 示例](./getting-started/simple_hvl_example.mdx)
+
+### 我想搭建可复用的验证环境
+
+```text
+安装 Verilua -> HVL 示例 -> 简单 UT 环境 -> 可复用组件
+```
+
+- [安装 Verilua](./getting-started/install.mdx)
+- [一个简单的 HVL 示例](./getting-started/simple_hvl_example.mdx)
+- [搭建一个简单的 UT 环境](./how-to-guides/simple_ut_env.mdx)
+- [编写可复用的组件](./how-to-guides/write_reusable_component.mdx)
+
+### 我想做波形分析
+
+```text
+安装 Verilua -> WAL 示例 -> 波形相关参考文档
+```
+
+- [安装 Verilua](./getting-started/install.mdx)
+- [一个简单的 WAL 示例](./getting-started/simple_wal_example.mdx)
+- [WaveVpiCtrl](./reference/wave_vpi_ctrl.mdx)
+
+### 我想处理时钟驱动或多时钟场景
+
+```text
+安装 Verilua -> HVL 示例 -> 时钟相关指南
+```
+
+- [安装 Verilua](./getting-started/install.mdx)
+- [一个简单的 HVL 示例](./getting-started/simple_hvl_example.mdx)
+- [时钟驱动](./how-to-guides/clock_driving.mdx)
+- [多时钟测试](./how-to-guides/multi_clock_testing.mdx)
+- [NativeClock](./reference/native_clock.mdx)
+
+### 我想查 API 和核心数据结构
+
+```text
+Reference -> Data Structure -> Related APIs
+```
+
+- [多任务系统](./reference/multi_task.mdx)
+- [await_time](./reference/await_time.mdx)
+- [数据结构概览](./reference/data_structure/index.mdx)
+- [BitVec](./reference/bitvec.mdx)
+- [仿真控制](./reference/simulator_control.mdx)
+- [全局配置](./reference/global_configuration.mdx)
+
+## 接下来可以看什么
+
+如果你已经完成推荐主线，可以按自己的方向继续深入：
+
+- 想定制项目构建方式：[编写 xmake.lua](./how-to-guides/write_xmake_lua.mdx)
+- 想增强组件组织方式：[编写可复用的组件](./how-to-guides/write_reusable_component.mdx)
+- 想继续了解 WAL 工作流：[一个简单的 WAL 示例](./getting-started/simple_wal_example.mdx)
+- 想精确查 API 细节：从 [Reference](./reference/multi_task.mdx) 开始
+
