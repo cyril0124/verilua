@@ -164,7 +164,7 @@ fork {
 ```
 `posedge`/`negedge`/`edge` 等回调注册函数可以接收两个参数，第一个是回调的等待次数，第二个是回调函数，回调函数在每次触发事件的时候都会被执行，回调函数还会接收一个参数，表示第几次进入到回调函数中。
 
-`time` 这一个行为控制机制不需要使用到具体的硬件信号，只需要在任务中使用 `await_time(XXX)` 即可，其中 `XXX` 是指定的时间，单位与仿真器的时间单位相当，例如：
+`time` 这一个行为控制机制不需要使用到具体的硬件信号，只需要在任务中使用 `await_time(XXX)` 即可，其中 `XXX` 是指定的时间，单位与仿真器的时间单位相当。完整的时间等待 API（包括 `await_time_ns`、`await_time_us` 等带单位版本）见 [时间等待 API](./await_time.mdx)，例如：
 ```lua
 fork {
     function ()
@@ -412,3 +412,10 @@ Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，
         -- Other tasks...
     }
     ```
+
+## 相关文档
+
+- [时间等待 API](./await_time.mdx)：查看 `await_time_ns`、`await_time_us` 等带单位的等待接口。
+- [EventHandle](./data_structure/event_handle.mdx)：查看任务同步事件句柄的定位说明。
+- [CallableHDL](./data_structure/callable_hdl.mdx#chdl-posedge)：查看 `posedge`、`negedge`、`edge` 等接口的详细行为。
+- [时钟驱动策略](../how-to-guides/clock_driving.mdx)：了解多任务等待与不同驱动方式的配合关系。

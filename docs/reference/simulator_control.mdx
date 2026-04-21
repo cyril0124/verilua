@@ -35,10 +35,16 @@ Verilua 提供了一些接口用来控制底层的仿真器：
     - **说明**：
         - 返回的时间值与仿真器的时间精度相关。默认 Verilua 的 `timescale` 为 `1ns/1ps`，因此原始步数单位是 1ps。
         - 可通过 `cfg.time_precision` 和 `cfg.time_unit` 查看当前精度。
-    - **示例**：
-        ```lua
-        local steps = sim.get_sim_time()       -- 原始步数
-        local ns = sim.get_sim_time("ns")      -- 转换为纳秒
-        local ps = sim.get_sim_time("ps")      -- 转换为皮秒
-        print(string.format("Time: %d ns", ns))
-        ```
+     - **示例**：
+         ```lua
+         local steps = sim.get_sim_time()       -- 原始步数
+         local ns = sim.get_sim_time("ns")      -- 转换为纳秒
+         local ps = sim.get_sim_time("ps")      -- 转换为皮秒
+         print(string.format("Time: %d ns", ns))
+         ```
+
+## 相关文档
+
+- [时间等待 API](./await_time.mdx)：结合 `sim.get_sim_time()` 理解时间单位和等待行为。
+- [时钟驱动策略](../how-to-guides/clock_driving.mdx)：查看波形控制与时钟驱动配置的关系。
+- [WAL 示例](../getting-started/simple_wal_example.mdx)：查看 `sim.dump_wave()` 在生成波形时的实际用法。

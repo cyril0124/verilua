@@ -133,7 +133,7 @@ fork {
 <div id="about-dut"></div>
 
 :::tip[关于 dut]
-`dut` 是 Verilua 中的一个全局的 table，主要用来提供**临时**的信号访问功能，具体的功能将在后续的教程中进行介绍（TODO：），如果想用 `dut` 来访问 DUT 的**内部信号**(顶层的接口信号不需要)，那么需要以 `dut.u_<top_module_name>.<internal_signal_name>` 的方式访问，例如 `dut.u_Design.value`，这里加上 `u_<top_module_name>` 的原因是因为 Verilua 在编译的时候会根据所提供的 RTL 信息自动创建 Testbench，这个 Testbench 中会例化当前的 DUT，并将其取名为 `u_Design`。下面是自动生成的 Testbench 的部分代码：
+`dut` 是 Verilua 中的一个全局的 table，主要用来提供**临时**的信号访问功能，具体说明见 [ProxyTableHandle](../reference/data_structure/proxy_table_handle.mdx)，如果想用 `dut` 来访问 DUT 的**内部信号**(顶层的接口信号不需要)，那么需要以 `dut.u_<top_module_name>.<internal_signal_name>` 的方式访问，例如 `dut.u_Design.value`，这里加上 `u_<top_module_name>` 的原因是因为 Verilua 在编译的时候会根据所提供的 RTL 信息自动创建 Testbench，这个 Testbench 中会例化当前的 DUT，并将其取名为 `u_Design`。下面是自动生成的 Testbench 的部分代码：
 
 ```SystemVerilog title="tb_top.sv"
 module tb_top;
@@ -177,7 +177,7 @@ endmodule
 :::
 
 :::note[关于 negedge]
-类似 `negedge` 的仿真时间控制函数还有 `posedge`、`edge`等，具体的功能将在后续的教程中进行介绍（TODO：），需要注意的是这些函数只能对**位宽为 1 的信号**进行使用！
+类似 `negedge` 的仿真时间控制函数还有 `posedge`、`edge`等，详见[多任务系统 — 注册任务回调](../reference/multi_task.mdx#注册任务回调)，需要注意的是这些函数只能对**位宽为 1 的信号**进行使用！
 :::
 
 * `negedge` 可以接收两个参数，第一个是等待的次数，第二个是回调函数，回调函数在每次触发事件的时候都会被执行。
@@ -311,3 +311,11 @@ xmake run -P . TestDesign
 ```
 
 至此，我们就完成了一个简单的 Verilua 示例，并成功运行起仿真，可以看到由于 Verilua 使用 xmake 进行工程管理，因此相关的流程和编译配置都相对简单，提高了开发的效率。
+
+## 相关文档
+
+- [安装指南](./install.mdx)：先完成环境安装，再按本文示例创建工程。
+- [编写 xmake.lua](../how-to-guides/write_xmake_lua.mdx)：进一步了解 `xmake.lua` 的组织方式和常见配置。
+- [xmake 参数说明](../reference/xmake_params.mdx)：查看 `cfg.top`、`cfg.lua_main` 和仿真器参数的完整说明。
+- [CallableHDL](../reference/data_structure/callable_hdl.mdx)：了解 `dut.clock`、`set`、`set_imm` 等信号操作接口。
+- [时钟驱动策略](../how-to-guides/clock_driving.mdx)：了解内部时钟、Lua Clock 和 NativeClock 的差异。
