@@ -1,0 +1,159 @@
+# LuaJIT 与标准 Lua 的常见差异
+
+Verilua 运行在 **LuaJIT** 上，而不是标准 Lua 解释器。本页只覆盖 Verilua 文档里最常见、也最容易让标准 Lua 用户困惑的几个 LuaJIT 特性。
+
+## 先认识这 5 个关键词
+
+| 在 Verilua 文档里看到 | 先把它理解成 |
+| --- | --- |
+| `0x123ULL` / `123LL` | LuaJIT 的 64 位整数，类型是 `cdata` |
+| `cdata` | LuaJIT 对 C 类型数据的统一表示 |
+| `local ffi = require("ffi")` | 在 Lua 里直接创建 C 数据、调用 C 函数 |
+| `local bit = require("bit")` | LuaJIT 自带的位运算库 |
+| `require("string.buffer")` | LuaJIT 的可变字节缓冲区和序列化能力 |
+
+<div id="data-type-differences"></div>
+
+## 数据类型差异
+
+### `LL` / `ULL` 表示 64 位整数
+
+标准 Lua 里最常见的数值类型是 `number`。LuaJIT 额外支持 `123LL` 和 `456ULL` 这样的 64 位整数字面量，它们的类型不是普通 `number`，而是 `cdata`。
+
+```lua
+local a = 123LL
+local b = 0x1234567890ABCDEFULL
+
+print(type(a)) -- cdata
+print(type(b)) -- cdata
+
+dut.data:expect(0x1234567890ABCDEFULL)
+```
+
+在 Verilua 里，只要你需要保留精确的 64 位整数语义，或者在 API 文档里看到 `ULL` / `LL` 后缀，就把它理解成“这是 LuaJIT 的 64 位值，不是普通 Lua number”。
+
+:::tip[不要默认把 64 位值转成 `number`]
+如果一个值可能超过 53 bit 的精确整数范围，那么 `tonumber()` 可能会丢失精度。此时更稳妥的做法是继续把它当作 `cdata` 传给 `expect()`、`set()`、`BitVec()` 等支持 LuaJIT 64 位值的 API。
+:::
+
+### `cdata` 是 LuaJIT 的 C 数据对象
+
+`cdata` 是 LuaJIT 用来表示 C 类型数据的统一对象。Verilua 里最常见的是：
+
+- `uint64_t` / `int64_t`
+- `uint32_t[]` 这样的 C 数组
+- FFI 返回的指针、结构体或函数指针
+
+```lua
+local ffi = require("ffi")
+
+local words = ffi.new("uint32_t[?]", 2)
+words[0] = 0x89ABCDEF
+words[1] = 0x01234567
+
+dut.data:set(words)
+```
+
+`cdata` 不是 Lua table。它能用下标或字段访问，是因为背后是 C 类型，不是因为它变成了 Lua 容器。
+
+在 Verilua 里，如果你只是想驱动宽信号，很多时候直接传 Lua table 或 [`BitVec`](../reference/bitvec.mdx) 会比手写 `ffi.new()` 更直观。
+
+## 语法差异
+
+对 Verilua 新手来说，这一节反而最简单：**LuaJIT 基于 Lua 5.1**，日常语法也基本还是 Lua 5.1 风格，Verilua 也没有额外要求你掌握一套特殊语法。
+
+真正需要注意的是下面几件事：
+
+- `123ULL` / `123LL` 是 LuaJIT 扩展，不是标准 Lua 语法。
+- 如果你习惯 Lua 5.3+ 的原生位运算风格（例如 `a & b`、`a | b`、`a << n`、`a >> n`），到了 LuaJIT 里通常改用 `bit.band()`、`bit.bor()`、`bit.lshift()`、`bit.rshift()` 这类函数。
+- Verilua 文档里更常见的差异不是“语法长得不一样”，而是“同样的代码里出现了 `cdata`、FFI、64 位整数这些标准 Lua 没有的东西”。
+
+所以阅读 Verilua 文档时，可以把重点放在“值的类型”和“库的来源”上，而不是担心语法本身。
+
+<div id="library-differences"></div>
+
+## 库差异
+
+### `ffi`: 直接和 C 世界交互
+
+LuaJIT 内置 `ffi` 库，允许 Lua 代码直接声明 C 类型、创建 C 数据、调用 C 函数。Verilua 的一些能力正是建立在这个能力上，例如：
+
+- 手动构造 `uint32_t[]`
+- 调用 C / DPI / 仿真器符号
+- 处理底层返回的指针或结构体
+
+```lua
+local ffi = require("ffi")
+local vec = ffi.new("uint32_t[?]", 4)
+```
+
+第一次上手时，你只需要记住：`ffi.new()` 常用来“创建一个 C 数组或结构体”，然后把它交给 Verilua API 或 C 函数使用。
+
+### `string.buffer`: LuaJIT 的可变字节缓冲区
+
+标准 Lua 的 string 是不可变的。LuaJIT 额外提供了 `string.buffer`，适合做高性能二进制拼接和序列化。Verilua 的一些底层能力和工具会用到它来处理二进制数据。
+
+普通用户通常无需直接使用它；如果文档里出现 `require("string.buffer")` 或"LuaJIT 序列化格式"，只要知道这是 LuaJIT 专用能力即可。
+
+### `table.new` / `table.clear`: 高性能 table 操作
+
+LuaJIT 扩展了 `table` 库，其中对 Verilua 用户最实用的是 `table.new` 和 `table.clear`：
+
+- `table.new(narray, nhash)` —— 预分配 table 的数组部分和哈希部分容量，避免在循环中频繁触发 rehash。
+- `table.clear(t)` —— 清空 table 的所有元素，但保留已分配的内存容量，适合需要反复复用同一个 table 的场景。
+
+```lua
+local t = table.new(100, 0)  -- 预分配 100 个数组槽位
+for i = 1, 100 do
+    t[i] = i
+end
+
+table.clear(t)  -- 清空内容，但容量保留，下次可直接复用
+```
+
+在验证平台中，如果你需要频繁构造或重置临时容器，使用这两个函数通常比反复创建新 table 或赋 `nil` 逐元素清理性能更高。
+
+### `bit`: 位运算库
+
+LuaJIT 用 `bit` 库来做位运算。如果你习惯 C / SystemVerilog，可以先这样对照：
+
+| 常见写法 | LuaJIT 对应 |
+| --- | --- |
+| `a & b` | `bit.band(a, b)` |
+| `a | b` | `bit.bor(a, b)` |
+| `a ^ b` | `bit.bxor(a, b)` |
+| `~a` | `bit.bnot(a)` |
+| `a << n` | `bit.lshift(a, n)` |
+| `a >> n` | `bit.rshift(a, n)` |
+| `a >> n`（算术右移） | `bit.arshift(a, n)` |
+
+```lua
+local bit = require("bit")
+
+local mask = bit.lshift(1, 3)
+local hit = bit.band(status, mask) ~= 0
+local flags = bit.bor(flags, mask)
+```
+
+需要注意：
+
+- 不要把 `bit.band(...)` 直接写进 `if`。Lua 里 `0` 也是真值，所以应写成 `bit.band(x, mask) ~= 0`。
+- 对普通 Lua `number`，`bit.*` 最常见是 32 位语义；如果把超过 32 位的普通 `number` 传给 `bit.*`，高位会被静默截断。需要精确 64 位时，请改用 `ULL` / `LL` 这类 64 位 `cdata`。
+- 打印结果时常配合 `bit.tohex(value)`，比直接打印十进制更直观。
+
+```lua
+bit.band(0xFFFFFFFFF, 0xFF)          -- 255，高位已截断
+bit.band(0xFFFFFFFFFULL, 0xFFULL)    -- 255ULL
+```
+
+如果你处理的是超过 64 位的值，再考虑 `BitVec` 或 u32 向量这类表示方式。
+
+## 深入阅读
+
+### LuaJIT 官方文档
+
+- [LuaJIT Extensions Overview](https://luajit.org/extensions.html)
+- [LuaJIT FFI Tutorial](https://luajit.org/ext_ffi_tutorial.html)
+- [LuaJIT FFI Semantics](https://luajit.org/ext_ffi_semantics.html)
+- [LuaJIT `string.buffer`](https://luajit.org/ext_buffer.html)
+- [Lua BitOp API](https://bitop.luajit.org/api.html)

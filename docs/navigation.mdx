@@ -15,22 +15,30 @@ description: Verilua 文档的推荐阅读路径与按目标快速入口。
 默认推荐的阅读顺序如下：
 
 ```text
-安装 Verilua -> 跑通第一个 HVL 示例 -> 搭建一个简单的 UT 环境 -> 按需查阅 Reference
+阅读 Introduction -> 安装 Verilua -> 了解 LuaJIT 差异 -> 跑通第一个 HVL 示例 -> 搭建一个简单的 UT 环境 -> 按需查阅 Reference
 ```
 
-1. [安装 Verilua](./getting-started/install.mdx)
+1. [Introduction](./index.mdx)
+
+   先阅读 Introduction，了解 Verilua 的核心理念、架构概览以及 HVL/HSE/WAL 三种执行模式的基本概念。
+
+2. [安装 Verilua](./getting-started/install.mdx)
 
    先完成环境准备。这篇文档同时覆盖 Release 安装和源码安装两种方式。
 
-2. [一个简单的 HVL 示例](./getting-started/simple_hvl_example.mdx)
+3. [LuaJIT 与标准 Lua 的常见差异](./getting-started/luajit_vs_standard_lua.mdx)
+
+   如果你已有 Lua 基础但不熟悉 LuaJIT，建议先快速阅读这篇文档，了解 64 位整数、`cdata`、FFI 等 Verilua 中常见的 LuaJIT 特性。
+
+4. [一个简单的 HVL 示例](./getting-started/simple_hvl_example.mdx)
 
    安装完成后，从这里跑通最小可工作的示例，并理解 Verilua 的基本执行方式。
 
-3. [搭建一个简单的 UT 环境](./how-to-guides/simple_ut_env.mdx)
+5. [搭建一个简单的 UT 环境](./how-to-guides/simple_ut_env.mdx)
 
    当你准备从最小示例进入更接近真实验证工作的流程时，继续阅读这一篇。
 
-4. [Reference](./reference/multi_task.mdx)
+6. [Reference](./reference/multi_task.mdx)
 
    当你需要确认 API 行为、数据结构细节或配置项时，再切换到参考文档区。
 
@@ -41,10 +49,11 @@ description: Verilua 文档的推荐阅读路径与按目标快速入口。
 ### 我想先跑通一个例子
 
 ```text
-安装 Verilua -> HVL 示例
+安装 Verilua -> LuaJIT 快速指南（可选） -> HVL 示例
 ```
 
 - [安装 Verilua](./getting-started/install.mdx)
+- [LuaJIT 与标准 Lua 的常见差异](./getting-started/luajit_vs_standard_lua.mdx)（已有 Lua 基础的用户可选）
 - [一个简单的 HVL 示例](./getting-started/simple_hvl_example.mdx)
 
 ### 我想搭建可复用的验证环境

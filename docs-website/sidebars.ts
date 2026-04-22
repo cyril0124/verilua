@@ -14,6 +14,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'getting-started/install',
+        'getting-started/luajit_vs_standard_lua',
         'getting-started/simple_hvl_example',
         'getting-started/simple_hse_example',
         'getting-started/simple_wal_example',
