@@ -418,8 +418,19 @@ A: 您可以将这些代码放入一个文件中，然后通过 `--custom-code` 
 **Q: `others.sv` 的作用是什么？我可以修改它吗？**  
 A: `others.sv` 是一个预留给用户的模块文件，您可以在其中添加任何额外的 RTL 代码。它不会被 testbench_gen 覆盖，因此您可以安全地修改它。每次重新生成时，它都会保留您的修改。
 
-**Q: 为什么我指定了 `--clock-signal` 但生成的 testbench 中时钟仍然不对？**  
+**Q: 为什么我指定了 `--clock-signal` 但生成的 testbench 中时钟仍然不对？**
 A: 请确保指定的信号名正确（大小写敏感），并且该信号确实是顶层模块的输入端口。如果信号位于子模块中，您可能需要指定层次化路径，例如 `top.sub.clk`。另外，如果信号在设计中存在但未在顶层端口暴露，您可能需要使用 `--ignore-unknown-modules` 或其他编译选项来允许内部信号访问。
+
+**Q: 运行 testbench_gen 时 slang 报错找不到 `include` 的头文件（如 `'my_header.svh': No such file or directory`），怎么办？**
+A: `testbench_gen` 底层使用 slang 解析 RTL，头文件搜索路径需要通过 `-I`（或 `--include-directory` / `+incdir`）显式指定，而不是依赖 Verilog `.f` filelist 里的 `+incdir+`。
+
+在 `xmake.lua` 中，通过 `cfg.tb_gen_flags` 传入 include 路径：
+
+```lua
+add_values("cfg.tb_gen_flags", "-I", path.join(os.scriptdir(), "include"))
+```
+
+注意：`testbench_gen` 自带的 filelist 解析器只按行读取文件列表，**不会解析** `.f` 文件中的 `+incdir+` 等指令。因此即便 filelist 里写了 `+incdir+`，仍需通过 `-I` 或 `--include-directory` 单独传给 `testbench_gen`。
 
 ## 相关文档
 
