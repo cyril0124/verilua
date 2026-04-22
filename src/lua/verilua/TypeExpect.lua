@@ -106,7 +106,8 @@ function texpect.expect_integer(value, name)
     local is_valid = false
 
     if type(value) == "number" then
-        is_valid = true
+        local number_value = tonumber(value)
+        is_valid = number_value ~= nil and number_value % 1 == 0
     elseif type(value) == "cdata" then
         if ffi.istype("int64_t", value) or ffi.istype("uint64_t", value) then
             is_valid = true
@@ -316,6 +317,41 @@ function texpect.expect_chdl(value, name, width_or_width_min, width_max)
                 )
             end
         elseif width_or_width_min ~= nil and width_max ~= nil then
+            local is_fake_chdl = value.name:find(FAKE_CHDL_NAME_PREFIX) ~= nil
+            if is_fake_chdl and type(rawget(value, "get_width")) ~= "function" then
+                local error_msg = string.format(
+                    [[
+  Argument: %s
+  Error: fake_chdl `%s` does not have a `get_width()` method
+  Expected width range: [%s, %s]
+
+  Please implement `get_width()` method for this fake_chdl.
+
+  Example of creating a fake_chdl with get_width():
+
+    local fake_signal = ("your.hierpath"):fake_chdl {
+        --
+        -- Other methods ...
+        --
+
+        get_width = function(self)
+            return %d  -- Must return a width in [%d, %d]
+        end
+    }
+
+  Note: The `get_width()` method is required when calling expect_chdl() with width constraints.
+]],
+                    Logger.colorize("`" .. name .. "`", colors.YELLOW),
+                    Logger.colorize(value.name, colors.RED),
+                    Logger.colorize(tostring(width_or_width_min), colors.CYAN),
+                    Logger.colorize(tostring(width_max), colors.CYAN),
+                    width_or_width_min,
+                    width_or_width_min,
+                    width_max
+                )
+                texpect_error(error_msg)
+            end
+
             if value:get_width() < width_or_width_min or value:get_width() > width_max then
                 texpect_error(
                     string.format(

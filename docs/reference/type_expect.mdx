@@ -1,0 +1,314 @@
+# TypeExpect
+
+`TypeExpect` 是 Verilua 中用于运行时参数校验的工具模块，常用于组件入口、公共 API 边界和测试辅助代码中。它的目标不是替代 LuaCATS 静态标注，而是在真正运行时尽早暴露类型不匹配、信号缺失、位宽不符合预期、AliasBundle 映射错误等问题。
+
+典型用法如下：
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+local function create_monitor(signals, name)
+    texpect.expect_abdl(signals, "signals", {
+        "valid",
+        { name = "value", width_min = 8 }
+    })
+    texpect.expect_string(name, "name")
+
+    return {
+        signals = signals,
+        name = name,
+    }
+end
+```
+
+## 什么时候用
+
+推荐在下面这些边界使用 `TypeExpect`：
+
+- 组件构造函数或工厂函数入口。
+- 对外暴露的公共方法入口。
+- 需要明确约束 `CallableHDL` / `Bundle` / `AliasBundle` 结构的地方。
+- 希望把错误尽量提前到初始化阶段，而不是运行中某个深层分支才暴露出来。
+
+不建议把它当作每一行内部逻辑的防御式噪音校验。通常在边界处检查一次就够了。
+
+## 速查表
+
+| 函数 | 用途 | 常见场景 |
+| --- | --- | --- |
+| `expect_string(value, name)` | 检查字符串 | 配置项、路径、名称 |
+| `expect_number(value, name)` | 检查 number | 数值参数 |
+| `expect_integer(value, name)` | 检查整数值，支持 LuaJIT `LL` / `ULL` | 位宽、索引、计数器 |
+| `expect_boolean(value, name)` | 检查布尔值 | 开关类参数 |
+| `expect_table(value, name, table_keys?)` | 检查 table，可选限制允许的 key | 选项表、配置表 |
+| `expect_function(value, name)` | 检查函数 | 回调 |
+| `expect_thread(value, name)` | 检查协程线程 | 调度相关代码 |
+| `expect_userdata(value, name)` | 检查 userdata | Lua 原生对象句柄 |
+| `expect_struct(value, name)` | 检查 FFI `cdata` 结构体 | FFI 交互 |
+| `expect_chdl(value, name, width_or_width_min?, width_max?)` | 检查 `CallableHDL`，可附加位宽约束 | 信号句柄入口 |
+| `expect_bdl(value, name)` | 检查 `Bundle` | 组件接收 Bundle |
+| `expect_abdl(value, name, params)` | 检查 `AliasBundle` 及其中信号约束 | 可复用组件入口 |
+| `expect_database(value, name, elements_table)` | 检查 `LuaDataBase` 的字段定义 | 数据库存取封装 |
+
+## 错误信息风格
+
+`TypeExpect` 的报错信息会尽量带上这些内容：
+
+- 哪个参数出错。
+- 期望类型是什么。
+- 实际收到什么。
+- 调用位置。
+- 栈回溯。
+
+例如把字符串误传成数字时，报错会类似这样：
+
+```text
+[TypeExpect Error] [expect_string] @ some_file.lua:12
+  Argument: `name`
+  Expected: string
+  Received: number (value: 123)
+stack traceback:
+...
+```
+
+这类错误的设计重点是“在离入口最近的地方失败”，因此很适合用于库和组件的公共边界。
+
+## 基础类型检查
+
+基础类型接口的行为都比较直接，例如：
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+texpect.expect_string("hello", "msg")
+texpect.expect_number(10, "timeout")
+texpect.expect_boolean(true, "enabled")
+texpect.expect_function(function() end, "callback")
+```
+
+其中有两个细节值得单独注意。
+
+### `expect_integer()`
+
+`expect_integer()` 接受 Lua 的整数 `number`，也接受 LuaJIT 的 `int64_t` / `uint64_t` 字面量，例如 `123LL` 和 `456ULL`。
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+texpect.expect_integer(123, "idx")
+texpect.expect_integer(123LL, "signed64")
+texpect.expect_integer(456ULL, "unsigned64")
+```
+
+像 `1.5` 这样的非整数 Lua `number` 会报错。这在处理宽位宽值、FFI 返回值或需要保留整数语义的参数时很有用。
+
+### `expect_table()` 的 key 白名单
+
+`expect_table()` 可以额外限制允许出现的 key，用于校验 options table 是否拼错字段名。
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+texpect.expect_table({ hier = "tb_top", prefix = "" }, "opts", {
+    "hier",
+    "prefix",
+    "name",
+})
+```
+
+如果传入 `{ hier = "tb_top", prefxi = "" }`，就会尽早报出 `unexpected keys`，比在后续逻辑里默默忽略拼写错误更容易定位问题。
+
+## `expect_chdl()`
+
+`expect_chdl()` 用于校验某个值是否是 `CallableHDL`。这是最常见的信号入口检查之一。
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+local function drive_valid(valid)
+    texpect.expect_chdl(valid, "valid", 1)
+    valid:set(1)
+end
+```
+
+### 位宽检查
+
+`expect_chdl()` 支持两种位宽约束：
+
+1. 精确位宽：`expect_chdl(sig, "sig", 32)`
+2. 位宽区间：`expect_chdl(sig, "sig", 8, 64)`
+
+```lua
+texpect.expect_chdl(dut.data:chdl(), "data", 32)
+texpect.expect_chdl(dut.mask:chdl(), "mask", 1, 8)
+```
+
+如果位宽不匹配，会直接报错，而不是等到后续读写信号时才暴露问题。
+
+### 与 `fake_chdl` 的关系
+
+`fake_chdl` 也可以通过 `expect_chdl()`，但有一个重要前提：
+
+- 如果没有附加位宽约束，`fake_chdl` 只要是一个合法的 `CallableHDL` 形状对象即可。
+- 如果附加了位宽约束，就必须实现 `get_width()`。
+
+```lua
+local fake_sig = ("tb_top.fake_value"):fake_chdl {
+    get = function(self)
+        return 0
+    end,
+    set = function(self, value)
+    end,
+    get_width = function(self)
+        return 32
+    end
+}
+
+texpect.expect_chdl(fake_sig, "fake_sig", 32)
+```
+
+如果漏掉 `get_width()`，无论是精确位宽还是位宽区间检查，`TypeExpect` 都会明确告诉你错误原因，并给出如何补上该方法的提示。
+
+## `expect_abdl()`
+
+`expect_abdl()` 是 `TypeExpect` 中最适合用于可复用组件入口的接口。它不仅检查传入对象是不是 `AliasBundle`，还可以顺便检查：
+
+- 某些别名是否存在。
+- 某些别名对应的信号是不是 `CallableHDL`。
+- 某个别名对应信号的位宽是否满足要求。
+- 多个别名是否其实映射到了同一条底层信号。
+
+### 最简单的别名存在性检查
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+texpect.expect_abdl(signals, "signals", {
+    "valid",
+    "value",
+})
+```
+
+这表示：
+
+- `signals` 必须是 `AliasBundle`。
+- `signals.valid` 和 `signals.value` 都必须存在。
+- 它们都必须是 `CallableHDL`。
+
+这正是验证组件最常见的入口约束方式。
+
+### 带位宽约束的检查
+
+```lua
+texpect.expect_abdl(signals, "signals", {
+    { name = "opcode", width = 3 },
+    { name = "value", width_min = 8, width_max = 64 },
+    { name = "id", width_min = 1 },
+})
+```
+
+`params` 中每一项可以是：
+
+- 一个字符串：只检查别名存在且对应值是 `CallableHDL`。
+- 一个 table：除了名称，还可以加位宽约束。
+
+table 形式支持这些字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `name` | 单个别名名 |
+| `names` | 多个别名名，表示这些别名应该指向同一条底层信号 |
+| `width` | 精确位宽 |
+| `width_min` | 最小位宽 |
+| `width_max` | 最大位宽 |
+
+### 用 `names` 检查多个别名是否真的是同一条信号
+
+有些场景下，一个组件允许多个别名名，但它们语义上应该是同一条信号。这时可以使用 `names`。
+
+```lua
+texpect.expect_abdl(signals, "signals", {
+    { names = { "valid", "vld" } },
+})
+```
+
+这不是在说“二选一”，而是在说：
+
+- `signals.valid` 和 `signals.vld` 都要存在。
+- 它们必须指向同一个底层 HDL 句柄。
+
+如果这两个别名实际上连到了不同信号，`TypeExpect` 会报出二者 hierarchy，并指出它们不是同一条信号。
+
+### 与 `fake_chdl` 配合使用
+
+`expect_abdl()` 同样支持 `fake_chdl`，但规则和 `expect_chdl()` 一样：只要涉及位宽约束，就必须提供 `get_width()`。
+
+```lua
+local signals = ([[
+    | vld => valid
+    | [value]
+]]):abdl {
+    hier = "tb_top.u_dut",
+    prefix = ""
+}
+
+signals.value = ("tb_top.u_dut.fake_value"):fake_chdl {
+    get = function(self)
+        return 0
+    end,
+    set = function(self, value)
+    end,
+    get_width = function(self)
+        return 32
+    end
+}
+
+texpect.expect_abdl(signals, "signals", {
+    "valid",
+    { name = "value", width = 32 },
+})
+```
+
+这类写法非常适合把“接口契约”明确写在组件入口，而不是散落在内部逻辑里。
+
+## `expect_bdl()`、`expect_database()`
+
+这几个接口语义相对直接：
+
+- `expect_bdl()` 检查对象是不是 `Bundle`。
+- `expect_database()` 检查对象是不是 `LuaDataBase`，并进一步比较字段定义是否匹配。
+
+### `expect_bdl()`
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+texpect.expect_bdl(req, "req")
+```
+
+### `expect_database()`
+
+```lua
+local texpect = require "verilua.TypeExpect"
+
+texpect.expect_database(db, "db", {
+    "name TEXT",
+    "age INTEGER",
+})
+```
+
+`expect_database()` 的比较是按顺序进行的，因此字段顺序也属于检查的一部分。
+
+## 使用建议
+
+1. 把 `TypeExpect` 放在入口边界，而不是内部每一步都检查。
+2. 对于可复用组件，优先使用 `expect_abdl()` 把别名和位宽要求一次性声明清楚。
+3. 对于 `fake_chdl`，只要涉及位宽约束，就显式实现 `get_width()`。
+4. 当 options table 很多时，优先使用 `expect_table(..., table_keys)` 检查字段名拼写。
+
+## 相关文档
+
+- [CallableHDL](./data_structure/callable_hdl)：`expect_chdl()` 校验的核心对象。
+- [Bundle](./data_structure/bundle)：`expect_bdl()` 对应的数据结构。
+- [AliasBundle](./data_structure/alias_bundle)：`expect_abdl()` 的主要使用对象。
+- [编写可复用的验证组件](../how-to-guides/write_reusable_component)：`TypeExpect` 在组件入口校验中的完整场景示例。

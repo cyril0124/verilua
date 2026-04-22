@@ -102,6 +102,11 @@ describe("TypeExpect test", function()
         err = strip_ansi(err)
         expect.truthy(err:find("expect_integer", 1, true))
 
+        status, err = pcall(function() texpect.expect_integer(1.5, "var_float") end)
+        expect.equal(status, false)
+        err = strip_ansi(err)
+        expect.truthy(err:find("expect_integer", 1, true))
+
         -- Test LuaJIT LL and ULL support
         local ffi = require "ffi"
         local ll_value = 123LL
@@ -316,8 +321,10 @@ describe("TypeExpect test", function()
             texpect.expect_chdl(fake_chdl_no_width, "my_fake_chdl_no_width", 16, 64)
         end)
         expect.equal(status, false)
-        -- Check that error message contains key information
-        expect.truthy(err:find("fake_chdl", 1, true) or err:find("does not have a `get_width()` method", 1, true))
+        err = strip_ansi(err)
+        expect.truthy(err:find("fake_chdl", 1, true))
+        expect.truthy(err:find("does not have a `get_width()` method", 1, true))
+        expect.truthy(err:find("expect_chdl()", 1, true))
     end)
 
     it("should work for expect_abdl with fake_chdl", function()
