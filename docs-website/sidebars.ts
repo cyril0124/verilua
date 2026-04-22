@@ -27,6 +27,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'how-to-guides/write_xmake_lua',
         'how-to-guides/simple_ut_env',
+        'how-to-guides/oop_with_pl_class',
         'how-to-guides/write_reusable_component',
         'how-to-guides/clock_driving',
         'how-to-guides/multi_clock_testing',

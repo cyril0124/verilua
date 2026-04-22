@@ -1,0 +1,198 @@
+# 使用 pl.class 进行面向对象编程
+
+`pl.class` 是 [Penlight](https://lunarmodules.github.io/Penlight) 库提供的 OOP 工具。它通过元表机制让 Lua 支持类、构造函数和实例方法，语法轻量且易于上手。
+
+在 Verilua 中，`pl.class` 最常见的用途是把一组相关的**状态**和**行为**封装成一个可复用的模板。每个实例拥有自己的数据，同时共享同一套方法。
+
+如果你之前写惯了普通 Lua 模块，可以把 `pl.class` 理解成一个轻量的**组件模板**：它让 `obj:start()`、`obj:sample()` 这类接口写起来更自然，也让每个实例拥有独立的状态。
+
+```text
+Class
+  |
+  +-- _init(...)      初始化实例状态
+  +-- methods         共享行为
+  |
+call Class(...)
+  |
+  v
+instance
+  |
+  +-- self.name
+  +-- self.count
+```
+
+:::tip[本文覆盖的内容]
+本文介绍 `pl.class` 最常见的用法：`class()`、`:_init`、实例方法和 `Class(...)` 实例化。继承、`super()`、`is_a()` 等高级主题不在本文讨论范围内。
+:::
+
+## 标准模板
+
+一个典型的类文件如下：
+
+```lua title="Logger.lua"
+local class = require "pl.class"
+
+---@class Logger
+---@field name string
+---@field count integer
+local Logger = class()
+
+---@param name string
+function Logger:_init(name)
+    self.name = name
+    self.count = 0
+end
+
+---@param msg string
+function Logger:log(msg)
+    self.count = self.count + 1
+    print(string.format("[%s] %s", self.name, msg))
+end
+
+function Logger:report()
+    print(string.format("[%s] total logs: %d", self.name, self.count))
+end
+
+return Logger
+```
+
+使用时：
+
+```lua title="main.lua"
+local Logger = require "Logger"
+
+local logger = Logger("cpu")
+logger:log("started")
+logger:report()
+```
+
+这个模板覆盖了仓库中最常见的写法。
+
+## 关键要点
+
+### 1. 构造函数 `_init`
+
+`Logger(...)` 会触发 `pl.class` 的元方法，自动创建实例并调用 `Logger:_init(...)`。在 Verilua 中，实例化总是写成 `Logger(...)`，而不是 `Logger:new(...)`。
+
+:::caution[不要让 _init 返回值]
+如果 `_init` 末尾不小心返回了一个非 `nil` 值（例如最后一个表达式恰好返回了表），Penlight 会把该返回值当成实例替换掉原来的对象。确保 `_init` 不显式返回任何内容。
+:::
+
+### 2. `self` 与实例状态
+
+`self` 就是当前实例本身。每个实例各自保存的数据都应该放在 `self` 上：
+
+```lua
+function Logger:_init(name)
+    self.name = name          -- 实例属性
+    self.count = 0
+end
+```
+
+这样 `logger_a.name` 和 `logger_b.name` 互不干扰，方法逻辑复用但数据隔离。
+
+:::caution[区分实例属性、类属性和全局变量]
+三种写法的区别如下：
+
+```lua
+-- 错误！创建全局变量 _G.count，所有模块共享
+function Logger:_init(name)
+    count = 0
+end
+
+-- 类属性：所有实例共享同一个 count
+Logger.count = 0
+
+-- 正确：每个实例独立
+function Logger:_init(name)
+    self.count = 0
+end
+```
+:::
+
+### 3. `:` 语法
+
+`function Logger:log(msg)` 等价于 `function Logger.log(self, msg)`。定义和调用时都要用 `:`：
+
+```lua
+-- 正确
+logger:log("hello")
+
+-- 错误：会把 "hello" 当成 self 传进去
+logger.log("hello")
+```
+
+## 什么时候适合用类
+
+| 适合用类 | 不适合用类 |
+| --- | --- |
+| 需要创建多个独立实例，各自保存状态 | 模块只导出几个无状态的工具函数 |
+| 想把一组相关操作封装在一起（start/stop/report） | 逻辑非常简单，不需要状态管理 |
+| 组件需要生命周期管理 | 一次性脚本，不会复用 |
+
+## 常见模式
+
+### 生命周期方法
+
+实例方法通常对应组件的生命周期动作：
+
+```lua
+function Logger:start()      -- 启动
+function Logger:stop()       -- 停止
+function Logger:log(msg)     -- 执行操作
+function Logger:report()     -- 输出统计
+function Logger:destroy()    -- 清理资源
+```
+
+### 组合优于继承
+
+与其一开始就设计复杂的继承树，不如用**组合**和**显式传参**：
+
+```lua
+-- 推荐：把依赖作为参数传入
+local logger = Logger("cpu", config)
+
+-- 避免：为了少量代码复用引入多层继承
+local logger = CpuLogger()  -- 继承自 BaseLogger -> ...
+```
+
+### 在构造函数里做参数校验
+
+对于必不可少的依赖，在 `_init` 中尽早检查参数类型：
+
+```lua
+function Logger:_init(name, config)
+    assert(type(name) == "string", "name must be a string")
+    assert(type(config) == "table", "config must be a table")
+
+    self.name = name
+    self.config = config
+end
+```
+
+这样参数错误会在组件创建时直接暴露，而不是拖到业务逻辑里才出问题。
+
+:::tip[在 Verilua 中的实践]
+Verilua 代码库中统一使用 `verilua.TypeExpect` 模块做参数校验（例如 `texpect.expect_string(name, "Logger.name")`）。如果你在编写 Verilua 组件，建议参考 [编写可复用的验证组件](./write_reusable_component)。
+:::
+
+## 常见误区
+
+| 写法 | 问题 | 推荐写法 |
+| --- | --- | --- |
+| `Logger:new(...)` | 不是 Verilua 的主流风格，容易和其他 OOP 库混淆 | `Logger(...)` |
+| `function Logger.log(msg)` | 用 `logger:log("x")` 调用时 `self` 会错位 | `function Logger:log(msg)` |
+| 忘记 `self.` | 变成全局变量，所有实例及模块共享 | `self.count = 0` |
+| 所有东西都塞进类 | 无状态工具函数用普通模块更简单 | 只在需要实例状态时用类 |
+| 一开始就设计复杂继承树 | 入门和维护成本都变高 | 先从单个类 + 显式依赖开始 |
+
+## 下一步阅读
+
+- [编写可复用的验证组件](./write_reusable_component)：继续看 `pl.class` 如何和 Verilua 特有的工具（`AliasBundle`、`TypeExpect` 等）组合起来做真正可复用的验证组件。
+- [原生时钟驱动（NativeClock）](../reference/native_clock)：参考仓库里一个更接近真实工程代码的类实现。
+
+## 参考
+
+- [Penlight 手册 - 简化 Lua 面向对象编程](https://lunarmodules.github.io/Penlight/manual/01-introduction.md.html#Simplifying_Object-Oriented_Programming_in_Lua)（推荐，包含完整示例）
+- [pl.class 官方文档](https://lunarmodules.github.io/Penlight/libraries/pl.class.html)
+- [GitHub - pl/class.lua](https://github.com/lunarmodules/Penlight/blob/master/lua/pl/class.lua)（核心逻辑仅几十行）

@@ -2,6 +2,8 @@
 
 在硬件验证中，我们经常需要编写可复用的验证组件（如 Monitor、Scoreboard），以便在不同的测试环境和设计中复用。Verilua 提供了强大的数据结构（`Bundle`、`AliasBundle`）以及类型检查工具（`TypeExpect`），帮助我们构建真正可复用的组件。
 
+如果你还不熟悉 `local Monitor = class()`、`_init`、`Monitor(...)` 这些 `pl.class` 的基本写法，建议先阅读 [使用 pl.class 进行面向对象编程](./oop_with_pl_class)。
+
 ## 问题：组件与设计紧耦合
 
 假设我们有一个 `Monitor` 组件，用于监控两个信号：`valid` 和 `value`。它的实现可能是这样的：
