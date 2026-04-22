@@ -35,26 +35,26 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
 添加需要进行仿真的文件，可以在一个语句中同时添加多个文件，也可以分为多个语句来添加多个文件。
 
-对于 HVL 场景，可以是 Verilog/SystemVerilog 文件、Lua 文件。
+对于 HVL 场景，可以是 Verilog/SystemVerilog 文件，以及需要参与工程管理的 Lua 文件。
 
 ```lua title="xmake.lua"
 target("test", function()
     add_rules("verilua")
     add_toolchains("@verilator")
-    add_files("src/main.sv", "src/main.lua")
+    add_files("src/main.sv")
     add_files("src/other.v")
 
     -- ...
 end)
 ```
 
-对于 WAL 场景，可以是波形文件、Lua文件。
+对于 WAL 场景，可以是波形文件，以及需要复用的 Lua 文件。
 
 ```lua title="xmake.lua"
 target("test", function()
     add_rules("verilua")
     add_toolchains("@wave_vpi")
-    add_files("./test.vcd", "test.lua")
+    add_files("./test.vcd")
 
     -- ...
 end)
@@ -62,6 +62,8 @@ end)
 
 :::warning[此时 `add_files` 只能添加**一个**波形文件]
 :::
+
+`set_values("cfg.lua_main", ...)` 指向的 Lua 入口脚本不需要额外添加到 `add_files(...)` 中。
 
 ### 指定顶层模块
 
@@ -84,6 +86,8 @@ end)
 设置仿真时候执行的 lua 主脚本文件，对于 HVL/WAL 场景，这个参数必须设置，例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们的 lua 主脚本文件是 `LuaMain.lua`，因此可以这么设置：`set_values("cfg.lua_main", "LuaMain.lua")`。
 
 `<lua main file>` 是一个具体的文件，可以包含路径。
+
+该入口脚本由 `cfg.lua_main` 单独指定，不需要再放进 `add_files(...)`。
 
 ### 顶层模块的设置指南
 
@@ -181,7 +185,7 @@ target("my_test", function()
     add_toolchains("@verilator")
     set_values("cfg.top", "Top")
     set_values("cfg.lua_main", "main.lua")
-    add_files("Top.v", "main.lua")
+    add_files("Top.v")
     set_values("cfg.no_internal_clock", "1") -- 禁用自动时钟生成
 end)
 ```
