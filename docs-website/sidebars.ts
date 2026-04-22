@@ -31,6 +31,7 @@ const sidebars: SidebarsConfig = {
         'how-to-guides/write_reusable_component',
         'how-to-guides/clock_driving',
         'how-to-guides/multi_clock_testing',
+        'how-to-guides/common_lua_pitfalls',
       ],
     },
     {

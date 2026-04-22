@@ -1,0 +1,65 @@
+# Lua 常见陷阱
+
+本节收集在 Verilua 开发中最容易遇到的 Lua/LuaJIT 陷阱。
+
+## `a and b or c` 不是三元运算符
+
+很多语言都有三元表达式 `a ? b : c`，但 Lua 的 `a and b or c` 并不是等价写法。当 `b` 的值为 `false` 或 `nil` 时，它会直接跳到 `c`：
+
+```lua
+local o = { v = false }
+local v = o and o.v or true       -- v 会变成 true，不是 false
+```
+
+如果目标值可能是 `false` 或 `nil`，最安全的方式是改用显式 `if`：
+
+```lua
+local v
+if o ~= nil and o.v ~= nil then
+    v = o.v
+else
+    v = true
+end
+```
+
+## `#` 对 cdata 无效
+
+`#` 运算符在 Lua table 上获取数组长度，但对 LuaJIT 的 `cdata` 对象无效。如果你需要获取 `uint32_t[]` 这类 C 数组的长度，不要用 `#`，可以用 `ffi.sizeof` 计算：
+
+```lua
+local ffi = require("ffi")
+local vec = ffi.new("uint32_t[?]", 4)
+local len = ffi.sizeof(vec) / ffi.sizeof(vec[0])   -- 4
+```
+
+## `tonumber()` 对 64 位 cdata 可能丢失精度
+
+`tonumber()` 会把 `cdata` 转成 Lua `number`（double），如果值超过 53 位精确整数范围就会丢失精度。需要保留精确 64 位语义时，应继续当作 `cdata` 使用，不要默认 `tonumber()`。
+
+## Lua 的数组索引从 1 开始
+
+Lua 的数组（table）索引默认从 `1` 开始，不是 `0`。这在硬件验证场景中尤其容易搞混，因为 RTL 和 C 代码里数组通常从 `0` 开始：
+
+```lua
+local arr = { 10, 20, 30 }
+print(arr[1])  -- 10
+print(arr[0])  -- nil，不是 10
+```
+
+如果你习惯写 C 风格的循环，注意索引访问也要跟着改：
+
+```lua
+-- 错误：Lua table 没有 arr[0]
+for i = 0, n - 1 do
+    print(arr[i])  -- arr[0] 是 nil！
+end
+
+-- 正确
+for i = 1, n do
+    print(arr[i])  -- arr[1] 是第一个元素
+end
+```
+
+## 相关文档
+
+- [LuaJIT 与标准 Lua 的常见差异](../getting-started/luajit_vs_standard_lua.mdx)
