@@ -7,8 +7,8 @@ SLCP（String Literal Constructor Pattern，字符串字面量构造器模式）
 在传统的 Lua 编程中，构建一个对象通常需要先 `require` 对应的模块：
 
 ```lua
-local CallableHDL = require "LuaCallableHDL"
-local Bundle = require "LuaBundle"
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
+local Bundle = require "verilua.handles.LuaBundle"
 
 local clock = CallableHDL("clock", "tb_top.clock")
 local bdl = Bundle({"valid", "ready"}, "", "tb_top.dut", "my_bundle", true)
@@ -381,7 +381,7 @@ local result = lib.add(1, 2)  -- 3
 local clock = ("tb_top.clock"):chdl()
 
 -- 不推荐（除非需要更多控制）
-local CallableHDL = require "LuaCallableHDL"
+local CallableHDL = require "verilua.handles.LuaCallableHDL"
 local clock = CallableHDL("clock", "tb_top.clock")
 ```
 
