@@ -178,7 +178,7 @@ function Queue:_compact()
 end
 
 function Queue:query_first_ptr()
-    return self.data[self.first_ptr]
+    return self:front()
 end
 
 function Queue:front()

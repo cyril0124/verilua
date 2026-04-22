@@ -166,7 +166,7 @@ function AgeStaticQueue:wait_not_empty()
 end
 
 function AgeStaticQueue:query_first()
-    return self.data[self.first_ptr]
+    return self:front()
 end
 
 function AgeStaticQueue:front()

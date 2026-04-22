@@ -34,8 +34,12 @@ describe("AgeStaticQueue test", function()
         expect.fail(function() q:pop() end)
     end)
 
-    it("should work properly for front and last", function()
+    it("should work properly for front, last, and query_first", function()
         local q = AgeStaticQueue(4)
+
+        expect.equal(q:front(), nil)
+        expect.equal(q:last(), nil)
+        expect.equal(q:query_first(), nil)
 
         assert(q:push(11) == 0)
         assert(q:push(22) == 0)
@@ -43,10 +47,17 @@ describe("AgeStaticQueue test", function()
 
         expect.equal(q:front(), 11)
         expect.equal(q:last(), 33)
+        expect.equal(q:query_first(), 11)
 
         q:pop()
         expect.equal(q:front(), 22)
         expect.equal(q:last(), 33)
+
+        q:pop()
+        q:pop()
+        expect.equal(q:front(), nil)
+        expect.equal(q:last(), nil)
+        expect.equal(q:query_first(), nil)
     end)
 
     it("should work properly for reset", function()

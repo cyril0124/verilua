@@ -53,6 +53,7 @@ const sidebars: SidebarsConfig = {
             'reference/data_structure/event_handle',
           ],
         },
+        'reference/queue',
         'reference/bitvec',
         'reference/str_bits_utils',
         'reference/type_expect',

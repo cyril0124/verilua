@@ -136,7 +136,7 @@ function StaticQueue:wait_not_empty()
 end
 
 function StaticQueue:query_first()
-    return self.data[self.first_ptr]
+    return self:front()
 end
 
 function StaticQueue:front()

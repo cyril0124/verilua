@@ -1,0 +1,265 @@
+# 通用队列（Queue / StaticQueue / AgeStaticQueue）
+
+`Verilua` 提供的三种 FIFO 队列，支持常规的 `push` / `pop` 以及带阻塞等待的 `push_waitable` / `pop_waitable`。三者用法基本一致，区别在容量策略与附加功能上。
+
+## 快速对比
+
+| | `Queue` | `StaticQueue` | `AgeStaticQueue` |
+|--|---------|---------------|------------------|
+| 容量 | 动态 | 固定 | 固定 |
+| `push` 满时 | 自动扩容 | 返回 `1` | 返回 `1` |
+| 附加功能 | `compact`、`leak_check` | `shuffle`、`get_all_data`、`list_data` | `shuffle`、`get_all_data`、`list_data` + age 保护 |
+
+## 创建与初始化
+
+### Queue
+
+```lua
+local Queue = require "verilua.utils.Queue"
+
+-- 匿名队列（推荐用于简单场景）
+local q = Queue()
+
+-- 命名队列，启用泄漏检测
+local q2 = Queue {
+    name = "MyQueue",
+    leak_check = true,
+    leak_check_threshold = 100000,
+    compact_threshold = 1000,
+}
+```
+
+### StaticQueue
+
+```lua
+local StaticQueue = require "verilua.utils.StaticQueue"
+
+-- 固定容量为 16 的队列
+local sq = StaticQueue(16, "MyStaticQueue")
+```
+
+### AgeStaticQueue
+
+```lua
+local AgeStaticQueue = require "verilua.utils.AgeStaticQueue"
+
+-- 固定容量为 16，最大 age 阈值为 10000（默认）
+local aq = AgeStaticQueue(16, 10000, "MyAgeQueue")
+```
+
+## 核心 API（共同方法）
+
+以下 API 在三者中行为一致。注意 `push` 与 `push_waitable` 的返回值存在差异：Queue 不会失败（无返回值），StaticQueue 与 AgeStaticQueue 在满时返回 `1`。
+
+### push / pop
+
+```lua
+-- Queue: 永远不会失败
+q:push(value)
+local v = q:pop()  -- 空队列时 assert 失败
+
+-- StaticQueue / AgeStaticQueue: 满时返回 1
+local ret = sq:push(value)  -- 0 表示成功，1 表示失败
+local v = sq:pop()          -- 空队列时 assert 失败
+```
+
+### push_waitable / pop_waitable / wait_not_empty
+
+这些方法仅在仿真环境（`string.ehdl` 可用）中生效。`push_waitable` 入队成功后会发送事件唤醒等待者；`pop_waitable` 在队列为空时阻塞等待：
+
+```lua
+-- Queue: push_waitable 无返回值
+q:push_waitable(data)
+
+-- StaticQueue / AgeStaticQueue: push_waitable 返回 0（成功）或 1（失败）
+local ret = sq:push_waitable(data)
+
+-- 消费者任务
+local data = q:pop_waitable()
+
+-- 也可以单独等待非空，返回 true
+q:wait_not_empty()
+```
+
+### 查询方法
+
+```lua
+local first = q:front()        -- 首个元素，不移除；空队列时返回 nil
+local last  = q:last()         -- 末尾元素，不移除；空队列时返回 nil
+local size  = q:size()         -- 当前元素数量
+local empty = q:is_empty()     -- 是否为空
+
+-- Queue 特有别名
+local first = q:query_first_ptr()  -- 同 front()
+
+-- StaticQueue / AgeStaticQueue 特有
+local full = sq:is_full()      -- 是否已满
+local free = sq:free_count()   -- 剩余可用槽位
+local used = sq:used_count()   -- 当前元素数量（同 size()）
+local first = sq:query_first() -- 同 front()
+local n = sq.count             -- 当前元素数量（同 size()），公开字段
+
+-- 三者均支持 # 运算符
+local n = #q                   -- 同 size()
+```
+
+### reset
+
+清空队列，重置为初始状态：
+
+```lua
+q:reset()
+```
+
+## Queue 特有特性
+
+### 内存整理（compact）
+
+`Queue` 基于 Lua table 实现。频繁的 `push` / `pop` 会导致 `first_ptr` 不断后移，造成表前端空洞。`Queue` 在 `pop` 次数达到 `compact_threshold` 的整数倍时，会自动将存活数据前移并释放旧槽位：
+
+```lua
+local q = Queue { compact_threshold = 1000 }
+-- 每 pop 1000 次触发一次 compact，防止内存无限增长
+```
+
+### 泄漏检测（leak_check）
+
+启用后，如果在指定阈值内连续调用 `do_leak_check()` 均未发生 `pop`，则第 `threshold + 1` 次调用时断言失败并打印队列内容：
+
+```lua
+local q = Queue { leak_check = true, leak_check_threshold = 100000 }
+
+-- 在循环中定期检查
+for i = 1, N do
+    q:do_leak_check()  -- 如果一直未 pop，第 100001 次调用时触发断言
+end
+```
+
+### 打印队列状态
+
+Queue 实现了 `__tostring`，可直接用 `print` 或 `tostring` 查看队列内容：
+
+```lua
+local q = Queue { name = "DebugQueue" }
+q:push(1)
+q:push(2)
+print(q)
+-- [DebugQueue] Queue (2 elements):
+--   [1] 1
+--   [2] 2
+```
+
+## StaticQueue 特有特性
+
+### shuffle
+
+随机打乱队列中所有元素的顺序：
+
+```lua
+sq:push(1)
+sq:push(2)
+sq:push(3)
+sq:shuffle()  -- 元素顺序变为随机排列
+```
+
+### get_all_data / list_data
+
+```lua
+local arr = sq:get_all_data()  -- 返回按队列顺序排列的数组
+sq:list_data()                 -- 打印队列的指针、计数与所有元素
+```
+
+`list_data` 输出示例：
+
+```
+╔══════════════════════════════════════════════════════════════════════
+║ [MyStaticQueue] List Data:
+╠══════════════════════════════════════════════════════════════════════
+║ first_ptr: 1, last_ptr: 2, count: 2
+╟──────────────────────────────────────────────────────────────────────
+║ [1]	42
+║ [2]	99
+╚══════════════════════════════════════════════════════════════════════
+```
+
+## AgeStaticQueue 特有特性
+
+`AgeStaticQueue` 与 `StaticQueue` 一样采用固定容量实现，额外增加了 **元素年龄（age）** 机制，用于在 `shuffle` 时保护长期未被消费的元素，防止饥饿。
+
+### age 机制
+
+每次 `pop` 时，全局年龄计数器 `global_age` 递增；每个槽位记录其入队时的年龄。`shuffle` 时，如果队首元素的年龄**达到或超过** `MAX_AGE`，则禁止将队首元素与其他元素交换：
+
+```lua
+local aq = AgeStaticQueue(16, 10000, "AgeQ")
+
+aq:push(100)
+-- ... 经过大量 pop 操作，global_age 增长 ...
+aq:push(200)
+
+aq:shuffle()
+-- 如果队首元素（100）的年龄达到或超过 MAX_AGE，shuffle 不会将其交换到后方
+```
+
+### get_all_data / list_data
+
+```lua
+local arr = aq:get_all_data()  -- 返回按队列顺序排列的数组
+aq:list_data()                 -- 打印指针、计数、max_age、MAX_AGE 及各元素的 age 与 data
+```
+
+`list_data` 输出示例：
+
+```
+╔══════════════════════════════════════════════════════════════════════
+║ [MyAgeQueue] List Data:
+╠══════════════════════════════════════════════════════════════════════
+║ first_ptr: 1, last_ptr: 2, count: 2, max_age: 50, MAX_AGE: 10000
+╟──────────────────────────────────────────────────────────────────────
+║ [  1]	age:   50	data: 100
+║ [  2]	age:    0	data: 200
+╚══════════════════════════════════════════════════════════════════════
+```
+
+## 多任务同步示例
+
+以下示例展示了如何使用 `push_waitable` / `pop_waitable` 在生产者-消费者模型中同步：
+
+```lua
+local Queue = require "verilua.utils.Queue"
+
+local q = Queue { name = "DataQueue" }
+
+fork {
+    -- 生产者任务
+    function()
+        for i = 1, 10 do
+            q:push_waitable(i)
+            print("[Producer] pushed", i)
+        end
+    end,
+
+    -- 消费者任务
+    function()
+        for i = 1, 10 do
+            local data = q:pop_waitable()
+            print("[Consumer] popped", data)
+        end
+    end,
+}
+```
+
+`push_waitable` 在成功入队后通过内部 `EventHandle` 发送事件，`pop_waitable` 在队列为空时阻塞等待该事件。这种方式无需手动管理同步原语。
+
+## 选型建议
+
+| 场景 | 推荐队列 | 理由 |
+|------|----------|------|
+| 通用数据缓冲，数据量不确定 | `Queue` | 动态扩容，支持内存整理与泄漏检测 |
+| 内存敏感或需要背压（back-pressure） | `StaticQueue` | 固定容量，`is_full` / `free_count` 可控 |
+| 随机调度且需防止元素饥饿 | `AgeStaticQueue` | 固定容量 + age 保护，适合带随机性的 transaction 调度 |
+
+## 相关文档
+
+- [多任务系统](./multi_task.mdx#task-synchronization)：EventHandle 与任务同步的详细说明
+- [任务同步事件（EventHandle）](./data_structure/event_handle.mdx)：EventHandle 的定位与使用入口
