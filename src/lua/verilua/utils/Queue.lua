@@ -32,9 +32,9 @@ local table_concat = table.concat
 ---@field push_waitable fun(self: verilua.utils.Queue, value: T) Add an element and notify waiters
 ---@field pop_waitable fun(self: verilua.utils.Queue): T Remove and return the first element, waiting if necessary
 ---@field wait_not_empty fun(self: verilua.utils.Queue): boolean Wait until the queue is not empty
----@field query_first_ptr fun(self: verilua.utils.Queue): T Get the first element without removing it
----@field front fun(self: verilua.utils.Queue): T Alias of query_first_ptr - get the first element without removing it
----@field last fun(self: verilua.utils.Queue): T Get the last element without removing it, or nil if queue is empty
+---@field query_first_ptr fun(self: verilua.utils.Queue): T? Get the first element without removing it, or nil if queue is empty
+---@field front fun(self: verilua.utils.Queue): T? Alias of query_first_ptr - get the first element without removing it, or nil if queue is empty
+---@field last fun(self: verilua.utils.Queue): T? Get the last element without removing it, or nil if queue is empty
 ---@field is_empty fun(self: verilua.utils.Queue): boolean Check if the queue is empty
 ---@field size fun(self: verilua.utils.Queue): integer Get the number of elements in the queue
 ---@field reset fun(self: verilua.utils.Queue) Clear all elements and reset the queue to initial state
@@ -171,9 +171,7 @@ function Queue:_compact()
         self.last_ptr = size
     else
         -- Queue is empty, clear the entire table
-        for i = 1, last_ptr do
-            data[i] = nil
-        end
+        table_clear(data)
         self.first_ptr = 1
         self.last_ptr = 0
     end
@@ -184,15 +182,17 @@ function Queue:query_first_ptr()
 end
 
 function Queue:front()
+    if self:is_empty() then
+        return nil
+    end
     return self.data[self.first_ptr]
 end
 
 function Queue:last()
-    if self.last_ptr == 0 then
+    if self:is_empty() then
         return nil
-    else
-        return self.data[self.last_ptr]
     end
+    return self.data[self.last_ptr]
 end
 
 function Queue:is_empty()

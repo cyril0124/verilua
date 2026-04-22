@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **utils/Queue|StaticQueue|AgeStaticQueue**: `front()` / `last()` now return `nil` for empty queues instead of potentially returning stale data
 - **TypeExpect**: Reject fractional Lua numbers in `expect_integer()` and improve `fake_chdl` missing-`get_width()` diagnostics for width-range `expect_chdl()` checks
 - **wave_vpi**: Handle empty and single-time-point waveforms gracefully by avoiding time-table underflow in the Wellen/FSDB backends and skipping the main evaluation loop instead of aborting when no progressable waveform steps exist
 - **libverilua/verilator**: Fix `get_dec_str()` fallback for wide signals by switching the Verilator hex-to-decimal workaround from `u128` parsing to arbitrary-precision conversion and reusing the per-handle string buffer

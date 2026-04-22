@@ -24,9 +24,9 @@ local math_random = math.random
 ---@field pop fun(self: verilua.utils.StaticQueue): T Remove and return the first element from the queue
 ---@field pop_waitable fun(self: verilua.utils.StaticQueue): T Remove and return the first element, waiting if the queue is empty
 ---@field wait_not_empty fun(self: verilua.utils.StaticQueue): boolean Wait until the queue is not empty
----@field query_first fun(self: verilua.utils.StaticQueue): T Get the first element without removing it
----@field front fun(self: verilua.utils.StaticQueue): T Alias of query_first
----@field last fun(self: verilua.utils.StaticQueue): T Get the last element without removing it
+---@field query_first fun(self: verilua.utils.StaticQueue): T? Get the first element without removing it, or nil if queue is empty
+---@field front fun(self: verilua.utils.StaticQueue): T? Alias of query_first, or nil if queue is empty
+---@field last fun(self: verilua.utils.StaticQueue): T? Get the last element without removing it, or nil if queue is empty
 ---@field is_empty fun(self: verilua.utils.StaticQueue): boolean Check if the queue is empty
 ---@field is_full fun(self: verilua.utils.StaticQueue): boolean Check if the queue is full
 ---@field size fun(self: verilua.utils.StaticQueue): integer Get current number of elements (alias of used_count)
@@ -140,10 +140,16 @@ function StaticQueue:query_first()
 end
 
 function StaticQueue:front()
+    if self.count == 0 then
+        return nil
+    end
     return self.data[self.first_ptr]
 end
 
 function StaticQueue:last()
+    if self.count == 0 then
+        return nil
+    end
     return self.data[self.last_ptr]
 end
 
