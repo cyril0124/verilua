@@ -123,6 +123,7 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 - If you change user-facing behavior, commands, configuration, or workflows, update `./docs` as needed.
 - When adding or updating documentation pages, ensure the new or changed entries are registered in `./docs-website/sidebars.ts` so they appear in the site sidebar.
 - Any user-visible, behavior-changing, feature, bug-fix, workflow, or compatibility-related change must be recorded in `CHANGELOG.md` under `## Unreleased`.
+- Pure documentation updates (typos, formatting, examples, wording improvements) that do not change user-visible behavior must **not** be recorded in `CHANGELOG.md`.
 - If you modify `./docs-website`, use Node.js `>=18` and run `npm run build` in `./docs-website`.
 
 ## Reference Code
