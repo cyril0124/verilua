@@ -1,0 +1,432 @@
+# 使用 EmmyLua/LuaCATS 类型注释
+
+[EmmyLuaLs](https://github.com/EmmyLuaLs/emmylua-analyzer-rust) 是为 Lua 提供静态类型分析和 IDE 支持的语言服务器，其类型注释标准通常被称为 **LuaCATS**（**L**ua **C**omment **A**nd **T**ype **S**ystem）。配合支持 LuaCATS 的 IDE（如 VS Code + [EmmyLuaLs 插件](https://marketplace.visualstudio.com/items?itemName=CppCXY.emmylua-codestyle)），你可以在编写 Lua 脚本时获得**类型补全**、**跳转定义**和**静态检查**。
+
+:::caution[方言兼容性]
+本文以 **EmmyLuaLs** 为目标。虽然 Lua Language Server（LuaLS）也使用类似的 LuaCATS 注释，但两者在 v3 之后并非完全兼容。如果你使用 LuaLS，部分注释（如 `@return_overload`）的行为可能与本文描述不同，建议以各自官方文档为准。
+:::
+
+本文介绍 LuaCATS 中最常用的类型注释。所有示例基于通用的 Lua 编程场景编写，使用短类名（如 `Queue`）以降低阅读门槛；在实际项目中，你可能会看到命名空间限定的类名（如 `verilua.utils.Queue`），两者语法完全一致。
+
+:::tip[本文覆盖的内容]
+上半部分详细介绍最常用的 10 个注释，每个都配有独立示例；下半部分以速查表形式列出其余注释，并附官方文档链接。
+:::
+
+---
+
+## 类型定义
+
+### `@class` — 定义类结构
+
+`@class` 用于描述对象结构，让 IDE 知道一个变量有哪些字段和方法。它常与 `pl.class` 或其他 OOP 库配合使用，也适用于纯 Lua 表。
+
+```lua title="counter.lua"
+local class = require "pl.class"
+
+---@class (exact) Counter
+---@field name string
+---@field value integer
+---@field step integer
+local Counter = class()
+```
+
+:::caution[修饰符 (exact)]
+`(exact)` 表示该类**不允许**有 `@class` 声明之外的额外字段。如果你希望类支持动态字段（如 `counter.foo = 1`），则**不要**加 `(exact)`。
+:::
+
+`@class` 也可以标记为 `(partial)`，表示这个定义只是类的**一部分**。常用于给第三方库补充类型信息：
+
+```lua title="signal_api.lua"
+---@class (partial) SignalHandle
+---@field set fun(self: SignalHandle, v: integer)
+---@field get fun(self: SignalHandle): integer
+---@field freeze fun(self: SignalHandle)
+```
+
+继承语法：
+
+```lua title="bitvec.lua"
+---@class (exact) BitVecInst: BitVec
+---@overload fun(s: integer, e: integer): SubBitVec
+local BitVecInst = class()
+```
+
+### `@field` — 声明字段和方法
+
+紧跟 `@class` 之后使用，描述类的字段类型或方法签名。
+
+```lua title="queue.lua（节选）"
+---@class (exact) Queue<T>
+---@field private name string           -- 私有字段
+---@field private data table<integer, T> -- 泛型字段
+---@field push fun(self: Queue, value: T)      -- 实例方法
+---@field pop fun(self: Queue): T              -- 带返回值
+---@field is_empty fun(self: Queue): boolean   -- 检查方法
+```
+
+:::tip[字段可见性]
+`@field` 支持四种可见性修饰符：
+
+| 修饰符 | 说明 |
+| --- | --- |
+| `public` | 默认，任何地方可访问 |
+| `private` | 仅在类内部可访问 |
+| `protected` | 在类及子类内部可访问 |
+| `package` | 在同包（同一目录）内可访问 |
+:::
+
+### `@alias` — 类型别名
+
+给一个复杂类型起个简短的名字，提高可读性。
+
+```lua title="types.lua"
+---@alias TaskID integer
+---@alias EventID integer
+---@alias TaskBody fun()
+```
+
+联合类型别名也很常见：
+
+```lua title="types.lua"
+---@alias TimeUnit "step"|"fs"|"ps"|"ns"|"us"|"ms"|"s"
+---@alias StatusCode "ok"|"error"|"timeout"
+```
+
+别名也可以指向字面量或另一个别名：
+
+```lua title="result.lua"
+---@alias SuccessCode 0
+---@alias ErrorCode 1
+---@alias ResultCode SuccessCode|ErrorCode
+```
+
+### `@enum` — 枚举定义
+
+给一组具名常量定义类型，IDE 会识别并补全枚举值。
+
+```lua title="state.lua"
+---@enum SimState
+local SimState = {
+    STOP = 0,
+    RUN = 1,
+    PAUSE = 2,
+    FINISH = 3,
+}
+```
+
+```lua title="yield.lua"
+---@enum YieldType
+local YieldType = {
+    EarlyExit = 4444,
+    NOOP = 5555,
+}
+```
+
+---
+
+## 函数签名
+
+### `@param` — 参数类型
+
+描述函数参数的类型，支持可选参数和变长参数。
+
+```lua title="monitor.lua"
+---@param weights table<integer, { [1]: integer, [2]: integer, [3]: integer }>
+function Monitor:_init(weights)
+```
+
+联合类型参数：
+
+```lua title="utils.lua"
+---@nodiscard Return value should not be discarded
+---@param t integer|string|table
+---@param separator? string
+---@return string
+function to_hex_str(t, separator)
+```
+
+可选参数（加 `?`）：
+
+```lua title="queue.lua"
+---@param options { name?: string, compact_threshold?: integer }?
+function Queue:_init(options)
+```
+
+### `@return` — 返回值类型
+
+描述函数返回值的类型。
+
+```lua title="utils.lua"
+---@nodiscard
+---@generic T: table
+---@param enum_table T
+---@return T
+function enum_define(enum_table)
+```
+
+多返回值：
+
+```lua title="scheduler.lua"
+---@nodiscard The returned (EventHandle, TaskID) can be used to track the created task
+---@param one_task_table table<string, fun()>
+---@return EventHandle, TaskID
+function jfork(one_task_table)
+```
+
+### `@return_overload` — 关联多返回值类型
+
+当函数的第一个返回值是 `boolean`（类似 `pcall` 风格），且后续返回值的类型取决于第一个值时，用 `@return_overload` 让 IDE 做关联收窄。
+
+```lua title="loader.lua"
+---@return_overload true, Config
+---@return_overload false, string
+---@param path string
+---@return boolean, Config|string
+function load_config(path)
+```
+
+使用时的类型推断：
+
+```lua
+local ok, result = load_config("config.lua")
+if ok then
+    -- result 被收窄为 Config
+    print(result.port)
+else
+    -- result 被收窄为 string（错误信息）
+    print("Error:", result)
+end
+```
+
+### `@overload` — 函数重载
+
+当一个构造函数或函数支持多种调用方式时，用 `@overload` 列出所有签名。
+
+```lua title="random.lua"
+---@class (exact) WeightedRandom
+---@overload fun(weights: table<integer, { [1]: integer, [2]: integer, [3]: integer }>): WeightedRandom
+local WeightedRandom = class()
+```
+
+```lua title="queue.lua"
+---@class (exact) Queue<T>
+---@overload fun(options?: { name?: string }): Queue
+local Queue = class()
+```
+
+泛型重载：
+
+```lua title="utils.lua"
+---@overload fun<T>(items: T[], predicate: fun(item: T): boolean): T[]
+function filter(items, predicate)
+```
+
+---
+
+## 变量标注
+
+### `@type` — 显式声明变量类型
+
+当 IDE 无法自动推断变量类型时，用 `@type` 显式标注。
+
+```lua title="driver.lua"
+local raw = self.signals[name]
+---@type SignalHandle
+local handle = raw
+```
+
+用于描述函数指针类型：
+
+```lua title="binding.lua"
+---@type fun(name: string): ComplexHandle
+local handle_by_name = ffi.C.handle_by_name
+```
+
+可空类型（加 `?`）：
+
+```lua title="parser.lua"
+---@type table<integer, string>?
+local result = nil
+```
+
+### `@cast` — 类型转换
+
+在运行时类型已经明确，但 IDE 无法推断的场景下，用 `@cast` 告诉 IDE 变量的实际类型。
+
+```lua title="config.lua"
+---@cast optional_signals table
+```
+
+联合类型的分支收窄：
+
+```lua title="checker.lua"
+---@cast signal SignalHandle
+-- 或
+---@cast signal ProxyHandle
+```
+
+去掉可空标记（`-?` 是 `-nil` 的简写）：
+
+```lua title="time.lua"
+---@cast unit_exp -?
+-- 等价于 ---@cast unit_exp -nil
+```
+
+从联合类型中移除字面量（如 `-0`）：
+
+```lua title="scheduler.lua"
+---@type integer|0
+local id = 0
+---@cast id -0
+-- id 现在被收窄为 integer
+```
+
+:::caution[不要滥用 @cast]
+`@cast` 只是告诉 IDE "我保证此时是这个类型"，并不会在运行时做任何检查。如果运行时类型不匹配，程序仍然会出错。
+:::
+
+### `@as` — 行内类型断言
+
+`--[[@as Type]]` 是行内类型标注语法，紧跟在表达式后面，用于强制指定单个表达式的类型。它不是独立的注释，因此不支持 `@cast` 的 `+/-` 联合类型操作。
+
+`tonumber` 返回 `number`，但你明确知道结果一定是 `integer`：
+
+```lua title="utils.lua"
+local n = tonumber(str) --[[@as integer]]
+```
+
+构造函数返回类型不够精确时修正：
+
+```lua title="queue.lua"
+local Queue = class() --[[@as Queue]]
+```
+
+ffi 调用返回无类型值时标注：
+
+```lua title="binding.lua"
+local vec = ffi.new("uint32_t[?]", len) --[[@as table<integer, integer>]]
+```
+
+:::tip[@cast 与 @as 的区别]
+- `@cast` 是独立注释行，作用于**变量**，支持 `+/-` 联合类型操作（类型收窄、扩展）：`---@cast var [+/-]Type`
+- `--[[@as Type]]` 是行内后缀，作用于**单个表达式**，不支持联合类型操作，只做简单类型断言
+:::
+
+---
+
+## 泛型与运算符
+
+### `@generic` — 泛型参数
+
+让类或函数支持泛型，实现类型安全的容器和工具函数。
+
+```lua title="queue.lua"
+---@generic T
+---@class (exact) Queue<T>
+---@field push fun(self: Queue, value: T)
+---@field pop fun(self: Queue): T
+local Queue = class()
+```
+
+泛型约束：
+
+```lua title="utils.lua"
+---@generic T: string|number|integer|boolean
+---@param val T
+---@return T
+function deep_copy(val)
+```
+
+### `@operator` — 运算符重载
+
+描述类支持的元方法运算符。
+
+```lua title="queue.lua"
+---@operator len: integer
+local Queue = class()
+```
+
+EmmyLuaLs 支持标注以下 12 种运算符：
+
+| 运算符 | 说明 | 示例 |
+| --- | --- | --- |
+| `add` | 加法 `+` | `@operator add(Vector): Vector` |
+| `sub` | 减法 `-` | `@operator sub(Vector): Vector` |
+| `mul` | 乘法 `*` | `@operator mul(number): Vector` |
+| `div` | 除法 `/` | `@operator div(number): Vector` |
+| `mod` | 取模 `%` | `@operator mod(number): Vector` |
+| `pow` | 幂运算 `^` | `@operator pow(number): Vector` |
+| `unm` | 负号 `-` | `@operator unm: Vector` |
+| `len` | 长度 `#` | `@operator len: integer` |
+| `concat` | 连接 `..` | `@operator concat(string): string` |
+| `eq` | 相等 `==` | `@operator eq: boolean` |
+| `lt` | 小于 `<` | `@operator lt: boolean` |
+| `le` | 小于等于 `<=` | `@operator le: boolean` |
+
+---
+
+## 代码质量
+
+### `@diagnostic` — 诊断控制
+
+临时禁用或启用某些 IDE 静态检查规则。
+
+文件顶部全局禁用：
+
+```lua title="dut.lua"
+---@diagnostic disable: unnecessary-if, unnecessary-assert, need-check-nil
+```
+
+单行禁用：
+
+```lua title="random.lua"
+---@diagnostic disable-next-line: need-check-nil
+return random(last_value[2], last_value[3])
+```
+
+### `@nodiscard` — 返回值不应忽略
+
+标记函数的返回值必须被使用，否则 IDE 会提示警告。
+
+```lua title="utils.lua"
+---@nodiscard Return value should not be discarded
+---@param tab any[]
+---@return any[]
+function reverse_table(tab)
+```
+
+```lua title="queue.lua"
+---@nodiscard Need check success, `0` for success, `1` for failed
+---@param value T
+---@return integer
+function Queue:push(value)
+```
+
+```lua title="queue.lua"
+---@nodiscard Need check success, `0` for success, `1` for failed
+---@param value T
+---@return integer
+function Queue:push_waitable(value)
+```
+
+---
+
+## 其他注释速查表
+
+以下注释在日常 Lua 开发中使用频率较低，完整说明请查阅官方文档。
+
+| 注释 | 说明 | 官方文档 |
+| --- | --- | --- |
+| `@meta` | 标记该文件为纯类型定义文件（无运行时代码） | [meta.md](https://github.com/EmmyLuaLs/emmylua-analyzer-rust/blob/main/docs/emmylua_doc/annotations_EN/meta.md) |
+| `@see` | 引用其他符号，IDE 支持跳转 | [see.md](https://github.com/EmmyLuaLs/emmylua-analyzer-rust/blob/main/docs/emmylua_doc/annotations_EN/see.md) |
+| `@source` | 指定源代码位置（常用于生成代码） | [source.md](https://github.com/EmmyLuaLs/emmylua-analyzer-rust/blob/main/docs/emmylua_doc/annotations_EN/source.md) |
+| `@async` | 标记异步函数 | [async.md](https://github.com/EmmyLuaLs/emmylua-analyzer-rust/blob/main/docs/emmylua_doc/annotations_EN/async.md) |
+| `@return_overload` | 关联多返回值的元组类型 | [return.md](https://github.com/EmmyLuaLs/emmylua-analyzer-rust/blob/main/docs/emmylua_doc/annotations_EN/return.md) |
+
+---
+
+## 参考
+
+- [EmmyLua/LuaCATS 官方注释文档](https://github.com/EmmyLuaLs/emmylua-analyzer-rust/tree/main/docs/emmylua_doc/annotations_EN)
+- [使用 pl.class 进行面向对象编程](./oop_with_pl_class) — Verilua 中 `@class` 最常见的使用场景
+- [编写可复用的验证组件](./write_reusable_component) — 了解如何在真实组件中组合使用这些注释

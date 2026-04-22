@@ -168,6 +168,7 @@ fork {
 
 ```lua
 -- 检测错误的双重启动
+---@type boolean, string
 local ok, err = pcall(function()
     clk:start(10, "ns")
     clk:start(20, "ns")  -- 错误：时钟已在运行

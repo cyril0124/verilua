@@ -1,0 +1,81 @@
+# 类型概览
+
+本文档汇总了 `Verilua` 中所有面向用户的**可实例化类型**，按功能模块分组，并标注文档覆盖状态。
+
+- **已文档**的类型可直接点击链接查看详细 API。
+- **Coming soon** 的类型尚未提供独立文档页面，用户可通过源码中的 LuaCATS 注解了解详情。
+
+---
+
+## 信号与句柄（Handles）
+
+与硬件信号直接交互的核心数据结构。
+
+| LuaCATS 类型 | 说明 | 文档 | 源码位置 |
+|--------------|------|------|----------|
+| `verilua.handles.CallableHDL` | 信号读写、验证与回调的底层句柄 | [查看](./data_structure/callable_hdl.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/handles/LuaCallableHDL.lua) |
+| `verilua.handles.Bundle` | 多信号封装组，支持 Decoupled / Valid 子类型 | [查看](./data_structure/bundle.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/handles/LuaBundle.lua) |
+| `verilua.handles.AliasBundle` | 带别名映射的信号组，提升可读性 | [查看](./data_structure/alias_bundle.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/handles/LuaAliasBundle.lua) |
+| `verilua.handles.ProxyTableHandle` | 全局信号代理表，智能解析 hierarchy path | [查看](./data_structure/proxy_table_handle.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/LuaDut.lua) |
+| `verilua.handles.EventHandle` | 任务同步事件句柄，用于 `fork` / `join` 协调 | [查看](./data_structure/event_handle.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/scheduler/LuaScheduler.lua) |
+
+---
+
+## 队列（Queues）
+
+三种 FIFO 队列，支持常规入队出队与带阻塞的 `push_waitable` / `pop_waitable`。
+
+| LuaCATS 类型 | 说明 | 文档 | 源码位置 |
+|--------------|------|------|----------|
+| `verilua.utils.Queue` | 动态扩容 FIFO | [查看](./queue.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/Queue.lua) |
+| `verilua.utils.StaticQueue` | 固定容量 FIFO | [查看](./queue.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/StaticQueue.lua) |
+| `verilua.utils.AgeStaticQueue` | 固定容量 + 年龄保护，防止 shuffle 饥饿 | [查看](./queue.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/AgeStaticQueue.lua) |
+
+---
+
+## 工具类（Utils）
+
+仿真过程中常用的辅助类型。
+
+| LuaCATS 类型 | 说明 | 文档 | 源码位置 |
+|--------------|------|------|----------|
+| `verilua.utils.BitVec` | 可变长位向量，支持位运算与格式化输出 | [查看](./bitvec.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/BitVec.lua) |
+| `verilua.utils.NativeClock` | Rust 原生高性能时钟驱动，避免 Lua-VPI 频繁上下文切换 | [查看](./native_clock.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/NativeClock.lua) |
+| `verilua.utils.IDPool` | 可分配/回收的整数 ID 池 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/IDPool.lua) |
+| `verilua.utils.LuaDataBase` | 基于 SQLite 的仿真数据记录器 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/LuaDataBase.lua) |
+| `verilua.utils.LuaDataBaseV2` | SQLite / DuckDB 混合数据记录器 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/LuaDataBaseV2.lua) |
+| `verilua.utils.Logger` | 带颜色与级别的日志输出 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/Logger.lua) |
+
+---
+
+## 随机化（Randomization）
+
+用于测试激励生成的随机工具类。
+
+| LuaCATS 类型 | 说明 | 文档 | 源码位置 |
+|--------------|------|------|----------|
+| `verilua.random.WeightedRandom` | 按权重区间生成随机值 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/random/WeightedRandom.lua) |
+| `verilua.random.CyclicRandom` | 循环不重复随机序列生成器 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/random/CyclicRandom.lua) |
+| `verilua.random.CounterDelayer` | 随机延迟计数器，用于控制事务间隔 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/random/CounterDelayer.lua) |
+
+---
+
+## 调度器（Scheduler）
+
+多任务协程调度器，通常在 `init.lua` 中自动加载为单例。
+
+| LuaCATS 类型 | 说明 | 文档 | 源码位置 |
+|--------------|------|------|----------|
+| `verilua.scheduler.LuaScheduler` | 多任务协程调度器（`fork` / `jfork` / `initial` / `final` 的底层实现） | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/scheduler/LuaScheduler.lua) |
+
+---
+
+## 其他参考
+
+| 模块 | 说明 | 文档 | 源码位置 |
+|------|------|------|----------|
+| `verilua.utils.StrBitsUtils` | 二进制 / 十六进制字符串与数值互转工具集 | [查看](./str_bits_utils.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/StrBitsUtils.lua) |
+| `verilua.TypeExpect` | 运行时类型断言与参数校验工具 | [查看](./type_expect.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/TypeExpect.lua) |
+| `verilua.utils.SymbolHelper` | 符号表与层次路径辅助工具 | [查看](./symbol_helper.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/SymbolHelper.lua) |
+| `verilua.LuaSimConfig` | 全局配置对象（`_G.cfg`） | [查看](./global_configuration.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/LuaSimConfig.lua) |
+| `verilua.LuaSimulator` | 仿真控制 API | [查看](./simulator_control.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/LuaSimulator.lua) |

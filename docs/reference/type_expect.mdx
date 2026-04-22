@@ -7,6 +7,9 @@
 ```lua
 local texpect = require "verilua.TypeExpect"
 
+---@param signals verilua.handles.AliasBundle
+---@param name string
+---@return { signals: verilua.handles.AliasBundle, name: string }
 local function create_monitor(signals, name)
     texpect.expect_abdl(signals, "signals", {
         "valid",
@@ -125,6 +128,7 @@ texpect.expect_table({ hier = "tb_top", prefix = "" }, "opts", {
 ```lua
 local texpect = require "verilua.TypeExpect"
 
+---@param valid verilua.handles.CallableHDL
 local function drive_valid(valid)
     texpect.expect_chdl(valid, "valid", 1)
     valid:set(1)
