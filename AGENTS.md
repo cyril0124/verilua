@@ -41,6 +41,7 @@
 
 - Lua code must include LuaCATS type annotations written for EmmyLuaLs: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust`.
 - Annotation reference: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust/tree/main/docs/emmylua_doc/annotations_EN`
+- When modifying Lua function signatures, return types, or data structures, update the corresponding LuaCATS annotations so they stay in sync with the implementation.
 - Lua code must follow LuaJIT best practices and account for JIT performance characteristics.
 - Follow the best practices already used in the existing codebase.
 - Add concise English comments for important or non-obvious code blocks when they improve readability.
@@ -120,6 +121,7 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 ## Docs Sync
 
 - If you change user-facing behavior, commands, configuration, or workflows, update `./docs` as needed.
+- When adding or updating documentation pages, ensure the new or changed entries are registered in `./docs-website/sidebars.ts` so they appear in the site sidebar.
 - Any user-visible, behavior-changing, feature, bug-fix, workflow, or compatibility-related change must be recorded in `CHANGELOG.md` under `## Unreleased`.
 - If you modify `./docs-website`, use Node.js `>=18` and run `npm run build` in `./docs-website`.
 
