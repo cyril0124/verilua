@@ -1,4 +1,4 @@
-# StrBitsUtils
+# 字符串位操作工具（StrBitsUtils）
 
 `StrBitsUtils` 是一组基于字符串的位操作工具函数，用于处理超出 Lua 数字范围的大位宽数据。它将信号值表示为十六进制或二进制字符串，并提供提取、设置、移位、逻辑运算等功能，常用于需要高精度位操作的验证场景。
 
@@ -209,5 +209,5 @@ print(sbu.popcount_hex_str(result))  --> 16
 
 ## 相关文档
 
-- [BitVec](./bitvec.mdx)：基于数组的位向量实现。
-- [CallableHDL](./data_structure/callable_hdl.mdx)：硬件信号句柄，可通过 `get_hex_str()` 等获取字符串值。
+- [位向量（BitVec）](./bitvec.mdx)：基于数组的位向量实现。
+- [信号句柄（CallableHDL）](./data_structure/callable_hdl.mdx)：硬件信号句柄，可通过 `get_hex_str()` 等获取字符串值。

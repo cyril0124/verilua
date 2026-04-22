@@ -1,4 +1,4 @@
-# NativeClock
+# 原生时钟驱动（NativeClock）
 
 `NativeClock` 是 Verilua 中用于高性能时钟驱动的工具类。它完全在 Rust 原生代码中实现时钟信号的切换，避免了每次时钟边沿都需要返回 Lua 的开销，从而显著提高了纯时钟驱动场景的性能。
 
@@ -195,5 +195,5 @@ clk:start(20, "ns")
 
 ## 相关文档
 
-- [CallableHDL](./data_structure/callable_hdl.mdx) - 提供 `chdl()` 方法获取时钟句柄
+- [信号句柄（CallableHDL）](./data_structure/callable_hdl.mdx) - 提供 `chdl()` 方法获取时钟句柄
 - [多任务](./multi_task.mdx) - 使用 `fork` 创建并行任务

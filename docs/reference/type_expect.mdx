@@ -1,4 +1,4 @@
-# TypeExpect
+# 运行时类型校验（TypeExpect）
 
 `TypeExpect` 是 Verilua 中用于运行时参数校验的工具模块，常用于组件入口、公共 API 边界和测试辅助代码中。它的目标不是替代 LuaCATS 静态标注，而是在真正运行时尽早暴露类型不匹配、信号缺失、位宽不符合预期、AliasBundle 映射错误等问题。
 
@@ -308,7 +308,7 @@ texpect.expect_database(db, "db", {
 
 ## 相关文档
 
-- [CallableHDL](./data_structure/callable_hdl)：`expect_chdl()` 校验的核心对象。
-- [Bundle](./data_structure/bundle)：`expect_bdl()` 对应的数据结构。
-- [AliasBundle](./data_structure/alias_bundle)：`expect_abdl()` 的主要使用对象。
+- [信号句柄（CallableHDL）](./data_structure/callable_hdl)：`expect_chdl()` 校验的核心对象。
+- [信号组（Bundle）](./data_structure/bundle)：`expect_bdl()` 对应的数据结构。
+- [别名信号组（AliasBundle）](./data_structure/alias_bundle)：`expect_abdl()` 的主要使用对象。
 - [编写可复用的验证组件](../how-to-guides/write_reusable_component)：`TypeExpect` 在组件入口校验中的完整场景示例。

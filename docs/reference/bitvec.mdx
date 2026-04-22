@@ -1,4 +1,4 @@
-# BitVec
+# 位向量（BitVec）
 
 `BitVec` 是 Verilua 中用于处理任意位宽数据的工具类。它提供了一套位级操作方法，可以方便地提取和设置信号中的位域，支持超过 Lua 原生整数范围的大位宽数据。
 
@@ -233,4 +233,4 @@ assert(bv(32, 95) == BitVec("1234567890abcdef", 64))
 ## 相关文档
 
 - [CallableHDL](./data_structure/callable_hdl.mdx) 中提供了 `get_bitvec()` 方法，可以直接从信号获取 `BitVec` 对象。
-- [StrBitsUtils](./str_bits_utils.mdx) 提供了字符串形式的位操作工具。
+- [字符串位操作工具（StrBitsUtils）](./str_bits_utils.mdx) 提供了字符串形式的位操作工具。

@@ -105,7 +105,7 @@ return Monitor
 - 组件内部通过别名 `valid` 和 `value` 访问信号，与实际信号名无关。
 
 :::tip[进一步阅读 `TypeExpect`]
-如果你想系统了解 `expect_chdl()`、`expect_abdl()`、`fake_chdl` 与位宽约束的完整语义，可以查看 [TypeExpect 参考文档](../reference/type_expect)。
+如果你想系统了解 `expect_chdl()`、`expect_abdl()`、`fake_chdl` 与位宽约束的完整语义，可以查看 [运行时类型校验（TypeExpect）参考文档](../reference/type_expect)。
 :::
 
 ### 在不同设计中映射实际信号到别名
@@ -250,6 +250,6 @@ local fake_value = ("tb_top.u_dut.fake_value"):fake_chdl {
 - 使用 **TypeExpect** 在组件入口处进行类型和信号存在性检查，提前暴露错误。
 - 当某些设计缺少信号时，使用 **fake_chdl** 注入虚拟信号，保持组件兼容性。
 
-如果你需要单独查阅 `TypeExpect` 的接口与行为说明，可以继续阅读 [TypeExpect 参考文档](../reference/type_expect)。
+如果你需要单独查阅 `TypeExpect` 的接口与行为说明，可以继续阅读 [运行时类型校验（TypeExpect）参考文档](../reference/type_expect)。
 
 遵循这些原则，您编写的验证组件可以在多个设计、多种场景（HVL、HSE、WAL）中无缝复用，极大提高验证效率。
