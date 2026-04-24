@@ -414,9 +414,9 @@ local function create_proxy(path, use_prefix)
     ---@type verilua.handles.ProxyTableHandle
     local mt = setmetatable({
         __type = "ProxyTableHandle",
-        get_local_path = function(this) return local_path end,
+        get_local_path = function(_this) return local_path end,
 
-        set = function(t, v)
+        set = function(_t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
@@ -426,7 +426,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        set_imm = function(t, v)
+        set_imm = function(_t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
@@ -437,40 +437,40 @@ local function create_proxy(path, use_prefix)
         end,
 
 
-        set_shuffled = function(t)
+        set_shuffled = function(_t)
             vpiml.vpiml_set_shuffled(vpiml.vpiml_handle_by_name(local_path))
         end,
-        set_freeze = function(t)
+        set_freeze = function(_t)
             vpiml.vpiml_set_freeze(vpiml.vpiml_handle_by_name(local_path))
         end,
 
-        set_force = function(t, v)
+        set_force = function(_t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
             vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
         end,
-        set_imm_force = function(t, v)
+        set_imm_force = function(_t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
             vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
         end,
-        set_release = function(t)
+        set_release = function(_t)
             vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(local_path))
         end,
 
-        force_all = function(t)
+        force_all = function(_t)
             assert(set_force_enable == false)
             set_force_enable = true
         end,
-        release_all = function(t)
+        release_all = function(_t)
             assert(set_force_enable == true)
             set_force_enable = false
 
-            for i, _path in ipairs(force_path_table) do
+            for _i, _path in ipairs(force_path_table) do
                 vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(_path))
             end
         end,
@@ -482,11 +482,11 @@ local function create_proxy(path, use_prefix)
             t:release_all()
         end,
 
-        get = function(t)
+        get = function(_t)
             return tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(local_path)))
         end,
 
-        get_str = function(t, fmt)
+        get_str = function(_t, fmt)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
@@ -494,7 +494,7 @@ local function create_proxy(path, use_prefix)
             return ffi_string(vpiml.vpiml_get_value_str(hdl, fmt))
         end,
 
-        get_hex_str = function(t)
+        get_hex_str = function(_t)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
@@ -502,7 +502,7 @@ local function create_proxy(path, use_prefix)
             return ffi_string(vpiml.vpiml_get_value_str(hdl, HexStr))
         end,
 
-        get_bin_str = function(t)
+        get_bin_str = function(_t)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
@@ -510,7 +510,7 @@ local function create_proxy(path, use_prefix)
             return ffi_string(vpiml.vpiml_get_value_str(hdl, BinStr))
         end,
 
-        set_str = function(t, str)
+        set_str = function(_t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
                 vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(str) --[[@as integer]])
@@ -519,7 +519,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        set_hex_str = function(t, str)
+        set_hex_str = function(_t, str)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
                 vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), "0x" .. str)
@@ -528,11 +528,11 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        set_force_str = function(t, str)
+        set_force_str = function(_t, str)
             vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), str)
         end,
 
-        posedge = function(t, v, func)
+        posedge = function(_t, v, func)
             local _v = v or 1
             local _v_type = type(_v)
 
@@ -551,7 +551,7 @@ local function create_proxy(path, use_prefix)
                 await_posedge_hdl(vpiml.vpiml_handle_by_name(local_path))
             end
         end,
-        negedge = function(t, v, func)
+        negedge = function(_t, v, func)
             local _v = v or 1
             local _v_type = type(_v)
 
@@ -572,7 +572,7 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
-        posedge_until = function(t, max_limit, func)
+        posedge_until = function(_t, max_limit, func)
             assert(max_limit ~= nil)
             assert(type(max_limit) == "number")
             assert(max_limit >= 1)
@@ -594,7 +594,7 @@ local function create_proxy(path, use_prefix)
 
             return condition_meet
         end,
-        negedge_until = function(t, max_limit, func)
+        negedge_until = function(_t, max_limit, func)
             assert(max_limit ~= nil)
             assert(type(max_limit) == "number")
             assert(max_limit >= 1)
@@ -617,7 +617,7 @@ local function create_proxy(path, use_prefix)
             return condition_meet
         end,
 
-        hdl = function(t)
+        hdl = function(_t)
             local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
             if hdl == -1 then
                 assert(false, f("No handle found => %s", local_path))
@@ -626,21 +626,21 @@ local function create_proxy(path, use_prefix)
         end,
 
 
-        chdl = function(t)
+        chdl = function(_t)
             return CallableHDL(local_path, "")
         end,
 
 
-        name = function(t)
+        name = function(_t)
             return local_path
         end,
 
 
-        get_width = function(t)
+        get_width = function(_t)
             return tonumber(vpiml.vpiml_get_signal_width(vpiml.vpiml_handle_by_name(local_path)))
         end,
 
-        dump_str = function(t)
+        dump_str = function(_t)
             local hdl = vpiml.vpiml_handle_by_name(local_path)
             local s = f("[%s] => ", local_path)
             s = s .. "0x" .. ffi_string(vpiml.vpiml_get_value_hex_str(hdl))
@@ -648,8 +648,8 @@ local function create_proxy(path, use_prefix)
         end,
 
 
-        dump = function(t)
-            print(t:dump_str())
+        dump = function(_t)
+            print(_t:dump_str())
         end,
 
 
@@ -750,7 +750,7 @@ local function create_proxy(path, use_prefix)
                 return t
             else
                 return setmetatable({}, {
-                    __index = function(_t, k)
+                    __index = function(_t, _k)
                         return function()
                             -- an empty function
                         end
@@ -785,16 +785,16 @@ local function create_proxy(path, use_prefix)
             return t:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")
         end,
 
-        tostring = function(t)
+        tostring = function(_t)
             return local_path
         end,
 
 
-        with_prefix = function(t, prefix_str)
+        with_prefix = function(_t, prefix_str)
             return create_proxy(local_path .. '.' .. prefix_str, true)
         end,
 
-        auto_bundle = function(t, params)
+        auto_bundle = function(_t, params)
             local cfg = _G.cfg
             if (params and params.use_signal_db) or cfg.simulator == "nosim" then
                 return require("verilua.utils.SignalDB"):auto_bundle(local_path, params)
@@ -803,7 +803,7 @@ local function create_proxy(path, use_prefix)
             end
         end
     }, {
-        __index = function(t, k)
+        __index = function(_t, k)
             ---@diagnostic disable-next-line: unnecessary-if
             if not use_prefix then
                 return create_proxy(local_path .. '.' .. k, false)
@@ -816,7 +816,7 @@ local function create_proxy(path, use_prefix)
         -- Supported types: number, string, table (BitVec, multi-beat), cdata (uint64_t, uint32_t[]), boolean
         -- This syntax (`dut.xxx = v`) is convenience-oriented for quick/temporary access.
         -- Prefer cached CallableHDL (`local sig = dut.xxx:chdl()`) in hot paths for better clarity/perf.
-        __newindex = function(t, k, v)
+        __newindex = function(_t, k, v)
             local fullpath = local_path .. '.' .. k
             local chdl = chdl_cache[fullpath]
             if not chdl then
@@ -827,7 +827,7 @@ local function create_proxy(path, use_prefix)
         end,
 
         -- [Deprecated] please use <LuaDut>:get(...) or <LuaDut>:get_str(...)
-        __call = function(t, v)
+        __call = function(_t, v)
             local data_type = v or "integer"
             if data_type == "integer" then
                 return tonumber(vpiml.vpiml_get_value(vpiml.vpiml_handle_by_name(local_path)))

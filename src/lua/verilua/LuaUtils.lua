@@ -525,6 +525,7 @@ local function bitpat_to_hex_str(bitpat_tbl, width)
 
         if start_block == end_block then
             -- The bit pattern fits within a single block
+            ---@type integer
             local mask
             if num_bits == 64 then
                 ---@diagnostic disable-next-line

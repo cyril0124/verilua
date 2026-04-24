@@ -112,6 +112,7 @@ local function type_check(value, name, expect_type)
     end
 end
 
+---@diagnostic disable-next-line
 function cfg:config_info(...)
     if _G.enable_verilua_debug then
         local file, line, _ = get_debug_info(4)
@@ -122,6 +123,7 @@ function cfg:config_info(...)
     end
 end
 
+---@diagnostic disable-next-line
 function cfg:config_warn(...)
     if _G.enable_verilua_debug then
         local file, line, _ = get_debug_info(4)
@@ -132,6 +134,7 @@ function cfg:config_warn(...)
     end
 end
 
+---@diagnostic disable-next-line
 function cfg:config_error(cond, ...)
     if cond == nil or cond == false then
         local file, line, _ = get_debug_info(4)
@@ -143,6 +146,7 @@ function cfg:config_error(cond, ...)
     end
 end
 
+---@diagnostic disable-next-line
 function cfg:get_or_else(cfg_str, default)
     local _cfg = rawget(self, cfg_str)
     if _cfg == nil then
@@ -152,6 +156,7 @@ function cfg:get_or_else(cfg_str, default)
     return _cfg
 end
 
+---@diagnostic disable-next-line
 function cfg:get_or_else_log(cfg_str, default, log_str)
     local _cfg = rawget(self, cfg_str)
     if _cfg == nil then
@@ -196,7 +201,7 @@ end
 ---     return cfg
 --- ```
 setmetatable(cfg, {
-    __index = function(t, k)
+    __index = function(_t, k)
         if k == "simulator" then
             ffi.cdef [[
                 const char *vpiml_get_simulator_auto();
@@ -214,7 +219,7 @@ setmetatable(cfg, {
     end
 })
 
-function cfg:get_cfg()
+function cfg.get_cfg()
     local VERILUA_CFG_PATH = os.getenv("VERILUA_CFG_PATH")
     local VERILUA_CFG = os.getenv("VERILUA_CFG")
 
@@ -232,7 +237,7 @@ function cfg:get_user_cfg()
 end
 
 function cfg:merge_config(other_cfg, info_str)
-    local info_str = info_str or ""
+    info_str = info_str or ""
     assert(type(other_cfg) == "table")
     setmetatable(self, nil)
 
@@ -258,7 +263,7 @@ end
 
 -- Special version of `cfg:merge_config`, which is used by `rules/xmake.lua`
 function cfg.merge_config_1(src_cfg, other_cfg, info_str)
-    local info_str = info_str or ""
+    info_str = info_str or ""
     assert(type(other_cfg) == "table")
 
     for k, v in pairs(other_cfg) do
@@ -283,10 +288,10 @@ end
 
 function cfg:post_config()
     -- Check necessary configs
-    local cfg = self
+    local _cfg = self
 
-    cfg.simulator = rawget(cfg, "simulator") or os.getenv("SIM")
-    if not cfg.simulator then
+    _cfg.simulator = rawget(_cfg, "simulator") or os.getenv("SIM")
+    if not _cfg.simulator then
         -- Try get simulator automatically
         ffi.cdef [[
             const char *vpiml_get_simulator_auto();
@@ -295,30 +300,30 @@ function cfg:post_config()
         if simulator ~= "unknown" then
             config_info(f("[cfg:post_config] Automatically detected simulator: %s", simulator))
             ---@diagnostic disable-next-line: assign-type-mismatch
-            cfg.simulator = simulator
+            _cfg.simulator = simulator
         end
     end
     assert(
-        cfg.simulator ~= nil,
+        _cfg.simulator ~= nil,
         "[cfg:post_config] <cfg.simulator>(simulator) is not set! You should set <cfg.simulator> via enviroment variable <SIM> or <cfg.simulator>"
     )
 
-    cfg.script = cfg.script or os.getenv("LUA_SCRIPT")
+    _cfg.script = _cfg.script or os.getenv("LUA_SCRIPT")
     assert(
-        cfg.script,
+        _cfg.script,
         "[cfg:post_config] <cfg.script>(script) is not set! You should set <cfg.script> via enviroment variable <LUA_SCRIPT> or <cfg.script>"
     )
 
-    cfg.is_hse = cfg:get_or_else("is_hse", false)
-    cfg.is_wal = cfg.simulator == "wave_vpi"
+    _cfg.is_hse = _cfg:get_or_else("is_hse", false)
+    _cfg.is_wal = _cfg.simulator == "wave_vpi"
     assert(
-        not (cfg.is_hse and cfg.is_wal),
+        not (_cfg.is_hse and _cfg.is_wal),
         "[cfg:post_config] `cfg.is_hse` and `cfg.is_wal` cannot be true at the same time"
     )
 
-    if cfg.mode ~= nil then
-        local scheduler_mode = cfg.mode
-        if cfg.is_hse then
+    if _cfg.mode ~= nil then
+        local scheduler_mode = _cfg.mode
+        if _cfg.is_hse then
             local err_info = f([[
                 `cfg.mode` only support the following options when `cfg.is_hse` is true:
                     - cfg.mode = "step"
@@ -333,46 +338,46 @@ function cfg:post_config()
             )
         end
     else
-        if cfg.is_hse then
+        if _cfg.is_hse then
             -- When using verilua as HSE(Hardware Script Engine), set the scheduler mode to "step"
-            cfg.mode = "step"
+            _cfg.mode = "step"
         else
             -- When using verilua as HVL(Hardware Verification Language) or WAL(Waveform Analysis Language), set the scheduler mode to "normal"
-            cfg.mode = "normal"
+            _cfg.mode = "normal"
         end
     end
 
     -- Make `cfg` available globally since it is used by `SignalDB` which provides the `vpiml_get_top_module()` function
-    _G.cfg = cfg
-    cfg.top = cfg.top or os.getenv("DUT_TOP")
-    if not cfg.top then
+    _G.cfg = _cfg
+    _cfg.top = _cfg.top or os.getenv("DUT_TOP")
+    if not _cfg.top then
         local vpiml = require "verilua.vpiml.vpiml"
         config_warn(f(
             "[cfg:post_config] <cfg.top>(top-level name) is not set! Try to get it from `vpiml.vpiml_get_top_module()`..."
         ))
-        cfg.top = ffi.string(vpiml.vpiml_get_top_module())
+        _cfg.top = ffi.string(vpiml.vpiml_get_top_module())
     end
     assert(
-        cfg.top,
+        _cfg.top,
         "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <DUT_TOP> or <cfg.top>"
     )
 
     -- Setup configs with default values
-    cfg.srcs                = cfg:get_or_else("srcs", { "./?.lua" })
-    cfg.deps                = cfg:get_or_else("deps", {}) -- Dependencies
-    cfg.period              = cfg:get_or_else("period", 10)
-    cfg.unit                = cfg:get_or_else("unit", "ns")
-    cfg.prj_dir             = cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
+    _cfg.srcs                = _cfg:get_or_else("srcs", { "./?.lua" })
+    _cfg.deps                = _cfg:get_or_else("deps", {}) -- Dependencies
+    _cfg.period              = _cfg:get_or_else("period", 10)
+    _cfg.unit                = _cfg:get_or_else("unit", "ns")
+    _cfg.prj_dir             = _cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
 
     --- This flag is enabled by calling:
     --- ```lua
     ---      local DpiExporter = require "DpiExporter"
     ---      DpiExporter:init(<meta_info_file or nil>) -- cfg.enable_dpi_exporter will be set at the end of this function
     --- ```
-    cfg.enable_dpi_exporter = false
+    _cfg.enable_dpi_exporter = false
 
     -- Setup seed, <SEED> set by environment variable `SEED` has higher priority
-    cfg.seed                = cfg:get_or_else("seed", 1234)
+    _cfg.seed                = _cfg:get_or_else("seed", 1234)
     local env_seed          = os.getenv("SEED")
     if env_seed then
         assert(
@@ -381,19 +386,19 @@ function cfg:post_config()
         )
         _G.verilua_debug(f(
             "Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d",
-            tostring(cfg.seed),
+            tostring(_cfg.seed),
             env_seed
         ))
-        cfg.seed = tonumber(env_seed) --[[@as integer]]
+        _cfg.seed = tonumber(env_seed) --[[@as integer]]
     end
 
-    type_check(cfg.is_hse, "cfg.is_hse", "boolean")
-    type_check(cfg.seed, "cfg.seed", "number")
+    type_check(_cfg.is_hse, "cfg.is_hse", "boolean")
+    type_check(_cfg.seed, "cfg.seed", "number")
 
     -- Setup time precision and time unit
     do
         local vpiml = require "verilua.vpiml.vpiml"
-        cfg.time_precision = vpiml.vpiml_get_time_precision()
+        _cfg.time_precision = vpiml.vpiml_get_time_precision()
 
         local EXPONENT_TO_UNIT = {
             [-15] = "fs",
@@ -403,13 +408,13 @@ function cfg:post_config()
             [-3] = "ms",
             [0] = "s",
         }
-        cfg.time_unit = EXPONENT_TO_UNIT[cfg.time_precision] or "unknown"
+        _cfg.time_unit = EXPONENT_TO_UNIT[_cfg.time_precision] or "unknown"
 
-        config_info(f("[cfg:post_config] Time precision: 10^%d seconds (%s)", cfg.time_precision, cfg.time_unit))
+        config_info(f("[cfg:post_config] Time precision: 10^%d seconds (%s)", _cfg.time_precision, _cfg.time_unit))
     end
 
-    setmetatable(cfg, {
-        __index = function(t, k)
+    setmetatable(_cfg, {
+        __index = function(_t, k)
             -- Any non-existent key will raise error
             config_error(false, f("[cfg] Attempt to access non-existent key '%s'", k))
         end
