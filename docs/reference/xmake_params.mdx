@@ -33,7 +33,7 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 
 对应配置：`add_files(...)`
 
-添加需要进行仿真的文件，可以在一个语句中同时添加多个文件，也可以分为多个语句来添加多个文件。
+添加需要进行仿真的文件，可以在一个语句中同时添加多个文件，也可以分为多个语句来添加多个文件。`add_files` 支持 xmake 的通配符（glob）写法，便于批量添加源文件。
 
 对于 HVL 场景，可以是 Verilog/SystemVerilog 文件，以及需要参与工程管理的 Lua 文件。
 
@@ -43,6 +43,7 @@ target("test", function()
     add_toolchains("@verilator")
     add_files("src/main.sv")
     add_files("src/other.v")
+    add_files("rtl/**/*.sv")  -- 通配符：递归添加 rtl 目录下所有 .sv 文件
 
     -- ...
 end)

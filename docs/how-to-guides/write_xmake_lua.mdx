@@ -36,6 +36,14 @@ end)
 - `add_rules("verilua")`：**必须**，引入 Verilua 的构建规则。
 - `add_toolchains("@...")`：指定后端，HVL 常用 `@verilator`、`@iverilog`、`@vcs`、`@xcelium`；WAL 必须使用 `@wave_vpi`。
 - `add_files(...)`：HVL 中通常添加 RTL 文件，以及需要参与工程管理的 Lua/C/C++ 文件；WAL 中添加波形文件和需要复用的 Lua 模块。`cfg.lua_main` 指向的 Lua 入口脚本不需要额外放进 `add_files(...)`。WAL 模式支持 `.vcd`、`.fst`、`.fsdb` 三种波形格式，且**只能添加一个波形文件**，添加多个会报错。
+
+  `add_files` 支持 xmake 的通配符（glob）写法，例如 `add_files("rtl/*.sv")`、`add_files("src/**/*.v")`，便于批量添加同一目录或多个子目录下的源文件。
+
+  > **路径拼接建议**：在 `xmake.lua` 中如果需要拼接路径，建议使用 xmake 内置的 `path.join(...)` 而非手动字符串拼接（如 `"dir/" .. file`）。`path.join` 会自动处理跨平台的路径分隔符差异：
+  > ```lua
+  > add_files(path.join("src", "design.v"))
+  > set_values("cfg.lua_main", path.join("tb", "main.lua"))
+  > ```
 - `set_values("cfg.top", "...")`：**必须**。
   - HVL 中填写 DUT 顶层模块名，Verilua 会据此生成或包装 testbench。
   - WAL 中填写波形文件中的顶层模块名；如果波形由 Verilua 的 HVL 流程生成，通常是 `tb_top`。
