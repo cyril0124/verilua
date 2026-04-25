@@ -66,6 +66,19 @@ end)
 
 `set_values("cfg.lua_main", ...)` 指向的 Lua 入口脚本不需要额外添加到 `add_files(...)` 中。
 
+### 移除输入文件
+
+对应配置：`remove_files(...)`
+
+从 `add_files` 已添加的文件列表中移除指定文件，支持与 `add_files` 相同的通配符（glob）写法。
+
+```lua
+add_files("src/*.sv")
+remove_files("src/test.sv")            -- 移除单个文件
+remove_files("src/wip_*.sv")           -- 通配符批量移除
+remove_files("src/subdir/*.sv")         -- 移除 subdir 下所有 .sv
+```
+
 ### 指定顶层模块
 
 <div id="cfg-top"></div>
