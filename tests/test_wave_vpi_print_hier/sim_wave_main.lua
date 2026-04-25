@@ -43,6 +43,7 @@ fork {
         print_sorted_paths("golden_get_hierarchy_combined_clock", combined_clock_paths)
 
         print("[golden] end")
+        io.flush()
 
         sim.finish()
     end
