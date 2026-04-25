@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.0">
 <title data-rh="true">全局信号代理（ProxyTableHandle / dut） | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="全局信号代理（ProxyTableHandle / dut） | Verilua"><meta data-rh="true" name="description" content="ProxyTableHandle 不需要用户创建，全局有且只有一个 ProxyTableHandle 对象，也就是 dut 这个全局变量。"><meta data-rh="true" property="og:description" content="ProxyTableHandle 不需要用户创建，全局有且只有一个 ProxyTableHandle 对象，也就是 dut 这个全局变量。"><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"全局信号代理（ProxyTableHandle / dut）","item":"https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.bc66b8d3.css">
-<script src="/verilua/assets/js/runtime~main.a0744501.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.53f3503e.js" defer="defer"></script>
 <script src="/verilua/assets/js/main.a78673bb.js" defer="defer"></script>
 </head>
 <body>
@@ -24,13 +24,13 @@
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set(&lt;value&gt;)</code></p>
-<p>设置一个信号的值，<code>&lt;value&gt;</code> 只能是一个 Lua number 类型的值，例如：</p>
+<p>设置一个信号的值，<code>&lt;value&gt;</code> 只能是 Lua number，并按历史的 32-bit 整数写入逻辑处理，例如：</p>
 <div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">dut</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">value</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">set</span><span class="token punctuation" style="color:#393A34">(</span><span class="token number" style="color:#36acaa">0x123</span><span class="token punctuation" style="color:#393A34">)</span><br></div></code></pre></div></div>
-<div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>目前 <code>&lt;dut&gt;:set(&lt;value&gt;)</code> 只能赋值 32 bit 的数据到信号中</div></div>
+<p>如果需要 <code>CallableHDL</code> 的宽度感知写入语义，例如写入 <code>uint64_t</code>、多 beat table 或 BitVec，请显式使用 <code>&lt;dut&gt;:chdl():set(&lt;value&gt;)</code>。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_imm(&lt;value&gt;)</code></p>
-<p>立即赋值版本的 <code>set</code>，除了立即赋值的属性之外，其他和 <code>set</code> 一样。</p>
+<p>立即赋值版本的 <code>set</code>，除了立即赋值之外，数值处理规则与 <code>&lt;dut&gt;:set(&lt;value&gt;)</code> 相同。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_shuffled(&lt;value&gt;)</code></p>
@@ -61,7 +61,7 @@
 <p><code>&lt;dut&gt;:get()</code></p>
 <p>获得一个信号的值，返回的值是一个 Lua 的 number 类型的值，例如：</p>
 <div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token function" style="color:#d73a49">assert</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">dut</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">value</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">get</span><span class="token punctuation" style="color:#393A34">(</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><span class="token operator" style="color:#393A34">==</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0x123</span><span class="token punctuation" style="color:#393A34">)</span><br></div></code></pre></div></div>
-<p>对于超过 32 bit 的信号，返回的值仍然是 32 bit 的数值。</p>
+<p>对于超过 32 bit 的信号，返回值仍是 Lua number；如果需要 <code>CallableHDL</code> 的宽度感知返回值，请显式使用 <code>&lt;dut&gt;:chdl():get()</code>。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:get_str(fmt)</code></p>
@@ -73,7 +73,7 @@
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_str(str)</code></p>
-<p>作用类似 <a class="" href="/verilua/docs/reference/data_structure/callable_hdl#chdl-set-str"><code>&lt;chdl&gt;:set_str(str)</code></a>。</p>
+<p>按历史逻辑把 <code>str</code> 转成 Lua number 后写入。如果需要 <code>CallableHDL</code> 的字符串写入语义，请使用 <code>&lt;dut&gt;:chdl():set_str(str)</code>。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_hex_str(str)</code></p>
@@ -101,7 +101,7 @@
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:chdl()</code></p>
-<p>基于 <code>dut</code> 当前的 hierarchy path 返回一个 <code>chdl</code>，例如：</p>
+<p>基于 <code>dut</code> 当前的 hierarchy path 返回一个新的 <code>chdl</code>。<code>ProxyTableHandle</code> 内部会复用句柄来实现部分读/检查代理方法，但 <code>:chdl()</code> 本身始终返回独立的 <code>CallableHDL</code>，以避免可变内部状态在不同查找之间泄漏，例如：</p>
 <div class="language-lua codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-lua codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token keyword" style="color:#00009f">local</span><span class="token plain"> clock </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> dut</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">path</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">to</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">clock</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">chdl</span><span class="token punctuation" style="color:#393A34">(</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token comment" style="color:#999988;font-style:italic">-- equivalent to</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">local</span><span class="token plain"> clock </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">&quot;tb_top.path.to.clock&quot;</span><span class="token punctuation" style="color:#393A34">)</span><span class="token punctuation" style="color:#393A34">:</span><span class="token function" style="color:#d73a49">chdl</span><span class="token punctuation" style="color:#393A34">(</span><span class="token punctuation" style="color:#393A34">)</span><br></div></code></pre></div></div>
 <p><a class="" href="/verilua/docs/reference/data_structure/callable_hdl#dut-flex-create-chdl">这里</a>介绍了有关使用 <code>&lt;dut&gt;:chdl()</code> 创建 <code>chdl</code> 的技巧。</p>
 </li>

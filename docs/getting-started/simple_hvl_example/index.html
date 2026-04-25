@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.0">
 <title data-rh="true">一个简单的 HVL 示例 | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="一个简单的 HVL 示例 | Verilua"><meta data-rh="true" name="description" content="HVL 是 Hardware Verification Language（硬件验证语言）的缩写。"><meta data-rh="true" property="og:description" content="HVL 是 Hardware Verification Language（硬件验证语言）的缩写。"><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"一个简单的 HVL 示例","item":"https://cyril0124.github.io/verilua/docs/getting-started/simple_hvl_example"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.bc66b8d3.css">
-<script src="/verilua/assets/js/runtime~main.a0744501.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.53f3503e.js" defer="defer"></script>
 <script src="/verilua/assets/js/main.a78673bb.js" defer="defer"></script>
 </head>
 <body>
@@ -61,10 +61,10 @@
 <p><code>dut.value:is(2)</code> 的 <code>is</code> 方法用于判断信号的值是否等于某个值，如果等于则返回 <code>true</code>，否则返回 <code>false</code>。类似 <code>is</code> 的方法还有 <code>is_hex_str</code>、<code>is_dec_str</code>、<code>is_bin_str</code>，还有一个 <code>is_not</code> 方法，其功能和 <code>is</code> 相反，但是如果等于则返回 <code>false</code>，否则返回 <code>true</code>。</p>
 </li>
 <li class="">
-<p><code>dut.inc:set(1)</code> 的 <code>set</code> 方法用于设置信号的值，区别于立即赋值的 <code>dut.inc = 1</code>，<code>set</code> 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 <a class="" href="/verilua/docs/reference/data_structure/callable_hdl#set-and-set-imm">这里</a>）。<code>dut</code> 的 <code>set</code> 方法同样只能赋值最多 32 bit 位宽的信号。</p>
+<p><code>dut.inc:set(1)</code> 的 <code>set</code> 方法用于设置信号的值，区别于立即赋值的 <code>dut.inc = 1</code>，<code>set</code> 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 <a class="" href="/verilua/docs/reference/data_structure/callable_hdl#set-and-set-imm">这里</a>）。<code>dut</code> 的 <code>set*</code> 方法保留历史行为，只支持 Lua number 并按 32-bit 整数写入；如果需要写入 <code>uint64_t</code>、多 beat table 或 BitVec 等宽度感知值，请显式使用 <code>dut.inc:chdl():set(...)</code>。</p>
 </li>
 <li class="">
-<p><code>dut.inc:get()</code> 的 <code>get</code> 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值，需要注意的是 <code>dut</code> 的 <code>get</code> 方法只能用来获得最多 32 bit 位宽信号的值。</p>
+<p><code>dut.inc:get()</code> 的 <code>get</code> 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值。如果需要 <code>CallableHDL</code> 的宽度感知返回值，可以显式使用 <code>dut.inc:chdl():get()</code>。</p>
 </li>
 <li class="">
 <p><code>sim.finish()</code> 用于控制仿真器结束仿真。</p>
