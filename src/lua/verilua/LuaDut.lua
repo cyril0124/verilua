@@ -585,10 +585,12 @@ local function create_proxy(path, use_prefix)
                 condition_meet = func(i)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
 
-                if not condition_meet then
-                    await_posedge_hdl(vpiml.vpiml_handle_by_name(local_path))
-                else
+                if condition_meet then
                     break
+                end
+
+                if i < max_limit then
+                    await_posedge_hdl(vpiml.vpiml_handle_by_name(local_path))
                 end
             end
 
@@ -607,10 +609,12 @@ local function create_proxy(path, use_prefix)
                 condition_meet = func(i)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
 
-                if not condition_meet then
-                    await_negedge_hdl(vpiml.vpiml_handle_by_name(local_path))
-                else
+                if condition_meet then
                     break
+                end
+
+                if i < max_limit then
+                    await_negedge_hdl(vpiml.vpiml_handle_by_name(local_path))
                 end
             end
 

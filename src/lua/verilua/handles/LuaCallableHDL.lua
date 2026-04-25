@@ -565,10 +565,12 @@ function CallableHDL:_init(fullpath, name, hdl)
                 condition_meet = func(i)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
 
-                if not condition_meet then
-                    await_posedge_hdl(this.hdl)
-                else
+                if condition_meet then
                     break
+                end
+
+                if i < max_limit then
+                    await_posedge_hdl(this.hdl)
                 end
             end
 
@@ -588,10 +590,12 @@ function CallableHDL:_init(fullpath, name, hdl)
                 condition_meet = func(i)
                 assert(condition_meet ~= nil and type(condition_meet) == "boolean")
 
-                if not condition_meet then
-                    await_negedge_hdl(this.hdl)
-                else
+                if condition_meet then
                     break
+                end
+
+                if i < max_limit then
+                    await_negedge_hdl(this.hdl)
                 end
             end
 
@@ -647,7 +651,6 @@ function CallableHDL:_init(fullpath, name, hdl)
         return this.width
     end
 
-    -- TODO：generate using gen_chdl_access.tl
     self.expect = function(this, value)
         local typ = type(value)
         assert(typ == "number" or typ == "cdata")

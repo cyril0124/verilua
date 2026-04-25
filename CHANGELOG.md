@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **xmake/nosim**: Fix toolchain detection log to print the resolved `nosim` binary name instead of the unrelated `wave_vpi_main` value
 - **wave_vpi/wellen_impl**: Reuse a thread-local buffer for string value returns to avoid repeated `CString` allocations on the hot path
 - **xmake/testbench_gen**: Fix `cfg.tb_gen_flags` argument forwarding for `--custom-code-str` and `--custom-code-str-outer` so values containing spaces or newlines are passed to `testbench_gen` without shell splitting
+- **CallableHDL**: Fix `posedge_until()` / `negedge_until()` to stop immediately after the final failed condition check instead of waiting one extra edge before returning `false`
 
 ### 💥 Breaking Changes
 

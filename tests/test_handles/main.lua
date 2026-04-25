@@ -144,6 +144,65 @@ fork {
         assert(result == true)
         assert(counter == 2)
 
+        -- posedge_until should stop immediately after the last failed check
+        clock:negedge()
+        local start_time = sim.get_sim_time()
+        clock:posedge(2)
+        local expected_delta = sim.get_sim_time() - start_time
+
+        clock:negedge()
+        start_time = sim.get_sim_time()
+        result = clock:posedge_until(3, function()
+            return false
+        end)
+        local actual_delta = sim.get_sim_time() - start_time
+        assert(result == false)
+        assert(actual_delta == expected_delta, "posedge_until should wait only between failed checks")
+
+        -- negedge_until should have the same no-extra-wait behavior
+        clock:posedge()
+        start_time = sim.get_sim_time()
+        clock:negedge(2)
+        expected_delta = sim.get_sim_time() - start_time
+
+        clock:posedge()
+        start_time = sim.get_sim_time()
+        result = clock:negedge_until(3, function()
+            return false
+        end)
+        actual_delta = sim.get_sim_time() - start_time
+        assert(result == false)
+        assert(actual_delta == expected_delta, "negedge_until should wait only between failed checks")
+
+        -- ProxyTableHandle should share the same behavior
+        clock:negedge()
+        start_time = sim.get_sim_time()
+        clock:posedge(2)
+        expected_delta = sim.get_sim_time() - start_time
+
+        clock:negedge()
+        start_time = sim.get_sim_time()
+        result = dut.clock:posedge_until(3, function()
+            return false
+        end)
+        actual_delta = sim.get_sim_time() - start_time
+        assert(result == false)
+        assert(actual_delta == expected_delta, "dut.posedge_until should wait only between failed checks")
+
+        clock:posedge()
+        start_time = sim.get_sim_time()
+        clock:negedge(2)
+        expected_delta = sim.get_sim_time() - start_time
+
+        clock:posedge()
+        start_time = sim.get_sim_time()
+        result = dut.clock:negedge_until(3, function()
+            return false
+        end)
+        actual_delta = sim.get_sim_time() - start_time
+        assert(result == false)
+        assert(actual_delta == expected_delta, "dut.negedge_until should wait only between failed checks")
+
         -- ========================================================================
         -- Test: CallableHDL - Expect operations
         -- ========================================================================

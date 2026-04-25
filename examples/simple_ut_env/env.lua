@@ -18,6 +18,7 @@ end
 local function expect_happen_until(limit_cycles, func)
     assert(type(limit_cycles) == "number")
     assert(type(func) == "function")
+    -- `posedge_until` checks `func` once before waiting for the first posedge.
     local ok = clock:posedge_until(limit_cycles, func)
     assert(ok)
 end
@@ -25,6 +26,7 @@ end
 local function expect_not_happen_until(limit_cycles, func)
     assert(type(limit_cycles) == "number")
     assert(type(func) == "function")
+    -- The first check happens immediately, so an already-true condition fails here.
     local ok = clock:posedge_until(limit_cycles, func)
     assert(not ok)
 end

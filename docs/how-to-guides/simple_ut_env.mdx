@@ -29,6 +29,7 @@ end
 local function expect_happen_until(limit_cycles, func)
     assert(type(limit_cycles) == "number")
     assert(type(func) == "function")
+    -- `posedge_until` checks `func` once before waiting for the first posedge.
     local ok = clock:posedge_until(limit_cycles, func)
     assert(ok)
 end
@@ -36,6 +37,7 @@ end
 local function expect_not_happen_until(limit_cycles, func)
     assert(type(limit_cycles) == "number")
     assert(type(func) == "function")
+    -- The first check happens immediately, so an already-true condition fails here.
     local ok = clock:posedge_until(limit_cycles, func)
     assert(not ok)
 end
@@ -125,11 +127,15 @@ return {
 
 - `env.expect_happen_until(limit_cycles, func)`
 
-    检查 `func` 在 `limit_cycles` 周期内是否发生，如果发生则立即返回，否则会触发 `assert` 错误，这在具体编写验证代码的时候比较常用，用来检查特定信号是否在预期时间内发生。
+    检查 `func` 在 `limit_cycles` 轮检查内是否发生，如果发生则立即返回，否则会触发 `assert` 错误，这在具体编写验证代码的时候比较常用，用来检查特定信号是否在预期时间内发生。
+
+    这里依赖 [`<chdl>:posedge_until(...)`](../reference/data_structure/callable_hdl.mdx#chdl-posedge-until) 的语义：进入等待前会先立即检查一次 `func`，只有返回 `false` 时才会继续等待下一个 `posedge`。因此如果条件在调用时已经成立，那么这个函数会直接通过，而不需要先等一个时钟周期。
 
 - `env.expect_not_happen_until(limit_cycles, func)`
 
     和 `env.expect_happen_until(limit_cycles, func)` 作用相反。
+
+    同样需要注意第一次检查是立即发生的；如果条件在调用时已经成立，那么这个函数会立刻触发断言失败。
 
 - `env.TEST_SUCCESS()`
 
