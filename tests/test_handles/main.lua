@@ -86,6 +86,13 @@ fork {
         assert(elem1.__type == "CallableHDL")
         assert(elem1:get() == 0x20)
 
+        -- `:chdl()` returns a fresh CallableHDL, so mutable array `:at()`
+        -- selection must stay isolated from later proxy lookups.
+        local arr_from_dut = dut.u_top.array_signal:chdl()
+        local array_root_value = dut.u_top.array_signal:get()
+        arr_from_dut:at(1)
+        assert(dut.u_top.array_signal:get() == array_root_value)
+
         -- Test index-based operations (use regular set to demonstrate non-imm usage)
         arr:set_index(0, 0x55)
         clock:posedge() -- Wait for set to take effect
@@ -562,6 +569,8 @@ fork {
         assert(#bin_str == 8)
         assert(bin_str == "00000010")
 
+        assert(type(dut.u_top.wide_signal_64:get()) == "number")
+
         -- ========================================================================
         -- Test: ProxyTableHandle - hdl() method
         -- ========================================================================
@@ -570,9 +579,13 @@ fork {
         local data_2_hdl = dut.u_top.data_2:hdl()
         assert(data_2_hdl ~= -1)
 
-        -- Verify we can create chdl from the same path
+        -- Repeated lookups should stay isolated because CallableHDL carries
+        -- mutable per-instance state.
         local data_2_chdl_direct = dut.u_top.data_2:chdl()
+        local data_2_chdl_again = dut.u_top.data_2:chdl()
         assert(data_2_chdl_direct.__type == "CallableHDL")
+        assert(data_2_chdl_again.__type == "CallableHDL")
+        assert(not rawequal(data_2_chdl_direct, data_2_chdl_again))
 
         -- ========================================================================
         -- Test: ProxyTableHandle - Edge operations
@@ -650,6 +663,9 @@ fork {
 
         local width = dut.u_top.data_2:get_width()
         assert(width == 8)
+
+        local array_width = dut.u_top.array_signal:get_width()
+        assert(array_width == 4)
 
         -- ========================================================================
         -- Test: string.auto_bundle - startswith

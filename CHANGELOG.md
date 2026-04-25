@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 💥 Breaking Changes
 
+- **LuaDut**: Delegate `dut.<path>` check/read helper APIs to internal cached `CallableHDL` handles while keeping `dut.<path>:chdl()` lookups isolated; legacy `dut.<path>:set*()` and `dut.<path>:get()` keep their Lua number / 32-bit compatibility semantics
+
 ---
 
 ## v3.2.0 - 2026-03-30

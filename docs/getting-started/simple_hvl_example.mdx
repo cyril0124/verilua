@@ -215,9 +215,9 @@ endmodule
     ```
 * `dut.value:is(2)` 的 `is` 方法用于判断信号的值是否等于某个值，如果等于则返回 `true`，否则返回 `false`。类似 `is` 的方法还有 `is_hex_str`、`is_dec_str`、`is_bin_str`，还有一个 `is_not` 方法，其功能和 `is` 相反，但是如果等于则返回 `false`，否则返回 `true`。
 
-* `dut.inc:set(1)` 的 `set` 方法用于设置信号的值，区别于立即赋值的 `dut.inc = 1`，`set` 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 [这里](../reference/data_structure/callable_hdl.mdx#set-and-set-imm)）。`dut` 的 `set` 方法同样只能赋值最多 32 bit 位宽的信号。
+* `dut.inc:set(1)` 的 `set` 方法用于设置信号的值，区别于立即赋值的 `dut.inc = 1`，`set` 方法进行赋值会在下一个时钟边沿到来后才会赋值（更接近 RTL 代码的行为），而立即赋值则会立即赋（具体可以看 [这里](../reference/data_structure/callable_hdl.mdx#set-and-set-imm)）。`dut` 的 `set*` 方法保留历史行为，只支持 Lua number 并按 32-bit 整数写入；如果需要写入 `uint64_t`、多 beat table 或 BitVec 等宽度感知值，请显式使用 `dut.inc:chdl():set(...)`。
 
-* `dut.inc:get()` 的 `get` 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值，需要注意的是 `dut` 的 `get` 方法只能用来获得最多 32 bit 位宽信号的值。
+* `dut.inc:get()` 的 `get` 方法用于获取信号的值，返回的值是一个 Lua 的 number 类型的值。如果需要 `CallableHDL` 的宽度感知返回值，可以显式使用 `dut.inc:chdl():get()`。
 
 * `sim.finish()` 用于控制仿真器结束仿真。
 

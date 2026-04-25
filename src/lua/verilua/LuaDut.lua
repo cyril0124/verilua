@@ -3,21 +3,12 @@
 local vpiml = require "verilua.vpiml.vpiml"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
 
-local BeatWidth = 32
-
 local type = type
 local assert = assert
 local f = string.format
 local tonumber = tonumber
-local ffi_string = ffi.string
 local table_insert = table.insert
 local setmetatable = setmetatable
-
-local HexStr = _G.HexStr
-local BinStr = _G.BinStr
-local DecStr = _G.DecStr
-local await_posedge_hdl = _G.await_posedge_hdl
-local await_negedge_hdl = _G.await_negedge_hdl
 
 local set_force_enable = false
 local force_path_table = {}
@@ -108,7 +99,7 @@ local force_path_table = {}
 --- ```
 ---@field force_region fun(self: verilua.handles.ProxyTableHandle, code_func: fun())
 ---
---- Get the current value of the signal as an integer.
+--- Get the current signal value as a Lua number.
 --- e.g.
 --- ```lua
 --- local value = dut.cycles:get()
@@ -251,14 +242,14 @@ local force_path_table = {}
 --- ```lua
 --- dut.path.to.signal:expect(1)
 --- ```
----@field expect fun(self: verilua.handles.ProxyTableHandle, value: integer)
+---@field expect fun(self: verilua.handles.ProxyTableHandle, value: integer|ffi.cdata*)
 ---
 --- Assert that the signal value does not equal the specified value.
 --- e.g.
 --- ```lua
 --- dut.path.to.signal:expect_not(1)
 --- ```
----@field expect_not fun(self: verilua.handles.ProxyTableHandle, value: integer)
+---@field expect_not fun(self: verilua.handles.ProxyTableHandle, value: integer|ffi.cdata*)
 ---
 --- Assert that the signal value matches the specified hexadecimal string.
 --- e.g.
@@ -310,14 +301,14 @@ local force_path_table = {}
 --- ```lua
 --- assert(dut.path.to.signal:is(1))
 --- ```
----@field is fun(self: verilua.handles.ProxyTableHandle, value: integer): boolean
+---@field is fun(self: verilua.handles.ProxyTableHandle, value: integer|ffi.cdata*): boolean
 ---
 --- Check if the signal value does not equal the specified value.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:is_not(1))
 --- ```
----@field is_not fun(self: verilua.handles.ProxyTableHandle, value: integer): boolean
+---@field is_not fun(self: verilua.handles.ProxyTableHandle, value: integer|ffi.cdata*): boolean
 ---
 --- Check if the signal value matches the specified hexadecimal string.
 --- e.g.
@@ -397,6 +388,19 @@ local proxy_handle_cache = {}
 
 ---@type table<string, verilua.handles.CallableHDL>
 local chdl_cache = {}
+
+---@param path string
+---@return verilua.handles.CallableHDL
+local function get_chdl(path)
+    local chdl = chdl_cache[path]
+    if not chdl then
+        chdl = CallableHDL(path, "")
+        if not chdl.is_array then
+            chdl_cache[path] = chdl
+        end
+    end
+    return chdl
+end
 
 ---@param path string
 ---@param use_prefix? boolean
@@ -487,27 +491,15 @@ local function create_proxy(path, use_prefix)
         end,
 
         get_str = function(_t, fmt)
-            local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
-            if hdl == -1 then
-                assert(false, f("No handle found => %s", local_path))
-            end
-            return ffi_string(vpiml.vpiml_get_value_str(hdl, fmt))
+            return get_chdl(local_path):get_str(fmt)
         end,
 
         get_hex_str = function(_t)
-            local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
-            if hdl == -1 then
-                assert(false, f("No handle found => %s", local_path))
-            end
-            return ffi_string(vpiml.vpiml_get_value_str(hdl, HexStr))
+            return get_chdl(local_path):get_hex_str()
         end,
 
         get_bin_str = function(_t)
-            local hdl = vpiml.vpiml_handle_by_name_safe(local_path)
-            if hdl == -1 then
-                assert(false, f("No handle found => %s", local_path))
-            end
-            return ffi_string(vpiml.vpiml_get_value_str(hdl, BinStr))
+            return get_chdl(local_path):get_bin_str()
         end,
 
         set_str = function(_t, str)
@@ -533,92 +525,17 @@ local function create_proxy(path, use_prefix)
         end,
 
         posedge = function(_t, v, func)
-            local _v = v or 1
-            local _v_type = type(_v)
-
-            assert(_v_type == "number")
-
-            local do_func = false
-            if func ~= nil then
-                assert(type(func) == "function")
-                do_func = true
-            end
-
-            for i = 1, _v do
-                if do_func then
-                    func(i)
-                end
-                await_posedge_hdl(vpiml.vpiml_handle_by_name(local_path))
-            end
+            get_chdl(local_path):posedge(v, func)
         end,
         negedge = function(_t, v, func)
-            local _v = v or 1
-            local _v_type = type(_v)
-
-            assert(_v_type == "number")
-            assert(_v >= 1)
-
-            local do_func = false
-            if func ~= nil then
-                assert(type(func) == "function")
-                do_func = true
-            end
-
-            for i = 1, _v do
-                if do_func then
-                    func(i)
-                end
-                await_negedge_hdl(vpiml.vpiml_handle_by_name(local_path))
-            end
+            get_chdl(local_path):negedge(v, func)
         end,
 
         posedge_until = function(_t, max_limit, func)
-            assert(max_limit ~= nil)
-            assert(type(max_limit) == "number")
-            assert(max_limit >= 1)
-
-            assert(func ~= nil)
-            assert(type(func) == "function")
-
-            local condition_meet = false
-            for i = 1, max_limit do
-                condition_meet = func(i)
-                assert(condition_meet ~= nil and type(condition_meet) == "boolean")
-
-                if condition_meet then
-                    break
-                end
-
-                if i < max_limit then
-                    await_posedge_hdl(vpiml.vpiml_handle_by_name(local_path))
-                end
-            end
-
-            return condition_meet
+            return get_chdl(local_path):posedge_until(max_limit, func)
         end,
         negedge_until = function(_t, max_limit, func)
-            assert(max_limit ~= nil)
-            assert(type(max_limit) == "number")
-            assert(max_limit >= 1)
-
-            assert(func ~= nil)
-            assert(type(func) == "function")
-
-            local condition_meet = false
-            for i = 1, max_limit do
-                condition_meet = func(i)
-                assert(condition_meet ~= nil and type(condition_meet) == "boolean")
-
-                if condition_meet then
-                    break
-                end
-
-                if i < max_limit then
-                    await_negedge_hdl(vpiml.vpiml_handle_by_name(local_path))
-                end
-            end
-
-            return condition_meet
+            return get_chdl(local_path):negedge_until(max_limit, func)
         end,
 
         hdl = function(_t)
@@ -645,10 +562,7 @@ local function create_proxy(path, use_prefix)
         end,
 
         dump_str = function(_t)
-            local hdl = vpiml.vpiml_handle_by_name(local_path)
-            local s = f("[%s] => ", local_path)
-            s = s .. "0x" .. ffi_string(vpiml.vpiml_get_value_hex_str(hdl))
-            return s
+            return get_chdl(local_path):dump_str()
         end,
 
 
@@ -657,82 +571,36 @@ local function create_proxy(path, use_prefix)
         end,
 
 
-        expect = function(t, value)
-            local typ = type(value)
-            assert(typ == "number" or typ == "cdata")
-
-            local beat_num = t:get_width() / BeatWidth
-            if beat_num > 2 then
-                assert(false,
-                    "`dut.<path>:expect(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_[hex/bin/dec]_str(value_str)` instead! beat_num => " ..
-                    beat_num)
-            end
-
-            if t:get() ~= value then
-                assert(false, f("[%s] expect => %d, but got => %d", local_path, value, t:get()))
-            end
+        expect = function(_t, value)
+            return get_chdl(local_path):expect(value)
         end,
 
-        expect_not = function(t, value)
-            local typ = type(value)
-            assert(typ == "number" or typ == "cdata")
-
-            local beat_num = t:get_width() / BeatWidth
-            if beat_num > 2 then
-                assert(
-                    false,
-                    "`dut.<path>:expect_not(value)` can only be used for hdl with 1 or 2 beat, use `dut.<path>:expect_not_[hex/bin/dec]_str(value_str)` instead! beat_num => " ..
-                    beat_num
-                )
-            end
-
-            if t:get() == value then
-                assert(false, f("[%s] expect not => %d, but got => %d", local_path, value, t:get()))
-            end
+        expect_not = function(_t, value)
+            return get_chdl(local_path):expect_not(value)
         end,
 
-        expect_hex_str = function(this, hex_value_str)
-            assert(type(hex_value_str) == "string")
-            local left = this:get_hex_str():lower():gsub("^0*", "")
-            local right = hex_value_str:lower():gsub("^0*", "")
-            if left ~= right then
-                assert(false, f("[%s] expect => %s, but got => %s", local_path, right, left))
-            end
+        expect_hex_str = function(_this, hex_value_str)
+            return get_chdl(local_path):expect_hex_str(hex_value_str)
         end,
 
-        expect_bin_str = function(this, bin_value_str)
-            assert(type(bin_value_str) == "string")
-            if this:get_str(BinStr):gsub("^0*", "") ~= bin_value_str:gsub("^0*") then
-                assert(false, f("[%s] expect => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
-            end
+        expect_bin_str = function(_this, bin_value_str)
+            return get_chdl(local_path):expect_bin_str(bin_value_str)
         end,
 
-        expect_dec_str = function(this, dec_value_str)
-            assert(type(dec_value_str) == "string")
-            if this:get_str(DecStr):gsub("^0*", "") ~= dec_value_str:gsub("^0*", "") then
-                assert(false, f("[%s] expect => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
-            end
+        expect_dec_str = function(_this, dec_value_str)
+            return get_chdl(local_path):expect_dec_str(dec_value_str)
         end,
 
-        expect_not_hex_str = function(this, hex_value_str)
-            assert(type(hex_value_str) == "string")
-            if this:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0*", "") then
-                assert(false, f("[%s] expect not => %s, but got => %s", local_path, hex_value_str, this:get_str(HexStr)))
-            end
+        expect_not_hex_str = function(_this, hex_value_str)
+            return get_chdl(local_path):expect_not_hex_str(hex_value_str)
         end,
 
-        expect_not_bin_str = function(this, bin_value_str)
-            assert(type(bin_value_str) == "string")
-            if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*") then
-                assert(false, f("[%s] expect not => %s, but got => %s", local_path, bin_value_str, this:get_str(BinStr)))
-            end
+        expect_not_bin_str = function(_this, bin_value_str)
+            return get_chdl(local_path):expect_not_bin_str(bin_value_str)
         end,
 
-        expect_not_dec_str = function(this, dec_value_str)
-            assert(type(dec_value_str) == "string")
-            if this:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "") then
-                assert(false, f("[%s] expect not => %s, but got => %s", local_path, dec_value_str, this:get_str(DecStr)))
-            end
+        expect_not_dec_str = function(_this, dec_value_str)
+            return get_chdl(local_path):expect_not_dec_str(dec_value_str)
         end,
 
         _if = function(t, condition)
@@ -764,29 +632,23 @@ local function create_proxy(path, use_prefix)
         end,
 
 
-        is = function(t, value)
-            local typ = type(value)
-            assert(typ == "number" or typ == "cdata")
-
-            return t:get() == value
+        is = function(_t, value)
+            return get_chdl(local_path):is(value)
         end,
-        is_not = function(t, value)
-            local typ = type(value)
-            assert(typ == "number" or typ == "cdata")
-
-            return t:get() ~= value
+        is_not = function(_t, value)
+            return get_chdl(local_path):is_not(value)
         end,
 
-        is_hex_str = function(t, hex_value_str)
-            return t:get_hex_str():lower():gsub("^0*", "") == hex_value_str:lower():gsub("^0*", "")
+        is_hex_str = function(_t, hex_value_str)
+            return get_chdl(local_path):is_hex_str(hex_value_str)
         end,
 
-        is_bin_str = function(t, bin_value_str)
-            return t:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*")
+        is_bin_str = function(_t, bin_value_str)
+            return get_chdl(local_path):is_bin_str(bin_value_str)
         end,
 
-        is_dec_str = function(t, dec_value_str)
-            return t:get_str(DecStr):gsub("^0*", "") == dec_value_str:gsub("^0*", "")
+        is_dec_str = function(_t, dec_value_str)
+            return get_chdl(local_path):is_dec_str(dec_value_str)
         end,
 
         tostring = function(_t)
@@ -822,11 +684,7 @@ local function create_proxy(path, use_prefix)
         -- Prefer cached CallableHDL (`local sig = dut.xxx:chdl()`) in hot paths for better clarity/perf.
         __newindex = function(_t, k, v)
             local fullpath = local_path .. '.' .. k
-            local chdl = chdl_cache[fullpath]
-            if not chdl then
-                chdl = CallableHDL(fullpath, "")
-                chdl_cache[fullpath] = chdl
-            end
+            local chdl = get_chdl(fullpath)
             chdl.value = v
         end,
 

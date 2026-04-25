@@ -30,19 +30,17 @@ assert(b.__type == "ProxyTableHandle")
 
 2. `<dut>:set(<value>)`
 
-   设置一个信号的值，`<value>` 只能是一个 Lua number 类型的值，例如：
+   设置一个信号的值，`<value>` 只能是 Lua number，并按历史的 32-bit 整数写入逻辑处理，例如：
 
    ```lua
    dut.value:set(0x123)
    ```
 
-   :::warning[目前 `<dut>:set(<value>)` 只能赋值 32 bit 的数据到信号中]
-
-   :::
+   如果需要 `CallableHDL` 的宽度感知写入语义，例如写入 `uint64_t`、多 beat table 或 BitVec，请显式使用 `<dut>:chdl():set(<value>)`。
 
 3. `<dut>:set_imm(<value>)`
 
-   立即赋值版本的 `set`，除了立即赋值的属性之外，其他和 `set` 一样。
+   立即赋值版本的 `set`，除了立即赋值之外，数值处理规则与 `<dut>:set(<value>)` 相同。
 
 4. `<dut>:set_shuffled(<value>)`
 
@@ -83,7 +81,7 @@ assert(b.__type == "ProxyTableHandle")
     assert(dut.value:get() == 0x123)
     ```
 
-    对于超过 32 bit 的信号，返回的值仍然是 32 bit 的数值。
+    对于超过 32 bit 的信号，返回值仍是 Lua number；如果需要 `CallableHDL` 的宽度感知返回值，请显式使用 `<dut>:chdl():get()`。
 
 11. `<dut>:get_str(fmt)`
 
@@ -95,7 +93,7 @@ assert(b.__type == "ProxyTableHandle")
 
 13. `<dut>:set_str(str)`
 
-    作用类似 [`<chdl>:set_str(str)`](./callable_hdl.mdx#chdl-set-str)。
+    按历史逻辑把 `str` 转成 Lua number 后写入。如果需要 `CallableHDL` 的字符串写入语义，请使用 `<dut>:chdl():set_str(str)`。
 
 14. `<dut>:set_hex_str(str)`
 
@@ -123,7 +121,7 @@ assert(b.__type == "ProxyTableHandle")
 
 20. `<dut>:chdl()`
 
-    基于 `dut` 当前的 hierarchy path 返回一个 `chdl`，例如：
+    基于 `dut` 当前的 hierarchy path 返回一个新的 `chdl`。`ProxyTableHandle` 内部会复用句柄来实现部分读/检查代理方法，但 `:chdl()` 本身始终返回独立的 `CallableHDL`，以避免可变内部状态在不同查找之间泄漏，例如：
 
     ```lua
     local clock = dut.path.to.clock:chdl()
