@@ -37,6 +37,12 @@ runs:
         actions-cache-folder: '.xmake-cache'
         actions-cache-key: ${{ inputs.runner-os }}-xmake-${{ inputs.xmake-version }}
 
+    - name: Install packaging dependency
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends patchelf
+      shell: bash
+
     - name: Setup rust
       uses: actions-rs/toolchain@v1
       with:

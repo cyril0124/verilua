@@ -2,6 +2,22 @@
 
 set -ex
 
+if ! command -v patchelf >/dev/null 2>&1; then
+    echo -e "Error: patchelf is required for packaging"
+    exit 1
+fi
+
+patch_elf_rpath() {
+    local file="$1"
+    local rpath="$2"
+
+    if ! patchelf --print-rpath "$file" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    patchelf --set-rpath "$rpath" "$file"
+}
+
 # Check if `zip-file` is provided
 if [ -z "$1" ]; then
     echo -e "Error: zip-file is not provided"
@@ -68,6 +84,17 @@ cp -r ./luajit-pro/luajit2.1/share ./dist/luajit-pro/luajit2.1/share
 cp -r ./luajit-pro/luajit2.1/include ./dist/luajit-pro/luajit2.1/include
 cp -r ./luajit-pro/tl/tl.lua ./dist/luajit-pro/tl
 cp -r ./luajit-pro/tl/tl.tl ./dist/luajit-pro/tl
+
+tool_rpath='$ORIGIN:$ORIGIN/../shared:$ORIGIN/../luajit-pro/luajit2.1/lib:$ORIGIN/../luajit-pro/target/release:$ORIGIN/../conan_installed/lib'
+shared_rpath='$ORIGIN:$ORIGIN/../luajit-pro/luajit2.1/lib:$ORIGIN/../luajit-pro/target/release:$ORIGIN/../conan_installed/lib'
+
+for file in ./dist/tools/*; do
+    patch_elf_rpath "$file" "$tool_rpath"
+done
+
+for file in ./dist/shared/*.so; do
+    patch_elf_rpath "$file" "$shared_rpath"
+done
 
 pushd dist
 zip -r $zip_file .
