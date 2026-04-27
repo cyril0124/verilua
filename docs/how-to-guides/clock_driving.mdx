@@ -13,8 +13,8 @@
 | 策略 | 时钟生成位置 | 运行时动态调频/门控 | 多时钟控制 | 性能 | 额外要求 |
 | --- | --- | --- | --- | --- | --- |
 | `Internal Clock` | 生成的 RTL testbench | 不支持 | 不适合 | 最优 | 无 |
-| `Lua Clock` | Lua 协程 | 支持 | 支持 | 最低 | 需要 `cfg.no_internal_clock`；Verilator 下基于 `await_time*()` 时通常需要 `--timing` |
-| `NativeClock` | Rust 原生层 | 有限支持（通过 `stop()` / `restart()`） | 支持 | 高于 Lua，低于 Internal | 需要 `cfg.no_internal_clock`；Verilator 下需要 `--timing`；仅支持 HVL |
+| `Lua Clock` | Lua 协程 | 支持 | 支持 | 最低 | 需要 `verilua.no_internal_clock`；Verilator 下基于 `await_time*()` 时通常需要 `--timing` |
+| `NativeClock` | Rust 原生层 | 有限支持（通过 `stop()` / `restart()`） | 支持 | 高于 Lua，低于 Internal | 需要 `verilua.no_internal_clock`；Verilator 下需要 `--timing`；仅支持 HVL |
 
 ## 选择建议
 
@@ -30,7 +30,7 @@ flowchart TD
 
 ## 1. Internal Clock
 
-在使用 `testbench_gen` 的 HVL 场景下，如果没有显式设置 `cfg.no_internal_clock`，Verilua 默认会在生成的 testbench 中自动添加一个时钟驱动逻辑。
+在使用 `testbench_gen` 的 HVL 场景下，如果没有显式设置 `verilua.no_internal_clock`，Verilua 默认会在生成的 testbench 中自动添加一个时钟驱动逻辑。
 
 ### 工作原理
 
@@ -46,17 +46,17 @@ always #10 clock = ~clock;  // 默认周期 20ns（半周期 10ns）
 
 ### 配置方式
 
-你可以在 `xmake.lua` 中通过 `cfg.tb_gen_flags` 调整内部时钟的主时钟名和周期：
+你可以在 `xmake.lua` 中通过 `verilua.tb_gen_flags` 调整内部时钟的主时钟名和周期：
 
 ```lua title="xmake.lua"
 target("my_test", function()
     add_rules("verilua")
 
     -- 设置时钟周期为 10ns（默认为 20ns）
-    add_values("cfg.tb_gen_flags", "--period", "10")
+    add_values("verilua.tb_gen_flags", "--period", "10")
 
     -- 如果主时钟信号名不是默认的 clock，需要显式指定
-    add_values("cfg.tb_gen_flags", "--clock-signal", "clk")
+    add_values("verilua.tb_gen_flags", "--clock-signal", "clk")
 end)
 ```
 
@@ -108,7 +108,7 @@ end)
 ```lua title="xmake.lua"
 target("my_test", function()
     add_rules("verilua")
-    set_values("cfg.no_internal_clock", "1")
+    set_values("verilua.no_internal_clock", "1")
 
     -- 如果使用 Verilator，并且通过 await_time*() 推进时间，通常需要 --timing
     set_values("verilator.flags", "--timing")
@@ -213,7 +213,7 @@ fork {
 
 ### 使用前提
 
-- 需要先禁用内部时钟：`set_values("cfg.no_internal_clock", "1")`
+- 需要先禁用内部时钟：`set_values("verilua.no_internal_clock", "1")`
 - 使用 Verilator 时需要启用 `--timing`
 - 仅支持 HVL，不支持 HSE 和 WAL
 - 同一时刻同一信号只能由一个 `NativeClock` 驱动
@@ -223,7 +223,7 @@ fork {
 ```lua title="xmake.lua"
 target("my_test", function()
     add_rules("verilua")
-    set_values("cfg.no_internal_clock", "1")
+    set_values("verilua.no_internal_clock", "1")
 
     -- Verilator 下 NativeClock 需要 --timing
     set_values("verilator.flags", "--timing")
@@ -303,7 +303,7 @@ clk:destroy()
 
 ## 常见踩坑
 
-1. 使用 `Lua Clock` 或 `NativeClock` 时忘记设置 `cfg.no_internal_clock`
+1. 使用 `Lua Clock` 或 `NativeClock` 时忘记设置 `verilua.no_internal_clock`
 2. 在 Verilator 下使用 `await_time*()` 或 `NativeClock` 时忘记加 `set_values("verilator.flags", "--timing")`
 3. 把 `await_time(5)` 误以为是 `5ns`，实际上它表示 5 个原始仿真时间步
 4. 多个驱动同时驱动同一根时钟信号，例如内部时钟和 Lua 时钟同时存在

@@ -20,10 +20,10 @@ target("test", function()
     end)
 
     add_files("top.sv")
-    set_values("cfg.no_internal_clock", "1")
+    set_values("verilua.no_internal_clock", "1")
 
     add_values("verilator.flags", "--trace")
 
-    set_values("cfg.top", "top")
-    set_values("cfg.lua_main", "./main.lua")
+    set_values("verilua.top", "top")
+    set_values("verilua.lua_main", "./main.lua")
 end)

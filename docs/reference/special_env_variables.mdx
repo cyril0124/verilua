@@ -56,9 +56,9 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 
 ### `LUA_SCRIPT` (可选)
 
-指定 Lua 主脚本文件。通常由 xmake 配置 `cfg.lua_main` 设置，也可通过此环境变量覆盖。
+指定 Lua 主脚本文件。通常由 xmake 配置 `verilua.lua_main` 设置，也可通过此环境变量覆盖。
 
-- **默认值**：由 `cfg.lua_main` 决定
+- **默认值**：由 `verilua.lua_main` 决定
 - **示例**：
   ```bash
   LUA_SCRIPT=/path/to/main.lua xmake run -P . <target_name>

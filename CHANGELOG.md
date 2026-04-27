@@ -15,11 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **libverilua/verilator**: Fix `get_dec_str()` fallback for wide signals by switching the Verilator hex-to-decimal workaround from `u128` parsing to arbitrary-precision conversion and reusing the per-handle string buffer
 - **xmake/nosim**: Fix toolchain detection log to print the resolved `nosim` binary name instead of the unrelated `wave_vpi_main` value
 - **wave_vpi/wellen_impl**: Reuse a thread-local buffer for string value returns to avoid repeated `CString` allocations on the hot path
-- **xmake/testbench_gen**: Fix `cfg.tb_gen_flags` argument forwarding for `--custom-code-str` and `--custom-code-str-outer` so values containing spaces or newlines are passed to `testbench_gen` without shell splitting
+- **xmake/testbench_gen**: Fix `verilua.tb_gen_flags` argument forwarding for `--custom-code-str` and `--custom-code-str-outer` so values containing spaces or newlines are passed to `testbench_gen` without shell splitting
 - **CallableHDL**: Fix `posedge_until()` / `negedge_until()` to stop immediately after the final failed condition check instead of waiting one extra edge before returning `false`
 
 ### 💥 Breaking Changes
 
+- **xmake**: Rename all `cfg.*` target values to `verilua.*` (e.g. `cfg.top` → `verilua.top`, `cfg.lua_main` → `verilua.lua_main`) to avoid confusion with the runtime Lua global `cfg` table. The old `cfg.*` names still work but emit a deprecation warning; they will be removed in a future release.
 - **LuaDut**: Delegate `dut.<path>` check/read helper APIs to internal cached `CallableHDL` handles while keeping `dut.<path>:chdl()` lookups isolated; legacy `dut.<path>:set*()` and `dut.<path>:get()` keep their Lua number / 32-bit compatibility semantics
 
 ---

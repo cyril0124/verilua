@@ -23,15 +23,15 @@ target("test", function()
     end)
 
     add_files("./async_queue.sv")
-    set_values("cfg.top", "async_queue")
-    set_values("cfg.lua_main", "./main.lua")
+    set_values("verilua.top", "async_queue")
+    set_values("verilua.lua_main", "./main.lua")
 
     -- Disable internal clock - we drive clocks using Lua
-    set_values("cfg.no_internal_clock", "1")
+    set_values("verilua.no_internal_clock", "1")
 
     -- Specify primary clock for testbench generation
-    add_values("cfg.tb_gen_flags", "--clock-signal", "wr_clk")
-    add_values("cfg.tb_gen_flags", "--reset-signal", "wr_rst_n")
+    add_values("verilua.tb_gen_flags", "--clock-signal", "wr_clk")
+    add_values("verilua.tb_gen_flags", "--reset-signal", "wr_rst_n")
 
     -- Verilator requires TIMING_MODE for await_time with Lua clock drivers
     set_values("verilator.flags", "--timing")

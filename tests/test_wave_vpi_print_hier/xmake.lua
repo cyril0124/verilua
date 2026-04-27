@@ -36,8 +36,8 @@ target("gen_wave", function()
     end)
 
     add_files("./top.sv")
-    set_values("cfg.top", "top")
-    set_values("cfg.lua_main", "gen_wave_main.lua")
+    set_values("verilua.top", "top")
+    set_values("verilua.lua_main", "gen_wave_main.lua")
 end)
 
 target("sim_wave", function()
@@ -55,8 +55,8 @@ target("sim_wave", function()
         raise("unknown WTYPE: %s", wtype)
     end
 
-    set_values("cfg.top", "tb_top")
-    set_values("cfg.lua_main", "sim_wave_main.lua")
+    set_values("verilua.top", "tb_top")
+    set_values("verilua.lua_main", "sim_wave_main.lua")
 end)
 
 target("run_test", function()

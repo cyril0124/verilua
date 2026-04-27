@@ -17,6 +17,6 @@ target("test_counter", function()
     add_files("env.lua")
     add_files("Counter.v")
 
-    set_values("cfg.lua_main", "./test_counter.lua")
-    set_values("cfg.top", "Counter")
+    set_values("verilua.lua_main", "./test_counter.lua")
+    set_values("verilua.top", "Counter")
 end)

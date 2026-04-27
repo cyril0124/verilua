@@ -19,6 +19,6 @@ target("test", function()
     end)
 
     add_files("./Design.v")
-    set_values("cfg.top", "Design")
-    set_values("cfg.lua_main", "main.lua")
+    set_values("verilua.top", "Design")
+    set_values("verilua.lua_main", "main.lua")
 end)

@@ -85,7 +85,7 @@ fork {
 
 ### 2. 时钟门控或自定义时钟生成
 
-当[禁用内部时钟](../how-to-guides/clock_driving.mdx#2-lua-clock)后（在 `xmake.lua` 中设置 `set_values("cfg.no_internal_clock", "1")`），可以用 `await_time_*` 手动生成时钟：
+当[禁用内部时钟](../how-to-guides/clock_driving.mdx#2-lua-clock)后（在 `xmake.lua` 中设置 `set_values("verilua.no_internal_clock", "1")`），可以用 `await_time_*` 手动生成时钟：
 
 ```lua
 fork {

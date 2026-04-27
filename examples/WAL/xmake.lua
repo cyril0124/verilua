@@ -16,8 +16,8 @@ target("gen_wave", function()
     add_files("./Counter.v")
     add_files("./Monitor.lua")
 
-    set_values("cfg.lua_main", "./main.lua")
-    set_values("cfg.top", "Counter")
+    set_values("verilua.lua_main", "./main.lua")
+    set_values("verilua.top", "Counter")
 
     set_values("verilator.flags", "--trace", "--no-trace-top")
 end)
@@ -36,7 +36,7 @@ target("sim_wave", function()
 
     add_files("./Monitor.lua")
 
-    set_values("cfg.lua_main", "./main_for_wal.lua")
+    set_values("verilua.lua_main", "./main_for_wal.lua")
 
     --- Note: cfg.top is set to "tb_top" instead of "Counter"
     ---
@@ -58,5 +58,5 @@ target("sim_wave", function()
     ---
     ---   - cfg.top = "Counter" ← Access from DUT level
     ---      This only gives you access to signals inside the Counter module
-    set_values("cfg.top", "tb_top")
+    set_values("verilua.top", "tb_top")
 end)

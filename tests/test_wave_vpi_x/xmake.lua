@@ -8,7 +8,7 @@ target("gen_wave", function()
     add_rules("verilua")
 
     -- Disable VCS initreg to preserve X-state in simulation
-    set_values("cfg.vcs_no_initreg", "1")
+    set_values("verilua.vcs_no_initreg", "1")
     -- Enable VCS X-propagation to preserve X-state in FSDB
     set_values("vcs.flags", "-xprop=tmerge")
 
@@ -35,8 +35,8 @@ target("gen_wave", function()
     end)
 
     add_files("./Design.v")
-    set_values("cfg.top", "Design")
-    set_values("cfg.lua_main", "gen_wave_main.lua")
+    set_values("verilua.top", "Design")
+    set_values("verilua.lua_main", "gen_wave_main.lua")
 end)
 
 target("sim_wave", function()
@@ -54,8 +54,8 @@ target("sim_wave", function()
         add_files("./test.vcd")
     end
 
-    set_values("cfg.top", "tb_top")
-    set_values("cfg.lua_main", "sim_wave_main.lua")
+    set_values("verilua.top", "tb_top")
+    set_values("verilua.lua_main", "sim_wave_main.lua")
 end)
 
 target("run_test", function()

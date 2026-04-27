@@ -134,8 +134,8 @@ target("gen_wave", function()
     add_files("./Counter.v")
     add_files("./Monitor.lua")
 
-    set_values("cfg.lua_main", "./main.lua")
-    set_values("cfg.top", "Counter")
+    set_values("verilua.lua_main", "./main.lua")
+    set_values("verilua.top", "Counter")
 
     -- Verilator 需要添加一些额外的参数来生成波形
     set_values("verilator.flags", "--trace", "--no-trace-top")
@@ -245,10 +245,10 @@ target("sim_wave", function()
     -- 这个复用了前面生成波形时候创建的模块
     add_files("./Monitor.lua")
 
-    set_values("cfg.lua_main", "./main_for_wal.lua")
+    set_values("verilua.lua_main", "./main_for_wal.lua")
 
     -- 设计的顶层还是需要手动指定
-    set_values("cfg.top", "tb_top")
+    set_values("verilua.top", "tb_top")
 end)
 ```
 

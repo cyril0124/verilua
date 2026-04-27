@@ -52,15 +52,15 @@ target("test", function()
 
     add_files("./async_queue.sv")
 
-    set_values("cfg.top", "async_queue")
-    set_values("cfg.lua_main", "./main.lua")
+    set_values("verilua.top", "async_queue")
+    set_values("verilua.lua_main", "./main.lua")
 
     -- 对多时钟 DUT，显式指定主时钟和复位，避免依赖自动识别
-    add_values("cfg.tb_gen_flags", "--clock-signal", "wr_clk")
-    add_values("cfg.tb_gen_flags", "--reset-signal", "wr_rst_n")
+    add_values("verilua.tb_gen_flags", "--clock-signal", "wr_clk")
+    add_values("verilua.tb_gen_flags", "--reset-signal", "wr_rst_n")
 
     -- 关键：禁用内部时钟
-    set_values("cfg.no_internal_clock", "1")
+    set_values("verilua.no_internal_clock", "1")
 
     -- 如果使用 Verilator 且通过 await_time*() 推进时间，需要 --timing
     set_values("verilator.flags", "--timing")

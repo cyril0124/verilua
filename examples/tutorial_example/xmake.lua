@@ -26,8 +26,8 @@ target("TestDesign", function()
     )
 
     -- 4. set configuration
-    set_values("cfg.top", "Design") -- MANDATORY, set top module name
-    set_values("cfg.lua_main", "./main.lua") -- MANDATORY, set lua main file
+    set_values("verilua.top", "Design") -- MANDATORY, set top module name
+    set_values("verilua.lua_main", "./main.lua") -- MANDATORY, set lua main file
 
     -- 5. set the corresponding toolchain flags if required
     -- for iverilog

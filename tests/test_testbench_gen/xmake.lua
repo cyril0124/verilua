@@ -20,8 +20,8 @@ target("test_run_ansi", function()
     end)
 
     add_files("./top_ansi.sv")
-    set_values("cfg.top", "TopAnsi")
-    set_values("cfg.lua_main", "./main.lua")
+    set_values("verilua.top", "TopAnsi")
+    set_values("verilua.lua_main", "./main.lua")
 end)
 
 target("test_run_non_ansi", function()
@@ -44,8 +44,8 @@ target("test_run_non_ansi", function()
     end)
 
     add_files("./top_non_ansi.sv")
-    set_values("cfg.top", "TopNonAnsi")
-    set_values("cfg.lua_main", "./main.lua")
+    set_values("verilua.top", "TopNonAnsi")
+    set_values("verilua.lua_main", "./main.lua")
 end)
 
 target("test_run_custom_code_str", function()
@@ -54,17 +54,17 @@ target("test_run_custom_code_str", function()
     add_toolchains("@nosim")
 
     add_files("./top_ansi.sv")
-    set_values("cfg.top", "TopAnsi")
-    set_values("cfg.lua_main", "./main.lua")
-    set_values("cfg.build_dir", path.join(os.scriptdir(), "build", "custom_code_str"))
+    set_values("verilua.top", "TopAnsi")
+    set_values("verilua.lua_main", "./main.lua")
+    set_values("verilua.build_dir", path.join(os.scriptdir(), "build", "custom_code_str"))
 
-    add_values("cfg.tb_gen_flags", "--custom-code-str", [[
+    add_values("verilua.tb_gen_flags", "--custom-code-str", [[
 initial begin
     $display("[tb] xmake multiline inner");
 end
 ]])
 
-    add_values("cfg.tb_gen_flags", "--custom-code-str-outer", [[
+    add_values("verilua.tb_gen_flags", "--custom-code-str-outer", [[
 `define TB_XMAKE_OUTER 1
 `define TB_XMAKE_OUTER_2 2
 ]])

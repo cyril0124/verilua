@@ -103,7 +103,7 @@ fork {
         assert(cfg.top == "tb_top")
         print("Current project directory: ", cfg.prj_dir)
 
-        -- `cfg` also merged the configuration from the configuration settings in `xmake.lua`: `set_values("cfg.user_cfg", "./cfg.lua")`
+        -- `cfg` also merged the configuration from the configuration settings in `xmake.lua`: `set_values("verilua.user_cfg", "./cfg.lua")`
         assert(cfg.var1 == 1)
         assert(cfg.var2 == "hello")
 

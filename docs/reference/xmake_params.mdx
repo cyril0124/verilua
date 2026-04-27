@@ -64,7 +64,7 @@ end)
 :::warning[此时 `add_files` 只能添加**一个**波形文件]
 :::
 
-`set_values("cfg.lua_main", ...)` 指向的 Lua 入口脚本不需要额外添加到 `add_files(...)` 中。
+`set_values("verilua.lua_main", ...)` 指向的 Lua 入口脚本不需要额外添加到 `add_files(...)` 中。
 
 ### 移除输入文件
 
@@ -83,42 +83,36 @@ remove_files("src/subdir/*.sv")         -- 移除 subdir 下所有 .sv
 
 <div id="cfg-top"></div>
 
-对应配置：`set_values("cfg.top", <top module name>)`
+对应配置：`set_values("verilua.top", <top module name>)`
 
-设置顶层模块的名称，这是 Verilua 访问信号层次结构的根节点，对于 HVL/WAL 场景，这个参数必须设置。
+设置 DUT 顶层模块的名称。对于 HVL/WAL 场景，这个参数必须设置。
 
-- **HVL 场景**：通常设置为实际的顶层 DUT 名称（如 `Design`、`Counter`）
-  或 testbench_gen 生成的 testbench 名称（`tb_top`）
+- **HVL 场景**：设置为实际的顶层 DUT 名称（如 `Design`、`Counter`），Verilua 会据此生成 testbench 并自动将运行期 `cfg.top` 设为 testbench 顶层名。
 - **WAL 场景**：根据波形文件的层次结构设置，详见下方说明
 
-例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们顶层 DUT 模块的名称是 `Design`，因此可以这么设置：`set_values("cfg.top", "Design")`。
+例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们顶层 DUT 模块的名称是 `Design`，因此可以这么设置：`set_values("verilua.top", "Design")`。
 
 ### 指定 Lua 入口脚本
 
-对应配置：`set_values("cfg.lua_main", <lua main file>)`
+对应配置：`set_values("verilua.lua_main", <lua main file>)`
 
-设置仿真时候执行的 lua 主脚本文件，对于 HVL/WAL 场景，这个参数必须设置，例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们的 lua 主脚本文件是 `LuaMain.lua`，因此可以这么设置：`set_values("cfg.lua_main", "LuaMain.lua")`。
+设置仿真时候执行的 lua 主脚本文件，对于 HVL/WAL 场景，这个参数必须设置，例如在[这个例子](../getting-started/simple_hvl_example.mdx) 中我们的 lua 主脚本文件是 `LuaMain.lua`，因此可以这么设置：`set_values("verilua.lua_main", "LuaMain.lua")`。
 
 `<lua main file>` 是一个具体的文件，可以包含路径。
 
-该入口脚本由 `cfg.lua_main` 单独指定，不需要再放进 `add_files(...)`。
+该入口脚本由 `verilua.lua_main` 单独指定，不需要再放进 `add_files(...)`。
 
 ### 顶层模块的设置指南
 
-通常情况下，cfg.top 应该指向实际的顶层模块名称：
+**HVL 场景**：`verilua.top` 应始终填写 DUT 顶层模块名称：
 
 ```lua
-set_values("cfg.top", "Design")  -- 直接指定 DUT 名称
+set_values("verilua.top", "Design")  -- 始终指定 DUT 名称
 ```
 
-如果使用 Verilua 的 testbench_gen 工具（Verilua 会自动生成 testbench），
-cfg.top 应该指向生成的 testbench 模块：
+Verilua 会自动生成 testbench（默认名 `tb_top`）并例化该 DUT。运行期 Lua 侧的 `cfg.top` 会被自动映射为 `tb_top`（即信号层次的根节点），无需手动设置。
 
-```lua
-set_values("cfg.top", "tb_top")  -- 指向 testbench_gen 生成的模块
-```
-
-cfg.top 应该设置为波形文件中的顶层模块名称。这取决于波形是如何生成的：
+**WAL 场景**：`verilua.top` 应该设置为波形文件中的顶层模块名称。这取决于波形是如何生成的：
 
 **场景 1：波形由 Verilua 的 HVL 仿真生成**
 
@@ -126,7 +120,7 @@ cfg.top 应该设置为波形文件中的顶层模块名称。这取决于波形
 Verilua 会自动使用 testbench_gen 生成 `tb_top` 模块，波形文件的顶层是 `tb_top`：
 
 ```lua
-set_values("cfg.top", "tb_top")
+set_values("verilua.top", "tb_top")
 ```
 
 这样可以访问：
@@ -137,16 +131,16 @@ set_values("cfg.top", "tb_top")
 **场景 2：波形直接来自 RTL（无 testbench 层）**
 
 如果波形文件是直接从 RTL 编译生成的（不通过 Verilua，没有 testbench），
-cfg.top 应该指向实际的 RTL 顶层模块：
+verilua.top 应该指向实际的 RTL 顶层模块：
 
 ```lua
-set_values("cfg.top", "top")  -- 或者你的实际顶层模块名
+set_values("verilua.top", "top")  -- 或者你的实际顶层模块名
 ```
 
 :::tip[如何确定应该使用哪个值？]
 
 1. **查看波形文件：** 在波形查看器（如 GTKWave、Verdi）中打开波形文件，查看顶层模块名称
-2. **查看信号路径：** 如果信号路径包含 `tb_top.` 前缀，则应使用 `cfg.top = "tb_top"`
+2. **查看信号路径：** 如果信号路径包含 `tb_top.` 前缀，则应使用 `verilua.top = "tb_top"`
 3. **参考生成方式：**
    - 通过 Verilua 的 HVL 仿真生成 → 通常包含 `tb_top` 层次
    - 直接用仿真器编译 RTL（不经过 Verilua）→ 通常是实际的模块名
@@ -158,7 +152,7 @@ set_values("cfg.top", "top")  -- 或者你的实际顶层模块名
 
 ### 传递额外的 `testbench_gen` 参数
 
-对应配置：`set_values("cfg.tb_gen_flags", <flags for testbench_gen>)` / `add_values("cfg.tb_gen_flags", "<flags for testbench_gen>")`
+对应配置：`set_values("verilua.tb_gen_flags", <flags for testbench_gen>)` / `add_values("verilua.tb_gen_flags", "<flags for testbench_gen>")`
 
 设置需要传递给 `testbench_gen` 的额外参数，具体支持的 flags 可以参考 [这里](./testbench_generate.mdx) 的介绍。
 
@@ -187,7 +181,7 @@ set_values("key", "value1", "value2")
 
 ### 控制内部时钟生成
 
-对应配置：`set_values("cfg.no_internal_clock", "1")`
+对应配置：`set_values("verilua.no_internal_clock", "1")`
 
 禁用自动时钟生成，适用于需要自定义时钟的场景。此时需在主 Lua 文件中手动生成时钟信号。
 
@@ -197,10 +191,10 @@ set_values("key", "value1", "value2")
 target("my_test", function()
     add_rules("verilua")
     add_toolchains("@verilator")
-    set_values("cfg.top", "Top")
-    set_values("cfg.lua_main", "main.lua")
+    set_values("verilua.top", "Top")
+    set_values("verilua.lua_main", "main.lua")
     add_files("Top.v")
-    set_values("cfg.no_internal_clock", "1") -- 禁用自动时钟生成
+    set_values("verilua.no_internal_clock", "1") -- 禁用自动时钟生成
 end)
 ```
 
@@ -229,7 +223,7 @@ fork {
 ```mermaid
 flowchart LR
     A[xmake target] --> B[add_rules / add_toolchains / add_files]
-    B --> C[cfg.tb_gen_flags]
+    B --> C[verilua.tb_gen_flags]
     C --> D[testbench_gen phase]
     D --> E[Generated tb_top.sv]
     E --> F[sim.flags compile phase]
@@ -280,50 +274,50 @@ flowchart LR
 
 ### 设置构建目录名称
 
-对应配置：`set_values("cfg.build_dir_name", <build directory name>)`
+对应配置：`set_values("verilua.build_dir_name", <build directory name>)`
 
-设置构建目录的名称，如果不设置，默认为 [`set_values("cfg.top", <top module name>)`](#cfg-top) 的值。
+设置构建目录的名称，如果不设置，默认为 [`set_values("verilua.top", <top module name>)`](#cfg-top) 的值。
 
 :::note[构建目录生成的位置]
-默认情况下为：`./build/<simulator>/<top module name>`，如果使用了 `set_values("cfg.build_dir_name", "SomeName")`，那么会使用用户自定义的名称：`./build/<simulator>/SomeName`。这里的 `./` 默认表示当前工程中 `xmake.lua` 所在的目录；文档中的命令示例也默认在该目录下执行。
+默认情况下为：`./build/<simulator>/<top module name>`，如果使用了 `set_values("verilua.build_dir_name", "SomeName")`，那么会使用用户自定义的名称：`./build/<simulator>/SomeName`。这里的 `./` 默认表示当前工程中 `xmake.lua` 所在的目录；文档中的命令示例也默认在该目录下执行。
 :::
 
 ### 设置构建目录位置
 
-对应配置：`set_values("cfg.build_dir_path", <build directory path>)`
+对应配置：`set_values("verilua.build_dir_path", <build directory path>)`
 
 设置构建目录的父路径。例如：
 
 ```lua
-set_values("cfg.build_dir_path", "/tmp/builds")
+set_values("verilua.build_dir_path", "/tmp/builds")
 ```
 
-最终构建目录为 `<build_dir_path>/<build_dir_name>`，如未设置 `build_dir_name`，则默认为顶层模块名。如果 `cfg.build_dir_path` 使用相对路径，则同样默认相对于当前工程中 `xmake.lua` 所在的目录解析。
+最终构建目录为 `<build_dir_path>/<build_dir_name>`，如未设置 `build_dir_name`，则默认为顶层模块名。如果 `verilua.build_dir_path` 使用相对路径，则同样默认相对于当前工程中 `xmake.lua` 所在的目录解析。
 
 ## 其他配置
 
 ### 加载用户自定义配置
 
-对应配置：`set_values("cfg.user_cfg", <user cfg file>)`
+对应配置：`set_values("verilua.user_cfg", <user cfg file>)`
 
 用于指定一个用户自定义 Lua 配置文件。
 
 这个 Lua 文件需要返回一个 table；在运行期，这个 table 里的字段会被合并到全局变量 `cfg` 中。
 
 :::warning[常见误解]
-这里的 `cfg.user_cfg` 只是 xmake 配置项名，不代表运行期存在 `cfg.user_cfg` 这个字段。
+这里的 `verilua.user_cfg` 只是 xmake 配置项名，不代表运行期存在 `cfg.user_cfg` 这个字段。
 :::
 
 完整的运行期行为说明见 [`global_configuration`](./global_configuration.mdx#cfg-user-cfg)。
 
 ### 限制最低 Verilua 版本
 
-对应配置：`set_values("cfg.version_required", "<version constraint>")`
+对应配置：`set_values("verilua.version_required", "<version constraint>")`
 
 指定最低 Verilua 版本要求。例如：
 
 ```lua
-set_values("cfg.version_required", ">=1.0.0")
+set_values("verilua.version_required", ">=1.0.0")
 ```
 
 构建时会自动校验当前 Verilua 版本是否满足要求。
@@ -331,6 +325,6 @@ set_values("cfg.version_required", ">=1.0.0")
 ## 相关文档
 
 - [编写 xmake.lua](../how-to-guides/write_xmake_lua.mdx)：查看这些参数在完整工程中的组织方式。
-- [HVL 示例](../getting-started/simple_hvl_example.mdx)：对照最小示例理解 `cfg.top` 和 `cfg.lua_main` 的基本用法。
-- [Testbench 自动生成流程](./testbench_generate.mdx)：查看 `cfg.tb_gen_flags` 等参数如何影响生成结果。
-- [全局配置信息](./global_configuration.mdx)：了解构建期 `cfg.xxx` 与运行期全局 `cfg` 的关系。
+- [HVL 示例](../getting-started/simple_hvl_example.mdx)：对照最小示例理解 `verilua.top` 和 `verilua.lua_main` 的基本用法。
+- [Testbench 自动生成流程](./testbench_generate.mdx)：查看 `verilua.tb_gen_flags` 等参数如何影响生成结果。
+- [全局配置信息](./global_configuration.mdx)：了解构建期 `verilua.xxx` 与运行期全局 `cfg` 的关系。

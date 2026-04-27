@@ -21,11 +21,11 @@ target("test", function()
     end)
 
     add_files(path.join(rtl_dir, "top.sv"))
-    set_values("cfg.top", "top")
-    set_values("cfg.lua_main", "main.lua")
+    set_values("verilua.top", "top")
+    set_values("verilua.lua_main", "main.lua")
 
     -- No internal clock - we want to test NativeClock
-    set_values("cfg.no_internal_clock", "1")
+    set_values("verilua.no_internal_clock", "1")
 
     -- Use timing mode for Verilator to enable proper cbAfterDelay timing.
     -- In NORMAL_MODE, time advances by fixed increments (10000) per step

@@ -20,8 +20,8 @@ target("test", function()
 
     add_files("top.v")
 
-    set_values("cfg.top", "top")
-    set_values("cfg.lua_main", "./main.lua")
+    set_values("verilua.top", "top")
+    set_values("verilua.lua_main", "./main.lua")
 
     set_values("verilator.flags", "--trace", "--no-trace-top")
 end)

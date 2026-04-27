@@ -15,6 +15,55 @@ end
 
 local FILE_COUNT_THRESHOLD = 100 -- Threshold for using filelist instead of passing files directly
 
+-- Mapping from old cfg.* keys to new verilua.* keys.
+-- All cfg.* keys are deprecated; verilua.* should be used instead.
+-- The helper below reads the new key first, then falls back to the old key with a warning.
+local CFG_DEPRECATION_MAP = {
+    ["verilua.top"]                = "cfg.top",
+    ["verilua.lua_main"]           = "cfg.lua_main",
+    ["verilua.build_dir"]          = "cfg.build_dir",
+    ["verilua.build_dir_name"]     = "cfg.build_dir_name",
+    ["verilua.build_dir_path"]     = "cfg.build_dir_path",
+    ["verilua.tb_top"]             = "cfg.tb_top",
+    ["verilua.tb_top_file"]        = "cfg.tb_top_file",
+    ["verilua.not_gen_tb"]         = "cfg.not_gen_tb",
+    ["verilua.tb_gen_flags"]       = "cfg.tb_gen_flags",
+    ["verilua.no_internal_clock"]  = "cfg.no_internal_clock",
+    ["verilua.use_inertial_put"]   = "cfg.use_inertial_put",
+    ["verilua.vcs_no_initreg"]     = "cfg.vcs_no_initreg",
+    ["verilua.xcelium_no_initreg"] = "cfg.xcelium_no_initreg",
+    ["verilua.user_cfg"]           = "cfg.user_cfg",
+    ["verilua.other_cfg"]          = "cfg.other_cfg",
+    ["verilua.version_required"]   = "cfg.version_required",
+}
+
+--- Read a verilua config value from the target.
+--- Tries the new `verilua.*` key first. If not set, falls back to the
+--- deprecated `cfg.*` key (if one exists) and prints a deprecation warning.
+---@param target table xmake target
+---@param key string The new key, e.g. "verilua.top"
+---@return any
+local function get_verilua_value(target, key)
+    local value = target:values(key)
+    if value ~= nil then
+        return value
+    end
+    local old_key = CFG_DEPRECATION_MAP[key]
+    if not old_key then
+        return nil
+    end
+    local old_value = target:values(old_key)
+    if old_value ~= nil then
+        if not is_quiet_mode() then
+            print(
+                "[verilua-xmake] [%s] warning: `set_values(\"%s\", ...)` is deprecated, use `set_values(\"%s\", ...)` instead",
+                target:name(), old_key, key)
+        end
+        return old_value
+    end
+    return nil
+end
+
 ---@alias SimulatorType "iverilog" | "verilator" | "vcs" | "xcelium" | "wave_vpi" | "nosim"
 
 ---@alias InstrumentationType "cov_exporter"
@@ -45,10 +94,10 @@ local function get_simulator_type(target)
 end
 
 local function get_build_dir(target, sim)
-    local cfg_build_dir = target:values("cfg.build_dir")
-    local cfg_build_dir_name = target:values("cfg.build_dir_name")
-    local cfg_build_dir_path = target:values("cfg.build_dir_path")
-    local top = target:values("cfg.top") or target:name()
+    local cfg_build_dir = get_verilua_value(target, "verilua.build_dir")
+    local cfg_build_dir_name = get_verilua_value(target, "verilua.build_dir_name")
+    local cfg_build_dir_path = get_verilua_value(target, "verilua.build_dir_path")
+    local top = get_verilua_value(target, "verilua.top") or target:name()
     local build_dir_name = cfg_build_dir_name or top --[[@as string]]
     local build_dir_path = cfg_build_dir_path or path.join("build", sim) --[[@as string]]
     local build_dir = cfg_build_dir or path.absolute(path.join(build_dir_path, build_dir_name)) --[[@as string]]
@@ -98,23 +147,23 @@ local function before_build_or_run(target)
     --- Check top module
     --- e.g. (in your xmake.lua)
     --- ```lua
-    ---     set_values("cfg.top", "TestModule")
+    ---     set_values("verilua.top", "TestModule")
     --- ```
     local top = assert(
-        target:values("cfg.top"),
+        get_verilua_value(target, "verilua.top"),
         [[
                 [before_build_or_run] Unknown top module name!
-                    You should set 'top' by `set_values("cfg.top", "<your_top_module_name>")`
+                    You should set 'top' by `set_values("verilua.top", "<your_top_module_name>")`
             ]]
     )
     target:add("top", top) -- Used in `on_build` phase
     cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
 
     -- Used in `on_build` and `on_run` phases
-    local tb_top = target:values("cfg.tb_top") or "tb_top"
+    local tb_top = get_verilua_value(target, "verilua.tb_top") or "tb_top"
     do
         -- For wave_vpi simulator, there is no testbench concept, so tb_top should be the same as top
-        -- This ensures cfg.top in verilua_cfg.lua points to the actual top module instead of "tb_top"
+        -- This ensures verilua.top in verilua_cfg.lua points to the actual top module instead of "tb_top"
         if sim == "wave_vpi" then
             tb_top = top
         end
@@ -127,14 +176,14 @@ local function before_build_or_run(target)
     --- Check verilua version using semantic versioning
     --- e.g.
     --- ```lua
-    ---     set_values("cfg.version_required", "1.0.0")
-    ---     set_values("cfg.version_required", "> 1.0.0")
-    ---     set_values("cfg.version_required", ">= 1.0.0")
-    ---     set_values("cfg.version_required", "< 1.0.0")
-    ---     set_values("cfg.version_required", "<= 1.0.0")
-    ---     set_values("cfg.version_required", "1.0.x")
+    ---     set_values("verilua.version_required", "1.0.0")
+    ---     set_values("verilua.version_required", "> 1.0.0")
+    ---     set_values("verilua.version_required", ">= 1.0.0")
+    ---     set_values("verilua.version_required", "< 1.0.0")
+    ---     set_values("verilua.version_required", "<= 1.0.0")
+    ---     set_values("verilua.version_required", "1.0.x")
     --- ```
-    local version_required = target:values("cfg.version_required")
+    local version_required = get_verilua_value(target, "verilua.version_required")
     if version_required then
         import("core.base.semver")
         local curr_version = io.readfile(path.join(verilua_home, "VERSION")):trim()
@@ -149,31 +198,31 @@ local function before_build_or_run(target)
 
     --- Check build directory
     --- There are two ways to specify the build directory
-    --- 1. Set `cfg.build_dir` in xmake config
+    --- 1. Set `verilua.build_dir` in xmake config
     ---    e.g. (in your xmake.lua)
     ---    ```lua
-    ---        set_values("cfg.build_dir", "/path/to/your/build")
+    ---        set_values("verilua.build_dir", "/path/to/your/build")
     ---    ```
-    --- 2. Set `cfg.build_dir_path` and/or `cfg.build_dir_name` in xmake config
+    --- 2. Set `verilua.build_dir_path` and/or `verilua.build_dir_name` in xmake config
     ---    e.g. (in your xmake.lua)
     ---    ```lua
-    ---        set_values("cfg.build_dir_path", "/path/to/your/build")
-    ---        set_values("cfg.build_dir_name", "my_build")
+    ---        set_values("verilua.build_dir_path", "/path/to/your/build")
+    ---        set_values("verilua.build_dir_name", "my_build")
     ---    ```
     local build_dir = get_build_dir(target, sim)
     local sim_build_dir = path.join(build_dir, "sim_build") --[[@as string]]
-    local cfg_build_dir = target:values("cfg.build_dir")
-    local cfg_build_dir_name = target:values("cfg.build_dir_name")
-    local cfg_build_dir_path = target:values("cfg.build_dir_path")
+    local cfg_build_dir = get_verilua_value(target, "verilua.build_dir")
+    local cfg_build_dir_name = get_verilua_value(target, "verilua.build_dir_name")
+    local cfg_build_dir_path = get_verilua_value(target, "verilua.build_dir_path")
     if cfg_build_dir ~= nil then
         assert(
             cfg_build_dir_name == nil,
-            "[before_build_or_run] [%s] please set `cfg.build_dir_name` to nil when `cfg.build_dir` is set",
+            "[before_build_or_run] [%s] please set `verilua.build_dir_name` to nil when `verilua.build_dir` is set",
             target:name()
         )
         assert(
             cfg_build_dir_path == nil,
-            "[before_build_or_run] [%s] please set `cfg.build_dir_path` to nil when `cfg.build_dir` is set",
+            "[before_build_or_run] [%s] please set `verilua.build_dir_path` to nil when `verilua.build_dir` is set",
             target:name()
         )
     end
@@ -214,15 +263,15 @@ local function before_build_or_run(target)
     --- ```
     --- e.g. (set by xmake config)
     --- ```lua
-    ---     set_values("cfg.lua_main", "/path/to/your/main.lua")
+    ---     set_values("verilua.lua_main", "/path/to/your/main.lua")
     --- ```
     local env_lua_main = os.getenv("LUA_SCRIPT")
-    local cfg_lua_main = target:values("cfg.lua_main")
+    local cfg_lua_main = get_verilua_value(target, "verilua.lua_main")
     local lua_main = env_lua_main
     if lua_main == nil then
         assert(
             cfg_lua_main,
-            "[before_build_or_run] You should set \'cfg.lua_main\' by set_values(\"lua_main\", \"<your_lua_main_script>\")"
+            "[before_build_or_run] You should set 'verilua.lua_main' by set_values(\"verilua.lua_main\", \"<your_lua_main_script>\")"
         )
         lua_main = path.absolute(cfg_lua_main)
     end
@@ -233,7 +282,7 @@ local function before_build_or_run(target)
     --- Verilua allows user to add their own configuration file(written in lua) which will be loaded before the main script.
     --- e.g.
     --- ```lua
-    ---     set_values("cfg.user_cfg", "/path/to/your/cfg.lua")
+    ---     set_values("verilua.user_cfg", "/path/to/your/cfg.lua")
     --- ```
     --- The user configuration file is a lua script and also require to return a table.
     --- e.g. (cfg.lua)
@@ -255,8 +304,8 @@ local function before_build_or_run(target)
     --- return cfg
     --- ```
     ---
-    --- Notice: `cfg.other_cfg` is deprecated, please use `cfg.user_cfg` instead.
-    local user_cfg = target:values("cfg.user_cfg") or target:values("cfg.other_cfg")
+    --- Notice: `verilua.other_cfg` is deprecated, please use `verilua.user_cfg` instead.
+    local user_cfg = get_verilua_value(target, "verilua.user_cfg") or get_verilua_value(target, "verilua.other_cfg")
     local user_cfg_path = "nil"
     if user_cfg == nil or user_cfg == "" then
         user_cfg = "nil"
@@ -268,7 +317,7 @@ local function before_build_or_run(target)
     end
 
     -- Generate verilua_cfg.lua which is used for loading some common settings used by verilua.
-    -- This file can be merged with user configuration file(cfg.user_cfg).
+    -- This file can be merged with user configuration file(verilua.user_cfg).
     local verilua_cfg_file = path.absolute(path.join(target:get("build_dir"), "verilua_cfg.lua"))
     local cfg_file_str = f([[
 -------------------------------------------
@@ -389,13 +438,13 @@ rule("verilua", function()
         local toolchain = ""
         local buildcmd = ""
 
-        --- Check if user has set `cfg.no_internal_clock`
-        --- Verilua will generate a clock signal internally if `cfg.no_internal_clock` is not set.
-        --- If `cfg.no_internal_clock` is set, Verilua will not generate a clock signal internally.
+        --- Check if user has set `verilua.no_internal_clock`
+        --- Verilua will generate a clock signal internally if `verilua.no_internal_clock` is not set.
+        --- If `verilua.no_internal_clock` is set, Verilua will not generate a clock signal internally.
         --- The user should generate a clock signal to push forward the simulation.
         --- e.g.(in your xmake.lua)
         --- ```lua
-        ---     set_values("cfg.no_internal_clock", "1")
+        ---     set_values("verilua.no_internal_clock", "1")
         --- ```
         --- Also you need to generate a clock signal in your main.lua:
         --- ```lua
@@ -411,19 +460,19 @@ rule("verilua", function()
         ---         end
         ---     }
         --- ```
-        local no_internal_clock = target:values("cfg.no_internal_clock") --[[@as string]]
+        local no_internal_clock = get_verilua_value(target, "verilua.no_internal_clock") --[[@as string]]
         if no_internal_clock == "1" then
-            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}cfg.no_internal_clock${reset} is enabled!",
+            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}verilua.no_internal_clock${reset} is enabled!",
                 target:name())
         end
 
-        --- Check if user has set `cfg.use_inertial_put`
+        --- Check if user has set `verilua.use_inertial_put`
         --- See https://github.com/cocotb/cocotb/pull/3861 for more details
         --- e.g.(in your xmake.lua)
         --- ```lua
-        ---     set_values("cfg.use_inertial_put", "1")
+        ---     set_values("verilua.use_inertial_put", "1")
         --- ```
-        local use_inertial_put = target:values("cfg.use_inertial_put") --[[@as string]]
+        local use_inertial_put = get_verilua_value(target, "verilua.use_inertial_put") --[[@as string]]
         if not use_inertial_put then
             -- By default, `use_inertial_put` is disabled for `verilator` simulator
             if sim == "verilator" then
@@ -445,8 +494,9 @@ rule("verilua", function()
             end
         end
         if use_inertial_put == "1" then
-            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}cfg.use_inertial_put${reset} is enabled!", target:name())
-            assert(sim == "verilator", "[on_build] cfg.use_inertial_put is only supported for `verilator` simulator")
+            cprint("${✅} [verilua-xmake] [%s] ${yellow underline}verilua.use_inertial_put${reset} is enabled!",
+                target:name())
+            assert(sim == "verilator", "[on_build] verilua.use_inertial_put is only supported for `verilator` simulator")
         end
 
         --- Collect include directories from simulator flags for Verilog source files, used by testbench_gen
@@ -664,9 +714,9 @@ rule("verilua", function()
             --- Disable vcs reg initialization, verilua use `+vcs+initreg+0` by default.
             --- e.g. (in your xmake.lua)
             --- ```lua
-            ---     set_values("cfg.vcs_no_initreg", "1")
+            ---     set_values("verilua.vcs_no_initreg", "1")
             --- ```
-            if target:values("cfg.vcs_no_initreg") ~= "1" then
+            if get_verilua_value(target, "verilua.vcs_no_initreg") ~= "1" then
                 extra_vcs_flags[#extra_vcs_flags + 1] = "+vcs+initreg+random"
             end
 
@@ -756,9 +806,9 @@ rule("verilua", function()
             --- Disable xcelium reg initialization, verilua use `-xminitialize 0` by default.
             --- e.g. (in your xmake.lua)
             --- ```lua
-            ---     set_values("cfg.xcelium_no_initreg", "1")
+            ---     set_values("verilua.xcelium_no_initreg", "1")
             --- ```
-            if target:values("cfg.xcelium_no_initreg") ~= "1" then
+            if get_verilua_value(target, "verilua.xcelium_no_initreg") ~= "1" then
                 extra_xcelium_flags[#extra_xcelium_flags + 1] = "-xminitialize 0"
             end
 
@@ -926,13 +976,13 @@ rule("verilua", function()
         --- `others.sv` can be used by the user to add some extra testbench logic. This file wont updated by
         --- `testbench_gen` if it already exists.
         ---
-        --- You got the `cfg.not_gen_tb` option to disable the automatic generation of testbench top module.
+        --- You got the `verilua.not_gen_tb` option to disable the automatic generation of testbench top module.
         --- Once you disable it, `<tb_top>.sv` wont be updated or generated even if rtl files changed.
         --- e.g. (in your xmake.lua)
         --- ```lua
-        ---     set_values("cfg.not_gen_tb", "1")
+        ---     set_values("verilua.not_gen_tb", "1")
         --- ```
-        local _not_gen_tb = target:values("cfg.not_gen_tb")
+        local _not_gen_tb = get_verilua_value(target, "verilua.not_gen_tb")
         local not_gen_tb = false
         local _not_gen_tb_t = type(_not_gen_tb)
         if _not_gen_tb_t == "string" and _not_gen_tb == "1" then
@@ -955,13 +1005,13 @@ rule("verilua", function()
             assert(#vfiles > 0, "[on_build] Cannot find any .v/.sv files!")
 
             --- Since <tb_top>.sv and others.sv are generated by `testbench_gen` command, you can
-            --- specify the `cfg.tb_gen_flags` to pass some additional flags to `testbench_gen`
+            --- specify the `verilua.tb_gen_flags` to pass some additional flags to `testbench_gen`
             --- e.g. (in your xmake.lua)
             --- ```lua
-            ---    set_values("cfg.tb_gen_flags", { "--some_flag", "--another_flag" })
+            ---    set_values("verilua.tb_gen_flags", { "--some_flag", "--another_flag" })
             --- ```
             --- For more information about `testbench_gen`, please refer to `testbench_gen --help`
-            local u_tb_gen_flags = target:values("cfg.tb_gen_flags")
+            local u_tb_gen_flags = get_verilua_value(target, "verilua.tb_gen_flags")
             local tb_gen_flags = {
                 "--top", top,
                 "--tbtop", tb_top,
@@ -996,22 +1046,22 @@ rule("verilua", function()
             end
             local gen_cmd = path.join(verilua_tools_home, "testbench_gen")
 
-            --- You can also specify your own testbench top module file using `cfg.tb_top_file`.
+            --- You can also specify your own testbench top module file using `verilua.tb_top_file`.
             --- e.g. (in your xmake.lua)
             --- ```lua
-            ---     set_values("cfg.tb_top_file", "/path/to/your/my_tb_top.sv")
+            ---     set_values("verilua.tb_top_file", "/path/to/your/my_tb_top.sv")
             --- ```
             --- In the above example, `my_tb_top.sv` will be used as testbench top module.
             --- Notice: Once you specify your own testbench top module, you are not allowed to
             --- use some of the verilua features which depend on the generated testbench top module, e.g. `sim.dump_wave()`.
             local should_regenerate = true
-            local input_tb_top_file = target:values("cfg.tb_top_file")
+            local input_tb_top_file = get_verilua_value(target, "verilua.tb_top_file")
             if input_tb_top_file ~= nil then
                 if os.isfile(input_tb_top_file) then
                     should_regenerate = false
                     input_tb_top_file = path.absolute(input_tb_top_file)
                 else
-                    raise("cfg.tb_top_file = " .. input_tb_top_file .. " is not a valid file!")
+                    raise("verilua.tb_top_file = " .. input_tb_top_file .. " is not a valid file!")
                 end
             end
 
@@ -1594,7 +1644,7 @@ source setvars.sh
             run_sh = f(
                 "%s/simv %s +notimingcheck 2>&1 | tee run.log",
                 sim_build_dir,
-                (target:values("cfg.vcs_no_initreg") == "1") and "" or "+vcs+initreg+0"
+                (get_verilua_value(target, "verilua.vcs_no_initreg") == "1") and "" or "+vcs+initreg+0"
             )
         elseif sim == "xcelium" then
             run_sh = f(
@@ -1603,7 +1653,7 @@ source setvars.sh
                 build_dir,
                 path.basename(sim_build_dir),
                 path.join(build_dir, "xrun_run.log"),
-                (target:values("cfg.xcelium_no_initreg") == "1") and "" or "-xminitialize 0",
+                (get_verilua_value(target, "verilua.xcelium_no_initreg") == "1") and "" or "-xminitialize 0",
                 path.join(verilua_libs_home, "libverilua_xcelium.so")
             )
         elseif sim == "iverilog" then
@@ -1789,7 +1839,7 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.join2(run_flags, _run_flags)
             end
 
-            if target:values("cfg.vcs_no_initreg") ~= "1" then
+            if get_verilua_value(target, "verilua.vcs_no_initreg") ~= "1" then
                 run_flags[#run_flags + 1] = "+vcs+initreg+0"
             end
 
@@ -1861,7 +1911,7 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.join2(run_flags, _run_flags)
             end
 
-            if target:values("cfg.xcelium_no_initreg") ~= "1" then
+            if get_verilua_value(target, "verilua.xcelium_no_initreg") ~= "1" then
                 run_flags[#run_flags + 1] = "-xminitialize 0"
             end
 

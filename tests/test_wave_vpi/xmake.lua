@@ -31,8 +31,8 @@ target("gen_wave", function()
 
     add_files("./top.sv")
     add_values("verilator.flags", "--trace", "--trace-fst")
-    set_values("cfg.top", "top")
-    set_values("cfg.lua_main", "gen_wave_main.lua")
+    set_values("verilua.top", "top")
+    set_values("verilua.lua_main", "gen_wave_main.lua")
 end)
 
 target("sim_wave", function()
@@ -47,8 +47,8 @@ target("sim_wave", function()
         add_files("./test.fst")
     end
 
-    set_values("cfg.top", "tb_top")
-    set_values("cfg.lua_main", "sim_wave_main.lua")
+    set_values("verilua.top", "tb_top")
+    set_values("verilua.lua_main", "sim_wave_main.lua")
 end)
 
 target("gen_wave_all", function()
