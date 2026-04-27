@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.0">
 <title data-rh="true">特殊环境变量 | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/reference/special_env_variables"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="特殊环境变量 | Verilua"><meta data-rh="true" name="description" content="Verilua 支持通过环境变量来控制其行为和配置。所有环境变量都是可选的，如果不设置，Verilua 会使用合理的默认值。环境变量可以在 shell 中永久设置（通过 export，仅当前 shell 有效），也可以在每次命令前临时指定，两者灵活搭配。"><meta data-rh="true" property="og:description" content="Verilua 支持通过环境变量来控制其行为和配置。所有环境变量都是可选的，如果不设置，Verilua 会使用合理的默认值。环境变量可以在 shell 中永久设置（通过 export，仅当前 shell 有效），也可以在每次命令前临时指定，两者灵活搭配。"><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/reference/special_env_variables"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/special_env_variables" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/special_env_variables" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"特殊环境变量","item":"https://cyril0124.github.io/verilua/docs/reference/special_env_variables"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.bc66b8d3.css">
-<script src="/verilua/assets/js/runtime~main.53f3503e.js" defer="defer"></script>
-<script src="/verilua/assets/js/main.a78673bb.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.0a99bc71.js" defer="defer"></script>
+<script src="/verilua/assets/js/main.ebb32874.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -49,9 +49,9 @@
 </ul>
 <hr>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="lua_script-可选"><code>LUA_SCRIPT</code> (可选)<a href="#lua_script-可选" class="hash-link" aria-label="Direct link to lua_script-可选" title="Direct link to lua_script-可选" translate="no">​</a></h3>
-<p>指定 Lua 主脚本文件。通常由 xmake 配置 <code>cfg.lua_main</code> 设置，也可通过此环境变量覆盖。</p>
+<p>指定 Lua 主脚本文件。通常由 xmake 配置 <code>verilua.lua_main</code> 设置，也可通过此环境变量覆盖。</p>
 <ul>
-<li class=""><strong>默认值</strong>：由 <code>cfg.lua_main</code> 决定</li>
+<li class=""><strong>默认值</strong>：由 <code>verilua.lua_main</code> 决定</li>
 <li class=""><strong>示例</strong>：<!-- -->
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token assign-left variable" style="color:#36acaa">LUA_SCRIPT</span><span class="token operator" style="color:#393A34">=</span><span class="token plain">/path/to/main.lua xmake run </span><span class="token parameter variable" style="color:#36acaa">-P</span><span class="token plain"> </span><span class="token builtin class-name">.</span><span class="token plain"> </span><span class="token operator" style="color:#393A34">&lt;</span><span class="token plain">target_name</span><span class="token operator" style="color:#393A34">&gt;</span><br></div></code></pre></div></div>
 </li>
