@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+---
+
+## v3.3.0 - 2026-04-28
+
+### ✨ Added
+
+### 🐛 Fixed
+
 - **utils/Queue|StaticQueue|AgeStaticQueue**: `front()` / `last()` now return `nil` for empty queues instead of potentially returning stale data
 - **utils/Queue|StaticQueue|AgeStaticQueue**: `query_first_ptr()` / `query_first()` now return `nil` for empty queues instead of potentially returning stale data
 - **TypeExpect**: Reject fractional Lua numbers in `expect_integer()` and improve `fake_chdl` missing-`get_width()` diagnostics for width-range `expect_chdl()` checks
