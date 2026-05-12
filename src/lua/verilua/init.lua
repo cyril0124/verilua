@@ -805,6 +805,88 @@ do
         end
     end
 
+    --- Wait until **any one** of the given `jfork` tasks finishes.
+    --- Returns the EventHandle of the first task that completed.
+    --- e.g.
+    --- ```lua
+    ---      local ehdl1 = jfork {
+    ---          fast_task = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      local ehdl2 = jfork {
+    ---          slow_task = function ()
+    ---              -- body
+    ---          end
+    ---      }
+    ---      local first = join_any(ehdl1, ehdl2)
+    ---      -- `first` is the handle of whichever task finished first
+    --- ```
+    ---@param ... verilua.handles.EventHandle
+    ---@return verilua.handles.EventHandle
+    _G.join_any = function(...)
+        local ehdls = { ... }
+        assert(#ehdls >= 1, "`join_any` requires at least one EventHandle")
+
+        for _, ehdl in ipairs(ehdls) do
+            local e_type = type(ehdl)
+            if not (e_type == "table" and ehdl.__type == "EventHandleForJFork") then
+                assert(false, "`join_any` only supports EventHandle created by `jfork`, got " .. e_type)
+            end
+        end
+
+        -- Fast path: if any handle is already finished, return it immediately
+        for _, ehdl in ipairs(ehdls) do
+            if not scheduler.event_name_map[ehdl.event_id] then
+                return ehdl
+            end
+        end
+
+        -- Single handle: just wait on it directly
+        if #ehdls == 1 then
+            ehdls[1]:wait()
+            return ehdls[1]
+        end
+
+        -- Register current task on all event waiter lists
+        local curr_task_id = assert(scheduler.curr_task_id)
+        for _, ehdl in ipairs(ehdls) do
+            table.insert(scheduler.event_task_id_list_map[ehdl.event_id], curr_task_id)
+        end
+
+        -- Yield once — the first event to fire will wake us up
+        ---@diagnostic disable-next-line: undefined-global
+        await_noop()
+
+        local fired_event_id = assert(scheduler.curr_wakeup_event_id)
+
+        -- Unregister from the remaining (unfired) events to prevent spurious wakeups
+        for _, ehdl in ipairs(ehdls) do
+            if ehdl.event_id ~= fired_event_id then
+                local waiter_list = scheduler.event_task_id_list_map[ehdl.event_id]
+                if waiter_list then
+                    for i = #waiter_list, 1, -1 do
+                        if waiter_list[i] == curr_task_id then
+                            table.remove(waiter_list, i)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Find and return the handle that fired
+        for _, ehdl in ipairs(ehdls) do
+            if ehdl.event_id == fired_event_id then
+                return ehdl
+            end
+        end
+
+        -- Should never reach here
+        assert(false, "`join_any` internal error: fired event not found in handle list")
+        ---@diagnostic disable-next-line: missing-return
+    end
+
     --- Create initial tasks which will be executed at the start of simulation.
     --- These tasks are different from the tasks created by `verilua "appendTasks"` or `fork`,
     --- these tasks will be executed before all other tasks and only executed once.

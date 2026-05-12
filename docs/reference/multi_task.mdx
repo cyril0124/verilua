@@ -119,6 +119,34 @@ local ehdl2 = jfork {
 join({ ehdl, ehdl2 }) -- or join { ehdl, ehdl2 }
 ```
 
+### 等待任意一个任务完成
+
+使用 `join_any` 可以等待多个 `jfork` 任务中**任意一个**完成即返回，返回值为最先完成的那个 `EventHandle`：
+```lua
+local ehdl1 = jfork {
+    fast_task = function ()
+        dut.clock:posedge(2)
+    end
+}
+
+local ehdl2 = jfork {
+    slow_task = function ()
+        dut.clock:posedge(100)
+    end
+}
+
+local first = join_any(ehdl1, ehdl2)
+-- first == ehdl1（因为 fast_task 先完成）
+```
+
+`join_any` 的行为：
+- 如果传入的某个 handle 对应的任务已经完成，则立即返回该 handle（不会 yield）
+- 否则等待直到任意一个任务完成，返回该任务的 handle
+- 返回后，调用者仍可对剩余未完成的 handle 调用 `join` 来等待它们完成
+
+:::note[`join_any` 只接受由 `jfork` 创建的 `EventHandle`，不支持普通的 `EventHandle`]
+:::
+
 ## 注册任务回调
 Verilua 的 task 中支持 `posedge`、`negedge`、`edge`、`time` 仿真行为控制机制，能够满足大部分的硬件仿真交互场景。
 

@@ -305,6 +305,54 @@ fork {
 
         print("✓ All jfork and join tests passed")
 
+        -- Test 4.3: join_any returns the first completed handle
+        local any_task1_done = false
+        local any_task2_done = false
+
+        local any_ehdl1 = jfork {
+            fast_task = function()
+                clock:posedge(2)
+                any_task1_done = true
+            end
+        }
+
+        local any_ehdl2 = jfork {
+            slow_task = function()
+                clock:posedge(100)
+                any_task2_done = true
+            end
+        }
+
+        local first = join_any(any_ehdl1, any_ehdl2)
+        assert(first == any_ehdl1, "join_any should return the faster task's handle")
+        assert(any_task1_done == true, "fast task should be done")
+        assert(any_task2_done == false, "slow task should NOT be done yet")
+        print("✓ join_any returns first completed handle")
+
+        -- Test 4.4: join_any with already-finished handle
+        local already_done_ehdl = jfork {
+            instant_task = function()
+                -- finishes immediately (no posedge wait)
+            end
+        }
+        clock:posedge(1) -- let it run
+
+        local pending_ehdl = jfork {
+            pending_task = function()
+                clock:posedge(50)
+            end
+        }
+
+        local first2 = join_any(already_done_ehdl, pending_ehdl)
+        assert(first2 == already_done_ehdl, "join_any should return already-finished handle immediately")
+        print("✓ join_any with already-finished handle")
+
+        -- Clean up: wait for remaining tasks to avoid dangling
+        join(any_ehdl2)
+        join(pending_ehdl)
+
+        print("✓ All join_any tests passed")
+
         --==============================================================================
         -- 5. Remove task test (using jfork returned task_id)
         --==============================================================================
