@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ✨ Added
 
+- **multi_task**: Add `task_group(function(tg) ... end)` — scoped concurrent task management that automatically tracks and joins all `tg:fork` tasks when the scope exits, eliminating forgotten-join bugs
 - **multi_task**: Add `join_any(ehdl1, ehdl2, ...)` — waits until any one of the given `jfork` tasks finishes and returns the first completed handle
 
 ### 🐛 Fixed

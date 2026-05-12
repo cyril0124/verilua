@@ -147,6 +147,118 @@ local first = join_any(ehdl1, ehdl2)
 :::note[`join_any` 只接受由 `jfork` 创建的 `EventHandle`，不支持普通的 `EventHandle`]
 :::
 
+## 任务组（Task Group）
+
+`task_group` 提供了作用域级别的并发任务管理。在 `task_group` 内通过 `tg:fork` 创建的所有任务会被自动追踪，当 body 函数返回时，`task_group` 会自动等待所有任务完成后才继续执行。
+
+这解决了一个常见的 bug：在复杂 testbench 中忘记 `join` 某个 `jfork` 任务，导致仿真提前结束而遗漏错误。
+
+### 基本用法
+
+```lua
+task_group(function(tg)
+    tg:fork { driver = function()
+        -- 驱动逻辑
+        dut.clock:posedge(100)
+    end }
+
+    tg:fork { monitor = function()
+        -- 监控逻辑
+        dut.clock:posedge(200)
+    end }
+
+    tg:fork { scoreboard = function()
+        -- 计分板逻辑
+        dut.clock:posedge(150)
+    end }
+end)
+-- 到这里，所有 task 保证已经执行完毕
+```
+
+### `tg:fork`
+
+在 task group 内创建一个或多个任务。支持单任务和多任务两种形式：
+
+```lua
+task_group(function(tg)
+    -- 单任务形式：返回 (EventHandle, TaskID)
+    local ehdl, task_id = tg:fork { my_task = function()
+        -- ...
+    end }
+
+    -- 多任务形式：一次 fork 多个 task，返回 nil
+    tg:fork {
+        driver = function()
+            -- ...
+        end,
+        monitor = function()
+            -- ...
+        end,
+    }
+end)
+```
+
+### `tg:join_all()`
+
+在 body 内显式等待组内所有任务完成。即使不调用，scope 退出时也会隐式调用一次：
+
+```lua
+task_group(function(tg)
+    tg:fork { phase1_a = function() dut.clock:posedge(10) end }
+    tg:fork { phase1_b = function() dut.clock:posedge(20) end }
+
+    tg:join_all() -- 等待 phase1 全部完成
+
+    -- 开始 phase2
+    tg:fork { phase2 = function() dut.clock:posedge(5) end }
+end)
+-- phase2 也会被自动 join
+```
+
+### `tg:join_any()`
+
+等待组内任意一个未完成的任务完成，返回最先完成的 `EventHandle`：
+
+```lua
+task_group(function(tg)
+    tg:fork { fast_path = function()
+        dut.clock:posedge(5)
+    end }
+    tg:fork { slow_path = function()
+        dut.clock:posedge(100)
+    end }
+
+    local first = tg:join_any()
+    -- first 是 fast_path 的 handle（因为它先完成）
+    -- 可以在这里做一些处理...
+end)
+-- scope 退出时 slow_path 也会被等待完成
+```
+
+如果组内所有任务都已完成，`tg:join_any()` 返回 `nil`。
+
+### 嵌套 Task Group
+
+`task_group` 支持嵌套，内层 group 不影响外层：
+
+```lua
+task_group(function(outer)
+    outer:fork { outer_task = function()
+        -- 在 outer_task 内部再创建一个 task_group
+        task_group(function(inner)
+            inner:fork { inner_a = function() dut.clock:posedge(10) end }
+            inner:fork { inner_b = function() dut.clock:posedge(20) end }
+        end)
+        -- inner group 全部完成后才继续
+    end }
+end)
+```
+
+:::tip[何时使用 `task_group` vs `jfork` + `join`]
+- 当你有多个并发任务且希望确保全部完成时，优先使用 `task_group`
+- 当你只需要 fork 单个任务并在特定位置等待时，直接使用 `jfork` + `join` 更简洁
+:::
+
 ## 注册任务回调
 Verilua 的 task 中支持 `posedge`、`negedge`、`edge`、`time` 仿真行为控制机制，能够满足大部分的硬件仿真交互场景。
 

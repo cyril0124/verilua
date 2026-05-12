@@ -887,6 +887,123 @@ do
         ---@diagnostic disable-next-line: missing-return
     end
 
+    --- Scoped concurrent task group.
+    --- All tasks forked via `tg:fork` are automatically tracked.
+    --- When the body function returns, `task_group` blocks until every task in the group finishes.
+    --- This eliminates the common bug of forgetting to `join` a `jfork`.
+    --- e.g.
+    --- ```lua
+    ---      task_group(function(tg)
+    ---          tg:fork { driver = function() ... end }
+    ---          tg:fork { monitor = function() ... end }
+    ---          -- do other work here
+    ---      end)
+    ---      -- All tasks guaranteed to be finished here
+    --- ```
+    ---
+    --- `tg:join_all()` and `tg:join_any()` can also be called explicitly inside the body:
+    --- ```lua
+    ---      task_group(function(tg)
+    ---          tg:fork { fast = function() ... end }
+    ---          tg:fork { slow = function() ... end }
+    ---          local first = tg:join_any() -- returns when any one finishes
+    ---          -- ...
+    ---      end)
+    ---      -- join_all is still called implicitly at scope exit
+    --- ```
+    ---@param body fun(tg: verilua.TaskGroup)
+    do
+        local next = next
+        local table_insert = table.insert
+        local unpack = unpack
+
+        ---@class verilua.TaskGroup
+        ---@field private _handles verilua.handles.EventHandle[]
+        local TaskGroup = {}
+        TaskGroup.__index = TaskGroup
+
+        --- Fork one or more tasks within this group. All tasks are automatically tracked for join.
+        --- When a single task is given, returns its (EventHandle, TaskID).
+        --- When multiple tasks are given, returns nil.
+        ---@param task_table table<verilua.scheduler.TaskName|number, verilua.scheduler.TaskFunction>
+        ---@return verilua.handles.EventHandle?, verilua.scheduler.TaskID?
+        function TaskGroup:fork(task_table)
+            assert(type(task_table) == "table", "`tg:fork` expects a table argument")
+            local handles = self._handles
+
+            -- O(1) check: is there more than one entry?
+            local first_key = next(task_table)
+            local second_key = next(task_table, first_key)
+
+            if second_key == nil then
+                -- Single task: pass directly to jfork
+                local ehdl, task_id = _G.jfork(task_table)
+                table_insert(handles, ehdl)
+                return ehdl, task_id
+            end
+
+            -- Multiple tasks: fork each one individually
+            for name, func in pairs(task_table) do
+                local ehdl = _G.jfork({ [name] = func })
+                table_insert(handles, ehdl)
+            end
+            return nil, nil
+        end
+
+        --- Wait for all tasks in this group to finish.
+        --- Handles that have already completed are skipped.
+        function TaskGroup:join_all()
+            local handles = self._handles
+            local n = #handles
+            if n == 0 then return end
+
+            local event_name_map = scheduler.event_name_map
+            local pending = {}
+            local pending_n = 0
+            for i = 1, n do
+                local ehdl = handles[i] ---@cast ehdl verilua.handles.EventHandle
+                if event_name_map[ehdl.event_id] then
+                    pending_n = pending_n + 1
+                    pending[pending_n] = ehdl
+                end
+            end
+            if pending_n > 0 then
+                _G.join(pending)
+            end
+        end
+
+        --- Wait for any one task in this group to finish.
+        --- Returns the EventHandle of the first task that completed.
+        ---@return verilua.handles.EventHandle?
+        function TaskGroup:join_any()
+            local handles = self._handles
+            local n = #handles
+            if n == 0 then return nil end
+
+            local event_name_map = scheduler.event_name_map
+            local pending = {}
+            local pending_n = 0
+            for i = 1, n do
+                local ehdl = handles[i] ---@cast ehdl verilua.handles.EventHandle
+                if event_name_map[ehdl.event_id] then
+                    pending_n = pending_n + 1
+                    pending[pending_n] = ehdl
+                end
+            end
+            if pending_n == 0 then
+                return nil
+            end
+            return _G.join_any(unpack(pending, 1, pending_n))
+        end
+
+        _G.task_group = function(body)
+            assert(type(body) == "function", "`task_group` expects a function argument")
+            local tg = setmetatable({ _handles = {} }, TaskGroup)
+            body(tg)
+            tg:join_all()
+        end
+    end
+
     --- Create initial tasks which will be executed at the start of simulation.
     --- These tasks are different from the tasks created by `verilua "appendTasks"` or `fork`,
     --- these tasks will be executed before all other tasks and only executed once.

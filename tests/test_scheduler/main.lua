@@ -354,6 +354,257 @@ fork {
         print("✓ All join_any tests passed")
 
         --==============================================================================
+        -- 4.5. task_group Test
+        --==============================================================================
+
+        print("\n--- 4.5. task_group Test ---")
+
+        -- Test 4.5.1: Basic task_group auto-joins all tasks
+        local tg_task1_done = false
+        local tg_task2_done = false
+        local tg_task3_done = false
+
+        task_group(function(tg)
+            tg:fork { tg_task1 = function()
+                clock:posedge(3)
+                tg_task1_done = true
+            end }
+            tg:fork { tg_task2 = function()
+                clock:posedge(5)
+                tg_task2_done = true
+            end }
+            tg:fork { tg_task3 = function()
+                clock:posedge(1)
+                tg_task3_done = true
+            end }
+        end)
+
+        -- After task_group returns, ALL tasks must be finished
+        assert(tg_task1_done, "task_group: task1 should be done")
+        assert(tg_task2_done, "task_group: task2 should be done")
+        assert(tg_task3_done, "task_group: task3 should be done")
+        print("✓ task_group auto-joins all tasks")
+
+        -- Test 4.5.2: task_group with explicit join_any inside body
+        local tg_fast_done = false
+        local tg_slow_done = false
+        local tg_any_result = nil
+
+        task_group(function(tg)
+            local fast_ehdl = tg:fork { tg_fast = function()
+                clock:posedge(2)
+                tg_fast_done = true
+            end }
+            tg:fork { tg_slow = function()
+                clock:posedge(50)
+                tg_slow_done = true
+            end }
+            tg_any_result = tg:join_any()
+            -- After join_any, fast should be done but slow should not
+            assert(tg_fast_done, "task_group join_any: fast task should be done")
+            assert(not tg_slow_done, "task_group join_any: slow task should NOT be done yet")
+            assert(tg_any_result == fast_ehdl, "task_group join_any: should return fast handle")
+        end)
+
+        -- After task_group scope exits, even the slow task is joined
+        assert(tg_slow_done, "task_group: slow task should be done after scope exit")
+        print("✓ task_group with join_any inside body")
+
+        -- Test 4.5.3: task_group with explicit join_all inside body
+        local tg_all_a_done = false
+        local tg_all_b_done = false
+
+        task_group(function(tg)
+            tg:fork { tg_all_a = function()
+                clock:posedge(4)
+                tg_all_a_done = true
+            end }
+            tg:fork { tg_all_b = function()
+                clock:posedge(6)
+                tg_all_b_done = true
+            end }
+            tg:join_all()
+            -- Both should be done after explicit join_all
+            assert(tg_all_a_done, "task_group explicit join_all: a should be done")
+            assert(tg_all_b_done, "task_group explicit join_all: b should be done")
+        end)
+        print("✓ task_group with explicit join_all")
+
+        -- Test 4.5.4: empty task_group (no tasks forked)
+        local empty_tg_reached_end = false
+        task_group(function(tg)
+            -- no forks
+            empty_tg_reached_end = true
+        end)
+        assert(empty_tg_reached_end, "empty task_group should complete immediately")
+        print("✓ empty task_group completes immediately")
+
+        -- Test 4.5.5: tg:fork with multiple tasks in one call
+        local tg_multi_a_done = false
+        local tg_multi_b_done = false
+        local tg_multi_c_done = false
+
+        task_group(function(tg)
+            tg:fork {
+                tg_multi_a = function()
+                    clock:posedge(2)
+                    tg_multi_a_done = true
+                end,
+                tg_multi_b = function()
+                    clock:posedge(4)
+                    tg_multi_b_done = true
+                end,
+                tg_multi_c = function()
+                    clock:posedge(6)
+                    tg_multi_c_done = true
+                end,
+            }
+        end)
+
+        assert(tg_multi_a_done, "task_group multi-fork: a should be done")
+        assert(tg_multi_b_done, "task_group multi-fork: b should be done")
+        assert(tg_multi_c_done, "task_group multi-fork: c should be done")
+        print("✓ task_group with multiple tasks in one tg:fork call")
+
+        -- Test 4.5.6: nested task_group
+        local nested_outer_done = false
+        local nested_inner1_done = false
+        local nested_inner2_done = false
+
+        task_group(function(outer)
+            outer:fork { nested_outer_task = function()
+                task_group(function(inner)
+                    inner:fork { nested_inner1 = function()
+                        clock:posedge(3)
+                        nested_inner1_done = true
+                    end }
+                    inner:fork { nested_inner2 = function()
+                        clock:posedge(5)
+                        nested_inner2_done = true
+                    end }
+                end)
+                -- inner group is fully joined here
+                assert(nested_inner1_done, "nested: inner1 should be done")
+                assert(nested_inner2_done, "nested: inner2 should be done")
+                nested_outer_done = true
+            end }
+        end)
+
+        assert(nested_outer_done, "nested: outer task should be done")
+        assert(nested_inner1_done, "nested: inner1 should be done after outer")
+        assert(nested_inner2_done, "nested: inner2 should be done after outer")
+        print("✓ nested task_group")
+
+        -- Test 4.5.7: task that finishes immediately (no yield)
+        local tg_instant_done = false
+        local tg_instant_with_yield_done = false
+
+        task_group(function(tg)
+            tg:fork { tg_instant = function()
+                -- No yield at all, finishes immediately
+                tg_instant_done = true
+            end }
+            tg:fork { tg_instant_with_yield = function()
+                clock:posedge(3)
+                tg_instant_with_yield_done = true
+            end }
+        end)
+
+        assert(tg_instant_done, "task_group: instant task should be done")
+        assert(tg_instant_with_yield_done, "task_group: yielding task should also be done")
+        print("✓ task_group with instantly-finishing task")
+
+        -- Test 4.5.8: phased execution (fork after join_all)
+        local tg_phase1_done = false
+        local tg_phase2_done = false
+
+        task_group(function(tg)
+            tg:fork { tg_phase1 = function()
+                clock:posedge(3)
+                tg_phase1_done = true
+            end }
+
+            tg:join_all() -- wait for phase 1
+            assert(tg_phase1_done, "phase1 should be done after explicit join_all")
+
+            -- Fork new tasks after join_all
+            tg:fork { tg_phase2 = function()
+                clock:posedge(5)
+                tg_phase2_done = true
+            end }
+        end)
+
+        assert(tg_phase2_done, "task_group: phase2 should be done after scope exit")
+        print("✓ task_group phased execution (fork after join_all)")
+
+        -- Test 4.5.9: join_any returns nil when all tasks already finished
+        task_group(function(tg)
+            tg:fork { tg_done_early = function()
+                -- finishes immediately
+            end }
+            clock:posedge(1) -- let it complete
+
+            local result = tg:join_any()
+            assert(result == nil, "join_any should return nil when all tasks already finished")
+        end)
+        print("✓ task_group join_any returns nil when all done")
+
+        -- Test 4.5.10: join_any called twice returns different handles
+        task_group(function(tg)
+            local e1 = tg:fork { tg_seq_a = function()
+                clock:posedge(2)
+            end }
+            local e2 = tg:fork { tg_seq_b = function()
+                clock:posedge(5)
+            end }
+
+            local first = tg:join_any()
+            assert(first == e1, "first join_any should return faster task")
+
+            local second = tg:join_any()
+            assert(second == e2, "second join_any should return the remaining task")
+
+            -- Now all done, should return nil
+            local third = tg:join_any()
+            assert(third == nil, "third join_any should return nil")
+        end)
+        print("✓ task_group join_any called multiple times")
+
+        -- Test 4.5.11: anonymous tasks (numeric keys)
+        local tg_anon1_done = false
+        local tg_anon2_done = false
+
+        task_group(function(tg)
+            tg:fork {
+                function()
+                    clock:posedge(2)
+                    tg_anon1_done = true
+                end,
+                function()
+                    clock:posedge(4)
+                    tg_anon2_done = true
+                end,
+            }
+        end)
+
+        assert(tg_anon1_done, "task_group: anonymous task 1 should be done")
+        assert(tg_anon2_done, "task_group: anonymous task 2 should be done")
+        print("✓ task_group with anonymous (numeric key) tasks")
+
+        -- Test 4.5.12: task error propagates (not silently swallowed)
+        local tg_error_ok = pcall(function()
+            task_group(function(tg)
+                tg:fork { tg_error_task = function()
+                    error("intentional test error")
+                end }
+            end)
+        end)
+        assert(not tg_error_ok, "task_group should propagate task errors")
+        print("✓ task_group propagates task errors")
+
+        print("✓ All task_group tests passed")
+
+        --==============================================================================
         -- 5. Remove task test (using jfork returned task_id)
         --==============================================================================
 
