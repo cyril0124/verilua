@@ -323,7 +323,7 @@ fork {
             end
         }
 
-        local first = join_any(any_ehdl1, any_ehdl2)
+        local first = join_any { any_ehdl1, any_ehdl2 }
         assert(first == any_ehdl1, "join_any should return the faster task's handle")
         assert(any_task1_done == true, "fast task should be done")
         assert(any_task2_done == false, "slow task should NOT be done yet")
@@ -343,7 +343,7 @@ fork {
             end
         }
 
-        local first2 = join_any(already_done_ehdl, pending_ehdl)
+        local first2 = join_any { already_done_ehdl, pending_ehdl }
         assert(first2 == already_done_ehdl, "join_any should return already-finished handle immediately")
         print("✓ join_any with already-finished handle")
 

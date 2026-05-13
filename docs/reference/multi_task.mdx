@@ -135,7 +135,7 @@ local ehdl2 = jfork {
     end
 }
 
-local first = join_any(ehdl1, ehdl2)
+local first = join_any { ehdl1, ehdl2 }
 -- first == ehdl1（因为 fast_task 先完成）
 ```
 

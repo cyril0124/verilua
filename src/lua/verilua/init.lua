@@ -819,14 +819,14 @@ do
     ---              -- body
     ---          end
     ---      }
-    ---      local first = join_any(ehdl1, ehdl2)
+    ---      local first = join_any { ehdl1, ehdl2 }
     ---      -- `first` is the handle of whichever task finished first
     --- ```
-    ---@param ... verilua.handles.EventHandle
+    ---@param ehdl_vec verilua.handles.EventHandle[]
     ---@return verilua.handles.EventHandle
-    _G.join_any = function(...)
-        local ehdls = { ... }
-        assert(#ehdls >= 1, "`join_any` requires at least one EventHandle")
+    _G.join_any = function(ehdl_vec)
+        local ehdls = ehdl_vec
+        assert(type(ehdls) == "table" and #ehdls >= 1, "`join_any` requires a non-empty table of EventHandles")
 
         for _, ehdl in ipairs(ehdls) do
             local e_type = type(ehdl)
@@ -915,7 +915,6 @@ do
     do
         local next = next
         local table_insert = table.insert
-        local unpack = unpack
 
         ---@class verilua.TaskGroup
         ---@field private _handles verilua.handles.EventHandle[]
@@ -993,7 +992,7 @@ do
             if pending_n == 0 then
                 return nil
             end
-            return _G.join_any(unpack(pending, 1, pending_n))
+            return _G.join_any(pending)
         end
 
         _G.task_group = function(body)
