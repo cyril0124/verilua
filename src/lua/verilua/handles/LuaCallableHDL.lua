@@ -102,6 +102,7 @@ local post_init_mt = setmetatable({
 ---@field reset_set_cached fun(self: verilua.handles.CallableHDL) Reset the cached value to `nil`
 ---@field private c_results ffi.cdata*
 ---@field value any Used for assign value based on value type
+---@field value_imm any Used for immediate assign value based on value type
 ---
 ---@field get fun(self: verilua.handles.CallableHDL, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
 ---@field get64 fun(self: verilua.handles.CallableHDL): uint64_t
@@ -694,8 +695,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.expect_bin_str = function(this, bin_value_str)
         assert(type(bin_value_str) == "string")
-        ---@diagnostic disable-next-line: missing-parameter
-        if this:get_str(BinStr):gsub("^0*", "") ~= bin_value_str:gsub("^0*") then
+        if this:get_str(BinStr):gsub("^0*", "") ~= bin_value_str:gsub("^0*", "") then
             assert(false, f("[%s] expect => %s, but got => %s", this.fullpath, bin_value_str, this:get_str(BinStr)))
         end
     end
@@ -716,8 +716,7 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.expect_not_bin_str = function(this, bin_value_str)
         assert(type(bin_value_str) == "string")
-        ---@diagnostic disable-next-line: missing-parameter
-        if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*") then
+        if this:get_str(BinStr):gsub("^0*", "") == bin_value_str:gsub("^0*", "") then
             assert(false, f("[%s] expect not => %s, but got => %s", this.fullpath, bin_value_str, this:get_str(BinStr)))
         end
     end
@@ -902,7 +901,7 @@ function CallableHDL:__newindex(k, v)
                 if self.beat_num == 1 then
                     self:set_imm_unsafe(v[1], true)
                 else
-                    self:set(v)
+                    self:set_imm(v)
                 end
             end
         elseif v_type == "cdata" then

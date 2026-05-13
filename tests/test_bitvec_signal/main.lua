@@ -77,6 +77,12 @@ fork {
             value32:set_bitfield_hex_str(0, 15, "beef")
             clock:negedge()
             expect.equal(value32:get_hex_str(), "deadbeef")
+
+            clock:negedge()
+            value32:set_hex_str("00000000")
+            clock:negedge()
+            value32:set_imm_bitfield_hex_str(0, 15, "cafe")
+            expect.equal(value32:get_hex_str(), "0000cafe")
         end
 
         do
@@ -92,6 +98,12 @@ fork {
             value64:set_bitfield_hex_str(0, 15, "beef")
             clock:negedge()
             expect.equal(value64:get_hex_str(), "0000dead0000beef")
+
+            clock:negedge()
+            value64:set_hex_str("0000000000000000")
+            clock:negedge()
+            value64:set_imm_bitfield_hex_str(0, 15, "cafe")
+            expect.equal(value64:get_hex_str(), "000000000000cafe")
         end
 
         do
@@ -115,6 +127,15 @@ fork {
         end
 
         do
+            clock:negedge()
+            value128.value = 0
+            clock:negedge()
+            value128:expect_hex_str("0")
+
+            clock:negedge()
+            value128.value_imm = { 0x123, 0x456, 0, 0 }
+            value128:expect_hex_str("00000000000000000000045600000123")
+
             clock:negedge()
             value128.value = 0
             clock:negedge()
@@ -156,6 +177,12 @@ fork {
             clock:negedge()
             assert(value128 == v({ 0x32, 0x34 }))
             value128:expect_hex_str("00000000000000000000003400000032")
+        end
+
+        do
+            value32:set_imm(0x5)
+            value32:expect_bin_str("0101")
+            value32:expect_not_bin_str("0110")
         end
 
         do

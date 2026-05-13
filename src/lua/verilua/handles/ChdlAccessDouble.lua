@@ -275,7 +275,7 @@ local function chdl_init()
 	chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
 		do
 			local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-			vpiml.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+			vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
 		end
 	end
 

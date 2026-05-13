@@ -200,7 +200,7 @@ do
         cfg_name = path.basename(cfg_name) -- strip basename
 
         if stringx.endswith(cfg_name, ".lua") then
-            cfg_name = stringx.rstrip(cfg_name, ".lua") -- strip ".lua" suffix
+            cfg_name = cfg_name:sub(1, -5) -- strip ".lua" suffix
         end
 
         local _cfg = require(cfg_name)

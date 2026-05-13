@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **init**: Fix `stringx.rstrip` misuse when stripping `.lua` suffix from config file names — names ending with chars in `{a, u, l, .}` were incorrectly truncated, causing `require()` failures
+- **CallableHDL**: Fix `expect_bin_str()` / `expect_not_bin_str()` crash due to missing `gsub` replacement argument — these APIs were completely unusable
+- **LuaDut**: Fix `release_all()` not clearing `force_path_table` — subsequent `force_all`/`release_all` cycles would double-release previously forced signals and leak memory
+- **ChdlAccess**: Fix `set_imm_bitfield_hex_str()` using deferred write instead of immediate write for single-beat and double-beat signals (code generator bug)
+- **CallableHDL**: Fix `value_imm` assignment using deferred `set()` instead of `set_imm()` for multi-beat table values
+
 ---
 
 ## v3.3.0 - 2026-04-28

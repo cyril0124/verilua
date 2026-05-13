@@ -262,10 +262,10 @@ local function chdl_init()
 
                 chdl.set{{prefix}}_bitfield_hex_str = function (this, s, e, hex_str)
                     if _G.IS_SINGLE then
-                        vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+                        vpiml.vpiml_set{{prefix}}_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
                     elseif _G.IS_DOUBLE then
                         local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-                        vpiml.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
+                        vpiml.vpiml_set{{prefix}}_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
                     elseif _G.IS_MULTI then
                         local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
                         this:set{{prefix}}_unsafe(bv.u32_vec)

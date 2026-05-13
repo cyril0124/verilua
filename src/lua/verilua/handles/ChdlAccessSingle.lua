@@ -213,7 +213,7 @@ local function chdl_init()
 
 	chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
 		do
-			vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+			vpiml.vpiml_set_imm_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
 		end
 	end
 

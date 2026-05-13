@@ -477,6 +477,8 @@ local function create_proxy(path, use_prefix)
             for _i, _path in ipairs(force_path_table) do
                 vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(_path))
             end
+
+            force_path_table = {}
         end,
 
         force_region = function(t, code_func)
