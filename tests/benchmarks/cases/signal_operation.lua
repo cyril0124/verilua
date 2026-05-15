@@ -58,7 +58,7 @@ fork {
 
                 do
                     local v2 = i % 64
-                    reg64:set(v2, true)
+                    reg64:set(v2)
                     clock:posedge()
                     assert(reg64:get() == v2)
 
@@ -74,7 +74,7 @@ fork {
 
                 do
                     local v3 = i % 128
-                    reg128:set(v3, true)
+                    reg128:set(v3)
                     clock:posedge()
                     assert(reg128:get64() == v3)
 

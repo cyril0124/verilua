@@ -1,5 +1,6 @@
--- gen_v2_double.lua
+-- gen_chdl_double.lua
 -- Generates the body for ChdlAccessDouble.lua (beat_num == 2)
+-- Safe APIs validate table length; unsafe APIs skip validation for hot paths.
 
 return function()
     return [[
@@ -28,22 +29,20 @@ chdl.get_bitvec = function(this)
     end
 end
 
-chdl.set = function(this, value, force_single_beat)
-    if force_single_beat then
+chdl.set = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_value64(this.hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
-        if #value ~= 2 then
-            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
-        end
+        assert(t == "table", "set() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
+        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
         vpiml.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
 
-chdl.set_unsafe = function(this, value, force_single_beat)
-    if force_single_beat then
+chdl.set_unsafe = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_value64(this.hdl, value)
     else
         vpiml.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2])
@@ -66,16 +65,13 @@ chdl.set_bitfield_hex_str = function(this, s, e, hex_str)
     vpiml.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
 end
 
-chdl.set_force = function(this, value, force_single_beat)
-    if force_single_beat then
+chdl.set_force = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_force_value64(this.hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set_force(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
-        if #value ~= 2 then
-            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
-        end
+        assert(t == "table", "set_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
+        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
         vpiml.vpiml_force_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
@@ -84,22 +80,20 @@ chdl.set_release = function(this)
     vpiml.vpiml_release_value(this.hdl)
 end
 
-chdl.set_imm = function(this, value, force_single_beat)
-    if force_single_beat then
+chdl.set_imm = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_imm_value64(this.hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
-        if #value ~= 2 then
-            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
-        end
+        assert(t == "table", "set_imm() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
+        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
         vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
 
-chdl.set_imm_unsafe = function(this, value, force_single_beat)
-    if force_single_beat then
+chdl.set_imm_unsafe = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_imm_value64(this.hdl, value)
     else
         vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, value[1], value[2])
@@ -122,16 +116,13 @@ chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
     vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
 end
 
-chdl.set_imm_force = function(this, value, force_single_beat)
-    if force_single_beat then
+chdl.set_imm_force = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_force_imm_value64(this.hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set_force(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
-        if #value ~= 2 then
-            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
-        end
+        assert(t == "table", "set_imm_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
+        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
         vpiml.vpiml_force_imm_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
@@ -187,24 +178,22 @@ chdl_array.get_index_bitvec = function(this, index)
     end
 end
 
-chdl_array.set_index = function(this, index, value, force_single_beat)
+chdl_array.set_index = function(this, index, value)
     local chosen_hdl = this.array_hdls[index + 1]
-    if force_single_beat then
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_value64(chosen_hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
-        if #value ~= 2 then
-            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
-        end
+        assert(t == "table", "set_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
+        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
         vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
     end
 end
 
-chdl_array.set_index_unsafe = function(this, index, value, force_single_beat)
+chdl_array.set_index_unsafe = function(this, index, value)
     local chosen_hdl = this.array_hdls[index + 1]
-    if force_single_beat then
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_value64(chosen_hdl, value)
     else
         vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
@@ -223,38 +212,34 @@ chdl_array.set_index_bitfield_hex_str = function(this, index, s, e, hex_str)
     vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
 end
 
-chdl_array.set_index_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_index_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index(index, values[index + 1], force_single_beat)
+        this:set_index(index, values[index + 1])
     end
 end
 
-chdl_array.set_index_unsafe_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_index_unsafe_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index_unsafe(index, values[index + 1], force_single_beat)
+        this:set_index_unsafe(index, values[index + 1])
     end
 end
 
-chdl_array.set_imm_index = function(this, index, value, force_single_beat)
+chdl_array.set_imm_index = function(this, index, value)
     local chosen_hdl = this.array_hdls[index + 1]
-    if force_single_beat then
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_imm_value64(chosen_hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
-        if #value ~= 2 then
-            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)
-        end
+        assert(t == "table", "set_imm_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
+        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
         vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, value[1], value[2])
     end
 end
 
-chdl_array.set_imm_index_unsafe = function(this, index, value, force_single_beat)
+chdl_array.set_imm_index_unsafe = function(this, index, value)
     local chosen_hdl = this.array_hdls[index + 1]
-    if force_single_beat then
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_imm_value64(chosen_hdl, value)
     else
         vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, value[1], value[2])
@@ -273,17 +258,15 @@ chdl_array.set_imm_index_bitfield_hex_str = function(this, index, s, e, hex_str)
     vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
 end
 
-chdl_array.set_imm_index_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_imm_index_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index(index, values[index + 1], force_single_beat)
+        this:set_imm_index(index, values[index + 1])
     end
 end
 
-chdl_array.set_imm_index_unsafe_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_imm_index_unsafe_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index_unsafe(index, values[index + 1], force_single_beat)
+        this:set_imm_index_unsafe(index, values[index + 1])
     end
 end
 ]]

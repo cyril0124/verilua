@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **multi_task**: Add `task_group(function(tg) ... end)` — scoped concurrent task management that automatically tracks and joins all `tg:fork` tasks when the scope exits, eliminating forgotten-join bugs
 - **multi_task**: Add `join_any { ehdl1, ehdl2, ... }` — waits until any one of the given `jfork` tasks finishes and returns the first completed handle
 
+### 💥 Breaking Changes
+
+- **ChdlAccess**: `set()` / `set_imm()` / `set_force()` / `set_imm_force()` for Double/Multi signals now auto-dispatch by `type(value)` instead of requiring a `force_single_beat` boolean flag. Pass a number/cdata for scalar writes, pass a table for multi-beat writes. The old `set(value, true)` still works (second arg is ignored) but is deprecated.
+
+### ⚙️ Changed
+
+- **ChdlAccess**: Rewrite code generator from LuaJIT-Pro to plain Lua; generated functions are now module-level singletons shared across all handle instances (monomorphic call sites, zero per-instance allocation)
+
 ### 🐛 Fixed
 
 - **init**: Fix `stringx.rstrip` misuse when stripping `.lua` suffix from config file names — names ending with chars in `{a, u, l, .}` were incorrectly truncated, causing `require()` failures

@@ -1,9 +1,11 @@
--- gen_v2_multi.lua
+-- gen_chdl_multi.lua
 -- Generates the body for ChdlAccessMulti.lua (beat_num >= 3)
 
 -- Helper to generate the beat_num dispatch chain for multi-beat set operations
-local function gen_multi_set_dispatch(vpi_prefix)
+local function gen_multi_set_dispatch(vpi_prefix, hdl_expr)
+    hdl_expr = hdl_expr or "this.hdl"
     local lines = {}
+    lines[#lines + 1] = "        assert(t == \"table\", \"set() expects number, uint64_t, or table; got \" .. t .. \", fullpath => \" .. this.fullpath)"
     lines[#lines + 1] = "        local beat_num = this.beat_num"
     lines[#lines + 1] = "        if #value ~= beat_num then"
     lines[#lines + 1] = '            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)'
@@ -14,19 +16,20 @@ local function gen_multi_set_dispatch(vpi_prefix)
         for i = 1, n do args[i] = "value[" .. i .. "]" end
         local kw = n == 3 and "if" or "elseif"
         lines[#lines + 1] = string.format("        %s beat_num == %d then", kw, n)
-        lines[#lines + 1] = string.format("            vpiml.%s_multi_beat_%d(this.hdl, %s)", vpi_prefix, n, table.concat(args, ", "))
+        lines[#lines + 1] = string.format("            vpiml.%s_multi_beat_%d(%s, %s)", vpi_prefix, n, hdl_expr, table.concat(args, ", "))
     end
     lines[#lines + 1] = "        else"
     lines[#lines + 1] = "            for i = 1, this.beat_num do"
     lines[#lines + 1] = "                this.c_results[i - 1] = value[i]"
     lines[#lines + 1] = "            end"
-    lines[#lines + 1] = string.format("            vpiml.%s_multi(this.hdl, this.c_results)", vpi_prefix)
+    lines[#lines + 1] = string.format("            vpiml.%s_multi(%s, this.c_results)", vpi_prefix, hdl_expr)
     lines[#lines + 1] = "        end"
     return table.concat(lines, "\n")
 end
 
 -- Helper for unsafe variant (no type/length checks)
-local function gen_multi_set_unsafe_dispatch(vpi_prefix)
+local function gen_multi_set_unsafe_dispatch(vpi_prefix, hdl_expr)
+    hdl_expr = hdl_expr or "this.hdl"
     local lines = {}
     lines[#lines + 1] = "        local beat_num = this.beat_num"
     for n = 3, 8 do
@@ -34,39 +37,13 @@ local function gen_multi_set_unsafe_dispatch(vpi_prefix)
         for i = 1, n do args[i] = "value[" .. i .. "]" end
         local kw = n == 3 and "if" or "elseif"
         lines[#lines + 1] = string.format("        %s beat_num == %d then", kw, n)
-        lines[#lines + 1] = string.format("            vpiml.%s_multi_beat_%d(this.hdl, %s)", vpi_prefix, n, table.concat(args, ", "))
+        lines[#lines + 1] = string.format("            vpiml.%s_multi_beat_%d(%s, %s)", vpi_prefix, n, hdl_expr, table.concat(args, ", "))
     end
     lines[#lines + 1] = "        else"
     lines[#lines + 1] = "            for i = 1, this.beat_num do"
     lines[#lines + 1] = "                this.c_results[i - 1] = value[i]"
     lines[#lines + 1] = "            end"
-    lines[#lines + 1] = string.format("            vpiml.%s_multi(this.hdl, this.c_results)", vpi_prefix)
-    lines[#lines + 1] = "        end"
-    return table.concat(lines, "\n")
-end
-
--- Helper for array set_index dispatch (uses chosen_hdl instead of this.hdl)
-local function gen_multi_array_set_dispatch(vpi_prefix, with_checks)
-    local lines = {}
-    lines[#lines + 1] = "        local beat_num = this.beat_num"
-    if with_checks then
-        lines[#lines + 1] = "        if #value ~= beat_num then"
-        lines[#lines + 1] = '            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)'
-        lines[#lines + 1] = "        end"
-        lines[#lines + 1] = ""
-    end
-    for n = 3, 8 do
-        local args = {}
-        for i = 1, n do args[i] = "value[" .. i .. "]" end
-        local kw = n == 3 and "if" or "elseif"
-        lines[#lines + 1] = string.format("        %s beat_num == %d then", kw, n)
-        lines[#lines + 1] = string.format("            vpiml.%s_multi_beat_%d(chosen_hdl, %s)", vpi_prefix, n, table.concat(args, ", "))
-    end
-    lines[#lines + 1] = "        else"
-    lines[#lines + 1] = "            for i = 1, this.beat_num do"
-    lines[#lines + 1] = "                this.c_results[i - 1] = value[i]"
-    lines[#lines + 1] = "            end"
-    lines[#lines + 1] = string.format("            vpiml.%s_multi(chosen_hdl, this.c_results)", vpi_prefix)
+    lines[#lines + 1] = string.format("            vpiml.%s_multi(%s, this.c_results)", vpi_prefix, hdl_expr)
     lines[#lines + 1] = "        end"
     return table.concat(lines, "\n")
 end
@@ -98,42 +75,38 @@ chdl.get_bitvec = function(this)
 end
 ]])
 
-    -- Generate set/set_imm/set_force/set_imm_force with their dispatch chains
+    -- Generate set/set_imm/set_force/set_imm_force with type-based auto-dispatch
     local set_variants = {
-        { name = "set",           vpi = "vpiml_set_value",           vpi64 = "vpiml_set_value64_force_single",           err_api = "set" },
-        { name = "set_imm",      vpi = "vpiml_set_imm_value",      vpi64 = "vpiml_set_imm_value64_force_single",      err_api = "set" },
-        { name = "set_force",    vpi = "vpiml_force_value",         vpi64 = "vpiml_force_value64_force_single",         err_api = "set_force" },
-        { name = "set_imm_force", vpi = "vpiml_force_imm_value",    vpi64 = "vpiml_force_imm_value64_force_single",    err_api = "set_force" },
+        { name = "set",           vpi = "vpiml_set_value",       vpi64 = "vpiml_set_value64_force_single" },
+        { name = "set_imm",      vpi = "vpiml_set_imm_value",   vpi64 = "vpiml_set_imm_value64_force_single" },
+        { name = "set_force",    vpi = "vpiml_force_value",      vpi64 = "vpiml_force_value64_force_single" },
+        { name = "set_imm_force", vpi = "vpiml_force_imm_value", vpi64 = "vpiml_force_imm_value64_force_single" },
     }
 
     for _, sv in ipairs(set_variants) do
         emit(string.format([[
-chdl.%s = function(this, value, force_single_beat)
-    if force_single_beat then
-        if type(value) == "table" then
-            assert(false)
-        end
+chdl.%s = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.%s(this.hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:%s(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
 %s
     end
 end
-]], sv.name, sv.vpi64, sv.err_api, gen_multi_set_dispatch(sv.vpi)))
+]], sv.name, sv.vpi64, gen_multi_set_dispatch(sv.vpi)))
     end
 
     -- Unsafe variants
     local unsafe_variants = {
-        { name = "set_unsafe",     vpi = "vpiml_set_value",      vpi64 = "vpiml_set_value64_force_single" },
-        { name = "set_imm_unsafe", vpi = "vpiml_set_imm_value",  vpi64 = "vpiml_set_imm_value64_force_single" },
+        { name = "set_unsafe",     vpi = "vpiml_set_value",     vpi64 = "vpiml_set_value64_force_single" },
+        { name = "set_imm_unsafe", vpi = "vpiml_set_imm_value", vpi64 = "vpiml_set_imm_value64_force_single" },
     }
 
     for _, sv in ipairs(unsafe_variants) do
         emit(string.format([[
-chdl.%s = function(this, value, force_single_beat)
-    if force_single_beat then
+chdl.%s = function(this, value)
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.%s(this.hdl, value)
     else
 %s
@@ -142,7 +115,7 @@ end
 ]], sv.name, sv.vpi64, gen_multi_set_unsafe_dispatch(sv.vpi)))
     end
 
-    -- Bitfield variants
+    -- Bitfield, cached, release variants
     emit([[
 chdl.set_bitfield = function(this, s, e, v)
     local bv = this:get_bitvec():_set_bitfield(s, e, v)
@@ -222,7 +195,7 @@ chdl_array.get_index_bitvec = function(this, index)
 end
 ]])
 
-    -- Array set_index variants
+    -- Array set_index variants with type-based dispatch
     local array_set_variants = {
         { name = "set_index",     vpi = "vpiml_set_value",     vpi64 = "vpiml_set_value64_force_single" },
         { name = "set_imm_index", vpi = "vpiml_set_imm_value", vpi64 = "vpiml_set_imm_value64_force_single" },
@@ -230,40 +203,36 @@ end
 
     for _, sv in ipairs(array_set_variants) do
         emit(string.format([[
-chdl_array.%s = function(this, index, value, force_single_beat)
+chdl_array.%s = function(this, index, value)
     local chosen_hdl = this.array_hdls[index + 1]
-    if force_single_beat then
-        if type(value) == "table" then
-            assert(false)
-        end
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.%s(chosen_hdl, value)
     else
-        if type(value) ~= "table" then
-            assert(false, type(value) .. " =/= table \n" .. this.name .. " is a multibeat hdl, <value> should be a multibeat value which is represented as a <table> in verilua or you can call <CallableHDL>:set(<value>, <force_single_beat>) with <force_single_beat> == true, name => " .. this.fullpath)
-        end
 %s
     end
 end
-]], sv.name, sv.vpi64, gen_multi_array_set_dispatch(sv.vpi, true)))
+]], sv.name, sv.vpi64, gen_multi_set_dispatch(sv.vpi, "chosen_hdl")))
     end
 
     -- Array unsafe variants
     local array_unsafe_variants = {
-        { name = "set_index_unsafe",     vpi = "vpiml_set_value",     vpi64 = "vpiml_force_value64_force_single" },
-        { name = "set_imm_index_unsafe", vpi = "vpiml_set_imm_value", vpi64 = "vpiml_force_imm_value64_force_single" },
+        { name = "set_index_unsafe",     vpi = "vpiml_set_value",     vpi64 = "vpiml_set_value64_force_single" },
+        { name = "set_imm_index_unsafe", vpi = "vpiml_set_imm_value", vpi64 = "vpiml_set_imm_value64_force_single" },
     }
 
     for _, sv in ipairs(array_unsafe_variants) do
         emit(string.format([[
-chdl_array.%s = function(this, index, value, force_single_beat)
+chdl_array.%s = function(this, index, value)
     local chosen_hdl = this.array_hdls[index + 1]
-    if force_single_beat then
+    local t = type(value)
+    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.%s(chosen_hdl, value)
     else
 %s
     end
 end
-]], sv.name, sv.vpi64, gen_multi_array_set_dispatch(sv.vpi, false)))
+]], sv.name, sv.vpi64, gen_multi_set_unsafe_dispatch(sv.vpi, "chosen_hdl")))
     end
 
     -- Array bitfield and bulk variants
@@ -288,31 +257,27 @@ chdl_array.set_imm_index_bitfield_hex_str = function(this, index, s, e, hex_str)
     this:set_index_unsafe(index, bv.u32_vec)
 end
 
-chdl_array.set_index_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_index_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index(index, values[index + 1], force_single_beat)
+        this:set_index(index, values[index + 1])
     end
 end
 
-chdl_array.set_index_unsafe_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_index_unsafe_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index_unsafe(index, values[index + 1], force_single_beat)
+        this:set_index_unsafe(index, values[index + 1])
     end
 end
 
-chdl_array.set_imm_index_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_imm_index_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index(index, values[index + 1], force_single_beat)
+        this:set_imm_index(index, values[index + 1])
     end
 end
 
-chdl_array.set_imm_index_unsafe_all = function(this, values, force_single_beat)
-    force_single_beat = force_single_beat or false
+chdl_array.set_imm_index_unsafe_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index_unsafe(index, values[index + 1], force_single_beat)
+        this:set_imm_index_unsafe(index, values[index + 1])
     end
 end
 ]])
