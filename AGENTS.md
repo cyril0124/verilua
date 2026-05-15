@@ -34,7 +34,7 @@
 
 - Generated-code workflows are documented in `./DEVELOPMENT.md`; keep the detailed source-to-generated file mapping there to avoid duplication.
 - For scheduler changes, edit `./src/gen/gen_scheduler.lua` and regenerate from `./src/gen`.
-- For CHDL access changes, edit `./src/gen/gen_chdl_access.lua` and regenerate from `./src/gen`.
+- For CHDL access changes, edit `./src/gen/gen_chdl_access.lua` (and its `gen_chdl_*.lua` modules) and regenerate from `./src/gen`.
 - For generated Rust changes, edit `./libverilua/src/gen/gen.lua` and regenerate from `./libverilua/src/gen`.
 
 ## Code Style

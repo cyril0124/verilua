@@ -45,7 +45,7 @@ This separation keeps the generated Lua glue code minimal and fast: each variant
 If you need to change how Lua talks to CHDL (e.g., add a new bit-width, change the FFI signatures, or tweak the callback policy) you edit the single generator instead of touching any of the three hand-tuned files.
 
 **To modify CHDL access files:**
-1. Edit the generator: `src/gen/gen_chdl_access.lua`
+1. Edit the generator: `src/gen/gen_chdl_access.lua` (main entry) and its variant modules `gen_chdl_single.lua`, `gen_chdl_double.lua`, `gen_chdl_multi.lua`
 2. Run the generation script: `cd src/gen && ./gen_chdl_access.sh`
 
 The following files are generated (in `src/lua/verilua/handles/`):
