@@ -4,48 +4,57 @@
 -- Helper to generate the beat_num dispatch chain for multi-beat set operations
 local function gen_multi_set_dispatch(vpi_prefix, hdl_expr)
     hdl_expr = hdl_expr or "this.hdl"
-    local lines = {}
-    lines[#lines + 1] = "        assert(t == \"table\", \"set() expects number, uint64_t, or table; got \" .. t .. \", fullpath => \" .. this.fullpath)"
-    lines[#lines + 1] = "        local beat_num = this.beat_num"
-    lines[#lines + 1] = "        if #value ~= beat_num then"
-    lines[#lines + 1] = '            assert(false, "len: " .. #value .. " =/= " .. this.beat_num)'
-    lines[#lines + 1] = "        end"
-    lines[#lines + 1] = ""
+
+    -- Generate beat_3..beat_8 branches
+    local branches = {}
     for n = 3, 8 do
         local args = {}
         for i = 1, n do args[i] = "value[" .. i .. "]" end
         local kw = n == 3 and "if" or "elseif"
-        lines[#lines + 1] = string.format("        %s beat_num == %d then", kw, n)
-        lines[#lines + 1] = string.format("            vpiml.%s_multi_beat_%d(%s, %s)", vpi_prefix, n, hdl_expr, table.concat(args, ", "))
+        branches[#branches + 1] = string.format(
+            "        %s beat_num == %d then\n            vpiml.%s_multi_beat_%d(%s, %s)",
+            kw, n, vpi_prefix, n, hdl_expr, table.concat(args, ", ")
+        )
     end
-    lines[#lines + 1] = "        else"
-    lines[#lines + 1] = "            for i = 1, this.beat_num do"
-    lines[#lines + 1] = "                this.c_results[i - 1] = value[i]"
-    lines[#lines + 1] = "            end"
-    lines[#lines + 1] = string.format("            vpiml.%s_multi(%s, this.c_results)", vpi_prefix, hdl_expr)
-    lines[#lines + 1] = "        end"
-    return table.concat(lines, "\n")
+
+    return string.format([[
+        if t ~= "table" then assert(false, "set() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        local beat_num = this.beat_num
+        if #value ~= beat_num then assert(false, "len: " .. #value .. " =/= " .. this.beat_num) end
+
+%s
+        else
+            for i = 1, this.beat_num do
+                this.c_results[i - 1] = value[i]
+            end
+            vpiml.%s_multi(%s, this.c_results)
+        end]], table.concat(branches, "\n"), vpi_prefix, hdl_expr)
 end
 
 -- Helper for unsafe variant (no type/length checks)
 local function gen_multi_set_unsafe_dispatch(vpi_prefix, hdl_expr)
     hdl_expr = hdl_expr or "this.hdl"
-    local lines = {}
-    lines[#lines + 1] = "        local beat_num = this.beat_num"
+
+    local branches = {}
     for n = 3, 8 do
         local args = {}
         for i = 1, n do args[i] = "value[" .. i .. "]" end
         local kw = n == 3 and "if" or "elseif"
-        lines[#lines + 1] = string.format("        %s beat_num == %d then", kw, n)
-        lines[#lines + 1] = string.format("            vpiml.%s_multi_beat_%d(%s, %s)", vpi_prefix, n, hdl_expr, table.concat(args, ", "))
+        branches[#branches + 1] = string.format(
+            "        %s beat_num == %d then\n            vpiml.%s_multi_beat_%d(%s, %s)",
+            kw, n, vpi_prefix, n, hdl_expr, table.concat(args, ", ")
+        )
     end
-    lines[#lines + 1] = "        else"
-    lines[#lines + 1] = "            for i = 1, this.beat_num do"
-    lines[#lines + 1] = "                this.c_results[i - 1] = value[i]"
-    lines[#lines + 1] = "            end"
-    lines[#lines + 1] = string.format("            vpiml.%s_multi(%s, this.c_results)", vpi_prefix, hdl_expr)
-    lines[#lines + 1] = "        end"
-    return table.concat(lines, "\n")
+
+    return string.format([[
+        local beat_num = this.beat_num
+%s
+        else
+            for i = 1, this.beat_num do
+                this.c_results[i - 1] = value[i]
+            end
+            vpiml.%s_multi(%s, this.c_results)
+        end]], table.concat(branches, "\n"), vpi_prefix, hdl_expr)
 end
 
 return function()

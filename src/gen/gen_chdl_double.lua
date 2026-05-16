@@ -34,8 +34,8 @@ chdl.set = function(this, value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_value64(this.hdl, value)
     else
-        assert(t == "table", "set() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
-        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
+        if t ~= "table" then assert(false, "set() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_set_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
@@ -70,8 +70,8 @@ chdl.set_force = function(this, value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_force_value64(this.hdl, value)
     else
-        assert(t == "table", "set_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
-        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
+        if t ~= "table" then assert(false, "set_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_force_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
@@ -85,8 +85,8 @@ chdl.set_imm = function(this, value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_imm_value64(this.hdl, value)
     else
-        assert(t == "table", "set_imm() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
-        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
+        if t ~= "table" then assert(false, "set_imm() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
@@ -121,8 +121,8 @@ chdl.set_imm_force = function(this, value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_force_imm_value64(this.hdl, value)
     else
-        assert(t == "table", "set_imm_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
-        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
+        if t ~= "table" then assert(false, "set_imm_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_force_imm_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
@@ -184,8 +184,8 @@ chdl_array.set_index = function(this, index, value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_value64(chosen_hdl, value)
     else
-        assert(t == "table", "set_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
-        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
+        if t ~= "table" then assert(false, "set_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
     end
 end
@@ -230,8 +230,8 @@ chdl_array.set_imm_index = function(this, index, value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_imm_value64(chosen_hdl, value)
     else
-        assert(t == "table", "set_imm_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath)
-        assert(#value == 2, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath)
+        if t ~= "table" then assert(false, "set_imm_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, value[1], value[2])
     end
 end
