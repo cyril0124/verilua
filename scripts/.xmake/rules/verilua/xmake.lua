@@ -100,11 +100,16 @@ local function get_build_dir(target, sim)
     local top = get_verilua_value(target, "verilua.top") or target:name()
     local build_dir_name = cfg_build_dir_name or top --[[@as string]]
     local build_dir_path = cfg_build_dir_path or path.join("build", sim) --[[@as string]]
-    local build_dir = cfg_build_dir or path.absolute(path.join(build_dir_path, build_dir_name)) --[[@as string]]
+    local build_dir = cfg_build_dir or path.absolute(path.join(build_dir_path, build_dir_name), os.projectdir()) --[[@as string]]
     return build_dir, build_dir_name, build_dir_path
 end
 
 local function before_build_or_run(target)
+    -- Restore cwd to project directory. A previous target's on_run may have
+    -- changed cwd to its build_dir (needed by after_run hooks that use
+    -- relative paths). We reset here so this target resolves paths correctly.
+    os.cd(os.projectdir())
+
     local old_cprint = cprint
     local cprint = function(fmt, ...)
         if not is_quiet_mode() then
@@ -141,7 +146,7 @@ local function before_build_or_run(target)
     ]])
 
     -- Used in `on_build` or `on_run` phase
-    target:add("sim", sim)
+    target:set("sim", sim)
     cprint("${✅} [verilua-xmake] [%s] simulator/toolchain is ${green underline}%s${reset}", target:name(), sim)
 
     --- Check top module
@@ -156,7 +161,7 @@ local function before_build_or_run(target)
                     You should set 'top' by `set_values("verilua.top", "<your_top_module_name>")`
             ]]
     )
-    target:add("top", top) -- Used in `on_build` phase
+    target:set("top", top) -- Used in `on_build` phase
     cprint("${✅} [verilua-xmake] [%s] top module is ${green underline}%s${reset}", target:name(), top)
 
     -- Used in `on_build` and `on_run` phases
@@ -167,7 +172,7 @@ local function before_build_or_run(target)
         if sim == "wave_vpi" then
             tb_top = top
         end
-        target:add("tb_top", tb_top)
+        target:set("tb_top", tb_top)
     end
 
     -- Check if VERILUA_HOME is set.
@@ -226,8 +231,8 @@ local function before_build_or_run(target)
             target:name()
         )
     end
-    target:add("build_dir", build_dir)         -- Used in `on_build` and `on_run` phases
-    target:add("sim_build_dir", sim_build_dir) -- Used in `on_build` and `on_run` phases
+    target:set("build_dir", build_dir)         -- Used in `on_build` and `on_run` phases
+    target:set("sim_build_dir", sim_build_dir) -- Used in `on_build` and `on_run` phases
     cprint("${✅} [verilua-xmake] [%s] build directory is ${green underline}%s${reset}", target:name(), build_dir)
 
     -- Generate build directory if not exists
@@ -273,7 +278,7 @@ local function before_build_or_run(target)
             cfg_lua_main,
             "[before_build_or_run] You should set 'verilua.lua_main' by set_values(\"verilua.lua_main\", \"<your_lua_main_script>\")"
         )
-        lua_main = path.absolute(cfg_lua_main)
+        lua_main = path.absolute(cfg_lua_main, os.projectdir())
     end
     cprint("${✅} [verilua-xmake] [%s] lua main is ${green underline}%s${reset}", target:name(), lua_main)
     -- Save lua_main directory into deps_str
@@ -312,7 +317,7 @@ local function before_build_or_run(target)
     else
         local _user_cfg = user_cfg
         user_cfg = path.basename(user_cfg)
-        user_cfg_path = path.absolute(path.directory(_user_cfg))
+        user_cfg_path = path.absolute(path.directory(_user_cfg), os.projectdir())
         cprint("${✅} [verilua-xmake] [%s] user_cfg is ${green underline}%s${reset}", target:name(), user_cfg)
     end
 
@@ -355,7 +360,7 @@ return cfg
         lock:unlock()
         lock:close()
     end
-    target:add("verilua_cfg_file", verilua_cfg_file) -- Used in `on_build` and `on_run` phases
+    target:set("verilua_cfg_file", verilua_cfg_file) -- Used in `on_build` and `on_run` phases
 
     -- Extra info provided by instrumentation
     local _instrumentation = target:values("instrumentation")
@@ -403,7 +408,7 @@ return cfg
             end
         end
         if waveform_file ~= "" then
-            target:add("waveform_file", waveform_file) -- Used in `on_build` and `on_run` phases
+            target:set("waveform_file", waveform_file) -- Used in `on_build` and `on_run` phases
         end
     end
 
@@ -1525,7 +1530,7 @@ rule("verilua", function()
                 local opt_fast = user_opt_fast or "-O3 -march=native"
 
                 -- TODO: consider PGO optimization
-                os.cd(sim_build_dir)
+                local olddir = os.cd(sim_build_dir)
                 os.vrun(
                     [[make -j%d VM_PARALLEL_BUILDS=1 OPT_SLOW="%s" OPT_FAST="%s" -C %s -f %s]],
                     nproc,
@@ -1534,7 +1539,7 @@ rule("verilua", function()
                     sim_build_dir,
                     tb_top_mk
                 )
-                os.cd(os.curdir())
+                os.cd(olddir)
             elseif sim == "xcelium" and #cfiles > 0 then
                 -- Build libdpi.so
                 local cc = os.getenv("CC") or "gcc"
@@ -1763,7 +1768,7 @@ verdi -f filelist.f -sv -nologo $@]]
         --- VERILUA_CFG will be used when verilua call `init.lua` to load user configuration file
         os.setenv("VERILUA_CFG", target:get("verilua_cfg_file"))
 
-        -- Move into build directory to execute our simulation
+        -- Move into build directory to execute our simulation.
         os.cd(build_dir)
 
         --- `<sim>.run_flags` and `<sim>.run_prefix` is provided for the user to controlling the simulation runtime behavior.
