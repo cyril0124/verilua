@@ -62,6 +62,7 @@ const sidebars: SidebarsConfig = {
         'reference/queue',
         'reference/type_expect',
         'reference/bitvec',
+        'reference/lua_utils',
         'reference/str_bits_utils',
         'reference/symbol_helper',
         'reference/await_time',

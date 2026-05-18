@@ -1,0 +1,450 @@
+# 通用工具函数（LuaUtils）
+
+`LuaUtils` 是 Verilua 提供的通用工具模块，包含数值转换、位操作、字符串处理、枚举定义、随机数生成、环境变量读取、矩阵调用等常用功能。它是验证代码中使用频率最高的基础工具集之一。
+
+## 初始化
+
+```lua
+local utils = require "verilua.LuaUtils"
+```
+
+## 函数概览
+
+### 数值与进制转换
+
+| 函数 | 描述 |
+| --- | --- |
+| `to_hex_str(t, separator?)` | 将整数、cdata 或 table 转为十六进制字符串 |
+| `to_hex(hex_table)` | 将数值或 table 转为十六进制字符串（空格分隔） |
+| `hex_str_to_ull(hex_str)` | 十六进制字符串转 `uint64_t` |
+| `hex_str_to_ll(hex_str)` | 十六进制字符串转 `int64_t` |
+| `num_to_binstr(num)` | 整数转二进制字符串 |
+| `hex_to_bin(hex_str)` | 十六进制字符串转二进制字符串 |
+| `bin_str_to_hex_str(bin_str)` | 二进制字符串转十六进制字符串 |
+
+### 位操作
+
+| 函数 | 描述 |
+| --- | --- |
+| `bitfield32(begin, endd, val)` | 提取 32 位值的指定位域 |
+| `bitfield64(begin, endd, val)` | 提取 64 位值的指定位域 |
+| `bitfield_str(str, s, e, width?)` | 从字符串表示的数值中提取位域 |
+| `bitmask(n)` | 返回 n 位全 1 掩码 |
+| `reset_bits(value, start, length)` | 将指定范围的位清零 |
+| `to64bit(hi, lo)` | 将高低 32 位合并为 64 位值 |
+| `uint_to_onehot(uint_value)` | 将无符号整数转为 one-hot 编码 |
+| `bitpat_to_hex_str(bitpat_tbl, width?)` | 将位模式表转为十六进制字符串 |
+| `log2Ceil(n)` | 计算 log₂ 的上取整 |
+
+### 随机化
+
+| 函数 | 描述 |
+| --- | --- |
+| `urandom64()` | 生成 64 位随机无符号整数 |
+| `urandom64_range(min, max)` | 在 `[min, max]` 范围内生成 64 位随机数 |
+| `shuffle(t)` | 原地随机打乱 table |
+| `shuffle_bits(bitwidth)` | 生成指定位宽的随机值 |
+| `shuffle_bits_hex_str(bitwidth)` | 生成指定位宽的随机十六进制字符串 |
+
+### 字符串处理
+
+| 函数 | 描述 |
+| --- | --- |
+| `str_group_by(str, nr_group)` | 将字符串按指定大小分组 |
+| `str_sep(str, step, separator)` | 每隔 step 个字符插入分隔符 |
+| `compare_hex_str(str1, str2)` | 比较两个十六进制字符串（忽略前导零和大小写） |
+| `compare_value_str(str1, str2)` | 比较两个带前缀的数值字符串 |
+
+### 枚举
+
+| 函数 | 描述 |
+| --- | --- |
+| `enum_define(enum_table)` | 定义一个可反向查找的枚举 |
+| `enum_search(t, v)` | 在枚举表中按值查找键名 |
+
+### 环境变量
+
+| 函数 | 描述 |
+| --- | --- |
+| `get_env_or_else(key, value_type, default)` | 读取环境变量，不存在时返回默认值 |
+
+### 控制流与执行
+
+| 函数 | 描述 |
+| --- | --- |
+| `matrix_call(func_table)` | 多维函数组合的笛卡尔积调用 |
+| `execute_after(count, func, options?)` | 在指定调用次数后执行函数 |
+| `loadcode(code, env?, chunkname?)` | 加载并执行 Lua 代码字符串 |
+| `exclusive_call(func, lock_file_name?)` | 互斥执行（基于文件锁） |
+
+### 文件与 IO
+
+| 函数 | 描述 |
+| --- | --- |
+| `read_file_str(filename)` | 读取文件全部内容为字符串 |
+| `iorun(cmd)` | 执行命令并返回输出 |
+
+### 其他
+
+| 函数 | 描述 |
+| --- | --- |
+| `serialize(t, conn?)` | 将 table 序列化为字符串 |
+| `reverse_table(tab)` | 反转数组 |
+| `get_datetime_str()` | 获取当前日期时间字符串 |
+| `get_progress_bar(progress, length)` | 生成文本进度条 |
+| `cover_with_n(value, n)` | 计算覆盖 value 需要多少个 n |
+| `report_luacov()` | 生成 luacov 覆盖率报告 |
+
+## 详细说明
+
+### 数值与进制转换
+
+#### `to_hex_str(t, separator?)`
+
+将整数、`uint64_t`、cdata 多拍数据或 table 转为十六进制字符串。对于多拍数据，按 MSB → LSB 顺序拼接。
+
+```lua
+local utils = require "verilua.LuaUtils"
+
+-- 普通整数
+print(utils.to_hex_str(255))          --> "ff"
+
+-- uint64_t
+local val = 0x1234567890abcdefULL
+print(utils.to_hex_str(val))          --> "1234567890abcdef"
+
+-- table（多拍数据；按 MSB → LSB 输出，即反向拼接数组元素）
+print(utils.to_hex_str({0xdead, 0xbeef}, "_"))  --> "0000beef_0000dead"
+```
+
+#### `hex_str_to_ull(hex_str)` / `hex_str_to_ll(hex_str)`
+
+将十六进制字符串转为 64 位整数。`hex_str_to_ull` 返回无符号，`hex_str_to_ll` 返回有符号。超过 64 位时截断低 64 位。
+
+```lua
+local val = utils.hex_str_to_ull("ffffffffffffffff")
+print(val)  --> 18446744073709551615ULL
+
+local signed = utils.hex_str_to_ll("ffffffffffffffff")
+print(signed)  --> -1LL
+```
+
+#### `hex_to_bin(hex_str)` / `bin_str_to_hex_str(bin_str)`
+
+十六进制与二进制字符串互转。输入不含 `0x` / `0b` 前缀。
+
+```lua
+print(utils.hex_to_bin("a5"))           --> "10100101"
+print(utils.bin_str_to_hex_str("1010")) --> "a"
+```
+
+### 位操作
+
+#### `bitfield32(begin, endd, val)` / `bitfield64(begin, endd, val)`
+
+提取 `val` 中 `[begin, endd]` 范围的位域。`bitfield32` 返回 Lua number，`bitfield64` 返回 `uint64_t`。
+
+```lua
+local val = 0xDEADBEEF
+print(string.format("%x", utils.bitfield32(0, 15, val)))   --> "beef"
+print(string.format("%x", utils.bitfield32(16, 31, val)))  --> "dead"
+```
+
+#### `bitfield_str(str, s, e, width?)`
+
+从字符串表示的数值中提取位域，支持 `0x`（十六进制）、`0b`（二进制）和无前缀十进制。返回二进制字符串。
+
+```lua
+local bits = utils.bitfield_str("0xAB", 0, 3)
+print(bits)  --> "1011"   (低 4 位)
+
+local bits2 = utils.bitfield_str("0b11001010", 2, 5)
+print(bits2)  --> "0010"
+```
+
+#### `bitmask(n)`
+
+返回低 n 位全为 1 的掩码（`uint64_t`）。
+
+```lua
+print(utils.bitmask(4))   --> 0xfULL
+print(utils.bitmask(64))  --> 0xffffffffffffffffULL
+```
+
+#### `reset_bits(value, start, length)`
+
+将 `value` 中从 `start` 位开始的 `length` 个位清零。
+
+```lua
+local result = utils.reset_bits(0xFF, 4, 4)
+print(string.format("%x", tonumber(result)))  --> "f"
+```
+
+#### `bitpat_to_hex_str(bitpat_tbl, width?)`
+
+将一组位模式（每个指定起始位 `s`、结束位 `e` 和值 `v`）合并为一个十六进制字符串。适用于构造寄存器值。
+
+```lua
+local hex = utils.bitpat_to_hex_str({
+    { s = 0,  e = 7,  v = 0xAB },
+    { s = 8,  e = 15, v = 0xCD },
+    { s = 16, e = 23, v = 0xEF },
+}, 32)
+print(hex)  --> "0000000000efcdab"
+```
+
+#### `uint_to_onehot(uint_value)`
+
+将无符号整数转为 one-hot 编码。
+
+```lua
+print(string.format("%x", tonumber(utils.uint_to_onehot(0))))  --> "1"
+print(string.format("%x", tonumber(utils.uint_to_onehot(3))))  --> "8"
+```
+
+### 随机化
+
+#### `urandom64()` / `urandom64_range(min, max)`
+
+生成 64 位随机数。`urandom64_range` 在 `[min, max]` 闭区间内均匀分布。
+
+```lua
+local r = utils.urandom64()
+local r2 = utils.urandom64_range(100ULL, 200ULL)
+```
+
+#### `shuffle(t)`
+
+Fisher-Yates 算法原地打乱数组。
+
+```lua
+local t = {1, 2, 3, 4, 5}
+utils.shuffle(t)
+-- t 现在是随机排列
+```
+
+#### `shuffle_bits(bitwidth)` / `shuffle_bits_hex_str(bitwidth)`
+
+生成指定位宽范围内的随机值。`shuffle_bits` 返回 `uint64_t`，`shuffle_bits_hex_str` 返回十六进制字符串。
+
+```lua
+local val = utils.shuffle_bits(16)        -- 0 ~ 0xFFFF 之间的随机值
+local hex = utils.shuffle_bits_hex_str(128)  -- 128 位随机十六进制字符串
+```
+
+### 枚举
+
+#### `enum_define(enum_table)`
+
+定义一个枚举，支持正向访问（名称 → 值）和反向查找（值 → 名称）。访问不存在的键会触发错误。
+
+```lua
+local State = utils.enum_define {
+    name = "State",
+    IDLE    = 0,
+    RUNNING = 1,
+    DONE    = 2,
+}
+
+-- 正向访问
+print(State.IDLE)      --> 0
+print(State.RUNNING)   --> 1
+
+-- 反向查找
+print(State(0))        --> "IDLE"
+print(State(1))        --> "RUNNING"
+
+-- 访问不存在的键会报错
+-- State.UNKNOWN  --> error: Unknown enum value => UNKNOWN  enum name => State
+```
+
+### 环境变量
+
+#### `get_env_or_else(key, value_type, default)`
+
+读取环境变量并转换为指定类型。如果环境变量未设置，返回 `default` 并打印警告日志。
+
+- `value_type`：`"string"` | `"boolean"` | `"number"`
+- 布尔值识别：`true/True/TRUE/1/ENABLE/ON/enable/on` → `true`，`false/False/FALSE/0/DISABLE/OFF/disable/off` → `false`
+
+```lua
+local timeout = utils.get_env_or_else("VL_TIMEOUT", "number", 1000)
+local verbose = utils.get_env_or_else("VL_VERBOSE", "boolean", false)
+local name    = utils.get_env_or_else("VL_NAME", "string", "default")
+```
+
+### 控制流与执行
+
+#### `matrix_call(func_table)`
+
+对多维函数列表执行笛卡尔积组合调用。每个维度包含若干函数选项，`matrix_call` 会遍历所有维度的所有组合并依次执行。
+
+支持四种函数块类型：
+- **单函数**：直接传入 `function`
+- **顺序函数组**：传入 `{func1, func2, ...}`，按顺序执行
+- **带参数的函数**：传入 `{func = f, args = {...}}`
+- **带多组参数的函数**：传入 `{func = f, multi_args = {{...}, {...}}}`
+
+```lua
+-- 2 × 2 = 4 种组合
+utils.matrix_call {
+    {
+        function() io.write("A") end,
+        function() io.write("B") end,
+    },
+    {
+        function() print("1") end,
+        function() print("2") end,
+    },
+}
+-- 输出：
+-- A1
+-- A2
+-- B1
+-- B2
+```
+
+带参数的用法：
+
+```lua
+utils.matrix_call {
+    {
+        { func = function(x) print("x =", x) end, args = {10} },
+        { func = function(x) print("x =", x) end, args = {20} },
+    },
+}
+-- 输出：
+-- x = 10
+-- x = 20
+```
+
+#### `execute_after(count, func, options?)`
+
+返回一个闭包，该闭包在被调用 `count` 次后执行 `func`。
+
+- 默认只执行一次
+- `options._repeat = true`：每隔 `count` 次重复执行
+- `options.times = N`：执行 N 次后停止
+
+```lua
+local trigger = utils.execute_after(3, function()
+    print("triggered!")
+end)
+
+trigger()  -- 无输出
+trigger()  -- 无输出
+trigger()  -- 输出: triggered!
+trigger()  -- 无输出（已完成）
+
+-- 重复模式
+local repeater = utils.execute_after(2, function()
+    print("tick")
+end, { _repeat = true })
+
+repeater()  -- 无输出
+repeater()  -- 输出: tick
+repeater()  -- 无输出
+repeater()  -- 输出: tick
+```
+
+#### `exclusive_call(func, lock_file_name?)`
+
+通过文件锁实现互斥执行，确保同一时刻只有一个线程/进程执行 `func`。常用于多进程仿真中的共享资源保护。
+
+```lua
+utils.exclusive_call(function()
+    -- 这里的代码在同一时刻只有一个进程执行
+    local f = io.open("shared_result.txt", "a")
+    f:write("result line\n")
+    f:close()
+end, "my_lock_file")
+```
+
+#### `loadcode(code, env?, chunkname?)`
+
+加载并执行 Lua 代码字符串，返回执行结果。可选设置执行环境。
+
+```lua
+local add = utils.loadcode("return function(a, b) return a + b end")
+print(add(1, 2))  --> 3
+```
+
+### 文件与 IO
+
+#### `read_file_str(filename)`
+
+读取文件全部内容为字符串。路径会自动转为绝对路径。
+
+```lua
+local content = utils.read_file_str("config.txt")
+```
+
+#### `iorun(cmd)`
+
+执行 shell 命令并返回输出（stdout 或 stderr）。
+
+```lua
+local output = utils.iorun("ls -la")
+print(output)
+```
+
+### 其他工具
+
+#### `compare_hex_str(str1, str2)` / `compare_value_str(str1, str2)`
+
+比较两个数值字符串是否相等，忽略前导零和大小写。`compare_value_str` 支持 `0x`、`0b` 前缀和十进制。
+
+```lua
+print(utils.compare_hex_str("001A", "1a"))       --> true
+print(utils.compare_value_str("0x0ff", "0xFF"))  --> true
+print(utils.compare_value_str("0b0011", "0b11")) --> true
+```
+
+#### `cover_with_n(value, n)`
+
+计算覆盖 `value` 需要多少个大小为 `n` 的组。等价于 `ceil(value / n)`。
+
+```lua
+print(utils.cover_with_n(10, 4))  --> 3   (4+4+2 覆盖 10)
+print(utils.cover_with_n(8, 4))   --> 2
+```
+
+#### `get_progress_bar(progress, length)`
+
+生成文本进度条字符串。`progress` 范围为 `(0, 1)`，`length` 为进度条字符长度。
+
+```lua
+print(utils.get_progress_bar(0.5, 20))
+-- ┃██████████▉▒▒▒▒▒▒▒▒▒▒┃
+```
+
+#### `report_luacov()`
+
+生成 luacov 覆盖率报告。需要在代码开头 `require "luacov"`，并在仿真结束时调用。内部使用 `exclusive_call` 保证多进程安全。
+
+```lua
+-- 在代码开头
+require "luacov"
+
+-- 在仿真结束时
+final {
+    function()
+        local utils = require "verilua.LuaUtils"
+        utils.report_luacov()
+    end
+}
+```
+
+## 与其他模块的关系
+
+- **StrBitsUtils**：`LuaUtils` 中的 `hex_to_bin`、`bin_str_to_hex_str` 等提供基础转换，而 [StrBitsUtils](./str_bits_utils.mdx) 提供更完整的字符串位操作（移位、逻辑运算、位域设置等），适合处理超大位宽数据。
+- **BitVec**：[BitVec](./bitvec.mdx) 基于数组存储，适合频繁读写的信号值操作。`LuaUtils` 的转换函数可用于准备 BitVec 的输入数据。
+- **SymbolHelper**：`LuaUtils.iorun` 内部依赖 [SymbolHelper](./symbol_helper.mdx) 获取 C 函数指针。
+
+## 注意事项
+
+- `bitfield32` / `bitfield64` 的位索引遵循 LSB 0 规则（最低位为 0）。
+- `to_hex_str` 对 cdata 多拍数据的输出顺序为 MSB → LSB。
+- `urandom64` 系列函数基于 `math.random`，如需可重复的随机序列，请先调用 `math.randomseed`。
+- `exclusive_call` 依赖 C 层的 `acquire_lock` / `release_lock`，仅在 Verilua 运行时环境中可用。
+- `iorun` 依赖 Verilua 运行时提供的 C 函数，不能在纯 LuaJIT 环境中使用。
