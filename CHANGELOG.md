@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **xmake/verilua**: Fix project-relative path resolution after `on_run` changes cwd, and replace append-style target metadata updates with overwrite semantics to avoid stale values across repeated build/run phases
 - **init**: Fix `stringx.rstrip` misuse when stripping `.lua` suffix from config file names — names ending with chars in `{a, u, l, .}` were incorrectly truncated, causing `require()` failures
 - **CallableHDL**: Fix `expect_bin_str()` / `expect_not_bin_str()` crash due to missing `gsub` replacement argument — these APIs were completely unusable
 - **LuaDut**: Fix `release_all()` not clearing `force_path_table` — subsequent `force_all`/`release_all` cycles would double-release previously forced signals and leak memory
