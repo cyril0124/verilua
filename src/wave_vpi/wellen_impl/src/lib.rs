@@ -2,7 +2,6 @@
 #![allow(non_snake_case)]
 
 use byteorder::{BigEndian, ByteOrder};
-use bytesize::ByteSize;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
@@ -345,7 +344,7 @@ fn lest_score(target: &str, candidate: &str) -> usize {
 fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
     let hierarchy = get_hierarchy();
     let mut match_vec: Vec<(usize, String)> = hierarchy
-        .iter_vars()
+        .all_vars()
         .map(|var| {
             let full_name = var.full_name(hierarchy);
             let score = lest_score(name, full_name.as_str());
@@ -381,10 +380,7 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     let hierarchy_only = std::env::var("WAVE_VPI_HIERARCHY_ONLY").is_ok_and(|v| v == "1");
 
     if hierarchy_only {
-        log::info!(
-            "[wave_vpi::wellen_initialize] hierarchy-only mode: skipping body loading. Hierarchy takes up at least {} of memory.",
-            ByteSize::b(hierarchy.size_in_memory() as u64)
-        );
+        log::info!("[wave_vpi::wellen_initialize] hierarchy-only mode: skipping body loading.");
 
         unsafe {
             TIME_TABLE = Some(UnsafeCell::new(Vec::new()));
@@ -405,10 +401,6 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     let body = viewers::read_body(header.body, &hierarchy, None).expect("Failed to load body!");
     let wave_source = body.source;
     wave_source.print_statistics();
-    log::info!(
-        "[wave_vpi::wellen_initialize] The hierarchy takes up at least {} of memory.",
-        ByteSize::b(hierarchy.size_in_memory() as u64)
-    );
 
     unsafe {
         let time_table_len = body.time_table.len();
@@ -723,7 +715,8 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
         let var = &hierarchy[*var_ref];
         let ids = [var.signal_ref(); 1];
         let loaded = get_wave_source().load_signals(&ids, hierarchy, LOAD_OPTS.multi_thread);
-        let (loaded_id, loaded_signal) = loaded.into_iter().next().unwrap();
+        let loaded_signal = loaded.into_iter().next().unwrap();
+        let loaded_id = loaded_signal.signal_ref();
         assert_eq!(loaded_id, ids[0], "Failed to load signal, name: {}", name);
 
         get_signal_cache().insert(
@@ -871,14 +864,18 @@ pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_id
     if let Some(off) = loaded_signal.get_offset(time_table_idx as u32) {
         let signal_v = loaded_signal.get_value_at(&off, 0);
         match signal_v {
-            SignalValue::Binary(data, _bits) => {
-                let value = bytes_last_u32_be(data) as i32;
-                value as _
+            SignalValueRef::BitVec(bv) => {
+                if bv.states() == States::Two {
+                    let data = bv.be_bytes().unwrap();
+                    let value = bytes_last_u32_be(data) as i32;
+                    value as _
+                } else {
+                    // If the value is a 4-value, which means it contains X or Z, we return 0
+                    // since X state is not supported in wave_vpi.
+                    // TODO: consider support X state in wave_vpi?
+                    0
+                }
             }
-            // If the value is a 4-value, which means it contains X or Z, we return 0 since X
-            // state is not supported in wave_vpi.
-            // TODO: consider support X state in wave_vpi?
-            SignalValue::FourValue(_data, _bits) => 0,
             _ => todo!("{:#?}", signal_v),
         }
     } else {
@@ -909,164 +906,168 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
 
         // TODO: improve performance?
         match signal_v {
-            SignalValue::Binary(data, _bits) => {
-                let words = bytes_to_u32s_be(data);
-                // println!("data => {:?} ww => {:?}   {}", data, words, words[words.len() - 1]);
+            SignalValueRef::BitVec(bv) => {
+                if bv.states() == States::Two {
+                    let data = bv.be_bytes().unwrap();
+                    let words = bytes_to_u32s_be(data);
 
-                match v_format as u32 {
-                    vpiVectorVal => {
-                        let mut vecvals = Vec::new();
-                        for word in &words {
-                            vecvals.insert(
-                                0,
-                                t_vpi_vecval {
-                                    aval: *word as i32,
-                                    bval: 0,
-                                },
-                            );
-                        }
-                        let vecvals_box = vecvals.into_boxed_slice();
-                        let vecvals_ptr = vecvals_box.as_ptr() as *mut t_vpi_vecval;
-                        let _ = Box::into_raw(vecvals_box);
-                        unsafe {
-                            (*value_p).value.vector = vecvals_ptr;
-                        }
-                    }
-                    vpiIntVal => {
-                        let value = words[words.len() - 1] as i32;
-                        unsafe {
-                            (*value_p).value.integer = value;
-                        }
-                    }
-                    vpiHexStrVal => {
-                        let signal_bit_string =
-                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-
-                        let len = signal_bit_string.len();
-                        let padding = (4 - (len % 4)) % 4;
-                        let hex_len = (len + padding).div_ceil(4);
-
-                        let mut hex_chars = Vec::with_capacity(hex_len);
-                        let bytes = signal_bit_string.as_bytes();
-
-                        // Process with padding if needed
-                        let mut idx = 0;
-                        if padding > 0 {
-                            let mut nibble = 0u8;
-                            for byte in bytes.iter().take(4 - padding) {
-                                nibble = (nibble << 1) | (byte - b'0');
+                    match v_format as u32 {
+                        vpiVectorVal => {
+                            let mut vecvals = Vec::new();
+                            for word in &words {
+                                vecvals.insert(
+                                    0,
+                                    t_vpi_vecval {
+                                        aval: *word as i32,
+                                        bval: 0,
+                                    },
+                                );
                             }
-                            hex_chars.push(if nibble < 10 {
-                                b'0' + nibble
-                            } else {
-                                b'a' + nibble - 10
-                            });
-                            idx = 4 - padding;
+                            let vecvals_box = vecvals.into_boxed_slice();
+                            let vecvals_ptr = vecvals_box.as_ptr() as *mut t_vpi_vecval;
+                            let _ = Box::into_raw(vecvals_box);
+                            unsafe {
+                                (*value_p).value.vector = vecvals_ptr;
+                            }
                         }
+                        vpiIntVal => {
+                            let value = words[words.len() - 1] as i32;
+                            unsafe {
+                                (*value_p).value.integer = value;
+                            }
+                        }
+                        vpiHexStrVal => {
+                            let signal_bit_string =
+                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
 
-                        // Process remaining 4-bit chunks
-                        while idx < len {
-                            let mut nibble = 0u8;
-                            for i in 0..4 {
-                                if idx + i < len {
-                                    nibble = (nibble << 1) | (bytes[idx + i] - b'0');
+                            let len = signal_bit_string.len();
+                            let padding = (4 - (len % 4)) % 4;
+                            let hex_len = (len + padding).div_ceil(4);
+
+                            let mut hex_chars = Vec::with_capacity(hex_len);
+                            let bytes = signal_bit_string.as_bytes();
+
+                            // Process with padding if needed
+                            let mut idx = 0;
+                            if padding > 0 {
+                                let mut nibble = 0u8;
+                                for byte in bytes.iter().take(4 - padding) {
+                                    nibble = (nibble << 1) | (byte - b'0');
                                 }
+                                hex_chars.push(if nibble < 10 {
+                                    b'0' + nibble
+                                } else {
+                                    b'a' + nibble - 10
+                                });
+                                idx = 4 - padding;
                             }
-                            hex_chars.push(if nibble < 10 {
-                                b'0' + nibble
+
+                            // Process remaining 4-bit chunks
+                            while idx < len {
+                                let mut nibble = 0u8;
+                                for i in 0..4 {
+                                    if idx + i < len {
+                                        nibble = (nibble << 1) | (bytes[idx + i] - b'0');
+                                    }
+                                }
+                                hex_chars.push(if nibble < 10 {
+                                    b'0' + nibble
+                                } else {
+                                    b'a' + nibble - 10
+                                });
+                                idx += 4;
+                            }
+
+                            let hex_string = unsafe { String::from_utf8_unchecked(hex_chars) };
+                            let c_str_ptr = store_value_str(&hex_string);
+                            unsafe {
+                                (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                            }
+                        }
+                        vpiBinStrVal => {
+                            let signal_bit_string =
+                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let c_str_ptr = store_value_str(&signal_bit_string);
+
+                            unsafe {
+                                (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                            }
+                        }
+                        vpiDecStrVal => {
+                            // Binary (2-state): no X/Z possible, convert integer to decimal
+                            let value = words[words.len() - 1] as u64;
+                            let dec_string = value.to_string();
+                            let c_str_ptr = store_value_str(&dec_string);
+                            unsafe {
+                                (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                            }
+                        }
+                        _ => {
+                            todo!("v_format => {}", v_format)
+                        }
+                    };
+                } else {
+                    // 4-state or 9-state: contains X or Z
+                    let bits = bv.width();
+                    match v_format as u32 {
+                        vpiVectorVal => {
+                            let vec_len = cover_with_32(bits as usize);
+                            let mut vecvals = Vec::new();
+                            for _i in 0..vec_len {
+                                vecvals.push(t_vpi_vecval { aval: 0, bval: 0 });
+                            }
+                            let vecvals_box = vecvals.into_boxed_slice();
+                            let vecvals_ptr = vecvals_box.as_ptr() as *mut t_vpi_vecval;
+                            let _ = Box::into_raw(vecvals_box);
+                            unsafe {
+                                (*value_p).value.vector = vecvals_ptr;
+                            }
+                        }
+                        vpiIntVal => unsafe {
+                            (*value_p).value.integer = 0;
+                        },
+                        vpiHexStrVal => {
+                            let signal_bit_string =
+                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
+                            let c_str_ptr = store_value_str(&hex_string);
+                            unsafe {
+                                (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                            }
+                        }
+                        vpiBinStrVal => {
+                            let signal_bit_string =
+                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let c_str_ptr = store_value_str(&signal_bit_string);
+
+                            unsafe {
+                                (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
+                            }
+                        }
+                        vpiDecStrVal => {
+                            // FourValue (4-state): check for X/Z in hex representation
+                            let signal_bit_string =
+                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
+                            let dec_string = if hex_string.contains('x') || hex_string.contains('z')
+                            {
+                                "x".to_string()
                             } else {
-                                b'a' + nibble - 10
-                            });
-                            idx += 4;
-                        }
-
-                        let hex_string = unsafe { String::from_utf8_unchecked(hex_chars) };
-                        let c_str_ptr = store_value_str(&hex_string);
-                        unsafe {
-                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
-                        }
-                    }
-                    vpiBinStrVal => {
-                        let signal_bit_string =
-                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-                        let c_str_ptr = store_value_str(&signal_bit_string);
-
-                        unsafe {
-                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
-                        }
-                    }
-                    vpiDecStrVal => {
-                        // Binary (2-state): no X/Z possible, convert integer to decimal
-                        let value = words[words.len() - 1] as u64;
-                        let dec_string = value.to_string();
-                        let c_str_ptr = store_value_str(&dec_string);
-                        unsafe {
-                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
-                        }
-                    }
-                    _ => {
-                        todo!("v_format => {}", v_format)
-                    }
-                };
-            }
-            SignalValue::FourValue(_data, bits) => {
-                match v_format as u32 {
-                    vpiVectorVal => {
-                        let vec_len = cover_with_32(bits as usize);
-                        let mut vecvals = Vec::new();
-                        for _i in 0..vec_len {
-                            vecvals.push(t_vpi_vecval { aval: 0, bval: 0 });
-                        }
-                        let vecvals_box = vecvals.into_boxed_slice();
-                        let vecvals_ptr = vecvals_box.as_ptr() as *mut t_vpi_vecval;
-                        let _ = Box::into_raw(vecvals_box);
-                        unsafe {
-                            (*value_p).value.vector = vecvals_ptr;
-                        }
-                    }
-                    vpiIntVal => unsafe {
-                        (*value_p).value.integer = 0;
-                    },
-                    vpiHexStrVal => {
-                        let signal_bit_string =
-                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-                        let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
-                        let c_str_ptr = store_value_str(&hex_string);
-                        unsafe {
-                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
-                        }
-                    }
-                    vpiBinStrVal => {
-                        let signal_bit_string =
-                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-                        let c_str_ptr = store_value_str(&signal_bit_string);
-
-                        unsafe {
-                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
-                        }
-                    }
-                    vpiDecStrVal => {
-                        // FourValue (4-state): check for X/Z in hex representation
-                        let signal_bit_string =
-                            loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
-                        let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
-                        let dec_string = if hex_string.contains('x') || hex_string.contains('z') {
-                            "x".to_string()
-                        } else {
-                            match u128::from_str_radix(&hex_string, 16) {
-                                Ok(value) => value.to_string(),
-                                Err(_) => "x".to_string(),
+                                match u128::from_str_radix(&hex_string, 16) {
+                                    Ok(value) => value.to_string(),
+                                    Err(_) => "x".to_string(),
+                                }
+                            };
+                            let c_str_ptr = store_value_str(&dec_string);
+                            unsafe {
+                                (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                             }
-                        };
-                        let c_str_ptr = store_value_str(&dec_string);
-                        unsafe {
-                            (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                         }
-                    }
-                    _ => {
-                        todo!("v_format => {}", v_format)
-                    }
-                };
+                        _ => {
+                            todo!("v_format => {}", v_format)
+                        }
+                    };
+                }
             }
             _ => panic!("{:#?}", signal_v),
         }
@@ -1173,7 +1174,7 @@ pub unsafe extern "C" fn wellen_vpi_get(property: PLI_INT32, handle: *mut c_void
     let signal_v = loaded_signal.get_value_at(&off, 0);
 
     match property as u32 {
-        vpiSize => signal_v.bits().unwrap() as PLI_INT32,
+        vpiSize => signal_v.width().unwrap() as PLI_INT32,
         _ => {
             todo!("property => {}", property)
         }
