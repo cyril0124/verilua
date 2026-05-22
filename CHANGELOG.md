@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **libverilua**: Free edge callback `user_data` when one-shot edge callbacks are removed, avoiding leaked callback allocation memory
 - **libverilua**: Skip edge callback dispatch when VPI reports X/Z values instead of panicking on invalid edge values
 - **xmake/verilua**: Fix project-relative path resolution after `on_run` changes cwd, and replace append-style target metadata updates with overwrite semantics to avoid stale values across repeated build/run phases
 - **init**: Fix `stringx.rstrip` misuse when stripping `.lua` suffix from config file names — names ending with chars in `{a, u, l, .}` were incorrectly truncated, causing `require()` failures
