@@ -280,11 +280,18 @@ impl Drop for NativeClock {
 unsafe extern "C" fn native_clock_toggle_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let clock = unsafe { &mut *((*cb_data).user_data as *mut NativeClock) };
 
-    // Mark that we're inside the callback (prevents premature destruction)
-    clock.in_callback = true;
-
     // Clear the old callback handle (it's been triggered)
     clock.cb_handle = None;
+
+    // Check destroy_pending BEFORE toggle to avoid registering a new callback
+    // that would hold a dangling pointer after we free the object.
+    if clock.destroy_pending {
+        let _ = unsafe { Box::from_raw(clock as *mut NativeClock) };
+        return 0;
+    }
+
+    // Mark that we're inside the callback (prevents premature destruction)
+    clock.in_callback = true;
 
     // Toggle and schedule next
     clock.toggle(false);
@@ -292,9 +299,11 @@ unsafe extern "C" fn native_clock_toggle_callback(cb_data: *mut t_cb_data) -> PL
     // Mark callback complete
     clock.in_callback = false;
 
-    // If destroy was requested while we were in the callback, do it now
+    // If destroy was requested during toggle (e.g. from a Lua callback),
+    // do it now.
     if clock.destroy_pending {
-        // Drop the clock by reconstructing the Box
+        // Stop removes the newly registered callback before freeing.
+        clock.stop();
         let _ = unsafe { Box::from_raw(clock as *mut NativeClock) };
     }
 

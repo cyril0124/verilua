@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **libverilua**: Fix use-after-free in `NativeClock` — `toggle()` registered a new callback before checking `destroy_pending`, leaving a dangling `user_data` pointer after the object was freed
 - **libverilua**: Clear upper vector words for scalar `set`/`set_imm` writes, avoiding stale garbage on wide signals
 - **libverilua**: Keep deferred string put-value buffers alive until `vpi_put_value` returns, avoiding dangling pointers for hex/dec/oct/bin writes
 - **libverilua**: Free edge callback `user_data` when one-shot edge callbacks are removed, avoiding leaked callback allocation memory
