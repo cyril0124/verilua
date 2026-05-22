@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **libverilua**: Keep deferred string put-value buffers alive until `vpi_put_value` returns, avoiding dangling pointers for hex/dec/oct/bin writes
 - **libverilua**: Free edge callback `user_data` when one-shot edge callbacks are removed, avoiding leaked callback allocation memory
 - **libverilua**: Skip edge callback dispatch when VPI reports X/Z values instead of panicking on invalid edge values
 - **xmake/verilua**: Fix project-relative path resolution after `on_run` changes cwd, and replace append-style target metadata updates with overwrite semantics to avoid stale values across repeated build/run phases

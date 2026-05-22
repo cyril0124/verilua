@@ -461,6 +461,10 @@ impl VeriluaEnv {
         hdl_put_value.iter_mut().for_each(|complex_handle_raw| {
             let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
 
+            // Guard: keeps CString alive until after vpi_put_value returns.
+            #[allow(unused_assignments)]
+            let mut cstr_guard: Option<CString> = None;
+
             let mut v = match complex_handle.put_value_format {
                 vpiIntVal => s_vpi_value {
                     format: vpiIntVal as _,
@@ -474,14 +478,15 @@ impl VeriluaEnv {
                         vector: complex_handle.put_value_vectors.as_mut_ptr(),
                     },
                 },
-                vpiHexStrVal | vpiDecStrVal | vpiOctStrVal | vpiBinStrVal => s_vpi_value {
-                    format: complex_handle.put_value_format as _,
-                    value: t_vpi_value__bindgen_ty_1 {
-                        str_: CString::new(complex_handle.put_value_str.as_str())
-                            .unwrap()
-                            .into_raw() as _,
-                    },
-                },
+                vpiHexStrVal | vpiDecStrVal | vpiOctStrVal | vpiBinStrVal => {
+                    cstr_guard = Some(CString::new(complex_handle.put_value_str.as_str()).unwrap());
+                    s_vpi_value {
+                        format: complex_handle.put_value_format as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            str_: cstr_guard.as_ref().unwrap().as_ptr() as _,
+                        },
+                    }
+                }
                 vpiSuppressVal => s_vpi_value {
                     format: vpiSuppressVal as _,
                     value: t_vpi_value__bindgen_ty_1 {
