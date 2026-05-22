@@ -626,7 +626,7 @@ impl VeriluaEnv {
                     complex_handle.vpi_handle,
                     &mut v,
                     std::ptr::null_mut(),
-                    vpiInertialDelay as _,
+                    vpiReleaseFlag as _,
                 )
             };
         } else if complex_handle.try_put_value(self, &vpiReleaseFlag, &(v.format as u32)) {
