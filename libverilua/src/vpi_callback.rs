@@ -739,6 +739,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
                         )
                     };
                     env.edge_cb_idpool.release_id(user_data.callback_id);
+                    drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbData) });
                 }
             }
 
@@ -752,6 +753,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
                     )
                 };
                 env.edge_cb_idpool.release_id(user_data.callback_id);
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbData) });
             }
         } else {
             unsafe {
@@ -762,6 +764,7 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
                 )
             };
             env.edge_cb_idpool.release_id(user_data.callback_id);
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbData) });
         }
     }
     0
