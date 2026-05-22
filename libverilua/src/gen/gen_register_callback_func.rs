@@ -42,7 +42,10 @@ unsafe fn do_register_edge_callback_chunk_1(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_1(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_1 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_1) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -163,7 +166,10 @@ unsafe fn do_register_edge_callback_chunk_2(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_2(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_2 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_2) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -284,7 +290,10 @@ unsafe fn do_register_edge_callback_chunk_3(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_3(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_3 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_3) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -405,7 +414,10 @@ unsafe fn do_register_edge_callback_chunk_4(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_4(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_4 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_4) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -526,7 +538,10 @@ unsafe fn do_register_edge_callback_chunk_5(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_5(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_5 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_5) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -647,7 +662,10 @@ unsafe fn do_register_edge_callback_chunk_6(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_6(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_6 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_6) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -768,7 +786,10 @@ unsafe fn do_register_edge_callback_chunk_7(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_7(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_7 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_7) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -889,7 +910,10 @@ unsafe fn do_register_edge_callback_chunk_8(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_8(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_8 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_8) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1010,7 +1034,10 @@ unsafe fn do_register_edge_callback_chunk_9(complex_handle_raw: &ComplexHandleRa
 }
 unsafe extern "C" fn edge_callback_chunk_9(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_9 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_9) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1131,7 +1158,10 @@ unsafe fn do_register_edge_callback_chunk_10(complex_handle_raw: &ComplexHandleR
 }
 unsafe extern "C" fn edge_callback_chunk_10(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_10 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_10) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1252,7 +1282,10 @@ unsafe fn do_register_edge_callback_chunk_11(complex_handle_raw: &ComplexHandleR
 }
 unsafe extern "C" fn edge_callback_chunk_11(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_11 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_11) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1373,7 +1406,10 @@ unsafe fn do_register_edge_callback_chunk_12(complex_handle_raw: &ComplexHandleR
 }
 unsafe extern "C" fn edge_callback_chunk_12(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_12 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_12) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1494,7 +1530,10 @@ unsafe fn do_register_edge_callback_chunk_13(complex_handle_raw: &ComplexHandleR
 }
 unsafe extern "C" fn edge_callback_chunk_13(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_13 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_13) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1615,7 +1654,10 @@ unsafe fn do_register_edge_callback_chunk_14(complex_handle_raw: &ComplexHandleR
 }
 unsafe extern "C" fn edge_callback_chunk_14(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_14 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_14) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1736,7 +1778,10 @@ unsafe fn do_register_edge_callback_chunk_15(complex_handle_raw: &ComplexHandleR
 }
 unsafe extern "C" fn edge_callback_chunk_15(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_15 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_15) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -1857,7 +1902,10 @@ unsafe fn do_register_edge_callback_chunk_16(complex_handle_raw: &ComplexHandleR
 }
 unsafe extern "C" fn edge_callback_chunk_16(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_16 = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_16) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 

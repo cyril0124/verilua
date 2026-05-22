@@ -249,7 +249,10 @@ unsafe fn do_register_edge_callback_chunk_{{i}}(complex_handle_raw: &ComplexHand
 }
 unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8) else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbDataChunk_{{i}} = unsafe { &*(cb_data.user_data as *const EdgeCbDataChunk_{{i}}) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 

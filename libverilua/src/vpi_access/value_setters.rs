@@ -100,6 +100,11 @@ macro_rules! impl_gen_set_force_value {
 
                     if cfg!(feature = "inertial_put") {
                         let vectors = &mut complex_handle.put_value_vectors;
+                        // Zero out all words to avoid driving stale data on wide signals
+                        for i in 2..complex_handle.beat_num as usize {
+                            vectors[i].aval = 0;
+                            vectors[i].bval = 0;
+                        }
                         vectors[1].aval = (value >> 32) as _;
                         vectors[1].bval = 0;
                         vectors[0].aval = (value & 0xFFFFFFFF) as _;
@@ -121,6 +126,11 @@ macro_rules! impl_gen_set_force_value {
                     } else {
                         if complex_handle.try_put_value(self, &$flag, &vpiVectorVal) {
                             let vectors = &mut complex_handle.put_value_vectors;
+                            // Zero out all words to avoid driving stale data on wide signals
+                            for i in 2..complex_handle.beat_num as usize {
+                                vectors[i].aval = 0;
+                                vectors[i].bval = 0;
+                            }
                             vectors[1].aval = (value >> 32) as _;
                             vectors[1].bval = 0;
                             vectors[0].aval = (value & 0xFFFFFFFF) as _;
@@ -137,9 +147,14 @@ macro_rules! impl_gen_set_force_value {
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
                     let vectors = &mut complex_handle.put_value_vectors;
+                    // Zero out upper words to avoid driving stale data on wide signals
+                    for i in 2..complex_handle.beat_num as usize {
+                        vectors[i].aval = 0;
+                        vectors[i].bval = 0;
+                    }
                     vectors[1].aval = (value >> 32) as _;
                     vectors[1].bval = 0;
-                    vectors[0].aval = ((value << 32) >> 32) as _;
+                    vectors[0].aval = (value & 0xFFFFFFFF) as _;
                     vectors[0].bval = 0;
 
                     let mut v = s_vpi_value {

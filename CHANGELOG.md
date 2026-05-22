@@ -20,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### 🐛 Fixed
 
 - **libverilua**: Fix use-after-free in `NativeClock` — `toggle()` registered a new callback before checking `destroy_pending`, leaving a dangling `user_data` pointer after the object was freed
-- **libverilua**: Clear upper vector words for scalar `set`/`set_imm` writes, avoiding stale garbage on wide signals
+- **libverilua**: Clear upper vector words in `set_value64`/`set_imm_value64` (and force variants), avoiding stale garbage on signals wider than 64 bits
 - **libverilua**: Keep deferred string put-value buffers alive until `vpi_put_value` returns, avoiding dangling pointers for hex/dec/oct/bin writes
 - **libverilua**: Free edge callback `user_data` when one-shot edge callbacks are removed, avoiding leaked callback allocation memory
 - **libverilua**: Skip edge callback dispatch when VPI reports X/Z values instead of panicking on invalid edge values
