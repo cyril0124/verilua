@@ -20,14 +20,18 @@ macro_rules! impl_gen_set_force_value {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
                     if cfg!(feature = "inertial_put") {
-                        let mut vec_v = t_vpi_vecval {
-                            aval: value as _,
-                            bval: 0,
-                        };
+                        let vectors = &mut complex_handle.put_value_vectors;
+                        vectors[0].aval = value as _;
+                        vectors[0].bval = 0;
+                        // Zero out upper words to avoid driving garbage on wide signals
+                        for i in 1..complex_handle.beat_num as usize {
+                            vectors[i].aval = 0;
+                            vectors[i].bval = 0;
+                        }
                         let mut v = s_vpi_value {
                             format: vpiVectorVal as _,
                             value: t_vpi_value__bindgen_ty_1 {
-                                vector: &mut vec_v as *mut _,
+                                vector: vectors.as_mut_ptr(),
                             },
                         };
                         unsafe {
@@ -53,10 +57,6 @@ macro_rules! impl_gen_set_force_value {
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
-                    let mut vec_v = t_vpi_vecval {
-                        aval: value as _,
-                        bval: 0,
-                    };
                     let mut v = if $flag == vpiForceFlag {
                         s_vpi_value {
                             format: vpiIntVal as _,
@@ -65,10 +65,18 @@ macro_rules! impl_gen_set_force_value {
                             },
                         }
                     } else {
+                        let vectors = &mut complex_handle.put_value_vectors;
+                        vectors[0].aval = value as _;
+                        vectors[0].bval = 0;
+                        // Zero out upper words to avoid driving garbage on wide signals
+                        for i in 1..complex_handle.beat_num as usize {
+                            vectors[i].aval = 0;
+                            vectors[i].bval = 0;
+                        }
                         s_vpi_value {
                             format: vpiVectorVal as _,
                             value: t_vpi_value__bindgen_ty_1 {
-                                vector: &mut vec_v as *mut _,
+                                vector: vectors.as_mut_ptr(),
                             },
                         }
                     };
