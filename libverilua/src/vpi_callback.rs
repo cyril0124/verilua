@@ -664,8 +664,11 @@ unsafe fn do_register_edge_callback(
 
 unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value =
-        EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8)
+    else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbData = unsafe { &*(cb_data.user_data as *const EdgeCbData) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
@@ -937,8 +940,11 @@ unsafe fn do_register_edge_callback_always(
 
 unsafe extern "C" fn edge_callback_always(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let new_value =
-        EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8).unwrap();
+    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8)
+    else {
+        // Signal is in X/Z state, skip edge detection
+        return 0;
+    };
     let user_data: &EdgeCbData = unsafe { &*(cb_data.user_data as *const EdgeCbData) };
     let expected_edge_value = edge_type_to_value(&user_data.edge_type);
 
