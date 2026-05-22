@@ -354,7 +354,7 @@ function utils.enum_define(enum_table)
         __call = function(t, v)
             local key = t.__reverse__[v]
             if key == nil then
-                error("Key not found: " .. v .. " in " .. t.name)
+                error("Key not found: `" .. tostring(v) .. "` in " .. t.name)
             end
             return key
         end,
