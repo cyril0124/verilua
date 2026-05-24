@@ -1,21 +1,45 @@
+import os
+import glob
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
-from conan.tools.files import get, copy
+from conan.tools.files import get, copy, patch
+
 
 class SlangConan(ConanFile):
     name = "slang"
-    version = "9.0"
+    version = "10.0"
     license = "MIT"
-    url = "https://github.com/cyril0124/slang"
+    url = "https://github.com/MikePopoloski/slang"
     description = "SystemVerilog compiler and language services"
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {"shared": False, "fPIC": True}
     generators = "CMakeDeps"
 
+    def export_sources(self):
+        # Copy patches from the project-level scripts/patches/ directory into conan cache
+        patches_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "..", "..", "patches")
+        if os.path.isdir(patches_dir):
+            copy(self, "*.patch", src=patches_dir,
+                 dst=os.path.join(self.export_sources_folder, "patches"))
+
     def source(self):
-        get(self, "https://github.com/cyril0124/slang/archive/refs/tags/v9.0.tar.gz",
+        get(self, "https://github.com/MikePopoloski/slang/archive/refs/tags/v10.0.tar.gz",
             strip_root=True)
+        self._apply_patches()
+
+    def _apply_patches(self):
+        """Apply Verilua-specific patches in sorted order."""
+        patches_dir = os.path.join(self.export_sources_folder, "patches")
+        if not os.path.isdir(patches_dir):
+            # Fallback: patches next to conanfile (local development)
+            patches_dir = os.path.join(self.recipe_folder, "..", "..", "patches")
+        if os.path.isdir(patches_dir):
+            patch_files = sorted(glob.glob(os.path.join(patches_dir, "*.patch")))
+            for pf in patch_files:
+                self.output.info(f"Applying patch: {os.path.basename(pf)}")
+                patch(self, patch_file=pf)
 
     def layout(self):
         cmake_layout(self)
@@ -25,6 +49,7 @@ class SlangConan(ConanFile):
         tc.variables["SLANG_INCLUDE_TOOLS"] = "OFF"
         tc.variables["SLANG_INCLUDE_TESTS"] = "OFF"
         tc.variables["SLANG_USE_MIMALLOC"] = "ON"
+        tc.variables["CMAKE_POSITION_INDEPENDENT_CODE"] = "ON"
         tc.variables["BUILD_SHARED_LIBS"] = "ON" if self.options.shared else "OFF"
         tc.generate()
 

@@ -39,7 +39,7 @@ struct SignalInfoGetter : public slang::syntax::SyntaxVisitor<SignalInfoGetter> 
         uint64_t globalHandleIdx = 0;
         if (syntax.header->name.rawText() == moduleName) {
             fmt::println("[dpi_exporter] SignalInfoGetter get module: {}", syntax.header->name.rawText());
-            auto def  = compilation->getDefinition(compilation->getRoot(), syntax);
+            auto def  = compilation->getDefinition(static_cast<const Scope &>(compilation->getRoot()), syntax);
             auto inst = &InstanceSymbol::createDefault(*compilation, *def);
 
             hierPaths = slang_common::getHierPaths(compilation, moduleName);

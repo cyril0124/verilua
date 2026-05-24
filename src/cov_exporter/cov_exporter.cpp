@@ -7,6 +7,7 @@
 #include "config.h"
 #include "cov_info_getter.h"
 #include "cov_info_writter.h"
+#include "slang/syntax/SyntaxPrinter.h"
 
 using json = nlohmann::json;
 json metaInfoJson;

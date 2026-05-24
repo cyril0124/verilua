@@ -100,7 +100,8 @@ local function get_build_dir(target, sim)
     local top = get_verilua_value(target, "verilua.top") or target:name()
     local build_dir_name = cfg_build_dir_name or top --[[@as string]]
     local build_dir_path = cfg_build_dir_path or path.join("build", sim) --[[@as string]]
-    local build_dir = cfg_build_dir or path.absolute(path.join(build_dir_path, build_dir_name), os.projectdir()) --[[@as string]]
+    local build_dir = cfg_build_dir or
+        path.absolute(path.join(build_dir_path, build_dir_name), os.projectdir()) --[[@as string]]
     return build_dir, build_dir_name, build_dir_path
 end
 

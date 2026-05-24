@@ -4,7 +4,7 @@ local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
-local slang_common_dir = path.join(prj_dir, "extern", "slang-common")
+local slang_common_dir = path.join(prj_dir, "src", "slang_common")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 target("testbench_gen", function()

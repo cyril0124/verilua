@@ -246,7 +246,7 @@ jobs:
               xmake build wave_vpi_main
 
               source ./verilua.sh
-              STOP_ON_FAIL=1 VERBOSE=1 xmake run test
+              STOP_ON_FAIL=1 VERBOSE=1 VL_SKIP_TEST_SLANG_COMMON=1 xmake run test
               xmake run clean_all
             '
 

@@ -33,7 +33,7 @@ struct CoverageInfoGetter : public slang::syntax::SyntaxVisitor<CoverageInfoGett
     void handle(const slang::syntax::ModuleDeclarationSyntax &syntax) {
         if (syntax.header->name.rawText() == moduleOption.moduleName) {
             findModule = true;
-            auto def   = compilation->getDefinition(compilation->getRoot(), syntax);
+            auto def   = compilation->getDefinition(static_cast<const Scope &>(compilation->getRoot()), syntax);
             auto inst  = &InstanceSymbol::createDefault(*compilation, *def);
 
             INFO_PRINT("[cov_info_getter] moduleName: {}", moduleOption.moduleName);

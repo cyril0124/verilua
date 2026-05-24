@@ -241,6 +241,7 @@ end
 local sim_test_cases = {
     { dir = "test_edge", name = "test_edge" },
     { dir = "test_set_value", name = "test_set_value" },
+    { dir = "test_set_imm", name = "test_set_imm" },
     { dir = "test_basic_signal", name = "test_basic_signal", no_internal_clock = true },
     { dir = "test_scheduler", name = "test_scheduler" },
     { dir = "test_comb", name = "test_comb", no_internal_clock = true },
@@ -430,5 +431,22 @@ add_group_target("test-signal-db", function(ctx)
         local cwd = path.join(ctx.tests_dir, "test_signal_db")
         ctx.run_cmd(cwd, "xmake build -P .")
         ctx.run_cmd(cwd, "xmake run -P .")
+    end)
+end)
+
+add_group_target("test-slang-common", function(ctx)
+    -- Opt-out via env: regression integration tests of cov_exporter /
+    -- dpi_exporter / signal_db_gen / testbench_gen already cover slang_common
+    -- end-to-end, so this dedicated smoke test can be skipped on platforms
+    -- where its static link is awkward (e.g. the CentOS 7 CI container).
+    if (os.getenv("VL_SKIP_TEST_SLANG_COMMON") or "") ~= "" then
+        print("  - SKIPPED tests/test-slang-common (VL_SKIP_TEST_SLANG_COMMON)")
+        return
+    end
+
+    ctx.run_case("test_slang_common", function()
+        local cwd = path.join(ctx.tests_dir, "test_slang_common")
+        ctx.run_cmd(cwd, "xmake build -P . test_slang_common")
+        ctx.run_cmd(cwd, "xmake run -P . test_slang_common")
     end)
 end)

@@ -94,7 +94,7 @@ std::string get_current_time_as_string() {
     return oss.str();
 }
 
-std::vector<std::string> splitString(std::string_view input, char delimiter) {
+static std::vector<std::string> splitString(std::string_view input, char delimiter) {
     std::vector<std::string> tokens;
 
     size_t tokenCount = std::count(input.begin(), input.end(), delimiter) + 1;
@@ -197,7 +197,7 @@ class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
         if (checkValid(signalName, typeStr)) {
             if (verbose) {
                 fmt::println("==> {} {}", hierPath, signalName);
-                std::vector<std::string> result = splitString(hierPath, '.');
+                std::vector<std::string> result = ::splitString(hierPath, '.');
                 for (auto const &r : result) {
                     fmt::println("\t {} {}", r, typeStr);
                 }

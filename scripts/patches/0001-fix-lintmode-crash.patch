@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000001 Mon Sep 17 00:00:00 2001
+From: cyril0124 <211998078@qq.com>
+Date: Tue, 7 Jan 2025 09:41:04 +0800
+Subject: [PATCH 1/4] fix: lintMode() in slang driver should get correct value
+ even when `LintMode` does not exist in the `compilationFlags`
+
+Rebased for slang v10.0.
+---
+diff -ruN step0/source/driver/Driver.cpp step1/source/driver/Driver.cpp
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -1352,7 +1352,11 @@
+ }
+ 
+ bool Driver::Options::lintMode() const {
+-    return compilationFlags.at(CompilationFlags::LintMode) == true;
++    auto it = compilationFlags.find(CompilationFlags::LintMode);
++    if (it != compilationFlags.end() && it->second.has_value()) {
++        return it->second.value() == true;
++    }
++    return false;
+ }
+ 
+ } // namespace slang::driver
+-- 
+2.52.0
+

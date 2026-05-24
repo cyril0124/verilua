@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000003 Mon Sep 17 00:00:00 2001
+From: cyril0124 <211998078@qq.com>
+Date: Wed, 9 Apr 2025 17:57:48 +0800
+Subject: [PATCH 3/4] fix: allow overwriting existing command line arguments
+ with a warning
+
+Rebased for slang v10.0.
+---
+diff -ruN step2/source/util/CommandLine.cpp step3/source/util/CommandLine.cpp
+--- a/source/util/CommandLine.cpp
++++ b/source/util/CommandLine.cpp
+@@ -124,8 +124,12 @@
+         }
+ 
+         if (!optionMap.try_emplace(std::string(curr), option).second) {
+-            SLANG_THROW(
+-                std::invalid_argument(fmt::format("Argument with name '{}' already exists", curr)));
++            // SLANG_THROW(
++            //     std::invalid_argument(fmt::format("Argument with name '{}' already exists", curr)));
++
++            // Allow duplicate commandlines
++            fmt::println("[slang::CommandLine::addInternal] \033[33mwarning\033[0m: Argument with name '{}' already exists. Overwriting previous option.", curr);
++            optionMap[std::string(curr)] = option;
+         }
+ 
+         if (index == std::string_view::npos)
+-- 
+2.52.0
+

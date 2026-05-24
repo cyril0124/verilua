@@ -137,5 +137,5 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 ## Reference Code
 
 - If you are unsure about a Slang API, inspect the Slang source repository first: `https://github.com/MikePopoloski/slang.git`. Many parts of Verilua depend on Slang.
-- For Verilua's Slang helper layer used by multiple generators, inspect `https://github.com/cyril0124/slang-common.git`.
+- For Verilua's Slang helper layer used by multiple generators, inspect `src/slang_common/`.
 - If something is still unclear, online research is allowed.

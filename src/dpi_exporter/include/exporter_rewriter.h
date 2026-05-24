@@ -236,7 +236,7 @@ end
                                      j);
 
             // Make sure clock signal is exist in the inserted module
-            auto def      = compilation->getDefinition(compilation->getRoot(), syntax);
+            auto def      = compilation->getDefinition(static_cast<const Scope &>(compilation->getRoot()), syntax);
             auto inst     = &InstanceSymbol::createDefault(*compilation, *def);
             bool hasClock = false;
             auto netIter  = inst->body.membersOfType<slang::ast::NetSymbol>();

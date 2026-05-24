@@ -998,6 +998,8 @@ target("test", function()
             "test-dpi-exporter",
             "test-cov-exporter",
             "test-signal-db",
+            -- slang_common unit tests
+            "test-slang-common",
             -- Standalone Lua tests
             "test-all-lua",
         }

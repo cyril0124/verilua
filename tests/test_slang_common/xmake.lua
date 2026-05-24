@@ -1,13 +1,16 @@
 ---@diagnostic disable
 
-local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
+local prj_dir = path.join(curr_dir, "..", "..")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local slang_common_dir = path.join(prj_dir, "src", "slang_common")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
-target("cov_exporter", function()
+target("test_slang_common", function()
     set_kind("binary")
+    set_default(false)
+
+    -- Match cov_exporter / dpi_exporter / signal_db_gen / testbench_gen.
     add_ldflags("-static")
 
     set_languages("c++20")
@@ -22,8 +25,7 @@ target("cov_exporter", function()
     add_includedirs(
         slang_common_dir,
         boost_unordered_dir,
-        path.join(libs_dir, "include"),
-        path.join(curr_dir, "include")
+        path.join(libs_dir, "include")
     )
 
     add_links("svlang", "fmt", "mimalloc")
@@ -31,13 +33,6 @@ target("cov_exporter", function()
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
-    before_build(function(target)
-        -- Add version info
-        local version = io.readfile(path.join(prj_dir, "VERSION")):trim()
-        target:add("defines", format([[VERILUA_VERSION="%s"]], version))
-    end)
-
-    after_build(function(target)
-        os.cp(target:targetfile(), path.join(prj_dir, "tools"))
-    end)
+    -- Static libstdc++ / libmimalloc / libgcc_eh need pthread/dl/rt explicitly.
+    add_syslinks("pthread", "dl", "rt")
 end)

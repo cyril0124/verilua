@@ -6,7 +6,7 @@ local shared_dir = path.join(prj_dir, "shared")
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
-local slang_common_dir = path.join(prj_dir, "extern", "slang-common")
+local slang_common_dir = path.join(prj_dir, "src", "slang_common")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 local function signal_db_gen_common()

@@ -1,0 +1,111 @@
+From 0000000000000000000000000000000000000004 Mon Sep 17 00:00:00 2001
+From: cyril0124 <211998078@qq.com>
+Date: Sun, 29 Dec 2024 19:42:55 +0800
+Subject: [PATCH 4/4] fix: skip expanded `__LINE__ and `__FILE__ literals in
+ SyntaxPrinter
+
+When reprinting a modified syntax tree, the expanded integer/string
+literals following `__LINE__ / `__FILE__ directives are stale.
+Suppress them so only the directive itself is emitted.
+
+Rebased for slang v10.0.
+---
+diff -ruN step3/include/slang/syntax/SyntaxPrinter.h step4/include/slang/syntax/SyntaxPrinter.h
+--- a/include/slang/syntax/SyntaxPrinter.h
++++ b/include/slang/syntax/SyntaxPrinter.h
+@@ -7,6 +7,7 @@
+ //------------------------------------------------------------------------------
+ #pragma once
+ 
++#include <optional>
+ #include <string>
+ 
+ #include "slang/parsing/Token.h"
+@@ -29,7 +30,7 @@
+ 
+     /// Append raw text to the buffer.
+     /// @return a reference to this object, to allow chaining additional method calls.
+-    SyntaxPrinter& append(std::string_view text);
++    SyntaxPrinter& append(std::string_view text, std::optional<slang::parsing::TokenKind> kind = std::nullopt);
+ 
+     /// Print the provided @a trivia to the internal buffer.
+     /// @return a reference to this object, to allow chaining additional method calls.
+@@ -144,6 +145,11 @@
+     bool expandMacros = false;
+     bool includeComments = true;
+     bool squashNewlines = true;
++    bool getLineDirective = false;
++    bool getFileDirective = false;
++    uint64_t lineDirectiveIdx = 0;
++    uint64_t fileDirectiveIdx = 0;
++    uint64_t tokenIdx = 0;
+ };
+ 
+ } // namespace slang::syntax
+diff -ruN step3/source/syntax/SyntaxPrinter.cpp step4/source/syntax/SyntaxPrinter.cpp
+--- a/source/syntax/SyntaxPrinter.cpp
++++ b/source/syntax/SyntaxPrinter.cpp
+@@ -9,12 +9,16 @@
+ 
+ #include "slang/parsing/ParserMetadata.h"
+ #include "slang/parsing/Token.h"
++#include "slang/parsing/TokenKind.h"
+ #include "slang/syntax/SyntaxNode.h"
+ #include "slang/syntax/SyntaxTree.h"
+ #include "slang/text/SourceLocation.h"
+ #include "slang/text/SourceManager.h"
+ #include "slang/util/Util.h"
+ 
++#include <optional>
++#include <string>
++
+ namespace slang::syntax {
+ 
+ using namespace parsing;
+@@ -104,8 +108,9 @@
+     }
+ 
+     if (!excluded && (includeMissing || !token.isMissing()))
+-        append(token.rawText());
++        append(token.rawText(), token.kind);
+ 
++    tokenIdx++;
+     return *this;
+ }
+ 
+@@ -213,7 +218,31 @@
+         .str();
+ }
+ 
+-SyntaxPrinter& SyntaxPrinter::append(std::string_view text) {
++SyntaxPrinter& SyntaxPrinter::append(std::string_view text, std::optional<slang::parsing::TokenKind> kind) {
++    if (kind == TokenKind::Directive && text == "`__LINE__") {
++        getLineDirective = true;
++        lineDirectiveIdx = tokenIdx;
++    }
++
++    if (kind == TokenKind::Directive && text == "`__FILE__") {
++        getFileDirective = true;
++        fileDirectiveIdx = tokenIdx;
++    }
++
++    if (kind == TokenKind::IntegerLiteral) {
++        if (getLineDirective && lineDirectiveIdx == (tokenIdx - 1)) {
++            return *this;
++        }
++        getLineDirective = false;
++    }
++
++    if (kind == TokenKind::StringLiteral) {
++        if (getFileDirective && fileDirectiveIdx == (tokenIdx - 1)) {
++            return *this;
++        }
++        getFileDirective = false;
++    }
++
+     if (!squashNewlines) {
+         buffer.append(text);
+         return *this;
+-- 
+2.52.0
+
