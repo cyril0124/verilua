@@ -60,6 +60,7 @@ const sidebars: SidebarsConfig = {
         'reference/native_clock',
         'reference/slcp',
         'reference/queue',
+        'reference/cross',
         'reference/type_expect',
         'reference/bitvec',
         'reference/lua_utils',

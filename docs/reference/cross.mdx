@@ -1,0 +1,272 @@
+# 组合工具（Cross）
+
+`Cross` 是 Verilua 提供的组合数学工具模块，专为硬件验证中的激励生成场景设计。它提供笛卡尔积、全排列、组合三种核心操作，并内置约束过滤和加权随机采样能力。
+
+## 初始化
+
+```lua
+local cross = require "verilua.Cross"
+```
+
+## 核心概念
+
+硬件验证中，常见需求是对多个信号的值域进行交叉组合（cross product），生成测试激励：
+
+```
+addr  ∈ {0x00, 0x04, 0x08}
+size  ∈ {1, 2, 4}
+burst ∈ {"FIXED", "INCR", "WRAP"}
+
+总组合数 = 3 × 3 × 3 = 27
+```
+
+`Cross` 模块让你无需手写多层嵌套循环，直接生成、过滤、采样这些组合。
+
+:::caution 迭代器复用同一个 table
+所有 `_iter` 函数（`product_iter`、`permutations_iter`、`combinations_iter`）每次迭代返回的是**同一个 table 引用**。如果需要保存结果，请手动拷贝：
+```lua
+local saved = {}
+for combo in cross.product_iter({addr, size}) do
+    saved[#saved + 1] = {combo[1], combo[2]}  -- 拷贝
+end
+```
+:::
+
+## API 概览
+
+| 函数 | 描述 |
+| --- | --- |
+| `cross.product_iter(lists, opts?)` | 笛卡尔积迭代器 |
+| `cross.product_table(lists, opts?)` | 笛卡尔积（返回 table） |
+| `cross.permutations_iter(a, opts?)` | 全排列迭代器 |
+| `cross.permutations_table(a, opts?)` | 全排列（返回 table） |
+| `cross.combinations_iter(a, k, opts?)` | 组合 C(n,k) 迭代器 |
+| `cross.combinations_table(a, k, opts?)` | 组合（返回 table） |
+
+### Options 参数
+
+所有 API 的 `opts` 参数支持以下字段：
+
+| 字段 | 类型 | 描述 |
+| --- | --- | --- |
+| `filter` | `fun(combo): boolean` | 约束过滤函数，返回 `true` 保留该组合 |
+| `sample` | `integer` | 随机采样数量（仅 `_table` 版本） |
+| `weights` | `number[][]` | 每个列表的采样权重（仅笛卡尔积） |
+| `unique` | `boolean` | 采样时保证不重复（仅 `_table` 版本，默认 `false`） |
+
+:::tip 采样限制
+当 `unique = true` 且 `sample` 超过总组合数时，会报错。如果 `filter` 过于严格导致合法组合不足，也会在尝试 `sample * 100` 次后报错。
+:::
+
+## 笛卡尔积（Cartesian Product）
+
+生成多个列表的所有有序组合。
+
+### 基础用法
+
+```lua
+local addr  = {0x00, 0x04, 0x08}
+local size  = {1, 2, 4}
+local burst = {"FIXED", "INCR", "WRAP"}
+
+-- 迭代器模式（懒求值，内存友好）
+for combo in cross.product_iter({addr, size, burst}) do
+    local a, s, b = combo[1], combo[2], combo[3]
+    -- 驱动 DUT...
+end
+
+-- 表模式（一次性获取所有组合）
+local all = cross.product_table({addr, size, burst})
+-- #all == 27
+```
+
+### 约束过滤
+
+在生成时跳过非法组合，避免先生成再过滤的浪费：
+
+```lua
+-- 只保留地址对齐到 size 的组合
+for combo in cross.product_iter({addr, size}, {
+    filter = function(c)
+        return c[1] % c[2] == 0
+    end
+}) do
+    -- c[1] 一定是 c[2] 的整数倍
+end
+```
+
+### 随机采样
+
+当组合空间太大时，随机采样一部分：
+
+```lua
+-- 5 个信号各 10 个值 = 100000 种组合，只采样 200 个
+local signals = {}
+for i = 1, 5 do
+    signals[i] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+end
+
+local samples = cross.product_table(signals, {
+    sample = 200,
+    unique = true,  -- 保证不重复
+})
+```
+
+### 加权采样
+
+让边界值被采样到的概率更高：
+
+```lua
+local addr = {0x00, 0x04, 0x08, 0xFF}  -- 0x00 和 0xFF 是边界
+local data = {0x00, 0x55, 0xAA, 0xFF}
+
+local samples = cross.product_table({addr, data}, {
+    sample = 50,
+    unique = true,
+    weights = {
+        {10, 1, 1, 10},  -- addr: 边界值权重 10，中间值权重 1
+        {10, 1, 1, 10},  -- data: 同上
+    },
+})
+```
+
+## 全排列（Permutations）
+
+生成列表元素的所有排列（n! 种）。
+
+### 基础用法
+
+```lua
+-- 3! = 6 种排列
+for perm in cross.permutations_iter({1, 2, 3}) do
+    print(perm[1], perm[2], perm[3])
+end
+-- 1,2,3 / 2,1,3 / 3,1,2 / 1,3,2 / 2,3,1 / 3,2,1
+
+local all = cross.permutations_table({"read", "write", "idle"})
+-- #all == 6
+```
+
+### 带过滤的排列
+
+```lua
+-- 只要第一个操作是 read 的排列
+local ops = {"read", "write", "idle", "fence"}
+local result = cross.permutations_table(ops, {
+    filter = function(p) return p[1] == "read" end
+})
+-- 3! = 6 种（固定第一个后，剩余 3 个元素的全排列）
+```
+
+### 随机采样排列
+
+```lua
+-- 从 8! = 40320 种排列中随机取 100 个不重复的
+local priorities = {0, 1, 2, 3, 4, 5, 6, 7}
+local samples = cross.permutations_table(priorities, {
+    sample = 100,
+    unique = true,
+})
+```
+
+## 组合（Combinations）
+
+从列表中选取 k 个元素的所有组合 C(n, k)。
+
+### 基础用法
+
+```lua
+-- C(5, 2) = 10 种组合
+for combo in cross.combinations_iter({1, 2, 3, 4, 5}, 2) do
+    print(combo[1], combo[2])
+end
+-- 1,2 / 1,3 / 1,4 / 1,5 / 2,3 / 2,4 / 2,5 / 3,4 / 3,5 / 4,5
+
+local all = cross.combinations_table({"A", "B", "C", "D"}, 3)
+-- #all == 4
+```
+
+### 带过滤的组合
+
+```lua
+-- 从 8 个通道中选 3 个，但通道 0 和通道 7 不能同时选中
+local channels = {0, 1, 2, 3, 4, 5, 6, 7}
+local valid = cross.combinations_table(channels, 3, {
+    filter = function(c)
+        local has_0, has_7 = false, false
+        for i = 1, #c do
+            if c[i] == 0 then has_0 = true end
+            if c[i] == 7 then has_7 = true end
+        end
+        return not (has_0 and has_7)
+    end
+})
+```
+
+### 随机采样组合
+
+```lua
+-- 从 C(20, 4) = 4845 种组合中随机取 50 个
+local regs = {}
+for i = 0, 19 do regs[i + 1] = i end
+
+local samples = cross.combinations_table(regs, 4, {
+    sample = 50,
+    unique = true,
+})
+```
+
+## 实际验证场景示例
+
+### AXI 总线激励生成
+
+```lua
+local cross = require "verilua.Cross"
+
+local addr  = {0x0000, 0x0004, 0x0008, 0x1000, 0xFFFC}
+local len   = {0, 1, 3, 7, 15}       -- burst length
+local size  = {1, 2, 4}              -- bytes per beat
+local burst = {"FIXED", "INCR", "WRAP"}
+
+-- 过滤非法组合：WRAP burst 的 len 必须是 1/3/7/15
+local stimuli = cross.product_table({addr, len, size, burst}, {
+    filter = function(c)
+        if c[4] == "WRAP" then
+            local valid_len = {[1]=true, [3]=true, [7]=true, [15]=true}
+            return valid_len[c[2]] ~= nil
+        end
+        return true
+    end,
+    sample = 100,
+    unique = true,
+})
+
+for _, s in ipairs(stimuli) do
+    -- drive_axi_transaction(s[1], s[2], s[3], s[4])
+end
+```
+
+### 寄存器访问顺序测试
+
+```lua
+-- 测试不同寄存器访问顺序是否影响行为
+local critical_regs = {"CTRL", "STATUS", "DATA", "IRQ"}
+
+for perm in cross.permutations_iter(critical_regs) do
+    -- reset_dut()
+    -- for i = 1, #perm do access_reg(perm[i]) end
+    -- check_state()
+end
+```
+
+### 多通道仲裁组合
+
+```lua
+-- 从 8 个请求者中选 3 个同时发起请求，测试仲裁器
+local requestors = {"CPU", "DMA0", "DMA1", "GPU", "USB", "ETH", "PCIE", "DEBUG"}
+
+for combo in cross.combinations_iter(requestors, 3) do
+    -- setup_concurrent_requests(combo[1], combo[2], combo[3])
+    -- run_and_check_arbitration()
+end
+```
