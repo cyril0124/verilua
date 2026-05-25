@@ -149,7 +149,7 @@ local first = join_any { ehdl1, ehdl2 }
 
 ## 任务组（Task Group）
 
-`task_group` 提供了作用域级别的并发任务管理。在 `task_group` 内通过 `tg:fork` 创建的所有任务会被自动追踪，当 body 函数返回时，`task_group` 会自动等待所有任务完成后才继续执行。
+`task_group` 提供了作用域级别的并发任务管理。在 `task_group` 内通过 `tg:fork` 创建的所有任务会被自动追踪，当 body 函数返回时，`task_group` 会自动等待所有任务完成后才继续执行。即使子任务在执行过程中动态 `tg:fork` 了新任务，这些新任务也会被追踪并等待完成。
 
 这解决了一个常见的 bug：在复杂 testbench 中忘记 `join` 某个 `jfork` 任务，导致仿真提前结束而遗漏错误。
 
@@ -200,7 +200,9 @@ end)
 
 ### `tg:join_all()`
 
-在 body 内显式等待组内所有任务完成。即使不调用，scope 退出时也会隐式调用一次：
+在 body 内显式等待组内所有任务完成。即使不调用，scope 退出时也会隐式调用一次。
+
+`join_all` 采用**动态 drain** 语义：如果被等待的子任务在执行过程中又通过 `tg:fork` 创建了新任务，这些新任务也会被纳入等待范围。循环持续到组内不再有未完成的任务为止。
 
 ```lua
 task_group(function(tg)
@@ -213,6 +215,21 @@ task_group(function(tg)
     tg:fork { phase2 = function() dut.clock:posedge(5) end }
 end)
 -- phase2 也会被自动 join
+```
+
+动态 drain 示例：
+
+```lua
+task_group(function(tg)
+    tg:fork { parent = function()
+        dut.clock:posedge(5)
+        -- parent 执行过程中动态 fork child，child 也会被 join_all 等待
+        tg:fork { child = function()
+            dut.clock:posedge(10)
+        end }
+    end }
+end)
+-- parent 和 child 都保证已执行完毕
 ```
 
 ### `tg:join_any()`

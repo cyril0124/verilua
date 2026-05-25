@@ -950,24 +950,32 @@ do
         end
 
         --- Wait for all tasks in this group to finish.
-        --- Handles that have already completed are skipped.
+        --- Dynamically drains: if child tasks fork new tasks into this group
+        --- during execution, those are also awaited. Loops until no pending
+        --- tracked tasks remain.
         function TaskGroup:join_all()
             local handles = self._handles
-            local n = #handles
-            if n == 0 then return end
-
             local event_name_map = scheduler.event_name_map
-            local pending = {}
-            local pending_n = 0
-            for i = 1, n do
-                local ehdl = handles[i] ---@cast ehdl verilua.handles.EventHandle
-                if event_name_map[ehdl.event_id] then
-                    pending_n = pending_n + 1
-                    pending[pending_n] = ehdl
+
+            local drained_up_to = 0
+            while true do
+                local n = #handles
+                if n == drained_up_to then break end
+
+                local pending = {}
+                local pending_n = 0
+                for i = drained_up_to + 1, n do
+                    local ehdl = handles[i] ---@cast ehdl verilua.handles.EventHandle
+                    if event_name_map[ehdl.event_id] then
+                        pending_n = pending_n + 1
+                        pending[pending_n] = ehdl
+                    end
                 end
-            end
-            if pending_n > 0 then
-                _G.join(pending)
+                drained_up_to = n
+
+                if pending_n > 0 then
+                    _G.join(pending)
+                end
             end
         end
 

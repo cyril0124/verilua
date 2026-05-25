@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 🐛 Fixed
+
+- **multi_task**: `TaskGroup:join_all()` now dynamically drains — tasks forked by child tasks during execution are also awaited, fixing the early-exit bug where dynamically forked children could be missed (see [#9](https://github.com/cyril0124/verilua/issues/9))
+
 ### ✨ Added
 
 - **Cross**: Add combinatorics utilities for cartesian products, permutations, combinations, filtering, and random sampling for verification stimulus generation

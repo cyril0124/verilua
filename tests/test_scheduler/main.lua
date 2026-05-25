@@ -602,6 +602,52 @@ fork {
         assert(not tg_error_ok, "task_group should propagate task errors")
         print("✓ task_group propagates task errors")
 
+        -- Test 4.5.13: dynamic drain - child task forked by parent is not missed
+        local tg_drain_parent_done = false
+        local tg_drain_child_done = false
+
+        task_group(function(tg)
+            tg:fork { tg_drain_parent = function()
+                clock:posedge(2)
+                tg_drain_parent_done = true
+                -- Parent dynamically forks a child AFTER join_all has started draining
+                tg:fork { tg_drain_child = function()
+                    clock:posedge(10)
+                    tg_drain_child_done = true
+                end }
+            end }
+        end)
+
+        -- After task_group returns, BOTH parent and child must be finished
+        assert(tg_drain_parent_done, "dynamic drain: parent should be done")
+        assert(tg_drain_child_done, "dynamic drain: child forked by parent should also be done")
+        print("✓ task_group dynamic drain: child forked by parent is awaited")
+
+        -- Test 4.5.14: dynamic drain - multi-level (grandchild)
+        local tg_drain_l1_done = false
+        local tg_drain_l2_done = false
+        local tg_drain_l3_done = false
+
+        task_group(function(tg)
+            tg:fork { tg_drain_l1 = function()
+                clock:posedge(1)
+                tg_drain_l1_done = true
+                tg:fork { tg_drain_l2 = function()
+                    clock:posedge(2)
+                    tg_drain_l2_done = true
+                    tg:fork { tg_drain_l3 = function()
+                        clock:posedge(3)
+                        tg_drain_l3_done = true
+                    end }
+                end }
+            end }
+        end)
+
+        assert(tg_drain_l1_done, "dynamic drain multi-level: l1 should be done")
+        assert(tg_drain_l2_done, "dynamic drain multi-level: l2 should be done")
+        assert(tg_drain_l3_done, "dynamic drain multi-level: l3 (grandchild) should be done")
+        print("✓ task_group dynamic drain: multi-level grandchild is awaited")
+
         print("✓ All task_group tests passed")
 
         --==============================================================================
