@@ -179,6 +179,12 @@ end)
 
 在 task group 内创建一个或多个任务。支持单任务和多任务两种形式：
 
+:::warning[在 `task_group` 内优先使用 `tg:fork()`]
+只有通过 `tg:fork()` 创建的任务才会被当前 `task_group` 自动追踪和等待。
+
+如果在 `task_group` 内误写成普通 `fork()`，这些任务会绕过 group tracking，scope 退出时不会被 `task_group` 自动等待，可能导致仿真提前结束或遗漏检查。
+:::
+
 ```lua
 task_group(function(tg)
     -- 单任务形式：返回 (EventHandle, TaskID)
