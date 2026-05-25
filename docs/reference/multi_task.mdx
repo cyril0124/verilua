@@ -81,6 +81,11 @@ fork {
 Verilua 提供了 `join` 函数来等待一个或多个任务执行完成，需要配合 `jfork` 函数来使用。
 
 `jfork` 函数用于创建一个任务（注意，只能是一个），并返回一个专门给 `join` 使用的 `EventHandle`, 使用方式和 `fork` 类似：
+
+:::warning[`jfork` 必须在 scheduler task 内调用]
+`jfork` 返回的 handle 需要在 scheduler task 中配合 `join` / `join_any` 使用，因此不能在 Lua 文件顶层调用。顶层入口请先用普通 `fork` 创建 scheduler task，再在该 task 内使用 `jfork`。
+:::
+
 ```lua
 local ehdl = jfork {
     function ()
@@ -152,6 +157,10 @@ local first = join_any { ehdl1, ehdl2 }
 `task_group` 提供了作用域级别的并发任务管理。在 `task_group` 内通过 `tg:fork` 创建的所有任务会被自动追踪，当 body 函数返回时，`task_group` 会自动等待所有任务完成后才继续执行。即使子任务在执行过程中动态 `tg:fork` 了新任务，这些新任务也会被追踪并等待完成。
 
 这解决了一个常见的 bug：在复杂 testbench 中忘记 `join` 某个 `jfork` 任务，导致仿真提前结束而遗漏错误。
+
+:::warning[`task_group` 必须在 scheduler task 内调用]
+`task_group` 退出 scope 时需要 yield 来等待组内任务完成，因此不能在 Lua 文件顶层或其他非 scheduler task 上下文中调用。顶层入口请先用普通 `fork` 创建 scheduler task，再在该 task 内使用 `task_group`。
+:::
 
 ### 基本用法
 

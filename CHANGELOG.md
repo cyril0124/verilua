@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **multi_task**: `TaskGroup:join_all()` now dynamically drains — tasks forked by child tasks during execution are also awaited, fixing the early-exit bug where dynamically forked children could be missed (see [#9](https://github.com/cyril0124/verilua/issues/9))
 - **multi_task**: `TaskGroup` now reports an explicit error when a non-owner task calls `tg:join_all()` or `tg:join_any()` on that group, avoiding silent self-wait deadlocks while keeping `tg:fork()` unchanged
+- **multi_task**: `task_group()` and `jfork()` now report clear errors when called outside a scheduler task, instead of leaking low-level yield/context failures
 
 ### ✨ Added
 

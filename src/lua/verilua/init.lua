@@ -687,6 +687,15 @@ do
     ---@param one_task_table table<verilua.scheduler.TaskName|number, verilua.scheduler.TaskFunction>
     ---@return verilua.handles.EventHandle, verilua.scheduler.TaskID
     _G.jfork = function(one_task_table)
+        if scheduler:get_curr_task_id() == scheduler.NULL_TASK_ID then
+            error(
+                "jfork() cannot be called outside a scheduler task; "
+                    .. "its returned handle is only meaningful when joined from scheduler task code. "
+                    .. "Please call it inside a scheduler task created by fork.",
+                2
+            )
+        end
+
         ---@type verilua.handles.EventHandle
         local ehdl
         ---@type verilua.scheduler.TaskID
@@ -1025,7 +1034,18 @@ do
 
         _G.task_group = function(body)
             assert(type(body) == "function", "`task_group` expects a function argument")
-            local tg = setmetatable({ _handles = {}, _owner_task_id = scheduler:get_curr_task_id() }, TaskGroup)
+
+            local owner_task_id = scheduler:get_curr_task_id()
+            if owner_task_id == scheduler.NULL_TASK_ID then
+                error(
+                    "task_group() cannot be called outside a scheduler task; "
+                        .. "it needs to yield while joining tasks. "
+                        .. "Please call it inside a scheduler task created by fork/jfork.",
+                    2
+                )
+            end
+
+            local tg = setmetatable({ _handles = {}, _owner_task_id = owner_task_id }, TaskGroup)
             body(tg)
             tg:join_all()
         end

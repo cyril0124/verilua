@@ -16,6 +16,36 @@ assert(
     "Expected scheduler.curr_task_id to be NULL_TASK_ID when not inside a task"
 )
 
+local top_level_task_group_body_ran = false
+local top_level_task_group_ok, top_level_task_group_err = pcall(function()
+    task_group(function()
+        top_level_task_group_body_ran = true
+    end)
+end)
+assert(not top_level_task_group_ok, "top-level task_group should fail before entering body")
+assert(not top_level_task_group_body_ran, "top-level task_group should not execute body")
+assert(
+    type(top_level_task_group_err) == "string"
+    and top_level_task_group_err:find("task_group() cannot be called outside a scheduler task", 1, true),
+    "top-level task_group should report a clear scheduler-task context error"
+)
+
+local top_level_jfork_body_ran = false
+local top_level_jfork_ok, top_level_jfork_err = pcall(function()
+    local _ehdl, _task_id = jfork {
+        function()
+            top_level_jfork_body_ran = true
+        end,
+    }
+end)
+assert(not top_level_jfork_ok, "top-level jfork should fail before registering task")
+assert(not top_level_jfork_body_ran, "top-level jfork should not execute task body")
+assert(
+    type(top_level_jfork_err) == "string"
+    and top_level_jfork_err:find("jfork() cannot be called outside a scheduler task", 1, true),
+    "top-level jfork should report a clear scheduler-task context error"
+)
+
 --==============================================================================
 -- All tests must be in one fork because Verilua entry point is fork
 fork {
