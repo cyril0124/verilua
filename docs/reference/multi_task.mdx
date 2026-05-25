@@ -204,6 +204,14 @@ end)
 
 `join_all` 采用**动态 drain** 语义：如果被等待的子任务在执行过程中又通过 `tg:fork` 创建了新任务，这些新任务也会被纳入等待范围。循环持续到组内不再有未完成的任务为止。
 
+:::warning[只有 task_group owner task 可以调用 `tg:join_all()`]
+子任务可以继续用同一个 `tg` 调用 `tg:fork()`，这是安全的；动态 fork 出来的任务会被 outer group 自动等待。
+
+但如果某个由 `tg:fork()` 创建出来的 child task 再对这个**同一个 outer group** 调用 `tg:join_all()`，它会把自己也算进等待集合，形成自等待死锁。Verilua 会在非 owner task 调用 `tg:join_all()` 时直接报错。
+
+如果子任务内部需要自己的局部同步范围，请新建一个 inner `task_group`。
+:::
+
 ```lua
 task_group(function(tg)
     tg:fork { phase1_a = function() dut.clock:posedge(10) end }
@@ -254,6 +262,10 @@ end)
 
 如果组内所有任务都已完成，`tg:join_any()` 返回 `nil`。
 
+:::warning[只有 task_group owner task 可以调用 `tg:join_any()`]
+和 `join_all()` 一样，child task 不应该对包含它自己的 outer group 调用 `join_any()`。这类代码语义含混，并可能形成对自身成员资格的等待。Verilua 会在非 owner task 调用 `tg:join_any()` 时直接报错；需要局部同步时请改用 inner `task_group`。
+:::
+
 ### 嵌套 Task Group
 
 `task_group` 支持嵌套，内层 group 不影响外层：
@@ -270,6 +282,11 @@ task_group(function(outer)
     end }
 end)
 ```
+
+推荐把规则理解为：
+
+- **child 复用 outer `tg` 来 `tg:fork()`**：可以，outer group 会统一追踪并等待
+- **child 复用 outer `tg` 来 `tg:join_all()` / `tg:join_any()`**：不可以，只有创建该 group 的 owner task 可以调用 join；child 应改为创建新的 inner `task_group`
 
 :::tip[何时使用 `task_group` vs `jfork` + `join`]
 - 当你有多个并发任务且希望确保全部完成时，优先使用 `task_group`

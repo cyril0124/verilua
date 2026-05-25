@@ -648,6 +648,38 @@ fork {
         assert(tg_drain_l3_done, "dynamic drain multi-level: l3 (grandchild) should be done")
         print("✓ task_group dynamic drain: multi-level grandchild is awaited")
 
+        -- Test 4.5.15: only the owner task may call join_all on a task_group
+        task_group(function(tg)
+            local owner_task_id = tg._owner_task_id
+            tg._owner_task_id = scheduler.NULL_TASK_ID
+            local ok, err = pcall(function()
+                tg:join_all()
+            end)
+            tg._owner_task_id = owner_task_id
+
+            assert(not ok, "non-owner task should not be allowed to call tg:join_all")
+            assert(
+                type(err) == "string" and err:find("join_all() can only be called by the task_group owner task", 1, true),
+                "join_all owner guard should explain the misuse")
+        end)
+        print("✓ task_group join_all rejects non-owner task")
+
+        -- Test 4.5.16: only the owner task may call join_any on a task_group
+        task_group(function(tg)
+            local owner_task_id = tg._owner_task_id
+            tg._owner_task_id = scheduler.NULL_TASK_ID
+            local ok, err = pcall(function()
+                tg:join_any()
+            end)
+            tg._owner_task_id = owner_task_id
+
+            assert(not ok, "non-owner task should not be allowed to call tg:join_any")
+            assert(
+                type(err) == "string" and err:find("join_any() can only be called by the task_group owner task", 1, true),
+                "join_any owner guard should explain the misuse")
+        end)
+        print("✓ task_group join_any rejects non-owner task")
+
         print("✓ All task_group tests passed")
 
         --==============================================================================

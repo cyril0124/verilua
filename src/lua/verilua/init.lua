@@ -911,6 +911,11 @@ do
     ---      end)
     ---      -- join_all is still called implicitly at scope exit
     --- ```
+    ---
+    --- A child task may `tg:fork()` additional work into the same group.
+    --- Only the task that created the `task_group` may call `tg:join_all()`
+    --- or `tg:join_any()` on it. If a child needs its own local barrier,
+    --- create a new inner `task_group` instead.
     ---@param body fun(tg: verilua.TaskGroup)
     do
         local next = next
@@ -918,8 +923,19 @@ do
 
         ---@class verilua.TaskGroup
         ---@field private _handles verilua.handles.EventHandle[]
+        ---@field private _owner_task_id verilua.scheduler.TaskID
         local TaskGroup = {}
         TaskGroup.__index = TaskGroup
+
+        ---@param op_name string
+        local function assert_join_from_owner(self, op_name)
+            local curr_task_id = scheduler:get_curr_task_id()
+            if curr_task_id ~= self._owner_task_id then
+                error((
+                    "task_group: %s() can only be called by the task_group owner task; child tasks should use a new inner task_group for local synchronization"
+                ):format(op_name))
+            end
+        end
 
         --- Fork one or more tasks within this group. All tasks are automatically tracked for join.
         --- When a single task is given, returns its (EventHandle, TaskID).
@@ -954,6 +970,8 @@ do
         --- during execution, those are also awaited. Loops until no pending
         --- tracked tasks remain.
         function TaskGroup:join_all()
+            assert_join_from_owner(self, "join_all")
+
             local handles = self._handles
             local event_name_map = scheduler.event_name_map
 
@@ -983,6 +1001,8 @@ do
         --- Returns the EventHandle of the first task that completed.
         ---@return verilua.handles.EventHandle?
         function TaskGroup:join_any()
+            assert_join_from_owner(self, "join_any")
+
             local handles = self._handles
             local n = #handles
             if n == 0 then return nil end
@@ -1005,7 +1025,7 @@ do
 
         _G.task_group = function(body)
             assert(type(body) == "function", "`task_group` expects a function argument")
-            local tg = setmetatable({ _handles = {} }, TaskGroup)
+            local tg = setmetatable({ _handles = {}, _owner_task_id = scheduler:get_curr_task_id() }, TaskGroup)
             body(tg)
             tg:join_all()
         end
