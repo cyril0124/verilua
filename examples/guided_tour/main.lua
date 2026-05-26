@@ -641,72 +641,216 @@ fork {
 
         print("\n[Guide] 6. Task scheduling, jfork, and removal")
 
-        local a = 123
-
         -- `fork` can be used anywhere
-        fork {
-            function()
-                print("[Task] inner `fork` is running in the background")
-                clock:posedge()
-                a = a + 1
-            end
-        }
+        do
+            local bg_done = false
 
-        -- A `fork` created task is running in the background
-        assert(a == 123)
+            fork {
+                function()
+                    print("[Task] inner `fork` is running in the background")
+                    clock:posedge()
+                    bg_done = true
+                end
+            }
 
-        clock:posedge()
-        if cfg.simulator == "xcelium" then
-            -- Xcelium schedule posedge callback in random order, when the callback is called,
-            -- the value of `a` may not be updated yet, so we need to wait for one more cycle.
+            -- A `fork` created task is running in the background
+            assert(not bg_done)
+
             clock:posedge()
-            assert(a == 124)
-        else
-            assert(a == 124)
+            if cfg.simulator == "xcelium" then
+                -- Xcelium schedule posedge callback in random order, when the callback is called,
+                -- the value may not be updated yet, so we need to wait for one more cycle.
+                clock:posedge()
+            end
+            assert(bg_done)
         end
 
         -- To wait for a specific task to finish, use `jfork` together with `join`.
-        local e = jfork {
-            -- Notice: `jfork` only accepts a single function as its argument
-            function()
-                clock:posedge()
-                a = a + 1
-            end
-        }
-        join(e)
-        assert(a == 125)
+        do
+            local done = false
+            local e = jfork {
+                -- Notice: `jfork` only accepts a single function as its argument
+                function()
+                    clock:posedge()
+                    done = true
+                end
+            }
+            join(e)
+            assert(done)
+        end
 
         -- `join` can wait for multiple tasks to finish
-        local e1 = jfork {
-            function()
-                clock:posedge()
-                a = a + 1
-            end
-        }
-        local e2 = jfork {
-            function()
-                clock:posedge(20)
-                a = a + 1
-            end
-        }
-        join({ e1, e2 })
-        assert(a == 127)
+        do
+            local done1 = false
+            local done2 = false
+            local e1 = jfork {
+                function()
+                    clock:posedge()
+                    done1 = true
+                end
+            }
+            local e2 = jfork {
+                function()
+                    clock:posedge(20)
+                    done2 = true
+                end
+            }
+            join({ e1, e2 })
+            assert(done1)
+            assert(done2)
+        end
+
+        -- `join_any` waits for any one of the given tasks to finish and returns
+        -- the handle of the first completed task.
+        do
+            local x = 0
+            local ea = jfork {
+                fast_task = function()
+                    clock:posedge(2)
+                    x = x + 1
+                end
+            }
+            local eb = jfork {
+                slow_task = function()
+                    clock:posedge(50)
+                    x = x + 1
+                end
+            }
+            local first_done = join_any { ea, eb }
+            -- `fast_task` finishes first
+            assert(first_done == ea)
+            assert(x == 1)
+            -- `slow_task` is still running; we can still join it later
+            join(eb)
+            assert(x == 2)
+        end
 
         -- A running task can be removed even if it is not finished
         -- To do so, you need to get the task id from `jfork` and pass it to `scheduler:remove_task(<task_id>)` when you want to remove it
-        local _task_handle, task_id = jfork { --- The second return value is the task id
-            function()
-                clock:posedge(100, function(_count)
-                    a = a + 1
-                end)
-            end
-        }
-        clock:posedge(10)
-        assert(scheduler:check_task_exists(task_id))
-        scheduler:remove_task(task_id)
-        assert(a == 138)
-        clock:posedge(10)
-        assert(a == 138) --- `a` is not changed since the task is removed
+        do
+            local counter = 0
+            local _task_handle, task_id = jfork { --- The second return value is the task id
+                function()
+                    clock:posedge(100, function(_count)
+                        counter = counter + 1
+                    end)
+                end
+            }
+            clock:posedge(10)
+            assert(scheduler:check_task_exists(task_id))
+            local counter_before = counter
+            scheduler:remove_task(task_id)
+            clock:posedge(10)
+            assert(counter == counter_before) --- counter is not changed since the task is removed
+        end
+
+        print("\n[Guide] 6.5. Task groups (scoped concurrency)")
+
+        -- `task_group` provides scoped concurrent task management.
+        -- All tasks forked via `tg:fork` are automatically tracked and joined
+        -- when the scope exits. This eliminates the common bug of forgetting
+        -- to `join` a `jfork` task.
+        do
+            local driver_done = false
+            local monitor_done = false
+
+            task_group(function(tg)
+                tg:fork { driver = function()
+                    clock:posedge(3)
+                    driver_done = true
+                end }
+
+                -- Task name is optional; anonymous tasks work the same way
+                tg:fork {
+                    function()
+                        clock:posedge(5)
+                        monitor_done = true
+                    end
+                }
+            end)
+
+            -- After task_group returns, ALL tasks are guaranteed to be finished
+            assert(driver_done)
+            assert(monitor_done)
+        end
+
+        -- `tg:join_any()` waits for any one task in the group to finish
+        do
+            local fast_done = false
+            local slow_done = false
+
+            task_group(function(tg)
+                tg:fork {
+                    function()
+                        clock:posedge(2)
+                        fast_done = true
+                    end
+                }
+                tg:fork { slow = function()
+                    clock:posedge(20)
+                    slow_done = true
+                end }
+
+                local _first = tg:join_any()
+                -- `fast` finishes first
+                assert(fast_done)
+                assert(not slow_done)
+            end)
+            -- After scope exit, even `slow` is joined
+            assert(slow_done)
+        end
+
+        -- Dynamic drain: child tasks forked by parent tasks are also awaited
+        do
+            local parent_done = false
+            local child_done = false
+
+            task_group(function(tg)
+                tg:fork { parent = function()
+                    clock:posedge(2)
+                    parent_done = true
+                    -- Dynamically fork a child into the same group (anonymous)
+                    tg:fork {
+                        function()
+                            clock:posedge(5)
+                            child_done = true
+                        end
+                    }
+                end }
+            end)
+
+            -- Both parent and dynamically forked child are awaited
+            assert(parent_done)
+            assert(child_done)
+        end
+
+        -- Nested task_group: inner group does not affect outer group
+        do
+            local outer_done = false
+            local inner_a_done = false
+            local inner_b_done = false
+
+            task_group(function(outer)
+                outer:fork { outer_task = function()
+                    task_group(function(inner)
+                        inner:fork { inner_a = function()
+                            clock:posedge(3)
+                            inner_a_done = true
+                        end }
+                        inner:fork { inner_b = function()
+                            clock:posedge(5)
+                            inner_b_done = true
+                        end }
+                    end)
+                    outer_done = true
+                end }
+            end)
+
+            assert(outer_done)
+            assert(inner_a_done)
+            assert(inner_b_done)
+        end
+
         print("\n[Guide] 7. Events, time delays, and task introspection")
 
         -- EventHandle allows tasks to wait for and send events, providing a simple
