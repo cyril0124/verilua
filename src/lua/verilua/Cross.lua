@@ -31,6 +31,7 @@ local tostring = tostring
 ---@field sample? integer Number of random samples to draw
 ---@field weights? number[][] Per-list weight arrays for biased sampling
 ---@field unique? boolean Ensure sampled results are unique (default: false)
+---@field max_attempts? integer Maximum sampling attempts before error (default: sample * 100)
 
 ---@class verilua.Cross
 local Cross = {}
@@ -296,7 +297,7 @@ function Cross._sample_product(lists, opts)
     local results = {}
     local seen = {}
     local attempts = 0
-    local max_attempts = sample * 100 -- prevent infinite loop
+    local max_attempts = opts.max_attempts or (sample * 100)
 
     while #results < sample do
         attempts = attempts + 1
@@ -474,7 +475,7 @@ function Cross._sample_permutations(a, opts)
     local results = {}
     local seen = {}
     local attempts = 0
-    local max_attempts = sample * 100
+    local max_attempts = opts.max_attempts or (sample * 100)
 
     while #results < sample do
         attempts = attempts + 1
@@ -660,7 +661,7 @@ function Cross._sample_combinations(a, k, opts)
     local results = {}
     local seen = {}
     local attempts = 0
-    local max_attempts = sample * 100
+    local max_attempts = opts.max_attempts or (sample * 100)
 
     while #results < sample do
         attempts = attempts + 1

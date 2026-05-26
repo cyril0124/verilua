@@ -643,3 +643,31 @@ describe("Cross hardware verification scenarios", function()
         assert(#result == 50)
     end)
 end)
+
+describe("Cross opts.max_attempts", function()
+    it("should respect user-provided max_attempts", function()
+        math.randomseed(42)
+        local ok, err = pcall(function()
+            Cross.product_table({ { 1, 2 }, { 3, 4 } }, {
+                sample = 1,
+                max_attempts = 10,
+                filter = function() return false end,
+            })
+        end)
+        assert(not ok)
+        assert(tostring(err):find("10"), "expected 10 in error: " .. tostring(err))
+    end)
+
+    it("should use default when max_attempts not set", function()
+        math.randomseed(42)
+        local ok, err = pcall(function()
+            Cross.product_table({ { 1, 2 }, { 3, 4 } }, {
+                sample = 5,
+                filter = function() return false end,
+            })
+        end)
+        assert(not ok)
+        -- default is sample * 100 = 500
+        assert(tostring(err):find("500"), "expected 500 in error: " .. tostring(err))
+    end)
+end)

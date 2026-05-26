@@ -63,9 +63,10 @@ end
 | `sample` | `integer` | 随机采样数量（仅 `_table` 版本） |
 | `weights` | `number[][]` | 每个列表的采样权重（仅笛卡尔积） |
 | `unique` | `boolean` | 采样时保证不重复（仅 `_table` 版本，默认 `false`） |
+| `max_attempts` | `integer` | 采样失败前允许的最大尝试次数（仅 `_table` 版本，默认 `sample * 100`） |
 
 :::tip 采样限制
-当 `unique = true` 且 `sample` 超过总组合数时，会报错。如果 `filter` 过于严格导致合法组合不足，也会在尝试 `sample * 100` 次后报错。
+当 `unique = true` 且 `sample` 超过总组合数时，会报错。如果 `filter` 过于严格导致合法组合不足，也会在尝试 `max_attempts` 次后报错；未设置 `max_attempts` 时默认尝试 `sample * 100` 次。
 :::
 
 ## 笛卡尔积（Cartesian Product）
