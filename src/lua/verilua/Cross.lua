@@ -17,7 +17,6 @@
 --       { sample = 10, unique = true, filter = function(c) return c[1] % c[2] == 0 end }
 --   )
 --
--- @module verilua.Cross
 
 local random = math.random
 local floor = math.floor

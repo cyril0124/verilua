@@ -1,0 +1,279 @@
+# 用 Cross 构造约束随机激励
+
+`Cross` 适合把“取值域 + 约束 + 采样策略”直接写成激励生成代码。相比手写多层循环，它更适合表达下面三类验证问题：
+
+| 问题类型 | 推荐 API | 典型场景 |
+| --- | --- | --- |
+| 多个字段各取一个值 | `product_iter` / `product_table` | 协议事务参数、配置寄存器字段、握手压力参数 |
+| 同一组步骤改变顺序 | `permutations_iter` / `permutations_table` | 初始化顺序、错误注入顺序、寄存器访问顺序 |
+| 从 N 个资源中选 k 个 | `combinations_iter` / `combinations_table` | 仲裁请求者、多通道反压、bank/channel 子集 |
+
+更完整的 API 行为、参数和边界条件请参考 [组合工具（Cross）](../reference/cross.mdx)。本页只关注硬件验证里的使用模式。
+
+:::tip
+以下 `drive_*`、`check_*`、`apply_*` 都是测试环境中的占位函数。示例重点是如何用 `Cross` 生成场景，而不是绑定某个具体 DUT。
+:::
+
+## 选择迭代还是返回 table
+
+- 用 `_iter`：组合空间较大、只需要顺序跑完、无需保存全部结果时。
+- 用 `_table`：需要随机采样、去重、打乱后再运行，或者要把生成结果交给其他调度逻辑时。
+- 用 `filter`：把合法性约束靠近激励生成处，避免非法 case 流入 driver。
+- 用 `sample + unique`：从大空间中抽取有限个不重复场景。
+- 用 `weights`：只适用于笛卡尔积采样，用来提高边界值或稀有值被选中的概率。
+
+如果测试需要可复现的采样顺序，可以在测试入口自行设置 `math.randomseed(...)`；下面示例不固定随机种子。
+
+## 协议事务空间：APB/CSR 写事务交叉约束
+
+用 `product_table` 把地址、数据、写掩码和访问属性组合起来，并在生成阶段过滤非法写事务。
+
+```lua
+local cross = require "verilua.Cross"
+
+local addr   = {0x00, 0x04, 0x10, 0x14}
+local data   = {0x00000000, 0xffffffff, 0x55555555, 0xaaaaaaaa}
+local strobe = {0x1, 0x3, 0xf}
+local prot   = {"normal", "privileged"}
+
+local cases = cross.product_table({addr, data, strobe, prot}, {
+    filter = function(c)
+        local a, _, s, p = c[1], c[2], c[3], c[4]
+
+        -- CTRL requires full-word writes.
+        if a == 0x10 and s ~= 0xf then
+            return false
+        end
+
+        -- DEBUG is privileged-only.
+        if a == 0x14 and p ~= "privileged" then
+            return false
+        end
+
+        return true
+    end,
+})
+
+for _, c in ipairs(cases) do
+    drive_apb_write({
+        addr = c[1],
+        data = c[2],
+        strobe = c[3],
+        prot = c[4],
+    })
+    check_csr_write_effect(c[1], c[2], c[3])
+end
+```
+
+## 覆盖驱动采样：valid-ready 压力场景
+
+用 `weights` 提高长 stall、边界 payload、长 burst 被采到的概率，同时用 `filter` 控制总 stall 长度。
+
+```lua
+local cross = require "verilua.Cross"
+
+local valid_gap = {0, 1, 2, 8}
+local ready_gap = {0, 1, 3, 10}
+local beats     = {1, 2, 4, 8}
+local payload   = {0x00, 0x01, 0x7f, 0x80, 0xff}
+
+local samples = cross.product_table({valid_gap, ready_gap, beats, payload}, {
+    sample = 64,
+    unique = true,
+    weights = {
+        {5, 1, 1, 8},       -- Prefer no-gap and long valid stalls.
+        {5, 1, 1, 8},       -- Prefer no-gap and long ready stalls.
+        {4, 1, 2, 6},       -- Prefer single-beat and long burst.
+        {8, 1, 2, 2, 8},    -- Prefer payload boundaries.
+    },
+    filter = function(c)
+        local vg, rg = c[1], c[2]
+        return vg + rg <= 12
+    end,
+})
+
+for _, s in ipairs(samples) do
+    drive_valid_ready_transfer({
+        valid_gap = s[1],
+        ready_gap = s[2],
+        beats = s[3],
+        payload = s[4],
+    })
+    check_no_drop_or_duplicate()
+end
+```
+
+## 初始化顺序探索：reset/config 序列
+
+用 `permutations_table` 枚举初始化步骤的顺序，再用 `filter` 保留协议允许但仍有差异的启动路径。
+
+```lua
+local cross = require "verilua.Cross"
+
+local steps = {
+    "assert_reset",
+    "program_clock",
+    "program_mode",
+    "release_reset",
+    "enable_irq",
+}
+
+local function index_of(seq, name)
+    for i = 1, #seq do
+        if seq[i] == name then
+            return i
+        end
+    end
+    error("step not found: " .. name)
+end
+
+local orders = cross.permutations_table(steps, {
+    filter = function(p)
+        -- Reset must be asserted before any other init step.
+        if p[1] ~= "assert_reset" then
+            return false
+        end
+
+        -- Clock and mode must be configured before reset release.
+        local release_idx = index_of(p, "release_reset")
+        if index_of(p, "program_clock") > release_idx then
+            return false
+        end
+        if index_of(p, "program_mode") > release_idx then
+            return false
+        end
+
+        -- IRQ can only be enabled after reset release.
+        return release_idx < index_of(p, "enable_irq")
+    end,
+})
+
+for _, order in ipairs(orders) do
+    reset_test_env()
+    for i = 1, #order do
+        apply_init_step(order[i])
+    end
+    check_boot_state()
+end
+```
+
+## 错误注入顺序覆盖：故障恢复路径
+
+用 `permutations_table` 从错误事件顺序空间中采样，覆盖不同故障恢复路径而不跑完整阶乘空间。
+
+```lua
+local cross = require "verilua.Cross"
+
+local events = {
+    "inject_crc_error",
+    "inject_timeout",
+    "retry_transaction",
+    "flush_pipeline",
+    "clear_error_status",
+}
+
+local function before(seq, lhs, rhs)
+    local lhs_idx, rhs_idx
+    for i = 1, #seq do
+        if seq[i] == lhs then lhs_idx = i end
+        if seq[i] == rhs then rhs_idx = i end
+    end
+    return lhs_idx < rhs_idx
+end
+
+local samples = cross.permutations_table(events, {
+    sample = 20,
+    unique = true,
+    filter = function(p)
+        -- Recovery actions must happen after the injected fault.
+        return before(p, "inject_timeout", "retry_transaction")
+            and before(p, "flush_pipeline", "clear_error_status")
+    end,
+})
+
+for _, seq in ipairs(samples) do
+    reset_error_state()
+    for i = 1, #seq do
+        apply_error_event(seq[i])
+    end
+    check_error_recovery()
+end
+```
+
+## 仲裁并发：N-of-M requester 组合
+
+用 `combinations_iter` 从多个请求者中选择同周期并发请求集合，覆盖仲裁器的多源冲突场景。
+
+```lua
+local cross = require "verilua.Cross"
+
+local requestors = {"CPU", "DMA0", "DMA1", "GPU", "NPU", "USB", "ETH", "PCIE"}
+
+local function contains(combo, name)
+    for i = 1, #combo do
+        if combo[i] == name then
+            return true
+        end
+    end
+    return false
+end
+
+for group in cross.combinations_iter(requestors, 3, {
+    filter = function(c)
+        -- Avoid a board-level illegal pairing in this environment.
+        return not (contains(c, "USB") and contains(c, "PCIE"))
+    end,
+}) do
+    drive_concurrent_requests(group, {same_cycle = true})
+    check_onehot_grant(group)
+    check_fairness_window(group)
+end
+```
+
+## 多通道反压：credit 恢复组合
+
+反压（back pressure）指下游暂时不能继续接收数据时，通过 ready/credit 等机制让上游暂停发送。这里用 `combinations_table` 随机选取被反压的 channel 子集，并用 `filter` 避免所有压力集中在同一个 bank。
+
+```lua
+local cross = require "verilua.Cross"
+local floor = math.floor
+
+local channels = {}
+for ch = 0, 15 do
+    channels[#channels + 1] = ch
+end
+
+local function has_bank_hotspot(combo)
+    local count = {}
+    for i = 1, #combo do
+        local bank = floor(combo[i] / 4)
+        count[bank] = (count[bank] or 0) + 1
+        if count[bank] > 2 then
+            return true
+        end
+    end
+    return false
+end
+
+local stress_sets = cross.combinations_table(channels, 4, {
+    sample = 40,
+    unique = true,
+    filter = function(c)
+        return not has_bank_hotspot(c)
+    end,
+})
+
+for _, chs in ipairs(stress_sets) do
+    apply_channel_backpressure(chs, {cycles = 8})
+    drain_channel_credits(chs)
+    check_credit_recovery(chs)
+end
+```
+
+## 使用模式小结
+
+- 事务字段交叉：优先从 `product_table(..., { filter = ... })` 开始。
+- 大空间抽样：加上 `sample = N, unique = true`，必要时对 product 增加 `weights`。
+- 顺序相关 bug：把步骤写成列表，再用 `permutations_table` 探索合法顺序。
+- 并发资源选择：用 `combinations_iter` 或 `combinations_table` 表达“从 N 个里选 k 个”。
+- 约束过严时：降低 `sample` 或放宽 `filter`，否则唯一采样可能因为合法空间不足而报错。
