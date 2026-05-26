@@ -59,15 +59,33 @@ end
 
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
-| `filter` | `fun(combo): boolean` | 约束过滤函数，返回 `true` 保留该组合 |
-| `sample` | `integer` | 随机采样数量（仅 `_table` 版本） |
+| `filter` | `fun(combo): boolean` | 约束过滤函数，返回 truthy 值保留该组合；没有显式 `return` 时 Lua 返回 `nil`，该组合会被过滤掉 |
+| `sample` | `integer` | 随机采样数量（仅 `_table` 版本）；不设置时 `_table` 版本会枚举全部结果 |
 | `weights` | `number[][]` | 每个列表的采样权重（仅笛卡尔积） |
-| `unique` | `boolean` | 采样时保证不重复（仅 `_table` 版本，默认 `false`） |
+| `unique` | `boolean` | 采样时保证不重复（仅 `_table` 版本且设置 `sample` 时生效，默认 `false`） |
 | `max_attempts` | `integer` | 采样失败前允许的最大尝试次数（仅 `_table` 版本，默认 `sample * 100`） |
 
 :::tip 采样限制
 当 `unique = true` 且 `sample` 超过总组合数时，会报错。如果 `filter` 过于严格导致合法组合不足，也会在尝试 `max_attempts` 次后报错；未设置 `max_attempts` 时默认尝试 `sample * 100` 次。
 :::
+
+### `filter`、`sample`、`unique` 的细节
+
+`filter` 只有在返回 truthy 值时才保留组合。Lua 函数没有显式 `return` 时返回 `nil`，等价于 `false`：
+
+```lua
+filter = function(c)
+    c[1] % c[2] == 0  -- 错误：没有 return，所有组合都会被过滤掉
+end
+
+filter = function(c)
+    return c[1] % c[2] == 0  -- 正确
+end
+```
+
+`sample` 表示从完整组合空间中随机抽取多少个结果。它只用于 `_table` 版本；不设置 `sample` 时，`product_table` / `permutations_table` / `combinations_table` 会返回全部结果。
+
+`unique = true` 只在随机采样时去重。对常见的 number / string / boolean 值，它按组合里的值去重，并且会区分 Lua 类型，例如 `1` 和 `"1"` 不相同。`product_table` 和 `permutations_table` 使用有序 tuple 去重，因此 `{1, 2}` 和 `{2, 1}` 是两个不同结果；`combinations_table` 使用无序 set 去重，因此 `{1, 2}` 和 `{2, 1}` 会被视为同一个组合。若组合元素本身是 table / userdata / function / thread，则会按 `tostring(value)` 生成去重 key，通常更接近按对象身份去重。
 
 ## 笛卡尔积（Cartesian Product）
 
