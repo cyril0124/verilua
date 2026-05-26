@@ -244,3 +244,22 @@ bdl.bits.data:set(0x456)
 7. `<bdl>:format_dump_str(format_func)`
 
    返回 `format_dump()` 的输出字符串。
+
+## Bundle vs AliasBundle 选型
+
+如果你不确定该用 `Bundle` 还是 `AliasBundle`，参考下表：
+
+| | Bundle | AliasBundle |
+|---|---|---|
+| 信号列表 | 只有信号名：`"valid \| data"` | 信号名 + 可选别名：`"origin => alias"` |
+| 访问方式 | 用原始信号名：`bdl.valid` | 用别名：`abdl.alias_name` |
+| Decoupled 支持 | ✅ `is_decoupled` + `fire()` / `get_all()` / `set_all()` | ❌ 不支持 |
+| 适用场景 | 信号名本身就是你想要的访问名，或需要 ready/valid 握手语义 | RTL 信号名冗长/不直观，想用更短或更有语义的别名 |
+
+**选型建议：**
+
+- 大部分情况下推荐使用 **AliasBundle**，因为它是 Bundle 的超集：不指定别名时行为与 Bundle 完全一致，需要别名时又能直接扩展，不必重构代码
+- 只有在需要 Decoupled 握手语义（`fire()` / `get_all()` / `set_all()`）时才必须用 **Bundle**
+- 如果 AliasBundle 中所有信号都不指定别名，它就退化为和 Bundle 等价的行为
+
+详见 [别名信号组（AliasBundle）](./alias_bundle.mdx)。

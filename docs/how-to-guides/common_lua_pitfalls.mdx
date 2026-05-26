@@ -2,6 +2,24 @@
 
 本节收集在 Verilua 开发中最容易遇到的 Lua/LuaJIT 陷阱。
 
+## `0` 在 Lua 中是真值
+
+在 Lua 中，只有 `nil` 和 `false` 是假值，其他所有值（包括数字 `0` 和空字符串 `""`）都是真值。这是从 C/SystemVerilog 转过来的用户最容易踩的坑：
+
+```lua
+local result = bit.band(status, mask)
+if result then
+    -- 即使 result == 0，这里也会执行！
+end
+
+-- 正确写法
+if bit.band(status, mask) ~= 0 then
+    -- ...
+end
+```
+
+在硬件验证中这尤其危险，因为信号值经常是 `0` 或 `1`，直接用 `if signal_value then` 判断会导致逻辑永远为真。
+
 ## `a and b or c` 不是三元运算符
 
 很多语言都有三元表达式 `a ? b : c`，但 Lua 的 `a and b or c` 并不是等价写法。当 `b` 的值为 `false` 或 `nil` 时，它会直接跳到 `c`：
