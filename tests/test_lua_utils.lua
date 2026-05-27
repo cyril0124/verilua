@@ -841,4 +841,11 @@ describe("LuaUtils test", function()
             expect.equal(result, expected, f("compare_hex_str('%s', '%s'): %s", str1, str2, msg))
         end
     end)
+
+    it("should work for get_scriptdir()", function()
+        local dir = utils.get_scriptdir()
+        -- This test file lives in <repo>/tests, so get_scriptdir() should return that directory
+        local expected = require("pl.path").dirname(require("pl.path").abspath(arg[0]))
+        expect.equal(dir, expected)
+    end)
 end)

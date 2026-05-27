@@ -82,6 +82,7 @@ local utils = require "verilua.LuaUtils"
 | 函数 | 描述 |
 | --- | --- |
 | `read_file_str(filename)` | 读取文件全部内容为字符串 |
+| `get_scriptdir()` | 获取调用者脚本所在的绝对目录路径 |
 | `iorun(cmd)` | 执行命令并返回输出 |
 
 ### 其他
@@ -377,6 +378,21 @@ print(add(1, 2))  --> 3
 
 ```lua
 local content = utils.read_file_str("config.txt")
+```
+
+#### `get_scriptdir()`
+
+获取调用者脚本所在的绝对目录路径。类似于 xmake 的 `os.scriptdir()`，用于定位当前脚本的相对资源。
+
+```lua
+local utils = require "verilua.LuaUtils"
+
+-- 假设当前脚本为 /home/user/project/tests/test_foo.lua
+local dir = utils.get_scriptdir()
+print(dir)  --> "/home/user/project/tests"
+
+-- 常见用法：拼接相对路径
+local data_file = dir .. "/data/input.bin"
 ```
 
 #### `iorun(cmd)`

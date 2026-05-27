@@ -1264,6 +1264,26 @@ function utils.report_luacov()
     end, "luacov.report.lock")
 end
 
+--- Get the directory of the calling script.
+--- Uses `debug.getinfo` to locate the source file of the caller and returns its absolute directory path.
+--- e.g.
+--- ```lua
+---     -- If the calling script is /home/user/project/test.lua
+---     local dir = utils.get_scriptdir()
+---     assert(dir == "/home/user/project")
+--- ```
+---@nodiscard Return value should not be discarded
+---@return string The absolute directory path of the calling script
+function utils.get_scriptdir()
+    local info = debug.getinfo(2, "S")
+    assert(info and info.source, "[utils.get_scriptdir] cannot determine source")
+    local source = info.source
+    if source:sub(1, 1) == "@" then
+        source = source:sub(2)
+    end
+    return path.dirname(path.abspath(source))
+end
+
 ---@type fun(cmd: string): string?
 local iorun_cfunc
 --- Run a command and return the output(stdout or stderr if stdout is empty)
