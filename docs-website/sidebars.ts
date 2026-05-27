@@ -33,6 +33,7 @@ const sidebars: SidebarsConfig = {
         'how-to-guides/cross_stimulus_generation',
         'how-to-guides/clock_driving',
         'how-to-guides/multi_clock_testing',
+        'how-to-guides/call_c_functions',
         'how-to-guides/common_lua_pitfalls',
       ],
     },

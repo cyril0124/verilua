@@ -177,9 +177,70 @@ end
 -- 可能的输出：vpi_control @ 0x7f8d4a2b1c00
 ```
 
+## 符号查找范围与 `ffi.load` 的关系
+
+`SymbolHelper` 内部有两条符号查找路径，适用范围不同：
+
+| 查找路径 | 实现方式 | 能找到的符号 |
+|---------|---------|-------------|
+| `get_global_symbol_addr` | 解析主可执行文件的 ELF `.symtab` | 仅限链接进仿真器二进制的符号（DPI-C 函数、静态链接的库等） |
+| `ffi.C[name]`（`try_ffi_cast` 的 fallback） | `dlsym(RTLD_DEFAULT, ...)` | 主程序 + 所有以 `RTLD_GLOBAL` 加载的共享库 |
+
+### `ffi.load` 加载的 `.so` 中的符号
+
+`ffi.load(path)` 默认使用 `RTLD_LOCAL`，加载的符号**对 `SymbolHelper` 完全不可见**：
+
+```lua
+local ffi = require "ffi"
+ffi.cdef [[ int32_t my_func(int32_t x); ]]
+
+local lib = ffi.load("/path/to/libfoo.so")  -- RTLD_LOCAL
+
+-- ❌ get_global_symbol_addr 返回 0（只看主 ELF）
+SymbolHelper.get_global_symbol_addr("my_func")  --> 0
+
+-- ❌ try_ffi_cast 也失败（ffi.C fallback 找不到 RTLD_LOCAL 符号）
+SymbolHelper.try_ffi_cast("int32_t (*)(int32_t)", "int32_t my_func(int32_t x);", "my_func")  --> error
+
+-- ✅ 通过 ffi.load 返回的 handle 直接调用
+lib.my_func(42)  --> OK
+```
+
+如果需要让 `try_ffi_cast` 的 fallback 路径能找到 `.so` 中的符号，使用 `ffi.load(path, true)` 加载——第二个参数为 `true` 表示以 `RTLD_GLOBAL` 模式打开，使库中所有导出符号对 `dlsym(RTLD_DEFAULT, ...)` 可见：
+
+```lua
+local lib = ffi.load("/path/to/libfoo.so", true)  -- RTLD_GLOBAL
+
+-- ❌ get_global_symbol_addr 仍然返回 0（它只解析主 ELF，不用 dlsym）
+SymbolHelper.get_global_symbol_addr("my_func")  --> 0
+
+-- ✅ try_ffi_cast 通过 ffi.C fallback 成功（dlsym 能找到 RTLD_GLOBAL 符号）
+local fn = SymbolHelper.try_ffi_cast(
+    "int32_t (*)(int32_t)",
+    "int32_t my_func(int32_t x);",
+    "my_func"
+)
+fn(42)  --> OK
+```
+
+### 总结：如何调用外部 `.so` 中的 C 函数
+
+| 方式 | 是否需要 SymbolHelper | 说明 |
+|------|---------------------|------|
+| `ffi.load(path)` 返回的 handle 直接调用 | 否 | 最简单，需要 `ffi.cdef` 声明函数签名 |
+| `ffi.load(path, true)` + `try_ffi_cast` | 是 | 符号全局可见，可通过 `ffi.C` 或 `try_ffi_cast` 调用 |
+| 将 `.so` 链接进仿真器（`add_files` 或 `-LDFLAGS`） | 是 | 符号在主 ELF 中，`get_global_symbol_addr` 和 `ffi_cast` 均可用 |
+
+:::tip[何时用 SymbolHelper，何时用 ffi.load]
+- 如果函数已经链接进仿真器（DPI-C、VPI 扩展、仿真器内部函数），用 `SymbolHelper`。
+- 如果函数在一个独立的 `.so` 中且不想修改构建流程，直接用 `ffi.load` + handle 调用即可，不需要 `SymbolHelper`。
+:::
+
 ## 注意事项
 
-- **符号可见性**：某些符号可能被编译器优化掉（例如未使用的静态函数），或者被链接器隐藏。为确保符号可被找到，编译时需要保留符号（如使用 `-rdynamic` 或 `-Wl,--export-dynamic`）。
+- **符号可见性**：某些符号可能被编译器优化掉（例如未使用的静态函数），或者被链接器隐藏。为确保符号可被找到，编译时需要保留符号（如使用 `-rdynamic` 或 `-Wl,--export-dynamic`）。在 Verilator 下，如果 DPI-C 函数未被 SV 代码引用，需要通过 `-LDFLAGS "-u symbol_name"` 强制保留。
+- **`get_global_symbol_addr` 的局限**：该函数只解析主可执行文件的 ELF `.symtab` 段，不会搜索动态加载的共享库。如果主程序被 strip 过，`.symtab` 可能不存在，此时所有符号都会返回 0。
+- **`ffi.cdef` 与 `SymbolHelper` 的关系**：通过 `ffi.load` handle 调用 C 函数时，必须先用 `ffi.cdef` 声明函数签名，否则访问会报错。而 `SymbolHelper.ffi_cast` 不需要 `ffi.cdef`——它通过原始地址 + 内联类型字符串完成转换。`try_ffi_cast` 的 fallback 路径会自动调用 `ffi.cdef`，用户无需手动声明。
 - **性能**：`get_global_symbol_addr` 首次调用时会解析 ELF 文件并缓存结果，后续调用极快。
 - **线程安全**：该模块内部使用互斥锁保护缓存，可在多线程环境中安全使用（但 Verilua 仿真通常是单线程）。
 - **错误处理**：`ffi_cast` 在符号不存在时会触发错误，建议在不确定时使用 `try_ffi_cast`。

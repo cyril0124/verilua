@@ -1,0 +1,147 @@
+# 从 Lua 调用 C 函数
+
+在 Verilua 中，你可以从 Lua 侧直接调用 C 函数，无需经过 SystemVerilog 中转。根据函数的来源不同，有两种主要方式：
+
+:::note[只能调用 C ABI 函数]
+LuaJIT FFI 和 `dlsym` 都按 C 符号名查找，无法处理 C++ 的 name mangling。如果源文件是 `.cpp`，需要用 `extern "C"` 声明导出函数。
+:::
+
+1. **函数已链接进仿真器**（DPI-C 导出、VPI 扩展、仿真器内部函数）→ 使用 `SymbolHelper`
+2. **函数在独立的 `.so` 中**（不参与仿真器构建）→ 使用 `ffi.load`
+
+:::tip[前置知识]
+本文假设你了解 LuaJIT FFI 的基本概念（`ffi.cdef`、`ffi.load`、`cdata`）。如果不熟悉，先阅读 [LuaJIT 与标准 Lua 的常见差异](../getting-started/luajit_vs_standard_lua.mdx#ffi-直接和-c-世界交互)。
+:::
+
+## 方式一：调用链接进仿真器的 C 函数
+
+当 C/C++ 代码通过 `add_files` 或链接选项编入仿真器二进制时，函数符号存在于主可执行文件的 ELF 中。此时使用 [`SymbolHelper`](../reference/symbol_helper.mdx) 获取并调用。
+
+### C 侧
+
+```cpp
+// dpic.cpp
+#include <cstdint>
+extern "C" int32_t my_add(int32_t a, int32_t b) {
+    return a + b;
+}
+```
+
+### xmake.lua 中添加源文件
+
+```lua
+add_files("dpic.cpp")
+
+-- Verilator 下如果函数未被 SV 代码引用，需要强制保留符号
+if sim == "verilator" then
+    add_ldflags("-u my_add")
+end
+```
+
+### Lua 侧调用
+
+```lua
+local SymbolHelper = require "verilua.utils.SymbolHelper"
+
+-- try_ffi_cast 是最安全的方式：先尝试 ELF 查找，失败则 fallback 到 ffi.C
+local my_add = SymbolHelper.try_ffi_cast(
+    "int32_t (*)(int32_t, int32_t)",       -- 函数指针类型
+    "int32_t my_add(int32_t a, int32_t b);", -- ffi.cdef 声明（fallback 用）
+    "my_add"                                 -- 符号名
+)
+
+print(my_add(17, 25))  --> 42
+```
+
+### 调用 SV export 的函数
+
+SV 中 `export "DPI-C"` 的函数同样链接在仿真器中，但调用前需要设置 DPI scope：
+
+```lua
+sim.set_dpi_scope("tb_top.u_top")  -- 必须先设置 scope
+
+local sv_func = SymbolHelper.try_ffi_cast(
+    "int (*)(int)",
+    "int sv_square(int x);",
+    "sv_square"
+)
+print(sv_func(7))  --> 49
+```
+
+## 方式二：运行时加载独立 `.so`
+
+当 C 代码编译为独立的共享库、不参与仿真器构建时，使用 `ffi.load` 直接加载并调用。
+
+### C 侧
+
+```c
+// mylib.c
+#include <stdint.h>
+int32_t fast_hash(const char* data, int32_t len) {
+    int32_t h = 0;
+    for (int32_t i = 0; i < len; i++) h = h * 31 + data[i];
+    return h;
+}
+```
+
+编译：
+
+```bash
+gcc -shared -fPIC -o libmylib.so mylib.c
+```
+
+### Lua 侧调用
+
+```lua
+local ffi = require "ffi"
+
+-- 1. 声明函数签名（必须，否则访问会报错）
+ffi.cdef [[
+    int32_t fast_hash(const char* data, int32_t len);
+]]
+
+-- 2. 加载 .so，得到 library handle
+local mylib = ffi.load("./libmylib.so")
+
+-- 3. 通过 handle 调用
+print(mylib.fast_hash("hello", 5))
+```
+
+:::caution[ffi.cdef 是 ffi.load 的前提]
+`ffi.load` 返回的 handle 访问任何函数前，都必须先用 `ffi.cdef` 声明其签名。没有声明就访问会报错，而签名写错不会报错但会产生错误结果。注意：`SymbolHelper` 不需要 `ffi.cdef`，它通过参数内联提供类型信息。
+:::
+
+### RTLD_LOCAL vs RTLD_GLOBAL
+
+`ffi.load(path)` 默认以 `RTLD_LOCAL` 加载，符号仅通过返回的 handle 可访问：
+
+```lua
+local lib = ffi.load("./libmylib.so")       -- RTLD_LOCAL（默认）
+lib.fast_hash("x", 1)                       -- ✅ 通过 handle 调用
+ffi.C.fast_hash("x", 1)                     -- ❌ ffi.C 找不到
+```
+
+如果传第二个参数 `true`，则以 `RTLD_GLOBAL` 加载，符号对 `ffi.C` 和 `SymbolHelper.try_ffi_cast` 的 fallback 路径可见：
+
+```lua
+local lib = ffi.load("./libmylib.so", true)  -- RTLD_GLOBAL
+ffi.C.fast_hash("x", 1)                      -- ✅ 全局可见
+```
+
+通常直接用 handle 调用就够了，不需要 `RTLD_GLOBAL`。
+
+## 如何选择
+
+| 场景 | 推荐方式 | 原因 |
+|------|---------|------|
+| 调用 DPI-C 导出的函数 | `SymbolHelper` | 符号已在仿真器 ELF 中 |
+| 调用仿真器内部函数（`svSetScope` 等） | `SymbolHelper` | 同上 |
+| 调用 SV `export "DPI-C"` 函数 | `SymbolHelper` + `sim.set_dpi_scope` | 需要设置 scope |
+| 调用独立编译的 `.so`（不改构建流程） | `ffi.load` + handle | 最简单，无需修改 xmake.lua |
+| 调用系统库函数（`libm`、`libz` 等） | `ffi.load("z")` 或 `ffi.C` | 系统库通常已全局可见 |
+
+## 参考
+
+- [SymbolHelper API 参考](../reference/symbol_helper.mdx) — 完整的函数签名和符号查找机制说明
+- [编写 xmake.lua — 添加 C/C++ 源文件](./write_xmake_lua.mdx#61-添加-cc-源文件hvl) — 如何将 C 文件加入构建
+- [LuaJIT FFI Tutorial](https://luajit.org/ext_ffi_tutorial.html) — FFI 基础教程
