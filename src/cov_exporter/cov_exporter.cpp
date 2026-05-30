@@ -209,6 +209,46 @@ struct CovExporter {
             }
         }
 
+        // ==================================================================
+        // Pipeline
+        // ==================================================================
+        //
+        //   sources.sv          (user RTL files)
+        //       |
+        //       v
+        //   driver.loadAllSources()
+        //       |  via slang_common::file_manage::backupFile()
+        //       v
+        //   <file>.bak          (snapshots in workdir, parsed by slang)
+        //       |
+        //       v
+        //   compilation = driver.createAndReportCompilation()
+        //       |
+        //       v
+        //   for each target module:
+        //       +-------------------------------------+
+        //       |  CoverageInfoGetter (visit syntax)  |
+        //       |   -> collect netMap / varMap        |
+        //       |   -> collect condPaths/condRewrites |
+        //       +-------------------------------------+
+        //       |
+        //       v
+        //   CoverageInfoWritter::transform(tree)  (single pass, all modules)
+        //       +-------------------------------------+
+        //       | Step 1: replace top-level if-trees  |  (cond-path)
+        //       | Step 2: insertAtFront cnt + _COV_EN |  (decls before always)
+        //       | Step 3: insertAtBack DPI fns +      |  (toggle coverage +
+        //       |         toggle always blocks        |   helpers, in `ifndef)
+        //       +-------------------------------------+
+        //       |
+        //       v
+        //   SyntaxPrinter::printFile(tree)  +  generateNewFile()
+        //       |
+        //       v
+        //   <outdir>/<file>.sv  (instrumented RTL ready for simulation)
+        //
+        // ==================================================================
+
         // Get coverage signal info
         std::vector<CoverageInfo> coverageInfos;
         for (auto [moduleName, moduleOption] : moduleOptionMap) {
@@ -254,13 +294,12 @@ struct CovExporter {
             coverageInfos.emplace_back(coverageInfo);
         }
 
-        // Write coverage signal info
-        for (auto &coverageInfo : coverageInfos) {
-            fmt::println("[cov_exporter] Processing coverage signal info: `{}`", coverageInfo.moduleName);
-
-            CoverageInfoWritter writter(coverageInfo, relativeFilePath.value_or(false));
-            auto newTree = writter.transform(tree);
-            tree         = newTree;
+        // Write coverage signal info. We use a single rewriter pass over the
+        // original tree so all body-replacement pointers (which were captured
+        // against this very tree) stay valid.
+        if (!coverageInfos.empty()) {
+            CoverageInfoWritter writter(coverageInfos, relativeFilePath.value_or(false));
+            tree = writter.transform(tree);
         }
 
         // Save hierPaths to moduleName mapping

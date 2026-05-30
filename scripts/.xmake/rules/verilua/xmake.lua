@@ -15,8 +15,10 @@ end
 
 local FILE_COUNT_THRESHOLD = 100 -- Threshold for using filelist instead of passing files directly
 
--- Mapping from old cfg.* keys to new verilua.* keys.
--- All cfg.* keys are deprecated; verilua.* should be used instead.
+-- Mapping from old (deprecated) keys to new verilua.* keys.
+-- Most old keys use the `cfg.*` prefix; a few legacy keys had no prefix at all
+-- (e.g. `instrumentation`). All of them are deprecated; the `verilua.*` form
+-- should be used instead.
 -- The helper below reads the new key first, then falls back to the old key with a warning.
 local CFG_DEPRECATION_MAP = {
     ["verilua.top"]                = "cfg.top",
@@ -35,6 +37,7 @@ local CFG_DEPRECATION_MAP = {
     ["verilua.user_cfg"]           = "cfg.user_cfg",
     ["verilua.other_cfg"]          = "cfg.other_cfg",
     ["verilua.version_required"]   = "cfg.version_required",
+    ["verilua.instrument"]         = "instrumentation",
 }
 
 --- Read a verilua config value from the target.
@@ -364,7 +367,7 @@ return cfg
     target:set("verilua_cfg_file", verilua_cfg_file) -- Used in `on_build` and `on_run` phases
 
     -- Extra info provided by instrumentation
-    local _instrumentation = target:values("instrumentation")
+    local _instrumentation = get_verilua_value(target, "verilua.instrument")
     if _instrumentation then
         local t = type(_instrumentation)
         assert(
@@ -1109,7 +1112,7 @@ rule("verilua", function()
         --- Notice: For now, only `cov_exporter` is supported.
         --- e.g. (in your xmake.lua)
         --- ```lua
-        ---     set_values("instrumentation", function()
+        ---     set_values("verilua.instrument", function()
         ---         return {
         ---             {
         ---                 type = "cov_exporter",
@@ -1126,7 +1129,7 @@ rule("verilua", function()
         ---         }
         ---     end)
         --- ```
-        local _instrumentation = target:values("instrumentation")
+        local _instrumentation = get_verilua_value(target, "verilua.instrument")
         if _instrumentation then
             local t = type(_instrumentation)
             assert(

@@ -997,6 +997,7 @@ target("test", function()
             -- Tool tests (one per directory)
             "test-dpi-exporter",
             "test-cov-exporter",
+            "test-cov-exporter-dynamic",
             "test-signal-db",
             -- slang_common unit tests
             "test-slang-common",

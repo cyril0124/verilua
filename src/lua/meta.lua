@@ -130,7 +130,8 @@ function await_nsim() end
 --- | "verilua.no_internal_clock"
 --- | "verilua.use_inertial_put"
 --- | "before_build" "Optional" User-defined callback function to run before build
---- | "instrumentation" "Optional" Instrumentation configuration function for runtime coverage collection
+--- | "verilua.instrument" "Optional" Instrumentation configuration function for runtime coverage collection
+--- | "instrumentation" "Optional" (Deprecated, use verilua.instrument) Instrumentation configuration function
 --- | "verilator.opt_slow" "Optional" Optimization options for slow-path code
 --- | "verilator.opt_fast" "Optional" Optimization options for fast-path code
 

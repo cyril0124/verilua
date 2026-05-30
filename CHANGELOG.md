@@ -4,8 +4,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 💥 Breaking Changes
+
+- **cov_exporter**: Conditional-coverage semantics changed from per-expression toggle counting to control-flow path counting. Each `if` / `else if` / explicit `else` body now bumps a counter when actually entered, and the guard reflects the full path prefix (e.g. `(!(a)) && (b) && (c)` for an `if (c)` nested inside an `else if (b)`). Counter naming (`_<id>__COV_BIN_EXPR_CNT`), DPI exports (`getCondCoverage`, `getCoverageCount`, `showCoverageCount`, `coverageCtrl`, `resetCoverage`) and meta-json fields stay backward compatible. The denominator now equals the number of distinct guard paths instead of the number of distinct boolean sub-expressions.
+- **cov_exporter**: The xmake config key `instrumentation` is deprecated in favor of `verilua.instrument`. The old key still works (with a deprecation warning) but new code should use the new name.
+
 ### 🐛 Fixed
 
+- **cov_exporter**: Fix generated RTL failing to compile when a module has zero cond-path points (e.g. no instrumentable `if` chains). The front `\`ifndef NO_COVERAGE` block was missing its closing `\`endif` due to slang's `parseGuess()` collapsing a single-member insert.
+- **cov_exporter**: Fix `--ns` (merged toggle block) generating uncompilable RTL: `_<sig>__LAST` declarations were missing and each increment line carried a stray `end` that broke begin/end balance.
+- **cov_exporter**: The lint test now verifies all five generated golden outputs with `verilator --lint-only` in both default and `+define+NO_COVERAGE` modes.
+- **cov_exporter**: Wire `test_cov_exporter_dynamic` into the regression suite so it runs under `xmake run test` / `./test-all.sh`.
 - **multi_task**: `TaskGroup:join_all()` now dynamically drains — tasks forked by child tasks during execution are also awaited, fixing the early-exit bug where dynamically forked children could be missed (see [#9](https://github.com/cyril0124/verilua/issues/9))
 - **multi_task**: `TaskGroup` now reports an explicit error when a non-owner task calls `tg:join_all()` or `tg:join_any()` on that group, avoiding silent self-wait deadlocks while keeping `tg:fork()` unchanged
 - **multi_task**: `task_group()` and `jfork()` now report clear errors when called outside a scheduler task, instead of leaking low-level yield/context failures
