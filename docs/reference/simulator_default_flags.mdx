@@ -1,0 +1,141 @@
+# 仿真后端默认参数
+
+Verilua 的 xmake rule 会在编译和运行阶段为每个仿真后端自动注入一组默认参数。本页列出这些参数及其作用，帮助用户理解仿真行为的来源，并说明其中哪些可以覆盖或关闭。
+
+:::tip[默认参数与用户参数的关系]
+通过 `set_values("<sim>.flags", ...)` / `add_values("<sim>.flags", ...)` 传入的参数，**默认是追加**在下表默认参数之后，并不会自动去掉已有默认值。
+
+只有少数默认参数支持覆盖或开关切换：
+
+- **可覆盖值**：`timescale`（各后端）、Verilator 的 `--x-assign`、VCS 的 `-cc/-cpp/-ld`。传入同名参数会就地替换默认值。
+- **可开关切换**：Verilator 的 `-O3`↔`-O0`、`--no-timing`↔`--timing`；寄存器初始化通过 [`vcs_no_initreg` / `xcelium_no_initreg`](#关闭寄存器初始化) 关闭；`--public-flat-rw` 仅在存在 `.vlt` 配置文件时不注入。
+
+除此之外的默认参数（如 `-debug_access+all`、`-access +rw`、`--Wno-*` 等）是无条件注入的，无法通过 `<sim>.flags` 去掉。完整的参数传递机制见 [xmake 的配置参数](./xmake_params.mdx#添加编译参数)。
+:::
+
+## 确定性与寄存器初始化
+
+在 RTL 仿真中，未显式赋初值的寄存器（`reg` / `logic`）的初始状态因仿真器而异。为了提高仿真的**确定性**和**可复现性**，Verilua 默认为各后端注入寄存器/X 值初始化参数：
+
+| 后端 | 编译阶段 | 运行阶段 | 效果 |
+|------|----------|----------|------|
+| Verilator | `--x-assign unique` | — | 每个 X 信号赋予唯一确定值，保证多次运行结果一致 |
+| VCS | `+vcs+initreg+random` | `+vcs+initreg+0` | 编译时启用 initreg 支持；运行时将所有寄存器初始化为 0 |
+| Xcelium | `-xminitialize 0` | `-xminitialize 0` | 编译和运行阶段均将寄存器初始化为 0 |
+| Icarus | — | — | Icarus 默认将寄存器初始化为 X，Verilua 未额外注入初始化参数 |
+
+:::warning[VCS 编译与运行的区别]
+VCS 的 `+vcs+initreg+random` 在编译阶段启用寄存器初始化功能（instrumentation），而运行阶段的 `+vcs+initreg+0` 决定实际初始化值为 0。两者缺一不可。
+:::
+
+### 关闭寄存器初始化
+
+如果需要回到仿真器原生的未初始化行为（例如测试 X 传播或使用自定义初始化方案），可以通过以下开关关闭：
+
+```lua title="xmake.lua"
+target("test", function()
+    add_rules("verilua")
+    add_toolchains("@vcs")
+
+    -- 关闭 VCS 寄存器初始化（不再注入 +vcs+initreg+random / +vcs+initreg+0）
+    set_values("verilua.vcs_no_initreg", "1")
+
+    -- 关闭 Xcelium 寄存器初始化（不再注入 -xminitialize 0）
+    -- set_values("verilua.xcelium_no_initreg", "1")
+
+    -- ...
+end)
+```
+
+| 开关 | 默认值 | 设为 `"1"` 后的效果 |
+|------|--------|---------------------|
+| `verilua.vcs_no_initreg` | 未设置（启用初始化） | 不注入 `+vcs+initreg+random`（编译）和 `+vcs+initreg+0`（运行），寄存器保持 VCS 原生 X 状态 |
+| `verilua.xcelium_no_initreg` | 未设置（启用初始化） | 不注入 `-xminitialize 0`，寄存器保持 Xcelium 原生 X 状态 |
+
+:::note[Verilator 的 `--x-assign`]
+Verilator 的 `--x-assign` 可通过 `set_values("verilator.flags", "--x-assign 0")` 直接覆盖为其他值（`0`、`1`、`fast`），无需专用开关。
+:::
+
+---
+
+## Verilator 默认参数
+
+### 编译阶段
+
+| 参数 | 说明 |
+|------|------|
+| `--x-assign unique` | X 信号赋唯一确定值，保证可复现性 |
+| `-O3` | 启用 Verilator 代码生成优化（可通过 `verilator.flags` 中的 `-O0` 覆盖） |
+| `--public-flat-rw` | 允许通过 VPI 读写所有信号（如果存在 `.vlt` 配置文件则不注入，改用精细控制以提升性能） |
+| `--timescale-override 1ns/1ps` | 统一时间精度 |
+| `--no-timing` | 禁用 timing 模式（可通过 `--timing` 覆盖切换为 timing 模式） |
+| `--Wno-PINMISSING` 等 | 抑制常见非关键警告（PINMISSING、MODDUP、WIDTHEXPAND、WIDTHTRUNC、UNOPTTHREADS、IMPORTSTAR） |
+| `-CFLAGS "-std=c++20"` | C++ 编译标准 |
+| `-LDFLAGS "-flto"` | 链接时优化 |
+
+### 运行阶段
+
+Verilator 编译产物为原生二进制，运行阶段无额外注入参数。
+
+---
+
+## Icarus Verilog 默认参数
+
+### 编译阶段
+
+| 参数 | 说明 |
+|------|------|
+| `-g2012` | 启用 SystemVerilog 2012 语法支持 |
+| `+timescale+1ns/1ps` | 统一时间精度 |
+
+### 运行阶段
+
+Icarus 通过 `vvp` 运行，Verilua 仅注入 VPI 模块加载参数，无额外仿真行为参数。
+
+---
+
+## VCS 默认参数
+
+### 编译阶段
+
+| 参数 | 说明 |
+|------|------|
+| `+vcs+initreg+random` | 启用寄存器初始化 instrumentation（运行时由 `+vcs+initreg+0` 决定实际值） |
+| `-sverilog` | 启用 SystemVerilog |
+| `-debug_access+all` | 启用完整调试访问，供 Verilua 通过 VPI 读写信号 |
+| `-timescale=1ns/1ps` | 统一时间精度 |
+
+### 运行阶段
+
+| 参数 | 说明 |
+|------|------|
+| `+vcs+initreg+0` | 将所有寄存器初始化为 0 |
+| `+notimingcheck` | 禁用时序检查（加速仿真） |
+
+---
+
+## Xcelium 默认参数
+
+### 编译阶段
+
+| 参数 | 说明 |
+|------|------|
+| `-xminitialize 0` | 将寄存器初始化为 0 |
+| `-sv` | 启用 SystemVerilog |
+| `-timescale 1ns/1ps` | 统一时间精度 |
+| `-nospecify` | 抑制 specify block 中的时序信息 |
+| `-access +rw` | 启用信号读写访问，供 Verilua 通过 VPI 读写信号 |
+
+### 运行阶段
+
+| 参数 | 说明 |
+|------|------|
+| `-xminitialize 0` | 将寄存器初始化为 0（运行阶段同样需要） |
+
+---
+
+## 相关文档
+
+- [xmake 的配置参数](./xmake_params.mdx)：了解 `<sim>.flags` 和 `<sim>.run_flags` 的参数传递机制（默认追加，少数可覆盖）。
+- [特殊环境变量](./special_env_variables.mdx)：`SEED` 环境变量用于控制随机种子，与寄存器初始化配合使用可实现完全可复现的仿真。
+- [控制内部时钟生成](./xmake_params.mdx#控制内部时钟生成)：`verilua.no_internal_clock` 开关。

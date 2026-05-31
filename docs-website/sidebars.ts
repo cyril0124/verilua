@@ -55,6 +55,7 @@ const sidebars: SidebarsConfig = {
           ],
         },
         'reference/xmake_params',
+        'reference/simulator_default_flags',
         'reference/testbench_generate',
         'reference/global_configuration',
         'reference/simulator_control',
