@@ -5,6 +5,11 @@ local describe, it, expect = lester.describe, lester.it, lester.expect
 
 local ctx = require "verilua.sva.SVAContext"
 
+-- Disable lint for most tests since they use synthetic/fake data (bare
+-- identifiers like `test`, `123`) that would trigger undeclared-identifier
+-- errors in slang. Lint-specific tests re-enable it explicitly.
+ctx:set_lint(false)
+
 lester.parse_args()
 
 describe("SVAContext test", function()
@@ -26,12 +31,11 @@ test: cover property (_GEN_test_PROPERTY);
         ctx:clean()
         expect.equal(tostring(ctx), "")
 
-        -- `cat` is a helper function to concatenate multiple tables
+        -- envs is a plain table
         ret = ctx:add "cover" {
             name = "test1",
             expr = "test1 + $(a) + $(bb)",
-            ---@diagnostic disable-next-line: need-check-nil
-            envs = cat({ a = 123 }) + cat({ bb = 456 })
+            envs = { a = 123, bb = 456 }
         }
         expect.equal(ret, nil)
         -- SVAContext:generate() is equal to tostring(SVAContext)
@@ -41,9 +45,6 @@ property _GEN_test1_PROPERTY(); test1 + 123 + 456; endproperty
 test1: cover property (_GEN_test1_PROPERTY);
 
 ]])
-
-        -- `cat` is not available outside of `SVAContext:add`
-        expect.equal(cat, nil)
 
         -- Clean context
         ctx:clean()
@@ -147,12 +148,15 @@ property test1(); test + 123 + 456; endproperty
 
 ]])
 
-        -- Sequence and Property will automatically add to global envs
-        expect.equal(ctx.global_envs.test, ret)
-        expect.equal(ctx.global_envs.test1, ret1)
+        -- Sequence and Property are reachable only through the seq:/prop:
+        -- namespaces, never as a flat env name.
+        expect.equal(ctx.seq_envs.test, ret)
+        expect.equal(ctx.prop_envs.test1, ret1)
+        expect.equal(ctx.global_envs.test, nil)
+        expect.equal(ctx.global_envs.test1, nil)
         ctx:add("cover")({
             name = "test2",
-            expr = "test2 + $(test) + $(test1)",
+            expr = "test2 + $(seq:test) + $(prop:test1)",
         })
         expect.equal(tostring(ctx), [[
 sequence test(); test + 123 + 456; endsequence
@@ -168,6 +172,98 @@ test2: cover property (_GEN_test2_PROPERTY);
         -- Clean context
         ctx:clean()
         expect.equal(tostring(ctx), "")
+    end)
+
+    it("can reference sequence/property via seq:/prop: namespace", function()
+        ctx:add "sequence" {
+            name = "handshake",
+            expr = "req ##1 ack",
+        }
+        ctx:add "property" {
+            name = "no_overflow",
+            expr = "!ovf",
+        }
+
+        -- `$(seq:name)` / `$(prop:name)` are the only way to reference
+        -- previously added sequences and properties.
+        ctx:add "assert" {
+            name = "chk",
+            expr = "$(seq:handshake) |-> $(prop:no_overflow)",
+        }
+        expect.equal(tostring(ctx), [[
+sequence handshake(); req ##1 ack; endsequence
+
+property no_overflow(); !ovf; endproperty
+
+// 1/1
+property _GEN_chk_PROPERTY(); handshake |-> no_overflow; endproperty
+chk: assert property (_GEN_chk_PROPERTY);
+
+]])
+
+        ctx:clean()
+    end)
+
+    it("requires seq:/prop: prefix to reference sequence/property", function()
+        ctx:add "sequence" { name = "handshake", expr = "req ##1 ack" }
+        ctx:add "property" { name = "no_overflow", expr = "!ovf" }
+
+        -- A bare `$(handshake)` no longer resolves to the sequence; it fails
+        -- with a hint pointing at the required `seq:` prefix.
+        local ok, err = pcall(function()
+            ctx:add "assert" { name = "bad_seq", expr = "x |-> $(handshake)" }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find(
+                "[SVAContext] cannot reference sequence `handshake` as a flat `$(handshake)`; use the `seq:` prefix, e.g. `$(seq:handshake)`",
+                1, true
+            ),
+            "expected seq prefix hint in error, got: " .. err_str
+        )
+
+        -- Same for a flat reference to a property.
+        ok, err = pcall(function()
+            ctx:add "assert" { name = "bad_prop", expr = "$(no_overflow)" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find(
+                "[SVAContext] cannot reference property `no_overflow` as a flat `$(no_overflow)`; use the `prop:` prefix, e.g. `$(prop:no_overflow)`",
+                1, true
+            ),
+            "expected prop prefix hint in error, got: " .. err_str
+        )
+
+        -- A real env that happens to share the name still wins over the hint.
+        ctx:add "cover" { name = "ok", expr = "$(handshake)", envs = { handshake = "REAL" } }
+        expect.truthy(tostring(ctx):find("REAL", 1, true))
+
+        ctx:clean()
+    end)
+
+    it("rewrites seq:/prop: under custom escape and brackets", function()
+        ctx:add "sequence" {
+            name = "hs2",
+            expr = "a ##1 b",
+        }
+        ctx:add "cover" {
+            name = "cov2",
+            expr = "@{seq:hs2}",
+            envs = { _inline_escape = "@", _brackets = "{}" },
+        }
+        expect.equal(tostring(ctx), [[
+sequence hs2(); a ##1 b; endsequence
+
+// 1/1
+property _GEN_cov2_PROPERTY(); hs2; endproperty
+cov2: cover property (_GEN_cov2_PROPERTY);
+
+]])
+
+        ctx:clean()
     end)
 
     it("work with CallableHDL", function()
@@ -333,5 +429,90 @@ default clocking @(negedge path.to.clock); endclocking
         assert(ok)
 
         ctx:clean()
+    end)
+
+    it("sv_lint catches syntax errors", function()
+        ctx:set_lint(true)
+
+        -- Valid SVA with XMR paths passes lint
+        local ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_ok", expr = "top.dut.req ##1 top.dut.ack" }
+        end)
+        expect.equal(ok, true)
+        ctx:clean()
+
+        -- Syntax error: missing semicolons / malformed expression
+        ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_bad", expr = "top.dut.req ##" }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVAContext] lint error in 's_bad'", 1, true),
+            "expected lint error for s_bad, got: " .. err_str
+        )
+        ctx:clean()
+
+        ctx:set_lint(false)
+    end)
+
+    it("sv_lint catches semantic errors", function()
+        ctx:set_lint(true)
+
+        -- Semantic error: range reversed ##[5:2]
+        local ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_range", expr = "top.dut.a ##[5:2] top.dut.b" }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVAContext] lint error in 's_range'", 1, true),
+            "expected lint error for s_range, got: " .. err_str
+        )
+        assert(
+            err_str:find("sequence range minimum", 1, true),
+            "expected 'sequence range minimum' in error, got: " .. err_str
+        )
+        ctx:clean()
+
+        ctx:set_lint(false)
+    end)
+
+    it("sv_lint respects set_lint(false)", function()
+        ctx:set_lint(false)
+
+        -- This would fail lint (bare identifier) but lint is off
+        local ok = pcall(function()
+            ctx:add "sequence" { name = "s_nolint", expr = "bare_signal ##1 another" }
+        end)
+        expect.equal(ok, true)
+
+        ctx:clean()
+    end)
+
+    it("sv_lint validates cross-statement references", function()
+        ctx:set_lint(true)
+
+        -- Define a sequence, then reference it in a property
+        ctx:add "sequence" { name = "hs", expr = "top.dut.req ##1 top.dut.ack" }
+        local ok, err = pcall(function()
+            ctx:add "assert" { name = "chk", expr = "$(seq:hs) |-> top.dut.valid" }
+        end)
+        expect.equal(ok, true)
+        ctx:clean()
+
+        -- Reference a non-existent sequence -> undeclared identifier
+        ok, err = pcall(function()
+            ctx:add "assert" { name = "chk2", expr = "nonexist_seq |-> top.dut.valid" }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVAContext] lint error in 'chk2'", 1, true),
+            "expected lint error for chk2, got: " .. err_str
+        )
+        ctx:clean()
+
+        ctx:set_lint(false)
     end)
 end)

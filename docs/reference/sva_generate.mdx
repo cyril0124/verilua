@@ -1,0 +1,515 @@
+# SVA 生成（SVA Generate）
+
+SVAContext 是 Verilua 提供的 SVA（SystemVerilog Assertions）生成工具。它的核心价值在于**复用 Verilua testbench 中已有的信号 handle**，结合 Lua 的编程能力（循环、条件、模板），批量生成可嵌入 RTL 的 SVA 文本，由仿真器原生 SVA 引擎执行。
+
+## 什么时候使用
+
+以下场景适合使用 SVAContext：
+
+- **你已经有一个 Verilua testbench**，里面定义了 DUT 的信号 handle（`dut.clk`、`dut.req` 等），想复用这些 handle 生成 SVA，而不是另外手写一套 XMR 路径
+- **需要批量生成结构相似的断言**，比如多个 AXI channel 的握手检查、多个寄存器的读写断言、多 beat burst 的逐拍检查
+- **断言逻辑包含可参数化的模式**，希望用模板引擎（循环、条件）动态生成，而不是手写重复代码
+- **希望在定义时就发现 SVA 语法/语义错误**，而不是等到仿真运行时才报错
+
+不适合的场景：
+
+- 只有少量固定的断言，直接写 SV 更简单
+- 不使用 Verilua 做 testbench，没有可复用的 handle
+
+## 推荐用法
+
+SVA 生成通常不需要在每次仿真时都执行。推荐通过环境变量控制，只在需要重新生成 SVA 文件时才运行：
+
+```lua
+if os.getenv("SVA_GEN") == "1" then
+    fork {
+        function()
+            local ctx = require "verilua.sva.SVAContext"
+            ctx:clean()
+            ctx:default_clocking(dut.clk, "posedge")
+
+            -- 定义 sequences / properties / assertions ...
+            ctx:add "sequence" { name = "hs", expr = "$(req) ##1 $(ack)", envs = { req = dut.req, ack = dut.ack } }
+            ctx:add "assert" { name = "chk_hs", expr = "$(seq:hs) |-> $(valid)", envs = { valid = dut.valid } }
+
+            -- 写入文件，后续通过 testbench_gen --iif 注入 tb_top
+            local output_path = require("verilua.LuaUtils").get_scriptdir() .. "/sva_output.sv"
+            local f = io.open(output_path, "w")
+            f:write(ctx:generate())
+            f:close()
+
+            sim.finish()
+        end
+    }
+end
+```
+
+`sim.finish()` 在生成完成后立即结束仿真，避免继续执行后续 testbench 逻辑（此时只需要生成文件，不需要跑真正的测试）。
+
+运行时通过环境变量触发：
+
+```bash
+SVA_GEN=1 xmake run -P tests/test_xxx
+```
+
+这样做的好处：
+
+- 生成逻辑和 testbench 在同一个进程里，能直接复用所有 handle
+- 正常仿真时不会执行生成代码，零开销
+- 生成的 `.sv` 文件可以纳入版本控制，如有变化可以 diff 审查
+
+## 集成到 RTL
+
+生成的 `.sv` 文件通过 `verilua.tb_gen_flags` 传给 `testbench_gen`，用 `--iif`（inject-inner-file）将内容注入到 `tb_top` module 内部。SVA 内部使用 handle 渲染出的 XMR 路径（如 `tb_top.clk`），在 tb_top 内部上下文中完全合法。
+
+在 `xmake.lua` 里配置：
+
+```lua
+local sva_file = path.join(os.scriptdir(), "sva_output.sv")
+if os.isfile(sva_file) and not os.getenv("SVA_GEN") then
+    set_values("verilua.tb_gen_flags", { "--iif", sva_file })
+end
+```
+
+这样 `testbench_gen` 会把 `sva_output.sv` 的内容插入到生成的 `tb_top.sv` 末尾（endmodule 之前）。
+
+生成的 `tb_top.sv` 效果如下：
+
+```systemverilog
+module tb_top(...);
+
+// ... testbench_gen 自动生成的内容（时钟、DUT 例化等）...
+
+// --- SVAContext 生成的内容（通过 --iif 注入） ---
+default clocking @(posedge tb_top.clk); endclocking
+
+sequence req_to_ack(); tb_top.req ##[1:2] tb_top.ack; endsequence
+
+property handshake_valid(); (tb_top.req && tb_top.ack) |-> ##1 tb_top.valid; endproperty
+
+chk_handshake_valid: assert property (handshake_valid);
+cov_handshake: cover property (tb_top.req && tb_top.ack);
+
+endmodule
+```
+
+:::tip
+`SVA_GEN=1` 时不加 `--iif` flag，不然 testbench_gen 尝试 compile `sva_output.sv` 时 tb_top 还不存在会报错。
+:::
+
+## 初始化
+
+```lua
+local ctx = require "verilua.sva.SVAContext"
+```
+
+`SVAContext` 是一个模块级单例。使用前建议调用 `ctx:clean()` 确保状态干净。
+
+## 快速示例
+
+```lua
+local ctx = require "verilua.sva.SVAContext"
+
+-- 设置默认时钟
+ctx:default_clocking(dut.clk, "posedge")
+
+-- 定义 sequence（自动提取 handle 的 fullpath）
+ctx:add "sequence" {
+    name = "handshake",
+    expr = "$(req) ##1 $(ack)",
+    envs = { req = dut.req, ack = dut.ack },
+}
+
+-- 定义 property，引用已有 sequence
+ctx:add "property" {
+    name = "req_then_ack",
+    expr = "$(seq:handshake) |-> !$(ovf)",
+    envs = { ovf = dut.overflow },
+}
+
+-- 生成 assert
+ctx:add "assert" {
+    name = "chk_handshake",
+    expr = "$(prop:req_then_ack)",
+}
+
+-- 输出生成的 SVA 文本
+print(ctx:generate())
+```
+
+输出：
+
+```systemverilog
+default clocking @(posedge top.dut.clk); endclocking
+
+sequence handshake(); top.dut.req ##1 top.dut.ack; endsequence
+
+property req_then_ack(); handshake |-> !top.dut.overflow; endproperty
+
+// 1/1
+property _GEN_chk_handshake_PROPERTY(); req_then_ack; endproperty
+chk_handshake: assert property (_GEN_chk_handshake_PROPERTY);
+```
+
+## API 参考
+
+### `ctx:add(typ)(params)`
+
+柯里化调用，`typ` 为 `"sequence"` | `"property"` | `"cover"` | `"assert"`。
+
+```lua
+ctx:add "sequence" { name = "s1", expr = "...", envs = {...} }
+ctx:add "property" { name = "p1", expr = "..." }
+ctx:add "cover"    { name = "c1", expr = "...", cov_type = "sequence" }
+ctx:add "assert"   { name = "a1", expr = "..." }
+```
+
+**参数（params）：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | ✓ | 语句名称，整个 context 内唯一 |
+| `expr` | string | ✓ | SVA 表达式，支持 `$(var)` 模板语法 |
+| `envs` | table | | 模板变量表，key→value 映射 |
+| `cov_type` | string | | 仅 cover 有效：`"property"`（默认）或 `"sequence"` |
+
+**返回值：**
+
+- `"sequence"` → 返回 `Sequence` handle（可通过 `$(seq:name)` 引用）
+- `"property"` → 返回 `Property` handle（可通过 `$(prop:name)` 引用）
+- `"cover"` / `"assert"` → 返回 `nil`
+
+### `ctx:default_clocking(signal, edge_type, overwrite?)`
+
+设置默认采样时钟。
+
+```lua
+ctx:default_clocking(dut.clk, "posedge")
+ctx:default_clocking(dut.clk, "negedge", true)  -- overwrite 已有设置
+```
+
+- `signal`：`CallableHDL` 或 `ProxyTableHandle`，必须是 1-bit 信号
+- `edge_type`：`"posedge"` 或 `"negedge"`
+- `overwrite`：是否覆盖已有的 default clocking（默认 `false`）
+
+返回 `self`，支持链式调用。
+
+### `ctx:with_global_envs(envs)`
+
+注册全局模板变量，对后续所有 `add` 调用生效。
+
+```lua
+ctx:with_global_envs { clk = dut.clk, rst = dut.rst }
+```
+
+返回 `self`，支持链式调用。
+
+### `ctx:set_lint(enable)`
+
+启用或禁用 sv_lint 自动检查（默认开启）。
+
+```lua
+ctx:set_lint(false)  -- 关闭 lint
+ctx:set_lint(true)   -- 重新开启
+```
+
+返回 `self`，支持链式调用。
+
+### `ctx:generate()`
+
+返回生成的完整 SVA 文本字符串。等价于 `tostring(ctx)`。
+
+### `ctx:clean()`
+
+重置所有状态（sequences、properties、content、envs、default clocking）。返回 `self`。
+
+## 命名空间引用：`$(seq:name)` / `$(prop:name)`
+
+通过 `ctx:add "sequence"` 或 `ctx:add "property"` 定义的语句，必须通过命名空间前缀引用：
+
+```lua
+ctx:add "sequence" { name = "hs", expr = "$(req) ##1 $(ack)", envs = {...} }
+
+-- 引用 sequence：必须用 seq: 前缀
+ctx:add "property" { name = "p1", expr = "$(seq:hs) |-> $(valid)", envs = {...} }
+
+-- 引用 property：必须用 prop: 前缀
+ctx:add "assert" { name = "a1", expr = "$(prop:p1)" }
+```
+
+裸引用 `$(hs)` 会报错并提示正确写法：
+
+```
+[SVAContext] cannot reference sequence `hs` as a flat `$(hs)`;
+use the `seq:` prefix, e.g. `$(seq:hs)`
+```
+
+这样设计的好处：
+- 引用点一眼能看出类型（sequence 还是 property）
+- sequence/property 不会和普通 env 变量命名冲突
+
+## 模板语法
+
+`expr` 字段支持完整的模板引擎（基于 penlight template）：
+
+### 内联表达式 `$(expr)`
+
+```lua
+expr = "$(req) ##1 $(ack)"
+-- req/ack 从 envs 或 global_envs 中查找，handle 自动渲染为 fullpath
+```
+
+### Lua 代码行（`#` 开头）
+
+```lua
+expr = [[
+# for i = 0, 3 do
+    $(bus)[$i] ##1 $(ack)
+# end
+]]
+```
+
+### 自定义转义符
+
+如果 `#` 或 `$` 和你的表达式冲突，可以通过 envs 里的特殊字段修改：
+
+```lua
+envs = {
+    _escape = "%",           -- Lua 代码行前缀改为 %
+    _inline_escape = "@",    -- 内联表达式改为 @{...}
+    _brackets = "{}",        -- 括号改为 {}
+}
+```
+
+### Handle 自动渲染
+
+envs 中的 `CallableHDL` 和 `ProxyTableHandle` 会自动渲染为其 `fullpath`（XMR 路径）：
+
+```lua
+envs = { req = dut.req }  -- dut.req 是 ProxyTableHandle
+-- $(req) 渲染为 "top.dut.req"
+```
+
+### 嵌套表访问
+
+```lua
+envs = { bus = { data = dut.data, valid = dut.valid } }
+-- $(bus.data) 渲染为 dut.data 的 fullpath
+-- $(bus.valid) 渲染为 dut.valid 的 fullpath
+```
+
+## sv_lint 集成
+
+SVAContext 在每次 `add` 调用后自动对生成的 SVA 进行 lint 检查（基于 slang），能捕获语法和语义错误。例如：
+
+- 缺分号、括号不匹配、缺 `endproperty`/`endsequence`
+- `##[5:2]` 范围反转
+- 引用未定义的标识符 / sequence / property
+- 重复定义同名 sequence/property
+- 在 sequence 中使用 property 表达式
+- 递归 sequence 定义
+- `|->` / `|=>` 误用在 sequence 体内（implication 只能用在 property 中）
+
+报错格式：
+
+```
+[SVAContext] lint error in 'chk_handshake': sv_lint_input:4:8: error: sequence range minimum '5' is greater than specified maximum '2'
+    ##[5:2] top.dut.ack
+       ^ ~
+sv_lint_input:2:10: note: while expanding sequence 'handshake'
+sequence handshake(); top.dut.req
+         ^
+```
+
+报错包含行号、列号和 caret 指示，可以直接定位到 `expr` 中出错的位置。
+
+### 关闭 lint
+
+在不需要 lint 的场景（如单元测试使用 fake handle）可以关闭：
+
+```lua
+ctx:set_lint(false)
+```
+
+## 完整示例：批量生成 AXI 握手断言
+
+```lua
+local ctx = require "verilua.sva.SVAContext"
+
+ctx:default_clocking(dut.aclk, "posedge")
+
+-- 批量为多个 AXI channel 生成握手断言
+local channels = {
+    { name = "aw", valid = dut.awvalid, ready = dut.awready },
+    { name = "w",  valid = dut.wvalid,  ready = dut.wready },
+    { name = "ar", valid = dut.arvalid, ready = dut.arready },
+}
+
+for _, ch in ipairs(channels) do
+    -- valid 拉高后必须保持到 ready
+    ctx:add "property" {
+        name = ch.name .. "_valid_hold",
+        expr = "$(valid) && !$(ready) |-> ##1 $(valid)",
+        envs = { valid = ch.valid, ready = ch.ready },
+    }
+
+    ctx:add "assert" {
+        name = "chk_" .. ch.name .. "_valid_hold",
+        expr = "$(prop:" .. ch.name .. "_valid_hold)",
+    }
+end
+
+-- 输出完整 SVA 文本，可写入文件后 bind 到 RTL
+local sva_text = ctx:generate()
+```
+
+## 输出格式
+
+`generate()` 输出的文本按以下顺序拼接：
+
+1. `default clocking` 声明（如果设置了）
+2. 所有 `sequence` 定义
+3. 所有 `property` 定义
+4. 所有 `cover` / `assert` 语句（带 `// i/n` 编号注释）
+
+每个语句之间用空行分隔，可直接嵌入 SystemVerilog module 中使用。
+
+## 对比：手写 SV vs SVAContext
+
+### 示例 1：信号路径自动提取
+
+手写 SV 时，你需要手动拼写完整的层次路径：
+
+```systemverilog
+// 手写：每个信号都要写完整 XMR 路径
+sequence handshake();
+    top.u_soc.u_axi_master.awvalid ##1 top.u_soc.u_axi_master.awready;
+endsequence
+
+property aw_valid_hold();
+    top.u_soc.u_axi_master.awvalid && !top.u_soc.u_axi_master.awready
+        |-> ##1 top.u_soc.u_axi_master.awvalid;
+endproperty
+
+assert property (aw_valid_hold);
+```
+
+用 SVAContext，信号路径从 testbench 已有的 handle 自动提取：
+
+```lua
+-- SVAContext：复用 testbench 里的 handle，路径自动解析
+ctx:add "sequence" {
+    name = "handshake",
+    expr = "$(valid) ##1 $(ready)",
+    envs = { valid = dut.awvalid, ready = dut.awready },
+}
+
+ctx:add "property" {
+    name = "aw_valid_hold",
+    expr = "$(valid) && !$(ready) |-> ##1 $(valid)",
+    envs = { valid = dut.awvalid, ready = dut.awready },
+}
+
+ctx:add "assert" {
+    name = "chk_aw",
+    expr = "$(prop:aw_valid_hold)",
+}
+```
+
+优势：
+- 信号路径只在 testbench 里定义一次，不用在 SVA 里重复拼写
+- 路径改了（比如模块重命名），只需改 testbench 一处，SVA 自动更新
+- lint 即时检查语法正确性
+
+### 示例 2：批量生成
+
+对 3 个 AXI channel 各生成一条 valid-hold 断言。手写需要重复 3 次：
+
+```systemverilog
+// 手写：每个 channel 重复一遍
+property aw_valid_hold();
+    top.dut.awvalid && !top.dut.awready |-> ##1 top.dut.awvalid;
+endproperty
+chk_aw: assert property (aw_valid_hold);
+
+property w_valid_hold();
+    top.dut.wvalid && !top.dut.wready |-> ##1 top.dut.wvalid;
+endproperty
+chk_w: assert property (w_valid_hold);
+
+property ar_valid_hold();
+    top.dut.arvalid && !top.dut.arready |-> ##1 top.dut.arvalid;
+endproperty
+chk_ar: assert property (ar_valid_hold);
+```
+
+SVAContext 只需一个循环：
+
+```lua
+local channels = {
+    { name = "aw", valid = dut.awvalid, ready = dut.awready },
+    { name = "w",  valid = dut.wvalid,  ready = dut.wready },
+    { name = "ar", valid = dut.arvalid, ready = dut.arready },
+}
+
+for _, ch in ipairs(channels) do
+    ctx:add "property" {
+        name = ch.name .. "_valid_hold",
+        expr = "$(valid) && !$(ready) |-> ##1 $(valid)",
+        envs = { valid = ch.valid, ready = ch.ready },
+    }
+    ctx:add "assert" {
+        name = "chk_" .. ch.name,
+        expr = "$(prop:" .. ch.name .. "_valid_hold)",
+    }
+end
+```
+
+优势：
+- 新增 channel 只需在 `channels` 表里加一行，不用复制粘贴断言代码
+- 断言逻辑只写一次，修改时不会漏改某个 channel
+- 每条生成的断言都经过 lint 检查，拼写错误立即暴露
+
+### 示例 3：模板渲染能力
+
+当断言逻辑本身包含重复模式时，可以用 `expr` 内置的模板引擎（`#` 开头的 Lua 代码行 + `$(expr)` 内联求值）直接在表达式内部展开。
+
+例如，检查一个 4-beat burst 传输中每一拍的 data 都不为零：
+
+```systemverilog
+// 手写：每个 beat 单独列出
+sequence burst_nonzero();
+    (top.dut.wdata[0] != 0) ##1
+    (top.dut.wdata[1] != 0) ##1
+    (top.dut.wdata[2] != 0) ##1
+    (top.dut.wdata[3] != 0);
+endsequence
+```
+
+SVAContext 用模板循环生成：
+
+```lua
+ctx:add "sequence" {
+    name = "burst_nonzero",
+    expr = [[
+# for i = 0, 3 do
+#   if i > 0 then
+    ##1
+#   end
+    ($(wdata)[$(i)] != 0)
+# end
+]],
+    envs = { wdata = dut.wdata },
+}
+```
+
+生成结果：
+
+```systemverilog
+sequence burst_nonzero(); (top.dut.wdata[0] != 0) ##1 (top.dut.wdata[1] != 0) ##1 (top.dut.wdata[2] != 0) ##1 (top.dut.wdata[3] != 0); endsequence
+```
+
+优势：
+- beat 数量变化时只改循环边界，不用手动增删行
+- 模板内可以用任意 Lua 逻辑（条件、函数调用、计算）控制生成内容
+- 信号 handle 和循环变量可以混合使用

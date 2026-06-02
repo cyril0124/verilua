@@ -10,6 +10,7 @@ includes(path.join(prj_dir, "src", "signal_db_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "testbench_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "wave_vpi", "xmake.lua"))
 includes(path.join(prj_dir, "src", "nosim", "xmake.lua"))
+includes(path.join(prj_dir, "src", "sv_lint", "xmake.lua"))
 
 local CC = os.getenv("CC")
 local CXX = os.getenv("CXX")
@@ -255,6 +256,7 @@ target("build_all_tools", function()
             "dpi_exporter",
             "cov_exporter",
             "signal_db_gen",
+            "sv_lint",
             "wave_vpi_main",
             "nosim"
         }

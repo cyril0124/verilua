@@ -30,10 +30,10 @@ int main(int argc, const char *argv[]) {
     driver.cmdLine.add("--od,--out-dir", _outdir, "output directory", "<directory>");
     driver.cmdLine.add("--cs,--clock-signal", _clockSignalName, "clock signal name", "<signal name>");
     driver.cmdLine.add("--rs,--reset-signal", _resetSignalName, "reset signal name", "<signal name>");
-    driver.cmdLine.add("--cc,--custom-code", _customCodeFile, "input custom code <file>, will be inserted in the bottom of the testbench module", "<file>");
-    driver.cmdLine.add("--ccs,--custom-code-str", _customCodeStr, "input custom code <string>, will be inserted in the bottom of the testbench module", "<string>");
-    driver.cmdLine.add("--cco,--custom-code-outer", _customCodeOuterFile, "input custom code <file>, will be inserted in the top of the testbench module", "<file>");
-    driver.cmdLine.add("--ccso,--custom-code-str-outer", _customCodeStrOuter, "input custom code <string>, will be inserted in the top of the testbench module", "<string>");
+    driver.cmdLine.add("--iif,--inject-inner-file,--cc,--custom-code", _customCodeFile, "inject code from <file> into the testbench module inner (bottom, before endmodule)", "<file>");
+    driver.cmdLine.add("--iis,--inject-inner-str,--ccs,--custom-code-str", _customCodeStr, "inject code from <string> into the testbench module inner (bottom, before endmodule)", "<string>");
+    driver.cmdLine.add("--iof,--inject-outer-file,--cco,--custom-code-outer", _customCodeOuterFile, "inject code from <file> into the testbench module outer (before module declaration)", "<file>");
+    driver.cmdLine.add("--ios,--inject-outer-str,--ccso,--custom-code-str-outer", _customCodeStrOuter, "inject code from <string> into the testbench module outer (before module declaration)", "<string>");
     driver.cmdLine.add("--lm,--lua-meta-file", _luaMetaFile, "output lua meta file(type annotation file)", "<file>");
     driver.cmdLine.add("--fl,--filelist", _files, "input file or filelist", "<file/filelist>");
     driver.cmdLine.add("-p,--period", _period, "clock period", "<period value>");
@@ -324,11 +324,9 @@ int main(int argc, const char *argv[]) {
 // -----------------------------------------
 
 // -----------------------------------------
-// user custom code
-//    use `--custom-code-outer/-cco <file>` to pass in the custom code file.
-//       |_ e.g. `testbench_gen [...] --custom-code-outer path/to/file`
-//    use `--custom-code-str-outer/-ccso <string>` to pass in the custom code string.
-//       |_ e.g. `testbench_gen [...] --custom-code-str-outer "`define a 1"`
+// user custom code (outer)
+//    use `--inject-outer-file/-iof <file>` or
+//        `--inject-outer-str/-ios <string>`.
 // -----------------------------------------
 
 {{customCodeStrOuter}}
@@ -724,11 +722,9 @@ Others u_others(
 
 
 // -----------------------------------------
-// user custom code
-//    use `--custom-code/-cc <file>` to pass in the custom code file.
-//       |_ e.g. `testbench_gen [...] --custom-code path/to/file`
-//    use `--custom-code-str/-ccs <string>` to pass in the custom code string.
-//       |_ e.g. `testbench_gen [...] --custom-code-str "reg a; initial a = 1;"`
+// user custom code (inner)
+//    use `--inject-inner-file/-iif <file>` or
+//        `--inject-inner-str/-iis <string>`.
 // -----------------------------------------
 
 {{customCodeStr}}

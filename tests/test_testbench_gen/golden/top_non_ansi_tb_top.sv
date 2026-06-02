@@ -5,11 +5,9 @@
 // -----------------------------------------
 
 // -----------------------------------------
-// user custom code
-//    use `--custom-code-outer/-cco <file>` to pass in the custom code file.
-//       |_ e.g. `testbench_gen [...] --custom-code-outer path/to/file`
-//    use `--custom-code-str-outer/-ccso <string>` to pass in the custom code string.
-//       |_ e.g. `testbench_gen [...] --custom-code-str-outer "`define a 1"`
+// user custom code (outer)
+//    use `--inject-outer-file/-iof <file>` or
+//        `--inject-outer-str/-ios <string>`.
 // -----------------------------------------
 
 
@@ -518,11 +516,9 @@ Others u_others(
 
 
 // -----------------------------------------
-// user custom code
-//    use `--custom-code/-cc <file>` to pass in the custom code file.
-//       |_ e.g. `testbench_gen [...] --custom-code path/to/file`
-//    use `--custom-code-str/-ccs <string>` to pass in the custom code string.
-//       |_ e.g. `testbench_gen [...] --custom-code-str "reg a; initial a = 1;"`
+// user custom code (inner)
+//    use `--inject-inner-file/-iif <file>` or
+//        `--inject-inner-str/-iis <string>`.
 // -----------------------------------------
 
 

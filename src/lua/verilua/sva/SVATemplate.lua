@@ -218,7 +218,11 @@ function template.compile(str, opts)
     local env = {
         __tostring = function(n, v)
             if type(v) == "table" then
-                if v.__type == "CallableHDL" then
+                -- A sentinel carrying a caller-provided render error: raise it
+                -- verbatim so callers can give precise, domain-specific hints.
+                if rawget(v, "__render_error") then
+                    assert(false, rawget(v, "__render_error"))
+                elseif v.__type == "CallableHDL" then
                     ---@cast v verilua.handles.CallableHDL
                     return v.fullpath
                 elseif v.__type == "ProxyTableHandle" then

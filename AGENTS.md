@@ -14,6 +14,7 @@
 - Verilator main program and LightSSS support: `./src/verilator`
 - Waveform backend binaries and readers: `./src/wave_vpi`
 - No-simulation analysis backend: `./src/nosim`
+- SystemVerilog lint tool (slang-backed): `./src/sv_lint`
 - Lua code generators for schedulers and CHDL access: `./src/gen`
 - Testbench generator: `./src/testbench_gen`
 - SignalDB generator and shared library: `./src/signal_db_gen`
@@ -110,6 +111,7 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
 - If you modify `dpi_exporter`, run `xmake b dpi_exporter`.
 - If you modify `cov_exporter`, run `xmake b cov_exporter`.
 - If you modify `nosim`, run `xmake b nosim`.
+- If you modify `sv_lint`, run `xmake b sv_lint`.
 - If building `wave_vpi_main` fails, build `wave_vpi_wellen_impl` first with `xmake b wave_vpi_wellen_impl`.
 - If you modify Rust code in `wellen_impl`, build `wave_vpi_wellen_impl` first with `xmake b wave_vpi_wellen_impl`.
 
