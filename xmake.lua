@@ -450,6 +450,7 @@ target("setup_verilua", function()
 
         os.exec("xmake run -y -v build_libverilua")
         os.exec("xmake build -y -v libsignal_db_gen")
+        os.exec("xmake build -y -v libsv_lint")
         os.exec("xmake run -y -v build_all_tools")
 
         import("lib.detect.find_file")

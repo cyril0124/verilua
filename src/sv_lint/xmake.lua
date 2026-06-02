@@ -65,4 +65,12 @@ target("libsv_lint", function()
     add_links("svlang", "fmt", "mimalloc")
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
+
+    after_build(function(target)
+        local shared_dir = path.join(prj_dir, "shared")
+        if not os.isdir(shared_dir) then
+            os.mkdir(shared_dir)
+        end
+        os.cp(target:targetfile(), shared_dir)
+    end)
 end)

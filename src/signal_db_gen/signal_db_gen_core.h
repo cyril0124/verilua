@@ -1,3 +1,10 @@
+// signal_db_gen_core.h — shared logic for signal_db_gen CLI and libsignal_db_gen.so.
+//
+// Contains: FileLock, SignalGetter, WrappedDriver, and helper utilities.
+// Header-only to keep the lib/bin split simple (same pattern as sv_lint_core.h).
+
+#pragma once
+
 #include "fmt/core.h"
 #include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
@@ -40,6 +47,53 @@ using namespace slang::ast;
 
 using json = nlohmann::json;
 
+inline bool isFileNewer(const std::string &file1, const std::string &file2) {
+    try {
+        auto time1 = std::filesystem::last_write_time(file1);
+        auto time2 = std::filesystem::last_write_time(file2);
+
+        return time1 > time2;
+    } catch (const std::filesystem::filesystem_error &e) {
+        std::cerr << "[isFileNewer] Error: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+inline std::string get_current_time_as_string() {
+    auto now = std::chrono::system_clock::now();
+
+    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+
+    std::tm now_tm = *std::localtime(&now_time_t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S");
+
+    return oss.str();
+}
+
+inline std::vector<std::string> splitString(std::string_view input, char delimiter) {
+    std::vector<std::string> tokens;
+
+    size_t tokenCount = std::count(input.begin(), input.end(), delimiter) + 1;
+    tokens.reserve(tokenCount);
+
+    const char *ptr        = input.data();
+    const char *endPtr     = ptr + input.size();
+    const char *tokenStart = ptr;
+
+    while (ptr < endPtr) {
+        if (*ptr == delimiter) {
+            tokens.emplace_back(tokenStart, ptr - tokenStart);
+            tokenStart = ptr + 1;
+        }
+        ptr++;
+    }
+    tokens.emplace_back(tokenStart, ptr - tokenStart);
+
+    return tokens;
+}
+
 class FileLock {
   public:
     FileLock(const std::string &path) : lock_path_(path) {
@@ -68,53 +122,6 @@ class FileLock {
     int fd_ = -1;
     std::string lock_path_;
 };
-
-bool isFileNewer(const std::string &file1, const std::string &file2) {
-    try {
-        auto time1 = std::filesystem::last_write_time(file1);
-        auto time2 = std::filesystem::last_write_time(file2);
-
-        return time1 > time2;
-    } catch (const std::filesystem::filesystem_error &e) {
-        std::cerr << "[isFileNewer] Error: " << e.what() << std::endl;
-        return false;
-    }
-}
-
-std::string get_current_time_as_string() {
-    auto now = std::chrono::system_clock::now();
-
-    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
-
-    std::tm now_tm = *std::localtime(&now_time_t);
-
-    std::ostringstream oss;
-    oss << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S");
-
-    return oss.str();
-}
-
-static std::vector<std::string> splitString(std::string_view input, char delimiter) {
-    std::vector<std::string> tokens;
-
-    size_t tokenCount = std::count(input.begin(), input.end(), delimiter) + 1;
-    tokens.reserve(tokenCount);
-
-    const char *ptr        = input.data();
-    const char *endPtr     = ptr + input.size();
-    const char *tokenStart = ptr;
-
-    while (ptr < endPtr) {
-        if (*ptr == delimiter) {
-            tokens.emplace_back(tokenStart, ptr - tokenStart);
-            tokenStart = ptr + 1;
-        }
-        ptr++;
-    }
-    tokens.emplace_back(tokenStart, ptr - tokenStart);
-
-    return tokens;
-}
 
 class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
   public:
@@ -482,69 +489,3 @@ class WrappedDriver {
         return driver.createCompilation();
     }
 };
-
-extern "C" int signal_db_gen_main(const char *argList) {
-    try {
-        WrappedDriver wDriver;
-
-        // Parse command line to get `outfile` option
-        ASSERT(wDriver.driver.parseCommandLine(std::string_view(argList)));
-        wDriver.alreadyParsedCmdLine = true;
-
-        std::string lockfilePath = wDriver.outfile.value_or(DEFAULT_OUTPUT_FILE) + ".lock";
-        try {
-            FileLock lock(lockfilePath);
-            int ret = wDriver.parseCmdLine(std::string_view(argList));
-            if (ret == 1) {
-                wDriver.generateSignalDB();
-
-                // Generate signal db successfully, return 0
-                return 0;
-            }
-
-            // No need to generate signal db, return 1
-            return 1;
-        } catch (const std::exception &e) {
-            PANIC("[signal_db_gen] Failed to lock file", lockfilePath, e.what());
-        };
-    } catch (const std::exception &e) {
-        fmt::println(stderr, "[signal_db_gen] {}", e.what());
-
-        // Exception occurred, return 2
-        return 2;
-    }
-}
-
-#ifndef SO_LIB
-int main(int argc, char **argv) {
-    try {
-        OS::setupConsole();
-        WrappedDriver wDriver;
-
-        // Parse command line to get `outfile` option
-        ASSERT(wDriver.driver.parseCommandLine(argc, argv));
-        wDriver.alreadyParsedCmdLine = true;
-
-        std::string lockfilePath = wDriver.outfile.value_or(DEFAULT_OUTPUT_FILE) + ".lock";
-        try {
-            FileLock lock(lockfilePath);
-            int ret = wDriver.parseCmdLine(argc, argv);
-            if (ret == 1) {
-                wDriver.generateSignalDB();
-                // SIGNALDB_SUCCESS = 0
-                return 0;
-            }
-            // SIGNALDB_NO_NEED_GEN = 1
-            return 1;
-        } catch (const std::exception &e) {
-            PANIC("[signal_db_gen] Failed to lock file", lockfilePath, e.what());
-        };
-    } catch (const std::exception &e) {
-        fmt::println(stderr, "[signal_db_gen] {}", e.what());
-        // SIGNALDB_EXCEPTION_OCCURRED = 2
-        return 2;
-    }
-    // Should not reach here
-    return 0;
-}
-#endif
