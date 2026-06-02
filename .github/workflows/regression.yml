@@ -179,6 +179,7 @@ jobs:
         run: |
           xmake run install_luajit
           xmake build -y -v libsignal_db_gen
+          xmake build -y -v libsv_lint
           xmake run build_all_tools
 
       - name: Setup glibc using pixi

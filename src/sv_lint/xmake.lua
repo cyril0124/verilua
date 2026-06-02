@@ -37,6 +37,14 @@ target("sv_lint", function()
         local version = io.readfile(path.join(prj_dir, "VERSION")):trim()
         target:add("defines", format([[VERILUA_VERSION="%s"]], version))
     end)
+
+    after_build(function(target)
+        local tools_dir = path.join(prj_dir, "tools")
+        if not os.isdir(tools_dir) then
+            os.mkdir(tools_dir)
+        end
+        os.cp(target:targetfile(), tools_dir)
+    end)
 end)
 
 target("libsv_lint", function()
