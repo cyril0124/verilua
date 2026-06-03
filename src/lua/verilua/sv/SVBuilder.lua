@@ -1,6 +1,6 @@
 local ffi = require "ffi"
 local stringx = require "pl.stringx"
-local template = require "verilua.sva.SVATemplate"
+local template = require "verilua.sv.SVTemplate"
 
 local type = type
 local pairs = pairs
@@ -9,37 +9,50 @@ local f = string.format
 local tostring = tostring
 local setmetatable = setmetatable
 
----@class verilua.sva.SVAContext.property
----@field __type "Property"
----@field name string
+--- Handle returned by `add "property"`, used to reference a property via `$(prop:name)`.
+---@class verilua.sv.SVBuilder.property
+---@field __type "Property" Discriminator tag.
+---@field name string The property identifier as declared in SV.
 
----@class verilua.sva.SVAContext.sequence
----@field __type "Sequence"
----@field name string
+--- Handle returned by `add "sequence"`, used to reference a sequence via `$(seq:name)`.
+---@class verilua.sv.SVBuilder.sequence
+---@field __type "Sequence" Discriminator tag.
+---@field name string The sequence identifier as declared in SV.
 
----@class verilua.sva.SVAContext.add.params
----@field name string
----@field expr string
----@field cov_type? "sequence" | "property"
----@field envs? table<string, any>
+--- Parameters accepted by the curried `add(typ)(params)` call.
+---@class verilua.sv.SVBuilder.add.params
+---@field name string Unique statement name (becomes the SV identifier).
+---@field expr string SV expression body; supports `$(var)` template substitution.
+---@field cov_type? "sequence" | "property" For `add "cover"` only: wrap as sequence or property (default: "property").
+---@field sample_event? string For `add "covergroup"` only: per-covergroup sampling event override (e.g. "posedge alt_clk").
+---@field envs? table<string, any> Per-call template variables; merged on top of global_envs.
 
----@class (exact) verilua.sva.SVAContext
----@field private default_clocking_expr string
----@field private unique_stmt_name_map table<string, boolean>
----@field private global_envs table<string, any>
----@field private seq_envs table<string, verilua.sva.SVAContext.sequence>
----@field private prop_envs table<string, verilua.sva.SVAContext.property>
----@field private sequence_vec string[]
----@field private property_vec string[]
----@field private content_vec string[]
----@field with_global_envs fun(self: verilua.sva.SVAContext, envs: table<string, any>): verilua.sva.SVAContext
----@field add fun(self: verilua.sva.SVAContext, typ: "cover" | "assert" | "property" | "sequence"): fun(params: verilua.sva.SVAContext.add.params): verilua.sva.SVAContext.property | verilua.sva.SVAContext.sequence | nil
----@field default_clocking fun(self: verilua.sva.SVAContext, signal: verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sva.SVAContext
----@field clean fun(self: verilua.sva.SVAContext): verilua.sva.SVAContext
----@field set_lint fun(self: verilua.sva.SVAContext, enable: boolean): verilua.sva.SVAContext
----@field generate fun(self: verilua.sva.SVAContext): string
-local SVAContext = {
+--- Incremental builder for SystemVerilog SVA assertions and covergroups.
+--- Accumulates declarations via `add`, then emits the full SV text via `generate()`.
+---@class (exact) verilua.sv.SVBuilder
+---@field private default_clocking_expr string Rendered `default clocking @(...); endclocking` statement.
+---@field private default_clocking_event string The event expression (e.g. "posedge top.dut.clk") for covergroup reuse.
+---@field private unique_stmt_name_map table<string, boolean> Guards uniqueness of all statement names.
+---@field private global_envs table<string, any> Global template variables available to all `add` calls.
+---@field private seq_envs table<string, verilua.sv.SVBuilder.sequence> Registry of defined sequences (accessed via `$(seq:name)`).
+---@field private prop_envs table<string, verilua.sv.SVBuilder.property> Registry of defined properties (accessed via `$(prop:name)`).
+---@field private sequence_vec string[] Ordered list of rendered sequence statements.
+---@field private property_vec string[] Ordered list of rendered property statements.
+---@field private content_vec string[] Ordered list of rendered cover/assert statements.
+---@field private covergroup_vec string[] Ordered list of rendered covergroup definitions + instantiations.
+---@field private _covergroup_names {name: string, inst_name: string}[] Metadata for final-block coverage report generation.
+---@field private coverage_report_enabled boolean Whether the final block coverage report is generated.
+---@field private lint_enabled boolean Whether automatic sv_lint checking is active on each `add` call.
+---@field with_global_envs fun(self: verilua.sv.SVBuilder, envs: table<string, any>): verilua.sv.SVBuilder Register global template variables for all subsequent `add` calls.
+---@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | nil Curried entry point: select type, then pass params.
+---@field default_clocking fun(self: verilua.sv.SVBuilder, signal: verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sv.SVBuilder Set the default sampling clock for SVA and covergroups.
+---@field clean fun(self: verilua.sv.SVBuilder): verilua.sv.SVBuilder Reset all internal state to empty.
+---@field set_lint fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable automatic sv_lint checking on each `add` call.
+---@field set_coverage_report fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable the `final` block coverage report for covergroups.
+---@field generate fun(self: verilua.sv.SVBuilder): string Return the full generated SV text. Equivalent to `tostring(ctx)`.
+local SVBuilder = {
     default_clocking_expr = "",
+    default_clocking_event = "",
     unique_stmt_name_map = {},
     global_envs = {},
     seq_envs = {},
@@ -47,31 +60,54 @@ local SVAContext = {
     sequence_vec = {},
     property_vec = {},
     content_vec = {},
+    covergroup_vec = {},
+    _covergroup_names = {},
     lint_enabled = true,
+    coverage_report_enabled = true,
 }
 
-setmetatable(SVAContext, {
+setmetatable(SVBuilder, {
     __tostring = function(self)
-        local content = ""
+        local parts = {}
 
         if self.default_clocking_expr ~= "" then
-            content = content .. self.default_clocking_expr .. "\n\n"
+            parts[#parts + 1] = self.default_clocking_expr
         end
 
         for _, v in ipairs(self.sequence_vec) do
-            content = content .. tostring(v) .. "\n\n"
+            parts[#parts + 1] = tostring(v)
         end
 
         for _, v in ipairs(self.property_vec) do
-            content = content .. tostring(v) .. "\n\n"
+            parts[#parts + 1] = tostring(v)
         end
 
         local content_count = #self.content_vec
         for i, v in ipairs(self.content_vec) do
-            content = content .. f("// %d/%d\n", i, content_count) .. tostring(v) .. "\n\n"
+            parts[#parts + 1] = f("// %d/%d\n%s", i, content_count, tostring(v))
         end
 
-        return content
+        for _, v in ipairs(self.covergroup_vec) do
+            parts[#parts + 1] = tostring(v)
+        end
+
+        -- Generate final block for coverage report
+        if self.coverage_report_enabled and #self._covergroup_names > 0 then
+            local final_lines = { "final begin" }
+            for _, entry in ipairs(self._covergroup_names) do
+                final_lines[#final_lines + 1] = f(
+                    '    $display("[COVERAGE] %s: %%.2f%%%%", %s.get_inst_coverage());',
+                    entry.name, entry.inst_name
+                )
+            end
+            final_lines[#final_lines + 1] = "end"
+            parts[#parts + 1] = table.concat(final_lines, "\n")
+        end
+
+        if #parts == 0 then
+            return ""
+        end
+        return table.concat(parts, "\n\n") .. "\n\n"
     end
 })
 
@@ -183,7 +219,7 @@ local diag_buf = ffi.new("char[4096]")
 -- Build a module shell containing all existing context + the new statement,
 -- then invoke sv_lint (FFI or subprocess). Returns nil on success, or the
 -- first diagnostic string on failure.
-local function run_sv_lint(self, new_statement, stmt_name)
+local function run_sv_lint(self, new_statement, _stmt_name)
     -- Assemble the full SV text for lint
     local parts = { "module __sva_lint;" }
     if self.default_clocking_expr ~= "" then
@@ -239,22 +275,38 @@ end
 
 --- Enable or disable automatic sv_lint checking on each add() call.
 ---@param enable boolean
----@return verilua.sva.SVAContext
-function SVAContext:set_lint(enable)
+---@return verilua.sv.SVBuilder
+function SVBuilder:set_lint(enable)
     self.lint_enabled = enable
     return self
 end
 
-function SVAContext:generate()
+--- Enable or disable the final-block coverage report for covergroups.
+---@param enable boolean
+---@return verilua.sv.SVBuilder
+function SVBuilder:set_coverage_report(enable)
+    self.coverage_report_enabled = enable
+    return self
+end
+
+function SVBuilder:generate()
     return tostring(self)
 end
 
-function SVAContext:add(typ)
-    ---@param params verilua.sva.SVAContext.add.params
+function SVBuilder:add(typ)
+    ---@param params verilua.sv.SVBuilder.add.params
     return function(params)
-        assert(type(params) == "table", "[SVAContext] add error: `params` should be a table")
-        assert(type(params.name) == "string", "[SVAContext] add error: `params.name` should be a string")
-        assert(type(params.expr) == "string", "[SVAContext] add error: `params.expr` should be a string")
+        assert(type(params) == "table", "[SVBuilder] add error: `params` should be a table")
+        assert(type(params.name) == "string", "[SVBuilder] add error: `params.name` should be a string")
+        assert(type(params.expr) == "string", "[SVBuilder] add error: `params.expr` should be a string")
+
+        -- sample_event is only valid for covergroup
+        if params.sample_event ~= nil then
+            assert(
+                typ == "covergroup",
+                "[SVBuilder] add error: `sample_event` is only valid for `covergroup`, not `" .. typ .. "`"
+            )
+        end
 
         -- Merge envs: params.envs overrides global_envs
         local final_envs = {}
@@ -262,7 +314,7 @@ function SVAContext:add(typ)
             final_envs[k] = v
         end
         if params.envs then
-            assert(type(params.envs) == "table", "[SVAContext] add error: `params.envs` should be a table")
+            assert(type(params.envs) == "table", "[SVBuilder] add error: `params.envs` should be a table")
             for k, v in pairs(params.envs) do
                 final_envs[k] = v
             end
@@ -271,11 +323,11 @@ function SVAContext:add(typ)
         -- Check for reserved namespace keys
         assert(
             rawget(final_envs, "seq") == nil,
-            "[SVAContext] add error: `envs` contains reserved key `seq`; this name is used for the sequence namespace"
+            "[SVBuilder] add error: `envs` contains reserved key `seq`; this name is used for the sequence namespace"
         )
         assert(
             rawget(final_envs, "prop") == nil,
-            "[SVAContext] add error: `envs` contains reserved key `prop`; this name is used for the property namespace"
+            "[SVBuilder] add error: `envs` contains reserved key `prop`; this name is used for the property namespace"
         )
 
         -- Reserve the flat names of registered sequences/properties with a
@@ -287,7 +339,7 @@ function SVAContext:add(typ)
                 ---@diagnostic disable-next-line: assign-type-mismatch
                 final_envs[name] = {
                     __render_error = f(
-                        "[SVAContext] cannot reference sequence `%s` as a flat `$(%s)`; use the `seq:` prefix, e.g. `$(seq:%s)`",
+                        "[SVBuilder] cannot reference sequence `%s` as a flat `$(%s)`; use the `seq:` prefix, e.g. `$(seq:%s)`",
                         name, name, name
                     ),
                 }
@@ -298,7 +350,7 @@ function SVAContext:add(typ)
                 ---@diagnostic disable-next-line: assign-type-mismatch
                 final_envs[name] = {
                     __render_error = f(
-                        "[SVAContext] cannot reference property `%s` as a flat `$(%s)`; use the `prop:` prefix, e.g. `$(prop:%s)`",
+                        "[SVBuilder] cannot reference property `%s` as a flat `$(%s)`; use the `prop:` prefix, e.g. `$(prop:%s)`",
                         name, name, name
                     ),
                 }
@@ -313,16 +365,16 @@ function SVAContext:add(typ)
         for _, v in pairs(final_envs) do
             if type(v) == "table" and rawget(v, "__type") then
                 if rawget(v, "__type") == "Sequence" then
-                    ---@cast v verilua.sva.SVAContext.sequence
+                    ---@cast v verilua.sv.SVBuilder.sequence
                     assert(
                         self.unique_stmt_name_map[v.name],
-                        "[SVAContext] add error: `params.envs` contains a `Sequence` that is not in the current context"
+                        "[SVBuilder] add error: `params.envs` contains a `Sequence` that is not in the current context"
                     )
                 elseif rawget(v, "__type") == "Property" then
-                    ---@cast v verilua.sva.SVAContext.property
+                    ---@cast v verilua.sv.SVBuilder.property
                     assert(
                         self.unique_stmt_name_map[v.name],
-                        "[SVAContext] add error: `params.envs` contains a `Property` that is not in the current context"
+                        "[SVBuilder] add error: `params.envs` contains a `Property` that is not in the current context"
                     )
                 end
             end
@@ -330,7 +382,7 @@ function SVAContext:add(typ)
 
         assert(
             not self.unique_stmt_name_map[params.name],
-            f("[SVAContext] `params.name`(%s) is not unique", params.name)
+            f("[SVBuilder] `params.name`(%s) is not unique", params.name)
         )
 
         -- Rewrite colon-style namespace refs before handing expr to the engine.
@@ -350,7 +402,7 @@ function SVAContext:add(typ)
             if params.cov_type then
                 assert(
                     params.cov_type == "sequence" or params.cov_type == "property",
-                    "[SVAContext] cover error: `cov_type` should be `sequence` or `property`"
+                    "[SVBuilder] cover error: `cov_type` should be `sequence` or `property`"
                 )
                 cov_type = assert(params.cov_type)
             end
@@ -361,7 +413,7 @@ function SVAContext:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, pre_content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVAContext] lint error in '%s': %s", params.name, lint_err))
+                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
                 end
             end
 
@@ -379,7 +431,7 @@ function SVAContext:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, pre_content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVAContext] lint error in '%s': %s", params.name, lint_err))
+                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
                 end
             end
 
@@ -396,7 +448,7 @@ function SVAContext:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVAContext] lint error in '%s': %s", params.name, lint_err))
+                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
                 end
             end
 
@@ -404,7 +456,7 @@ function SVAContext:add(typ)
             self.property_vec[#self.property_vec + 1] = processed
             self.unique_stmt_name_map[params.name] = true
 
-            ---@type verilua.sva.SVAContext.property
+            ---@type verilua.sv.SVBuilder.property
             local property = {
                 __type = "Property",
                 name = params.name,
@@ -418,7 +470,7 @@ function SVAContext:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVAContext] lint error in '%s': %s", params.name, lint_err))
+                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
                 end
             end
 
@@ -426,7 +478,7 @@ function SVAContext:add(typ)
             self.sequence_vec[#self.sequence_vec + 1] = processed
             self.unique_stmt_name_map[params.name] = true
 
-            ---@type verilua.sva.SVAContext.sequence
+            ---@type verilua.sv.SVBuilder.sequence
             local sequence = {
                 __type = "Sequence",
                 name = params.name,
@@ -434,19 +486,69 @@ function SVAContext:add(typ)
             -- Sequences are reachable only via `$(seq:name)`, never flat.
             self.seq_envs[params.name] = sequence
             return sequence
+        elseif typ == "covergroup" then
+            -- Determine sampling event: per-covergroup override or default_clocking
+            local sample_event_raw = params.sample_event or self.default_clocking_event
+            assert(
+                sample_event_raw ~= "",
+                "[SVBuilder] covergroup error: no sampling event specified and no default_clocking set"
+            )
+
+            -- Template-expand sample_event using the same envs as expr
+            local sample_event_expanded, se_err = template.substitute(sample_event_raw, final_envs)
+            if se_err then
+                assert(false, f("[SVBuilder] covergroup sample_event template error in '%s': %s", params.name, se_err))
+            end
+
+            -- Trim whitespace and determine header format
+            local sample_event_trimmed = sample_event_expanded:match("^%s*(.-)%s*$")
+            local cg_header
+            if sample_event_trimmed:match("^with%s") or sample_event_trimmed:match("^with$") then
+                -- "with function sample(...)" syntax: no @() wrapping
+                cg_header = f("covergroup %s %s;", params.name, sample_event_trimmed)
+            else
+                -- Event-based: wrap with @()
+                cg_header = f("covergroup %s @(%s);", params.name, sample_event_trimmed)
+            end
+
+            local inst_name = f("_GEN_%s_inst", params.name)
+
+            -- Build the full covergroup text
+            local cg_raw = f("%s\n%s\nendgroup", cg_header, ret)
+
+            if self.lint_enabled then
+                local lint_err = run_sv_lint(self, cg_raw .. "\n" .. f("%s %s = new;", params.name, inst_name),
+                    params.name)
+                if lint_err then
+                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                end
+            end
+
+            -- Store the covergroup definition + instantiation
+            local content = cg_raw .. "\n" .. f("%s %s = new;", params.name, inst_name)
+            self.covergroup_vec[#self.covergroup_vec + 1] = content
+            self.unique_stmt_name_map[params.name] = true
+            self.unique_stmt_name_map[inst_name] = true
+
+            -- Track name/inst for final block generation
+            self._covergroup_names[#self._covergroup_names + 1] = {
+                name = params.name,
+                inst_name = inst_name,
+            }
+            return
         else
-            assert(false, "TODO: " .. typ)
+            assert(false, "[SVBuilder] add error: unknown type `" .. typ .. "`")
         end
 
         assert(false, "Should not reach here")
     end
 end
 
-function SVAContext:default_clocking(signal, edge_type, overwrite)
+function SVBuilder:default_clocking(signal, edge_type, overwrite)
     local t = type(signal)
     assert(
         t == "table",
-        "[SVAContext] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " .. t
+        "[SVBuilder] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " .. t
     )
 
     local handle_t = signal.__type
@@ -454,7 +556,7 @@ function SVAContext:default_clocking(signal, edge_type, overwrite)
     local is_dut = handle_t == "ProxyTableHandle"
     assert(
         is_chdl or is_dut,
-        "[SVAContext] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " ..
+        "[SVBuilder] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " ..
         tostring(handle_t)
     )
 
@@ -470,34 +572,36 @@ function SVAContext:default_clocking(signal, edge_type, overwrite)
         assert(false, "Should not reach here")
     end
 
-    assert(chdl:get_width() == 1, "[SVAContext] default_clocking error: `signal` should be a 1-bit signal")
+    assert(chdl:get_width() == 1, "[SVBuilder] default_clocking error: `signal` should be a 1-bit signal")
 
     assert(
         edge_type == "posedge" or edge_type == "negedge",
-        "[SVAContext] default_clocking error: `edge_type` should be `posedge` or `negedge`"
+        "[SVBuilder] default_clocking error: `edge_type` should be `posedge` or `negedge`"
     )
 
     if not overwrite and self.default_clocking_expr ~= "" then
         assert(
             false,
-            "[SVAContext] default_clocking error: `overwrite` is false, but `self.default_clocking_expr` is not empty"
+            "[SVBuilder] default_clocking error: `overwrite` is false, but `self.default_clocking_expr` is not empty"
         )
     end
 
     self.default_clocking_expr = f("default clocking @(%s %s); endclocking", edge_type, chdl.fullpath)
+    self.default_clocking_event = f("%s %s", edge_type, chdl.fullpath)
 
     return self
 end
 
-function SVAContext:with_global_envs(envs)
+function SVBuilder:with_global_envs(envs)
     for key, value in pairs(envs) do
         self.global_envs[key] = value
     end
     return self
 end
 
-function SVAContext:clean()
+function SVBuilder:clean()
     self.default_clocking_expr = ""
+    self.default_clocking_event = ""
     self.unique_stmt_name_map = {}
     self.global_envs = {}
     self.seq_envs = {}
@@ -505,7 +609,9 @@ function SVAContext:clean()
     self.sequence_vec = {}
     self.property_vec = {}
     self.content_vec = {}
+    self.covergroup_vec = {}
+    self._covergroup_names = {}
     return self
 end
 
-return SVAContext
+return SVBuilder

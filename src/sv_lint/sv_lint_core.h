@@ -38,10 +38,13 @@ inline LintResult lint(std::string_view sv_text) {
     Bag options;
     auto tree = SyntaxTree::fromFileInMemory(std::string(sv_text), sourceManager, "sv_lint_input"sv, ""sv, options);
 
-    // Helper: extract the first error from a diagnostics collection.
-    auto extractFirstError = [&](const auto &diagnostics) -> std::string {
-        auto hasError = std::any_of(diagnostics.begin(), diagnostics.end(), [](const auto &d) { return d.isError(); });
-        if (!hasError)
+    // Helper: extract the first error or warning from a diagnostics collection.
+    auto extractFirstDiagnostic = [&](const auto &diagnostics) -> std::string {
+        auto hasDiag = std::any_of(diagnostics.begin(), diagnostics.end(), [](const auto &d) {
+            auto sev = getDefaultSeverity(d.code);
+            return sev == DiagnosticSeverity::Error || sev == DiagnosticSeverity::Warning;
+        });
+        if (!hasDiag)
             return {};
 
         DiagnosticEngine engine(sourceManager);
@@ -49,7 +52,9 @@ inline LintResult lint(std::string_view sv_text) {
         auto client = std::make_shared<TextDiagnosticClient>();
         engine.addClient(client);
         for (auto &diag : diagnostics) {
-            engine.issue(diag);
+            auto sev = getDefaultSeverity(diag.code);
+            if (sev == DiagnosticSeverity::Error || sev == DiagnosticSeverity::Warning)
+                engine.issue(diag);
         }
         std::string msg = client->getString();
         // Trim trailing whitespace
@@ -60,7 +65,7 @@ inline LintResult lint(std::string_view sv_text) {
 
     // Check parse errors
     if (!tree->diagnostics().empty()) {
-        auto msg = extractFirstError(tree->diagnostics());
+        auto msg = extractFirstDiagnostic(tree->diagnostics());
         if (!msg.empty())
             return {false, msg};
     }
@@ -76,7 +81,7 @@ inline LintResult lint(std::string_view sv_text) {
 
     auto diags = compilation.getAllDiagnostics();
     if (!diags.empty()) {
-        auto msg = extractFirstError(diags);
+        auto msg = extractFirstDiagnostic(diags);
         if (!msg.empty())
             return {false, msg};
     }

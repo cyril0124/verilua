@@ -229,10 +229,10 @@ function template.compile(str, opts)
                     ---@cast v verilua.handles.ProxyTableHandle
                     return v:chdl().fullpath
                 elseif v.__type == "Sequence" then
-                    ---@cast v verilua.sva.SVAContext.sequence
+                    ---@cast v verilua.sv.SVBuilder.sequence
                     return v.name
                 elseif v.__type == "Property" then
-                    ---@cast v verilua.sva.SVAContext.property
+                    ---@cast v verilua.sv.SVBuilder.property
                     return v.name
                 end
             end

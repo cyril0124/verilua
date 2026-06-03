@@ -64,7 +64,7 @@ const sidebars: SidebarsConfig = {
         'reference/slcp',
         'reference/queue',
         'reference/cross',
-        'reference/sva_generate',
+        'reference/sv_builder',
         'reference/type_expect',
         'reference/bitvec',
         'reference/lua_utils',

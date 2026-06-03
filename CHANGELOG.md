@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 💥 Breaking Changes
 
+- **sv**: `SVAContext` renamed to `SVBuilder`, directory `sva/` renamed to `sv/`. The require path changes from `verilua.sva.SVAContext` to `verilua.sv.SVBuilder`. `SVATemplate` renamed to `SVTemplate`. All error messages now use the `[SVBuilder]` prefix.
+- **sv_lint**: `sv_lint` now reports warnings (e.g. `-Wreversed-range`, `-Wint-bool-conv`) in addition to errors. Previously only errors were surfaced.
 - **cov_exporter**: Conditional-coverage semantics changed from per-expression toggle counting to control-flow path counting. Each `if` / `else if` / explicit `else` body now bumps a counter when actually entered, and the guard reflects the full path prefix (e.g. `(!(a)) && (b) && (c)` for an `if (c)` nested inside an `else if (b)`). Counter naming (`_<id>__COV_BIN_EXPR_CNT`), DPI exports (`getCondCoverage`, `getCoverageCount`, `showCoverageCount`, `coverageCtrl`, `resetCoverage`) and meta-json fields stay backward compatible. The denominator now equals the number of distinct guard paths instead of the number of distinct boolean sub-expressions.
 - **cov_exporter**: The xmake config key `instrumentation` is deprecated in favor of `verilua.instrument`. The old key still works (with a deprecation warning) but new code should use the new name.
 
@@ -21,15 +23,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ✨ Added
 
+- **sv**: `SVBuilder` now supports `add "covergroup"` for generating SystemVerilog functional coverage. Covergroups use `default_clocking` as the sampling event by default, with per-covergroup override via `sample_event` parameter. A `final` block is automatically generated to print coverage results via `$display`. Use `ctx:set_coverage_report(false)` to disable.
 - **LuaUtils**: Add `get_scriptdir()` — returns the absolute directory of the calling script, similar to xmake's `os.scriptdir()`
 - **Cross**: Add combinatorics utilities for cartesian products, permutations, combinations, filtering, and random sampling for verification stimulus generation
 - **multi_task**: Add `task_group(function(tg) ... end)` — scoped concurrent task management that automatically tracks and joins all `tg:fork` tasks when the scope exits, eliminating forgotten-join bugs
 - **multi_task**: Add `join_any { ehdl1, ehdl2, ... }` — waits until any one of the given `jfork` tasks finishes and returns the first completed handle
-- **sv_lint**: New CLI tool (`src/sv_lint/`) backed by slang that performs SystemVerilog lint checking. `SVAContext:add` now automatically invokes `sv_lint` after rendering each statement, catching syntax and semantic errors (e.g. `##[5:2]` range reversal, undeclared identifiers) at definition time. Use `ctx:set_lint(false)` to disable.
+- **sv_lint**: New CLI tool (`src/sv_lint/`) backed by slang that performs SystemVerilog lint checking. `SVBuilder:add` now automatically invokes `sv_lint` after rendering each statement, catching syntax and semantic errors (e.g. `##[5:2]` range reversal, undeclared identifiers) at definition time. Use `ctx:set_lint(false)` to disable.
 
 ### 💥 Breaking Changes
 
-- **sva**: `SVAContext` now references previously added sequences and properties through the `$(seq:name)` and `$(prop:name)` namespaces. Sequences and properties are no longer injected into the flat env namespace, so a bare `$(name)` will not resolve to them and the referenced kind is explicit at every use site. The `cat` helper function has been removed; pass a plain table to `envs` instead.
+- **sv**: `SVBuilder` now references previously added sequences and properties through the `$(seq:name)` and `$(prop:name)` namespaces. Sequences and properties are no longer injected into the flat env namespace, so a bare `$(name)` will not resolve to them and the referenced kind is explicit at every use site. The `cat` helper function has been removed; pass a plain table to `envs` instead.
 - **ChdlAccess**: `set()` / `set_imm()` / `set_force()` / `set_imm_force()` for Double/Multi signals now auto-dispatch by `type(value)` instead of requiring a `force_single_beat` boolean flag. Pass a number/cdata for scalar writes, pass a table for multi-beat writes. The old `set(value, true)` still works (second arg is ignored) but is deprecated.
 
 ### ⚙️ Changed
