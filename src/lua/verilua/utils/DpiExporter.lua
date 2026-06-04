@@ -142,9 +142,7 @@ function DpiExporter:fetch_trigger_func(trigger_name)
         trigger_func_name = "dpi_exporter_sensitive_trigger_" .. trigger_name
     end
     local func = SymbolHelper.try_ffi_cast(
-        "bool (*)()",
-        f("bool %s();", trigger_func_name),
-        trigger_func_name
+        f("bool %s();", trigger_func_name)
     ) --[[@as fun(): boolean]]
     self.symbol_cache_idx = self.symbol_cache_idx + 1
     self.symbol_cache[self.symbol_cache_idx] = func -- Keep the function alive(avoid gc)
@@ -160,9 +158,7 @@ function DpiExporter:fetch_get_value_func(hierpath)
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET", to_hierpath_name(signal_hierpath))
     local func = SymbolHelper.try_ffi_cast(
-        "uint32_t (*)()",
-        f("uint32_t %s();", func_name),
-        func_name
+        f("uint32_t %s();", func_name)
     ) --[[@as function]]
     self.symbol_cache_idx = self.symbol_cache_idx + 1
     self.symbol_cache[self.symbol_cache_idx] = func -- Keep the function alive(avoid gc)
@@ -178,9 +174,7 @@ function DpiExporter:fetch_get64_value_func(hierpath)
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET64", to_hierpath_name(signal_hierpath))
     local func = SymbolHelper.try_ffi_cast(
-        "uint64_t (*)()",
-        f("uint64_t %s();", func_name),
-        func_name
+        f("uint64_t %s();", func_name)
     ) --[[@as function]]
     self.symbol_cache_idx = self.symbol_cache_idx + 1
     self.symbol_cache[self.symbol_cache_idx] = func -- Keep the function alive(avoid gc)
@@ -196,9 +190,7 @@ function DpiExporter:fetch_get_vec_value_func(hierpath)
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET_VEC", to_hierpath_name(signal_hierpath))
     local func = SymbolHelper.try_ffi_cast(
-        "void (*)(uint32_t *)",
-        f("void %s(uint32_t *vec);", func_name),
-        func_name
+        f("void %s(uint32_t *vec);", func_name)
     ) --[[@as function]]
     self.symbol_cache_idx = self.symbol_cache_idx + 1
     self.symbol_cache[self.symbol_cache_idx] = func -- Keep the function alive(avoid gc)
@@ -214,9 +206,7 @@ function DpiExporter:fetch_get_hex_str_value_func(hierpath)
 
     local func_name = f("VERILUA_DPI_EXPORTER_%s_GET_HEX_STR", to_hierpath_name(signal_hierpath))
     local func = SymbolHelper.try_ffi_cast(
-        "void (*)(char *)",
-        f("void %s(char *hex_str);", func_name),
-        func_name
+        f("void %s(char *hex_str);", func_name)
     ) --[[@as function]]
     self.symbol_cache_idx = self.symbol_cache_idx + 1
     self.symbol_cache[self.symbol_cache_idx] = func -- Keep the function alive(avoid gc)

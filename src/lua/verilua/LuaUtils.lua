@@ -1294,9 +1294,7 @@ function utils.iorun(cmd)
     if not iorun_cfunc then
         local SymbolHelper = require "verilua.utils.SymbolHelper"
         local _iorun = SymbolHelper.try_ffi_cast(
-            "const char*(*)(const char*)",
-            "const char* iorun(const char*);",
-            "iorun"
+            "const char* iorun(const char*);"
         )
         iorun_cfunc = _iorun
     end

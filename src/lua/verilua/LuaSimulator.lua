@@ -27,14 +27,10 @@ local is_nosim = simulator == "nosim"
 local set_dpi_scope
 if is_verilator or is_vcs or is_xcelium then
     local svSetScope = SymbolHelper.try_ffi_cast(
-        "void (*)(void *)",
-        "void svSetScope(void *scope)",
-        "svSetScope"
+        "void svSetScope(void *scope);"
     )
     local svGetScopeFromName = SymbolHelper.try_ffi_cast(
-        "void *(*)(const char *)",
-        "void svGetScopeFromName(const char *name)",
-        "svGetScopeFromName"
+        "void *svGetScopeFromName(const char *name);"
     )
 
     set_dpi_scope = function(scope_name)

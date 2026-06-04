@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### ✨ Added
 
 - **sv**: `SVBuilder` now supports `add "covergroup"` for generating SystemVerilog functional coverage. Covergroups use `default_clocking` as the sampling event by default, with per-covergroup override via `sample_event` parameter. A `final` block is automatically generated to print coverage results via `$display`. Use `ctx:set_coverage_report(false)` to disable.
+- **SymbolHelper**: `try_ffi_cast` now accepts a single C function declaration and derives both the function name and the function-pointer type from it (e.g. `SymbolHelper.try_ffi_cast("void *svSetScope(void *scope);")`). The legacy 3-argument form `try_ffi_cast(func_ptr_str, ffi_func_decl_str, func_name)` keeps working unchanged. Internal call sites (`DpiExporter`, `WaveVpiCtrl`, `LuaSimulator`, `LuaUtils`) have been migrated to the minimal form.
 - **LuaUtils**: Add `get_scriptdir()` — returns the absolute directory of the calling script, similar to xmake's `os.scriptdir()`
 - **Cross**: Add combinatorics utilities for cartesian products, permutations, combinations, filtering, and random sampling for verification stimulus generation
 - **multi_task**: Add `task_group(function(tg) ... end)` — scoped concurrent task management that automatically tracks and joins all `tg:fork` tasks when the scope exits, eliminating forgotten-join bugs

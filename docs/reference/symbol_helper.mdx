@@ -82,24 +82,17 @@ local SymbolHelper = require "verilua.utils.SymbolHelper"
   print(my_func(42))
   ```
 
-### `try_ffi_cast(func_ptr_str, ffi_func_decl_str, func_name)`
+### `try_ffi_cast(decl)`
 
 尝试获取函数指针，如果符号存在则通过 `ffi_cast` 转换，否则回退到 FFI 声明。这是调用任意 C 函数最安全的方式。
 
 - **参数**：
-  - `func_ptr_str` (`string`)：函数指针类型描述，例如 `"bool (*)()"`
-  - `ffi_func_decl_str` (`string`)：完整的 FFI 声明字符串，例如 `"bool my_func();"`
-  - `func_name` (`string`)：函数名称
+  - `decl` (`string`)：完整的 C 函数声明，例如 `"void *svSetScope(void *scope);"`
 - **返回值**：`function` 可调用的 Lua 函数
-- **说明**：首先尝试在全局符号表中查找 `func_name`，如果找到则用 `ffi_cast` 转换；如果未找到，则执行 `ffi.cdef(ffi_func_decl_str)` 并返回 `ffi.C[func_name]`（如果存在）。如果两种方式都失败，会触发错误。
+- **说明**：解析器从声明中提取最后一个 `(` 之前的标识符作为函数名，并把该标识符替换为 `(*)` 得到函数指针类型；解析失败会立即报错（不会静默回退）。先尝试在全局符号表中查找符号，找到则用 `ffi_cast` 转换；未找到则执行 `ffi.cdef` 并返回 `ffi.C[func_name]`。
 - **示例**：
   ```lua
-  -- 尝试获取 svSetScope，如果符号不存在则使用 FFI 声明
-  local svSetScope = SymbolHelper.try_ffi_cast(
-      "void *(*)(void *)",
-      "void *svSetScope(void *scope);",
-      "svSetScope"
-  )
+  local svSetScope = SymbolHelper.try_ffi_cast("void *svSetScope(void *scope);")
   ```
 
 ## 使用场景示例
@@ -113,17 +106,9 @@ local SymbolHelper = require "verilua.utils.SymbolHelper"
 ```lua
 local SymbolHelper = require "verilua.utils.SymbolHelper"
 
--- 绑定 svSetScope 和 svGetScopeFromName
-local svSetScope = SymbolHelper.try_ffi_cast(
-    "void *(*)(void *)",
-    "void *svSetScope(void *scope);",
-    "svSetScope"
-)
-local svGetScopeFromName = SymbolHelper.try_ffi_cast(
-    "void *(*)(const char *)",
-    "void *svGetScopeFromName(const char *name);",
-    "svGetScopeFromName"
-)
+-- 极简形式：只传完整声明，函数名和指针类型由解析器推导
+local svSetScope        = SymbolHelper.try_ffi_cast("void *svSetScope(void *scope);")
+local svGetScopeFromName = SymbolHelper.try_ffi_cast("void *svGetScopeFromName(const char *name);")
 
 -- 使用
 local scope = svGetScopeFromName("tb_top")
@@ -150,12 +135,8 @@ local SymbolHelper = require "verilua.utils.SymbolHelper"
 local hello = SymbolHelper.ffi_cast("void (*)(const char*)", "hello_from_c")
 hello("Verilua")
 
--- 方式2：使用 try_ffi_cast 更安全
-local hello_safe = SymbolHelper.try_ffi_cast(
-    "void (*)(const char*)",
-    "void hello_from_c(const char* name);",
-    "hello_from_c"
-)
+-- 方式2：使用 try_ffi_cast 更安全（极简形式：只传完整声明）
+local hello_safe = SymbolHelper.try_ffi_cast("void hello_from_c(const char* name);")
 hello_safe("World")
 ```
 
@@ -200,10 +181,7 @@ local lib = ffi.load("/path/to/libfoo.so")  -- RTLD_LOCAL
 SymbolHelper.get_global_symbol_addr("my_func")  --> 0
 
 -- ❌ try_ffi_cast 也失败（ffi.C fallback 找不到 RTLD_LOCAL 符号）
-SymbolHelper.try_ffi_cast("int32_t (*)(int32_t)", "int32_t my_func(int32_t x);", "my_func")  --> error
-
--- ✅ 通过 ffi.load 返回的 handle 直接调用
-lib.my_func(42)  --> OK
+SymbolHelper.try_ffi_cast("int32_t my_func(int32_t x);")  --> error
 ```
 
 如果需要让 `try_ffi_cast` 的 fallback 路径能找到 `.so` 中的符号，使用 `ffi.load(path, true)` 加载——第二个参数为 `true` 表示以 `RTLD_GLOBAL` 模式打开，使库中所有导出符号对 `dlsym(RTLD_DEFAULT, ...)` 可见：
@@ -215,11 +193,7 @@ local lib = ffi.load("/path/to/libfoo.so", true)  -- RTLD_GLOBAL
 SymbolHelper.get_global_symbol_addr("my_func")  --> 0
 
 -- ✅ try_ffi_cast 通过 ffi.C fallback 成功（dlsym 能找到 RTLD_GLOBAL 符号）
-local fn = SymbolHelper.try_ffi_cast(
-    "int32_t (*)(int32_t)",
-    "int32_t my_func(int32_t x);",
-    "my_func"
-)
+local fn = SymbolHelper.try_ffi_cast("int32_t my_func(int32_t x);")
 fn(42)  --> OK
 ```
 

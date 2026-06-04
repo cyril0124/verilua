@@ -55,6 +55,20 @@ fork {
         assert(add2(100, 200) == 300, "FAIL: try_ffi_cast sym_add(100,200) should be 300")
         print("[PASS] try_ffi_cast resolves linked symbol via ELF path")
 
+        -- 5b. try_ffi_cast minimal form: derive name and ptr type from the decl alone
+        local add_min = SymbolHelper.try_ffi_cast("int sym_add(int a, int b);")
+        assert(add_min(11, 31) == 42, "FAIL: minimal-form sym_add(11,31) should be 42")
+        print("[PASS] try_ffi_cast minimal form derives name + ptr type from decl")
+
+        -- 5c. try_ffi_cast minimal form: a malformed decl must error loudly (no silent fallback)
+        local ok_bad, err_bad = pcall(function()
+            SymbolHelper.try_ffi_cast("void (*)()")
+        end)
+        assert(not ok_bad, "FAIL: minimal-form must reject a non-decl string")
+        assert(tostring(err_bad):find("_parse_func_decl"),
+            "FAIL: error should come from the decl parser, got: " .. tostring(err_bad))
+        print("[PASS] try_ffi_cast minimal form errors on malformed decl")
+
         -- 6. try_ffi_cast: call SV-exported function
         sim.set_dpi_scope("tb_top.u_top")
         local sv_square = SymbolHelper.try_ffi_cast(
@@ -109,6 +123,13 @@ fork {
         )
         assert(ext_func(42) == 1042, "FAIL: ext_only_func(42) should be 1042")
         print("[PASS] try_ffi_cast succeeds for RTLD_GLOBAL .so symbol via ffi.C fallback")
+
+        -- 10b. Minimal form goes through the same fallback path when the symbol
+        -- is RTLD_GLOBAL but not in the main ELF. Use a different symbol so we
+        -- exercise a fresh ffi.cdef path.
+        local ext_func_min = SymbolHelper.try_ffi_cast("int32_t ext_only_func2(int32_t x);")
+        assert(ext_func_min(42) == 2042, "FAIL: ext_only_func2(42) should be 2042")
+        print("[PASS] try_ffi_cast minimal form succeeds via ffi.C fallback")
 
         -- But get_global_symbol_addr still returns 0 (ELF-only)
         local addr_ext2 = SymbolHelper.get_global_symbol_addr("ext_only_func")

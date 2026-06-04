@@ -58,9 +58,7 @@ local WaveVpiCtrl = {
         set = function(self, opt_name, value)
             if not self.set_jit_options_cfunc then
                 self.set_jit_options_cfunc = SymbolHelper.try_ffi_cast(
-                    "void (*)(const char*, uint64_t)",
-                    "void wave_vpi_ctrl_set_jit_options(const char* opt_name, uint64_t value);",
-                    "wave_vpi_ctrl_set_jit_options"
+                    "void wave_vpi_ctrl_set_jit_options(const char* opt_name, uint64_t value);"
                 ) --[[@as fun(opt_name: string, value: integer)]]
             end
 
@@ -91,9 +89,7 @@ local WaveVpiCtrl = {
         get = function(self, opt_name)
             if not self.get_jit_options_cfunc then
                 local get_jit_options_cfunc = SymbolHelper.try_ffi_cast(
-                    "uint64_t (*)(const char*)",
-                    "uint64_t wave_vpi_ctrl_get_jit_options(const char* opt_name);",
-                    "wave_vpi_ctrl_get_jit_options"
+                    "uint64_t wave_vpi_ctrl_get_jit_options(const char* opt_name);"
                 ) --[[@as fun(opt_name: string): integer]]
 
                 self.get_jit_options_cfunc = get_jit_options_cfunc
@@ -114,9 +110,7 @@ local WaveVpiCtrl = {
 function WaveVpiCtrl:get_cursor_index()
     if not self.get_cursor_index_cfunc then
         self.get_cursor_index_cfunc = SymbolHelper.try_ffi_cast(
-            "uint64_t (*)()",
-            "uint64_t wave_vpi_ctrl_get_cursor_index();",
-            "wave_vpi_ctrl_get_cursor_index"
+            "uint64_t wave_vpi_ctrl_get_cursor_index();"
         ) --[[@as fun(): integer]]
     end
 
@@ -126,9 +120,7 @@ end
 function WaveVpiCtrl:get_max_cursor_index()
     if not self.get_max_cursor_index_cfunc then
         self.get_max_cursor_index_cfunc = SymbolHelper.try_ffi_cast(
-            "uint64_t (*)()",
-            "uint64_t wave_vpi_ctrl_get_max_cursor_index();",
-            "wave_vpi_ctrl_get_max_cursor_index"
+            "uint64_t wave_vpi_ctrl_get_max_cursor_index();"
         ) --[[@as fun(): integer]]
     end
 
@@ -144,9 +136,7 @@ end
 function WaveVpiCtrl:get_max_cursor_time(unit)
     if not self.get_max_cursor_time_cfunc then
         self.get_max_cursor_time_cfunc = SymbolHelper.try_ffi_cast(
-            "uint64_t (*)()",
-            "uint64_t wave_vpi_ctrl_get_max_cursor_time();",
-            "wave_vpi_ctrl_get_max_cursor_time"
+            "uint64_t wave_vpi_ctrl_get_max_cursor_time();"
         ) --[[@as fun(): integer]]
     end
 
@@ -179,9 +169,7 @@ end
 function WaveVpiCtrl:set_cursor_index(index, flush_scheduler)
     if not self.set_cursor_index_cfunc then
         self.set_cursor_index_cfunc = SymbolHelper.try_ffi_cast(
-            "void (*)(uint64_t)",
-            "void wave_vpi_ctrl_set_cursor_index(uint64_t index);",
-            "wave_vpi_ctrl_set_cursor_index"
+            "void wave_vpi_ctrl_set_cursor_index(uint64_t index);"
         ) --[[@as fun(index: integer)]]
     end
 
@@ -226,9 +214,7 @@ end
 function WaveVpiCtrl:to_percent(percent, flush_scheduler)
     if not self.set_cursor_index_percent_cfunc then
         self.set_cursor_index_percent_cfunc = SymbolHelper.try_ffi_cast(
-            "void (*)(double)",
-            "void wave_vpi_ctrl_set_cursor_index_percent(double percent);",
-            "wave_vpi_ctrl_set_cursor_index_percent"
+            "void wave_vpi_ctrl_set_cursor_index_percent(double percent);"
         ) --[[@as fun(percent: number)]]
     end
 
@@ -254,9 +240,7 @@ end
 function WaveVpiCtrl:set_cursor_time(time, unit, flush_scheduler)
     if not self.set_cursor_time_cfunc then
         self.set_cursor_time_cfunc = SymbolHelper.try_ffi_cast(
-            "void (*)(uint64_t)",
-            "void wave_vpi_ctrl_set_cursor_time(uint64_t time);",
-            "wave_vpi_ctrl_set_cursor_time"
+            "void wave_vpi_ctrl_set_cursor_time(uint64_t time);"
         ) --[[@as fun(time: integer)]]
     end
 
