@@ -44,6 +44,8 @@ local colors = _G.colors
 ---
 ---@field get_or_else fun(self: verilua.LuaSimConfig, cfg_str: string, default: any): any
 ---@field get_or_else_log fun(self: verilua.LuaSimConfig, cfg_str: string, default: any, log_str: string): any
+---@field resolve_seed fun(self: verilua.LuaSimConfig): integer
+---@field setup_random_seed fun(self: verilua.LuaSimConfig)
 ---@field dump_str fun(self: verilua.LuaSimConfig): string
 ---@field dump fun(self: verilua.LuaSimConfig)
 ---@field [string] any This represents any other fields that may be added to the configuration table
@@ -170,6 +172,39 @@ function cfg:get_or_else_log(cfg_str, default, log_str)
         return default
     end
     return _cfg
+end
+
+---@nodiscard Return value should not be discarded
+---@return integer seed The resolved random seed
+function cfg:resolve_seed()
+    local seed = rawget(self, "seed")
+    if seed == nil then
+        seed = 1234
+    end
+    local env_seed = os.getenv("SEED")
+    if env_seed then
+        assert(
+            env_seed:match("^%d+$") ~= nil,
+            "[verilua.LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!"
+        )
+        local parsed_seed = tonumber(env_seed) --[[@as integer]]
+        _G.verilua_debug(f(
+            "Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d",
+            tostring(seed),
+            parsed_seed
+        ))
+        seed = parsed_seed
+    end
+
+    type_check(seed, "cfg.seed", "number")
+    return seed
+end
+
+function cfg:setup_random_seed()
+    local seed = self:resolve_seed()
+    _G.verilua_debug(f("random seed is %d", seed))
+    ---@diagnostic disable-next-line: access-invisible
+    math.randomseed(seed)
 end
 
 -- Dumps the content of the configuration table as a string.
@@ -377,20 +412,7 @@ function cfg:post_config()
     _cfg.enable_dpi_exporter = false
 
     -- Setup seed, <SEED> set by environment variable `SEED` has higher priority
-    _cfg.seed                = _cfg:get_or_else("seed", 1234)
-    local env_seed          = os.getenv("SEED")
-    if env_seed then
-        assert(
-            env_seed:match("^%d+$") ~= nil,
-            "[verilua.LuaSimConfig] Invalid <SEED>: " .. env_seed .. ", it should be a number!"
-        )
-        _G.verilua_debug(f(
-            "Enviroment varibale <SEED> is set, overwrite cfg.seed from %s to %d",
-            tostring(_cfg.seed),
-            env_seed
-        ))
-        _cfg.seed = tonumber(env_seed) --[[@as integer]]
-    end
+    _cfg.seed                = _cfg:resolve_seed()
 
     type_check(_cfg.is_hse, "cfg.is_hse", "boolean")
     type_check(_cfg.seed, "cfg.seed", "number")

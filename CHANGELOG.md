@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### ✨ Added
 
 - **LuaUtils**: `get_env_or_else()` now accepts a function default that is called when the environment variable is unset, validates the generated value type, and logs the generated value. Added `rand_int()`, `rand_bool()`, and `rand_choice()` helpers for lightweight runtime parameter randomization; `rand_choice()` also supports optional relative weights.
+- **LuaSimConfig**: Seed setup is available before loading user config so function defaults in user config can be reproducible under the same `SEED`.
 - **sv**: `SVBuilder` now supports `add "covergroup"` for generating SystemVerilog functional coverage. Covergroups use `default_clocking` as the sampling event by default, with per-covergroup override via `sample_event` parameter. A `final` block is automatically generated to print coverage results via `$display`. Use `ctx:set_coverage_report(false)` to disable.
 - **SymbolHelper**: `try_ffi_cast` now accepts a single C function declaration and derives both the function name and the function-pointer type from it (e.g. `SymbolHelper.try_ffi_cast("void *svSetScope(void *scope);")`). The legacy 3-argument form `try_ffi_cast(func_ptr_str, ffi_func_decl_str, func_name)` keeps working unchanged. Internal call sites (`DpiExporter`, `WaveVpiCtrl`, `LuaSimulator`, `LuaUtils`) have been migrated to the minimal form.
 - **LuaUtils**: Add `get_scriptdir()` — returns the absolute directory of the calling script, similar to xmake's `os.scriptdir()`

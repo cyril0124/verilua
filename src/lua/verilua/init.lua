@@ -203,6 +203,7 @@ do
             cfg_name = cfg_name:sub(1, -5) -- strip ".lua" suffix
         end
 
+        cfg:setup_random_seed()
         local _cfg = require(cfg_name)
         assert(
             type(_cfg) == "table",
@@ -1103,8 +1104,7 @@ end
 -- setup random seed
 --
 do
-    _G.verilua_debug(f("random seed is %d", cfg.seed))
-    math.randomseed(cfg.seed)
+    cfg:setup_random_seed()
 end
 
 --
