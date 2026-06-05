@@ -26,12 +26,12 @@ describe("LuaUtils test", function()
         end
 
         for _, test in ipairs(tests) do
-            local result = utils.bitfield64(test[2], test[3], test[1])
+            local result = utils.bitfield64(test[2] --[[@as integer]], test[3] --[[@as integer]], test[1] --[[@as integer]])
             assert(type(result) == "cdata", type(result))
             assert(result == test[4], tostring(result) .. " " .. tostring(test[4]))
         end
 
-        local tests = {
+        local cdata_tests = {
             { 0xffffffffffffffffULL, 0,  1,  3 },
             { 0xffffffffffffffffULL, 0,  3,  15 },
             { 0xffffffffffffffffULL, 0,  4,  31 },
@@ -44,8 +44,8 @@ describe("LuaUtils test", function()
             { 0xffffffffffffffffULL, 63, 63, 1 },
         }
 
-        for _, test in ipairs(tests) do
-            local result = utils.bitfield64(test[2], test[3], test[1])
+        for _, test in ipairs(cdata_tests) do
+            local result = utils.bitfield64(test[2] --[[@as integer]], test[3] --[[@as integer]], test[1] --[[@as integer]])
             assert(type(result) == "cdata", type(result))
             assert(result == test[4], tostring(result) .. " " .. tostring(test[4]))
         end
@@ -136,9 +136,11 @@ describe("LuaUtils test", function()
             local MAX = v.MAX
 
             local random_count = 0
+            ---@type table<string, uint64_t>
             local random_count_tbl = {}
             for _ = 1, 10000 do
-                local vv = utils.urandom64_range(MIN, MAX)
+                local vv = utils.urandom64_range(MIN --[[@as integer|uint64_t]], MAX --[[@as integer|uint64_t]])
+                ---@diagnostic disable-next-line: duplicate-set-field
                 random_count_tbl[utils.to_hex_str(vv)] = vv
                 assert(type(vv) == "cdata")
                 if vv > MAX or vv < MIN then
@@ -150,8 +152,8 @@ describe("LuaUtils test", function()
                 random_count = random_count + 1
             end
             assert(random_count > 100,
-                f("MIN: %s, MAX: %s, random_count: %d, random_count_tbl: %s", utils.to_hex_str(MIN),
-                    utils.to_hex_str(MAX), random_count, inspect(random_count_tbl)))
+                f("MIN: %s, MAX: %s, random_count: %d, random_count_tbl: %s", utils.to_hex_str(MIN --[[@as integer|ffi.cdata*]]),
+                    utils.to_hex_str(MAX --[[@as integer|ffi.cdata*]]), random_count, inspect(random_count_tbl)))
         end
     end)
 
@@ -178,14 +180,14 @@ describe("LuaUtils test", function()
             local MAX = v.MAX
 
             for _ = 1, 1000 do
-                local result = utils.urandom64_range(MIN, MAX)
+                local result = utils.urandom64_range(MIN --[[@as integer|uint64_t]], MAX --[[@as integer|uint64_t]])
                 assert(type(result) == "cdata",
                     f("Expected cdata, got %s for MIN=%s, MAX=%s", type(result),
-                        utils.to_hex_str(MIN), utils.to_hex_str(MAX)))
+                        utils.to_hex_str(MIN --[[@as integer|ffi.cdata*]]), utils.to_hex_str(MAX --[[@as integer|ffi.cdata*]])))
                 assert(result >= MIN,
-                    f("Result %s should >= MIN %s", utils.to_hex_str(result), utils.to_hex_str(MIN)))
+                    f("Result %s should >= MIN %s", utils.to_hex_str(result), utils.to_hex_str(MIN --[[@as integer|ffi.cdata*]])))
                 assert(result <= MAX,
-                    f("Result %s should <= MAX %s", utils.to_hex_str(result), utils.to_hex_str(MAX)))
+                    f("Result %s should <= MAX %s", utils.to_hex_str(result), utils.to_hex_str(MAX --[[@as integer|ffi.cdata*]])))
             end
         end
 
@@ -212,14 +214,14 @@ describe("LuaUtils test", function()
             expect.equal(utils.str_group_by(str, nr_group), result)
         end
 
-        local tests = {
+        local sep_tests = {
             { "1234567890", 3, "123,456,789,0", "," },
             { "1234567890", 4, "1234,5678,90",  "," },
             { "1234567890", 5, "12345,67890",   "," },
             { "1234567890", 6, "123456,7890",   "," },
             { "1234567890", 7, "1234567,890",   "," },
         }
-        for _, test in ipairs(tests) do
+        for _, test in ipairs(sep_tests) do
             local str = test[1]
             local nr_group = test[2]
             local result = test[3]
@@ -273,7 +275,7 @@ describe("LuaUtils test", function()
             local v = test[1]
             local expected = test[2]
             local separator = test[3]
-            local result = utils.to_hex_str(v, separator)
+            local result = utils.to_hex_str(v --[[@as integer|ffi.cdata*|table]], separator)
             expect.equal(result, expected)
         end
     end)
@@ -293,12 +295,12 @@ describe("LuaUtils test", function()
             { 0x123456789ABCDEF0ULL, 60, 4,  0x023456789ABCDEF0ULL },
         }
 
-        for i, test in ipairs(tests) do
+        for _, test in ipairs(tests) do
             local value = test[1]
             local start = test[2]
             local length = test[3]
             local expected = test[4]
-            local result = utils.reset_bits(value, start, length)
+            local result = utils.reset_bits(value --[[@as integer]], start --[[@as integer]], length --[[@as integer]])
             expect.equal(result, expected + 0ULL)
         end
     end)
@@ -313,7 +315,7 @@ describe("LuaUtils test", function()
             { 15,  3,  5 },
             { 14,  3,  5 },
         }
-        for i, test in ipairs(tests) do
+        for _, test in ipairs(tests) do
             local value = test[1]
             local n = test[2]
             local expected = test[3]
@@ -323,10 +325,10 @@ describe("LuaUtils test", function()
     end)
 
     it("should work properly for shuffle_bits_hex_str()", function()
-        local test = function(width, iter)
-            local iter = iter or 100
+        local test_shuffle_bits_hex_str = function(width, iter)
+            local count = iter or 100
             local tbl = {}
-            for i = 1, iter do
+            for _ = 1, count do
                 local ret = utils.shuffle_bits_hex_str(width)
                 expect.equal(utils.bitfield_str("0x" .. ret, width, width), "0")
                 for j = 1, width do
@@ -341,13 +343,13 @@ describe("LuaUtils test", function()
         end
 
         for i = 1, 70 do
-            expect.equal(test(i), i)
+            expect.equal(test_shuffle_bits_hex_str(i), i)
         end
 
-        local test = function(width, iter)
-            local iter = iter or 100
+        local test_shuffle_bits = function(width, iter)
+            local count = iter or 100
             local tbl = {}
-            for i = 1, iter do
+            for _ = 1, count do
                 local ret = utils.shuffle_bits(width)
                 for j = 1, width do
                     local v = utils.bitfield_str("0x" .. utils.to_hex_str(ret), j - 1, j - 1, width)
@@ -361,7 +363,7 @@ describe("LuaUtils test", function()
         end
 
         for i = 1, 64 do
-            expect.equal(test(i), i)
+            expect.equal(test_shuffle_bits(i), i)
         end
     end)
 
@@ -428,287 +430,6 @@ describe("LuaUtils test", function()
         end
     end)
 
-    it("should work properly for matrix_call()", function()
-        local matrix_call = utils.matrix_call
-
-        local print = function(...) end
-
-        -- Create a table to track execution order
-        local execution_order = {}
-
-        -- Helper function to verify execution order
-        local function verify_order(actual, expected, test_name)
-            local passed = true
-            if #actual ~= #expected then
-                print("TEST FAILED: " .. test_name .. " - Expected " .. #expected .. " executions, got " .. #actual)
-                passed = false
-            else
-                for i = 1, #expected do
-                    if actual[i] ~= expected[i] then
-                        print("TEST FAILED: " ..
-                            test_name ..
-                            " - At position " .. i .. ", expected '" .. expected[i] .. "', got '" .. actual[i] .. "'")
-                        passed = false
-                        break
-                    end
-                end
-            end
-
-            if passed then
-                print("TEST PASSED: " .. test_name)
-            end
-
-            -- Clear execution order for next test
-            for i = #execution_order, 1, -1 do
-                table.remove(execution_order, i)
-            end
-
-            assert(passed, "Test failed: " .. test_name)
-        end
-
-        -- Test case 1: Basic 2D matrix test
-        local function test_2d_matrix()
-            print("\n=== Testing 2D Matrix ===")
-
-            local expected_order = { "F1S1", "F1S2", "F1S1", "F2S2", "F2S1", "F1S2", "F2S1", "F2S2" }
-
-            matrix_call {
-                {
-                    function() table.insert(execution_order, "F1S1") end,
-                    function() table.insert(execution_order, "F2S1") end,
-                },
-                {
-                    function() table.insert(execution_order, "F1S2") end,
-                    function() table.insert(execution_order, "F2S2") end,
-                }
-            }
-
-            -- Verify results
-            verify_order(execution_order, expected_order, "2D Matrix Test")
-            print("2D Matrix test passed!")
-        end
-
-        -- Test case 2: 3D matrix test
-        local function test_3d_matrix()
-            print("\n=== Testing 3D Matrix ===")
-
-            local expected_order = {
-                "A1B1C1", "A1B2C1", "A1B1C2",
-                "A1B1C1", "A1B2C1", "A2B1C2",
-                "A1B1C1", "A1B2C1", "A1B2C2",
-                "A1B1C1", "A1B2C1", "A2B2C2",
-                "A1B1C1", "A2B2C1", "A1B1C2",
-                "A1B1C1", "A2B2C1", "A2B1C2",
-                "A1B1C1", "A2B2C1", "A1B2C2",
-                "A1B1C1", "A2B2C1", "A2B2C2",
-                "A2B1C1", "A1B2C1", "A1B1C2",
-                "A2B1C1", "A1B2C1", "A2B1C2",
-                "A2B1C1", "A1B2C1", "A1B2C2",
-                "A2B1C1", "A1B2C1", "A2B2C2",
-                "A2B1C1", "A2B2C1", "A1B1C2",
-                "A2B1C1", "A2B2C1", "A2B1C2",
-                "A2B1C1", "A2B2C1", "A1B2C2",
-                "A2B1C1", "A2B2C1", "A2B2C2"
-            }
-
-            matrix_call {
-                {
-                    function() table.insert(execution_order, "A1B1C1") end,
-                    function() table.insert(execution_order, "A2B1C1") end,
-                },
-                {
-                    function() table.insert(execution_order, "A1B2C1") end,
-                    function() table.insert(execution_order, "A2B2C1") end,
-                },
-                {
-                    function() table.insert(execution_order, "A1B1C2") end,
-                    function() table.insert(execution_order, "A2B1C2") end,
-                    function() table.insert(execution_order, "A1B2C2") end,
-                    function() table.insert(execution_order, "A2B2C2") end,
-                }
-            }
-
-            -- Verify results
-            verify_order(execution_order, expected_order, "3D Matrix Test")
-            print("3D Matrix test passed!")
-        end
-
-        -- Test case 3: Empty dimension test
-        local function test_empty_dimension()
-            print("\n=== Testing Empty Dimension ===")
-
-            -- This should not execute any functions since one dimension is empty
-            matrix_call {
-                {
-                    function() table.insert(execution_order, "A1") end,
-                    function() table.insert(execution_order, "A2") end,
-                },
-                {
-                    -- Empty dimension
-                },
-                {
-                    function() table.insert(execution_order, "C1") end,
-                }
-            }
-
-            -- Verify results
-            assert(#execution_order == 0, "Expected 0 executions, got " .. #execution_order)
-            print("Empty dimension test passed!")
-        end
-
-        -- Test case 4: Single dimension test
-        local function test_single_dimension()
-            print("\n=== Testing Single Dimension ===")
-
-            local expected_order = { "A1", "A2", "A3" }
-
-            matrix_call {
-                {
-                    function() table.insert(execution_order, "A1") end,
-                    function() table.insert(execution_order, "A2") end,
-                    function() table.insert(execution_order, "A3") end,
-                }
-            }
-
-            -- Verify results
-            verify_order(execution_order, expected_order, "Single Dimension Test")
-            print("Single dimension test passed!")
-        end
-
-        local function test_sequential_functions()
-            print("Starting sequential function test")
-
-            local expected_order = {}
-
-            -- Create test functions that record their execution
-            local function func_a()
-                print("Executing func_a")
-                table.insert(execution_order, "a")
-            end
-
-            local function func_b()
-                print("Executing func_b")
-                table.insert(execution_order, "b")
-            end
-
-            local function func_c()
-                print("Executing func_c")
-                table.insert(execution_order, "c")
-            end
-
-            local function func_d()
-                print("Executing func_d")
-                table.insert(execution_order, "d")
-            end
-
-            local function func_e()
-                print("Executing func_e")
-                table.insert(execution_order, "e")
-            end
-
-            local function func_f()
-                print("Executing func_f")
-                table.insert(execution_order, "f")
-            end
-
-            -- Test case 1: Basic sequential execution
-            print("\nTest case 1: Basic sequential execution")
-            expected_order = { "a", "b", "d", "a", "b", "e", "f", "c", "d", "c", "e", "f" }
-            matrix_call {
-                {
-                    { func_a, func_b }, -- These two functions will execute sequentially
-                    func_c
-                },
-                {
-                    func_d,
-                    { func_e, func_f } -- These two functions will execute sequentially
-                }
-            }
-            verify_order(execution_order, expected_order, "Basic sequential execution")
-
-            -- Test case 2: Nested sequential execution
-            print("\nTest case 2: Nested sequential execution")
-            expected_order = { "a", "b", "c", "d", "e", "f" }
-            matrix_call {
-                {
-                    { func_a, func_b, func_c }, -- These three functions will execute sequentially
-                },
-                {
-                    { func_d, func_e, func_f }, -- These three functions will execute sequentially
-                }
-            }
-            verify_order(execution_order, expected_order, "Nested sequential execution")
-
-            -- Test case 3: Mixed single functions and sequential functions
-            print("\nTest case 3: Mixed single functions and sequential functions")
-            expected_order = { "a", "d", "e", "a", "d", "f", "b", "c", "d", "e", "b", "c", "d", "f" }
-            matrix_call {
-                {
-                    func_a,
-                    { func_b, func_c }
-                },
-                {
-                    func_d
-                },
-                {
-                    func_e,
-                    func_f
-                }
-            }
-            verify_order(execution_order, expected_order, "Mixed single functions and sequential functions")
-
-            print("Sequential function test completed successfully")
-        end
-
-        local function test_func_with_args()
-            execution_order = {}
-
-            local function func_a(a, b, c)
-                assert(a == 1 and b == 2 and c == 3)
-                table.insert(execution_order, "a")
-            end
-            local function func_b(str)
-                assert(str == "hello")
-                table.insert(execution_order, "b")
-            end
-            local function func_c(x, y)
-                assert(x == true and y == false)
-                table.insert(execution_order, "c")
-            end
-            local function func_d(tbl)
-                assert(type(tbl) == "table" and tbl.a == 1)
-                table.insert(execution_order, "d")
-            end
-
-            matrix_call {
-                {
-                    { func = func_a, args = { 1, 2, 3 } },
-                    { func = func_b, args = { "hello" } }
-                },
-                {
-                    { func = func_c, args = { true, false } },
-                    { func = func_d, args = { { a = 1 } } }
-                }
-            }
-
-            expect.equal(table.concat(execution_order, " "), "a c a d b c b d")
-        end
-
-        -- Run all tests
-        local function test()
-            test_2d_matrix()
-            test_3d_matrix()
-            test_empty_dimension()
-            test_single_dimension()
-            test_sequential_functions()
-            test_func_with_args()
-
-            print("\nAll matrix_call tests passed successfully!")
-        end
-
-        test()
-    end)
-
     it("should work properly for hex_str_to_ull()", function()
         local tests = {
             -- Basic cases
@@ -750,9 +471,7 @@ describe("LuaUtils test", function()
             local hex_str = test[1]
             local expected = test[2]
             local result = utils.hex_str_to_ull(hex_str)
-            expect.equal(result, expected,
-                f("hex_str_to_ull('%s') = %s, expected %s",
-                    hex_str, utils.to_hex_str(result), utils.to_hex_str(expected)))
+            expect.equal(result, expected)
         end
     end)
 
@@ -799,13 +518,7 @@ describe("LuaUtils test", function()
             local result_i64 = ffi.cast("int64_t", result)
             local expected_i64 = ffi.cast("int64_t", expected)
 
-            -- Convert to unsigned for hex display
-            local result_u64 = ffi.cast("uint64_t", result_i64)
-            local expected_u64 = ffi.cast("uint64_t", expected_i64)
-
-            expect.equal(result_i64, expected_i64,
-                f("hex_str_to_ll('%s') = 0x%s, expected 0x%s",
-                    hex_str, utils.to_hex_str(result_u64), utils.to_hex_str(expected_u64)))
+            expect.equal(result_i64, expected_i64)
         end
     end)
 
@@ -836,16 +549,17 @@ describe("LuaUtils test", function()
             local str1 = test[1]
             local str2 = test[2]
             local expected = test[3]
-            local msg = test[4]
             local result = utils.compare_hex_str(str1, str2)
-            expect.equal(result, expected, f("compare_hex_str('%s', '%s'): %s", str1, str2, msg))
+            expect.equal(result, expected)
         end
     end)
 
     it("should work for get_scriptdir()", function()
         local dir = utils.get_scriptdir()
         -- This test file lives in <repo>/tests, so get_scriptdir() should return that directory
-        local expected = require("pl.path").dirname(require("pl.path").abspath(arg[0]))
+        ---@diagnostic disable-next-line: unresolved-require
+        local path = require "pl.path"
+        local expected = path.dirname(path.abspath(arg[0]))
         expect.equal(dir, expected)
     end)
 end)

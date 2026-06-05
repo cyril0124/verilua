@@ -1,6 +1,6 @@
 # 通用工具函数（LuaUtils）
 
-`LuaUtils` 是 Verilua 提供的通用工具模块，包含数值转换、位操作、字符串处理、枚举定义、随机数生成、环境变量读取、矩阵调用等常用功能。它是验证代码中使用频率最高的基础工具集之一。
+`LuaUtils` 是 Verilua 提供的通用工具模块，包含数值转换、位操作、字符串处理、枚举定义、随机数生成、环境变量读取等常用功能。它是验证代码中使用频率最高的基础工具集之一。
 
 ## 初始化
 
@@ -72,7 +72,6 @@ local utils = require "verilua.LuaUtils"
 
 | 函数 | 描述 |
 | --- | --- |
-| `matrix_call(func_table)` | 多维函数组合的笛卡尔积调用 |
 | `execute_after(count, func, options?)` | 在指定调用次数后执行函数 |
 | `loadcode(code, env?, chunkname?)` | 加载并执行 Lua 代码字符串 |
 | `exclusive_call(func, lock_file_name?)` | 互斥执行（基于文件锁） |
@@ -275,49 +274,6 @@ local name    = utils.get_env_or_else("VL_NAME", "string", "default")
 ```
 
 ### 控制流与执行
-
-#### `matrix_call(func_table)`
-
-对多维函数列表执行笛卡尔积组合调用。每个维度包含若干函数选项，`matrix_call` 会遍历所有维度的所有组合并依次执行。
-
-支持四种函数块类型：
-- **单函数**：直接传入 `function`
-- **顺序函数组**：传入 `{func1, func2, ...}`，按顺序执行
-- **带参数的函数**：传入 `{func = f, args = {...}}`
-- **带多组参数的函数**：传入 `{func = f, multi_args = {{...}, {...}}}`
-
-```lua
--- 2 × 2 = 4 种组合
-utils.matrix_call {
-    {
-        function() io.write("A") end,
-        function() io.write("B") end,
-    },
-    {
-        function() print("1") end,
-        function() print("2") end,
-    },
-}
--- 输出：
--- A1
--- A2
--- B1
--- B2
-```
-
-带参数的用法：
-
-```lua
-utils.matrix_call {
-    {
-        { func = function(x) print("x =", x) end, args = {10} },
-        { func = function(x) print("x =", x) end, args = {20} },
-    },
-}
--- 输出：
--- x = 10
--- x = 20
-```
 
 #### `execute_after(count, func, options?)`
 

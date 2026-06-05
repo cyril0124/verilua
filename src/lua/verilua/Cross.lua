@@ -25,6 +25,7 @@ local type = type
 local assert = assert
 local error = error
 local tostring = tostring
+local format = string.format
 
 ---@class verilua.Cross.Options
 ---@field filter? fun(combo: any[]): boolean Filter function, return true to keep
@@ -339,6 +340,315 @@ function Cross._sample_product(lists, opts)
     end
 
     return results
+end
+
+
+-- ============================================================================
+-- Function Product Call
+-- ============================================================================
+
+---@alias verilua.Cross.ProductCallSingleFunc function
+---@alias verilua.Cross.ProductCallSeqFuncs function[]
+
+---@class verilua.Cross.ProductCallFuncWithArgs
+---@field func function
+---@field args table
+---@field before? function
+---@field after? function
+
+---@class verilua.Cross.ProductCallFuncWithMultiArgs
+---@field func function
+---@field multi_args table[]
+---@field before? function
+---@field after? function
+
+---@alias verilua.Cross.ProductCallBlock verilua.Cross.ProductCallSingleFunc|verilua.Cross.ProductCallSeqFuncs|verilua.Cross.ProductCallFuncWithArgs|verilua.Cross.ProductCallFuncWithMultiArgs
+---@alias verilua.Cross.ProductCallFuncBlocks verilua.Cross.ProductCallBlock[]
+---@alias verilua.Cross.ProductCallParams verilua.Cross.ProductCallFuncBlocks[]
+
+---@alias verilua.Cross.ProductCallBlockType
+---| "single_func"
+---| "seq_funcs"
+---| "single_func_with_args"
+---| "single_func_with_multi_args"
+
+--- Classify and validate one product_call function block.
+---@param entry any
+---@param dim integer
+---@param idx integer
+---@return verilua.Cross.ProductCallBlockType
+local function classify_product_call_block(entry, dim, idx)
+    local typ = type(entry)
+
+    if typ == "function" then
+        return "single_func"
+    end
+
+    if typ ~= "table" then
+        error(format("product_call: func_table[%d][%d] must be a function or a table, got %s", dim, idx, typ))
+    end
+
+    if #entry == 0 then
+        if entry.args ~= nil then
+            assert(type(entry.func) == "function", format("product_call: func_table[%d][%d].func must be a function", dim, idx))
+            assert(type(entry.args) == "table", format("product_call: func_table[%d][%d].args must be a table", dim, idx))
+            return "single_func_with_args"
+        end
+
+        if entry.multi_args ~= nil then
+            assert(type(entry.func) == "function", format("product_call: func_table[%d][%d].func must be a function", dim, idx))
+            assert(type(entry.multi_args) == "table", format("product_call: func_table[%d][%d].multi_args must be a table", dim, idx))
+            assert(
+                type(entry.multi_args[1]) == "table",
+                format("product_call: func_table[%d][%d].multi_args[1] must be a table", dim, idx)
+            )
+            for arg_idx = 2, #entry.multi_args do
+                assert(
+                    type(entry.multi_args[arg_idx]) == "table",
+                    format("product_call: func_table[%d][%d].multi_args[%d] must be a table", dim, idx, arg_idx)
+                )
+            end
+            return "single_func_with_multi_args"
+        end
+
+        error(format("product_call: func_table[%d][%d] must have `args` or `multi_args` field", dim, idx))
+    end
+
+    for seq_idx = 1, #entry do
+        assert(
+            type(entry[seq_idx]) == "function",
+            format("product_call: func_table[%d][%d][%d] must be a function, got %s", dim, idx, seq_idx, type(entry[seq_idx]))
+        )
+    end
+
+    return "seq_funcs"
+end
+
+--- Build index domains for Cross.product_iter and metadata for block execution.
+---@param func_table verilua.Cross.ProductCallParams
+---@return integer[][]? index_domains nil when product_call should be a no-op
+---@return table<integer, table<integer, verilua.Cross.ProductCallBlockType>>? block_types
+local function build_product_call_plan(func_table)
+    local dimensions = #func_table
+    if dimensions == 0 then
+        return nil, nil
+    end
+
+    local index_domains = {}
+    local block_types = {}
+
+    for dim = 1, dimensions do
+        local blocks = func_table[dim]
+        assert(type(blocks) == "table", format("product_call: func_table[%d] must be a table", dim))
+
+        local block_count = #blocks
+        if block_count == 0 then
+            return nil, nil
+        end
+
+        local indices = {}
+        local dim_block_types = {}
+        index_domains[dim] = indices
+        block_types[dim] = dim_block_types
+
+        for idx = 1, block_count do
+            indices[idx] = idx
+            dim_block_types[idx] = classify_product_call_block(blocks[idx], dim, idx)
+        end
+    end
+
+    return index_domains, block_types
+end
+
+local PRODUCT_CALL_MAX_ARGS = 8
+
+---@alias verilua.Cross.ProductCallArgCaller fun(func: function, args: table)
+
+---@param func function
+---@param _args table
+local function product_call_call0(func, _args)
+    func()
+end
+
+---@param func function
+---@param args table
+local function product_call_call1(func, args)
+    func(args[1])
+end
+
+---@param func function
+---@param args table
+local function product_call_call2(func, args)
+    func(args[1], args[2])
+end
+
+---@param func function
+---@param args table
+local function product_call_call3(func, args)
+    func(args[1], args[2], args[3])
+end
+
+---@param func function
+---@param args table
+local function product_call_call4(func, args)
+    func(args[1], args[2], args[3], args[4])
+end
+
+---@param func function
+---@param args table
+local function product_call_call5(func, args)
+    func(args[1], args[2], args[3], args[4], args[5])
+end
+
+---@param func function
+---@param args table
+local function product_call_call6(func, args)
+    func(args[1], args[2], args[3], args[4], args[5], args[6])
+end
+
+---@param func function
+---@param args table
+local function product_call_call7(func, args)
+    func(args[1], args[2], args[3], args[4], args[5], args[6], args[7])
+end
+
+---@param func function
+---@param args table
+local function product_call_call8(func, args)
+    func(args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8])
+end
+
+---@type table<integer, verilua.Cross.ProductCallArgCaller>
+local product_call_arg_callers = {
+    [0] = product_call_call0,
+    product_call_call1,
+    product_call_call2,
+    product_call_call3,
+    product_call_call4,
+    product_call_call5,
+    product_call_call6,
+    product_call_call7,
+    product_call_call8,
+}
+
+---@param func function
+---@param args table
+local function call_product_call_func(func, args)
+    local nargs = #args
+    local caller = product_call_arg_callers[nargs]
+    if caller == nil then
+        error(format("product_call: args length %d exceeds supported maximum %d", nargs, PRODUCT_CALL_MAX_ARGS))
+    end
+    caller(func, args)
+end
+
+--- Execute one parsed product_call block.
+---@param block any
+---@param block_type verilua.Cross.ProductCallBlockType
+local function execute_product_call_block(block, block_type)
+    if block_type == "single_func" then
+        block()
+    elseif block_type == "seq_funcs" then
+        for i = 1, #block do
+            block[i]()
+        end
+    elseif block_type == "single_func_with_args" then
+        if type(block.before) == "function" then
+            block.before()
+        end
+        call_product_call_func(block.func, block.args)
+        if type(block.after) == "function" then
+            block.after()
+        end
+    elseif block_type == "single_func_with_multi_args" then
+        for i = 1, #block.multi_args do
+            if type(block.before) == "function" then
+                block.before()
+            end
+            call_product_call_func(block.func, block.multi_args[i])
+            if type(block.after) == "function" then
+                block.after()
+            end
+        end
+    else
+        error("product_call: unknown block type " .. tostring(block_type))
+    end
+end
+
+--- Execute function blocks across the cartesian product of dimensions.
+---
+--- Each dimension contains one or more function blocks. `product_call` executes
+--- all combinations in cartesian-product order, running selected blocks from
+--- the first dimension to the last dimension for each combination.
+---
+--- Supported block forms:
+--- * `function() ... end`
+--- * `{func1, func2, ...}` for sequential functions
+--- * `{ func = f, args = {...}, before = before?, after = after? }`
+--- * `{ func = f, multi_args = {{...}, {...}}, before = before?, after = after? }`
+---
+--- Example: basic 2D product call.
+--- ```lua
+--- Cross.product_call {
+---     {
+---         function() io.write("A") end,
+---         function() io.write("B") end,
+---     },
+---     {
+---         function() print("1") end,
+---         function() print("2") end,
+---     },
+--- }
+--- -- Output: A1, A2, B1, B2
+--- ```
+---
+--- Example: sequential blocks.
+--- ```lua
+--- Cross.product_call {
+---     {
+---         { function() io.write("setup ") end, function() io.write("drive ") end },
+---     },
+---     {
+---         function() print("check") end,
+---     },
+--- }
+--- -- Output: setup drive check
+--- ```
+---
+--- Example: argument blocks.
+--- ```lua
+--- Cross.product_call {
+---     {
+---         {
+---             before = function() print("before") end,
+---             func = function(a, b) print(a + b) end,
+---             args = { 2, 3 },
+---             after = function() print("after") end,
+---         },
+---     },
+--- }
+--- -- Output: before, 5, after
+--- ```
+---
+---@param func_table verilua.Cross.ProductCallParams
+function Cross.product_call(func_table)
+    assert(type(func_table) == "table", "product_call: func_table must be a table")
+
+    local index_domains, block_types = build_product_call_plan(func_table)
+    if not index_domains or not block_types then
+        return
+    end
+
+    for combination in Cross.product_iter(index_domains) do
+        for dim = 1, #combination do
+            local idx = combination[dim]
+            local blocks = func_table[dim]
+            local dim_block_types = block_types[dim]
+            assert(blocks ~= nil, "product_call: internal invariant failed, missing function blocks")
+            assert(dim_block_types ~= nil, "product_call: internal invariant failed, missing block metadata")
+            execute_product_call_block(blocks[idx], dim_block_types[idx])
+        end
+    end
 end
 
 -- ============================================================================

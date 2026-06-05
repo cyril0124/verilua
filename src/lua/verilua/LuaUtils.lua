@@ -5,6 +5,7 @@ local os = require "os"
 local bit = require "bit"
 local ffi = require "ffi"
 local math = require "math"
+---@diagnostic disable-next-line: unresolved-require
 local path = require "pl.path"
 local table_new = require "table.new"
 local logger = require("verilua.utils.Logger").new("verilua.LuaUtils")
@@ -520,6 +521,7 @@ local function bitpat_to_hex_str(bitpat_tbl, width)
         -- Determine which block and position within the block to apply the bit pattern
         local start_block = math_floor(bitpat.s / 64) + 1
         local end_block = math_floor(bitpat.e / 64) + 1
+        ---@type integer
         local start_pos = bitpat.s % 64
         -- local end_pos = bitpat.e % 64
 
@@ -533,7 +535,8 @@ local function bitpat_to_hex_str(bitpat_tbl, width)
             else
                 mask = bit_lshift(1ULL, num_bits) - 1
             end
-            local shifted_value = bit_lshift(bit_band(bitpat.v --[[@as integer]], mask), start_pos)
+            ---@type integer
+            local shifted_value = bit_lshift(bit_band(bitpat.v --[[@as integer]], mask --[[@as integer]]), start_pos --[[@as integer]])
             v[start_block] = bit_bor(v[start_block], shifted_value)
         else
             -- The bit pattern spans across multiple blocks
@@ -914,218 +917,10 @@ function utils.get_env_or_else(key, value_type, default)
     return value --[[@as string|number|boolean]]
 end
 
----@class verilua.LuaUtils.matrix_call.single_func: function
----@class verilua.LuaUtils.matrix_call.seq_funcs: { [integer]: function }
----@class verilua.LuaUtils.matrix_call.single_func_with_args: { func: function, args: table, before?: function, after?: function }
----@class verilua.LuaUtils.matrix_call.single_func_with_muti_args: { func: function, multi_args: table[], before?: function, after?: function }
----@class verilua.LuaUtils.matrix_call.func_blocks: { [integer]: verilua.LuaUtils.matrix_call.single_func | verilua.LuaUtils.matrix_call.seq_funcs | verilua.LuaUtils.matrix_call.single_func_with_args | verilua.LuaUtils.matrix_call.single_func_with_muti_args }
----@class verilua.LuaUtils.matrix_call.params: { [integer]: verilua.LuaUtils.matrix_call.func_blocks }
-
---- Example usage:
---- 1. Basic matrix call (2D):
---- ```lua
----     matrix_call {
----         {
----             function() print("First dimension, option 1") end,
----             function() print("First dimension, option 2") end,
----         },
----         {
----             function() print("Second dimension, option 1") end,
----             function() print("Second dimension, option 2") end,
----         }
----     }
---- ```
---- This will generate all combinations and execute them:
---- ```shell
----     First dimension, option 1 -> Second dimension, option 1
----     First dimension, option 1 -> Second dimension, option 2
----     First dimension, option 2 -> Second dimension, option 1
----     First dimension, option 2 -> Second dimension, option 2
---- ```
----
---- 2. Sequential functions (seq_funcs):
---- ```lua
----      matrix_call {
----          {
----              {function() io.write("a") end, function() io.write(" b\n") end}
----          },
----          {
----              function() print("c") end
----          }
----      }
---- ```
---- Output:
---- ```shell
----     a b
----     c
---- ```
----
---- 3. Single function with arguments (single_func_with_args):
---- ```lua
----         matrix_call {
----             {
----                 {func = function(a, b) print("Sum:", a + b) end, args = {2, 3}},
----                 {func = function(a, b) print("Product:", a * b) end, args = {2, 3}},
----             }
----         }
---- ```
---- Output:
---- ```shell
----     Sum: 5
----     Product: 6
---- ```
----
---- 4. Single function with multiple arguments (single_func_with_muti_args):
---- ```lua
----         matrix_call {
----             {
----                 {func = function(a, b) print("Sum:", a + b) end, multi_args = {{2, 3}, {4, 5}}},
----                 {func = function(a, b) print("Product:", a * b) end, multi_args = {{2, 3}, {4, 5}}},
----             }
----         }
---- ```
---- Output:
---- ```shell
----     Sum: 5
----     Sum: 9
----     Product: 6
----     Product: 20
---- ```
----@param func_table verilua.LuaUtils.matrix_call.params
+---@deprecated Use `verilua.Cross.product_call` instead.
+---@param func_table verilua.Cross.ProductCallParams
 function utils.matrix_call(func_table)
-    local dimensions = #func_table
-
-    ---@type table<number, number>
-    local max_indices = {}
-
-    -- Initialize index arrays and maximum index arrays
-    for i = 1, dimensions do
-        max_indices[i] = #func_table[i]
-    end
-
-    ---@alias verilua.LuaUtils.matrix_call.func_block_type
-    ---| "single_func"
-    ---| "seq_funcs"
-    ---| "single_func_with_args"
-    ---| "single_func_with_muti_args"
-
-    ---@type table<number, table<number, verilua.LuaUtils.matrix_call.func_block_type>>
-    local func_table_meta = {}
-    for i = 1, dimensions do
-        for j = 1, max_indices[i] do
-            if not func_table_meta[i] then
-                func_table_meta[i] = {}
-            end
-
-            local entry = func_table[i][j]
-            local typ = type(entry)
-
-            if typ == "table" then
-                if #entry == 0 then
-                    if entry.args ~= nil then
-                        assert(type(entry.args) == "table")
-                        func_table_meta[i][j] = "single_func_with_args"
-                    elseif entry.multi_args ~= nil then
-                        assert(type(entry.multi_args) == "table")
-                        assert(type(entry.multi_args[1]) == "table")
-                        func_table_meta[i][j] = "single_func_with_muti_args"
-                    else
-                        assert(false, f("func_table[%d][%d] must have `args` or `multi_args` field", i, j))
-                    end
-                else
-                    for k = 1, #entry do
-                        assert(
-                            type(entry[k]) == "function",
-                            f(
-                                "func_table[%d][%d][%d] must be a function, but %s",
-                                i,
-                                j,
-                                k,
-                                type(entry[k])
-                            )
-                        )
-                    end
-                    func_table_meta[i][j] = "seq_funcs"
-                end
-            elseif typ == "function" then
-                func_table_meta[i][j] = "single_func"
-            else
-                assert(false, f("func_table[%d][%d] must be a function or a table", i, j))
-            end
-        end
-    end
-
-    ---@alias verilua.LuaUtils.matrix_call.current_dim integer
-    ---@alias verilua.LuaUtils.matrix_call.dim_and_idx { [1]: verilua.LuaUtils.matrix_call.current_dim, [2]: integer }
-    ---@alias verilua.LuaUtils.matrix_call.combination { [integer]: verilua.LuaUtils.matrix_call.dim_and_idx }
-
-    -- Recursive function to generate all combinations
-    ---@param current_dim verilua.LuaUtils.matrix_call.current_dim
-    ---@param combination verilua.LuaUtils.matrix_call.combination
-    local function generate_combinations(current_dim, combination)
-        if current_dim > dimensions then
-            -- Execute the current combination of functions
-            for i = 1, #combination do
-                local dim = combination[i][1]
-                local idx = combination[i][2]
-                local func_type = func_table_meta[dim][idx]
-                local func_or_funcs = func_table[dim][idx]
-
-                if func_type == "single_func" then
-                    func_or_funcs()
-                elseif func_type == "seq_funcs" then
-                    for j = 1, #func_or_funcs do
-                        ---@diagnostic disable-next-line: need-check-nil
-                        func_or_funcs[j]()
-                    end
-                elseif func_type == "single_func_with_args" then
-                    if func_or_funcs.before and type(func_or_funcs.before) == "function" then
-                        func_or_funcs.before()
-                    end
-                    ---@diagnostic disable-next-line: need-check-nil
-                    func_or_funcs.func(table.unpack(func_or_funcs.args))
-                    if func_or_funcs.after and type(func_or_funcs.after) == "function" then
-                        func_or_funcs.after()
-                    end
-                elseif func_type == "single_func_with_muti_args" then
-                    for j = 1, #func_or_funcs.multi_args do
-                        if func_or_funcs.before and type(func_or_funcs.before) == "function" then
-                            func_or_funcs.before()
-                        end
-                        ---@diagnostic disable-next-line: need-check-nil
-                        func_or_funcs.func(table.unpack(func_or_funcs.multi_args[j]))
-                        if func_or_funcs.after and type(func_or_funcs.after) == "function" then
-                            func_or_funcs.after()
-                        end
-                    end
-                else
-                    assert(false, f("func_table_meta[%d][%d] must be a function or a table", dim, idx))
-                end
-            end
-            return
-        end
-
-        -- For each function in the current dimension
-        for i = 1, max_indices[current_dim] do
-            -- Create a new combination by copying the current one
-            ---@type verilua.LuaUtils.matrix_call.combination
-            local new_combination = table_new(#combination + 1, 0)
-            for j = 1, #combination do
-                new_combination[j] = combination[j]
-            end
-
-            -- Add the current dimension and index to the combination
-            ---@type verilua.LuaUtils.matrix_call.dim_and_idx
-            local dim_and_idx = { current_dim, i }
-            new_combination[#new_combination + 1] = dim_and_idx
-
-            -- Recursively process the next dimension
-            generate_combinations(current_dim + 1, new_combination)
-        end
-    end
-
-    -- Start generating combinations from the first dimension
-    generate_combinations(1, {})
+    return require("verilua.Cross").product_call(func_table)
 end
 
 --- Execute a function after a specified number of calls
@@ -1259,6 +1054,7 @@ function utils.report_luacov()
 
     -- Needs exclusive call to avoid multiple threads generating the same report file
     utils.exclusive_call(function()
+        ---@diagnostic disable-next-line: unresolved-require
         local runner = require("luacov.runner")
         runner.save_stats()
     end, "luacov.report.lock")

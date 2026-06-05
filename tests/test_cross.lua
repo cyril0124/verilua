@@ -601,6 +601,176 @@ describe("Cross bug regression: cross-check fixes", function()
     end)
 end)
 
+
+describe("Cross.product_call", function()
+    local function assert_order(actual, expected)
+        assert(#actual == #expected, "expected " .. #expected .. " executions, got " .. #actual)
+        for i = 1, #expected do
+            assert(actual[i] == expected[i], "at " .. i .. ": expected " .. expected[i] .. ", got " .. tostring(actual[i]))
+        end
+    end
+
+    it("should execute cartesian combinations in dimension order", function()
+        local order = {}
+
+        Cross.product_call {
+            {
+                function() order[#order + 1] = "A1" end,
+                function() order[#order + 1] = "A2" end,
+            },
+            {
+                function() order[#order + 1] = "B1" end,
+                function() order[#order + 1] = "B2" end,
+            },
+        }
+
+        assert_order(order, { "A1", "B1", "A1", "B2", "A2", "B1", "A2", "B2" })
+    end)
+
+    it("should execute 3D combinations in the legacy order", function()
+        local order = {}
+
+        Cross.product_call {
+            {
+                function() order[#order + 1] = "A1" end,
+                function() order[#order + 1] = "A2" end,
+            },
+            {
+                function() order[#order + 1] = "B1" end,
+                function() order[#order + 1] = "B2" end,
+            },
+            {
+                function() order[#order + 1] = "C1" end,
+                function() order[#order + 1] = "C2" end,
+            },
+        }
+
+        assert_order(order, {
+            "A1", "B1", "C1",
+            "A1", "B1", "C2",
+            "A1", "B2", "C1",
+            "A1", "B2", "C2",
+            "A2", "B1", "C1",
+            "A2", "B1", "C2",
+            "A2", "B2", "C1",
+            "A2", "B2", "C2",
+        })
+    end)
+
+    it("should no-op for empty input or empty dimensions", function()
+        local count = 0
+
+        Cross.product_call {}
+        Cross.product_call {
+            {
+                function() count = count + 1 end,
+            },
+            {},
+        }
+
+        assert(count == 0, "expected no executions, got " .. count)
+    end)
+
+    it("should execute single dimension entries", function()
+        local order = {}
+
+        Cross.product_call {
+            {
+                function() order[#order + 1] = "A1" end,
+                function() order[#order + 1] = "A2" end,
+                function() order[#order + 1] = "A3" end,
+            },
+        }
+
+        assert_order(order, { "A1", "A2", "A3" })
+    end)
+
+    it("should execute sequential function blocks", function()
+        local order = {}
+        local function mark(name)
+            return function() order[#order + 1] = name end
+        end
+
+        Cross.product_call {
+            {
+                { mark("a"), mark("b") },
+                mark("c"),
+            },
+            {
+                mark("d"),
+                { mark("e"), mark("f") },
+            },
+        }
+
+        assert_order(order, { "a", "b", "d", "a", "b", "e", "f", "c", "d", "c", "e", "f" })
+    end)
+
+    it("should execute argument blocks, multi-argument blocks, and hooks", function()
+        local order = {}
+        local function mark(name)
+            order[#order + 1] = name
+        end
+
+        Cross.product_call {
+            {
+                {
+                    before = function() mark("before_a") end,
+                    func = function(a, b) mark("a" .. (a + b)) end,
+                    args = { 1, 2 },
+                    after = function() mark("after_a") end,
+                },
+                {
+                    before = function() mark("before_b") end,
+                    func = function(v) mark("b" .. v) end,
+                    multi_args = { { 1 }, { 2 } },
+                    after = function() mark("after_b") end,
+                },
+            },
+            {
+                function() mark("tail") end,
+            },
+        }
+
+        assert_order(order, {
+            "before_a", "a3", "after_a", "tail",
+            "before_b", "b1", "after_b", "before_b", "b2", "after_b", "tail",
+        })
+    end)
+
+    it("should execute up to 8 arguments without table.unpack", function()
+        local sum = 0
+
+        Cross.product_call {
+            {
+                {
+                    func = function(a1, a2, a3, a4, a5, a6, a7, a8)
+                        sum = a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8
+                    end,
+                    args = { 1, 2, 3, 4, 5, 6, 7, 8 },
+                },
+            },
+        }
+
+        assert(sum == 36, "expected sum 36, got " .. sum)
+    end)
+
+    it("should report explicit error when argument blocks exceed 8 arguments", function()
+        local ok, err = pcall(function()
+            Cross.product_call {
+                {
+                    {
+                        func = function() end,
+                        args = { 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+                    },
+                },
+            }
+        end)
+
+        assert(not ok, "expected product_call to reject more than 8 args")
+        assert(tostring(err):find("exceeds supported maximum 8"), "unexpected error: " .. tostring(err))
+    end)
+end)
+
 -- Hardware verification scenario tests
 describe("Cross hardware verification scenarios", function()
     it("should generate signal cross product for AXI-like bus", function()

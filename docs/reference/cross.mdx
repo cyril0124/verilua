@@ -48,6 +48,7 @@ end
 | --- | --- |
 | `cross.product_iter(lists, opts?)` | 笛卡尔积迭代器 |
 | `cross.product_table(lists, opts?)` | 笛卡尔积（返回 table） |
+| `cross.product_call(func_table)` | 多维函数块的笛卡尔积调用 |
 | `cross.permutations_iter(a, opts?)` | 全排列迭代器 |
 | `cross.permutations_table(a, opts?)` | 全排列（返回 table） |
 | `cross.combinations_iter(a, k, opts?)` | 组合 C(n,k) 迭代器 |
@@ -158,6 +159,87 @@ local samples = cross.product_table({addr, data}, {
     },
 })
 ```
+
+
+## 函数乘积调用（product_call）
+
+`product_call` 用来对“多维函数块”做笛卡尔积组合调用。它和 `product_iter` 的组合顺序一致：先枚举各维度的索引组合，再按维度顺序执行该组合中选中的函数块。
+
+这适合把多个验证步骤维度拆开描述，例如“初始化方式 × 激励方式 × 检查方式”，然后自动运行所有组合。
+
+### 基础用法
+
+```lua
+local cross = require "verilua.Cross"
+
+-- 2 × 2 = 4 种组合
+cross.product_call {
+    {
+        function() io.write("A") end,
+        function() io.write("B") end,
+    },
+    {
+        function() print("1") end,
+        function() print("2") end,
+    },
+}
+-- 输出：
+-- A1
+-- A2
+-- B1
+-- B2
+```
+
+### 支持的函数块形式
+
+每个维度中的一个元素称为一个函数块。`product_call` 支持四种函数块：
+
+| 函数块形式 | 描述 |
+| --- | --- |
+| `function() ... end` | 单个函数，选中后直接执行 |
+| `{func1, func2, ...}` | 顺序函数组，选中后按数组顺序执行 |
+| `{func = f, args = {...}}` | 带一组参数调用 `f(...)` |
+| `{func = f, multi_args = {{...}, {...}}}` | 对多组参数依次调用 `f(...)` |
+
+`args` 和 `multi_args` 形式还可以带 `before` / `after` hook；hook 在每次调用 `func` 前后执行。为避开 LuaJIT 对 `table.unpack` 的 NYI 路径，参数块最多支持 8 个实参；超过 8 个会明确报错。
+
+```lua
+cross.product_call {
+    {
+        {
+            before = function() print("setup") end,
+            func = function(x, y) print("sum", x + y) end,
+            args = {2, 3},
+            after = function() print("cleanup") end,
+        },
+    },
+}
+```
+
+### 多组参数
+
+```lua
+cross.product_call {
+    {
+        {
+            func = function(a, b)
+                print("sum", a + b)
+            end,
+            multi_args = {
+                {2, 3},
+                {4, 5},
+            },
+        },
+    },
+}
+-- 输出：
+-- sum 5
+-- sum 9
+```
+
+### 空输入行为
+
+`cross.product_call {}` 或任意维度为空时会直接返回，不执行任何函数，也不报错。
 
 ## 全排列（Permutations）
 
