@@ -1,14 +1,136 @@
 ---@diagnostic disable: unnecessary-assert
 
 local ffi = require "ffi"
-local inspect = require "inspect"
+local inspect = require("inspect").inspect
 local lester = require "lester"
 local utils = require "verilua.LuaUtils"
 
 local describe, it, expect = lester.describe, lester.it, lester.expect
 local assert, f = assert, string.format
 
+ffi.cdef [[
+    int setenv(const char *name, const char *value, int overwrite);
+    int unsetenv(const char *name);
+]]
+
 describe("LuaUtils test", function()
+    it("should get environment values or generated defaults", function()
+        ffi.C.unsetenv("VL_TEST_GENERATED_NUMBER")
+        local calls = 0
+        local generated = utils.get_env_or_else("VL_TEST_GENERATED_NUMBER", "number", function()
+            calls = calls + 1
+            return 12.5
+        end)
+        expect.equal(generated, 12.5)
+        expect.equal(calls, 1)
+
+        ffi.C.setenv("VL_TEST_GENERATED_NUMBER", "42", 1)
+        local from_env = utils.get_env_or_else("VL_TEST_GENERATED_NUMBER", "number", function()
+            assert(false, "default generator should not be called when env is set")
+        end)
+        expect.equal(from_env, 42)
+        ffi.C.unsetenv("VL_TEST_GENERATED_NUMBER")
+    end)
+
+    it("should validate integer environment values and generated defaults", function()
+        ffi.C.unsetenv("VL_TEST_GENERATED_INTEGER")
+        expect.equal(utils.get_env_or_else("VL_TEST_GENERATED_INTEGER", "integer", function()
+            return 7
+        end), 7)
+
+        ffi.C.setenv("VL_TEST_GENERATED_INTEGER", "11", 1)
+        expect.equal(utils.get_env_or_else("VL_TEST_GENERATED_INTEGER", "integer", 0), 11)
+        ffi.C.setenv("VL_TEST_GENERATED_INTEGER", "11.5", 1)
+        local ok, err = pcall(function()
+            local _ = utils.get_env_or_else("VL_TEST_GENERATED_INTEGER", "integer", 0)
+        end)
+        assert(not ok)
+        local err_msg = tostring(err)
+        assert(err_msg:find("environment value type mismatch", 1, true), err_msg)
+        assert(err_msg:find("key=VL_TEST_GENERATED_INTEGER", 1, true), err_msg)
+        assert(err_msg:find("expected=integer", 1, true), err_msg)
+        assert(err_msg:find("value=11.5", 1, true), err_msg)
+        assert(err_msg:find("actual=number", 1, true), err_msg)
+        ffi.C.unsetenv("VL_TEST_GENERATED_INTEGER")
+
+        ok, err = pcall(function()
+            local _ = utils.get_env_or_else("VL_TEST_GENERATED_INTEGER", "integer", function()
+                return 1.5
+            end)
+        end)
+        assert(not ok)
+        err_msg = tostring(err)
+        assert(err_msg:find("generated default value type mismatch", 1, true), err_msg)
+        assert(err_msg:find("key=VL_TEST_GENERATED_INTEGER", 1, true), err_msg)
+        assert(err_msg:find("expected=integer", 1, true), err_msg)
+        assert(err_msg:find("value=1.5", 1, true), err_msg)
+        assert(err_msg:find("actual=number", 1, true), err_msg)
+    end)
+
+    it("should provide random helpers", function()
+        for _ = 1, 100 do
+            local v = utils.rand_int(3, 5)
+            assert(v >= 3 and v <= 5)
+            assert(v == math.floor(v))
+        end
+
+        local ok, err = pcall(function()
+            local _ = utils.rand_int(5, 3)
+        end)
+        assert(not ok)
+        local err_msg = tostring(err)
+        assert(err_msg:find("[utils.rand_int] min must be <= max", 1, true), err_msg)
+
+        expect.equal(utils.rand_bool(1), true)
+        expect.equal(utils.rand_bool(0), false)
+        assert(type(utils.rand_bool()) == "boolean")
+        assert(type(utils.rand_bool(0.5)) == "boolean")
+        ok, err = pcall(function()
+            local _ = utils.rand_bool(false --[[@as any]])
+        end)
+        assert(not ok)
+        err_msg = tostring(err)
+        assert(err_msg:find("[utils.rand_bool] true_probability must be a number", 1, true), err_msg)
+
+        local choices = { "a", "b", "c" }
+        for _ = 1, 100 do
+            local v = utils.rand_choice(choices)
+            assert(v == "a" or v == "b" or v == "c")
+        end
+
+        for _ = 1, 100 do
+            expect.equal(utils.rand_choice(choices, { 0, 1, 0 }), "b")
+        end
+
+        ok, err = pcall(function()
+            local _ = utils.rand_choice({})
+        end)
+        assert(not ok)
+        err_msg = tostring(err)
+        assert(err_msg:find("[utils.rand_choice] choices must be a non-empty array", 1, true), err_msg)
+
+        ok, err = pcall(function()
+            local _ = utils.rand_choice(choices, {})
+        end)
+        assert(not ok)
+        err_msg = tostring(err)
+        assert(err_msg:find("[utils.rand_choice] weights length must match choices length", 1, true), err_msg)
+
+        ok, err = pcall(function()
+            local _ = utils.rand_choice(choices, { 1, -1, 1 })
+        end)
+        assert(not ok)
+        err_msg = tostring(err)
+        assert(err_msg:find("[utils.rand_choice] weight must be a non-negative number", 1, true), err_msg)
+
+        ok, err = pcall(function()
+            local _ = utils.rand_choice(choices, { 0, 0, 0 })
+        end)
+        assert(not ok)
+        err_msg = tostring(err)
+        assert(err_msg:find("[utils.rand_choice] total weight must be > 0", 1, true), err_msg)
+    end)
+
     it("should work for bitfield32() and bitfiled64()", function()
         local tests = {
             { 0xffffffff, 0,  1,  3 },

@@ -580,6 +580,71 @@ function utils.uint_to_onehot(uint_value)
     return bit_lshift(1, uint_value) + 0ULL
 end
 
+---@nodiscard Return value should not be discarded
+---@param min integer The minimum generated integer value
+---@param max integer The maximum generated integer value
+---@return integer The generated integer value in [min, max]
+function utils.rand_int(min, max)
+    assert(type(min) == "number" and math_floor(min) == min, "[utils.rand_int] min must be an integer")
+    assert(type(max) == "number" and math_floor(max) == max, "[utils.rand_int] max must be an integer")
+    assert(min <= max, "[utils.rand_int] min must be <= max")
+    return math_random(min, max)
+end
+
+---@nodiscard Return value should not be discarded
+---@param true_probability? number Probability of returning true, defaults to 0.5
+---@return boolean The generated boolean value
+function utils.rand_bool(true_probability)
+    local p = true_probability
+    if p == nil then
+        p = 0.5
+    end
+    assert(type(p) == "number", "[utils.rand_bool] true_probability must be a number")
+    assert(p >= 0 and p <= 1, "[utils.rand_bool] true_probability must be in [0, 1]")
+    return math_random() < p
+end
+
+---@nodiscard Return value should not be discarded
+---@generic T
+---@param choices T[] Non-empty array of choices
+---@param weights? table<integer, integer|number> Relative non-negative weights for choices
+---@return T The selected choice
+function utils.rand_choice(choices, weights)
+    assert(type(choices) == "table", "[utils.rand_choice] choices must be a table")
+    local n = #choices
+    assert(n > 0, "[utils.rand_choice] choices must be a non-empty array")
+
+    if weights == nil then
+        return choices[math_random(1, n)]
+    end
+
+    assert(type(weights) == "table", "[utils.rand_choice] weights must be a table")
+    assert(#weights == n, "[utils.rand_choice] weights length must match choices length")
+
+    ---@type number
+    local total_weight = 0
+    for i = 1, n do
+        local weight = weights[i]
+        assert(type(weight) == "number" and weight >= 0, "[utils.rand_choice] weight must be a non-negative number")
+        total_weight = total_weight + weight
+    end
+    assert(total_weight > 0, "[utils.rand_choice] total weight must be > 0")
+
+    local pick = math_random() * total_weight
+    ---@type number
+    local cumulative_weight = 0
+    for i = 1, n do
+        local weight = weights[i]
+        assert(type(weight) == "number")
+        cumulative_weight = cumulative_weight + weight
+        if pick < cumulative_weight then
+            return choices[i]
+        end
+    end
+
+    return choices[n]
+end
+
 ---@param t any[] The table to be shuffled
 ---@return table The shuffled table
 function utils.shuffle(t)
@@ -851,12 +916,52 @@ local false_values = {
     ["disable"] = true,
     ["off"] = true,
 }
+---@param value any
+---@return string
+local function get_value_type_name(value)
+    return type(value)
+end
+
+---@param key string
+---@param value_type "string" | "boolean" | "number" | "integer"
+---@param value any
+---@param source string
+local function check_env_value_type(key, value_type, value, source)
+    local value_lua_type = type(value)
+    local value_is_valid = false
+
+    if value_type == "string" then
+        value_is_valid = value_lua_type == "string"
+    elseif value_type == "boolean" then
+        value_is_valid = value_lua_type == "boolean"
+    elseif value_type == "number" then
+        local value_is_cdata = value_lua_type == "cdata"
+        value_is_valid = value_lua_type == "number"
+            or (value_is_cdata and (ffi_istype("int64_t", value) or ffi_istype("uint64_t", value)))
+    elseif value_type == "integer" then
+        value_is_valid = value_lua_type == "number" and math_floor(value) == value
+    else
+        assert(false, "[utils.get_env_or_else] unknown value type: " .. tostring(value_type))
+    end
+
+    assert(
+        value_is_valid,
+        f(
+            "[utils.get_env_or_else] %s value type mismatch: key=%s expected=%s value=%s actual=%s",
+            source,
+            key,
+            value_type,
+            tostring(value),
+            get_value_type_name(value)
+        )
+    )
+end
+
 ---@nodiscard Return value should not be discarded
----@generic T: string|number|integer|boolean
 ---@param key string Environment variable name
 ---@param value_type "string" | "boolean" | "number" | "integer"
----@param default T Default value if the environment variable is not set
----@return T The value of the environment variable or the default value
+---@param default string|number|integer|boolean|fun():string|number|integer|boolean Default value if the environment variable is not set
+---@return string|number|integer|boolean The value of the environment variable or the default value
 function utils.get_env_or_else(key, value_type, default)
     assert(type(key) == "string")
     local v = os.getenv(key)
@@ -866,29 +971,15 @@ function utils.get_env_or_else(key, value_type, default)
             assert(false, "[utils.get_env_or_else] default value must be provided")
         end
 
-        if value_type == "string" then
-            assert(
-                default_type == "string",
-                "[utils.get_env_or_else] default value must be `string`" ..
-                " not `" .. default_type .. "` since value_type is `string`"
-            )
-        elseif value_type == "boolean" then
-            assert(
-                default_type == "boolean",
-                "[utils.get_env_or_else] default value must be `boolean`" ..
-                " not `" .. default_type .. "` since value_type is `boolean`"
-            )
-        elseif value_type == "number" or value_type == "integer" then
-            local should_check_cdata = default_type == "cdata"
-            local cdata_is_uint64 = ffi_istype("uint64_t", default)
-            local cdata_is_int64 = ffi_istype("int64_t", default)
-            assert(
-                default_type == "number" or (should_check_cdata and (cdata_is_int64 or cdata_is_uint64)),
-                "[utils.get_env_or_else] default value must be `number`/ `cdata(uint64_t)`" ..
-                " not `" .. default_type .. "` since value_type is `number`"
-            )
+        if default_type == "function" then
+            local generated_value = default()
+            check_env_value_type(key, value_type, generated_value, "generated default")
+            logger:info("[get_env_or_else] '" .. key .. "' generated default value: " .. tostring(generated_value))
+            logger:info("[get_env_or_else] '" .. key .. "' => " .. tostring(generated_value))
+            return generated_value --[[@as string|number|boolean]]
         end
 
+        check_env_value_type(key, value_type, default, "default")
         logger:warning("[get_env_or_else] '" .. key .. "' is not set, use default value: " .. tostring(default))
         return default --[[@as string|number|boolean]]
     end
@@ -902,14 +993,19 @@ function utils.get_env_or_else(key, value_type, default)
         elseif false_values[v] then
             value = false
         else
-            assert(false, "[utils.get_env_or_else] unknown value type! " .. key .. " => " .. v)
+            assert(false, "[utils.get_env_or_else] invalid boolean value: key=" .. key .. " value=" .. v)
         end
     elseif value_type == "number" then
         local number_v = tonumber(v)
         assert(number_v ~= nil, "[utils.get_env_or_else] invald number value! " .. key .. " => " .. v)
         value = number_v
+    elseif value_type == "integer" then
+        local number_v = tonumber(v)
+        assert(number_v ~= nil, "[utils.get_env_or_else] invald integer value! " .. key .. " => " .. v)
+        value = number_v
+        check_env_value_type(key, value_type, value, "environment")
     else
-        assert(false, "[utils.get_env_or_else] unknown value type")
+        assert(false, "[utils.get_env_or_else] unknown value type: " .. tostring(value_type))
     end
 
     assert(value ~= nil)

@@ -40,6 +40,9 @@ local utils = require "verilua.LuaUtils"
 
 | 函数 | 描述 |
 | --- | --- |
+| `rand_int(min, max)` | 在 `[min, max]` 范围内生成整数 |
+| `rand_bool(p?)` | 按概率生成布尔值，`p` 默认为 `0.5` |
+| `rand_choice(choices, weights?)` | 从非空数组中随机选择一个元素，可传相对权重 |
 | `urandom64()` | 生成 64 位随机无符号整数 |
 | `urandom64_range(min, max)` | 在 `[min, max]` 范围内生成 64 位随机数 |
 | `shuffle(t)` | 原地随机打乱 table |
@@ -204,6 +207,17 @@ print(string.format("%x", tonumber(utils.uint_to_onehot(3))))  --> "8"
 
 ### 随机化
 
+#### `rand_int(min, max)` / `rand_bool(p?)` / `rand_choice(choices, weights?)`
+
+轻量级随机 helper，使用全局 `math.random`。在 Verilua 仿真环境中，全局随机种子会由 `cfg.seed` 或环境变量 `SEED` 初始化。`rand_choice` 的 `weights` 是可选的相对权重数组，允许 0 权重，但总权重必须大于 0。
+
+```lua
+local depth = utils.rand_int(1, 16)              -- 1 ~ 16
+local enable_delay = utils.rand_bool(0.25)       -- 25% 概率为 true
+local mode = utils.rand_choice({ "a", "b" })   -- 从非空数组中选择
+local biased = utils.rand_choice({ "a", "b", "c" }, { 10, 1, 0 })
+```
+
 #### `urandom64()` / `urandom64_range(min, max)`
 
 生成 64 位随机数。`urandom64_range` 在 `[min, max]` 闭区间内均匀分布。
@@ -262,15 +276,20 @@ print(State(1))        --> "RUNNING"
 
 #### `get_env_or_else(key, value_type, default)`
 
-读取环境变量并转换为指定类型。如果环境变量未设置，返回 `default` 并打印警告日志。
+读取环境变量并转换为指定类型。如果环境变量未设置，返回 `default` 并打印警告日志。`default` 也可以是一个无参数函数；这种情况下会调用一次函数、检查返回值类型，并用 info 日志记录生成值。
 
-- `value_type`：`"string"` | `"boolean"` | `"number"`
+- `value_type`：`"string"` | `"boolean"` | `"number"` | `"integer"`
+- `"integer"` 会严格要求值是无小数的 Lua number。
 - 布尔值识别：`true/True/TRUE/1/ENABLE/ON/enable/on` → `true`，`false/False/FALSE/0/DISABLE/OFF/disable/off` → `false`
 
 ```lua
 local timeout = utils.get_env_or_else("VL_TIMEOUT", "number", 1000)
 local verbose = utils.get_env_or_else("VL_VERBOSE", "boolean", false)
 local name    = utils.get_env_or_else("VL_NAME", "string", "default")
+
+local outstanding = utils.get_env_or_else("VL_OUTSTANDING", "integer", function()
+    return utils.rand_int(1, 16)
+end)
 ```
 
 ### 控制流与执行
