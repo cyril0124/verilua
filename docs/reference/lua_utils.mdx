@@ -93,6 +93,7 @@ local utils = require "verilua.LuaUtils"
 | --- | --- |
 | `serialize(t, conn?)` | 将 table 序列化为字符串 |
 | `reverse_table(tab)` | 反转数组 |
+| `deepcopy(value)` | 深拷贝 table，支持循环引用并保留 metatable |
 | `get_datetime_str()` | 获取当前日期时间字符串 |
 | `get_progress_bar(progress, length)` | 生成文本进度条 |
 | `cover_with_n(value, n)` | 计算覆盖 value 需要多少个 n |
@@ -398,6 +399,20 @@ print(utils.compare_value_str("0b0011", "0b11")) --> true
 ```lua
 print(utils.cover_with_n(10, 4))  --> 3   (4+4+2 覆盖 10)
 print(utils.cover_with_n(8, 4))   --> 2
+```
+
+#### `deepcopy(value)`
+
+递归深拷贝 table 的 key 和 value，支持循环引用，拷贝后的 table 会保留原始 metatable。非 table 值会原样返回。
+
+```lua
+local src = { nested = { value = 1 } }
+src.self = src
+
+local copied = utils.deepcopy(src)
+print(copied ~= src)          --> true
+print(copied.nested.value)    --> 1
+print(copied.self == copied)  --> true
 ```
 
 #### `get_progress_bar(progress, length)`

@@ -28,6 +28,7 @@ local math_random = math.random
 local table_insert = table.insert
 local table_concat = table.concat
 local setmetatable = setmetatable
+local getmetatable = getmetatable
 
 local bit_bor = bit.bor
 local bit_bnot = bit.bnot
@@ -111,6 +112,38 @@ function utils.reverse_table(tab)
     end
 
     return new_tab
+end
+
+---@param value any
+---@param cache table<table, table>
+---@return any
+local function cycle_aware_deepcopy(value, cache)
+    if type(value) ~= "table" then
+        return value
+    end
+
+    local cached = cache[value]
+    if cached then
+        return cached
+    end
+
+    local copied = {}
+    cache[value] = copied
+    for k, v in pairs(value) do
+        copied[cycle_aware_deepcopy(k, cache)] = cycle_aware_deepcopy(v, cache)
+    end
+
+    return setmetatable(copied, getmetatable(value))
+end
+
+--- Make a deep copy of a value, recursively copying table keys and values.
+--- Cycles are preserved and copied tables keep their original metatable.
+---@nodiscard Return value should not be discarded
+---@generic T
+---@param value T The value to be copied
+---@return T copied The copied value
+function utils.deepcopy(value)
+    return cycle_aware_deepcopy(value, {})
 end
 
 do

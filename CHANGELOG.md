@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ✨ Added
 
+- **LuaUtils**: Add `deepcopy()` for recursive table copying with cycle handling and metatable preservation.
 - **LuaUtils**: `get_env_or_else()` now accepts a function default that is called when the environment variable is unset, validates the generated value type, and logs the generated value. Added `rand_int()`, `rand_bool()`, and `rand_choice()` helpers for lightweight runtime parameter randomization; `rand_choice()` also supports optional relative weights.
 - **LuaSimConfig**: Seed setup is available before loading user config so function defaults in user config can be reproducible under the same `SEED`.
 - **sv**: `SVBuilder` now supports `add "covergroup"` for generating SystemVerilog functional coverage. Covergroups use `default_clocking` as the sampling event by default, with per-covergroup override via `sample_event` parameter. A `final` block is automatically generated to print coverage results via `$display`. Use `ctx:set_coverage_report(false)` to disable.

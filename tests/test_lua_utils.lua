@@ -1,7 +1,7 @@
 ---@diagnostic disable: unnecessary-assert
 
 local ffi = require "ffi"
-local inspect = require("inspect").inspect
+local inspect = require "inspect"
 local lester = require "lester"
 local utils = require "verilua.LuaUtils"
 
@@ -14,6 +14,32 @@ ffi.cdef [[
 ]]
 
 describe("LuaUtils test", function()
+    it("should deep copy tables with cycles and metatables", function()
+        local mt = { name = "meta" }
+        local key = { id = "key" }
+        local src = setmetatable({ nested = { value = 1 } }, mt)
+        src[key] = { value = 2 }
+        src.self = src
+
+        local copied = utils.deepcopy(src)
+
+        assert(copied ~= src)
+        assert(getmetatable(copied) == mt)
+        assert(copied.nested ~= src.nested)
+        expect.equal(copied.nested.value, 1)
+        assert(copied.self == copied)
+
+        local copied_key = nil
+        for k, v in pairs(copied) do
+            if type(k) == "table" and k.id == "key" then
+                copied_key = k
+                expect.equal(v.value, 2)
+            end
+        end
+        assert(copied_key ~= nil)
+        assert(copied_key ~= key)
+    end)
+
     it("should get environment values or generated defaults", function()
         ffi.C.unsetenv("VL_TEST_GENERATED_NUMBER")
         local calls = 0
@@ -275,7 +301,7 @@ describe("LuaUtils test", function()
             end
             assert(random_count > 100,
                 f("MIN: %s, MAX: %s, random_count: %d, random_count_tbl: %s", utils.to_hex_str(MIN --[[@as integer|ffi.cdata*]]),
-                    utils.to_hex_str(MAX --[[@as integer|ffi.cdata*]]), random_count, inspect(random_count_tbl)))
+                    utils.to_hex_str(MAX --[[@as integer|ffi.cdata*]]), random_count, (inspect --[[@as fun(value: any, options?: table): string]])(random_count_tbl)))
         end
     end)
 
