@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **docs**: Clarify `CallableHDL:set()` as a deferred VPI write flushed at `cbReadWriteSynch`, not a write delayed until the next clock edge.
 - **cov_exporter**: Fix generated RTL failing to compile when a module has zero cond-path points (e.g. no instrumentable `if` chains). The front `\`ifndef NO_COVERAGE` block was missing its closing `\`endif` due to slang's `parseGuess()` collapsing a single-member insert.
 - **cov_exporter**: Fix `--ns` (merged toggle block) generating uncompilable RTL: `_<sig>__LAST` declarations were missing and each increment line carried a stray `end` that broke begin/end balance.
 - **cov_exporter**: The lint test now verifies all five generated golden outputs with `verilator --lint-only` in both default and `+define+NO_COVERAGE` modes.
