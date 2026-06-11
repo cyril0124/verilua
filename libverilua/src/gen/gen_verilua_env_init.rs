@@ -25,6 +25,8 @@ Self {
     edge_cb_hdl_map: HashMap::new(),
 
     resolve_x_as_zero: false,
+    rw_phase_passed: false,
+    rw_cb_re_registered: false,
     start_time: Instant::now(),
 
     #[cfg(feature = "acc_time")]

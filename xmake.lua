@@ -977,6 +977,7 @@ target("test", function()
             -- Sim-based tests (one per directory)
             "test-edge",
             "test-set-value",
+            "test-issue11",
             "test-basic-signal",
             "test-scheduler",
             "test-comb",

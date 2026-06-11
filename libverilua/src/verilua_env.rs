@@ -454,6 +454,16 @@ impl VeriluaEnv {
         } else {
             self.hdl_put_value.push(complex_handle_raw);
         }
+
+        // If the ReadWriteSynch flush has already completed for this timestep,
+        // re-register a cbReadWriteSynch callback so the newly queued value
+        // gets flushed within the same timestep. This ensures that writes from
+        // coroutines woken by value-change callbacks (triggered by the flush
+        // itself) produce observable value changes in the same simulation time.
+        if !cfg!(feature = "inertial_put") && self.rw_phase_passed && !self.rw_cb_re_registered {
+            self.rw_cb_re_registered = true;
+            unsafe { crate::vpi_callback::libverilua_register_rw_synch_cb() };
+        }
     }
 
     #[inline(always)]

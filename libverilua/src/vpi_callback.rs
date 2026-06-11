@@ -437,8 +437,42 @@ unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT3
     0
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Pending-put flush lifecycle (per timestep)
+//
+// Why re-flush? See https://github.com/cyril0124/verilua/issues/11
+// Without re-flush, a set() called from a value-change callback (triggered by
+// the flush itself) would miss the current timestep's ReadWriteSynch window,
+// causing its value change to be delayed to the next timestep.
+//
+//   cbNextSimTime
+//     │  rw_phase_passed = false
+//     │
+//     ▼
+//   libverilua_register_rw_synch_cb()    ◄── registers one-shot cbReadWriteSynch
+//     │
+//     ▼
+//   ╭───────────────────────────────────────────────────────────────────────────╮
+//   │  cbReadWriteSynch fires                                                   │
+//   │  libverilua_flush_put_values():                                           │
+//   │    1. apply_pending_put_values()   ◄── vpi_put_value for each queued      │
+//   │    2. register cbNextSimTime       (first flush only)                     │
+//   │    3. rw_phase_passed = true                                              │
+//   │                                                                           │
+//   │  vpi_put_value may trigger cbValueChange → edge_callback                  │
+//   │    → coroutine resumes → <chdl>:set() called → pushes to hdl_put_value    │
+//   │    → rw_phase_passed=true, so re-register cbReadWriteSynch                │
+//   │                                       │                                   │
+//   ╰───────────────────────────────────────╯                                   │
+//                                             │                                 │
+//           cbReadWriteSynch fires again ◄────╯                                 │
+//             (re-flush: skips cbNextSimTime registration)                      │
+//                     │                                                         │
+//                     ╰────────────────── loop until no new pending puts ───────╯
+//
+// ─────────────────────────────────────────────────────────────────────────────
 #[unsafe(no_mangle)]
-unsafe extern "C" fn libverilua_register_rw_synch_cb() {
+pub unsafe extern "C" fn libverilua_register_rw_synch_cb() {
     // `ReadWriteSynch` callback is used to settle value changes(e.g. put value or force value) in Verilua
 
     let mut t = t_vpi_time {
@@ -469,9 +503,20 @@ unsafe extern "C" fn libverilua_flush_put_values(cb_data: *mut t_cb_data) -> PLI
         // Apply pending put values(or do value settles)
         // Here all signal values are updated to HDL
         env.apply_pending_put_values();
-    }
 
-    if !cfg!(feature = "verilator_inner_step_callback") {
+        // Only register the next-sim-time callback on the first flush of this
+        // timestep (not on re-flushes triggered by post-flush set() calls).
+        let is_re_flush = env.rw_phase_passed;
+        if !is_re_flush && !cfg!(feature = "verilator_inner_step_callback") {
+            libverilua_do_register_next_sim_time_cb();
+        }
+
+        // Mark that the ReadWriteSynch flush has completed for this timestep.
+        // Any subsequent set() calls will re-register cbReadWriteSynch to
+        // trigger another flush within the same timestep.
+        env.rw_phase_passed = true;
+        env.rw_cb_re_registered = false;
+    } else if !cfg!(feature = "verilator_inner_step_callback") {
         libverilua_do_register_next_sim_time_cb();
     }
 
@@ -532,6 +577,11 @@ pub unsafe extern "C" fn bootstrap_register_next_sim_time_callback() {
 
 pub unsafe extern "C" fn libverilua_next_sim_time_cb(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let env = get_verilua_env();
+
+    // Reset the ReadWriteSynch phase flag at the beginning of each new timestep.
+    // This ensures set() calls before the next flush go through the pending queue.
+    env.rw_phase_passed = false;
+    env.rw_cb_re_registered = false;
 
     if cfg!(feature = "opt_cb_task") {
         #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]

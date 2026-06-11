@@ -403,6 +403,8 @@ pub struct VeriluaEnv {
     pub edge_cb_hdl_map: HashMap<EdgeCallbackID, u64>,
 
     pub resolve_x_as_zero: bool,
+    pub rw_phase_passed: bool, // true after cbReadWriteSynch flush completes, reset at cbNextSimTime
+    pub rw_cb_re_registered: bool, // guards against multiple re-registrations within one post-flush window
     pub start_time: Instant,
 
     #[cfg(feature = "acc_time")]
@@ -466,6 +468,8 @@ Self {
     edge_cb_hdl_map: HashMap::new(),
 
     resolve_x_as_zero: false,
+    rw_phase_passed: false,
+    rw_cb_re_registered: false,
     start_time: Instant::now(),
 
     #[cfg(feature = "acc_time")]

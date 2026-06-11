@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **set**: Fix `set()` timing inconsistency after value-change callbacks: when a coroutine is woken by a value-change triggered by Verilua's own `cbReadWriteSynch` flush, subsequent `set()` calls now produce observable value changes in the same simulation time, matching SV/RTL-driven edge behavior (see [#11](https://github.com/cyril0124/verilua/issues/11))
 - **docs**: Clarify `CallableHDL:set()` as a deferred VPI write flushed at `cbReadWriteSynch`, not a write delayed until the next clock edge.
 - **cov_exporter**: Fix generated RTL failing to compile when a module has zero cond-path points (e.g. no instrumentable `if` chains). The front `\`ifndef NO_COVERAGE` block was missing its closing `\`endif` due to slang's `parseGuess()` collapsing a single-member insert.
 - **cov_exporter**: Fix `--ns` (merged toggle block) generating uncompilable RTL: `_<sig>__LAST` declarations were missing and each increment line carried a stray `end` that broke begin/end balance.

@@ -242,6 +242,7 @@ local sim_test_cases = {
     { dir = "test_edge", name = "test_edge" },
     { dir = "test_set_value", name = "test_set_value" },
     { dir = "test_set_imm", name = "test_set_imm" },
+    { dir = "test_issue11", name = "test_issue11", no_internal_clock = true },
     { dir = "test_basic_signal", name = "test_basic_signal", no_internal_clock = true },
     { dir = "test_scheduler", name = "test_scheduler" },
     { dir = "test_comb", name = "test_comb", no_internal_clock = true },
