@@ -275,8 +275,8 @@ for _, case in ipairs(sim_test_cases) do
         if ctx.has_verilator and not skip_verilator then
             ctx.run_case(join_case_parts(case.name, "verilator", "cfg_use_inertial_put"), function()
                 ctx.clean(path.join(cwd, "build"))
-                ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = "verilator", CFG_USE_INERTIAL_PUT = "1" })
-                ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = "verilator", CFG_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
             end)
         end
 
@@ -328,8 +328,8 @@ add_group_target("test-benchmarks", function(ctx)
 
         if ctx.has_verilator then
             ctx.run_case(join_case_parts(case_name, "verilator", "cfg_use_inertial_put"), function()
-                ctx.run_cmd(cwd, build_cmd, { SIM = "verilator", CFG_USE_INERTIAL_PUT = "1" })
-                ctx.run_cmd(cwd, run_cmd, { SIM = "verilator", CFG_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, build_cmd, { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, run_cmd, { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
             end)
         end
     end

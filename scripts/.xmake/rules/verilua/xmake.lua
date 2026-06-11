@@ -493,15 +493,15 @@ rule("verilua", function()
                 use_inertial_put = "0"
             end
 
-            local env_use_inertial_put = os.getenv("CFG_USE_INERTIAL_PUT")
+            local env_use_inertial_put = os.getenv("VL_USE_INERTIAL_PUT")
             if env_use_inertial_put then
                 assert(
                     env_use_inertial_put == "0" or env_use_inertial_put == "1",
-                    "[on_build] environment variable CFG_USE_INERTIAL_PUT should be 0 or 1"
+                    "[on_build] environment variable VL_USE_INERTIAL_PUT should be 0 or 1"
                 )
                 use_inertial_put = env_use_inertial_put
                 cprint(
-                    "${✅} [verilua-xmake] [%s] environment variable ${yellow underline}CFG_USE_INERTIAL_PUT = %s${reset}",
+                    "${✅} [verilua-xmake] [%s] environment variable ${yellow underline}VL_USE_INERTIAL_PUT = %s${reset}",
                     target:name(),
                     env_use_inertial_put
                 )

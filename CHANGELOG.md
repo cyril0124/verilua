@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 💥 Breaking Changes
 
+- **env**: Environment variable `CFG_USE_INERTIAL_PUT` renamed to `VL_USE_INERTIAL_PUT`.
 - **sv**: `SVAContext` renamed to `SVBuilder`, directory `sva/` renamed to `sv/`. The require path changes from `verilua.sva.SVAContext` to `verilua.sv.SVBuilder`. `SVATemplate` renamed to `SVTemplate`. All error messages now use the `[SVBuilder]` prefix.
 - **sv_lint**: `sv_lint` now reports warnings (e.g. `-Wreversed-range`, `-Wint-bool-conv`) in addition to errors. Previously only errors were surfaced.
 - **cov_exporter**: Conditional-coverage semantics changed from per-expression toggle counting to control-flow path counting. Each `if` / `else if` / explicit `else` body now bumps a counter when actually entered, and the guard reflects the full path prefix (e.g. `(!(a)) && (b) && (c)` for an `if (c)` nested inside an `else if (b)`). Counter naming (`_<id>__COV_BIN_EXPR_CNT`), DPI exports (`getCondCoverage`, `getCoverageCount`, `showCoverageCount`, `coverageCtrl`, `resetCoverage`) and meta-json fields stay backward compatible. The denominator now equals the number of distinct guard paths instead of the number of distinct boolean sub-expressions.
