@@ -10,18 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **sv_lint**: `sv_lint` now reports warnings (e.g. `-Wreversed-range`, `-Wint-bool-conv`) in addition to errors. Previously only errors were surfaced.
 - **cov_exporter**: Conditional-coverage semantics changed from per-expression toggle counting to control-flow path counting. Each `if` / `else if` / explicit `else` body now bumps a counter when actually entered, and the guard reflects the full path prefix (e.g. `(!(a)) && (b) && (c)` for an `if (c)` nested inside an `else if (b)`). Counter naming (`_<id>__COV_BIN_EXPR_CNT`), DPI exports (`getCondCoverage`, `getCoverageCount`, `showCoverageCount`, `coverageCtrl`, `resetCoverage`) and meta-json fields stay backward compatible. The denominator now equals the number of distinct guard paths instead of the number of distinct boolean sub-expressions.
 - **cov_exporter**: The xmake config key `instrumentation` is deprecated in favor of `verilua.instrument`. The old key still works (with a deprecation warning) but new code should use the new name.
-
-### 🐛 Fixed
-
-- **set**: Fix `set()` timing inconsistency after value-change callbacks: when a coroutine is woken by a value-change triggered by Verilua's own `cbReadWriteSynch` flush, subsequent `set()` calls now produce observable value changes in the same simulation time, matching SV/RTL-driven edge behavior (see [#11](https://github.com/cyril0124/verilua/issues/11))
-- **docs**: Clarify `CallableHDL:set()` as a deferred VPI write flushed at `cbReadWriteSynch`, not a write delayed until the next clock edge.
-- **cov_exporter**: Fix generated RTL failing to compile when a module has zero cond-path points (e.g. no instrumentable `if` chains). The front `\`ifndef NO_COVERAGE` block was missing its closing `\`endif` due to slang's `parseGuess()` collapsing a single-member insert.
-- **cov_exporter**: Fix `--ns` (merged toggle block) generating uncompilable RTL: `_<sig>__LAST` declarations were missing and each increment line carried a stray `end` that broke begin/end balance.
-- **cov_exporter**: The lint test now verifies all five generated golden outputs with `verilator --lint-only` in both default and `+define+NO_COVERAGE` modes.
-- **cov_exporter**: Wire `test_cov_exporter_dynamic` into the regression suite so it runs under `xmake run test` / `./test-all.sh`.
-- **multi_task**: `TaskGroup:join_all()` now dynamically drains — tasks forked by child tasks during execution are also awaited, fixing the early-exit bug where dynamically forked children could be missed (see [#9](https://github.com/cyril0124/verilua/issues/9))
-- **multi_task**: `TaskGroup` now reports an explicit error when a non-owner task calls `tg:join_all()` or `tg:join_any()` on that group, avoiding silent self-wait deadlocks while keeping `tg:fork()` unchanged
-- **multi_task**: `task_group()` and `jfork()` now report clear errors when called outside a scheduler task, instead of leaking low-level yield/context failures
+- **sv**: `SVBuilder` now references previously added sequences and properties through the `$(seq:name)` and `$(prop:name)` namespaces. Sequences and properties are no longer injected into the flat env namespace, so a bare `$(name)` will not resolve to them and the referenced kind is explicit at every use site. The `cat` helper function has been removed; pass a plain table to `envs` instead.
+- **ChdlAccess**: `set()` / `set_imm()` / `set_force()` / `set_imm_force()` for Double/Multi signals now auto-dispatch by `type(value)` instead of requiring a `force_single_beat` boolean flag. Pass a number/cdata for scalar writes, pass a table for multi-beat writes. The old `set(value, true)` still works (second arg is ignored) but is deprecated.
 
 ### ✨ Added
 
@@ -37,17 +27,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **multi_task**: Add `join_any { ehdl1, ehdl2, ... }` — waits until any one of the given `jfork` tasks finishes and returns the first completed handle
 - **sv_lint**: New CLI tool (`src/sv_lint/`) backed by slang that performs SystemVerilog lint checking. `SVBuilder:add` now automatically invokes `sv_lint` after rendering each statement, catching syntax and semantic errors (e.g. `##[5:2]` range reversal, undeclared identifiers) at definition time. Use `ctx:set_lint(false)` to disable.
 
-### 💥 Breaking Changes
-
-- **sv**: `SVBuilder` now references previously added sequences and properties through the `$(seq:name)` and `$(prop:name)` namespaces. Sequences and properties are no longer injected into the flat env namespace, so a bare `$(name)` will not resolve to them and the referenced kind is explicit at every use site. The `cat` helper function has been removed; pass a plain table to `envs` instead.
-- **ChdlAccess**: `set()` / `set_imm()` / `set_force()` / `set_imm_force()` for Double/Multi signals now auto-dispatch by `type(value)` instead of requiring a `force_single_beat` boolean flag. Pass a number/cdata for scalar writes, pass a table for multi-beat writes. The old `set(value, true)` still works (second arg is ignored) but is deprecated.
-
 ### ⚙️ Changed
 
 - **ChdlAccess**: Rewrite code generator from LuaJIT-Pro to plain Lua; generated functions are now module-level singletons shared across all handle instances (monomorphic call sites, zero per-instance allocation)
 
 ### 🐛 Fixed
 
+- **set**: Fix `set()` timing inconsistency after value-change callbacks: when a coroutine is woken by a value-change triggered by Verilua's own `cbReadWriteSynch` flush, subsequent `set()` calls now produce observable value changes in the same simulation time, matching SV/RTL-driven edge behavior (see [#11](https://github.com/cyril0124/verilua/issues/11))
+- **docs**: Clarify `CallableHDL:set()` as a deferred VPI write flushed at `cbReadWriteSynch`, not a write delayed until the next clock edge.
+- **cov_exporter**: Fix generated RTL failing to compile when a module has zero cond-path points (e.g. no instrumentable `if` chains). The front `\`ifndef NO_COVERAGE` block was missing its closing `\`endif` due to slang's `parseGuess()` collapsing a single-member insert.
+- **cov_exporter**: Fix `--ns` (merged toggle block) generating uncompilable RTL: `_<sig>__LAST` declarations were missing and each increment line carried a stray `end` that broke begin/end balance.
+- **cov_exporter**: The lint test now verifies all five generated golden outputs with `verilator --lint-only` in both default and `+define+NO_COVERAGE` modes.
+- **cov_exporter**: Wire `test_cov_exporter_dynamic` into the regression suite so it runs under `xmake run test` / `./test-all.sh`.
+- **multi_task**: `TaskGroup:join_all()` now dynamically drains — tasks forked by child tasks during execution are also awaited, fixing the early-exit bug where dynamically forked children could be missed (see [#9](https://github.com/cyril0124/verilua/issues/9))
+- **multi_task**: `TaskGroup` now reports an explicit error when a non-owner task calls `tg:join_all()` or `tg:join_any()` on that group, avoiding silent self-wait deadlocks while keeping `tg:fork()` unchanged
+- **multi_task**: `task_group()` and `jfork()` now report clear errors when called outside a scheduler task, instead of leaking low-level yield/context failures
 - **libverilua**: Fix use-after-free in `NativeClock` — `toggle()` registered a new callback before checking `destroy_pending`, leaving a dangling `user_data` pointer after the object was freed
 - **libverilua**: Clear upper vector words in `set_value64`/`set_imm_value64` (and force variants), avoiding stale garbage on signals wider than 64 bits
 - **libverilua**: Keep deferred string put-value buffers alive until `vpi_put_value` returns, avoiding dangling pointers for hex/dec/oct/bin writes
