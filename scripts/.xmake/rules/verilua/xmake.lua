@@ -343,6 +343,11 @@ cfg.deps = {"%s"}
 local user_cfg = "%s"
 local user_cfg_path = "%s"
 
+-- Add deps to package.path so user_cfg can require modules from them
+for _, dep in ipairs(cfg.deps) do
+    _G.package.path = _G.package.path .. ";" .. dep
+end
+
 -- Mix with other config
 if user_cfg ~= "nil" then
     _G.package.path = _G.package.path .. ";" .. user_cfg_path .. "/?.lua"
