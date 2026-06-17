@@ -146,3 +146,18 @@ local abdl = ([[
 4. `<abdl>:format_dump_str(format_func)`
 
    返回 `format_dump()` 的输出字符串。
+
+5. `<abdl>.fields`
+
+   按创建顺序保存 `AliasBundle` 中实际可用的主别名和对应 `CallableHDL` 句柄，适合遍历所有已绑定信号：
+
+   ```lua
+   for _, field in ipairs(abdl.fields) do
+       print(field.name, field.chdl:get_hex_str())
+   end
+   ```
+
+   每个元素包含两个字段：
+
+   - `name`：该信号的主别名，也就是信号列表中的第一个别名。
+   - `chdl`：该别名对应的 `CallableHDL` 句柄。

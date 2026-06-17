@@ -1,10 +1,13 @@
 local vpiml = require "verilua.vpiml.vpiml"
-local tablex = require "pl.tablex"
-local class = require "pl.class"
 local texpect = require "verilua.TypeExpect"
 local table_new = require "table.new"
 local table_clear = require "table.clear"
 local CallableHDL = require "verilua.handles.LuaCallableHDL"
+
+---@diagnostic disable-next-line
+local tablex = require "pl.tablex"
+---@diagnostic disable-next-line
+local class = require "pl.class"
 
 local type = type
 local rawset = rawset
@@ -14,6 +17,10 @@ local table_insert = table.insert
 local table_concat = table.concat
 
 local verilua_debug = _G.verilua_debug
+
+---@class (exact) verilua.handles.AliasBundle.Field
+---@field name string primary alias name
+---@field chdl verilua.handles.CallableHDL
 
 ---@class (exact) verilua.handles.AliasBundle.alias_signal_pair
 ---@field [1] string
@@ -26,15 +33,16 @@ local verilua_debug = _G.verilua_debug
 ---@field prefix string
 ---@field hierarchy string
 ---@field name string
----@field signals_tbl table<integer, string>
----@field alias_tbl table<integer, table<integer, string>>
----@field __dump_parts table<integer, string>
+---@field fields verilua.handles.AliasBundle.Field[] field list for iterating primary alias names and CHDL handles
+---@field private signals_tbl table<integer, string>
+---@field private alias_tbl table<integer, table<integer, string>>
+---@field private __dump_parts table<integer, string>
 ---@field valid verilua.handles.CallableHDL
 ---@field ready verilua.handles.CallableHDL
 ---@field dump_str fun(self: verilua.handles.AliasBundle): string
----@field format_dump_str fun(self: verilua.handles.AliasBundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string, alias_name: string): string): string
+---@field format_dump_str fun(self: verilua.handles.AliasBundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string, alias_name: string): string?): string
 ---@field dump fun(self: verilua.handles.AliasBundle)
----@field format_dump fun(self: verilua.handles.AliasBundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string, alias_name: string): string)
+---@field format_dump fun(self: verilua.handles.AliasBundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string, alias_name: string): string?)
 ---@field [string] verilua.handles.CallableHDL
 local AliasBundle = class()
 
@@ -124,6 +132,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
 
     -- Construct CallableHDL bundle
     local num_signals = #self.signals_tbl
+    local fields = table_new(num_signals, 0) --[[@as verilua.handles.AliasBundle.Field[] ]]
     for i = 1, num_signals do
         local alias_name_vec = self.alias_tbl[i]
         local real_name = self.signals_tbl[i]
@@ -149,7 +158,12 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
                 end
             end
         end
+
+        if chdl then
+            table_insert(fields, { name = alias_name_vec[1], chdl = chdl })
+        end
     end
+    self.fields = fields
 
     -- Used for saving dump parts
     self.__dump_parts = table_new(num_signals, 0) --[[@as table<integer, string>]]
@@ -222,7 +236,7 @@ function AliasBundle:_init(alias_signal_tbl, prefix, hierarchy, name, optional_s
         print(this:dump_str())
     end
 
-    ---@param format_func fun(chdl, name: string, alias_name: string): string
+    ---@param format_func fun(chdl, name: string, alias_name: string): string?
     self.format_dump = function(this, format_func)
         print(this:format_dump_str(format_func))
     end

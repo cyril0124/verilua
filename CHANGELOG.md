@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **multi_task**: Add `task_group(function(tg) ... end)` — scoped concurrent task management that automatically tracks and joins all `tg:fork` tasks when the scope exits, eliminating forgotten-join bugs
 - **multi_task**: Add `join_any { ehdl1, ehdl2, ... }` — waits until any one of the given `jfork` tasks finishes and returns the first completed handle
 - **sv_lint**: New CLI tool (`src/sv_lint/`) backed by slang that performs SystemVerilog lint checking. `SVBuilder:add` now automatically invokes `sv_lint` after rendering each statement, catching syntax and semantic errors (e.g. `##[5:2]` range reversal, undeclared identifiers) at definition time. Use `ctx:set_lint(false)` to disable.
+- **AliasBundle**: Add `fields`, an ordered list of `{ name, chdl }` entries for iterating available primary alias names and their `CallableHDL` handles.
 
 ### ⚙️ Changed
 
