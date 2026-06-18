@@ -3,6 +3,10 @@ local io = require "io"
 local ffi = require "ffi"
 local debug = require "debug"
 
+ffi.cdef [[
+    void srand(unsigned int seed);
+]]
+
 local type = type
 local print = print
 local pairs = pairs
@@ -205,6 +209,7 @@ function cfg:setup_random_seed()
     _G.verilua_debug(f("random seed is %d", seed))
     ---@diagnostic disable-next-line: access-invisible
     math.randomseed(seed)
+    ffi.C.srand(seed)
 end
 
 -- Dumps the content of the configuration table as a string.
