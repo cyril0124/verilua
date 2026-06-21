@@ -415,6 +415,13 @@ fork {
         assert(abdl1.alias_0.__type == "CallableHDL")
         assert(abdl1.alias_1.__type == "CallableHDL")
         assert(abdl1.orig_signal_2.__type == "CallableHDL")
+        assert(#abdl1.fields == 3)
+        assert(abdl1.fields[1].name == "alias_0")
+        assert(abdl1.fields[1].chdl == abdl1.alias_0)
+        assert(abdl1.fields[2].name == "alias_1")
+        assert(abdl1.fields[2].chdl == abdl1.alias_1)
+        assert(abdl1.fields[3].name == "orig_signal_2")
+        assert(abdl1.fields[3].chdl == abdl1.orig_signal_2)
 
         -- Verify alias bundle works
         local a0 = abdl1.alias_0:get()
@@ -523,6 +530,9 @@ fork {
         assert(opt_abdl4.__type == "AliasBundle")
         assert(opt_abdl4.alias_0.__type == "CallableHDL")
         assert(opt_abdl4.nonexistent_signal == nil)
+
+        assert(#opt_abdl2.fields == 1)
+        assert(opt_abdl2.fields[1].name == "alias_0")
 
         -- ========================================================================
         -- Test: AliasBundle - Dump methods

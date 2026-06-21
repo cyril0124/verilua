@@ -414,6 +414,7 @@ string.fake_chdl = function(hierpath, overload_func_tbl)
     local chdl = {
         __type = "CallableHDL",
         name = "fake_chdl::" .. hierpath,
+        fields = {},
         fullpath = hierpath,
         hdl = 0xFFFFFFFF,
     }
