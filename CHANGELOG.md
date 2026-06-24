@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+---
+
+## v3.4.0 - 2026-06-24
+
 ### 💥 Breaking Changes
 
 - **env**: Environment variable `CFG_USE_INERTIAL_PUT` renamed to `VL_USE_INERTIAL_PUT`.
