@@ -314,7 +314,7 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
         {
             *cached_result = Some("xcelium".to_string());
             return string_to_c_char_owned("xcelium");
-        } else if string.contains("liverilua_iverilog.so") {
+        } else if string.contains("libverilua_iverilog.so") {
             *cached_result = Some("iverilog".to_string());
             return string_to_c_char_owned("iverilog");
         } else if string.contains("libverilua_wave_vpi.so") {
