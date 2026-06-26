@@ -981,6 +981,7 @@ target("test", function()
             "test-basic-signal",
             "test-scheduler",
             "test-comb",
+            "test-rw-flush",
             "test-comb-1",
             "test-bitvec-signal",
             "test-no-internal-clock",

@@ -376,6 +376,16 @@ unsafe extern "C" fn rw_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
         unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
     let env = get_verilua_env();
 
+    // `await_rw()` and the internal pending-put flush (`libverilua_flush_put_values`)
+    // are two independent `cbReadWriteSynch` callbacks whose relative order is
+    // simulator-defined (IEEE 1800-2023 38.36.2). On simulators where this user
+    // callback fires before the flush (e.g. VCS), the awaiting coroutine would
+    // otherwise observe stale values for signals it just set(). Flush here first
+    // so the contract "set() is visible after await_rw()" holds on every simulator.
+    if !cfg!(feature = "inertial_put") {
+        env.apply_pending_put_values();
+    }
+
     unsafe {
         if let Err(e) = env
             .lua_sim_event

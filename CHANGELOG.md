@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 🐛 Fixed
+
+- **libverilua**: Fix `set()` + `await_rw()` flush ordering on VCS — the VPI `cbReadWriteSynch` spec (IEEE 1800-2023 38.36.2) does not define the relative order of the user await_rw callback and the internal pending-put flush. On VCS the user callback fires first, so `await_rw()` resumed the coroutine before `set()` values were committed. Now the RW callback explicitly flushes pending puts before resuming in non-`inertial_put` builds, making `set()` visible after `await_rw()` across supported simulators.
+
 ---
 
 ## v3.4.0 - 2026-06-24
