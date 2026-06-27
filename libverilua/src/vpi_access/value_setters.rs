@@ -667,12 +667,18 @@ impl VeriluaEnv {
             value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
         };
 
-        // Also remove from hdl_put_value and complex_handle.put_value_flag
-        if let Some(target_idx) = self.hdl_put_value.iter().position(|complex_handle_raw| {
-            let _complex_handle = ComplexHandle::from_raw(complex_handle_raw);
-            _complex_handle.vpi_handle == complex_handle.vpi_handle
-        }) {
+        // Remove any pending deferred put on this handle (from either queue)
+        // and clear the flag.
+        let pred = |complex_handle_raw: &ComplexHandleRaw| {
+            ComplexHandle::from_raw(complex_handle_raw).vpi_handle == complex_handle.vpi_handle
+        };
+        if let Some(target_idx) = self.hdl_put_value.iter().position(pred) {
             self.hdl_put_value.remove(target_idx);
+            complex_handle.put_value_flag = None;
+        } else if (cfg!(feature = "vcs") || cfg!(feature = "iverilog"))
+            && let Some(target_idx) = self.hdl_put_value_bak.iter().position(pred)
+        {
+            self.hdl_put_value_bak.remove(target_idx);
             complex_handle.put_value_flag = None;
         }
 

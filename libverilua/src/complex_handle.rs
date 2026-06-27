@@ -258,32 +258,33 @@ impl ComplexHandle {
                     self.put_value_flag = Some(*flag);
                     self.put_value_format = *format;
 
-                    let hdl_put_value: &mut Vec<ComplexHandleRaw>;
-                    if cfg!(feature = "vcs") || cfg!(feature = "iverilog") {
-                        if env.use_hdl_put_value_bak {
-                            hdl_put_value = &mut env.hdl_put_value_bak;
+                    // Remove the stale entry. During a re-entrant flush the old
+                    // entry may be in either queue, so probe both.
+                    let removed = {
+                        let find = |q: &Vec<ComplexHandleRaw>| {
+                            q.iter().position(|complex_handle_raw| {
+                                ComplexHandle::from_raw(complex_handle_raw).vpi_handle
+                                    == self.vpi_handle
+                            })
+                        };
+                        if let Some(idx) = find(&env.hdl_put_value) {
+                            env.hdl_put_value.remove(idx);
+                            true
+                        } else if (cfg!(feature = "vcs") || cfg!(feature = "iverilog"))
+                            && let Some(idx) = find(&env.hdl_put_value_bak)
+                        {
+                            env.hdl_put_value_bak.remove(idx);
+                            true
                         } else {
-                            hdl_put_value = &mut env.hdl_put_value;
+                            false
                         }
-                    } else {
-                        hdl_put_value = &mut env.hdl_put_value;
                     };
 
-                    // Remove old flag
-                    let target_idx = hdl_put_value.iter().position(|complex_handle_raw| {
-                        let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
-                        complex_handle.vpi_handle == self.vpi_handle
-                    });
-
                     assert!(
-                        target_idx.is_some(),
-                        "Duplicate flag, but not found in env.hdl_put_value, curr_flag: {}, new_flag: {}, self: {:?}",
-                        curr_flag,
-                        *flag,
-                        self
+                        removed,
+                        "Duplicate flag, but not found in hdl_put_value/hdl_put_value_bak, curr_flag: {}, new_flag: {}, self: {:?}",
+                        curr_flag, *flag, self
                     );
-
-                    hdl_put_value.remove(unsafe { target_idx.unwrap_unchecked() });
 
                     true
                 }

@@ -982,6 +982,7 @@ target("test", function()
             "test-scheduler",
             "test-comb",
             "test-rw-flush",
+            "test-rw-reflush-panic",
             "test-comb-1",
             "test-bitvec-signal",
             "test-no-internal-clock",
