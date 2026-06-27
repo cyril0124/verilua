@@ -305,6 +305,30 @@ unsafe extern "C" fn final_callback(_cb_data: *mut t_cb_data) -> PLI_INT32 {
     0
 }
 
+struct ReadonlyPhaseGuard {
+    env: *mut VeriluaEnv,
+    previous: bool,
+}
+
+impl ReadonlyPhaseGuard {
+    #[inline(always)]
+    fn new(env: &mut VeriluaEnv) -> Self {
+        let previous = env.rd_phase_active;
+        env.rd_phase_active = true;
+        Self {
+            env: env as *mut _,
+            previous,
+        }
+    }
+}
+
+impl Drop for ReadonlyPhaseGuard {
+    #[inline(always)]
+    fn drop(&mut self) {
+        unsafe { (*self.env).rd_phase_active = self.previous };
+    }
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_rd_synch_callback(task_id: TaskID) {
     let user_data = Box::into_raw(Box::new(NormalCbData { task_id }));
@@ -333,16 +357,19 @@ unsafe extern "C" fn rd_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
         unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
     let env = get_verilua_env();
 
-    unsafe {
-        if let Err(e) = env
-            .lua_sim_event
-            .as_ref()
-            .unwrap_unchecked()
-            .call::<()>(user_data.task_id)
-        {
-            env.finalize();
-            panic!("{}", e);
+    let result = {
+        let _readonly_guard = ReadonlyPhaseGuard::new(env);
+        unsafe {
+            env.lua_sim_event
+                .as_ref()
+                .unwrap_unchecked()
+                .call::<()>(user_data.task_id)
         }
+    };
+
+    if let Err(e) = result {
+        env.finalize();
+        panic!("{}", e);
     }
 
     0

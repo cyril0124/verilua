@@ -62,6 +62,7 @@ pub struct VeriluaEnv {
     pub resolve_x_as_zero: bool,
     pub rw_phase_passed: bool, // true after cbReadWriteSynch flush completes, reset at cbNextSimTime
     pub rw_cb_re_registered: bool, // guards against multiple re-registrations within one post-flush window
+    pub rd_phase_active: bool, // true while executing cbReadOnlySynch callbacks
     pub start_time: Instant,
 
     #[cfg(feature = "acc_time")]

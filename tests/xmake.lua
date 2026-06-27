@@ -296,6 +296,21 @@ for _, case in ipairs(sim_test_cases) do
     end)
 end
 
+add_group_target("test-readonly-write-error", function(ctx)
+    local cwd = path.join(ctx.tests_dir, "test_readonly_write_error")
+    for _, sim in ipairs(ctx.simulators) do
+        ctx.run_case(join_case_parts("test_readonly_write_error", sim), function()
+            ctx.clean(path.join(cwd, "build"))
+            ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = sim })
+            local log = path.join(cwd, "readonly-write-error-" .. sim .. ".log")
+            local log_q = shell_quote(log)
+            local script = "if xmake run -v -P . > " .. log_q .. " 2>&1; then cat " .. log_q .. "; rm -f " .. log_q .. "; exit 1; fi; " ..
+                "content=$(cat " .. log_q .. "); case \"$content\" in *'ReadOnly phase'*'inc'*) rm -f " .. log_q .. " ;; *) cat " .. log_q .. "; exit 1 ;; esac"
+            ctx.run_cmd(cwd, "sh -c " .. shell_quote(script), { SIM = sim })
+        end)
+    end
+end)
+
 -- Wave VPI tests — each directory gets its own parallel target
 for _, dir in ipairs({
     "test_wave_vpi",

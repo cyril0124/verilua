@@ -983,6 +983,7 @@ target("test", function()
             "test-comb",
             "test-rw-flush",
             "test-rw-reflush-panic",
+            "test-readonly-write-error",
             "test-comb-1",
             "test-bitvec-signal",
             "test-no-internal-clock",

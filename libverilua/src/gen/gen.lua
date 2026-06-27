@@ -55,7 +55,6 @@ local MAX_CHUNK = 16  -- Maximum tasks per callback chunk
 
 local f = string.format
 local concat = table.concat
-local insert = table.insert
 
 --- Template rendering: replaces {{key}} with values from vars table
 --- @param template string Template string with {{key}} placeholders
@@ -405,6 +404,7 @@ pub struct VeriluaEnv {
     pub resolve_x_as_zero: bool,
     pub rw_phase_passed: bool, // true after cbReadWriteSynch flush completes, reset at cbNextSimTime
     pub rw_cb_re_registered: bool, // guards against multiple re-registrations within one post-flush window
+    pub rd_phase_active: bool, // true while executing cbReadOnlySynch callbacks
     pub start_time: Instant,
 
     #[cfg(feature = "acc_time")]
@@ -470,6 +470,7 @@ Self {
     resolve_x_as_zero: false,
     rw_phase_passed: false,
     rw_cb_re_registered: false,
+    rd_phase_active: false,
     start_time: Instant::now(),
 
     #[cfg(feature = "acc_time")]

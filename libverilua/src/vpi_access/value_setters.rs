@@ -1,5 +1,18 @@
 use super::*;
 
+impl VeriluaEnv {
+    #[inline(always)]
+    fn assert_not_rd_phase_active(&self, complex_handle_raw: ComplexHandleRaw) {
+        if self.rd_phase_active {
+            let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+            panic!(
+                "Attempting to write an HDL value during the ReadOnly phase: handle '{}'.",
+                complex_handle.get_name()
+            );
+        }
+    }
+}
+
 // ------------------------------------------------------------------
 // IMPL set/force value
 // ------------------------------------------------------------------
@@ -795,48 +808,56 @@ macro_rules! gen_set_force_value {
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value>](complex_handle_raw: ComplexHandleRaw, value: u32) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _value>](complex_handle_raw, value);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _imm_value>](complex_handle_raw: ComplexHandleRaw, value: u32) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _imm_value>](complex_handle_raw, value);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value64>](complex_handle_raw: ComplexHandleRaw, value: u64) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _value64>](complex_handle_raw, value);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _imm_value64>](complex_handle_raw: ComplexHandleRaw, value: u64) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _imm_value64>](complex_handle_raw, value);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value64_force_single>](complex_handle_raw: ComplexHandleRaw, value: u64) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _value64_force_single>](complex_handle_raw, value);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _imm_value64_force_single>](complex_handle_raw: ComplexHandleRaw, value: u64) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _imm_value64_force_single>](complex_handle_raw, value);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value_multi>](complex_handle_raw: ComplexHandleRaw, value: *const u32) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 unsafe { env.[<vpiml_ $action _value_multi>](complex_handle_raw, value); }
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _imm_value_multi>](complex_handle_raw: ComplexHandleRaw, value: *const u32) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _imm_value_multi>](complex_handle_raw, value);
             }
         }
@@ -854,12 +875,14 @@ macro_rules! gen_set_value_str {
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $set_type _value_ $str_type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $set_type _value_ $str_type _str>](complex_handle_raw, value_str);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $set_type _imm_value_ $str_type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $set_type _imm_value_ $str_type _str>](complex_handle_raw, value_str);
             }
         }
@@ -881,12 +904,14 @@ macro_rules! gen_set_force_value_multi_beat {
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value_multi_beat_ $count>](complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _value_multi_beat_ $count>](complex_handle_raw $(, paste::paste!{[<v $i>]})*);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _imm_value_multi_beat_ $count>](complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _imm_value_multi_beat_ $count>](complex_handle_raw $(, paste::paste!{[<v $i>]})*);
             }
         }
@@ -916,12 +941,14 @@ macro_rules! gen_set_force_value_str {
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value_str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _value_str>](complex_handle_raw, value_str);
             }
 
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _imm_value_str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
                 let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
                 env.[<vpiml_ $action _imm_value_str>](complex_handle_raw, value_str);
             }
         }
@@ -936,24 +963,28 @@ gen_set_force_value_str!(force, vpiForceFlag);
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_release_value(complex_handle_raw);
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_release_imm_value(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_release_imm_value(complex_handle_raw);
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_set_shuffled(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_set_shuffled(complex_handle_raw);
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_set_imm_shuffled(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_set_imm_shuffled(complex_handle_raw);
 }
 
@@ -1013,11 +1044,13 @@ pub unsafe extern "C" fn vpiml_reset_shuffled_range(complex_handle_raw: ComplexH
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_set_freeze(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_set_freeze(complex_handle_raw);
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_set_imm_freeze(complex_handle_raw: ComplexHandleRaw) {
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_set_imm_freeze(complex_handle_raw);
 }
