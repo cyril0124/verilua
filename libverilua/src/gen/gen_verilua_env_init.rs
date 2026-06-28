@@ -21,8 +21,7 @@ Self {
     #[cfg(not(feature = "chunk_task"))]
     pending_edge_cb_map: HashMap::new(),
 
-    edge_cb_idpool: IDPool::new(100000), // The maximum number of edge callbacks is controlled by this value
-    edge_cb_hdl_map: HashMap::new(),
+    edge_cb_slab: slab::Slab::with_capacity(1024), // grows on demand; dense ids back the edge callbacks
 
     resolve_x_as_zero: false,
     rw_phase_passed: false,

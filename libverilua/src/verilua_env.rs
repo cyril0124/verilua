@@ -64,12 +64,9 @@
 //! ```
 
 use hashbrown::HashMap;
-#[cfg(feature = "debug")]
-use hashbrown::HashSet;
 use mlua::prelude::*;
 use std::cell::UnsafeCell;
 use std::ffi::{CStr, CString};
-use std::fmt::{self, Debug};
 #[allow(unused_imports)]
 use std::time::Duration;
 use std::time::Instant;
@@ -131,64 +128,6 @@ pub fn get_verilua_env_no_init() -> &'static mut VeriluaEnv {
                 get_verilua_env_no_init()
             }
         }
-    }
-}
-
-// ────────────────────────────────────────────────────────────────────────────────
-// ID Pool for Callback Management
-// ────────────────────────────────────────────────────────────────────────────────
-
-/// Pool of pre-allocated IDs for edge callback management.
-///
-/// This provides O(1) allocation and deallocation of callback IDs,
-/// avoiding the overhead of dynamic ID generation.
-pub struct IDPool {
-    /// Stack of available IDs (LIFO for cache-friendliness)
-    available_ids: Vec<EdgeCallbackID>,
-
-    /// Debug mode: track allocated IDs to detect double-free
-    #[cfg(feature = "debug")]
-    allocated_ids: HashSet<EdgeCallbackID>,
-}
-
-impl Debug for IDPool {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "IDPool(...)")
-    }
-}
-
-impl IDPool {
-    pub fn new(size: u64) -> Self {
-        IDPool {
-            available_ids: (0..size as EdgeCallbackID).rev().collect(),
-
-            #[cfg(feature = "debug")]
-            allocated_ids: HashSet::new(),
-        }
-    }
-
-    #[inline(always)]
-    pub fn alloc_id(&mut self) -> EdgeCallbackID {
-        let id = self.available_ids.pop().expect("No more IDs available");
-
-        #[cfg(feature = "debug")]
-        self.allocated_ids.insert(id);
-
-        id
-    }
-
-    #[inline(always)]
-    pub fn release_id(&mut self, id: EdgeCallbackID) {
-        #[cfg(feature = "debug")]
-        {
-            assert!(
-                self.allocated_ids.remove(&id),
-                "id {} is not currently allocated",
-                id
-            );
-        }
-
-        self.available_ids.push(id);
     }
 }
 

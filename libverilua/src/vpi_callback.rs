@@ -667,7 +667,8 @@ pub unsafe extern "C" fn libverilua_next_sim_time_cb(cb_data: *mut t_cb_data) ->
         for (complex_handle_raw, cb_infos) in &env.pending_edge_cb_map {
             let complex_handle = ComplexHandle::from_raw(complex_handle_raw);
             for cb_info in cb_infos {
-                let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                let entry = env.edge_cb_slab.vacant_entry();
+                let edge_cb_id = entry.key() as EdgeCallbackID;
                 let cb_hdl = unsafe {
                     do_register_edge_callback(
                         complex_handle_raw,
@@ -677,14 +678,7 @@ pub unsafe extern "C" fn libverilua_next_sim_time_cb(cb_data: *mut t_cb_data) ->
                     )
                 };
 
-                if env
-                    .edge_cb_hdl_map
-                    .insert(edge_cb_id, cb_hdl as _)
-                    .is_some()
-                {
-                    // TODO: Check ?
-                    // panic!("duplicate edge callback id => {}", edge_cb_id);
-                };
+                entry.insert(cb_hdl as u64);
             }
         }
 
@@ -821,39 +815,21 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
                 };
 
                 if remove_cb {
-                    unsafe {
-                        vpi_remove_cb(
-                            *env.edge_cb_hdl_map
-                                .get(&user_data.callback_id)
-                                .unwrap_unchecked() as _,
-                        )
-                    };
-                    env.edge_cb_idpool.release_id(user_data.callback_id);
+                    let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                    unsafe { vpi_remove_cb(cb_hdl as _) };
                     drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbData) });
                 }
             }
 
             #[cfg(not(feature = "merge_cb"))]
             {
-                unsafe {
-                    vpi_remove_cb(
-                        *env.edge_cb_hdl_map
-                            .get(&user_data.callback_id)
-                            .unwrap_unchecked() as _,
-                    )
-                };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
                 drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbData) });
             }
         } else {
-            unsafe {
-                vpi_remove_cb(
-                    *env.edge_cb_hdl_map
-                        .get(&user_data.callback_id)
-                        .unwrap_unchecked() as _,
-                )
-            };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
             drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbData) });
         }
     }
@@ -957,7 +933,8 @@ macro_rules! gen_vpiml_register_edge_callback {
                                 task_id,
                             });
                     } else {
-                        let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                        let entry = env.edge_cb_slab.vacant_entry();
+                        let edge_cb_id = entry.key() as EdgeCallbackID;
                         let cb_hdl = unsafe { do_register_edge_callback(
                             &complex_handle_raw,
                             &task_id,
@@ -965,10 +942,7 @@ macro_rules! gen_vpiml_register_edge_callback {
                             &edge_cb_id
                         ) };
 
-                        if env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _).is_some() {
-                            // TODO: Check ?
-                            // panic!("duplicate edge callback id => {}", edge_cb_id);
-                        };
+                        entry.insert(cb_hdl as u64);
                     }
                 }
 
@@ -1069,7 +1043,11 @@ macro_rules! gen_vpiml_register_edge_callback_always {
                 #[unsafe(no_mangle)]
                 pub unsafe extern "C" fn [<vpiml_register_ $edge_type _callback_always>](complex_handle_raw: ComplexHandleRaw, task_id: TaskID) {
                     let env = get_verilua_env();
-                    unsafe { do_register_edge_callback_always(&complex_handle_raw, &task_id, &$edge_type_enum, &env.edge_cb_idpool.alloc_id()) };
+                    let _ = env;
+                    // The `_always` callback is permanent: it never removes itself and
+                    // never looks up its id, so it needs no slab slot (allocating one
+                    // would leak it forever). Pass a throwaway id.
+                    unsafe { do_register_edge_callback_always(&complex_handle_raw, &task_id, &$edge_type_enum, &0) };
                 }
             }
         )*

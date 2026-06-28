@@ -4,6 +4,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 🚀 Performance
+
+- **libverilua**: Reclaim chunk edge-callback user data on fire. The `chunk_task` callback handlers boxed their `EdgeCbDataChunk_N` at registration but never freed it on removal, leaking one allocation per fired chunk every cycle. The handlers now drop the box after `vpi_remove_cb`, mirroring the non-chunk path.
+- **libverilua**: Replace the edge-callback `IDPool` + `HashMap<EdgeCallbackID, u64>` pair with a single `slab::Slab<u64>`, turning callback registration and removal into O(1) `Vec`-indexed ops with no hashing.
+
 ### 🐛 Fixed
 
 - **libverilua**: Report an explicit error when HDL writes are attempted from an `await_rd()` / `cbReadOnlySynch` callback, matching the documented read-only phase semantics.

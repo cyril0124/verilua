@@ -56,8 +56,7 @@ pub struct VeriluaEnv {
     #[cfg(feature = "chunk_task")]
     pub lua_sim_event_chunk_16: Option<LuaFunction>,
 
-    pub edge_cb_idpool: IDPool,
-    pub edge_cb_hdl_map: HashMap<EdgeCallbackID, u64>,
+    pub edge_cb_slab: slab::Slab<u64>,
 
     pub resolve_x_as_zero: bool,
     pub rw_phase_passed: bool, // true after cbReadWriteSynch flush completes, reset at cbNextSimTime

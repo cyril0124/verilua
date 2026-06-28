@@ -5,7 +5,8 @@
             while idx < task_id_vec_size {
                 let chunk_end = usize::min(idx + 16, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];
-                let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                let entry = env.edge_cb_slab.vacant_entry();
+                let edge_cb_id = entry.key() as EdgeCallbackID;
 
                 let cb_hdl = unsafe {
                     match chunk.len() {
@@ -29,10 +30,7 @@
                     }
                 };
 
-                if env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _).is_some() {
-                    // TODO: Check ?
-                    // panic!("duplicate edge callback id => {}", edge_cb_id);
-                };
+                entry.insert(cb_hdl as u64);
 
                 idx = chunk_end;
             }
@@ -45,7 +43,8 @@
             while idx < task_id_vec_size {
                 let chunk_end = usize::min(idx + 16, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];
-                let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                let entry = env.edge_cb_slab.vacant_entry();
+                let edge_cb_id = entry.key() as EdgeCallbackID;
 
                 let cb_hdl = unsafe {
                     match chunk.len() {
@@ -69,10 +68,7 @@
                     }
                 };
 
-                if env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _).is_some() {
-                    // TODO: Check ?
-                    // panic!("duplicate edge callback id => {}", edge_cb_id);
-                };
+                entry.insert(cb_hdl as u64);
 
                 idx = chunk_end;
             }
@@ -85,7 +81,8 @@
             while idx < task_id_vec_size {
                 let chunk_end = usize::min(idx + 16, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];
-                let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                let entry = env.edge_cb_slab.vacant_entry();
+                let edge_cb_id = entry.key() as EdgeCallbackID;
 
                 let cb_hdl = unsafe {
                     match chunk.len() {
@@ -109,10 +106,7 @@
                     }
                 };
 
-                if env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _).is_some() {
-                    // TODO: Check ?
-                    // panic!("duplicate edge callback id => {}", edge_cb_id);
-                };
+                entry.insert(cb_hdl as u64);
 
                 idx = chunk_end;
             }

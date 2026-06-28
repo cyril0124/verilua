@@ -108,15 +108,19 @@ unsafe extern "C" fn edge_callback_chunk_1(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_1) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_1) });
         }
     }
     0
@@ -232,15 +236,19 @@ unsafe extern "C" fn edge_callback_chunk_2(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_2) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_2) });
         }
     }
     0
@@ -356,15 +364,19 @@ unsafe extern "C" fn edge_callback_chunk_3(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_3) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_3) });
         }
     }
     0
@@ -480,15 +492,19 @@ unsafe extern "C" fn edge_callback_chunk_4(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_4) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_4) });
         }
     }
     0
@@ -604,15 +620,19 @@ unsafe extern "C" fn edge_callback_chunk_5(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_5) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_5) });
         }
     }
     0
@@ -728,15 +748,19 @@ unsafe extern "C" fn edge_callback_chunk_6(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_6) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_6) });
         }
     }
     0
@@ -852,15 +876,19 @@ unsafe extern "C" fn edge_callback_chunk_7(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_7) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_7) });
         }
     }
     0
@@ -976,15 +1004,19 @@ unsafe extern "C" fn edge_callback_chunk_8(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_8) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_8) });
         }
     }
     0
@@ -1100,15 +1132,19 @@ unsafe extern "C" fn edge_callback_chunk_9(cb_data: *mut t_cb_data) -> PLI_INT32
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_9) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_9) });
         }
     }
     0
@@ -1224,15 +1260,19 @@ unsafe extern "C" fn edge_callback_chunk_10(cb_data: *mut t_cb_data) -> PLI_INT3
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_10) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_10) });
         }
     }
     0
@@ -1348,15 +1388,19 @@ unsafe extern "C" fn edge_callback_chunk_11(cb_data: *mut t_cb_data) -> PLI_INT3
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_11) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_11) });
         }
     }
     0
@@ -1472,15 +1516,19 @@ unsafe extern "C" fn edge_callback_chunk_12(cb_data: *mut t_cb_data) -> PLI_INT3
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_12) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_12) });
         }
     }
     0
@@ -1596,15 +1644,19 @@ unsafe extern "C" fn edge_callback_chunk_13(cb_data: *mut t_cb_data) -> PLI_INT3
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_13) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_13) });
         }
     }
     0
@@ -1720,15 +1772,19 @@ unsafe extern "C" fn edge_callback_chunk_14(cb_data: *mut t_cb_data) -> PLI_INT3
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_14) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_14) });
         }
     }
     0
@@ -1844,15 +1900,19 @@ unsafe extern "C" fn edge_callback_chunk_15(cb_data: *mut t_cb_data) -> PLI_INT3
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_15) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_15) });
         }
     }
     0
@@ -1968,15 +2028,19 @@ unsafe extern "C" fn edge_callback_chunk_16(cb_data: *mut t_cb_data) -> PLI_INT3
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_16) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_16) });
         }
     }
     0

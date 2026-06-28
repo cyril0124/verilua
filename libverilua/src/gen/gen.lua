@@ -152,7 +152,8 @@ local function gen_callback_policy(max_chunk)
             while idx < task_id_vec_size {
                 let chunk_end = usize::min(idx + {{max_chunk}}, task_id_vec_size);
                 let chunk = &task_id_vec[idx..chunk_end];
-                let edge_cb_id = env.edge_cb_idpool.alloc_id();
+                let entry = env.edge_cb_slab.vacant_entry();
+                let edge_cb_id = entry.key() as EdgeCallbackID;
 
                 let cb_hdl = unsafe {
                     match chunk.len() {
@@ -161,10 +162,7 @@ local function gen_callback_policy(max_chunk)
                     }
                 };
 
-                if env.edge_cb_hdl_map.insert(edge_cb_id, cb_hdl as _).is_some() {
-                    // TODO: Check ?
-                    // panic!("duplicate edge callback id => {}", edge_cb_id);
-                };
+                entry.insert(cb_hdl as u64);
 
                 idx = chunk_end;
             }
@@ -314,15 +312,19 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
 
                 pending_cb_chunk.remove(&user_data.callback_id);
 
-                unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-                env.edge_cb_idpool.release_id(user_data.callback_id);
+                let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+                unsafe { vpi_remove_cb(cb_hdl as _) };
+
+                drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_{{i}}) });
             }
         }
 
         #[cfg(not(feature = "merge_cb"))]
         {
-            unsafe { vpi_remove_cb(*env.edge_cb_hdl_map.get(&user_data.callback_id).unwrap() as _) };
-            env.edge_cb_idpool.release_id(user_data.callback_id);
+            let cb_hdl = env.edge_cb_slab.remove(user_data.callback_id as usize);
+            unsafe { vpi_remove_cb(cb_hdl as _) };
+
+            drop(unsafe { Box::from_raw(cb_data.user_data as *mut EdgeCbDataChunk_{{i}}) });
         }
     }
     0
@@ -398,8 +400,7 @@ pub struct VeriluaEnv {
 
 {{chunk_fields}}
 
-    pub edge_cb_idpool: IDPool,
-    pub edge_cb_hdl_map: HashMap<EdgeCallbackID, u64>,
+    pub edge_cb_slab: slab::Slab<u64>,
 
     pub resolve_x_as_zero: bool,
     pub rw_phase_passed: bool, // true after cbReadWriteSynch flush completes, reset at cbNextSimTime
@@ -464,8 +465,7 @@ Self {
     #[cfg(not(feature = "chunk_task"))]
     pending_edge_cb_map: HashMap::new(),
 
-    edge_cb_idpool: IDPool::new(100000), // The maximum number of edge callbacks is controlled by this value
-    edge_cb_hdl_map: HashMap::new(),
+    edge_cb_slab: slab::Slab::with_capacity(1024), // grows on demand; dense ids back the edge callbacks
 
     resolve_x_as_zero: false,
     rw_phase_passed: false,
