@@ -469,6 +469,17 @@ impl VeriluaEnv {
 
     #[inline(always)]
     pub fn apply_pending_put_values(&mut self) {
+        if self.hdl_put_value.is_empty() {
+            return;
+        }
+
+        // Record that a flush actually committed values in this timestep.
+        // `rw_synch_callback` compares this epoch against the snapshot taken at
+        // await_rw() registration time to decide whether the design may still
+        // have unsettled combinational fanout (and thus the wakeup must be
+        // deferred to a later cbReadWriteSynch occurrence).
+        self.flush_epoch = self.flush_epoch.wrapping_add(1);
+
         if cfg!(feature = "vcs") || cfg!(feature = "iverilog") {
             self.use_hdl_put_value_bak = true;
             loop {

@@ -31,16 +31,12 @@ fork {
 
         await_rw()
 
-        -- No panic means the re-entry was handled. The final value depends on
-        -- write timing: synchronous value-change (vcs/iverilog & inertial_put)
-        -- lets the observer win (0x55); deferred value-change (default
-        -- verilator) lets the driver's await_rw finish first (0xAA).
+        -- No panic means the re-entry was handled. Last-write-wins uniformly:
+        -- the observer's re-flushed 0x55 is committed and settled before the
+        -- deferred await_rw() wakeup resumes this coroutine, on every
+        -- simulator (and inertial_put builds behave the same).
         local v = shared:get()
-        if cfg.simulator == "verilator" and os.getenv("VL_USE_INERTIAL_PUT") ~= "1" then
-            assert(v == 0xAA, string.format("shared should be 0xAA, got 0x%X", v))
-        else
-            assert(v == 0x55, string.format("shared should be 0x55, got 0x%X", v))
-        end
+        assert(v == 0x55, string.format("shared should be 0x55, got 0x%X", v))
 
         print("[PASS] re-flush cross-queue dedup handled, no panic")
         sim.finish()

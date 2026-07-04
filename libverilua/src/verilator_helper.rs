@@ -73,3 +73,30 @@ pub extern "C" fn verilator_next_sim_time_callback() {
         panic!("`feature = \"verilator_inner_step_callback\"` is not enabled");
     }
 }
+
+/// Returns true while Lua-side posted writes (`set()`) queued during the
+/// current ReadWrite phase are still pending.
+///
+/// Called from the `verilator_main.cpp` ReadWrite loop condition. Verilator's
+/// loop only continues while `evalNeeded()` is set, i.e. while *the simulator*
+/// has seen a vpi_put_value. Writes posted from a coroutine that was resumed
+/// inside a cbReadWriteSynch callback live in libverilua's own queue and are
+/// invisible to `evalNeeded()`, so without this bridge their flush (and any
+/// await_rw() wakeup deferred behind it) would slip to the next timestep.
+/// This mirrors what `doInertialPuts()` achieves for cocotb's inertial writes.
+///
+/// The `rw_phase_passed` guard restricts this to writes posted after the first
+/// flush of the timestep: exactly those for which `do_push_hdl_put_value` has
+/// re-registered a consuming cbReadWriteSynch callback. Writes queued in
+/// earlier phases are consumed by the per-timestep flush callback as before,
+/// keeping the loop free of livelock (pending here always implies a registered
+/// callback that will drain the queue).
+#[unsafe(no_mangle)]
+pub extern "C" fn verilator_has_pending_put_values() -> bool {
+    if cfg!(feature = "inertial_put") {
+        false
+    } else {
+        let env = crate::verilua_env::get_verilua_env_no_init();
+        env.rw_phase_passed && !env.hdl_put_value.is_empty()
+    }
+}

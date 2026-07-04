@@ -26,6 +26,7 @@ Self {
     resolve_x_as_zero: false,
     rw_phase_passed: false,
     rw_cb_re_registered: false,
+    flush_epoch: 0,
     rd_phase_active: false,
     start_time: Instant::now(),
 

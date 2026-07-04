@@ -246,6 +246,8 @@ local sim_test_cases = {
     { dir = "test_basic_signal", name = "test_basic_signal", no_internal_clock = true },
     { dir = "test_scheduler", name = "test_scheduler" },
     { dir = "test_comb", name = "test_comb", no_internal_clock = true },
+    { dir = "test_comb_await_rw", name = "test_comb_await_rw" },
+    { dir = "test_await_rw_corner", name = "test_await_rw_corner" },
     { dir = "test_rw_flush", name = "test_rw_flush" },
     { dir = "test_comb_1", name = "test_comb_1", no_internal_clock = true, min_verilator_version = 5.036 },
     { dir = "test_bitvec_signal", name = "test_bitvec_signal" },

@@ -105,6 +105,7 @@ typedef void (*VerilatorFunc)(void *);
 extern "C" {
 void verilua_alloc_verilator_func(VerilatorFunc func, const char *name);
 void verilator_next_sim_time_callback(void);
+bool verilator_has_pending_put_values(void);
 void vlog_startup_routines_bootstrap(void);
 }
 
@@ -438,7 +439,10 @@ int Emulator::normal_mode_main() {
             VerilatedVpi::callCbs(cbReadWriteSynch);
             VerilatedVpi::doInertialPuts();
             settle_value_callbacks();
-        } while (VerilatedVpi::evalNeeded());
+            // Keep looping while libverilua still has posted set() values queued
+            // (writes posted by coroutines resumed inside cbReadWriteSynch are
+            // invisible to evalNeeded() until their flush callback commits them).
+        } while (VerilatedVpi::evalNeeded() || verilator_has_pending_put_values());
 
         dut_ptr->eval_end_step();
 
@@ -525,7 +529,9 @@ int Emulator::timing_mode_main() {
             VerilatedVpi::callCbs(cbReadWriteSynch);
             VerilatedVpi::doInertialPuts();
             settle_value_callbacks();
-        } while (VerilatedVpi::evalNeeded());
+            // Keep looping while libverilua still has posted set() values queued
+            // (see normal_mode_main for details).
+        } while (VerilatedVpi::evalNeeded() || verilator_has_pending_put_values());
 
         dut_ptr->eval_end_step();
 

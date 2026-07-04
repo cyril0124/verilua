@@ -38,6 +38,65 @@
 //! └─────────────────────────────────────────────────────────────────────────────┘
 //! ```
 //!
+//! ## Time Slot Regions & Callback Placement (IEEE 1800-2023)
+//!
+//! How one simulation time slot iterates through its event regions, which VPI
+//! callback fires at each point (IEEE 1800-2023 4.4.3 / Table 4-1 / 38.36.2),
+//! and where libverilua hooks in:
+//!
+//! ```text
+//! ── one simulation time slot ─────────────────────────────────────────────
+//!
+//!  Preponed          sample-only PLI point; writing is illegal (4.4.3.1)
+//!     │
+//!  Pre-Active        cbAfterDelay       ◄─ await_time*() timers
+//!     │              cbNextSimTime      ◄─ libverilua_next_sim_time_cb:
+//!     │              cbAtStartOfSimTime    reset rw_phase_passed, arm edge
+//!     │                                    callbacks + the flush RW callback
+//!     ▼
+//!  ┌─ Active         blocking assigns, continuous assigns, $display  ◄───┐
+//!  │  Inactive       #0 delays                                           │
+//!  │  Pre-NBA        cbNBASynch                                          │
+//!  │                 cbReadWriteSynch «pre-NBA placement»  (VCS)         │
+//!  │  NBA            nonblocking assignment updates mature               │
+//!  │  Post-NBA       cbReadWriteSynch «post-NBA placement»               │
+//!  │                 (Verilator via verilator_main.cpp, Icarus)          │
+//!  │                   ├─ libverilua_flush_put_values:                   │
+//!  │                   │    commit the posted set() queue                │
+//!  │                   └─ rw_synch_callback [await_rw()]:                │
+//!  │                        flush-epoch defer / resume                   │
+//!  │                                                                     │
+//!  │  cbValueChange  event-driven (38.36.1), fires whenever a watched    │
+//!  │                 signal updates ◄─ posedge/negedge/edge callbacks    │
+//!  │                                                                     │
+//!  └─ new active-set events pending? (NoDelay puts, comb fanout,      ───┘
+//!     re-registered RW callbacks)                    yes: iterate again
+//!     │ no
+//!     ▼
+//!  (Observed / Reactive regions — program blocks & assertions;
+//!   collapsed here, verilua schedules nothing into them)
+//!     │
+//!  Pre-Postponed     cbAtEndOfSimTime
+//!     │
+//!  Postponed         cbReadOnlySynch    ◄─ await_rd() (rd_synch_callback);
+//!     │                                   writing values or scheduling
+//!     │                                   events is not allowed (38.36.2),
+//!     │                                   HDL writes panic via
+//!     ▼                                   ReadonlyPhaseGuard
+//! ── next time slot ───────────────────────────────────────────────────────
+//! ```
+//!
+//! Placement notes:
+//! - Table 4-1 places `cbReadWriteSynch` in "Pre-NBA or Post-NBA"; 38.36.2:
+//!   "This time may be before or after nonblocking assignment events have
+//!   been processed". The choice belongs to the simulator: measured VCS =
+//!   pre-NBA (same-slot reads of freshly clocked FF outputs return the
+//!   pre-edge value), Verilator (our main loop) and Icarus = post-NBA.
+//! - The iterative regions loop back: anything in the RW window that
+//!   schedules new events (vpi_put_value(NoDelay), re-registered RW
+//!   callbacks) sends the slot through the active set again before it can
+//!   advance — the await_rw() flush-epoch deferral relies on exactly this.
+//!
 //! ## Edge Callback Optimization (chunk_task + merge_cb)
 //!
 //! When both `chunk_task` and `merge_cb` features are enabled, edge callbacks
@@ -177,6 +236,17 @@ pub struct EdgeCbData {
 /// Simpler than EdgeCbData since these callbacks don't need edge detection.
 pub struct NormalCbData {
     pub task_id: TaskID,
+}
+
+/// User data for `await_rw()` (user-facing cbReadWriteSynch) callbacks.
+pub struct RwSynchCbData {
+    /// Lua task to resume once the design has settled
+    pub task_id: TaskID,
+    /// `VeriluaEnv::flush_epoch` snapshot taken at registration time.
+    /// A mismatch when the callback fires means a pending-put flush committed
+    /// values after registration, so combinational fanout may not be settled
+    /// yet and the wakeup must be deferred to a later RW occurrence.
+    pub flush_epoch: u64,
 }
 
 /// Convert edge type to the expected signal value for comparison.
@@ -377,7 +447,19 @@ unsafe extern "C" fn rd_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn vpiml_register_rw_synch_callback(task_id: TaskID) {
-    let user_data = Box::into_raw(Box::new(NormalCbData { task_id }));
+    let flush_epoch = if cfg!(feature = "inertial_put") {
+        0
+    } else {
+        get_verilua_env().flush_epoch
+    };
+    unsafe { do_register_rw_synch_callback(task_id, flush_epoch) };
+}
+
+unsafe fn do_register_rw_synch_callback(task_id: TaskID, flush_epoch: u64) {
+    let user_data = Box::into_raw(Box::new(RwSynchCbData {
+        task_id,
+        flush_epoch,
+    }));
 
     let mut cb_data = s_cb_data {
         reason: cbReadWriteSynch as _,
@@ -399,18 +481,28 @@ pub unsafe extern "C" fn vpiml_register_rw_synch_callback(task_id: TaskID) {
 
 unsafe extern "C" fn rw_synch_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
     let cb_data = unsafe { cb_data.read() };
-    let user_data: Box<NormalCbData> =
-        unsafe { Box::from_raw(cb_data.user_data as *mut NormalCbData) };
+    let user_data: Box<RwSynchCbData> =
+        unsafe { Box::from_raw(cb_data.user_data as *mut RwSynchCbData) };
     let env = get_verilua_env();
 
-    // `await_rw()` and the internal pending-put flush (`libverilua_flush_put_values`)
-    // are two independent `cbReadWriteSynch` callbacks whose relative order is
-    // simulator-defined (IEEE 1800-2023 38.36.2). On simulators where this user
-    // callback fires before the flush (e.g. VCS), the awaiting coroutine would
-    // otherwise observe stale values for signals it just set(). Flush here first
-    // so the contract "set() is visible after await_rw()" holds on every simulator.
     if !cfg!(feature = "inertial_put") {
+        // `await_rw()` and the internal pending-put flush (`libverilua_flush_put_values`)
+        // are two independent `cbReadWriteSynch` callbacks whose relative order is
+        // simulator-defined (IEEE 1800-2023 38.36.2). Flush here first so the
+        // contract "set() is visible after await_rw()" holds on every simulator.
         env.apply_pending_put_values();
+
+        // If any flush committed values after this callback was registered, the
+        // simulator may not have re-evaluated the combinational fanout of those
+        // values yet (e.g. on Verilator both the flush callback and this callback
+        // run in the same callCbs() pass, before the next eval). Defer the wakeup
+        // to a later cbReadWriteSynch occurrence in the same timestep: by then the
+        // update events have been processed and reads observe settled values,
+        // matching cocotb's ReadWrite semantics.
+        if env.flush_epoch != user_data.flush_epoch {
+            unsafe { do_register_rw_synch_callback(user_data.task_id, env.flush_epoch) };
+            return 0;
+        }
     }
 
     unsafe {
@@ -481,6 +573,14 @@ unsafe extern "C" fn next_sim_time_callback(cb_data: *mut t_cb_data) -> PLI_INT3
 // Without re-flush, a set() called from a value-change callback (triggered by
 // the flush itself) would miss the current timestep's ReadWriteSynch window,
 // causing its value change to be delayed to the next timestep.
+//
+// Why wakeup deferral (flush_epoch)? A flush commits values with vpiNoDelay,
+// but the simulator only re-evaluates the combinational fanout of those values
+// after the current RW callback (pass) returns. An await_rw() callback firing
+// in the same RW pass as a flush would therefore read stale comb outputs.
+// `rw_synch_callback` detects this via a flush_epoch mismatch and re-registers
+// itself, resuming the task on a later cbReadWriteSynch occurrence of the same
+// timestep, after the design has settled (cocotb ReadWrite semantics).
 //
 //   cbNextSimTime
 //     │  rw_phase_passed = false
