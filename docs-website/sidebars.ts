@@ -35,6 +35,7 @@ const sidebars: SidebarsConfig = {
         'how-to-guides/multi_clock_testing',
         'how-to-guides/call_c_functions',
         'how-to-guides/common_lua_pitfalls',
+        'how-to-guides/combinational_logic',
       ],
     },
     {

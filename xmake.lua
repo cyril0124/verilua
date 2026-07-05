@@ -851,6 +851,7 @@ target("test", function()
             "async_queue_native",
             "async_queue_lua",
             "fork_basics",
+            "combinational_logic",
         }
         push_job({
             name = "examples-core",
@@ -981,6 +982,8 @@ target("test", function()
             "test-basic-signal",
             "test-scheduler",
             "test-comb",
+            "test-comb-await-rw",
+            "test-await-rw-corner",
             "test-rw-flush",
             "test-rw-reflush-panic",
             "test-readonly-write-error",

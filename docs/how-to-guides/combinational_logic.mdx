@@ -1,0 +1,160 @@
+# 驱动和读取组合逻辑信号
+
+`set()` 是"稍后生效"的写入：调用后**同一个 time step 内直接 `get()`，读到的仍是旧值**——组合逻辑依赖这次写入的部分还没有被仿真器重新求值。本文说明如何正确读到写入生效、组合逻辑收敛之后的值。
+
+## 背景
+
+以下面的 DUT 为例：
+
+```verilog
+module dut(
+    input  wire [7:0]  a,
+    input  wire [7:0]  b,
+    output wire [7:0]  sum  // 组合逻辑：a + b
+);
+    assign sum = a + b;
+endmodule
+```
+
+```lua
+local a   = dut.a:chdl()
+local b   = dut.b:chdl()
+local sum = dut.sum:chdl()
+```
+
+## 问题：`set()` 之后立即读，读到的是旧值
+
+```lua
+fork {
+    function()
+        a:set(10)
+        b:set(20)
+        assert(sum:get() == 0) -- ❌ 还是旧值，a/b 的写入尚未生效，组合逻辑没有重新求值
+    end
+}
+```
+
+## 正确做法：`await_rw()`
+
+`await_rw()` 等待仿真器进入 `ReadWriteSynch` 阶段：此时写入已经提交、其组合逻辑扇出已经传播完成，且时间戳不会前进：
+
+```lua
+fork {
+    function()
+        a:set(10)
+        b:set(20)
+        await_rw()
+        assert(sum:get() == 30) -- ✓ 写入已生效，组合逻辑已收敛，时间戳不变
+    end
+}
+```
+
+被 `await_rw()` 唤醒后可以继续 `set()` + `await_rw()`，多轮读改写都停留在同一个 time step 内：
+
+```lua
+fork {
+    function()
+        a:set(1)
+        await_rw()
+        assert(sum:get() == 1 + b:get())
+
+        a:set(10) -- 同一 time step 内的第二轮写
+        await_rw()
+        assert(sum:get() == 10 + b:get())
+    end
+}
+```
+
+## 其他等待方式
+
+`await_rd()` 进入只读阶段（`ReadOnlySynch`），同样能读到收敛后的值，但该回调内不能再执行任何 HDL 写操作（`set`/`force`/`release`）。如果接下来只是读値、不打算再写，优先用 `await_rd()`，语义上更明确地表达“这里只读不写”：
+
+```lua
+fork {
+    function()
+        a:set(1)
+        b:set(2)
+        await_rd()
+        assert(sum:get() == 3) -- 可读，但此阶段不能再写
+    end
+}
+```
+
+`await_time(1)` 也能读到收敛后的值，但会让时间戳前进一个 time step，语义上不同于 `await_rw()` / `await_rd()`——只有在你本来就需要推进时间时才用它。
+
+## 不要对组合逻辑输出调用 `set`
+
+组合逻辑输出（`assign` 驱动的 wire）由仿真器根据输入持续求值。对其调用 `set` 虽然能写入，但仿真器下一次求值就会把它覆盖回去，行为未定义：
+
+```lua
+-- ❌ 不要这样做
+sum:set(99)
+await_rw()
+-- sum:get() 不保证是 99，仿真器会用 a+b 重新求值覆盖它
+```
+
+需要控制组合逻辑输出的值时，应驱动其上游输入信号。
+
+## 实战：valid/ready 握手协议
+
+在 valid/ready 握手协议中，`ready` 通常是依赖 `valid` 和内部状态（如 counter、FIFO 满等）的组合逻辑，驱动 `valid` 后需要读 `ready` 判断握手是否成功：
+
+```verilog
+module dut(
+    input  wire        clock,
+    input  wire        valid,
+    output wire        ready,    // 组合逻辑：ready = valid && (counter < 4)
+    output reg  [7:0]  counter
+);
+    assign ready = valid && (counter < 4);
+    always @(posedge clock)
+        if (valid && ready) counter <= counter + 1;
+endmodule
+```
+
+```lua
+local clock = dut.clock:chdl()
+local valid = dut.valid:chdl()
+local ready = dut.ready:chdl()
+
+fork {
+    function()
+        for i = 1, num_transfers do
+            valid:set(1)
+            -- 接下来只读 ready、不再写，只需一个 await_rd() 调用点（无需先 await_rw()
+            -- 提交写入：await_rd() 自己就能读到提交后、组合逻辑已收敛的值）
+            while true do
+                await_rd()
+                if ready:get() == 1 then break end
+                clock:posedge() -- ready 未就绪，等待下一拍再检查
+            end
+            clock:posedge() -- 握手成功，完成传输
+        end
+        valid:set(0)
+        clock:posedge()
+    end
+}
+```
+
+### `valid` 拉高后 `ready` 未就绪，需要撤回
+
+如果协议要求：`valid` 拉高的这一拍如果 `ready` 是 0，就必须把 `valid` 拉低（而不是保持高电平等下一拍），撤回动作本身是一次写，必须用 `await_rw()`——`await_rd()` 阶段不允许再写，写了会直接报错：
+
+```lua
+fork {
+    function()
+        valid:set(1)
+        await_rw() -- 等待组合逻辑传播，此时 ready 已收敛
+        if ready:get() == 0 then
+            valid:set(0) -- 撤回：这是写操作，必须用 await_rw()，不能用 await_rd()
+        end
+        clock:posedge()
+    end
+}
+```
+
+:::warning VCS：同拍读取时序逻辑输出会晚一拍
+
+VCS 把同一 time slot 内的所有 `cbReadWriteSynch` 回调放在非阻塞赋值（NBA）更新生效**之前**执行（IEEE 1800-2023 38.36.2 未定义该相对顺序，属合法实现差异）。因此在 VCS 上，`await_rw()` 之后读取**本拍时钟沿刚更新的寄存器输出**（以及依赖它的组合信号，例如上例中的 `ready` 依赖 `counter`）得到的是上一拍的值，比 verilator / iverilog 晚一拍可见；仅依赖 `set` 写入信号的组合逻辑（如 `sum`）不受影响。
+
+:::
