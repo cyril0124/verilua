@@ -27,6 +27,9 @@
 //! │   │      high_steps: u64,                                    │   │
 //! │   │      current_val: u8,                                    │   │
 //! │   │      cb_handle: Option<vpiHandle>,                       │   │
+//! │   │      vpi_value: t_vpi_value,                             │   │
+//! │   │      in_callback: bool,                                  │   │
+//! │   │      destroy_pending: bool,                              │   │
 //! │   │  }                                                       │   │
 //! │   └──────────────────────────────────────────────────────────┘   │
 //! │                          │                                       │

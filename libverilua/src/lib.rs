@@ -37,6 +37,7 @@
 //! - `vpi_access`: Signal value read/write operations
 //! - `vpi_callback`: Event callback registration (edge, time, etc.)
 //! - `complex_handle`: Enhanced VPI handle with caching and metadata
+//! - `native_clock`: High-performance native clock driver (toggles without returning to Lua)
 //! - `utils`: FFI utilities and helper functions
 //! - `verilator_helper`: Verilator-specific workarounds and helpers
 //!
@@ -129,10 +130,17 @@ pub extern "C" fn promote_luajit_symbols() {
 
 /// VPI startup routines registered with the simulator.
 ///
-/// These callbacks are invoked by the simulator during initialization:
-/// 1. `bootstrap_register_next_sim_time_callback`: Sets up time advancement callbacks
-/// 2. `bootstrap_register_start_callback`: Initializes Verilua when simulation starts
-/// 3. `bootstrap_register_final_callback`: Cleanup when simulation ends
+/// These callbacks are invoked by the simulator during initialization, in order:
+/// 1. `promote_luajit_symbols`: Promotes LuaJIT symbols to `RTLD_GLOBAL` scope (no-op unless
+///    `feature = "promote_luajit_global"` is enabled, e.g. for Xcelium)
+/// 2. `bootstrap_register_start_callback`: Registers the `cbStartOfSimulation` callback that
+///    initializes Verilua when simulation starts
+/// 3. `bootstrap_register_final_callback`: Registers the `cbEndOfSimulation` callback for cleanup
+/// 4. `None`: array terminator required by the VPI ABI
+///
+/// Note: `bootstrap_register_next_sim_time_callback` is intentionally *not* registered here —
+/// per IEEE 1800 LRM 36.10.2, `cbNextSimTime` must not be registered from `vlog_startup_routines`.
+/// It is registered later, from within `start_callback` (`cbStartOfSimulation`).
 #[cfg(not(feature = "dpi"))]
 #[unsafe(no_mangle)]
 pub static vlog_startup_routines: [Option<unsafe extern "C" fn()>; 4] = [

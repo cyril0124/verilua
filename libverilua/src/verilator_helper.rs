@@ -62,7 +62,7 @@ pub extern "C" fn verilator_simulation_disableTrace() {
 }
 
 /// This function is called from `verilator_main.cpp` when `verilator_inner_step_callback` is enabled.
-/// It is a performance opimization to save the time of registering the cbNextSimTime callback.
+/// It is a performance optimization to save the time of registering the cbNextSimTime callback.
 #[unsafe(no_mangle)]
 pub extern "C" fn verilator_next_sim_time_callback() {
     if cfg!(feature = "verilator_inner_step_callback") {
