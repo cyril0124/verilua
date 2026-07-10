@@ -47,6 +47,13 @@ source verilua.sh                  # 激活 Verilua 环境
 
 激活后，您将可以在当前 shell 中使用 Verilua 提供的命令（如 `test_verilua`、`xmake` 等）。
 
+> 💡 **提示**：为避免每次打开新终端都需手动执行 `source`，建议将该命令追加到 shell 配置文件中：
+> ```bash
+> echo "source $(pwd)/verilua.sh" >> ~/.bashrc   # 若使用 bash
+> echo "source $(pwd)/verilua.sh" >> ~/.zshrc    # 若使用 zsh
+> ```
+> 追加后重新打开终端或执行 `source ~/.bashrc`（`source ~/.zshrc`）即可生效。
+
 ### 3. 验证安装
 
 执行以下命令测试 Verilua 是否正常工作：
