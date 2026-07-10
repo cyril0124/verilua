@@ -78,6 +78,8 @@ use crate::TaskID;
 use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
 use crate::vpi_access;
 use crate::vpi_callback;
+#[cfg(not(feature = "chunk_task"))]
+use crate::vpi_callback::CallbackInfo;
 use crate::vpi_user::*;
 
 // ────────────────────────────────────────────────────────────────────────────────
