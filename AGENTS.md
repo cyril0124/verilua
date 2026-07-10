@@ -136,6 +136,10 @@ F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-chec
   5. Format checks (`xmake r format-lua` / `xmake r format-cpp`)
   6. Static checks (`xmake r lsp-check-lua` / `cargo clippy`)
 
+## Release Versioning
+
+- Before creating or pushing a release tag, update the root `VERSION` file in the same release commit and verify that it exactly matches the tag, including the leading `v`.
+
 ## Reference Code
 
 - If you are unsure about a Slang API, inspect the Slang source repository first: `https://github.com/MikePopoloski/slang.git`. Many parts of Verilua depend on Slang.
