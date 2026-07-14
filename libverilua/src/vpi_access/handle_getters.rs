@@ -57,12 +57,14 @@ impl VeriluaEnv {
 
             let width = unsafe { vpi_get(vpiSize as _, ret_vpi_handle) };
 
-            let final_name_cstr = std::ffi::CString::new(final_name).unwrap();
+            let final_name_cstr = std::ffi::CString::new(final_name.as_str()).unwrap();
             let mut ret_complex_handle =
                 ComplexHandle::new(ret_vpi_handle, final_name_cstr.into_raw(), width as _);
             ret_complex_handle.env = self.as_void_ptr();
 
-            ret_complex_handle.into_raw()
+            let chdl_ptr = ret_complex_handle.into_raw();
+            self.hdl_cache.insert(final_name, chdl_ptr);
+            chdl_ptr
         }
     }
 }

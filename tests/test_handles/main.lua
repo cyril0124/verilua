@@ -76,6 +76,17 @@ fork {
         assert(arr.is_array == true)
         assert(arr.array_size == 4)
 
+        -- handle_by_index must cache: same parent+index returns same ComplexHandleRaw
+        do
+            local vpiml = require "verilua.vpiml.vpiml"
+            local parent = ("tb_top.u_top.array_signal"):hdl()
+            local h1 = vpiml.vpiml_handle_by_index(parent, 0)
+            local h2 = vpiml.vpiml_handle_by_index(parent, 0)
+            assert(h1 == h2, string.format(
+                "handle_by_index cache miss: h1=%s h2=%s", tostring(h1), tostring(h2)
+            ))
+        end
+
         -- Test at() method for accessing array elements
         local elem0 = arr:at(0)
         assert(elem0.__type == "CallableHDL")
