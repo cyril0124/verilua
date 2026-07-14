@@ -190,6 +190,21 @@ fn try_load_cache(
         return None;
     }
 
+    // Bound entry_count by remaining payload size before reserving memory.
+    // Min on-disk entry: path_len(2)+mod_len(2)+type_len(2)+level(4)+bitwidth(4) = 14.
+    const MIN_ENTRY_BYTES: usize = 14;
+    let remaining = data.len().saturating_sub(pos);
+    let max_entries = remaining / MIN_ENTRY_BYTES;
+    if entry_count > max_entries {
+        log::info!(
+            "[hierarchy_cache] entry_count {} exceeds max {} from remaining {} bytes, ignoring",
+            entry_count,
+            max_entries,
+            remaining
+        );
+        return None;
+    }
+
     // Parse entries from mmap'd bytes
     let mut entries = Vec::with_capacity(entry_count);
     for _ in 0..entry_count {
@@ -714,6 +729,26 @@ mod tests {
         // Should still load even with a current mtime
         let loaded = try_load_cache(path, Some(1710000000), Some("/test/sim.fst")).unwrap();
         assert_eq!(entries.len(), loaded.len());
+
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn test_binary_cache_huge_entry_count_rejected() {
+        // Tiny file claiming millions of entries must not allocate / must return None.
+        let tmp = std::env::temp_dir().join("verilua_test_bin_cache_huge_count");
+        let path = tmp.to_str().unwrap();
+
+        let mut data = Vec::new();
+        data.extend_from_slice(&HIERARCHY_CACHE_MAGIC.to_le_bytes());
+        data.extend_from_slice(&u64::MAX.to_le_bytes()); // mtime = MAX, skip staleness
+        data.extend_from_slice(&16_000_000u32.to_le_bytes()); // huge claimed count
+        data.extend_from_slice(&0u16.to_le_bytes()); // empty source path
+        // no entry payload
+        std::fs::write(path, &data).unwrap();
+
+        let loaded = try_load_cache(path, None, None);
+        assert!(loaded.is_none());
 
         std::fs::remove_file(path).ok();
     }
