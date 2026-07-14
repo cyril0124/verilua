@@ -1067,7 +1067,8 @@ function utils.execute_after(count, func, options)
 
     local _repeat = options and options._repeat or false
 
-    local _times = options and options.times or nil
+    -- Keep times=0 (do not use `or nil`; 0 is a valid "never fire" value).
+    local _times = options and options.times
     local _times_count = 0
 
     if _repeat then
@@ -1078,7 +1079,10 @@ function utils.execute_after(count, func, options)
                 return func()
             end
         end
-    elseif _times then
+    elseif _times ~= nil then
+        if _times <= 0 then
+            return function() end
+        end
         return function()
             if _finish then
                 return

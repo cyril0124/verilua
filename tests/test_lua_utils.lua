@@ -745,4 +745,23 @@ describe("LuaUtils test", function()
             ))
         end
     end)
+
+    it("should honor execute_after times including times=0", function()
+        local function fire_count(opts, calls)
+            local n = 0
+            local f = utils.execute_after(1, function()
+                n = n + 1
+            end, opts)
+            for _ = 1, calls do
+                f()
+            end
+            return n
+        end
+
+        expect.equal(fire_count(nil, 10), 1)
+        expect.equal(fire_count({ times = 1 }, 10), 1)
+        expect.equal(fire_count({ times = 2 }, 10), 2)
+        -- times=0 must not be treated as "unset" (0 is falsy in Lua).
+        expect.equal(fire_count({ times = 0 }, 10), 0)
+    end)
 end)
