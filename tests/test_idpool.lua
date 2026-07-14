@@ -119,6 +119,29 @@ describe("IDPool test", function()
         end
     end)
 
+    it("should not shuffle when shuffle=false", function()
+        -- Unshuffled pool is filled END..START; alloc pops from the end => 0,1,2,...
+        math.randomseed(1)
+        local pool_a = IDPool(10, false)
+        local a = {}
+        for i = 1, 10 do
+            a[i] = pool_a:alloc()
+        end
+
+        math.randomseed(2)
+        local pool_b = IDPool(10, false)
+        local b = {}
+        for i = 1, 10 do
+            b[i] = pool_b:alloc()
+        end
+
+        for i = 1, 10 do
+            expect.equal(a[i], i - 1)
+            expect.equal(b[i], i - 1)
+            expect.equal(a[i], b[i])
+        end
+    end)
+
     it("should return correct length", function()
         local pool = IDPool(100)
         expect.equal(#pool, 100)

@@ -86,7 +86,7 @@ function IDPool:_init(params, shuffle)
     end
 
     self.shuffle = _shuffle
-    if _shuffle ~= nil then
+    if _shuffle then
         utils.shuffle(self.pool)
     end
 end
