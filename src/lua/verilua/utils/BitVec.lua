@@ -777,8 +777,8 @@ function BitVec:__call(s, e)
                 return self:get_bitfield_hex_str(t._s, t._e)
             end,
 
-            dump = function(_t)
-                print(self:dump_str())
+            dump = function(t)
+                print(t:dump_str())
             end
         }, subbitvec_shared_mt)
 

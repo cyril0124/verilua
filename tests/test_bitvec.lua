@@ -319,6 +319,33 @@ describe("BitVec test", function()
         expect.equal(bitvec:dump_str(), "000000ff00ff00ff")
         expect.equal(tostring(bitvec), "000000ff00ff00ff")
 
+        -- SubBitVec dump paths must reflect the sub-field, not the parent.
+        local parent = BitVec(0xDEADBEEF, 32)
+        local sub = parent(0, 7)
+        expect.equal(sub:dump_str(), "000000ef")
+        expect.equal(tostring(sub), "000000ef")
+        expect.equal(parent:dump_str(), "deadbeef")
+
+        -- dump() previously printed parent:dump_str() via the outer self capture.
+        -- BitVec binds `local print = print` at require time; this file also locals print,
+        -- so mock _G.print and re-require to capture dump() output.
+        local printed = {}
+        local real_print = _G.print
+        _G.print = function(s)
+            printed[#printed + 1] = s
+        end
+        package.loaded["verilua.utils.BitVec"] = nil
+        local BitVecReload = require "verilua.utils.BitVec"
+        local parent2 = BitVecReload(0xDEADBEEF, 32)
+        local sub2 = parent2(0, 7)
+        sub2:dump()
+        parent2:dump()
+        _G.print = real_print
+        package.loaded["verilua.utils.BitVec"] = nil
+        require "verilua.utils.BitVec"
+        expect.equal(printed[1], "000000ef")
+        expect.equal(printed[2], "deadbeef")
+
         tmp.value = 0x123
         expect.equal(tostring(tmp), "00000123")
         expect.equal(tostring(bitvec), "0000012300ff00ff")
