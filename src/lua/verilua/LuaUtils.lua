@@ -610,7 +610,7 @@ utils.bitpat_to_hex_str = bitpat_to_hex_str
 ---@param uint_value integer The unsigned integer value to be converted to one-hot encoding
 ---@return integer The one-hot encoded value
 function utils.uint_to_onehot(uint_value)
-    return bit_lshift(1, uint_value) + 0ULL
+    return bit_lshift(1ULL, uint_value)
 end
 
 ---@nodiscard Return value should not be discarded

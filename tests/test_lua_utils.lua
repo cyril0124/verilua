@@ -710,4 +710,17 @@ describe("LuaUtils test", function()
         local expected = path.dirname(path.abspath(arg[0]))
         expect.equal(dir, expected)
     end)
+
+    it("should produce correct 64-bit one-hot values for uint_to_onehot()", function()
+        -- bit.lshift on a plain number is 32-bit signed; one-hot must use uint64 shift.
+        local bit = require "bit"
+        for i = 0, 63 do
+            local got = utils.uint_to_onehot(i)
+            local expected = bit.lshift(1ULL, i)
+            assert(got == expected, f(
+                "uint_to_onehot(%d): got %s, expected %s",
+                i, tostring(got), tostring(expected)
+            ))
+        end
+    end)
 end)
