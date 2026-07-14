@@ -95,11 +95,11 @@ end
 ---@return integer
 function IDPool:alloc()
     local size = self.size
+    assert(size > 0, "[IDPool] pool is empty")
     local id = self.pool[size]
     self.pool[size] = nil
     self.size = size - 1
     self.allocated[id] = true
-    assert(self.size >= 0, "[IDPool] pool is empty")
     return id --[[@as integer]]
 end
 
