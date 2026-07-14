@@ -764,4 +764,22 @@ describe("LuaUtils test", function()
         -- times=0 must not be treated as "unset" (0 is falsy in Lua).
         expect.equal(fire_count({ times = 0 }, 10), 0)
     end)
+
+    it("should report clean enum_search errors without requiring t.name", function()
+        expect.equal(utils.enum_search({ RUN = 1, STOP = 2 }, 1), "RUN")
+
+        local ok1, err1 = pcall(function()
+            utils.enum_search({ name = "State", RUN = 1 }, 99)
+        end)
+        assert(not ok1)
+        assert(tostring(err1):find("Key not found", 1, true))
+
+        local ok2, err2 = pcall(function()
+            utils.enum_search({ RUN = 1, STOP = 2 }, 99)
+        end)
+        assert(not ok2)
+        local msg = tostring(err2)
+        assert(msg:find("Key not found", 1, true), msg)
+        assert(not msg:find("attempt to concatenate field 'name'", 1, true), msg)
+    end)
 end)

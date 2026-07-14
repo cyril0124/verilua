@@ -342,7 +342,7 @@ function utils.enum_search(t, v)
     end
 
     ---@diagnostic disable-next-line: missing-return
-    assert(false, "Key no found: " .. v .. " in " .. t.name)
+    assert(false, "Key not found: " .. tostring(v) .. " in " .. tostring(t.name))
 end
 
 --- Usage Example:
