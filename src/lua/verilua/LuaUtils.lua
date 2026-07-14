@@ -234,7 +234,8 @@ end
 ---@param lo integer The lower 32 bits
 ---@return integer The combined 64-bit value
 function utils.to64bit(hi, lo)
-    return bit_lshift(hi, 32) + lo
+    -- bit.lshift on plain numbers is 32-bit; promote hi/lo to uint64 first.
+    return bit_lshift(hi + 0ULL, 32) + bit_band(lo + 0ULL, 0xFFFFFFFFULL)
 end
 
 --

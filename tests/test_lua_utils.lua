@@ -723,4 +723,26 @@ describe("LuaUtils test", function()
             ))
         end
     end)
+
+    it("should combine hi/lo halves into a 64-bit value for to64bit()", function()
+        -- bit.lshift on plain numbers is 32-bit; hi must be promoted before << 32.
+        local bit = require "bit"
+        local cases = {
+            { 1, 2 },
+            { 0, 0xFFFFFFFF },
+            { 1, 0 },
+            { 0xAABBCCDD, 0x11223344 },
+            { 0x80000000, 0 },
+        }
+        for _, c in ipairs(cases) do
+            local hi, lo = c[1], c[2]
+            local got = utils.to64bit(hi, lo)
+            local expected = bit.lshift(hi + 0ULL, 32) + bit.band(lo + 0ULL, 0xFFFFFFFFULL)
+            assert(type(got) == "cdata", f("to64bit(%s,%s) type=%s", hi, lo, type(got)))
+            assert(got == expected, f(
+                "to64bit(%s, %s): got %s, expected %s",
+                hi, lo, tostring(got), tostring(expected)
+            ))
+        end
+    end)
 end)
