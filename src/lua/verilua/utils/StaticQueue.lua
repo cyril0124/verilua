@@ -46,6 +46,7 @@ local q_idx_for_ehdl = 0
 ---@param name? string
 function StaticQueue:_init(size, name)
     assert(type(size) == "number", "size must be a number")
+    assert(size > 0, "size must be > 0")
 
     if name then
         assert(type(name) == "string", "name must be a string")

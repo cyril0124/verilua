@@ -8,6 +8,11 @@ local AgeStaticQueue = require "verilua.utils.AgeStaticQueue"
 lester.parse_args()
 
 describe("AgeStaticQueue test", function()
+    it("should reject non-positive size", function()
+        expect.fail(function() AgeStaticQueue(0) end)
+        expect.fail(function() AgeStaticQueue(-1) end)
+    end)
+
     it("should work properly for basic operations", function()
         local q = AgeStaticQueue(4)
 

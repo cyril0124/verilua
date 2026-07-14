@@ -51,6 +51,7 @@ local q_idx_for_ehdl = 0
 ---@param name? string
 function AgeStaticQueue:_init(size, max_age, name)
     assert(type(size) == "number", "size must be a number")
+    assert(size > 0, "size must be > 0")
 
     if max_age then
         assert(type(max_age) == "number", "max_age must be a number")

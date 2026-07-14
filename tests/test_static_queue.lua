@@ -18,6 +18,11 @@ describe("StaticQueue test", function()
         expect.falsy(q:is_full())
     end)
 
+    it("should reject non-positive size", function()
+        expect.fail(function() StaticQueue(0) end)
+        expect.fail(function() StaticQueue(-1) end)
+    end)
+
     it("should push and pop elements", function()
         local q = StaticQueue(4)
         expect.equal(q:push(11), 0)
