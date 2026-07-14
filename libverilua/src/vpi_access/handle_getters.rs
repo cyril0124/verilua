@@ -27,7 +27,9 @@ impl VeriluaEnv {
             } else {
                 unsafe { vpi_get(vpiSize as _, vpi_handle) }
             };
-            let mut chdl = ComplexHandle::new(vpi_handle, name, width as _);
+            // Own the name: caller buffers (LuaJIT temp strings / C malloc) may be freed after this call.
+            let owned_name = std::ffi::CString::new(name_str.as_str()).unwrap();
+            let mut chdl = ComplexHandle::new(vpi_handle, owned_name.into_raw(), width as _);
             chdl.env = self.as_void_ptr();
 
             let chdl_ptr = chdl.into_raw();

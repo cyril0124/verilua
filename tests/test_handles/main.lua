@@ -87,6 +87,35 @@ fork {
             ))
         end
 
+        -- complex_handle_by_name must own its name (not alias caller buffer)
+        do
+            local ffi = require "ffi"
+            ffi.cdef [[
+                void *malloc(size_t size);
+                void free(void *ptr);
+                char *strcpy(char *dest, const char *src);
+                long long vpiml_handle_by_name_safe(void *env, const char *name);
+            ]]
+            local env = assert(_G.GLOBAL_VERILUA_ENV)
+            -- Use a path not previously looked up so cache misses.
+            local path = "tb_top.u_top.opt_data"
+            local buf = ffi.C.malloc(#path + 1)
+            assert(buf ~= nil)
+            ffi.C.strcpy(buf, path)
+            local h = ffi.C.vpiml_handle_by_name_safe(env, buf)
+            assert(h ~= -1 and h ~= 0)
+            local base = ffi.cast("char*", ffi.cast("uintptr_t", h))
+            ---@diagnostic disable-next-line: undefined-field
+            local name_ptr = ffi.cast("char**", base + 16)[0]
+            assert(name_ptr ~= ffi.cast("char*", buf),
+                "ComplexHandle.name must be an owned copy, not the caller buffer")
+            assert(ffi.string(name_ptr) == path)
+            ffi.C.free(buf)
+            -- Name must remain valid after caller frees its buffer.
+            assert(ffi.string(name_ptr) == path,
+                "ComplexHandle.name must survive caller buffer free")
+        end
+
         -- Test at() method for accessing array elements
         local elem0 = arr:at(0)
         assert(elem0.__type == "CallableHDL")
