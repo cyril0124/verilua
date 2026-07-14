@@ -1156,9 +1156,12 @@ function utils.exclusive_call(func, lock_file_name)
         assert(false, "[utils.exclusive_call] failed to acquire lock, lock_file_name: " .. lock_file_name)
     end
 
-    func()
-
+    -- Always release, even if func() errors (otherwise the flock is leaked until process exit).
+    local ok, err = pcall(func)
     ffi.C.release_lock(lock)
+    if not ok then
+        error(err, 0)
+    end
 end
 
 --- Generate `luacov.stats.out` file using `luacov`
