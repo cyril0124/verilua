@@ -767,20 +767,20 @@ function utils.urandom64_range(min, max)
     end
 end
 
---- Splits a string into groups of a specified size.
+--- Splits a string into chunks of a specified size.
 ---@nodiscard Return value should not be discarded
 ---@param str string The input string
----@param nr_group integer The number of groups to split the string into
+---@param nr_group integer Characters per group (chunk size)
 ---@return table<integer, string> The grouped string table
----@return integer The size of each group
+---@return integer Number of groups (same as `#result`)
 function utils.str_group_by(str, nr_group)
-    local group_size = math_ceil(#str / nr_group)
-    local result = table_new(group_size, 0)
+    local num_groups = math_ceil(#str / nr_group)
+    local result = table_new(num_groups, 0)
     for i = 1, #str, nr_group do
         local chunk = str:sub(i, i + nr_group - 1)
         table_insert(result, chunk)
     end
-    return result, group_size
+    return result, num_groups
 end
 
 --- Separates a string with a separator at every step characters.
