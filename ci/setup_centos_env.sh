@@ -45,6 +45,7 @@ install_dependencies() {
         autoconf automake libtool m4 \
         flex bison make \
         sqlite sqlite-devel \
+        lz4 lz4-devel \
         which
     
     log_success "Installed devtoolset-11"
