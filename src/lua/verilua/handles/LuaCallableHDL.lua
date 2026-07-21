@@ -107,16 +107,16 @@ local post_init_mt = setmetatable({
 ---@field get fun(self: verilua.handles.CallableHDL, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
 ---@field get64 fun(self: verilua.handles.CallableHDL): uint64_t
 ---@field get_bitvec fun(self: verilua.handles.CallableHDL): verilua.utils.BitVec
----@field set fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
 ---@field set_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
----@field set_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_release fun(self: verilua.handles.CallableHDL)
----@field set_imm fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_imm fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_imm_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_imm_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_imm_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
 ---@field set_imm_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
 ---
@@ -124,17 +124,17 @@ local post_init_mt = setmetatable({
 ---@field get_index fun(self: verilua.handles.CallableHDL, index: integer, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
 ---@field get_index_all fun(self: verilua.handles.CallableHDL, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
 ---@field get_index_bitvec fun(self: verilua.handles.CallableHDL, index: integer): verilua.utils.BitVec
----@field set_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|verilua.handles.MultiBeatData, force_single_beat?: boolean)
+---@field set_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|verilua.handles.MultiBeatData)
 ---@field set_index_bitfield fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, v: integer)
 ---@field set_index_bitfield_hex_str fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
----@field set_index_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>, force_single_beat?: boolean)
----@field set_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>, force_single_beat?: boolean)
----@field set_imm_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_index_unsafe fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field set_index_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
+---@field set_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
+---@field set_imm_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[])
+---@field set_imm_index_unsafe fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[])
 ---@field set_imm_index_bitfield fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, v: integer)
 ---@field set_imm_index_bitfield_hex_str fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
----@field set_imm_index_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>, force_single_beat?: boolean)
----@field set_imm_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>, force_single_beat?: boolean)
+---@field set_imm_index_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
+---@field set_imm_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
 ---
 ---@field get_str fun(self: verilua.handles.CallableHDL, fmt: integer): string
 ---@field get_hex_str fun(self: verilua.handles.CallableHDL): string
@@ -844,7 +844,7 @@ function CallableHDL:__newindex(k, v)
         local v_type = type(v)
 
         if v_type == "number" then
-            self:set_unsafe(v, true)
+            self:set_unsafe(v)
         elseif v_type == "string" then
             self:set_str(v)
         elseif v_type == "table" then
@@ -852,17 +852,17 @@ function CallableHDL:__newindex(k, v)
                 self:set_hex_str(v:to_hex_str())
             else
                 if self.beat_num == 1 then
-                    self:set_unsafe(v[1], true)
+                    self:set_unsafe(v[1])
                 else
                     self:set(v)
                 end
             end
         elseif v_type == "cdata" then
             if ffi.istype("uint64_t", v) then
-                self:set_unsafe(v, true)
+                self:set_unsafe(v)
             elseif ffi.istype("uint32_t[]", v) then
                 if self.beat_num == 1 then
-                    self:set_unsafe(v[1], true)
+                    self:set_unsafe(v[1])
                 else
                     self:set_unsafe(v)
                 end
@@ -871,9 +871,9 @@ function CallableHDL:__newindex(k, v)
             end
         elseif v_type == "boolean" then
             if v then
-                self:set_unsafe(1, true)
+                self:set_unsafe(1)
             else
-                self:set_unsafe(0, true)
+                self:set_unsafe(0)
             end
         else
             assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
@@ -884,7 +884,7 @@ function CallableHDL:__newindex(k, v)
         local v_type = type(v)
 
         if v_type == "number" then
-            self:set_imm_unsafe(v, true)
+            self:set_imm_unsafe(v)
         elseif v_type == "string" then
             self:set_imm_str(v)
         elseif v_type == "table" then
@@ -892,17 +892,17 @@ function CallableHDL:__newindex(k, v)
                 self:set_imm_hex_str(v:to_hex_str())
             else
                 if self.beat_num == 1 then
-                    self:set_imm_unsafe(v[1], true)
+                    self:set_imm_unsafe(v[1])
                 else
                     self:set_imm(v)
                 end
             end
         elseif v_type == "cdata" then
             if ffi.istype("uint64_t", v) then
-                self:set_imm_unsafe(v, true)
+                self:set_imm_unsafe(v)
             elseif ffi.istype("uint32_t[]", v) then
                 if self.beat_num == 1 then
-                    self:set_imm_unsafe(v[1], true)
+                    self:set_imm_unsafe(v[1])
                 else
                     self:set_imm_unsafe(v)
                 end
@@ -911,9 +911,9 @@ function CallableHDL:__newindex(k, v)
             end
         elseif v_type == "boolean" then
             if v then
-                self:set_imm_unsafe(1, true)
+                self:set_imm_unsafe(1)
             else
-                self:set_imm_unsafe(0, true)
+                self:set_imm_unsafe(0)
             end
         else
             assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)

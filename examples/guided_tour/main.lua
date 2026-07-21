@@ -232,15 +232,15 @@ fork {
             reg64_v = reg64:get()
             assert(reg64_v == 0x0000000200000001ULL)
 
-            -- `set` has another overload which accepts a lua number/uint64_t and a `force_single_beat` argument
-            reg64:set(1234, true)
+            -- `set` also accepts a lua number / uint64_t for scalar writes
+            reg64:set(1234)
             clock:posedge()
             reg64:expect(1234)
 
-            local force_single_beat_u64 = ffi.new("uint64_t", 0xFFFF0000FFFF0000ULL)
-            reg64:set(force_single_beat_u64, true)
+            local scalar_u64 = ffi.new("uint64_t", 0xFFFF0000FFFF0000ULL)
+            reg64:set(scalar_u64)
             clock:posedge()
-            reg64:expect(force_single_beat_u64)
+            reg64:expect(scalar_u64)
         end
         -- 3. width > 64
         do
@@ -270,9 +270,9 @@ fork {
             assert(reg128_v[3] == 3)
             assert(reg128_v[4] == 4)
 
-            -- `set` with `force_single_beat` argument accepts a lua number/uint64_t, where the uncovered bits will be set to 0
-            local force_single_beat_u64 = ffi.new("uint64_t", 0xFFFF0000FFFF0000ULL)
-            reg128:set(force_single_beat_u64, true)
+            -- scalar number/uint64_t writes zero-extend into wider multi-beat signals
+            local scalar_u64 = ffi.new("uint64_t", 0xFFFF0000FFFF0000ULL)
+            reg128:set(scalar_u64)
             clock:posedge()
             reg128_v = reg128:get()
             assert(reg128_v[0] == 4)
@@ -307,7 +307,7 @@ fork {
             assert(bv:get_bitfield(8, 15) == 0xff)
 
             local reg128 = dut.u_top.reg128:chdl()
-            reg128:set(0x123, true)
+            reg128:set(0x123)
             clock:posedge()
 
             -- `<chdl>:get_bitvec()` will return a `BitVec` object

@@ -89,9 +89,9 @@ local scheduler = require "verilua.scheduler.LuaScheduler"
 ---@class string.fake_chdl.overload_func_tbl
 ---@field get? fun(self: verilua.handles.CallableHDL, force_multi_beat?: boolean): number|verilua.handles.MultiBeatData
 ---@field get64? fun(self: verilua.handles.CallableHDL): uint64_t
----@field set? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_force? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
----@field set_imm? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>, force_single_beat?: boolean)
+---@field set? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>)
+---@field set_force? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>)
+---@field set_imm? fun(self: verilua.handles.CallableHDL, value: number|uint64_t|table<number>)
 ---@field get_hex_str? fun(self: verilua.handles.CallableHDL): string
 ---@field is? fun(self: verilua.handles.CallableHDL, value: number|ffi.cdata*): boolean
 ---@field is_not? fun(self: verilua.handles.CallableHDL, value: number|ffi.cdata*): boolean
