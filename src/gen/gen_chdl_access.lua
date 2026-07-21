@@ -52,7 +52,7 @@ local chdl_apis = {
     "get", "get64", "set", "set_imm", "set_unsafe", "set_imm_unsafe",
     "set_cached", "set_imm_cached", "set_bitfield", "set_imm_bitfield",
     "set_bitfield_hex_str", "set_imm_bitfield_hex_str",
-    "set_force", "set_imm_force", "set_release", "set_imm_release",
+    "set_force", "set_release",
 }
 
 local chdl_array_apis = {

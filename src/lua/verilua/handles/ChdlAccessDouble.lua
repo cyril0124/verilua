@@ -27,9 +27,7 @@ local chdl = {
     set_bitfield_hex_str = function(this) assert(false, f("<chdl>:set_bitfield_hex_str() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set_imm_bitfield_hex_str = function(this) assert(false, f("<chdl>:set_imm_bitfield_hex_str() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set_force = function(this) assert(false, f("<chdl>:set_force() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_force = function(this) assert(false, f("<chdl>:set_imm_force() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set_release = function(this) assert(false, f("<chdl>:set_release() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_release = function(this) assert(false, f("<chdl>:set_imm_release() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
 }
 
 local chdl_array = {
@@ -160,21 +158,6 @@ end
 chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
     local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
     vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
-end
-
-chdl.set_imm_force = function(this, value)
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.vpiml_force_imm_value64(this.hdl, value)
-    else
-        if t ~= "table" then assert(false, "set_imm_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
-        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
-        vpiml.vpiml_force_imm_value_multi_beat_2(this.hdl, value[1], value[2])
-    end
-end
-
-chdl.set_imm_release = function(this)
-    vpiml.vpiml_release_imm_value(this.hdl)
 end
 
 -- Array methods (also singleton)

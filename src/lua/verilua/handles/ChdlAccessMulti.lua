@@ -27,9 +27,7 @@ local chdl = {
     set_bitfield_hex_str = function(this) assert(false, f("<chdl>:set_bitfield_hex_str() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set_imm_bitfield_hex_str = function(this) assert(false, f("<chdl>:set_imm_bitfield_hex_str() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set_force = function(this) assert(false, f("<chdl>:set_force() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_force = function(this) assert(false, f("<chdl>:set_imm_force() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set_release = function(this) assert(false, f("<chdl>:set_release() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_release = function(this) assert(false, f("<chdl>:set_imm_release() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
 }
 
 local chdl_array = {
@@ -161,36 +159,6 @@ chdl.set_force = function(this, value)
     end
 end
 
-chdl.set_imm_force = function(this, value)
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.vpiml_force_imm_value64_force_single(this.hdl, value)
-    else
-        if t ~= "table" then assert(false, "set() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
-        local beat_num = this.beat_num
-        if #value ~= beat_num then assert(false, "len: " .. #value .. " =/= " .. this.beat_num) end
-
-        if beat_num == 3 then
-            vpiml.vpiml_force_imm_value_multi_beat_3(this.hdl, value[1], value[2], value[3])
-        elseif beat_num == 4 then
-            vpiml.vpiml_force_imm_value_multi_beat_4(this.hdl, value[1], value[2], value[3], value[4])
-        elseif beat_num == 5 then
-            vpiml.vpiml_force_imm_value_multi_beat_5(this.hdl, value[1], value[2], value[3], value[4], value[5])
-        elseif beat_num == 6 then
-            vpiml.vpiml_force_imm_value_multi_beat_6(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6])
-        elseif beat_num == 7 then
-            vpiml.vpiml_force_imm_value_multi_beat_7(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7])
-        elseif beat_num == 8 then
-            vpiml.vpiml_force_imm_value_multi_beat_8(this.hdl, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
-        else
-            for i = 1, this.beat_num do
-                this.c_results[i - 1] = value[i]
-            end
-            vpiml.vpiml_force_imm_value_multi(this.hdl, this.c_results)
-        end
-    end
-end
-
 chdl.set_unsafe = function(this, value)
     local t = type(value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
@@ -279,10 +247,6 @@ end
 
 chdl.set_release = function(this)
     vpiml.vpiml_release_value(this.hdl)
-end
-
-chdl.set_imm_release = function(this)
-    vpiml.vpiml_release_imm_value(this.hdl)
 end
 
 -- Array methods (also singleton)

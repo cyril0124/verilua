@@ -69,14 +69,6 @@ chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
     vpiml.vpiml_set_imm_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
 end
 
-chdl.set_imm_force = function(this, value)
-    vpiml.vpiml_force_imm_value(this.hdl, value)
-end
-
-chdl.set_imm_release = function(this)
-    vpiml.vpiml_release_imm_value(this.hdl)
-end
-
 -- Array methods (also singleton)
 chdl_array.at = function(this, idx)
     this.hdl = this.array_hdls[idx + 1]

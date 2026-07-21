@@ -455,13 +455,6 @@ local function create_proxy(path, use_prefix)
             end
             vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
         end,
-        set_imm_force = function(_t, v)
-            assert(v ~= nil)
-            if set_force_enable then
-                table_insert(force_path_table, local_path)
-            end
-            vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
-        end,
         set_release = function(_t)
             vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(local_path))
         end,

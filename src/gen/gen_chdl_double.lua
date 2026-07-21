@@ -116,21 +116,6 @@ chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
     vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
 end
 
-chdl.set_imm_force = function(this, value)
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.vpiml_force_imm_value64(this.hdl, value)
-    else
-        if t ~= "table" then assert(false, "set_imm_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
-        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
-        vpiml.vpiml_force_imm_value_multi_beat_2(this.hdl, value[1], value[2])
-    end
-end
-
-chdl.set_imm_release = function(this)
-    vpiml.vpiml_release_imm_value(this.hdl)
-end
-
 -- Array methods (also singleton)
 chdl_array.at = function(this, idx)
     this.hdl = this.array_hdls[idx + 1]

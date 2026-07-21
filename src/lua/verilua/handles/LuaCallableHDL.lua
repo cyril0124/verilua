@@ -119,8 +119,6 @@ local post_init_mt = setmetatable({
 ---@field set_imm_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
 ---@field set_imm_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
 ---@field set_imm_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
----@field set_imm_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
----@field set_imm_release fun(self: verilua.handles.CallableHDL)
 ---
 ---@field at fun(self: verilua.handles.CallableHDL, index: integer): verilua.handles.CallableHDL
 ---@field get_index fun(self: verilua.handles.CallableHDL, index: integer, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
@@ -151,7 +149,6 @@ local post_init_mt = setmetatable({
 ---@field set_imm_hex_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_imm_bin_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_imm_dec_str fun(self: verilua.handles.CallableHDL, str: string)
----@field set_imm_freeze fun(self: verilua.handles.CallableHDL)
 ---
 ---@field set_shuffled fun(self: verilua.handles.CallableHDL) Randomly set the value according to the shuffled range(if shuffled range is set) or bitwidth
 ---@field set_imm_shuffled fun(self: verilua.handles.CallableHDL)
@@ -342,10 +339,6 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.set_imm_shuffled = function(this)
         vpiml.vpiml_set_imm_shuffled(this.hdl)
-    end
-
-    self.set_imm_freeze = function(this)
-        vpiml.vpiml_set_imm_freeze(this.hdl)
     end
 
     self.shuffled_range_u32 = function(this, u32_vec)

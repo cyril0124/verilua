@@ -84,12 +84,11 @@ chdl.get_bitvec = function(this)
 end
 ]])
 
-    -- Generate set/set_imm/set_force/set_imm_force with type-based auto-dispatch
+    -- Generate set/set_imm/set_force with type-based auto-dispatch
     local set_variants = {
-        { name = "set",           vpi = "vpiml_set_value",       vpi64 = "vpiml_set_value64_force_single" },
-        { name = "set_imm",      vpi = "vpiml_set_imm_value",   vpi64 = "vpiml_set_imm_value64_force_single" },
-        { name = "set_force",    vpi = "vpiml_force_value",      vpi64 = "vpiml_force_value64_force_single" },
-        { name = "set_imm_force", vpi = "vpiml_force_imm_value", vpi64 = "vpiml_force_imm_value64_force_single" },
+        { name = "set",        vpi = "vpiml_set_value",     vpi64 = "vpiml_set_value64_force_single" },
+        { name = "set_imm",    vpi = "vpiml_set_imm_value", vpi64 = "vpiml_set_imm_value64_force_single" },
+        { name = "set_force",  vpi = "vpiml_force_value",   vpi64 = "vpiml_force_value64_force_single" },
     }
 
     for _, sv in ipairs(set_variants) do
@@ -160,10 +159,6 @@ end
 
 chdl.set_release = function(this)
     vpiml.vpiml_release_value(this.hdl)
-end
-
-chdl.set_imm_release = function(this)
-    vpiml.vpiml_release_imm_value(this.hdl)
 end
 
 -- Array methods (also singleton)

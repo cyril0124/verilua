@@ -104,7 +104,6 @@ ffi.cdef [[
     void vpiml_set_freeze(long long handle);
 
     void vpiml_set_imm_shuffled(long long handle);
-    void vpiml_set_imm_freeze(long long handle);
 
     void vpiml_shuffled_range_u32(long long handle, uint32_t *u32_vec, uint32_t u32_vec_len);
     void vpiml_shuffled_range_u64(long long handle, uint64_t *u64_vec, uint64_t u64_vec_len);
@@ -321,8 +320,6 @@ local vpiml = {
 
     ---@type fun(handle: verilua.handles.ComplexHandleRaw)
     vpiml_set_imm_shuffled = C.vpiml_set_imm_shuffled,
-    ---@type fun(handle: verilua.handles.ComplexHandleRaw)
-    vpiml_set_imm_freeze = C.vpiml_set_imm_freeze,
 
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, u32_vec: table<integer, ffi.cdata*>, u32_vec_len: integer)
     vpiml_shuffled_range_u32 = C.vpiml_shuffled_range_u32,

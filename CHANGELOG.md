@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 💥 Breaking Changes
+
+- **ChdlAccess / ProxyTableHandle**: Remove `set_imm_force`, `set_imm_release`, and `set_imm_freeze`. Use deferred `set_force` / `set_release` / `set_freeze` instead. On iverilog/xcelium, `set_release` already maps to immediate release internally.
+
 ### 🚀 Performance
 
 - **libverilua**: Reclaim chunk edge-callback user data on fire. The `chunk_task` callback handlers boxed their `EdgeCbDataChunk_N` at registration but never freed it on removal, leaking one allocation per fired chunk every cycle. The handlers now drop the box after `vpi_remove_cb`, mirroring the non-chunk path.

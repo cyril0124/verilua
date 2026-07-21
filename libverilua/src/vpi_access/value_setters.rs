@@ -788,11 +788,6 @@ impl VeriluaEnv {
         let value_str = self.vpiml_get_value_hex_str(complex_handle_raw);
         self.vpiml_force_value_hex_str(complex_handle_raw, value_str as _);
     }
-
-    pub fn vpiml_set_imm_freeze(&mut self, complex_handle_raw: ComplexHandleRaw) {
-        let value_str = self.vpiml_get_value_hex_str(complex_handle_raw);
-        self.vpiml_force_imm_value_hex_str(complex_handle_raw, value_str as _);
-    }
 }
 
 // ------------------------------------------------------------------
@@ -1046,11 +1041,4 @@ pub unsafe extern "C" fn vpiml_set_freeze(complex_handle_raw: ComplexHandleRaw) 
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
     env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_set_freeze(complex_handle_raw);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_set_imm_freeze(complex_handle_raw: ComplexHandleRaw) {
-    let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
-    env.assert_not_rd_phase_active(complex_handle_raw);
-    env.vpiml_set_imm_freeze(complex_handle_raw);
 }
