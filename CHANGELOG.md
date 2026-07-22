@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+---
+
+## v3.5.0 - 2026-07-22
+
 ### 💥 Breaking Changes
 
 - **ChdlAccess / ProxyTableHandle**: Remove `set_imm_force`, `set_imm_release`, and `set_imm_freeze`. Use deferred `set_force` / `set_release` / `set_freeze` instead. On iverilog/xcelium, `set_release` already maps to immediate release internally.
