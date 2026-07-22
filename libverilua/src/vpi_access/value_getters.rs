@@ -75,20 +75,18 @@ impl VeriluaEnv {
 
         unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-        if cfg!(not(feature = "iverilog")) {
-            let lo: u32 = unsafe { v.value.vector.read().aval } as _;
-            let hi: u32 = unsafe { v.value.vector.add(1).read().aval } as _;
-            ((hi as u64) << 32) | lo as u64
-        } else if self.resolve_x_as_zero
-            && (unsafe { v.value.vector.read().bval } != 0
-                || unsafe { v.value.vector.add(1).read().bval } != 0)
-        {
-            0
+        let lo = unsafe { v.value.vector.read() };
+        let hi = if complex_handle.beat_num > 1 {
+            unsafe { v.value.vector.add(1).read() }
         } else {
-            let lo: u32 = unsafe { v.value.vector.read().aval } as _;
-            let hi: u32 = unsafe { v.value.vector.add(1).read().aval } as _;
-            ((hi as u64) << 32) | lo as u64
+            t_vpi_vecval { aval: 0, bval: 0 }
+        };
+
+        if cfg!(feature = "iverilog") && self.resolve_x_as_zero && (lo.bval != 0 || hi.bval != 0) {
+            return 0;
         }
+
+        ((hi.aval as u32 as u64) << 32) | lo.aval as u32 as u64
     }
 
     pub fn vpiml_get_value_multi(
