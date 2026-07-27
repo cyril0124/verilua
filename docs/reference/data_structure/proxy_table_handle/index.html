@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">全局信号代理（ProxyTableHandle / dut） | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="全局信号代理（ProxyTableHandle / dut） | Verilua"><meta data-rh="true" name="description" content="ProxyTableHandle 不需要用户创建，全局有且只有一个 ProxyTableHandle 对象，也就是 dut 这个全局变量。"><meta data-rh="true" property="og:description" content="ProxyTableHandle 不需要用户创建，全局有且只有一个 ProxyTableHandle 对象，也就是 dut 这个全局变量。"><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"全局信号代理（ProxyTableHandle / dut）","item":"https://cyril0124.github.io/verilua/docs/reference/data_structure/proxy_table_handle"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.bc66b8d3.css">
-<script src="/verilua/assets/js/runtime~main.d6eddfbe.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.1f3eddab.js" defer="defer"></script>
 <script src="/verilua/assets/js/main.a3b83ddb.js" defer="defer"></script>
 </head>
 <body>
@@ -38,19 +38,19 @@
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_force(&lt;value&gt;)</code></p>
-<p>强制赋值，等同 SystemVerilog <code>force</code>，需配合 <code>set_release</code> 使用。<code>&lt;value&gt;</code> 只能是 Lua number。</p>
+<p>立即强制赋值，等同 SystemVerilog <code>force</code>，调用返回后即可读取强制值；需配合 <code>set_release</code> 使用。<code>&lt;value&gt;</code> 只能是 Lua number。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_release()</code></p>
-<p>释放 <code>set_force</code> 的强制赋值（等同 SystemVerilog <code>release</code>）。未调用时信号值将保持不变。</p>
+<p>立即释放 <code>set_force</code> / <code>set_freeze</code> 建立的强制状态（等同 SystemVerilog <code>release</code>）。释放不会丢弃同一信号尚未提交的普通 <code>set()</code>。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:force_all()</code></p>
-<p>使用了 <code>&lt;dut&gt;:force_all()</code> 之后，接下来 <code>dut</code> 的所有赋值操作都会转化为 <code>force</code> 类型的赋值。</p>
+<p>使用了 <code>&lt;dut&gt;:force_all()</code> 之后，接下来 <code>dut</code> 的所有赋值操作都会转化为立即生效的 <code>force</code> 类型赋值。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:release_all()</code></p>
-<p>解除 <code>&lt;dut&gt;:force_all()</code> 的作用。</p>
+<p>立即释放由 <code>&lt;dut&gt;:force_all()</code> 建立的所有强制状态，并解除 force 模式。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:force_region(func)</code></p>
@@ -81,7 +81,7 @@
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_force_str(str)</code></p>
-<p><code>force</code> 版本的 <code>&lt;dut&gt;:set_str(str)</code>。</p>
+<p><code>force</code> 版本的 <code>&lt;dut&gt;:set_str(str)</code>，立即生效。</p>
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:posedge(times, func)</code></p>
@@ -170,7 +170,7 @@
 </li>
 <li class="">
 <p><code>&lt;dut&gt;:set_freeze()</code></p>
-<p>冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 <code>&lt;dut&gt;:set_release()</code> 来取消冻结。</p>
+<p>立即读取并强制保持当前信号值。需要调用 <code>&lt;dut&gt;:set_release()</code> 来取消冻结。</p>
 </li>
 </ol>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="proxytablehandle-的使用">ProxyTableHandle 的使用<a href="#proxytablehandle-的使用" class="hash-link" aria-label="Direct link to ProxyTableHandle 的使用" title="Direct link to ProxyTableHandle 的使用" translate="no">​</a></h2>
