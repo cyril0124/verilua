@@ -4,6 +4,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 💥 Breaking Changes
+
+- **ChdlAccess / ProxyTableHandle**: `set_force`, `set_release`, and `set_freeze` now take effect immediately instead of waiting for the pending-write `cbReadWriteSynch` flush. Ordinary `set()` writes remain deferred. An immediate release does not discard an earlier pending `set()` on the same handle.
+- **libverilua**: Remove the duplicate `vpiml_force_imm_*` and `vpiml_release_imm_value` C ABI. The retained `vpiml_force_*` and `vpiml_release_value` entry points now provide the immediate behavior.
+
 ---
 
 ## v3.5.0 - 2026-07-22

@@ -39,9 +39,11 @@ module top (
     logic [7:0]  signal_ending_suffix;
     logic [7:0]  another_ending_suffix;
 
-    logic [31:0] wide_signal_32;
-    logic [63:0] wide_signal_64;
-    logic [7:0]  narrow_signal_8;
+    logic [31:0]  wide_signal_32;
+    logic [63:0]  wide_signal_64;
+    logic [127:0] force_wide_128;
+    logic [287:0] force_wide_288;
+    logic [7:0]   narrow_signal_8;
 
     // Array signals for testing array operations
     logic [7:0]  array_signal [0:3];
@@ -93,6 +95,8 @@ module top (
 
         wide_signal_32 = 32'hDEADBEEF;
         wide_signal_64 = 64'hCAFEBABEDEADBEEF;
+        force_wide_128 = 128'hFEDCBA98765432100123456789ABCDEF;
+        force_wide_288 = 288'h0;
         narrow_signal_8 = 8'h42;
 
         array_signal[0] = 8'h10;

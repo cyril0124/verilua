@@ -48,19 +48,19 @@ assert(b.__type == "ProxyTableHandle")
 
 5. `<dut>:set_force(<value>)`
 
-   强制赋值，等同 SystemVerilog `force`，需配合 `set_release` 使用。`<value>` 只能是 Lua number。
+   立即强制赋值，等同 SystemVerilog `force`，调用返回后即可读取强制值；需配合 `set_release` 使用。`<value>` 只能是 Lua number。
 
 6. `<dut>:set_release()`
 
-   释放 `set_force` 的强制赋值（等同 SystemVerilog `release`）。未调用时信号值将保持不变。
+   立即释放 `set_force` / `set_freeze` 建立的强制状态（等同 SystemVerilog `release`）。释放不会丢弃同一信号尚未提交的普通 `set()`。
 
 7. `<dut>:force_all()`
 
-   使用了 `<dut>:force_all()` 之后，接下来 `dut` 的所有赋值操作都会转化为 `force` 类型的赋值。
+   使用了 `<dut>:force_all()` 之后，接下来 `dut` 的所有赋值操作都会转化为立即生效的 `force` 类型赋值。
 
 8. `<dut>:release_all()`
 
-   解除 `<dut>:force_all()` 的作用。
+   立即释放由 `<dut>:force_all()` 建立的所有强制状态，并解除 force 模式。
 
 9. `<dut>:force_region(func)`
 
@@ -101,7 +101,7 @@ assert(b.__type == "ProxyTableHandle")
 
 15. `<dut>:set_force_str(str)`
 
-    `force` 版本的 `<dut>:set_str(str)`。
+    `force` 版本的 `<dut>:set_str(str)`，立即生效。
 
 16. `<dut>:posedge(times, func)`
 
@@ -270,7 +270,7 @@ assert(b.__type == "ProxyTableHandle")
 
 28. `<dut>:set_freeze()`
 
-    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<dut>:set_release()` 来取消冻结。
+    立即读取并强制保持当前信号值。需要调用 `<dut>:set_release()` 来取消冻结。
 
 ## ProxyTableHandle 的使用
 

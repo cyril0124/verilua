@@ -14,9 +14,9 @@ impl VeriluaEnv {
 }
 
 // ------------------------------------------------------------------
-// IMPL set/force value
+// IMPL set value
 // ------------------------------------------------------------------
-macro_rules! impl_gen_set_force_value {
+macro_rules! impl_gen_set_value {
     ($action:ident, $flag:ty) => {
         // Generate:
         //      vpiml_<set/force>_value
@@ -25,11 +25,6 @@ macro_rules! impl_gen_set_force_value {
         paste::paste!{
             impl VeriluaEnv {
                 pub fn [<vpiml_ $action _value>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u32) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        // TODO: https://github.com/verilator/verilator/issues/5933
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
-
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
                     if cfg!(feature = "inertial_put") {
@@ -64,34 +59,20 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub fn [<vpiml_ $action _imm_value>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u32) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
-
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-
-                    let mut v = if $flag == vpiForceFlag {
-                        s_vpi_value {
-                            format: vpiIntVal as _,
-                            value: t_vpi_value__bindgen_ty_1 {
-                                integer: value as _,
-                            },
-                        }
-                    } else {
-                        let vectors = &mut complex_handle.put_value_vectors;
-                        vectors[0].aval = value as _;
-                        vectors[0].bval = 0;
-                        // Zero out upper words to avoid driving garbage on wide signals
-                        for i in 1..complex_handle.beat_num as usize {
-                            vectors[i].aval = 0;
-                            vectors[i].bval = 0;
-                        }
-                        s_vpi_value {
-                            format: vpiVectorVal as _,
-                            value: t_vpi_value__bindgen_ty_1 {
-                                vector: vectors.as_mut_ptr(),
-                            },
-                        }
+                    let vectors = &mut complex_handle.put_value_vectors;
+                    vectors[0].aval = value as _;
+                    vectors[0].bval = 0;
+                    // Zero out upper words to avoid driving garbage on wide signals
+                    for i in 1..complex_handle.beat_num as usize {
+                        vectors[i].aval = 0;
+                        vectors[i].bval = 0;
+                    }
+                    let mut v = s_vpi_value {
+                        format: vpiVectorVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            vector: vectors.as_mut_ptr(),
+                        },
                     };
 
                     unsafe {
@@ -342,8 +323,138 @@ macro_rules! impl_gen_set_force_value {
         }
     }
 }
-impl_gen_set_force_value!(set, vpiNoDelay);
-impl_gen_set_force_value!(force, vpiForceFlag);
+impl_gen_set_value!(set, vpiNoDelay);
+
+// ------------------------------------------------------------------
+// IMPL force value (immediate only)
+// ------------------------------------------------------------------
+macro_rules! impl_gen_force_value {
+    () => {
+        paste::paste! {
+            impl VeriluaEnv {
+                pub fn vpiml_force_value(&mut self, complex_handle_raw: ComplexHandleRaw, value: u32) {
+                    // TODO: https://github.com/verilator/verilator/issues/5933
+                    if cfg!(feature = "verilator") {
+                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
+                    }
+
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    let mut v = s_vpi_value {
+                        format: vpiIntVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            integer: value as _,
+                        },
+                    };
+
+                    unsafe {
+                        vpi_put_value(
+                            complex_handle.vpi_handle,
+                            &mut v as *mut _,
+                            std::ptr::null_mut(),
+                            vpiForceFlag as _,
+                        )
+                    };
+                }
+
+                pub fn vpiml_force_value64(&mut self, complex_handle_raw: ComplexHandleRaw, value: u64) {
+                    if cfg!(feature = "verilator") {
+                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
+                    }
+
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    let mut vectors = complex_handle.put_value_vectors.clone();
+                    // Zero out upper words to avoid driving stale data on wide signals
+                    for i in 2..complex_handle.beat_num as usize {
+                        vectors[i].aval = 0;
+                        vectors[i].bval = 0;
+                    }
+                    vectors[1].aval = (value >> 32) as _;
+                    vectors[1].bval = 0;
+                    vectors[0].aval = (value & 0xFFFFFFFF) as _;
+                    vectors[0].bval = 0;
+
+                    let mut v = s_vpi_value {
+                        format: vpiVectorVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            vector: vectors.as_mut_ptr(),
+                        },
+                    };
+
+                    unsafe {
+                        vpi_put_value(
+                            complex_handle.vpi_handle,
+                            &mut v as *mut _,
+                            std::ptr::null_mut(),
+                            vpiForceFlag as _,
+                        )
+                    };
+                }
+
+                pub fn vpiml_force_value64_force_single(&mut self, complex_handle_raw: ComplexHandleRaw, value: u64) {
+                    if cfg!(feature = "verilator") {
+                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
+                    }
+
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    let mut vectors = complex_handle.put_value_vectors.clone();
+                    for vector in vectors.iter_mut().take(complex_handle.beat_num as usize) {
+                        vector.aval = 0;
+                        vector.bval = 0;
+                    }
+
+                    vectors[1].aval = (value >> 32) as _;
+                    vectors[0].aval = ((value << 32) >> 32) as _;
+
+                    let mut v = s_vpi_value {
+                        format: vpiVectorVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            vector: vectors.as_mut_ptr(),
+                        },
+                    };
+
+                    unsafe {
+                        vpi_put_value(
+                            complex_handle.vpi_handle,
+                            &mut v as *mut _,
+                            std::ptr::null_mut(),
+                            vpiForceFlag as _,
+                        )
+                    };
+                }
+
+                pub unsafe extern "C" fn vpiml_force_value_multi(&mut self, complex_handle_raw: ComplexHandleRaw, value: *const u32) {
+                    if cfg!(feature = "verilator") {
+                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
+                    }
+
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    let mut vectors = complex_handle.put_value_vectors.clone();
+                    for (i, vector) in vectors.iter_mut().enumerate().take(complex_handle.beat_num as usize) {
+                        vector.aval = unsafe { *value.add(i) } as _;
+                        vector.bval = 0;
+                    }
+
+                    let mut v = s_vpi_value {
+                        format: vpiVectorVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            vector: vectors.as_mut_ptr(),
+                        },
+                    };
+
+                    unsafe {
+                        vpi_put_value(
+                            complex_handle.vpi_handle,
+                            &mut v as *mut _,
+                            std::ptr::null_mut(),
+                            vpiForceFlag as _,
+                        )
+                    };
+                }
+            }
+        }
+    };
+}
+impl_gen_force_value!();
 
 // ------------------------------------------------------------------
 // IMPL set/force value str
@@ -427,14 +538,46 @@ macro_rules! impl_gen_set_value_str {
 impl_gen_set_value_str!(set, hex, vpiNoDelay, vpiHexStrVal);
 impl_gen_set_value_str!(set, bin, vpiNoDelay, vpiBinStrVal);
 impl_gen_set_value_str!(set, dec, vpiNoDelay, vpiDecStrVal);
-impl_gen_set_value_str!(force, hex, vpiForceFlag, vpiHexStrVal);
-impl_gen_set_value_str!(force, bin, vpiForceFlag, vpiBinStrVal);
-impl_gen_set_value_str!(force, dec, vpiForceFlag, vpiDecStrVal);
 
 // ------------------------------------------------------------------
-// IMPL set/force value multi beat
+// IMPL force value str (immediate only)
 // ------------------------------------------------------------------
-macro_rules! impl_gen_set_force_value_multi_beat {
+macro_rules! impl_gen_force_value_str {
+    ($str_type:ident, $format:ident) => {
+        paste::paste! {
+            impl VeriluaEnv {
+                pub fn [<vpiml_force_value_ $str_type _str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
+                    if cfg!(feature = "verilator") {
+                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
+                    }
+
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    let mut v = s_vpi_value {
+                        format: $format as _,
+                        value: t_vpi_value__bindgen_ty_1 { str_: value_str },
+                    };
+
+                    unsafe {
+                        vpi_put_value(
+                            complex_handle.vpi_handle,
+                            &mut v,
+                            std::ptr::null_mut(),
+                            vpiForceFlag as _,
+                        )
+                    };
+                }
+            }
+        }
+    };
+}
+impl_gen_force_value_str!(hex, vpiHexStrVal);
+impl_gen_force_value_str!(bin, vpiBinStrVal);
+impl_gen_force_value_str!(dec, vpiDecStrVal);
+
+// ------------------------------------------------------------------
+// IMPL set value multi beat
+// ------------------------------------------------------------------
+macro_rules! impl_gen_set_value_multi_beat {
     ($action:ident, $count:literal, $flag:ident, $($i:literal),*) => {
         paste::paste! {
             impl VeriluaEnv {
@@ -512,20 +655,61 @@ macro_rules! impl_gen_set_force_value_multi_beat {
         }
     };
 }
-impl_gen_set_force_value_multi_beat!(set, 2, vpiNoDelay, 0, 1);
-impl_gen_set_force_value_multi_beat!(set, 3, vpiNoDelay, 0, 1, 2);
-impl_gen_set_force_value_multi_beat!(set, 4, vpiNoDelay, 0, 1, 2, 3);
-impl_gen_set_force_value_multi_beat!(set, 5, vpiNoDelay, 0, 1, 2, 3, 4);
-impl_gen_set_force_value_multi_beat!(set, 6, vpiNoDelay, 0, 1, 2, 3, 4, 5);
-impl_gen_set_force_value_multi_beat!(set, 7, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6);
-impl_gen_set_force_value_multi_beat!(set, 8, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6, 7);
-impl_gen_set_force_value_multi_beat!(force, 2, vpiForceFlag, 0, 1);
-impl_gen_set_force_value_multi_beat!(force, 3, vpiForceFlag, 0, 1, 2);
-impl_gen_set_force_value_multi_beat!(force, 4, vpiForceFlag, 0, 1, 2, 3);
-impl_gen_set_force_value_multi_beat!(force, 5, vpiForceFlag, 0, 1, 2, 3, 4);
-impl_gen_set_force_value_multi_beat!(force, 6, vpiForceFlag, 0, 1, 2, 3, 4, 5);
-impl_gen_set_force_value_multi_beat!(force, 7, vpiForceFlag, 0, 1, 2, 3, 4, 5, 6);
-impl_gen_set_force_value_multi_beat!(force, 8, vpiForceFlag, 0, 1, 2, 3, 4, 5, 6, 7);
+impl_gen_set_value_multi_beat!(set, 2, vpiNoDelay, 0, 1);
+impl_gen_set_value_multi_beat!(set, 3, vpiNoDelay, 0, 1, 2);
+impl_gen_set_value_multi_beat!(set, 4, vpiNoDelay, 0, 1, 2, 3);
+impl_gen_set_value_multi_beat!(set, 5, vpiNoDelay, 0, 1, 2, 3, 4);
+impl_gen_set_value_multi_beat!(set, 6, vpiNoDelay, 0, 1, 2, 3, 4, 5);
+impl_gen_set_value_multi_beat!(set, 7, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6);
+impl_gen_set_value_multi_beat!(set, 8, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6, 7);
+
+// ------------------------------------------------------------------
+// IMPL force value multi beat (immediate only)
+// ------------------------------------------------------------------
+macro_rules! impl_gen_force_value_multi_beat {
+    ($count:literal, $($i:literal),*) => {
+        paste::paste! {
+            impl VeriluaEnv {
+                #[allow(clippy::too_many_arguments)]
+                pub fn [<vpiml_force_value_multi_beat_ $count>](&mut self, complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
+                    if cfg!(feature = "verilator") {
+                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
+                    }
+
+                    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+                    paste::paste! {
+                        let mut vector = [
+                            $( t_vpi_vecval { aval: [<v $i>] as _, bval: 0 } ),*
+                        ];
+                    }
+
+                    let mut v = s_vpi_value {
+                        format: vpiVectorVal as _,
+                        value: t_vpi_value__bindgen_ty_1 {
+                            vector: &mut vector as *mut _
+                        }
+                    };
+
+                    unsafe {
+                        vpi_put_value(
+                            complex_handle.vpi_handle,
+                            &mut v as *mut _,
+                            std::ptr::null_mut(),
+                            vpiForceFlag as _
+                        )
+                    };
+                }
+            }
+        }
+    };
+}
+impl_gen_force_value_multi_beat!(2, 0, 1);
+impl_gen_force_value_multi_beat!(3, 0, 1, 2);
+impl_gen_force_value_multi_beat!(4, 0, 1, 2, 3);
+impl_gen_force_value_multi_beat!(5, 0, 1, 2, 3, 4);
+impl_gen_force_value_multi_beat!(6, 0, 1, 2, 3, 4, 5);
+impl_gen_force_value_multi_beat!(7, 0, 1, 2, 3, 4, 5, 6);
+impl_gen_force_value_multi_beat!(8, 0, 1, 2, 3, 4, 5, 6, 7);
 
 // ------------------------------------------------------------------
 // IMPL set/force value str
@@ -623,7 +807,46 @@ macro_rules! impl_gen_set_force_value_str {
     };
 }
 impl_gen_set_force_value_str!(set, vpiNoDelay);
-impl_gen_set_force_value_str!(force, vpiForceFlag);
+
+impl VeriluaEnv {
+    pub fn vpiml_force_value_str(
+        &mut self,
+        complex_handle_raw: ComplexHandleRaw,
+        value_str: *mut c_char,
+    ) {
+        if cfg!(feature = "verilator") {
+            panic!(
+                "force value is not supported in `verilator`! {:?}",
+                ComplexHandle::from_raw(&complex_handle_raw)
+            );
+        }
+
+        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+        let str_bytes = unsafe { CStr::from_ptr(value_str) }.to_bytes();
+        let (final_value_str, format) = if str_bytes.starts_with(b"0b") {
+            (unsafe { value_str.add(2) }, vpiBinStrVal)
+        } else if str_bytes.starts_with(b"0x") {
+            (unsafe { value_str.add(2) }, vpiHexStrVal)
+        } else {
+            (value_str, vpiDecStrVal)
+        };
+        let mut v = s_vpi_value {
+            format: format as _,
+            value: t_vpi_value__bindgen_ty_1 {
+                str_: final_value_str,
+            },
+        };
+
+        unsafe {
+            vpi_put_value(
+                complex_handle.vpi_handle,
+                &mut v,
+                std::ptr::null_mut(),
+                vpiForceFlag as _,
+            )
+        };
+    }
+}
 
 // ------------------------------------------------------------------
 // IMPL release/shuffle/freeze value
@@ -643,57 +866,6 @@ impl VeriluaEnv {
             format: vpiVectorVal as _,
             value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
         };
-
-        // Tips from cocotb:
-        //      Best to pass its current value to the sim when releasing
-        unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
-
-        if cfg!(feature = "inertial_put") {
-            unsafe {
-                vpi_put_value(
-                    complex_handle.vpi_handle,
-                    &mut v,
-                    std::ptr::null_mut(),
-                    vpiReleaseFlag as _,
-                )
-            };
-        } else if complex_handle.try_put_value(self, &vpiReleaseFlag, &(v.format as u32)) {
-            complex_handle.put_value_integer = unsafe { v.value.integer } as _;
-            for i in 0..complex_handle.beat_num {
-                complex_handle.put_value_vectors[i].aval =
-                    unsafe { v.value.vector.add(i as _).read().aval } as _;
-                complex_handle.put_value_vectors[i].bval =
-                    unsafe { v.value.vector.add(i as _).read().bval } as _;
-            }
-
-            self.do_push_hdl_put_value(complex_handle_raw);
-        }
-    }
-
-    pub fn vpiml_release_imm_value(&mut self, complex_handle_raw: ComplexHandleRaw) {
-        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-        if cfg!(feature = "verilator") {
-            panic!("release value is not supported in verilator!");
-        }
-        let mut v = s_vpi_value {
-            format: vpiVectorVal as _,
-            value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
-        };
-
-        // Remove any pending deferred put on this handle (from either queue)
-        // and clear the flag.
-        let pred = |complex_handle_raw: &ComplexHandleRaw| {
-            ComplexHandle::from_raw(complex_handle_raw).vpi_handle == complex_handle.vpi_handle
-        };
-        if let Some(target_idx) = self.hdl_put_value.iter().position(pred) {
-            self.hdl_put_value.remove(target_idx);
-            complex_handle.put_value_flag = None;
-        } else if (cfg!(feature = "vcs") || cfg!(feature = "iverilog"))
-            && let Some(target_idx) = self.hdl_put_value_bak.iter().position(pred)
-        {
-            self.hdl_put_value_bak.remove(target_idx);
-            complex_handle.put_value_flag = None;
-        }
 
         // Tips from cocotb:
         //      Best to pass its current value to the sim when releasing
@@ -791,14 +963,10 @@ impl VeriluaEnv {
 }
 
 // ------------------------------------------------------------------
-// set/force value
+// set value
 // ------------------------------------------------------------------
-macro_rules! gen_set_force_value {
-    ($action:ident, $flag:ty) => {
-        // Generate:
-        //      vpiml_<set/force>_value
-        //      vpiml_<set/force>_value64
-        //      vpiml_<set/force>_value64_force_single
+macro_rules! gen_set_value {
+    ($action:ident) => {
         paste::paste!{
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value>](complex_handle_raw: ComplexHandleRaw, value: u32) {
@@ -858,14 +1026,63 @@ macro_rules! gen_set_force_value {
         }
     }
 }
-gen_set_force_value!(set, vpiNoDelay);
-gen_set_force_value!(force, vpiForceFlag);
+gen_set_value!(set);
 
 // ------------------------------------------------------------------
-// set/force value bin/dec/hex str
+// force value (immediate only)
+// ------------------------------------------------------------------
+macro_rules! gen_force_value {
+    () => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn vpiml_force_value(
+            complex_handle_raw: ComplexHandleRaw,
+            value: u32,
+        ) {
+            let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+            env.assert_not_rd_phase_active(complex_handle_raw);
+            env.vpiml_force_value(complex_handle_raw, value);
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn vpiml_force_value64(
+            complex_handle_raw: ComplexHandleRaw,
+            value: u64,
+        ) {
+            let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+            env.assert_not_rd_phase_active(complex_handle_raw);
+            env.vpiml_force_value64(complex_handle_raw, value);
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn vpiml_force_value64_force_single(
+            complex_handle_raw: ComplexHandleRaw,
+            value: u64,
+        ) {
+            let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+            env.assert_not_rd_phase_active(complex_handle_raw);
+            env.vpiml_force_value64_force_single(complex_handle_raw, value);
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn vpiml_force_value_multi(
+            complex_handle_raw: ComplexHandleRaw,
+            value: *const u32,
+        ) {
+            let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+            env.assert_not_rd_phase_active(complex_handle_raw);
+            unsafe {
+                env.vpiml_force_value_multi(complex_handle_raw, value);
+            }
+        }
+    };
+}
+gen_force_value!();
+
+// ------------------------------------------------------------------
+// set value bin/dec/hex str
 // ------------------------------------------------------------------
 macro_rules! gen_set_value_str {
-    ($set_type:ident, $str_type:ident, $flag:ident, $format:ident) => {
+    ($set_type:ident, $str_type:ident) => {
         paste::paste! {
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $set_type _value_ $str_type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
@@ -883,18 +1100,34 @@ macro_rules! gen_set_value_str {
         }
     };
 }
-gen_set_value_str!(set, hex, vpiNoDelay, vpiHexStrVal);
-gen_set_value_str!(set, bin, vpiNoDelay, vpiBinStrVal);
-gen_set_value_str!(set, dec, vpiNoDelay, vpiDecStrVal);
-gen_set_value_str!(force, hex, vpiForceFlag, vpiHexStrVal);
-gen_set_value_str!(force, bin, vpiForceFlag, vpiBinStrVal);
-gen_set_value_str!(force, dec, vpiForceFlag, vpiDecStrVal);
+gen_set_value_str!(set, hex);
+gen_set_value_str!(set, bin);
+gen_set_value_str!(set, dec);
 
 // ------------------------------------------------------------------
-// GEN set/force value multi beat
+// force value str (immediate only)
 // ------------------------------------------------------------------
-macro_rules! gen_set_force_value_multi_beat {
-    ($action:ident, $count:literal, $flag:ident, $($i:literal),*) => {
+macro_rules! gen_force_value_str {
+    ($str_type:ident) => {
+        paste::paste! {
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_force_value_ $str_type _str>](complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
+                let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
+                env.[<vpiml_force_value_ $str_type _str>](complex_handle_raw, value_str);
+            }
+        }
+    };
+}
+gen_force_value_str!(hex);
+gen_force_value_str!(bin);
+gen_force_value_str!(dec);
+
+// ------------------------------------------------------------------
+// GEN set value multi beat
+// ------------------------------------------------------------------
+macro_rules! gen_set_value_multi_beat {
+    ($action:ident, $count:literal, $($i:literal),*) => {
         paste::paste! {
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn [<vpiml_ $action _value_multi_beat_ $count>](complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
@@ -912,20 +1145,36 @@ macro_rules! gen_set_force_value_multi_beat {
         }
     };
 }
-gen_set_force_value_multi_beat!(set, 2, vpiNoDelay, 0, 1);
-gen_set_force_value_multi_beat!(set, 3, vpiNoDelay, 0, 1, 2);
-gen_set_force_value_multi_beat!(set, 4, vpiNoDelay, 0, 1, 2, 3);
-gen_set_force_value_multi_beat!(set, 5, vpiNoDelay, 0, 1, 2, 3, 4);
-gen_set_force_value_multi_beat!(set, 6, vpiNoDelay, 0, 1, 2, 3, 4, 5);
-gen_set_force_value_multi_beat!(set, 7, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6);
-gen_set_force_value_multi_beat!(set, 8, vpiNoDelay, 0, 1, 2, 3, 4, 5, 6, 7);
-gen_set_force_value_multi_beat!(force, 2, vpiForceFlag, 0, 1);
-gen_set_force_value_multi_beat!(force, 3, vpiForceFlag, 0, 1, 2);
-gen_set_force_value_multi_beat!(force, 4, vpiForceFlag, 0, 1, 2, 3);
-gen_set_force_value_multi_beat!(force, 5, vpiForceFlag, 0, 1, 2, 3, 4);
-gen_set_force_value_multi_beat!(force, 6, vpiForceFlag, 0, 1, 2, 3, 4, 5);
-gen_set_force_value_multi_beat!(force, 7, vpiForceFlag, 0, 1, 2, 3, 4, 5, 6);
-gen_set_force_value_multi_beat!(force, 8, vpiForceFlag, 0, 1, 2, 3, 4, 5, 6, 7);
+gen_set_value_multi_beat!(set, 2, 0, 1);
+gen_set_value_multi_beat!(set, 3, 0, 1, 2);
+gen_set_value_multi_beat!(set, 4, 0, 1, 2, 3);
+gen_set_value_multi_beat!(set, 5, 0, 1, 2, 3, 4);
+gen_set_value_multi_beat!(set, 6, 0, 1, 2, 3, 4, 5);
+gen_set_value_multi_beat!(set, 7, 0, 1, 2, 3, 4, 5, 6);
+gen_set_value_multi_beat!(set, 8, 0, 1, 2, 3, 4, 5, 6, 7);
+
+// ------------------------------------------------------------------
+// force value multi beat (immediate only)
+// ------------------------------------------------------------------
+macro_rules! gen_force_value_multi_beat {
+    ($count:literal, $($i:literal),*) => {
+        paste::paste! {
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn [<vpiml_force_value_multi_beat_ $count>](complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
+                let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+                env.assert_not_rd_phase_active(complex_handle_raw);
+                env.[<vpiml_force_value_multi_beat_ $count>](complex_handle_raw $(, paste::paste!{[<v $i>]})*);
+            }
+        }
+    };
+}
+gen_force_value_multi_beat!(2, 0, 1);
+gen_force_value_multi_beat!(3, 0, 1, 2);
+gen_force_value_multi_beat!(4, 0, 1, 2, 3);
+gen_force_value_multi_beat!(5, 0, 1, 2, 3, 4);
+gen_force_value_multi_beat!(6, 0, 1, 2, 3, 4, 5);
+gen_force_value_multi_beat!(7, 0, 1, 2, 3, 4, 5, 6);
+gen_force_value_multi_beat!(8, 0, 1, 2, 3, 4, 5, 6, 7);
 
 // ------------------------------------------------------------------
 // GEN set/force value str
@@ -950,7 +1199,16 @@ macro_rules! gen_set_force_value_str {
     };
 }
 gen_set_force_value_str!(set, vpiNoDelay);
-gen_set_force_value_str!(force, vpiForceFlag);
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vpiml_force_value_str(
+    complex_handle_raw: ComplexHandleRaw,
+    value_str: *mut c_char,
+) {
+    let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
+    env.assert_not_rd_phase_active(complex_handle_raw);
+    env.vpiml_force_value_str(complex_handle_raw, value_str);
+}
 
 // ------------------------------------------------------------------
 // GEN release/shuffle/freeze value
@@ -960,13 +1218,6 @@ pub unsafe extern "C" fn vpiml_release_value(complex_handle_raw: ComplexHandleRa
     let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
     env.assert_not_rd_phase_active(complex_handle_raw);
     env.vpiml_release_value(complex_handle_raw);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn vpiml_release_imm_value(complex_handle_raw: ComplexHandleRaw) {
-    let env = VeriluaEnv::from_complex_handle_raw(complex_handle_raw);
-    env.assert_not_rd_phase_active(complex_handle_raw);
-    env.vpiml_release_imm_value(complex_handle_raw);
 }
 
 #[unsafe(no_mangle)]

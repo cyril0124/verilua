@@ -106,11 +106,11 @@ pub struct ComplexHandle {
     // Pending Put Value Fields
     // These fields buffer write operations for batched application
     // ──────────────────────────────────────────────────────────────────────
-    /// VPI value format for pending write (e.g., vpiIntVal, vpiVectorVal)
+    /// VPI value format for a deferred set (e.g., vpiIntVal, vpiVectorVal)
     pub put_value_format: u32,
 
-    /// VPI flag for pending write (e.g., vpiNoDelay, vpiForceFlag)
-    /// None indicates no pending write
+    /// VPI flag for a deferred set, always vpiNoDelay when present
+    /// None indicates no deferred set
     pub put_value_flag: Option<u32>,
 
     /// Integer value for single-beat signals
@@ -250,44 +250,38 @@ impl ComplexHandle {
     pub fn try_put_value(&mut self, env: &mut VeriluaEnv, flag: &u32, format: &u32) -> bool {
         match self.put_value_flag {
             Some(curr_flag) => {
-                if curr_flag == vpiForceFlag && *flag != vpiForceFlag && *flag != vpiReleaseFlag {
-                    // vpiForceFlag/vpiReleaseFlag has higher priority than other flags
-                    false
-                } else {
-                    // New force value will overwrite old force value
-                    self.put_value_flag = Some(*flag);
-                    self.put_value_format = *format;
+                self.put_value_flag = Some(*flag);
+                self.put_value_format = *format;
 
-                    // Remove the stale entry. During a re-entrant flush the old
-                    // entry may be in either queue, so probe both.
-                    let removed = {
-                        let find = |q: &Vec<ComplexHandleRaw>| {
-                            q.iter().position(|complex_handle_raw| {
-                                ComplexHandle::from_raw(complex_handle_raw).vpi_handle
-                                    == self.vpi_handle
-                            })
-                        };
-                        if let Some(idx) = find(&env.hdl_put_value) {
-                            env.hdl_put_value.remove(idx);
-                            true
-                        } else if (cfg!(feature = "vcs") || cfg!(feature = "iverilog"))
-                            && let Some(idx) = find(&env.hdl_put_value_bak)
-                        {
-                            env.hdl_put_value_bak.remove(idx);
-                            true
-                        } else {
-                            false
-                        }
+                // Remove the stale entry. During a re-entrant flush the old
+                // entry may be in either queue, so probe both.
+                let removed = {
+                    let find = |q: &Vec<ComplexHandleRaw>| {
+                        q.iter().position(|complex_handle_raw| {
+                            ComplexHandle::from_raw(complex_handle_raw).vpi_handle
+                                == self.vpi_handle
+                        })
                     };
+                    if let Some(idx) = find(&env.hdl_put_value) {
+                        env.hdl_put_value.remove(idx);
+                        true
+                    } else if (cfg!(feature = "vcs") || cfg!(feature = "iverilog"))
+                        && let Some(idx) = find(&env.hdl_put_value_bak)
+                    {
+                        env.hdl_put_value_bak.remove(idx);
+                        true
+                    } else {
+                        false
+                    }
+                };
 
-                    assert!(
-                        removed,
-                        "Duplicate flag, but not found in hdl_put_value/hdl_put_value_bak, curr_flag: {}, new_flag: {}, self: {:?}",
-                        curr_flag, *flag, self
-                    );
+                assert!(
+                    removed,
+                    "Duplicate flag, but not found in hdl_put_value/hdl_put_value_bak, curr_flag: {}, new_flag: {}, self: {:?}",
+                    curr_flag, *flag, self
+                );
 
-                    true
-                }
+                true
             }
             None => {
                 self.put_value_flag = Some(*flag);

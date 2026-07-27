@@ -386,12 +386,13 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 11. `<chdl>:set_force(value)`
 
-    强制赋值（与 `set_release` 配合使用），与 SystemVerilog 中的 `force` 关键字相同。除了 `force` 这个属性上的区别之外，其他和 `set` 一样。
+    强制赋值（与 `set_release` 配合使用），与 SystemVerilog 中的 `force` 关键字相同。`set_force` 会立即写入 HDL，调用返回后即可读取强制值；后续普通赋值或 HDL 驱动不会改变可见值，直到调用 `set_release`。
 
     ```lua
     local signal = dut.value:chdl()
     local value = 0x123
     signal:set_force(value)
+    assert(signal:get() == value)
 
     -- ...
 
@@ -400,7 +401,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 12. `<chdl>:set_release()`
 
-    释放赋值（与 `set_force` 配合使用），与 SystemVerilog 中的 `release` 关键字相同。对于使用了 `set_force` 的信号，需要使用 `set_release` 来释放赋值，否则会导致信号的值不会更新。
+    立即释放 `set_force` / `set_freeze` 建立的强制状态，与 SystemVerilog 中的 `release` 关键字相同。释放不会丢弃同一信号尚未提交的 `set()`；该 pending 写入仍会在后续 `cbReadWriteSynch` 阶段生效。
 
 13. `<chdl>:set_imm(value)`
 
@@ -471,13 +472,13 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 14. `set_imm_*` 立即赋值变体
 
-    下列赋值方法有对应的 `set_imm_*` 立即赋值变体，行为与普通版本完全相同，但立即生效（参见[立即赋值和普通赋值的区别](#set-and-set-imm)）。`set_force` / `set_release` / `set_freeze` 无立即变体：
+    下列普通赋值方法有对应的 `set_imm_*` 立即赋值变体，行为与普通版本完全相同，但立即生效（参见[立即赋值和普通赋值的区别](#set-and-set-imm)）。`set_force`、`set_release` 和 `set_freeze` 本身始终立即生效，因此不提供额外的 `set_imm_*` 变体：
 
     `set_imm_unsafe`、`set_imm_cached`、`set_imm_str`、`set_imm_hex_str`、`set_imm_bin_str`、`set_imm_dec_str`、`set_imm_shuffled`、`set_imm_bitfield`、`set_imm_bitfield_hex_str`
 
 15. `<chdl>:set_freeze()`
 
-    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<chdl>:set_release()` 来取消冻结。
+    立即读取并强制保持当前信号值。调用返回后，后续赋值或 HDL 驱动不会改变可见值，直到调用 `<chdl>:set_release()`。
 
 ### debug 相关
 
