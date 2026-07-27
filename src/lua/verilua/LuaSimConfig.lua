@@ -214,6 +214,7 @@ end
 
 -- Dumps the content of the configuration table as a string.
 function cfg:dump_str()
+    ---@diagnostic disable-next-line
     local inspect = require "inspect"
     return inspect(self, {
         process = function(item, path)

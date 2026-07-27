@@ -16,6 +16,7 @@ local table_insert = table.insert
 local verilua_debug = _G.verilua_debug
 
 ---@class (exact) verilua.handles.Bundle
+---@overload fun(signals_table: table<integer, string>, prefix: string, hierarchy: string, name: string, is_decoupled: boolean, optional_signals?: table<integer, string>): verilua.handles.Bundle
 ---@field __type string
 ---@field signals_table table<integer, string>
 ---@field prefix string

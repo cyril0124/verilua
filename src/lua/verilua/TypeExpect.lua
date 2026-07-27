@@ -53,7 +53,7 @@ local function texpect_error(msg)
     local info, func_name = get_caller_info()
     local loc = ""
     if info then
-        loc = Logger.colorize(string.format("@ %s:%d", info.short_src, info.currentline), colors.CYAN)
+        loc = Logger.colorize(string.format("@ %s:%d", info.short_src, info.currentline), colors.CYAN) --[[@as string]]
     end
 
     local func_tag = ""

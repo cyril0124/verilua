@@ -540,6 +540,7 @@ local function bitpat_to_hex_str(bitpat_tbl, width)
         -- Calculate the number of bits
         local num_bits = bitpat.e - bitpat.s + 1
         assert(num_bits > 0, "bitpat.e must be greater than or equal to bitpat.s")
+        ---@cast num_bits integer
 
         -- Calculate the maximum value that can be represented with `num_bits` bits
         local max_val
@@ -556,7 +557,7 @@ local function bitpat_to_hex_str(bitpat_tbl, width)
         local start_block = math_floor(bitpat.s / 64) + 1
         local end_block = math_floor(bitpat.e / 64) + 1
         ---@type integer
-        local start_pos = bitpat.s % 64
+        local start_pos = (bitpat.s % 64) --[[@as integer]]
         -- local end_pos = bitpat.e % 64
 
         if start_block == end_block then
@@ -953,7 +954,7 @@ local false_values = {
 ---@param value any
 ---@return string
 local function get_value_type_name(value)
-    return type(value)
+    return type(value) --[[@as string]]
 end
 
 ---@param key string

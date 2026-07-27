@@ -1,4 +1,4 @@
----@diagnostic disable: assign-type-mismatch, unnecessary-assert
+---@diagnostic disable: assign-type-mismatch, unnecessary-assert, unresolved-require
 
 local io = require "io"
 local os = require "os"

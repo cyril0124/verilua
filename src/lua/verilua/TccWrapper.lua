@@ -1,5 +1,6 @@
 local os = require "os"
 local ffi = require 'ffi'
+---@diagnostic disable-next-line: unresolved-require
 local tcc = require("tcc").load()
 
 local print = print
