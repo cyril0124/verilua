@@ -97,8 +97,12 @@ local function gen_type_anno_alias_bundle(name, alias_bundle)
     local content_vec = {
         f("---@class %s: verilua.handles.AliasBundle", name)
     }
+
+    ---@diagnostic disable-next-line: access-invisible
     for i, field_name_vec in ipairs(alias_bundle.alias_tbl) do
+        ---@diagnostic disable-next-line: access-invisible
         local hierpath = alias_bundle.hierarchy .. "." .. alias_bundle.prefix .. alias_bundle.signals_tbl[i]
+
         for _, field_name in ipairs(field_name_vec) do
             local width = alias_bundle[field_name]:get_width()
             content_vec[#content_vec + 1] = f(

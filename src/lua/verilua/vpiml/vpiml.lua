@@ -37,7 +37,7 @@ vpiml.vpiml_handle_by_name_safe = function(name)
     if handle ~= -1 then
         handle_cache[name] = handle
     end
-    return handle
+    return handle --[[@as integer]]
 end
 
 ---@cast vpiml verilua.vpiml.VpimlNormal

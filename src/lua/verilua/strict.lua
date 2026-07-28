@@ -30,6 +30,7 @@ end
 
 local function what_src()
     local d = getinfo(3, "S")
+    ---@cast d -?
     return d.source
 end
 

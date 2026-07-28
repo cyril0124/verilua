@@ -16,7 +16,7 @@ local table_concat = table.concat
 
 ---@generic T
 ---@class (exact) verilua.utils.Queue<T> Generic queue implementation with leak detection and memory optimization
----@overload fun(options: verilua.utils.Queue.options?): verilua.utils.Queue Create a new queue with optional configuration
+---@overload fun(options: verilua.utils.Queue.options?): verilua.utils.Queue<T> Create a new queue with optional configuration
 ---@field private name string Queue name for debugging purposes
 ---@field private ehdl verilua.handles.EventHandle Event handle for waitable operations
 ---@field private data table<integer, T> Internal storage for queue elements
@@ -26,22 +26,22 @@ local table_concat = table.concat
 ---@field private leak_check_threshold integer Maximum number of do_leak_check() calls before reporting leak
 ---@field private leak_check_cnt integer Current count of consecutive do_leak_check() calls
 ---@field private compact_threshold integer Number of operations before triggering automatic compaction
----@field private _compact fun(self: verilua.utils.Queue) Compact the queue to free memory by moving elements to the beginning
----@field push fun(self: verilua.utils.Queue, value: T) Add an element to the end of the queue
----@field pop fun(self: verilua.utils.Queue): T Remove and return the first element from the queue
----@field push_waitable fun(self: verilua.utils.Queue, value: T) Add an element and notify waiters
----@field pop_waitable fun(self: verilua.utils.Queue): T Remove and return the first element, waiting if necessary
----@field wait_not_empty fun(self: verilua.utils.Queue): boolean Wait until the queue is not empty
----@field query_first_ptr fun(self: verilua.utils.Queue): T? Get the first element without removing it, or nil if queue is empty
----@field front fun(self: verilua.utils.Queue): T? Alias of query_first_ptr - get the first element without removing it, or nil if queue is empty
----@field last fun(self: verilua.utils.Queue): T? Get the last element without removing it, or nil if queue is empty
----@field is_empty fun(self: verilua.utils.Queue): boolean Check if the queue is empty
----@field size fun(self: verilua.utils.Queue): integer Get the number of elements in the queue
----@field reset fun(self: verilua.utils.Queue) Clear all elements and reset the queue to initial state
----@field do_leak_check fun(self: verilua.utils.Queue) Increment leak check counter and report leak if threshold exceeded
----@field __tostring fun(self: verilua.utils.Queue): string Convert queue to string for printing
+---@field private _compact fun(self: verilua.utils.Queue<T>) Compact the queue to free memory by moving elements to the beginning
+---@field push fun(self: verilua.utils.Queue<T>, value: T) Add an element to the end of the queue
+---@field pop fun(self: verilua.utils.Queue<T>): T Remove and return the first element from the queue
+---@field push_waitable fun(self: verilua.utils.Queue<T>, value: T) Add an element and notify waiters
+---@field pop_waitable fun(self: verilua.utils.Queue<T>): T Remove and return the first element, waiting if necessary
+---@field wait_not_empty fun(self: verilua.utils.Queue<T>): boolean Wait until the queue is not empty
+---@field query_first_ptr fun(self: verilua.utils.Queue<T>): T? Get the first element without removing it, or nil if queue is empty
+---@field front fun(self: verilua.utils.Queue<T>): T? Alias of query_first_ptr - get the first element without removing it, or nil if queue is empty
+---@field last fun(self: verilua.utils.Queue<T>): T? Get the last element without removing it, or nil if queue is empty
+---@field is_empty fun(self: verilua.utils.Queue<T>): boolean Check if the queue is empty
+---@field size fun(self: verilua.utils.Queue<T>): integer Get the number of elements in the queue
+---@field reset fun(self: verilua.utils.Queue<T>) Clear all elements and reset the queue to initial state
+---@field do_leak_check fun(self: verilua.utils.Queue<T>) Increment leak check counter and report leak if threshold exceeded
+---@field __tostring fun(self: verilua.utils.Queue<T>): string Convert queue to string for printing
 ---@operator len: integer Get the number of elements in the queue using # operator
-local Queue = class() --[[@as verilua.utils.Queue]]
+local Queue = class() --[[@as verilua.utils.Queue<any>]]
 
 local q_idx = 0
 local q_idx_for_ehdl = 0

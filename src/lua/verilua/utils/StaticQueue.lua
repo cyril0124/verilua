@@ -11,7 +11,7 @@ local math_random = math.random
 
 ---@generic T
 ---@class (exact) verilua.utils.StaticQueue<T>
----@overload fun(size: integer, name?: string): verilua.utils.StaticQueue
+---@overload fun(size: integer, name?: string): verilua.utils.StaticQueue<T>
 ---@field private name string Name identifier for the queue instance
 ---@field private first_ptr integer Pointer to the first element in the queue
 ---@field private last_ptr integer Pointer to the last element in the queue
@@ -21,23 +21,23 @@ local math_random = math.random
 ---@field count integer Current number of elements in the queue
 ----@field push fun(self: verilua.utils.StaticQueue, value: T): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed Push a value to the end of the queue
 ----@field push_waitable fun(self: verilua.utils.StaticQueue, value: T): verilua.utils.StaticQueue.success|verilua.utils.StaticQueue.failed Push a value to the end of the queue, sending an event if successful
----@field pop fun(self: verilua.utils.StaticQueue): T Remove and return the first element from the queue
----@field pop_waitable fun(self: verilua.utils.StaticQueue): T Remove and return the first element, waiting if the queue is empty
----@field wait_not_empty fun(self: verilua.utils.StaticQueue): boolean Wait until the queue is not empty
----@field query_first fun(self: verilua.utils.StaticQueue): T? Get the first element without removing it, or nil if queue is empty
----@field front fun(self: verilua.utils.StaticQueue): T? Alias of query_first, or nil if queue is empty
----@field last fun(self: verilua.utils.StaticQueue): T? Get the last element without removing it, or nil if queue is empty
----@field is_empty fun(self: verilua.utils.StaticQueue): boolean Check if the queue is empty
----@field is_full fun(self: verilua.utils.StaticQueue): boolean Check if the queue is full
----@field size fun(self: verilua.utils.StaticQueue): integer Get current number of elements (alias of used_count)
----@field used_count fun(self: verilua.utils.StaticQueue): integer Get current number of elements used
----@field free_count fun(self: verilua.utils.StaticQueue): integer Get number of available slots
----@field reset fun(self: verilua.utils.StaticQueue) Reset the queue to empty state
----@field shuffle fun(self: verilua.utils.StaticQueue) Randomly shuffle all elements in the queue
----@field get_all_data fun(self: verilua.utils.StaticQueue): T[] Get all elements as an array in queue order
----@field list_data fun(self: verilua.utils.StaticQueue) Print all elements with queue information
+---@field pop fun(self: verilua.utils.StaticQueue<T>): T Remove and return the first element from the queue
+---@field pop_waitable fun(self: verilua.utils.StaticQueue<T>): T Remove and return the first element, waiting if the queue is empty
+---@field wait_not_empty fun(self: verilua.utils.StaticQueue<T>): boolean Wait until the queue is not empty
+---@field query_first fun(self: verilua.utils.StaticQueue<T>): T? Get the first element without removing it, or nil if queue is empty
+---@field front fun(self: verilua.utils.StaticQueue<T>): T? Alias of query_first, or nil if queue is empty
+---@field last fun(self: verilua.utils.StaticQueue<T>): T? Get the last element without removing it, or nil if queue is empty
+---@field is_empty fun(self: verilua.utils.StaticQueue<T>): boolean Check if the queue is empty
+---@field is_full fun(self: verilua.utils.StaticQueue<T>): boolean Check if the queue is full
+---@field size fun(self: verilua.utils.StaticQueue<T>): integer Get current number of elements (alias of used_count)
+---@field used_count fun(self: verilua.utils.StaticQueue<T>): integer Get current number of elements used
+---@field free_count fun(self: verilua.utils.StaticQueue<T>): integer Get number of available slots
+---@field reset fun(self: verilua.utils.StaticQueue<T>) Reset the queue to empty state
+---@field shuffle fun(self: verilua.utils.StaticQueue<T>) Randomly shuffle all elements in the queue
+---@field get_all_data fun(self: verilua.utils.StaticQueue<T>): T[] Get all elements as an array in queue order
+---@field list_data fun(self: verilua.utils.StaticQueue<T>) Print all elements with queue information
 ---@operator len: integer Length operator overload returns current element count
-local StaticQueue = class() --[[@as verilua.utils.StaticQueue]]
+local StaticQueue = class() --[[@as verilua.utils.StaticQueue<any>]]
 
 local q_idx = 0
 local q_idx_for_ehdl = 0

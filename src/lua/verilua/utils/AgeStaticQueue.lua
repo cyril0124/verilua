@@ -11,7 +11,7 @@ local math_random = math.random
 
 ---@generic T
 ---@class (exact) verilua.utils.AgeStaticQueue<T>
----@overload fun(size: integer, max_age?: integer, name?: string): verilua.utils.AgeStaticQueue
+---@overload fun(size: integer, max_age?: integer, name?: string): verilua.utils.AgeStaticQueue<T>
 ---@field private name string Name identifier for the queue instance
 ---@field private first_ptr integer Pointer to the first element in the queue
 ---@field private last_ptr integer Pointer to the last element in the queue
@@ -24,23 +24,23 @@ local math_random = math.random
 ---@field count integer Current number of elements in the queue
 ----@field push fun(self: verilua.utils.AgeStaticQueue, value: T): verilua.utils.AgeStaticQueue.success|verilua.utils.AgeStaticQueue.failed Push a value to the end of the queue
 ----@field push_waitable fun(self: verilua.utils.AgeStaticQueue, value: T): verilua.utils.AgeStaticQueue.success|verilua.utils.AgeStaticQueue.failed Push a value and notify waiters when successful
----@field pop fun(self: verilua.utils.AgeStaticQueue): T Remove and return the first element from the queue
----@field pop_waitable fun(self: verilua.utils.AgeStaticQueue): T Remove and return the first element, waiting if queue is empty
----@field wait_not_empty fun(self: verilua.utils.AgeStaticQueue): boolean Wait until the queue is not empty
----@field query_first fun(self: verilua.utils.AgeStaticQueue): T? Get the first element without removing it, or nil if queue is empty
----@field front fun(self: verilua.utils.AgeStaticQueue): T? Alias of query_first, or nil if queue is empty
----@field last fun(self: verilua.utils.AgeStaticQueue): T? Get the last element without removing it, or nil if queue is empty
----@field is_empty fun(self: verilua.utils.AgeStaticQueue): boolean Check if the queue is empty
----@field is_full fun(self: verilua.utils.AgeStaticQueue): boolean Check if the queue is full
----@field size fun(self: verilua.utils.AgeStaticQueue): integer Get current number of elements (alias of used_count)
----@field used_count fun(self: verilua.utils.AgeStaticQueue): integer Get current number of elements used
----@field free_count fun(self: verilua.utils.AgeStaticQueue): integer Get number of available slots
----@field reset fun(self: verilua.utils.AgeStaticQueue) Reset the queue to empty state
----@field shuffle fun(self: verilua.utils.AgeStaticQueue) Randomly shuffle all elements in the queue
----@field get_all_data fun(self: verilua.utils.AgeStaticQueue): T[] Get all elements as an array in queue order
----@field list_data fun(self: verilua.utils.AgeStaticQueue) Print all elements with queue information
+---@field pop fun(self: verilua.utils.AgeStaticQueue<T>): T Remove and return the first element from the queue
+---@field pop_waitable fun(self: verilua.utils.AgeStaticQueue<T>): T Remove and return the first element, waiting if queue is empty
+---@field wait_not_empty fun(self: verilua.utils.AgeStaticQueue<T>): boolean Wait until the queue is not empty
+---@field query_first fun(self: verilua.utils.AgeStaticQueue<T>): T? Get the first element without removing it, or nil if queue is empty
+---@field front fun(self: verilua.utils.AgeStaticQueue<T>): T? Alias of query_first, or nil if queue is empty
+---@field last fun(self: verilua.utils.AgeStaticQueue<T>): T? Get the last element without removing it, or nil if queue is empty
+---@field is_empty fun(self: verilua.utils.AgeStaticQueue<T>): boolean Check if the queue is empty
+---@field is_full fun(self: verilua.utils.AgeStaticQueue<T>): boolean Check if the queue is full
+---@field size fun(self: verilua.utils.AgeStaticQueue<T>): integer Get current number of elements (alias of used_count)
+---@field used_count fun(self: verilua.utils.AgeStaticQueue<T>): integer Get current number of elements used
+---@field free_count fun(self: verilua.utils.AgeStaticQueue<T>): integer Get number of available slots
+---@field reset fun(self: verilua.utils.AgeStaticQueue<T>) Reset the queue to empty state
+---@field shuffle fun(self: verilua.utils.AgeStaticQueue<T>) Randomly shuffle all elements in the queue
+---@field get_all_data fun(self: verilua.utils.AgeStaticQueue<T>): T[] Get all elements as an array in queue order
+---@field list_data fun(self: verilua.utils.AgeStaticQueue<T>) Print all elements with queue information
 ---@operator len: integer Length operator overload returns current element count
-local AgeStaticQueue = class() --[[@as verilua.utils.AgeStaticQueue]]
+local AgeStaticQueue = class() --[[@as verilua.utils.AgeStaticQueue<any>]]
 
 local DEFAULT_MAX_AGE = 10000ULL
 local q_idx = 0

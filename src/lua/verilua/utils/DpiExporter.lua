@@ -51,6 +51,7 @@ end
 local function try_get_meta_file()
     if SymbolHelper.get_global_symbol_addr("dpi_exporter_get_meta_info_file_path") ~= 0 then
         local func = SymbolHelper.ffi_cast("char *(*)()", "dpi_exporter_get_meta_info_file_path")
+        ---@diagnostic disable-next-line: call-non-callable
         local meta_file = ffi.string(func())
         return meta_file
     else
@@ -93,7 +94,7 @@ function DpiExporter:init(meta_file)
     self.dpi_exporter_top = assert(
         self.meta_info.topModuleName,
         "[DpiExporter] Failed to get top module name from meta file: " .. meta_file
-    )
+    ) --[[@as string]]
     self.initialized = true
 
     -- Mark as enabled, used by `LuaCallableHDL.lua`
