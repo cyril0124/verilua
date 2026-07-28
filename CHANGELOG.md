@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **ChdlAccess / ProxyTableHandle**: `set_force`, `set_release`, and `set_freeze` now take effect immediately instead of waiting for the pending-write `cbReadWriteSynch` flush. Ordinary `set()` writes remain deferred. An immediate release does not discard an earlier pending `set()` on the same handle.
 - **libverilua**: Remove the duplicate `vpiml_force_imm_*` and `vpiml_release_imm_value` C ABI. The retained `vpiml_force_*` and `vpiml_release_value` entry points now provide the immediate behavior.
+- **testbench_gen / xmake**: Remove `--lua-meta-file` / `--lm` and stop writing DUT port LuaCATS meta files. The xmake verilua rule no longer passes `--lua-meta-file build/meta.lua`.
 
 ---
 

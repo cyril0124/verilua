@@ -1031,8 +1031,7 @@ rule("verilua", function()
                 "--tbtop", tb_top,
                 "--nodpi",
                 "--verbose",
-                "--out-dir", build_dir,
-                "--lua-meta-file", path.join("build", "meta.lua")
+                "--out-dir", build_dir
             }
             if u_tb_gen_flags then
                 tb_gen_flags = table.join2(tb_gen_flags, u_tb_gen_flags)
