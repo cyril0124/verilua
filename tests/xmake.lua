@@ -235,6 +235,7 @@ end
 ---@field name string Test case display name (e.g. "test_edge")
 ---@field no_internal_clock? boolean Also run with NO_INTERNAL_CLOCK=1
 ---@field min_verilator_version? number Skip verilator if version < this (e.g. 5.036)
+---@field skip_verilator? boolean Skip verilator entirely (e.g. force/release-only tests)
 
 -- All sim-based test cases — each directory gets its own parallel target
 ---@type SimTestCase[]
@@ -253,6 +254,7 @@ local sim_test_cases = {
     { dir = "test_bitvec_signal", name = "test_bitvec_signal" },
     { dir = "test_no_internal_clock", name = "test_no_internal_clock" },
     { dir = "test_handles", name = "test_handles" },
+    { dir = "test_force_release_coalesce", name = "test_force_release_coalesce", skip_verilator = true },
     { dir = "test_native_clock", name = "test_native_clock" },
     { dir = "test_queue_waitable", name = "test_queue_waitable" },
     { dir = "test_dpic", name = "test_dpic" },
@@ -263,8 +265,9 @@ local sim_test_cases = {
 for _, case in ipairs(sim_test_cases) do
     add_group_target(case.dir:gsub("_", "-"), function(ctx)
         local cwd = path.join(ctx.tests_dir, case.dir)
-        local skip_verilator = case.min_verilator_version and ctx.verilator_version
-            and ctx.verilator_version < case.min_verilator_version
+        local skip_verilator = case.skip_verilator
+            or (case.min_verilator_version and ctx.verilator_version
+                and ctx.verilator_version < case.min_verilator_version)
 
         for _, sim in ipairs(ctx.simulators) do
             if not (skip_verilator and sim == "verilator") then

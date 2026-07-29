@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **testbench_gen / xmake**: Remove `--lua-meta-file` / `--lm` and stop writing DUT port LuaCATS meta files. The xmake verilua rule no longer passes `--lua-meta-file build/meta.lua`.
 
+### 🚀 Added
+
+- **ChdlAccess / ProxyTableHandle**: Restore `set_imm_force`, `set_imm_release`, and `set_imm_freeze` for immediate force/release/freeze. Deferred `set_force` / `set_release` / `set_freeze` remain the default cycle-accurate path.
+
+### 🐛 Fixed
+
+- **ChdlAccess / ProxyTableHandle / libverilua**: Restore deferred `set_force` / `set_release` / `set_freeze` (applied at `cbReadWriteSynch`). Same-timeslot `set_release()` + `set_force()` coalesce again, so continuous backpressure no longer glitches handshake signals mid-timeslot.
+
 ---
 
 ## v3.5.0 - 2026-07-22
