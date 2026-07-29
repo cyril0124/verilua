@@ -471,9 +471,9 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 14. `set_imm_*` 立即赋值变体
 
-    下列赋值方法有对应的 `set_imm_*` 立即赋值变体，行为与普通版本完全相同，但立即生效（参见[立即赋值和普通赋值的区别](#set-and-set-imm)）。`set_force` / `set_release` / `set_freeze` 无立即变体：
+    每个赋值方法均有对应的 `set_imm_*` 立即赋值变体，行为与普通版本完全相同，但立即生效（参见[立即赋值和普通赋值的区别](#set-and-set-imm)）：
 
-    `set_imm_unsafe`、`set_imm_cached`、`set_imm_str`、`set_imm_hex_str`、`set_imm_bin_str`、`set_imm_dec_str`、`set_imm_shuffled`、`set_imm_bitfield`、`set_imm_bitfield_hex_str`
+    `set_imm_unsafe`、`set_imm_cached`、`set_imm_str`、`set_imm_hex_str`、`set_imm_bin_str`、`set_imm_dec_str`、`set_imm_shuffled`、`set_imm_bitfield`、`set_imm_bitfield_hex_str`、`set_imm_force`、`set_imm_release`
 
 15. `<chdl>:set_freeze()`
 

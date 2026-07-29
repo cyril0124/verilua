@@ -74,7 +74,7 @@ fork {
             inc:set(111)
             clock:posedge()
             inc:expect(120)
-            inc:set_release()
+            inc:set_imm_release()
 
             inc:set_force(114)
             inc:set_force(115)
@@ -114,8 +114,10 @@ fork {
             counter:set_release()
             clock:posedge()
 
-            --- NOTE: On iverilog/xcelium, `set_release()` is wired to `vpiml_release_imm_value`
-            ---       inside VpimlNormal (deferred release does not update there).
+            --- TODO: There are problems with iverilog, the counter value is not updated when `<chdl>:set_release()` is called using `vpiml.vpiml_release_value()`.
+            ---        As a workaround, use `vpiml.vpiml_release_imm_value()` instead.
+            ---        Maybe this is a bug of iverilog?
+            --- [2025.12.9] Update: This issue also exists in Cadence Xcelium.
             counter:expect(2)
         end
 
