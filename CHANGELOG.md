@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+---
+
+## v3.5.1 - 2026-07-29
+
 ### 💥 Breaking Changes
 
 - **testbench_gen / xmake**: Remove `--lua-meta-file` / `--lm` and stop writing DUT port LuaCATS meta files. The xmake verilua rule no longer passes `--lua-meta-file build/meta.lua`.
