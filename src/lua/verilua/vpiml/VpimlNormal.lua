@@ -68,7 +68,22 @@ ffi.cdef [[
     void vpiml_force_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
     void vpiml_force_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
 
+    void vpiml_force_imm_value(long long handle, uint32_t value);
+    void vpiml_force_imm_value64(long long handle, uint64_t value);
+    void vpiml_force_imm_value64_force_single(long long handle, uint64_t value);
+    void vpiml_force_imm_value_str(long long handle, const char *str);
+    void vpiml_force_imm_value_multi(long long handle, uint32_t *values);
+    void vpiml_force_imm_value_multi_beat_2(long long handle, uint32_t v0, uint32_t v1);
+    void vpiml_force_imm_value_multi_beat_3(long long handle, uint32_t v0, uint32_t v1, uint32_t v2);
+    void vpiml_force_imm_value_multi_beat_4(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
+    void vpiml_force_imm_value_multi_beat_5(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
+    void vpiml_force_imm_value_multi_beat_6(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5);
+    void vpiml_force_imm_value_multi_beat_7(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6);
+    void vpiml_force_imm_value_multi_beat_8(long long handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7);
+
     void vpiml_release_value(long long handle);
+
+    void vpiml_release_imm_value(long long handle);
 
     const char *vpiml_get_value_str(long long handle, int format);
     const char *vpiml_get_value_hex_str(long long handle);
@@ -232,8 +247,44 @@ local vpiml = {
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer, v2: integer, v3: integer, v4: integer, v5: integer, v6: integer, v7: integer)
     vpiml_force_value_multi_beat_8 = C.vpiml_force_value_multi_beat_8,
 
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, value: integer)
+    vpiml_force_imm_value = C.vpiml_force_imm_value,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, value: integer)
+    vpiml_force_imm_value64 = C.vpiml_force_imm_value64,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, value: integer)
+    vpiml_force_imm_value64_force_single = C.vpiml_force_imm_value64_force_single,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
+    vpiml_force_imm_value_str = C.vpiml_force_imm_value_str,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, values: ffi.cdata*[])
+    vpiml_force_imm_value_multi = C.vpiml_force_imm_value_multi,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer)
+    vpiml_force_imm_value_multi_beat_2 = C.vpiml_force_imm_value_multi_beat_2,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer, v2: integer)
+    vpiml_force_imm_value_multi_beat_3 = C.vpiml_force_imm_value_multi_beat_3,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer, v2: integer, v3: integer)
+    vpiml_force_imm_value_multi_beat_4 = C.vpiml_force_imm_value_multi_beat_4,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer, v2: integer, v3: integer, v4: integer)
+    vpiml_force_imm_value_multi_beat_5 = C.vpiml_force_imm_value_multi_beat_5,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer, v2: integer, v3: integer, v4: integer, v5: integer)
+    vpiml_force_imm_value_multi_beat_6 = C.vpiml_force_imm_value_multi_beat_6,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer, v2: integer, v3: integer, v4: integer, v5: integer, v6: integer)
+    vpiml_force_imm_value_multi_beat_7 = C.vpiml_force_imm_value_multi_beat_7,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer, v2: integer, v3: integer, v4: integer, v5: integer, v6: integer, v7: integer)
+    vpiml_force_imm_value_multi_beat_8 = C.vpiml_force_imm_value_multi_beat_8,
+
     ---@type fun(handle: verilua.handles.ComplexHandleRaw)
-    vpiml_release_value = C.vpiml_release_value,
+    vpiml_release_value = (function()
+        local simulator = cfg.simulator
+        if simulator == "iverilog" or simulator == "xcelium" then
+            --- see: tests/test_set_value/main.lua:117
+            return C.vpiml_release_imm_value
+        else
+            return C.vpiml_release_value
+        end
+    end)(),
+
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw)
+    vpiml_release_imm_value = C.vpiml_release_imm_value,
 
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, fmt: integer): string
     vpiml_get_value_str = C.vpiml_get_value_str,

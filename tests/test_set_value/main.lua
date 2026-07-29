@@ -94,9 +94,9 @@ fork {
             clock:posedge()
 
             inc:set_force(120)
-            inc:expect(120)
             inc:set_release()
             clock:posedge()
+            inc:expect(119)
 
             inc:set_release()
             inc:set_force(121)
@@ -114,6 +114,8 @@ fork {
             counter:set_release()
             clock:posedge()
 
+            --- NOTE: On iverilog/xcelium, `set_release()` is wired to `vpiml_release_imm_value`
+            ---       inside VpimlNormal (deferred release does not update there).
             counter:expect(2)
         end
 

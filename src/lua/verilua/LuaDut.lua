@@ -434,7 +434,7 @@ local function create_proxy(path, use_prefix)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
-                vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
+                vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
             else
                 vpiml.vpiml_set_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
             end
