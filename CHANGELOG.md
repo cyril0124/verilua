@@ -4,6 +4,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 💥 Breaking Changes
+
+- **xmake / verilua rule**: Presence of a `.vlt` file (or `verilua.verilator_config`) no longer auto-disables default `--public-flat-rw`. Use `set_values("verilua.verilator_no_public_flat_rw", "1")` to opt out, then put fine-grained `public_flat_*` in `.vlt` / `verilua.verilator_config`.
+
+### 🚀 Added
+
+- **xmake / verilua rule**: Add `set_values("verilua.verilator_config", [[...]])` to inline Verilator control-file content without a separate `.vlt` or `add_files`. Content is written to `verilua_generated.vlt` under the target build dir and only adds directives (does not change public strategy).
+- **xmake / verilua rule**: Add `set_values("verilua.verilator_no_public_flat_rw", "1")` to skip the default `--public-flat-rw` injection.
+
 ---
 
 ## v3.5.1 - 2026-07-29

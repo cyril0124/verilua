@@ -244,6 +244,47 @@ flowchart LR
 - 对于 WAL 场景，这一设置不起作用。
 :::
 
+### 内联 Verilator control file
+
+对应配置：`set_values("verilua.verilator_config", <vlt content>)` / `add_values("verilua.verilator_config", <vlt content>)`
+
+把 Verilator control file 内容直接写在 `xmake.lua` 里，无需单独维护文件，也不用 `add_files("*.vlt")`。构建时会写入当前 target 构建目录下的 `verilua_generated.vlt`。语法与可用指令见 [Verilator Control Files](https://verilator.org/guide/latest/control.html#verilator-control-files)。
+
+- 仅 `verilator` 后端生效；其它仿真器忽略
+- **只叠加指令**，不会隐式关掉默认 `--public-flat-rw`
+- 内容里若没有 `verilator_config`，会自动包一层 `` `verilator_config ``
+- 可与 `add_files("*.vlt")` 同时使用；两者都会传给 Verilator
+
+```lua title="xmake.lua"
+target("test", function()
+    add_rules("verilua")
+    add_toolchains("@verilator")
+    add_files("rtl/top.sv")
+    set_values("verilua.top", "top")
+    set_values("verilua.lua_main", "main.lua")
+
+    -- forceable only; default --public-flat-rw still applies
+    set_values("verilua.verilator_config", [[
+forceable -module "top" -var "i_ready"
+]])
+end)
+```
+
+### 关闭默认 `--public-flat-rw`
+
+对应配置：`set_values("verilua.verilator_no_public_flat_rw", "1")`
+
+默认始终注入 `--public-flat-rw`（Verilua VPI 需要）。若要用 `.vlt` / `verilua.verilator_config` 做精细 `public_flat_*` 以提升性能，显式关闭：
+
+```lua title="xmake.lua"
+set_values("verilua.verilator_no_public_flat_rw", "1")
+set_values("verilua.verilator_config", [[
+public_flat_rw -module "tb_top" -var "*"
+public_flat_rw -module "top" -var "*"
+]])
+-- 或 add_files("config.vlt")
+```
+
 ### 添加运行参数
 
 对应配置：`set_values("<sim>.run_flags", <flags used at runtime>)` / `add_values("<sim>.run_flags", "<flags used at runtime>")`

@@ -8,7 +8,7 @@ Verilua 的 xmake rule 会在编译和运行阶段为每个仿真后端自动注
 只有少数默认参数支持覆盖或开关切换：
 
 - **可覆盖值**：`timescale`（各后端）、Verilator 的 `--x-assign`、VCS 的 `-cc/-cpp/-ld`。传入同名参数会就地替换默认值。
-- **可开关切换**：Verilator 的 `-O3`↔`-O0`、`--no-timing`↔`--timing`；寄存器初始化通过 [`vcs_no_initreg` / `xcelium_no_initreg`](#关闭寄存器初始化) 关闭；`--public-flat-rw` 仅在存在 `.vlt` 配置文件时不注入。
+- **可开关切换**：Verilator 的 `-O3`↔`-O0`、`--no-timing`↔`--timing`；寄存器初始化通过 [`vcs_no_initreg` / `xcelium_no_initreg`](#关闭寄存器初始化) 关闭；`--public-flat-rw` 通过 [`verilua.verilator_no_public_flat_rw`](./xmake_params.mdx) 显式关闭（与是否存在 `.vlt` / `verilua.verilator_config` 无关）。
 
 除此之外的默认参数（如 `-debug_access+all`、`-access +rw`、`--Wno-*` 等）是无条件注入的，无法通过 `<sim>.flags` 去掉。完整的参数传递机制见 [xmake 的配置参数](./xmake_params.mdx#添加编译参数)。
 :::
@@ -66,7 +66,7 @@ Verilator 的 `--x-assign` 可通过 `set_values("verilator.flags", "--x-assign 
 |------|------|
 | `--x-assign unique` | X 信号赋唯一确定值，保证可复现性 |
 | `-O3` | 启用 Verilator 代码生成优化（可通过 `verilator.flags` 中的 `-O0` 覆盖） |
-| `--public-flat-rw` | 允许通过 VPI 读写所有信号（如果存在 `.vlt` 配置文件则不注入，改用精细控制以提升性能） |
+| `--public-flat-rw` | 允许通过 VPI 读写所有信号（默认注入；`set_values("verilua.verilator_no_public_flat_rw", "1")` 可关闭，再靠 `.vlt` / `verilua.verilator_config` 精细 public） |
 | `--timescale-override 1ns/1ps` | 统一时间精度 |
 | `--no-timing` | 禁用 timing 模式（可通过 `--timing` 覆盖切换为 timing 模式） |
 | `--Wno-PINMISSING` 等 | 抑制常见非关键警告（PINMISSING、MODDUP、WIDTHEXPAND、WIDTHTRUNC、UNOPTTHREADS、IMPORTSTAR） |

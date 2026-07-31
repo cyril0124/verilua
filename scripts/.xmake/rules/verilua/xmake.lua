@@ -546,23 +546,62 @@ rule("verilua", function()
                 [[-LDFLAGS "-u coverageCtrl -u getCoverageCount -u getCoverage -u getCondCoverage"]], -- Reserve symbols for coverage(cov_exporter)
             }
 
-            --- Check if there is a verilator config file(*.vlt), if so, disable public flat read/write.
-            --- A verilator config file contains the infomation about which signals can be accessed.
-            --- Using verilator configuration file instead of plain `--public-flat-rw` can improve simulation performance.
-            --- e.g. (config.vlt)
-            --- ```plaintext
-            --- `verilator_config
+            --- Inline Verilator control file via set_values("verilua.verilator_config", [[...]]).
+            --- Written to build_dir/verilua_generated.vlt and treated like add_files("*.vlt").
+            --- Verilator control file docs:
+            ---   https://verilator.org/guide/latest/control.html#verilator-control-files
+            --- e.g.(in your xmake.lua)
+            --- ```lua
+            ---     set_values("verilua.verilator_config", [[
             --- public_flat_rw -module "tb_top" -var "*"
-            --- public_flat_rd -module "Top" -var "*"
-            --- public_flat_rd -module "Sub" -var "io_in_*"
+            --- forceable -module "dut" -var "ready"
+            --- ]])
             --- ```
-            local public_flat_rw = true
-            for _, sourcefile in ipairs(sourcefiles) do
-                if sourcefile:endswith(".vlt") then
-                    public_flat_rw = false
+            --- Content without `verilator_config is auto-wrapped.
+            local verilator_config = get_verilua_value(target, "verilua.verilator_config")
+            if verilator_config ~= nil then
+                local vlt_content
+                if type(verilator_config) == "table" then
+                    local parts = {}
+                    for _, chunk in ipairs(verilator_config) do
+                        parts[#parts + 1] = tostring(chunk)
+                    end
+                    vlt_content = table.concat(parts, "\n")
+                else
+                    vlt_content = tostring(verilator_config)
                 end
+                vlt_content = vlt_content:trim()
+                assert(vlt_content ~= "",
+                    "[on_build] `verilua.verilator_config` is set but empty")
+                if not vlt_content:find("verilator_config", 1, true) then
+                    vlt_content = "`verilator_config\n" .. vlt_content
+                end
+                local generated_vlt = path.join(build_dir, "verilua_generated.vlt")
+                io.writefile(generated_vlt, vlt_content .. "\n")
+                -- Register on target so later `target:sourcefiles()` refreshes still see it.
+                target:add("files", generated_vlt)
+                table.insert(sourcefiles, generated_vlt)
+                cprint(
+                    "${✅} [verilua-xmake] [%s] wrote ${yellow underline}verilua.verilator_config${reset} to ${green underline}%s${reset}",
+                    target:name(),
+                    generated_vlt
+                )
             end
-            if public_flat_rw then
+
+            --- Default: inject --public-flat-rw so VPI can access signals (Verilua needs this).
+            --- Control files (.vlt / verilua.verilator_config) only ADD directives; they do NOT
+            --- implicitly disable --public-flat-rw. Opt out explicitly:
+            --- ```lua
+            ---     set_values("verilua.verilator_no_public_flat_rw", "1")
+            --- ```
+            --- Then put fine-grained public_flat_* in .vlt / verilua.verilator_config.
+            local verilator_no_public_flat_rw = get_verilua_value(target, "verilua.verilator_no_public_flat_rw")
+            if verilator_no_public_flat_rw == "1" then
+                cprint(
+                    "${✅} [verilua-xmake] [%s] ${yellow underline}verilua.verilator_no_public_flat_rw${reset} is enabled (skip --public-flat-rw)",
+                    target:name()
+                )
+            else
                 extra_verilator_flags[#extra_verilator_flags + 1] = "--public-flat-rw"
             end
 
