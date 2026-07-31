@@ -132,8 +132,8 @@ function await_nsim() end
 --- | "before_build" "Optional" User-defined callback function to run before build
 --- | "verilua.instrument" "Optional" Instrumentation configuration function for runtime coverage collection
 --- | "instrumentation" "Optional" (Deprecated, use verilua.instrument) Instrumentation configuration function
---- | "verilator.opt_slow" "Optional" Optimization options for slow-path code
---- | "verilator.opt_fast" "Optional" Optimization options for fast-path code
+--- | "verilua.verilator_opt_slow" "Optional" Optimization options for slow-path code (make OPT_SLOW)
+--- | "verilua.verilator_opt_fast" "Optional" Optimization options for fast-path code (make OPT_FAST)
 
 ---@param cmd verilua.xmake.set_add_values.cmd
 ---@param ... verilua.xmake.set_add_values.yes_or_not|string|function|table

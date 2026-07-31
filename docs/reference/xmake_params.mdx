@@ -286,6 +286,19 @@ public_flat_rw -module "top" -var "*"
 -- 或 add_files("config.vlt")
 ```
 
+### Verilator C++ 优化级别（OPT_FAST / OPT_SLOW）
+
+对应配置：
+
+- `set_values("verilua.verilator_opt_fast", <flags>)`：快路径（每周期执行的 model 代码），默认 `-O3 -march=native`
+- `set_values("verilua.verilator_opt_slow", <flags>)`：慢路径（初始化/收尾），默认 `-O0`
+
+传给 Verilator 生成的 `Makefile` 的 `OPT_FAST` / `OPT_SLOW`，**不是** `verilator` CLI 参数。日常开发想加快编译可把 fast 降为 `-O0`：
+
+```lua title="xmake.lua"
+set_values("verilua.verilator_opt_fast", "-O0")
+```
+
 ### 添加运行参数
 
 对应配置：`set_values("<sim>.run_flags", <flags used at runtime>)` / `add_values("<sim>.run_flags", "<flags used at runtime>")`

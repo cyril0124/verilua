@@ -1608,18 +1608,18 @@ rule("verilua", function()
             if sim == "verilator" then
                 --- e.g.
                 --- ```lua
-                ---     set_values("verilator.opt_slow", "-O3")
-                ---     set_values("verilator.opt_fast", "-O0")
+                ---     set_values("verilua.verilator_opt_slow", "-O3")
+                ---     set_values("verilua.verilator_opt_fast", "-O0")
                 --- ```
-                local user_opt_slow = target:values("verilator.opt_slow")
-                local user_opt_fast = target:values("verilator.opt_fast")
+                local user_opt_slow = get_verilua_value(target, "verilua.verilator_opt_slow")
+                local user_opt_fast = get_verilua_value(target, "verilua.verilator_opt_fast")
                 assert(
                     type(user_opt_slow) == "nil" or type(user_opt_slow) == "string",
-                    "[on_build] `verilator.opt_slow`` must be a string"
+                    "[on_build] `verilua.verilator_opt_slow` must be a string"
                 )
                 assert(
                     type(user_opt_fast) == "nil" or type(user_opt_fast) == "string",
-                    "[on_build] `verilator.opt_fast` must be a string"
+                    "[on_build] `verilua.verilator_opt_fast` must be a string"
                 )
 
                 local nproc = os.cpuinfo().ncpu or 128
