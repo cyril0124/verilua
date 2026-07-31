@@ -235,7 +235,7 @@ end
 ---@field name string Test case display name (e.g. "test_edge")
 ---@field no_internal_clock? boolean Also run with NO_INTERNAL_CLOCK=1
 ---@field min_verilator_version? number Skip verilator if version < this (e.g. 5.036)
----@field skip_verilator? boolean Skip verilator entirely (e.g. force/release-only tests)
+---@field skip_verilator? boolean Skip verilator entirely
 
 -- All sim-based test cases — each directory gets its own parallel target
 ---@type SimTestCase[]
@@ -254,7 +254,8 @@ local sim_test_cases = {
     { dir = "test_bitvec_signal", name = "test_bitvec_signal" },
     { dir = "test_no_internal_clock", name = "test_no_internal_clock" },
     { dir = "test_handles", name = "test_handles" },
-    { dir = "test_force_release_coalesce", name = "test_force_release_coalesce", skip_verilator = true },
+    -- VPI force/release needs Verilator >= 5.046 + forceable signals
+    { dir = "test_force_release_coalesce", name = "test_force_release_coalesce", min_verilator_version = 5.046 },
     { dir = "test_native_clock", name = "test_native_clock" },
     { dir = "test_queue_waitable", name = "test_queue_waitable" },
     { dir = "test_dpic", name = "test_dpic" },

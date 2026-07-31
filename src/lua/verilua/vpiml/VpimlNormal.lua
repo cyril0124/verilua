@@ -276,8 +276,11 @@ local vpiml = {
     ---@type fun(handle: verilua.handles.ComplexHandleRaw)
     vpiml_release_value = (function()
         local simulator = cfg.simulator
+        -- iverilog/xcelium: deferred release is sticky on procedural regs, so map
+        -- to imm. Do NOT add verilator here — deferred release+force must still
+        -- coalesce (see tests/test_force_release_coalesce).
         if simulator == "iverilog" or simulator == "xcelium" then
-            --- see: tests/test_set_value/main.lua:117
+            --- see: tests/test_set_value (counter force/release)
             return C.vpiml_release_imm_value
         else
             return C.vpiml_release_value

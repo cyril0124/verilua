@@ -558,6 +558,45 @@ rule("verilua", function()
             --- ]])
             --- ```
             --- Content without `verilator_config is auto-wrapped.
+            --- If control files request forceable (VPI force/release), require Verilator >= 5.046.
+            --- https://verilator.org/guide/latest/control.html#verilator-control-files
+            local function require_verilator_vpi_force(source)
+                local version_output = os.iorun("verilator --version") or ""
+                local major, minor = version_output:match("Verilator%s+(%d+)%.(%d+)")
+                major, minor = tonumber(major), tonumber(minor)
+                assert(
+                    major and minor,
+                    string.format(
+                        "[on_build] [%s] failed to parse `verilator --version` (got: %s)",
+                        target:name(),
+                        version_output:trim()
+                    )
+                )
+                -- VPI force/release since 5.046
+                local ok = major > 5 or (major == 5 and minor >= 46)
+                assert(
+                    ok,
+                    string.format(
+                        "[on_build] [%s] VPI force/release needs Verilator >= 5.046 "
+                        .. "(found `forceable` in %s), got: %s",
+                        target:name(),
+                        source,
+                        version_output:trim()
+                    )
+                )
+                cprint(
+                    "${✅} [verilua-xmake] [%s] Verilator %s supports VPI force (`forceable` in %s)",
+                    target:name(),
+                    version_output:match("Verilator%s+([%d.]+)") or (major .. "." .. minor),
+                    source
+                )
+            end
+
+            local function control_file_needs_vpi_force(content)
+                -- Verilator control keyword that enables VPI force/release targets
+                return content:find("forceable", 1, true) ~= nil
+            end
+
             local verilator_config = get_verilua_value(target, "verilua.verilator_config")
             if verilator_config ~= nil then
                 local vlt_content
@@ -573,6 +612,9 @@ rule("verilua", function()
                 vlt_content = vlt_content:trim()
                 assert(vlt_content ~= "",
                     "[on_build] `verilua.verilator_config` is set but empty")
+                if control_file_needs_vpi_force(vlt_content) then
+                    require_verilator_vpi_force("verilua.verilator_config")
+                end
                 if not vlt_content:find("verilator_config", 1, true) then
                     vlt_content = "`verilator_config\n" .. vlt_content
                 end
@@ -586,6 +628,20 @@ rule("verilua", function()
                     target:name(),
                     generated_vlt
                 )
+            end
+
+            -- Also scan user-provided .vlt files (not the generated one we just wrote).
+            for _, sourcefile in ipairs(sourcefiles) do
+                if sourcefile:endswith(".vlt")
+                    and not sourcefile:endswith("verilua_generated.vlt")
+                    and os.isfile(sourcefile)
+                then
+                    local content = io.readfile(sourcefile) or ""
+                    if control_file_needs_vpi_force(content) then
+                        require_verilator_vpi_force(sourcefile)
+                        break
+                    end
+                end
             end
 
             --- Default: inject --public-flat-rw so VPI can access signals (Verilua needs this).

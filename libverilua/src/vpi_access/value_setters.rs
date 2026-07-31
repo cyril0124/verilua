@@ -25,10 +25,6 @@ macro_rules! impl_gen_set_force_value {
         paste::paste!{
             impl VeriluaEnv {
                 pub fn [<vpiml_ $action _value>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u32) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        // TODO: https://github.com/verilator/verilator/issues/5933
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -64,9 +60,6 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub fn [<vpiml_ $action _imm_value>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u32) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -105,9 +98,6 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub fn [<vpiml_ $action _value64>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u64) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -154,9 +144,6 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub fn [<vpiml_ $action _imm_value64>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u64) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
                     let vectors = &mut complex_handle.put_value_vectors;
@@ -188,9 +175,6 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub fn [<vpiml_ $action _value64_force_single>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u64) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -236,9 +220,6 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub fn [<vpiml_ $action _imm_value64_force_single>](&mut self, complex_handle_raw: ComplexHandleRaw, value: u64) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
                     let vectors = &mut complex_handle.put_value_vectors;
@@ -268,9 +249,6 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub unsafe extern "C" fn [<vpiml_ $action _value_multi>](&mut self, complex_handle_raw: ComplexHandleRaw, value: *const u32) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -310,9 +288,6 @@ macro_rules! impl_gen_set_force_value {
                 }
 
                 pub fn [<vpiml_ $action _imm_value_multi>](&mut self, complex_handle_raw: ComplexHandleRaw, value: *const u32) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -440,9 +415,6 @@ macro_rules! impl_gen_set_force_value_multi_beat {
             impl VeriluaEnv {
                 #[allow(clippy::too_many_arguments)]
                 pub fn [<vpiml_ $action _value_multi_beat_ $count>](&mut self, complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -480,9 +452,6 @@ macro_rules! impl_gen_set_force_value_multi_beat {
                 }
                 #[allow(clippy::too_many_arguments)]
                 pub fn [<vpiml_ $action _imm_value_multi_beat_ $count>](&mut self, complex_handle_raw: ComplexHandleRaw $(, paste::paste!{[<v $i>]}: u32)*) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -535,9 +504,6 @@ macro_rules! impl_gen_set_force_value_str {
         paste::paste! {
             impl VeriluaEnv {
                 pub fn [<vpiml_ $action _value_str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -586,9 +552,6 @@ macro_rules! impl_gen_set_force_value_str {
                 }
 
                 pub fn [<vpiml_ $action _imm_value_str>](&mut self, complex_handle_raw: ComplexHandleRaw, value_str: *mut c_char) {
-                    if $flag == vpiForceFlag && cfg!(feature = "verilator") {
-                        panic!("force value is not supported in `verilator`! {:?}", ComplexHandle::from_raw(&complex_handle_raw));
-                    }
 
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
@@ -632,13 +595,6 @@ impl VeriluaEnv {
     pub fn vpiml_release_value(&mut self, complex_handle_raw: ComplexHandleRaw) {
         let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
-        if cfg!(feature = "verilator") {
-            panic!(
-                "release value is not supported in `verilator`! {:?}",
-                complex_handle
-            );
-        }
-
         let mut v = s_vpi_value {
             format: vpiVectorVal as _,
             value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },
@@ -672,9 +628,6 @@ impl VeriluaEnv {
 
     pub fn vpiml_release_imm_value(&mut self, complex_handle_raw: ComplexHandleRaw) {
         let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-        if cfg!(feature = "verilator") {
-            panic!("release value is not supported in verilator!");
-        }
         let mut v = s_vpi_value {
             format: vpiVectorVal as _,
             value: t_vpi_value__bindgen_ty_1 { integer: 0 as _ },

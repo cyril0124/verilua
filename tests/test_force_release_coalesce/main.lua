@@ -15,14 +15,17 @@
 -- ready glitches 0->1->0 inside the timeslot and both checks fail.
 --
 -- Simulator notes:
---   - verilator: force/release unsupported
+--   - verilator: needs forceable on forced signals (via verilua.verilator_config)
 --   - iverilog/xcelium: set_release has long been immediate (historically wired
 --     to vpiml_release_imm_value), so release+force never coalesced there;
 --     this check is only meaningful where both ops share the deferred queue
 
 local clock = dut.clock:chdl()
 local valid = dut.valid:chdl()
-local ready = dut.ready:chdl()
+-- Force the DUT-side continuous-assign net. On Verilator, tb_top.ready and
+-- u_top.ready are separate forceable nets; only forcing u_top.ready overrides
+-- `assign ready = 1'b1` and blocks the handshake.
+local ready = dut.u_top.ready:chdl()
 local count = dut.count:chdl()
 local bp_armed = dut.bp_armed:chdl()
 local ready_glitch = dut.ready_glitch:chdl()
@@ -31,12 +34,6 @@ local CYCLES = 20
 
 fork {
     function()
-        if cfg.simulator == "verilator" then
-            print("[test_force_release_coalesce] skip: force/release not supported on verilator")
-            sim.finish()
-            return
-        end
-
         if cfg.simulator == "iverilog" or cfg.simulator == "xcelium" then
             print(string.format(
                 "[test_force_release_coalesce] skip: set_release is immediate on %s "

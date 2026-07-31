@@ -21,4 +21,10 @@ target("test", function()
     add_files("top.sv")
     set_values("verilua.top", "top")
     set_values("verilua.lua_main", "main.lua")
+
+    -- Verilator VPI force/release/freeze requires forceable (since 5.046).
+    set_values("verilua.verilator_config", [[
+forceable -module "top" -var "opt_valid"
+forceable -module "top" -var "opt_data"
+]])
 end)

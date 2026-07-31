@@ -841,55 +841,48 @@ fork {
 
         -- ========================================================================
         -- Test: ProxyTableHandle - Freeze and release
+        -- (Verilator needs forceable via verilua.verilator_config; freeze uses force)
         -- ========================================================================
-        if not is_verilator then
-            test_section("ProxyTableHandle - Freeze operations")
+        test_section("ProxyTableHandle - Freeze operations")
 
-            local freeze_sig = dut.u_top.opt_data:chdl()
-            freeze_sig:set_imm(0x88)
-            freeze_sig:set_freeze()
-            clock:posedge()
-            assert(freeze_sig:get() == 0x88)
-            freeze_sig:set_release()
-            clock:posedge() -- Wait a cycle for release to take effect
-            freeze_sig:set_imm(0x99)
-            assert(freeze_sig:get() == 0x99)
-        end
-
-
+        local freeze_sig = dut.u_top.opt_data:chdl()
+        freeze_sig:set_imm(0x88)
+        freeze_sig:set_freeze()
+        clock:posedge()
+        assert(freeze_sig:get() == 0x88)
+        freeze_sig:set_release()
+        clock:posedge() -- Wait a cycle for release to take effect
+        freeze_sig:set_imm(0x99)
+        assert(freeze_sig:get() == 0x99)
 
         -- ========================================================================
-        -- Test: CallableHDL - Force and release (skip for Verilator)
+        -- Test: CallableHDL - Force and release
         -- ========================================================================
-        if not is_verilator then
-            test_section("CallableHDL - Force and release")
+        test_section("CallableHDL - Force and release")
 
-            local force_sig = ("tb_top.u_top.opt_valid"):chdl()
-            force_sig:set_force(0x1)
-            clock:posedge()
-            assert(force_sig:get() == 0x1)
+        local force_sig = ("tb_top.u_top.opt_valid"):chdl()
+        force_sig:set_force(0x1)
+        clock:posedge()
+        assert(force_sig:get() == 0x1)
 
-            force_sig:set_release()
-            clock:posedge() -- Wait a cycle for release to take effect
-            force_sig:set_imm(0x0)
-            assert(force_sig:get() == 0x0)
-        end
+        force_sig:set_release()
+        clock:posedge() -- Wait a cycle for release to take effect
+        force_sig:set_imm(0x0)
+        assert(force_sig:get() == 0x0)
 
         -- ========================================================================
-        -- Test: ProxyTableHandle - Force and release (skip for Verilator)
+        -- Test: ProxyTableHandle - Force and release
         -- ========================================================================
-        if not is_verilator then
-            test_section("ProxyTableHandle - Force and release")
+        test_section("ProxyTableHandle - Force and release")
 
-            dut.u_top.opt_valid:set_force(0x1)
-            clock:posedge()
-            assert(dut.u_top.opt_valid:get() == 0x1)
+        dut.u_top.opt_valid:set_force(0x1)
+        clock:posedge()
+        assert(dut.u_top.opt_valid:get() == 0x1)
 
-            dut.u_top.opt_valid:set_release()
-            clock:posedge() -- Wait a cycle for release to take effect
-            dut.u_top.opt_valid:set_imm(0x0)
-            assert(dut.u_top.opt_valid:get() == 0x0)
-        end
+        dut.u_top.opt_valid:set_release()
+        clock:posedge() -- Wait a cycle for release to take effect
+        dut.u_top.opt_valid:set_imm(0x0)
+        assert(dut.u_top.opt_valid:get() == 0x0)
 
         -- ========================================================================
         -- Test: CallableHDL - get_bitvec
