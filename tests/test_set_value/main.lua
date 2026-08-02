@@ -1,3 +1,20 @@
+---@return boolean true when VPI force/release is usable on this simulator
+local function vpi_force_ok()
+    if cfg.simulator ~= "verilator" then
+        return true
+    end
+    -- forceable requires Verilator >= 5.046 (matched by test xmake.lua)
+    local p = io.popen("verilator --version 2>/dev/null")
+    if not p then
+        return false
+    end
+    local out = p:read("*a") or ""
+    p:close()
+    local major, minor = out:match("Verilator%s+(%d+)%.(%d+)")
+    major, minor = tonumber(major), tonumber(minor)
+    return major ~= nil and (major > 5 or (major == 5 and minor >= 46))
+end
+
 fork {
     function()
         local clock = dut.clock:chdl()
@@ -40,88 +57,98 @@ fork {
         dut.inc:expect(12)
 
         -- Force/release (Verilator needs forceable via verilua.verilator_config)
-        dut.inc:set_force(111)
-        clock:posedge()
-        dut.inc:expect(111)
-        clock:posedge(10, function(count)
-            dut.inc:expect(111)
-        end)
-        dut.inc:set_release()
-        clock:posedge()
-
-        local inc = dut.inc:chdl()
-        inc:set_force(112)
-        clock:posedge()
-        inc:expect(112)
-        inc:set_release()
-
-        inc:set(0)
-        inc:set_force(113)
-        clock:posedge()
-        inc:expect(113)
-        inc:set_release()
-        clock:posedge()
-
-        inc:set_force(213)
-        inc:set(0)
-        clock:posedge()
-        inc:expect(213)
-        inc:set_release()
-        clock:posedge()
-
-        inc:set_force(120)
-        clock:posedge()
-        inc:set(111)
-        clock:posedge()
-        inc:expect(120)
-        inc:set_imm_release()
-
-        inc:set_force(114)
-        inc:set_force(115)
-        clock:posedge()
-        inc:expect(115)
-        inc:set_release()
-        clock:posedge()
-
-        inc:set_force(116)
-        inc:set_force(117)
-        inc:set_force(118)
-        inc:set_force(119)
-        clock:posedge()
-        inc:expect(119)
-        inc:set_release()
-        inc:set_release()
-        clock:posedge()
-
-        inc:set_force(120)
-        inc:set_release()
-        clock:posedge()
-        inc:expect(119)
-
-        inc:set_release()
-        inc:set_force(121)
-        clock:posedge()
-        inc:expect(121)
-        inc:set_release()
-
-        inc:set_release()
-        inc:set_release()
-
-        local counter = dut.u_top.counter:chdl()
-        counter:set_force(1)
-        clock:posedge()
-        counter:expect(1)
-        -- Deferred set_release() leaves forced procedural regs sticky on
-        -- iverilog/xcelium/verilator (next posedge may not update). VCS is fine.
-        -- Note: cannot map verilator release->imm globally in VpimlNormal — that
-        -- breaks same-timeslot release+force coalesce (test_force_release_coalesce).
-        if cfg.simulator == "vcs" then
-            counter:set_release()
+        if not vpi_force_ok() then
+            print("[test_set_value] skip force/release: Verilator < 5.046 (no forceable)")
         else
-            counter:set_imm_release()
-        end
-        clock:posedge()
-        counter:expect(2)
+            dut.inc:set_force(111)
+            clock:posedge()
+            dut.inc:expect(111)
+            clock:posedge(10, function(count)
+                dut.inc:expect(111)
+            end)
+            dut.inc:set_release()
+            clock:posedge()
+
+            local inc = dut.inc:chdl()
+            inc:set_force(112)
+            clock:posedge()
+            inc:expect(112)
+            inc:set_release()
+
+            inc:set(0)
+            inc:set_force(113)
+            clock:posedge()
+            inc:expect(113)
+            inc:set_release()
+            clock:posedge()
+
+            inc:set_force(213)
+            inc:set(0)
+            clock:posedge()
+            inc:expect(213)
+            inc:set_release()
+            clock:posedge()
+
+            inc:set_force(120)
+            clock:posedge()
+            inc:set(111)
+            clock:posedge()
+            inc:expect(120)
+            inc:set_imm_release()
+
+            inc:set_force(114)
+            inc:set_force(115)
+            clock:posedge()
+            inc:expect(115)
+            inc:set_release()
+            clock:posedge()
+
+            inc:set_force(116)
+            inc:set_force(117)
+            inc:set_force(118)
+            inc:set_force(119)
+            clock:posedge()
+            inc:expect(119)
+            inc:set_release()
+            inc:set_release()
+            clock:posedge()
+
+            inc:set_force(120)
+            inc:set_release()
+            clock:posedge()
+            -- Deferred force+release coalesce keeps pre-force value (119).
+            -- Under inertial_put both ops are immediate, so release keeps 120.
+            if os.getenv("VL_USE_INERTIAL_PUT") == "1" then
+                inc:expect(120)
+            else
+                inc:expect(119)
+            end
+
+            inc:set_release()
+            inc:set_force(121)
+            clock:posedge()
+            inc:expect(121)
+            inc:set_release()
+
+            inc:set_release()
+            inc:set_release()
+
+            local counter = dut.u_top.counter:chdl()
+            counter:set_force(1)
+            clock:posedge()
+            counter:expect(1)
+            -- Deferred set_release() leaves forced procedural regs sticky on
+            -- iverilog/xcelium/verilator (next posedge may not update). VCS is fine.
+            -- Note: cannot map verilator release->imm globally in VpimlNormal — that
+            -- breaks same-timeslot release+force coalesce (test_force_release_coalesce).
+            if cfg.simulator == "vcs" then
+                counter:set_release()
+            else
+                counter:set_imm_release()
+            end
+            clock:posedge()
+            counter:expect(2)
+        end -- vpi_force_ok
 
         do
             clock:posedge()

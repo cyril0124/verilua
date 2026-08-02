@@ -16,6 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **libverilua**: Enable VPI `set_force` / `set_release` on Verilator (≥ 5.046). Signals must be marked `forceable` (e.g. via `verilua.verilator_config`).
 - **xmake / verilua rule**: When a control file (`.vlt` / `verilua.verilator_config`) contains `forceable`, require Verilator ≥ 5.046 at build time so old versions fail the build instead of silently treating force as a normal write.
 
+### 🐛 Fixed
+
+- **tests**: `test_set_value` / `test_handles` only inject `forceable` (and run force/freeze sections) when Verilator ≥ 5.046; older Verilator still runs non-force coverage instead of failing the build gate.
+- **libverilua / inertial_put**: `set_force` under `VL_USE_INERTIAL_PUT` used `vpiInertialDelay` instead of `vpiForceFlag`, so force did not stick. Force now keeps `vpiForceFlag`; same-timeslot force+release coalesce remains deferred-only (skip under inertial_put).
+
 ---
 
 ## v3.5.1 - 2026-07-29

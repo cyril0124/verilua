@@ -843,46 +843,66 @@ fork {
         -- Test: ProxyTableHandle - Freeze and release
         -- (Verilator needs forceable via verilua.verilator_config; freeze uses force)
         -- ========================================================================
-        test_section("ProxyTableHandle - Freeze operations")
+        do
+            local force_ok = true
+            if cfg.simulator == "verilator" then
+                local p = io.popen("verilator --version 2>/dev/null")
+                if p then
+                    local out = p:read("*a") or ""
+                    p:close()
+                    local major, minor = out:match("Verilator%s+(%d+)%.(%d+)")
+                    major, minor = tonumber(major), tonumber(minor)
+                    force_ok = major ~= nil and (major > 5 or (major == 5 and minor >= 46))
+                else
+                    force_ok = false
+                end
+            end
 
-        local freeze_sig = dut.u_top.opt_data:chdl()
-        freeze_sig:set_imm(0x88)
-        freeze_sig:set_freeze()
-        clock:posedge()
-        assert(freeze_sig:get() == 0x88)
-        freeze_sig:set_release()
-        clock:posedge() -- Wait a cycle for release to take effect
-        freeze_sig:set_imm(0x99)
-        assert(freeze_sig:get() == 0x99)
+            if not force_ok then
+                print("[test_handles] skip freeze/force: Verilator < 5.046 (no forceable)")
+            else
+                test_section("ProxyTableHandle - Freeze operations")
 
-        -- ========================================================================
-        -- Test: CallableHDL - Force and release
-        -- ========================================================================
-        test_section("CallableHDL - Force and release")
+                local freeze_sig = dut.u_top.opt_data:chdl()
+                freeze_sig:set_imm(0x88)
+                freeze_sig:set_freeze()
+                clock:posedge()
+                assert(freeze_sig:get() == 0x88)
+                freeze_sig:set_release()
+                clock:posedge() -- Wait a cycle for release to take effect
+                freeze_sig:set_imm(0x99)
+                assert(freeze_sig:get() == 0x99)
 
-        local force_sig = ("tb_top.u_top.opt_valid"):chdl()
-        force_sig:set_force(0x1)
-        clock:posedge()
-        assert(force_sig:get() == 0x1)
+                -- ========================================================================
+                -- Test: CallableHDL - Force and release
+                -- ========================================================================
+                test_section("CallableHDL - Force and release")
 
-        force_sig:set_release()
-        clock:posedge() -- Wait a cycle for release to take effect
-        force_sig:set_imm(0x0)
-        assert(force_sig:get() == 0x0)
+                local force_sig = ("tb_top.u_top.opt_valid"):chdl()
+                force_sig:set_force(0x1)
+                clock:posedge()
+                assert(force_sig:get() == 0x1)
 
-        -- ========================================================================
-        -- Test: ProxyTableHandle - Force and release
-        -- ========================================================================
-        test_section("ProxyTableHandle - Force and release")
+                force_sig:set_release()
+                clock:posedge() -- Wait a cycle for release to take effect
+                force_sig:set_imm(0x0)
+                assert(force_sig:get() == 0x0)
 
-        dut.u_top.opt_valid:set_force(0x1)
-        clock:posedge()
-        assert(dut.u_top.opt_valid:get() == 0x1)
+                -- ========================================================================
+                -- Test: ProxyTableHandle - Force and release
+                -- ========================================================================
+                test_section("ProxyTableHandle - Force and release")
 
-        dut.u_top.opt_valid:set_release()
-        clock:posedge() -- Wait a cycle for release to take effect
-        dut.u_top.opt_valid:set_imm(0x0)
-        assert(dut.u_top.opt_valid:get() == 0x0)
+                dut.u_top.opt_valid:set_force(0x1)
+                clock:posedge()
+                assert(dut.u_top.opt_valid:get() == 0x1)
+
+                dut.u_top.opt_valid:set_release()
+                clock:posedge() -- Wait a cycle for release to take effect
+                dut.u_top.opt_valid:set_imm(0x0)
+                assert(dut.u_top.opt_valid:get() == 0x0)
+            end
+        end
 
         -- ========================================================================
         -- Test: CallableHDL - get_bitvec

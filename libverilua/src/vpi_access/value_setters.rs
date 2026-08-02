@@ -48,7 +48,7 @@ macro_rules! impl_gen_set_force_value {
                                 complex_handle.vpi_handle,
                                 &mut v as *mut _,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -123,7 +123,7 @@ macro_rules! impl_gen_set_force_value {
                                 complex_handle.vpi_handle,
                                 &mut v as *mut _,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -200,7 +200,7 @@ macro_rules! impl_gen_set_force_value {
                                 complex_handle.vpi_handle,
                                 &mut v as *mut _,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -271,7 +271,7 @@ macro_rules! impl_gen_set_force_value {
                                 complex_handle.vpi_handle,
                                 &mut v as *mut _,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -341,7 +341,7 @@ macro_rules! impl_gen_set_value_str {
                                 complex_handle.vpi_handle,
                                 &mut v,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -368,7 +368,7 @@ macro_rules! impl_gen_set_value_str {
                                 complex_handle.vpi_handle,
                                 &mut v,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -437,7 +437,7 @@ macro_rules! impl_gen_set_force_value_multi_beat {
                                 complex_handle.vpi_handle,
                                 &mut v as *mut _,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -530,7 +530,7 @@ macro_rules! impl_gen_set_force_value_str {
                                 complex_handle.vpi_handle,
                                 &mut v,
                                 std::ptr::null_mut(),
-                                vpiInertialDelay as _,
+                                if $flag == vpiForceFlag { vpiForceFlag as _ } else { vpiInertialDelay as _ },
                             )
                         };
                     } else {
@@ -605,6 +605,7 @@ impl VeriluaEnv {
         unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
         if cfg!(feature = "inertial_put") {
+            // Immediate: deferred flush is disabled under inertial_put.
             unsafe {
                 vpi_put_value(
                     complex_handle.vpi_handle,
