@@ -159,20 +159,17 @@ end
 _G.sim_event_chunk_1 = function(task_id_1)
     scheduler:schedule_task(task_id_1)
 end
-
 _G.sim_event_chunk_2 = function(task_id_1, task_id_2)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
 end
-
 _G.sim_event_chunk_3 = function(task_id_1, task_id_2, task_id_3)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
     schedule_task(scheduler, task_id_3)
 end
-
 _G.sim_event_chunk_4 = function(task_id_1, task_id_2, task_id_3, task_id_4)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
@@ -180,7 +177,6 @@ _G.sim_event_chunk_4 = function(task_id_1, task_id_2, task_id_3, task_id_4)
     schedule_task(scheduler, task_id_3)
     schedule_task(scheduler, task_id_4)
 end
-
 _G.sim_event_chunk_5 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
@@ -189,7 +185,6 @@ _G.sim_event_chunk_5 = function(task_id_1, task_id_2, task_id_3, task_id_4, task
     schedule_task(scheduler, task_id_4)
     schedule_task(scheduler, task_id_5)
 end
-
 _G.sim_event_chunk_6 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
@@ -199,7 +194,6 @@ _G.sim_event_chunk_6 = function(task_id_1, task_id_2, task_id_3, task_id_4, task
     schedule_task(scheduler, task_id_5)
     schedule_task(scheduler, task_id_6)
 end
-
 _G.sim_event_chunk_7 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
@@ -210,7 +204,6 @@ _G.sim_event_chunk_7 = function(task_id_1, task_id_2, task_id_3, task_id_4, task
     schedule_task(scheduler, task_id_6)
     schedule_task(scheduler, task_id_7)
 end
-
 _G.sim_event_chunk_8 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
@@ -222,9 +215,7 @@ _G.sim_event_chunk_8 = function(task_id_1, task_id_2, task_id_3, task_id_4, task
     schedule_task(scheduler, task_id_7)
     schedule_task(scheduler, task_id_8)
 end
-
-_G.sim_event_chunk_9 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                task_id_9)
+_G.sim_event_chunk_9 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -236,9 +227,7 @@ _G.sim_event_chunk_9 = function(task_id_1, task_id_2, task_id_3, task_id_4, task
     schedule_task(scheduler, task_id_8)
     schedule_task(scheduler, task_id_9)
 end
-
-_G.sim_event_chunk_10 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                 task_id_9, task_id_10)
+_G.sim_event_chunk_10 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9, task_id_10)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -251,9 +240,7 @@ _G.sim_event_chunk_10 = function(task_id_1, task_id_2, task_id_3, task_id_4, tas
     schedule_task(scheduler, task_id_9)
     schedule_task(scheduler, task_id_10)
 end
-
-_G.sim_event_chunk_11 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                 task_id_9, task_id_10, task_id_11)
+_G.sim_event_chunk_11 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9, task_id_10, task_id_11)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -267,9 +254,7 @@ _G.sim_event_chunk_11 = function(task_id_1, task_id_2, task_id_3, task_id_4, tas
     schedule_task(scheduler, task_id_10)
     schedule_task(scheduler, task_id_11)
 end
-
-_G.sim_event_chunk_12 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                 task_id_9, task_id_10, task_id_11, task_id_12)
+_G.sim_event_chunk_12 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9, task_id_10, task_id_11, task_id_12)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -284,9 +269,7 @@ _G.sim_event_chunk_12 = function(task_id_1, task_id_2, task_id_3, task_id_4, tas
     schedule_task(scheduler, task_id_11)
     schedule_task(scheduler, task_id_12)
 end
-
-_G.sim_event_chunk_13 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                 task_id_9, task_id_10, task_id_11, task_id_12, task_id_13)
+_G.sim_event_chunk_13 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9, task_id_10, task_id_11, task_id_12, task_id_13)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -302,9 +285,7 @@ _G.sim_event_chunk_13 = function(task_id_1, task_id_2, task_id_3, task_id_4, tas
     schedule_task(scheduler, task_id_12)
     schedule_task(scheduler, task_id_13)
 end
-
-_G.sim_event_chunk_14 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                 task_id_9, task_id_10, task_id_11, task_id_12, task_id_13, task_id_14)
+_G.sim_event_chunk_14 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9, task_id_10, task_id_11, task_id_12, task_id_13, task_id_14)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -321,9 +302,7 @@ _G.sim_event_chunk_14 = function(task_id_1, task_id_2, task_id_3, task_id_4, tas
     schedule_task(scheduler, task_id_13)
     schedule_task(scheduler, task_id_14)
 end
-
-_G.sim_event_chunk_15 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                 task_id_9, task_id_10, task_id_11, task_id_12, task_id_13, task_id_14, task_id_15)
+_G.sim_event_chunk_15 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9, task_id_10, task_id_11, task_id_12, task_id_13, task_id_14, task_id_15)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -341,10 +320,7 @@ _G.sim_event_chunk_15 = function(task_id_1, task_id_2, task_id_3, task_id_4, tas
     schedule_task(scheduler, task_id_14)
     schedule_task(scheduler, task_id_15)
 end
-
-_G.sim_event_chunk_16 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8,
-                                 task_id_9, task_id_10, task_id_11, task_id_12, task_id_13, task_id_14, task_id_15,
-                                 task_id_16)
+_G.sim_event_chunk_16 = function(task_id_1, task_id_2, task_id_3, task_id_4, task_id_5, task_id_6, task_id_7, task_id_8, task_id_9, task_id_10, task_id_11, task_id_12, task_id_13, task_id_14, task_id_15, task_id_16)
     local schedule_task = scheduler.schedule_task
     schedule_task(scheduler, task_id_1)
     schedule_task(scheduler, task_id_2)
@@ -363,6 +339,4 @@ _G.sim_event_chunk_16 = function(task_id_1, task_id_2, task_id_3, task_id_4, tas
     schedule_task(scheduler, task_id_15)
     schedule_task(scheduler, task_id_16)
 end
-
-
 return verilua

@@ -66,7 +66,7 @@ The following files are generated (in `libverilua/src/gen/`):
 - `gen_register_callback_func.rs`
 - `gen_verilua_env_struct.rs`
 - `gen_verilua_env_init.rs`
-- `gen_sim_event_chunk_init.rs`
+- `sim_event_chunk.lua` (Lua side; `sim_event` / chunk registry pin lives in `verilua_env.rs`)
 
 ## Running Tests
 

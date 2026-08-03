@@ -56,12 +56,7 @@ unsafe extern "C" fn edge_callback_chunk_1(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_1
-            .as_ref()
-            .unwrap()
-            .call::<()>(user_data.task_id_vec[0])
-        {
+        if let Err(e) = env.call_sim_event_chunk(1, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -184,12 +179,7 @@ unsafe extern "C" fn edge_callback_chunk_2(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_2
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(2, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -312,12 +302,7 @@ unsafe extern "C" fn edge_callback_chunk_3(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_3
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(3, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -440,12 +425,7 @@ unsafe extern "C" fn edge_callback_chunk_4(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_4
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(4, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -568,12 +548,7 @@ unsafe extern "C" fn edge_callback_chunk_5(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_5
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(5, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -696,12 +671,7 @@ unsafe extern "C" fn edge_callback_chunk_6(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_6
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(6, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -824,12 +794,7 @@ unsafe extern "C" fn edge_callback_chunk_7(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_7
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(7, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -952,12 +917,7 @@ unsafe extern "C" fn edge_callback_chunk_8(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_8
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(8, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1080,12 +1040,7 @@ unsafe extern "C" fn edge_callback_chunk_9(cb_data: *mut t_cb_data) -> PLI_INT32
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_9
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(9, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1208,12 +1163,7 @@ unsafe extern "C" fn edge_callback_chunk_10(cb_data: *mut t_cb_data) -> PLI_INT3
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_10
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(10, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1336,12 +1286,7 @@ unsafe extern "C" fn edge_callback_chunk_11(cb_data: *mut t_cb_data) -> PLI_INT3
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_11
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(11, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1464,12 +1409,7 @@ unsafe extern "C" fn edge_callback_chunk_12(cb_data: *mut t_cb_data) -> PLI_INT3
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_12
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(12, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1592,12 +1532,7 @@ unsafe extern "C" fn edge_callback_chunk_13(cb_data: *mut t_cb_data) -> PLI_INT3
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_13
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(13, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1720,12 +1655,7 @@ unsafe extern "C" fn edge_callback_chunk_14(cb_data: *mut t_cb_data) -> PLI_INT3
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_14
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12],user_data.task_id_vec[13]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(14, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1848,12 +1778,7 @@ unsafe extern "C" fn edge_callback_chunk_15(cb_data: *mut t_cb_data) -> PLI_INT3
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_15
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12],user_data.task_id_vec[13],user_data.task_id_vec[14]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(15, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -1976,12 +1901,7 @@ unsafe extern "C" fn edge_callback_chunk_16(cb_data: *mut t_cb_data) -> PLI_INT3
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_16
-            .as_ref()
-            .unwrap()
-            .call::<()>((user_data.task_id_vec[0],user_data.task_id_vec[1],user_data.task_id_vec[2],user_data.task_id_vec[3],user_data.task_id_vec[4],user_data.task_id_vec[5],user_data.task_id_vec[6],user_data.task_id_vec[7],user_data.task_id_vec[8],user_data.task_id_vec[9],user_data.task_id_vec[10],user_data.task_id_vec[11],user_data.task_id_vec[12],user_data.task_id_vec[13],user_data.task_id_vec[14],user_data.task_id_vec[15]))
-        {
+        if let Err(e) = env.call_sim_event_chunk(16, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }

@@ -64,6 +64,7 @@
 //! ```
 
 use hashbrown::HashMap;
+use mlua::ffi;
 use mlua::prelude::*;
 use std::cell::UnsafeCell;
 use std::ffi::{CStr, CString};
@@ -81,6 +82,10 @@ use crate::vpi_callback;
 #[cfg(not(feature = "chunk_task"))]
 use crate::vpi_callback::CallbackInfo;
 use crate::vpi_user::*;
+
+/// Must match `MAX_CHUNK` in `libverilua/src/gen/gen.lua`.
+#[cfg(feature = "chunk_task")]
+pub const SIM_EVENT_CHUNK_MAX: usize = 16;
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Singleton Management
@@ -172,6 +177,69 @@ impl VeriluaEnv {
     #[inline(always)]
     pub fn as_void_ptr(&mut self) -> *mut libc::c_void {
         self as *mut _ as *mut libc::c_void
+    }
+
+    /// Pin a global Lua function into the registry for the process lifetime.
+    /// Returns the registry integer id used by [`Self::call_lua_tasks`].
+    fn pin_global_fn(&self, name: &str) -> i32 {
+        let f: LuaFunction = self
+            .lua
+            .globals()
+            .get(name)
+            .unwrap_or_else(|e| panic!("Failed to load {name}: {e}"));
+        let key = self
+            .lua
+            .create_registry_value(f)
+            .unwrap_or_else(|e| panic!("Failed to registry {name}: {e}"));
+        let id = key.id();
+        // Keep the registry slot for the whole process; VeriluaEnv outlives the sim.
+        std::mem::forget(key);
+        id
+    }
+
+    /// Hot path: registry id + raw `lua_pcall` (no mlua Function::call tax).
+    #[inline(always)]
+    fn call_lua_tasks(&self, reg_id: i32, task_ids: &[TaskID]) -> Result<(), String> {
+        debug_assert!(reg_id != 0, "hot Lua fn not pinned");
+        self.lua.exec_raw_lua(|raw| {
+            let state = raw.state();
+            unsafe {
+                ffi::lua_rawgeti(state, ffi::LUA_REGISTRYINDEX, reg_id as ffi::lua_Integer);
+                for &tid in task_ids {
+                    ffi::lua_pushinteger(state, tid as ffi::lua_Integer);
+                }
+                let status = ffi::lua_pcall(state, task_ids.len() as i32, 0, 0);
+                if status != ffi::LUA_OK {
+                    let mut len: usize = 0;
+                    let ptr = ffi::lua_tolstring(state, -1, &mut len);
+                    let msg = if ptr.is_null() {
+                        format!("lua_pcall failed, status={status}")
+                    } else {
+                        std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+                            ptr as *const u8,
+                            len,
+                        ))
+                        .to_owned()
+                    };
+                    ffi::lua_pop(state, 1);
+                    return Err(msg);
+                }
+                Ok(())
+            }
+        })
+    }
+
+    /// `sim_event(task_id)` hot path.
+    #[inline(always)]
+    pub fn call_sim_event(&self, task_id: TaskID) -> Result<(), String> {
+        self.call_lua_tasks(self.lua_sim_event, std::slice::from_ref(&task_id))
+    }
+
+    /// `sim_event_chunk_N(task_ids...)` hot path. `n` is 1..=SIM_EVENT_CHUNK_MAX.
+    #[cfg(feature = "chunk_task")]
+    #[inline(always)]
+    pub fn call_sim_event_chunk(&self, n: usize, task_ids: &[TaskID]) -> Result<(), String> {
+        self.call_lua_tasks(self.lua_sim_event_chunks[n - 1], task_ids)
     }
 
     pub fn initialize(&mut self) {
@@ -274,12 +342,7 @@ impl VeriluaEnv {
             panic!("Failed to call verilua_init: {e}");
         };
 
-        self.lua_sim_event = Some(
-            self.lua
-                .globals()
-                .get("sim_event")
-                .expect("Failed to load sim_event"),
-        );
+        self.lua_sim_event = self.pin_global_fn("sim_event");
         self.lua_main_step = Some(
             self.lua
                 .globals()
@@ -299,7 +362,14 @@ impl VeriluaEnv {
                 .expect("Failed to load negedge_step"),
         );
 
-        include!("./gen/gen_sim_event_chunk_init.rs");
+        #[cfg(feature = "chunk_task")]
+        {
+            // Must match MAX_CHUNK in libverilua/src/gen/gen.lua
+            for i in 1..=SIM_EVENT_CHUNK_MAX {
+                let name = format!("sim_event_chunk_{i}");
+                self.lua_sim_event_chunks[i - 1] = self.pin_global_fn(&name);
+            }
+        }
 
         log::info!("VeriluaEnv::initialize() finish");
     }

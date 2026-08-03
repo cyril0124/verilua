@@ -15,7 +15,7 @@
   │ gen_register_callback_func.rs   │ Chunk callback registration functions    │
   │ gen_verilua_env_struct.rs       │ VeriluaEnv struct field definitions      │
   │ gen_verilua_env_init.rs         │ VeriluaEnv initialization code           │
-  │ gen_sim_event_chunk_init.rs     │ Lua function reference initialization    │
+  │ (sim_event pin in verilua_env)  │ Registry ids for sim_event / chunk_N     │
   │ sim_event_chunk.lua             │ Lua scheduler dispatch functions         │
   └─────────────────────────────────┴──────────────────────────────────────────┘
 
@@ -45,8 +45,9 @@
 -- Configuration
 --------------------------------------------------------------------------------
 
--- Notice: `mlua` <Function>::call only accepts up to 16 arguments, so the
--- maximum chunk size is limited to 16 when `fast_lua_call` feature is disabled.
+-- Chunk size for batching edge callbacks into one Lua call.
+-- (Raw lua_pcall path has no mlua multi-arg limit; keep in sync with
+-- SIM_EVENT_CHUNK_MAX in verilua_env.rs and sim_event_chunk_* in Verilua.lua.)
 local MAX_CHUNK = 16  -- Maximum tasks per callback chunk
 
 --------------------------------------------------------------------------------
@@ -260,12 +261,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
         #[cfg(feature = "acc_time")]
         let s = std::time::Instant::now();
 
-        if let Err(e) = env
-            .lua_sim_event_chunk_{{i}}
-            .as_ref()
-            .unwrap()
-            .call::<()>({{lua_call_params}})
-        {
+        if let Err(e) = env.call_sim_event_chunk({{i}}, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
@@ -337,28 +333,17 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
         -- Generate parameter lists
         local task_id_params = {}
         local task_id_deref_values = {}
-        local task_id_vec_access = {}
 
         for j = 1, i do
             task_id_params[j] = f("task_id_%d: &TaskID", j)
             task_id_deref_values[j] = f("*task_id_%d", j)
-            task_id_vec_access[j] = f("user_data.task_id_vec[%d]", j - 1)
-        end
-
-        -- Lua call params: single value or tuple
-        local lua_call_params
-        if i == 1 then
-            lua_call_params = task_id_vec_access[1]
-        else
-            lua_call_params = "(" .. concat(task_id_vec_access, ",") .. ")"
         end
 
         code_parts[#code_parts + 1] = CHUNK_TEMPLATE:render({
             i = i,
             max_chunk = max_chunk,
             task_id_params = concat(task_id_params, ","),
-            task_id_deref_values = concat(task_id_deref_values, ","),
-            lua_call_params = lua_call_params
+            task_id_deref_values = concat(task_id_deref_values, ",")
         })
     end
 
@@ -398,7 +383,8 @@ pub struct VeriluaEnv {
     #[cfg(not(feature = "chunk_task"))]
     pub pending_edge_cb_map: HashMap<ComplexHandleRaw, Vec<CallbackInfo>>,
 
-{{chunk_fields}}
+    #[cfg(feature = "chunk_task")]
+    pub lua_sim_event_chunks: [i32; SIM_EVENT_CHUNK_MAX], // registry ids for sim_event_chunk_1..N
 
     pub edge_cb_slab: slab::Slab<u64>,
 
@@ -413,7 +399,8 @@ pub struct VeriluaEnv {
     pub lua_time: Duration,
 
     pub lua: Lua,
-    pub lua_sim_event: Option<LuaFunction>,
+    /// Registry id of global `sim_event` (0 = unset). Hot path uses raw lua_pcall.
+    pub lua_sim_event: i32,
     pub lua_main_step: Option<LuaFunction>,
     pub lua_posedge_step: Option<LuaFunction>,
     pub lua_negedge_step: Option<LuaFunction>,
@@ -426,14 +413,7 @@ pub struct VeriluaEnv {
 }
 ]]
 
-    local chunk_fields = {}
-    for i = 1, max_chunk do
-        chunk_fields[#chunk_fields + 1] = f("    #[cfg(feature = \"chunk_task\")]\n    pub lua_sim_event_chunk_%d: Option<LuaFunction>,", i)
-    end
-
-    return STRUCT_TEMPLATE:render({
-        chunk_fields = concat(chunk_fields, "\n")
-    })
+    return STRUCT_TEMPLATE:render({})
 end
 
 --[[
@@ -479,7 +459,7 @@ Self {
     lua_time: Duration::default(),
 
     lua,
-    lua_sim_event: None,
+    lua_sim_event: 0,
     lua_main_step: None,
     lua_posedge_step: None,
     lua_negedge_step: None,
@@ -490,41 +470,12 @@ Self {
     has_final_cb: false,
     has_next_sim_time_cb: false,
 
-{{chunk_init}}
+    #[cfg(feature = "chunk_task")]
+    lua_sim_event_chunks: [0; SIM_EVENT_CHUNK_MAX],
 }
 ]]
 
-    local chunk_init = {}
-    for i = 1, max_chunk do
-        chunk_init[#chunk_init + 1] = f("    #[cfg(feature = \"chunk_task\")]\n    lua_sim_event_chunk_%d: None,", i)
-    end
-
-    return INIT_TEMPLATE:render({
-        chunk_init = concat(chunk_init, "\n")
-    })
-end
-
---[[
-  Generates Lua function reference initialization code.
-
-  Called during VeriluaEnv::initialize() to load references to
-  the sim_event_chunk_N functions from Lua globals.
---]]
-local function gen_sim_event_chunk_init(max_chunk)
-    local INIT_ITEM_TEMPLATE = [[
-        self.lua_sim_event_chunk_{{i}} = Some(
-            self.lua
-                .globals()
-                .get("sim_event_chunk_{{i}}")
-                .expect("Failed to load sim_event_chunk_{{i}}")
-        );]]
-
-    local init_items = {}
-    for i = 1, max_chunk do
-        init_items[#init_items + 1] = INIT_ITEM_TEMPLATE:render({i = i})
-    end
-
-    return '#[cfg(feature = "chunk_task")]\n\t{' .. concat(init_items, "\n") .. "}"
+    return INIT_TEMPLATE:render({})
 end
 
 --[[
@@ -540,28 +491,34 @@ end
       end
 --]]
 local function gen_lua_sim_event_chunk(max_chunk)
-    local CHUNK_FUNC_TEMPLATE = [[
-
-_G.sim_event_chunk_{{i}} = function({{params}})
-{{body}}
-end]]
-
+    -- Match Verilua.lua style: cache schedule_task for multi-arg chunks.
     local code_parts = {}
     for i = 1, max_chunk do
         local params = {}
         local body_lines = {}
-
         for j = 1, i do
             local param_name = f("task_id_%d", j)
             params[#params + 1] = param_name
-            body_lines[#body_lines + 1] = f("\tscheduler:schedule_task(%s)", param_name)
+            if i == 1 then
+                body_lines[#body_lines + 1] = f("    scheduler:schedule_task(%s)", param_name)
+            else
+                body_lines[#body_lines + 1] = f("    schedule_task(scheduler, %s)", param_name)
+            end
         end
+        if i == 1 then
+            code_parts[#code_parts + 1] = f([[
 
-        code_parts[#code_parts + 1] = CHUNK_FUNC_TEMPLATE:render({
-            i = i,
-            params = concat(params, ", "),
-            body = concat(body_lines, "\n")
-        })
+_G.sim_event_chunk_1 = function(%s)
+%s
+end]], params[1], body_lines[1])
+        else
+            code_parts[#code_parts + 1] = f([[
+
+_G.sim_event_chunk_%d = function(%s)
+    local schedule_task = scheduler.schedule_task
+%s
+end]], i, concat(params, ", "), concat(body_lines, "\n"))
+        end
     end
 
     return concat(code_parts, "")
@@ -582,7 +539,7 @@ local function main()
     write_file("gen_register_callback_func.rs", gen_register_callback_func(MAX_CHUNK))
     write_file("gen_verilua_env_struct.rs", gen_verilua_env_struct(MAX_CHUNK))
     write_file("gen_verilua_env_init.rs", gen_verilua_env_init(MAX_CHUNK))
-    write_file("gen_sim_event_chunk_init.rs", gen_sim_event_chunk_init(MAX_CHUNK))
+    -- sim_event_chunk_* registry pinning is done in VeriluaEnv::initialize (no gen file)
     write_file("sim_event_chunk.lua", gen_lua_sim_event_chunk(MAX_CHUNK))
 
     print("================================================================================")

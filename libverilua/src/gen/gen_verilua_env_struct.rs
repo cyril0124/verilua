@@ -24,37 +24,7 @@ pub struct VeriluaEnv {
     pub pending_edge_cb_map: HashMap<ComplexHandleRaw, Vec<CallbackInfo>>,
 
     #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_1: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_2: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_3: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_4: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_5: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_6: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_7: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_8: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_9: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_10: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_11: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_12: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_13: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_14: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_15: Option<LuaFunction>,
-    #[cfg(feature = "chunk_task")]
-    pub lua_sim_event_chunk_16: Option<LuaFunction>,
+    pub lua_sim_event_chunks: [i32; SIM_EVENT_CHUNK_MAX], // registry ids for sim_event_chunk_1..N
 
     pub edge_cb_slab: slab::Slab<u64>,
 
@@ -69,7 +39,8 @@ pub struct VeriluaEnv {
     pub lua_time: Duration,
 
     pub lua: Lua,
-    pub lua_sim_event: Option<LuaFunction>,
+    /// Registry id of global `sim_event` (0 = unset). Hot path uses raw lua_pcall.
+    pub lua_sim_event: i32,
     pub lua_main_step: Option<LuaFunction>,
     pub lua_posedge_step: Option<LuaFunction>,
     pub lua_negedge_step: Option<LuaFunction>,

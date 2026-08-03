@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **libverilua**: Hot-path `sim_event` / `sim_event_chunk_N` now use registry-cached raw `lua_pcall` instead of `mlua::Function::call`, reducing per-callback Rust→Lua fixed overhead.
 - **xmake / verilua rule**: Add `set_values("verilua.verilator_config", [[...]])` to inline Verilator control-file content without a separate `.vlt` or `add_files`. Content is written to `verilua_generated.vlt` under the target build dir and only adds directives (does not change public strategy).
 - **xmake / verilua rule**: Add `set_values("verilua.verilator_no_public_flat_rw", "1")` to skip the default `--public-flat-rw` injection.
 - **libverilua**: Enable VPI `set_force` / `set_release` on Verilator (≥ 5.050). Signals must be marked `forceable` (e.g. via `verilua.verilator_config`).
