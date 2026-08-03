@@ -254,8 +254,8 @@ local sim_test_cases = {
     { dir = "test_bitvec_signal", name = "test_bitvec_signal" },
     { dir = "test_no_internal_clock", name = "test_no_internal_clock" },
     { dir = "test_handles", name = "test_handles" },
-    -- Entire case is force/release coalesce; needs Verilator >= 5.046 + forceable
-    { dir = "test_force_release_coalesce", name = "test_force_release_coalesce", min_verilator_version = 5.046 },
+    -- Entire case is force/release coalesce; needs Verilator >= 5.050 + forceable
+    { dir = "test_force_release_coalesce", name = "test_force_release_coalesce", min_verilator_version = 5.050 },
     { dir = "test_native_clock", name = "test_native_clock" },
     { dir = "test_queue_waitable", name = "test_queue_waitable" },
     { dir = "test_dpic", name = "test_dpic" },

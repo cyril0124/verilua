@@ -3,7 +3,7 @@ local function vpi_force_ok()
     if cfg.simulator ~= "verilator" then
         return true
     end
-    -- forceable requires Verilator >= 5.046 (matched by test xmake.lua)
+    -- forceable requires Verilator >= 5.050 (matched by test xmake.lua)
     local p = io.popen("verilator --version 2>/dev/null")
     if not p then
         return false
@@ -12,7 +12,7 @@ local function vpi_force_ok()
     p:close()
     local major, minor = out:match("Verilator%s+(%d+)%.(%d+)")
     major, minor = tonumber(major), tonumber(minor)
-    return major ~= nil and (major > 5 or (major == 5 and minor >= 46))
+    return major ~= nil and (major > 5 or (major == 5 and minor >= 50))
 end
 
 fork {
@@ -58,7 +58,7 @@ fork {
 
         -- Force/release (Verilator needs forceable via verilua.verilator_config)
         if not vpi_force_ok() then
-            print("[test_set_value] skip force/release: Verilator < 5.046 (no forceable)")
+            print("[test_set_value] skip force/release: Verilator < 5.050 (no forceable)")
         else
             dut.inc:set_force(111)
             clock:posedge()

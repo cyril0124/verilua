@@ -852,14 +852,14 @@ fork {
                     p:close()
                     local major, minor = out:match("Verilator%s+(%d+)%.(%d+)")
                     major, minor = tonumber(major), tonumber(minor)
-                    force_ok = major ~= nil and (major > 5 or (major == 5 and minor >= 46))
+                    force_ok = major ~= nil and (major > 5 or (major == 5 and minor >= 50))
                 else
                     force_ok = false
                 end
             end
 
             if not force_ok then
-                print("[test_handles] skip freeze/force: Verilator < 5.046 (no forceable)")
+                print("[test_handles] skip freeze/force: Verilator < 5.050 (no forceable)")
             else
                 test_section("ProxyTableHandle - Freeze operations")
 

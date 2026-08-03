@@ -13,8 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **xmake / verilua rule**: Add `set_values("verilua.verilator_config", [[...]])` to inline Verilator control-file content without a separate `.vlt` or `add_files`. Content is written to `verilua_generated.vlt` under the target build dir and only adds directives (does not change public strategy).
 - **xmake / verilua rule**: Add `set_values("verilua.verilator_no_public_flat_rw", "1")` to skip the default `--public-flat-rw` injection.
-- **libverilua**: Enable VPI `set_force` / `set_release` on Verilator (≥ 5.046). Signals must be marked `forceable` (e.g. via `verilua.verilator_config`).
-- **xmake / verilua rule**: When a control file (`.vlt` / `verilua.verilator_config`) contains `forceable`, require Verilator ≥ 5.046 at build time so old versions fail the build instead of silently treating force as a normal write.
+- **libverilua**: Enable VPI `set_force` / `set_release` on Verilator (≥ 5.050). Signals must be marked `forceable` (e.g. via `verilua.verilator_config`).
+- **xmake / verilua rule**: When a control file (`.vlt` / `verilua.verilator_config`) contains `forceable`, require Verilator ≥ 5.050 at build time so old versions fail the build instead of silently treating force as a normal write.
 
 ### 🐛 Fixed
 

@@ -558,7 +558,7 @@ rule("verilua", function()
             --- ]])
             --- ```
             --- Content without `verilator_config is auto-wrapped.
-            --- If control files request forceable (VPI force/release), require Verilator >= 5.046.
+            --- If control files request forceable (VPI force/release), require Verilator >= 5.050.
             --- https://verilator.org/guide/latest/control.html#verilator-control-files
             local function require_verilator_vpi_force(source)
                 local version_output = os.iorun("verilator --version") or ""
@@ -572,12 +572,12 @@ rule("verilua", function()
                         version_output:trim()
                     )
                 )
-                -- VPI force/release since 5.046
-                local ok = major > 5 or (major == 5 and minor >= 46)
+                -- VPI force/release since 5.050
+                local ok = major > 5 or (major == 5 and minor >= 50)
                 assert(
                     ok,
                     string.format(
-                        "[on_build] [%s] VPI force/release needs Verilator >= 5.046 "
+                        "[on_build] [%s] VPI force/release needs Verilator >= 5.050 "
                         .. "(found `forceable` in %s), got: %s",
                         target:name(),
                         source,

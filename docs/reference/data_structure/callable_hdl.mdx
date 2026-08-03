@@ -388,7 +388,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     强制赋值（与 `set_release` 配合使用），与 SystemVerilog 中的 `force` 关键字相同。除了 `force` 这个属性上的区别之外，其他和 `set` 一样。
 
-    :::note[Verilator 需要 ≥ 5.046 且 forceable]
+    :::note[Verilator 需要 ≥ 5.050 且 forceable]
     在 Verilator 上使用 `set_force` / `set_release` 时：
 
     1. **forceable**：目标信号必须标记为 forceable，例如通过 [`verilua.verilator_config`](../xmake_params.mdx) 或 `.vlt`：
@@ -399,7 +399,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     ]])
     ```
 
-    2. **版本**：需要 Verilator ≥ 5.046。xmake rule 在 control file 里出现 `forceable` 时会在**构建期**检查版本；过低会直接 build fail，避免 force 被当成普通写而无声失败。
+    2. **版本**：需要 Verilator ≥ 5.050。xmake rule 在 control file 里出现 `forceable` 时会在**构建期**检查版本；过低会直接 build fail，避免 force 被当成普通写而无声失败。
 
     详见 [Verilator Control Files](https://verilator.org/guide/latest/control.html#verilator-control-files)。
     :::

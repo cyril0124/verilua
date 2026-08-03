@@ -254,7 +254,7 @@ flowchart LR
 - **只叠加指令**，不会隐式关掉默认 `--public-flat-rw`
 - 内容里若没有 `verilator_config`，会自动包一层 `` `verilator_config ``
 - 可与 `add_files("*.vlt")` 同时使用；两者都会传给 Verilator
-- 内容（或任一 `.vlt`）含 `forceable` 时，构建期要求 Verilator ≥ 5.046（VPI force/release）
+- 内容（或任一 `.vlt`）含 `forceable` 时，构建期要求 Verilator ≥ 5.050（VPI force/release）
 
 ```lua title="xmake.lua"
 target("test", function()

@@ -22,7 +22,7 @@ target("test", function()
     set_values("verilua.top", "top")
     set_values("verilua.lua_main", "main.lua")
 
-    -- Verilator VPI force/release requires forceable signals (since 5.046).
+    -- Verilator VPI force/release requires forceable signals (since 5.050).
     -- https://verilator.org/guide/latest/control.html#verilator-control-files
     set_values("verilua.verilator_config", [[
 forceable -module "top" -var "ready"
