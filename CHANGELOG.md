@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **libverilua**: Fix `inertial_put` string put path leaking a heap `CString` on every `_vpiml_*_value_*_str` call.
 - **libverilua**: Rebuild iverilog VPI link search paths when `IVERILOG_HOME` / `LD_LIBRARY_PATH` change (`cargo:rerun-if-env-changed` in `build.rs`).
 - **libverilua**: Key `get_symbol_address` cache by `(filename, symbol_name)` and parse ELF outside the cache lock.
 - **libverilua**: Restore `RUSTFLAGS` after DPI cargo builds even if cargo fails, so `--wrap` flags no longer leak into later builds.

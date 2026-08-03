@@ -358,9 +358,10 @@ macro_rules! impl_gen_set_value_str {
                     let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
 
                     if cfg!(feature = "inertial_put") {
+                        let cstr = CString::new(value_str.as_str()).unwrap();
                         let mut v = s_vpi_value {
                             format: $format as _,
-                            value: t_vpi_value__bindgen_ty_1 { str_: utils::string_to_c_char_owned(&value_str) as _, },
+                            value: t_vpi_value__bindgen_ty_1 { str_: cstr.as_ptr() as _, },
                         };
 
                         unsafe {
