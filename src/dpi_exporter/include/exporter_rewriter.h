@@ -65,9 +65,38 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                 } else {
                     dpiTickFuncDeclParam1Vec.emplace_back(joinStrVec(declParamVec, ", "));
                 }
+                // Used by `CALL_DPI_EXPORTER_TICK` macro body (backslash-continued single logical line).
                 dpiTickFuncParamVec.emplace_back(joinStrVec(paramVec, ", \\\n"));
 
                 sgIdx++;
+            }
+
+            // ---------------------------------------------------------------------------
+            // Why dpiTickFuncParamDirectVec exists (Verilator + large export lists)
+            //
+            // Historical default always-block was:
+            //   always @(...) begin
+            //   `CALL_DPI_EXPORTER_TICK
+            //   end
+            // and CALL_DPI_EXPORTER_TICK expands to dpi_exporter_tick(arg0, arg1, ...).
+            //
+            // When many hierarchical signals are exported, that macro expansion becomes
+            // one logical preprocessor line with tens of thousands of tokens. Verilator
+            // then fails with:
+            //   %Error: Too many preprocessor tokens on a line (>40000);
+            //           perhaps recursive `define
+            //
+            // Fix: keep DECL/CALL macros for PLDM / MANUALLY_CALL_DPI_EXPORTER_TICK users,
+            // but emit the *default* always-block as a real multi-line function call
+            // (comma + newline, not macro-expanded). See always-block template below.
+            // ---------------------------------------------------------------------------
+            std::vector<std::string> dpiTickFuncParamDirectVec;
+            for (auto &sg : signalGroupVec) {
+                std::vector<std::string> paramVec;
+                for (auto &s : sg.signalInfoVec) {
+                    paramVec.push_back(fmt::format("\t\t\t{}", s.hierPath));
+                }
+                dpiTickFuncParamDirectVec.emplace_back(joinStrVec(paramVec, ",\n"));
             }
 
             // Deal with sensitive signal groups
@@ -213,7 +242,15 @@ import "DPI-C" function void dpi_exporter_tick();
             j["topModuleName"]    = topModuleName;
             j["clock"]            = clock;
             j["pldmGfifoDpiStr"]  = pldmGfifoDpiStr;
+            // DEFAULT signal-group args for the non-macro always-block (see comment above).
+            j["dpiTickFuncParamDirect"] = dpiTickFuncParamDirectVec.empty() ? "" : dpiTickFuncParamDirectVec[0];
 
+            // Generated SV layout:
+            //   1) import "DPI-C" dpi_exporter_tick(...);   // multi-line decl (OK for Verilator)
+            //   2) `define DECL_DPI_EXPORTER_TICK / CALL_... // still emitted for manual/PLDM use
+            //   3) default always: call dpi_exporter_tick(...) *in place*
+            //      DO NOT use `CALL_DPI_EXPORTER_TICK here when the arg list is huge —
+            //      Verilator expands that macro into one line and hits token-limit errors.
             auto code = inja::render(R"(
 {{dpiTickFuncDecl}}
 
@@ -223,11 +260,18 @@ import "DPI-C" function void dpi_exporter_tick();
 
 {{callDpiTickMacro}}
 
-// If this macro(`MANUALLY_CALL_DPI_EXPORTER_TICK`) is defined, the DPI tick function will be called manually in other places. 
-// Users can use with `DECL_DPI_EXPORTER_TICK` and `CALL_DPI_EXPORTER_TICK` to call the DPI tick function manually.
+// Manual override: define MANUALLY_CALL_DPI_EXPORTER_TICK and use DECL_/CALL_ macros yourself.
+// Default path below intentionally does NOT invoke `CALL_DPI_EXPORTER_TICK (see ExporterRewriter
+// comment: Verilator "Too many preprocessor tokens on a line" with large export lists).
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
-`CALL_DPI_EXPORTER_TICK
+{% if dpiTickFuncParamDirect != "" %}
+    // Multi-line call (not a macro expansion) — required for large hierarchical arg lists.
+    dpi_exporter_tick(
+{{dpiTickFuncParamDirect}});
+{% else %}
+    dpi_exporter_tick();
+{% endif %}
 end
 `endif // MANUALLY_CALL_DPI_EXPORTER_TICK
 

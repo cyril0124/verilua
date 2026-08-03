@@ -224,11 +224,14 @@ import "DPI-C" function void dpi_exporter_tick_o_signals(
     
             
 
-// If this macro(`MANUALLY_CALL_DPI_EXPORTER_TICK`) is defined, the DPI tick function will be called manually in other places. 
-// Users can use with `DECL_DPI_EXPORTER_TICK` and `CALL_DPI_EXPORTER_TICK` to call the DPI tick function manually.
+// Manual override: define MANUALLY_CALL_DPI_EXPORTER_TICK and use DECL_/CALL_ macros yourself.
+// Default path below intentionally does NOT invoke `CALL_DPI_EXPORTER_TICK (see ExporterRewriter
+// comment: Verilator "Too many preprocessor tokens on a line" with large export lists).
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @(negedge top.clock) begin
-`CALL_DPI_EXPORTER_TICK
+
+    dpi_exporter_tick();
+
 end
 `endif // MANUALLY_CALL_DPI_EXPORTER_TICK
 

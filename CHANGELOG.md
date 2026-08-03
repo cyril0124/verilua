@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **dpi_exporter**: Default always-block now calls `dpi_exporter_tick(...)` as a real multi-line call instead of the `CALL_DPI_EXPORTER_TICK` macro, fixing Verilator `Too many preprocessor tokens on a line (>40000)` when exporting large hierarchical signal lists.
+
 - **libverilua / inertial_put**: `set_force` under `VL_USE_INERTIAL_PUT` used `vpiInertialDelay` instead of `vpiForceFlag`, so force did not stick. Force now keeps `vpiForceFlag`; same-timeslot force+release coalesce remains deferred-only (skip under inertial_put).
 
 ---

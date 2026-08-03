@@ -444,11 +444,41 @@ import "DPI-C" function void dpi_exporter_tick_n3(
     
             
 
-// If this macro(`MANUALLY_CALL_DPI_EXPORTER_TICK`) is defined, the DPI tick function will be called manually in other places. 
-// Users can use with `DECL_DPI_EXPORTER_TICK` and `CALL_DPI_EXPORTER_TICK` to call the DPI tick function manually.
+// Manual override: define MANUALLY_CALL_DPI_EXPORTER_TICK and use DECL_/CALL_ macros yourself.
+// Default path below intentionally does NOT invoke `CALL_DPI_EXPORTER_TICK (see ExporterRewriter
+// comment: Verilator "Too many preprocessor tokens on a line" with large export lists).
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @(negedge top.clock) begin
-`CALL_DPI_EXPORTER_TICK
+
+    // Multi-line call (not a macro expansion) — required for large hierarchical arg lists.
+    dpi_exporter_tick(
+			top.b_inst.a_inst_0.i_value_0,
+			top.b_inst.a_inst_0.i_value_1,
+			top.b_inst.a_inst_0.i_value_2,
+			top.b_inst.a_inst_0.i_value_3,
+			top.a_inst_0.c_inst.w_value_1,
+			top.a_inst_1.c_inst.w_value_1,
+			top.b_inst.a_inst_1.c_inst.w_value_1,
+			top.a_inst_0.c_inst.w_value_2,
+			top.a_inst_1.c_inst.w_value_2,
+			top.b_inst.a_inst_1.c_inst.w_value_2,
+			top.a_inst_0.c_inst.w_value_3,
+			top.a_inst_1.c_inst.w_value_3,
+			top.b_inst.a_inst_1.c_inst.w_value_3,
+			top.a_inst_0.c_inst.w_value_4,
+			top.a_inst_1.c_inst.w_value_4,
+			top.b_inst.a_inst_1.c_inst.w_value_4,
+			top.a_inst_0.c_inst.w_value_5,
+			top.a_inst_1.c_inst.w_value_5,
+			top.b_inst.a_inst_1.c_inst.w_value_5,
+			top.b_inst.a_inst_0.c_inst.w_value_1,
+			top.b_inst.a_inst_0.c_inst.w_value_2,
+			top.b_inst.a_inst_0.c_inst.w_value_3,
+			top.b_inst.a_inst_0.c_inst.w_value_4,
+			top.b_inst.a_inst_0.c_inst.w_value_5,
+			top.d_inst.value_0,
+			top.d_inst.value_2);
+
 end
 `endif // MANUALLY_CALL_DPI_EXPORTER_TICK
 
