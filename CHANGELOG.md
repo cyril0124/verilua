@@ -18,7 +18,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
-- **tests**: `test_set_value` / `test_handles` only inject `forceable` (and run force/freeze sections) when Verilator ≥ 5.046; older Verilator still runs non-force coverage instead of failing the build gate.
 - **libverilua / inertial_put**: `set_force` under `VL_USE_INERTIAL_PUT` used `vpiInertialDelay` instead of `vpiForceFlag`, so force did not stick. Force now keeps `vpiForceFlag`; same-timeslot force+release coalesce remains deferred-only (skip under inertial_put).
 
 ---

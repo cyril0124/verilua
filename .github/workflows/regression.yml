@@ -30,6 +30,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
         verilator-version: [ 'v5.036', 'v5.040', 'v5.046', 'v5.050' ]
@@ -116,6 +117,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
     strategy:
+      fail-fast: false
       matrix:
         iverilog-tag: [ 's20250103', 's20251012' ]
 
