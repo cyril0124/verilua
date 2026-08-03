@@ -18,8 +18,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **libverilua**: Rebuild iverilog VPI link search paths when `IVERILOG_HOME` / `LD_LIBRARY_PATH` change (`cargo:rerun-if-env-changed` in `build.rs`).
+- **libverilua**: Key `get_symbol_address` cache by `(filename, symbol_name)` and parse ELF outside the cache lock.
+- **libverilua**: Restore `RUSTFLAGS` after DPI cargo builds even if cargo fails, so `--wrap` flags no longer leak into later builds.
+- **libverilua**: Guard null `vpi_iterate` results in `vpiml_iterate_vpi_type`, and free the module iterator after early exit in `vpiml_get_top_module`.
 - **dpi_exporter**: Default always-block now calls `dpi_exporter_tick(...)` as a real multi-line call instead of the `CALL_DPI_EXPORTER_TICK` macro, fixing Verilator `Too many preprocessor tokens on a line (>40000)` when exporting large hierarchical signal lists.
-
 - **libverilua / inertial_put**: `set_force` under `VL_USE_INERTIAL_PUT` used `vpiInertialDelay` instead of `vpiForceFlag`, so force did not stick. Force now keeps `vpiForceFlag`; same-timeslot force+release coalesce remains deferred-only (skip under inertial_put).
 
 ---

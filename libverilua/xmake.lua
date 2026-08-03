@@ -48,26 +48,47 @@ local function build_lib_common(simulator)
         }
 
         -- try { function () os.vrun("cargo clean") end }
+
+        -- Set RUSTFLAGS for --wrap, always restore even if cargo fails so the
+        -- flags do not leak into subsequent cargo invocations in this process.
+        local function cargo_build_with_wrap(feature_args)
+            local old_rustflags = os.getenv("RUSTFLAGS") or ""
+            os.setenv("RUSTFLAGS", "-Clink-arg=-Wl,--wrap=" .. table.concat(vpi_funcs, ",--wrap="))
+            -- try+finally alone swallows errors in xmake; re-raise after restore.
+            local ok, err
+            try {
+                function()
+                    os.vrun([[cargo build --release --features "%s"]], feature_args)
+                end,
+                finally {
+                    function(succeeded, result_or_errors)
+                        os.setenv("RUSTFLAGS", old_rustflags)
+                        ok = succeeded
+                        if not succeeded then
+                            err = result_or_errors
+                        end
+                    end
+                }
+            }
+            if not ok then
+                raise(err)
+            end
+        end
+
         if simulator == "verilator" then
             os.vrun([[cargo build --release --features "verilator %s"]], verilator_features)
         elseif simulator == "verilator_i" then
             os.vrun([[cargo build --release --features "verilator %s"]], verilator_features .. " inertial_put")
         elseif simulator == "verilator_dpi" then
-            os.setenv("RUSTFLAGS", "-Clink-arg=-Wl,--wrap=" .. table.concat(vpi_funcs, ",--wrap="))
-            os.vrun([[cargo build --release --features "verilator dpi %s"]], verilator_features)
-            os.setenv("RUSTFLAGS", "")
+            cargo_build_with_wrap(format("verilator dpi %s", verilator_features))
         elseif simulator == "vcs" then
             os.vrun([[cargo build --release --features "vcs %s"]], vcs_features)
         elseif simulator == "xcelium" then
             os.vrun([[cargo build --release --features "vcs %s"]], xcelium_features)
         elseif simulator == "vcs_dpi" then
-            os.setenv("RUSTFLAGS", "-Clink-arg=-Wl,--wrap=" .. table.concat(vpi_funcs, ",--wrap="))
-            os.vrun([[cargo build --release --features "vcs dpi %s"]], vcs_features)
-            os.setenv("RUSTFLAGS", "")
+            cargo_build_with_wrap(format("vcs dpi %s", vcs_features))
         elseif simulator == "xcelium_dpi" then
-            os.setenv("RUSTFLAGS", "-Clink-arg=-Wl,--wrap=" .. table.concat(vpi_funcs, ",--wrap="))
-            os.vrun([[cargo build --release --features "vcs dpi %s"]], xcelium_features)
-            os.setenv("RUSTFLAGS", "")
+            cargo_build_with_wrap(format("vcs dpi %s", xcelium_features))
         elseif simulator == "wave_vpi" then
             os.vrun([[cargo build --release --features "wave_vpi %s"]], wave_vpi_features)
         elseif simulator == "iverilog" then

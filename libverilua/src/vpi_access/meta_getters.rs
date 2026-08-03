@@ -17,11 +17,18 @@ impl VeriluaEnv {
             }
         );
 
-        let mut hdl: vpiHandle;
+        // vpi_iterate returns null when no objects of that type exist; do not
+        // call vpi_scan on a null iterator.
+        if iter.is_null() {
+            println!("[vpiml_iterate_vpi_type] No objects found");
+            return;
+        }
+
         let mut count = 0;
         loop {
-            hdl = unsafe { vpi_scan(iter) };
+            let hdl = unsafe { vpi_scan(iter) };
             if hdl.is_null() {
+                // Exhausting the iterator auto-frees it per the VPI spec.
                 break;
             }
             let name = unsafe { vpi_get_str(vpiName as _, hdl) };
@@ -74,6 +81,9 @@ pub unsafe extern "C" fn vpiml_get_top_module() -> *const c_char {
     assert!(!top_module.is_null(), "Canot find top module...");
 
     let top_module_name = unsafe { vpi_get_str(vpiName as _, top_module) };
+
+    // Early exit: free the remaining iterator (vpi_scan only auto-frees on NULL).
+    unsafe { vpi_free_object(iter) };
 
     if std::env::var("DUT_TOP").is_err() {
         unsafe { std::env::set_var("DUT_TOP", utils::c_char_to_str(top_module_name)) };

@@ -1,5 +1,10 @@
 fn main() {
     if std::env::var("CARGO_FEATURE_IVERILOG_VPI_MOD").is_ok() {
+        // Rebuild when toolchain search paths change; otherwise cargo reuses a
+        // stale link line after IVERILOG_HOME / LD_LIBRARY_PATH moves.
+        println!("cargo:rerun-if-env-changed=IVERILOG_HOME");
+        println!("cargo:rerun-if-env-changed=LD_LIBRARY_PATH");
+
         println!("cargo:rustc-link-lib=static=vpi");
 
         println!("cargo:rustc-link-search=native=/usr/local/lib");

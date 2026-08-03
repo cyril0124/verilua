@@ -196,7 +196,10 @@ pub extern "C" fn get_self_cmdline() -> *mut c_char {
 
 lazy_static! {
     /// Cache for resolved symbol addresses to avoid repeated ELF parsing.
-    static ref SYMBOL_ADDRESS_MAP: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
+    /// Keyed by (filename, symbol_name) so the same symbol in different ELFs
+    /// does not collide.
+    static ref SYMBOL_ADDRESS_MAP: Mutex<HashMap<(String, String), u64>> =
+        Mutex::new(HashMap::new());
 }
 
 cpp::cpp! {{
@@ -234,13 +237,17 @@ pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *cons
         })
     };
 
-    // Check cache first
-    let mut map = SYMBOL_ADDRESS_MAP.lock().unwrap();
-    if let Some(&address) = map.get(&symbol_name) {
-        return address;
+    let cache_key = (filename.clone(), symbol_name.clone());
+
+    // Check cache first; drop the lock before any file I/O.
+    {
+        let map = SYMBOL_ADDRESS_MAP.lock().unwrap();
+        if let Some(&address) = map.get(&cache_key) {
+            return address;
+        }
     }
 
-    // Parse ELF and find symbol
+    // Parse ELF and find symbol outside the lock.
     let mut file = File::open(&filename).expect("Failed to load ELF file");
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
@@ -257,7 +264,8 @@ pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *cons
 
     if let Some(symtab) = symtab_opt {
         let final_address = symtab.st_value + offset;
-        map.insert(symbol_name, final_address);
+        let mut map = SYMBOL_ADDRESS_MAP.lock().unwrap();
+        map.insert(cache_key, final_address);
         final_address
     } else {
         // Symbol not found
