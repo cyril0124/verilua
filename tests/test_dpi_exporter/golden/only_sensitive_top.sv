@@ -230,6 +230,19 @@ import "DPI-C" function void dpi_exporter_tick_o_signals(
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @(negedge top.clock) begin
 
+    if ((top.b_inst.valid1 ^ top_b_inst_valid1__LAST) ||top.b_inst.valid1 ) begin
+        dpi_exporter_tick_o_signals(
+			top.b_inst.valid1,
+			top.b_inst.o_value_0,
+			top.b_inst.o_value_1,
+			top.b_inst.o_value_2,
+			top.b_inst.o_value_4,
+			top.b_inst.o_value_5,
+			top.b_inst.o_value_6);
+    end
+        top_b_inst_valid1__LAST <= top.b_inst.valid1;
+
+
     dpi_exporter_tick();
 
 end

@@ -1007,6 +1007,7 @@ target("test", function()
             "test-testbench-gen",
             -- Tool tests (one per directory)
             "test-dpi-exporter",
+            "test-dpi-exporter-chdl",
             "test-cov-exporter",
             "test-cov-exporter-dynamic",
             "test-signal-db",

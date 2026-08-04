@@ -88,6 +88,30 @@ target("test", function()
                     passed = false
                 end
 
+                -- Meta must carry static signal infos (no exportedSignals list)
+                local meta_output = path.join(output_dir, "dpi_exporter.meta.json")
+                if not os.isfile(meta_output) then
+                    print(string.format("[%s] FAILED: meta not found: %s", cfg_name, meta_output))
+                    passed = false
+                else
+                    local meta_content = io.readfile(meta_output)
+                    if not meta_content:find('"exportedSignalInfos"', 1, true) then
+                        print(string.format("[%s] FAILED: meta missing exportedSignalInfos", cfg_name))
+                        passed = false
+                    elseif meta_content:find('"exportedSignals"', 1, true) then
+                        print(string.format("[%s] FAILED: meta still has exportedSignals (removed)", cfg_name))
+                        passed = false
+                    elseif not meta_content:find('"hierPath"', 1, true)
+                        or not meta_content:find('"bitWidth"', 1, true)
+                        or not meta_content:find('"vpiTypeStr"', 1, true)
+                        or not meta_content:find('"handleId"', 1, true) then
+                        print(string.format("[%s] FAILED: meta infos missing required fields", cfg_name))
+                        passed = false
+                    else
+                        print(string.format("[%s] PASSED (meta exportedSignalInfos)", cfg_name))
+                    end
+                end
+
                 if passed then
                     pass_count = pass_count + 1
                 else

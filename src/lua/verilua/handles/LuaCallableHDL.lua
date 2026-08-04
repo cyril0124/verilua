@@ -1,4 +1,4 @@
----@diagnostic disable: need-check-nil, unnecessary-assert
+---@diagnostic disable: need-check-nil, unnecessary-assert, unresolved-require
 
 local ffi = require "ffi"
 local math = require "math"
@@ -90,7 +90,7 @@ local post_init_mt = setmetatable({
 ---@field name string
 ---@field private always_fired boolean
 ---@field private width integer
----@field hdl verilua.handles.ComplexHandleRaw
+---@field hdl verilua.handles.ComplexHandleRaw VPI handle; nil at runtime for dpi-only construct
 ---@field private hdl_type string
 ---@field is_array boolean
 ---@field array_size integer
@@ -208,43 +208,73 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.name = name or "Unknown"
     self.always_fired = false -- used by <chdl>:always_posedge()
 
-    local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
-    if tmp_hdl == -1 then
-        local err = f(
-            "[CallableHDL:_init] No handle found! fullpath: %s name: %s\t\n%s\n",
-            fullpath,
-            self.name == "" and "Unknown" or self.name,
-            debug.traceback()
-        )
-        verilua_debug(err)
-        assert(false, err)
+    ---@type verilua.utils.DpiExporter.signal_info?
+    local dpi_info = nil
+    if cfg.enable_dpi_exporter then
+        if not DpiExporter then
+            DpiExporter = require "verilua.utils.DpiExporter"
+        end
+        ---@cast DpiExporter verilua.utils.DpiExporter
+        dpi_info = DpiExporter:lookup(fullpath)
     end
-    self.hdl = tmp_hdl
-    self.hdl_type = ffi_string(vpiml.vpiml_get_hdl_type(self.hdl))
 
     self.is_array = false
     self.array_size = 0
-    if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" or self.hdl_type == "vpiBitVar" then
-        self.is_array = false
-    elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiArrayVar" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
-        --
-        -- for multidimensional reg array, VCS vpi treat it as "vpiRegArray" while
-        -- Verilator treat it as "vpiMemory"
-        --
-        self.is_array = true
-        self.array_size = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
-        self.array_hdls = table_new(self.array_size, 0)
-        self.array_bitvecs = table_new(self.array_size, 0)
-        for i = 1, self.array_size do
-            self.array_hdls[i] = vpiml.vpiml_handle_by_index(self.hdl, i - 1)
+
+    if dpi_info then
+        -- dpi-only construct: static width/type from meta; ignore any passed VPI hdl.
+        local t = dpi_info.vpiTypeStr
+        assert(
+            t == "vpiReg" or t == "vpiNet" or t == "vpiLogicVar" or t == "vpiBitVar",
+            f(
+                "[CallableHDL:_init] dpi-only supports scalar net/reg, got %s fullpath => %s",
+                t,
+                fullpath
+            )
+        )
+        -- dpi-only: no VPI handle; non-get APIs that touch hdl fail at runtime (by design).
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        self.hdl = nil
+        self.hdl_type = t
+        self.width = dpi_info.bitWidth
+    else
+        local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
+        if tmp_hdl == -1 then
+            local err = f(
+                "[CallableHDL:_init] No handle found! fullpath: %s name: %s\t\n%s\n",
+                fullpath,
+                self.name == "" and "Unknown" or self.name,
+                debug.traceback()
+            )
+            verilua_debug(err)
+            assert(false, err)
+        end
+        self.hdl = tmp_hdl
+        self.hdl_type = ffi_string(vpiml.vpiml_get_hdl_type(self.hdl))
+
+        if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" or self.hdl_type == "vpiBitVar" then
+            self.is_array = false
+        elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiArrayVar" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
+            --
+            -- for multidimensional reg array, VCS vpi treat it as "vpiRegArray" while
+            -- Verilator treat it as "vpiMemory"
+            --
+            self.is_array = true
+            self.array_size = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
+            self.array_hdls = table_new(self.array_size, 0)
+            self.array_bitvecs = table_new(self.array_size, 0)
+            for i = 1, self.array_size do
+                self.array_hdls[i] = vpiml.vpiml_handle_by_index(self.hdl, i - 1)
+            end
+
+            self.hdl = self.array_hdls[1] -- Point to the first hdl
+        else
+            assert(false, f("Unknown hdl_type => %s fullpath => %s name => %s", self.hdl_type, self.fullpath, self.name))
         end
 
-        self.hdl = self.array_hdls[1] -- Point to the first hdl
-    else
-        assert(false, f("Unknown hdl_type => %s fullpath => %s name => %s", self.hdl_type, self.fullpath, self.name))
+        self.width = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
     end
 
-    self.width = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
     self.cached_value = nil
@@ -261,7 +291,8 @@ function CallableHDL:_init(fullpath, name, hdl)
         "fullpath: " .. self.fullpath,
         "width: " .. self.width,
         "beat_num: " .. self.beat_num,
-        "is_multi_beat: " .. tostring(self.is_multi_beat)
+        "is_multi_beat: " .. tostring(self.is_multi_beat),
+        "dpi_only: " .. tostring(dpi_info ~= nil)
     )
 
     if self.beat_num == 1 then
@@ -422,61 +453,54 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
     end
 
-    if not DpiExporter and cfg.enable_dpi_exporter then
-        DpiExporter = require "verilua.utils.DpiExporter"
-    end
-
-    -- Check if DPI exporter is enabled
+    -- Bind DPI get when this signal is in the exporter map.
     -- Notice: Call `DpiExporter:init()` before creating any `CallableHDL` if you want to access the signal by dpi_exporter API.
-    if cfg.enable_dpi_exporter then
+    if dpi_info then
         ---@cast DpiExporter verilua.utils.DpiExporter
-        local is_exported = DpiExporter:is_exported(self.fullpath)
-        if is_exported then
-            verilua_debug(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
+        verilua_debug(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
 
-            -- Assign new `get`
-            if self.width <= 32 then
-                self.__vpi_get = self.get
-                self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
-                self.get = function(this)
-                    return this.__dpi_get()
-                end
-            else
-                self.__vpi_get = self.get
-                self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
-                self.__dpi_get64 = DpiExporter:fetch_get64_value_func(self.fullpath)
-                self.__dpi_get_vec = DpiExporter:fetch_get_vec_value_func(self.fullpath)
-                if self.width <= 64 then
-                    self.get = function(this, force_multi_beat)
-                        if force_multi_beat then
-                            this.__dpi_get_vec(this.c_results)
-                            return this.c_results --[[@as verilua.handles.MultiBeatData]]
-                        else
-                            return this.__dpi_get64()
-                        end
-                    end
-                else
-                    self.get = function(this)
+        -- Assign new `get`
+        if self.width <= 32 then
+            self.__vpi_get = self.get
+            self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
+            self.get = function(this)
+                return this.__dpi_get()
+            end
+        else
+            self.__vpi_get = self.get
+            self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
+            self.__dpi_get64 = DpiExporter:fetch_get64_value_func(self.fullpath)
+            self.__dpi_get_vec = DpiExporter:fetch_get_vec_value_func(self.fullpath)
+            if self.width <= 64 then
+                self.get = function(this, force_multi_beat)
+                    if force_multi_beat then
                         this.__dpi_get_vec(this.c_results)
                         return this.c_results --[[@as verilua.handles.MultiBeatData]]
+                    else
+                        return this.__dpi_get64()
                     end
                 end
-
-                self.get64 = function(this)
-                    return this.__dpi_get64()
+            else
+                self.get = function(this)
+                    this.__dpi_get_vec(this.c_results)
+                    return this.c_results --[[@as verilua.handles.MultiBeatData]]
                 end
             end
 
-            -- TODO: has some problem with PLDM
-            -- Assign new `get_hex_str`
-            -- self.__vpi_get_hex_str = self.get_hex_str
-            -- self.__dpi_get_hex_str = DpiExporter:fetch_get_hex_str_value_func(self.fullpath)
-            -- self.hex_buffer = ffi.new("char[?]", utils.cover_with_n(self.width, 4))
-            -- self.get_hex_str = function (this)
-            --     this.__dpi_get_hex_str(this.hex_buffer)
-            --     return ffi_string(this.hex_buffer)
-            -- end
+            self.get64 = function(this)
+                return this.__dpi_get64()
+            end
         end
+
+        -- TODO: has some problem with PLDM
+        -- Assign new `get_hex_str`
+        -- self.__vpi_get_hex_str = self.get_hex_str
+        -- self.__dpi_get_hex_str = DpiExporter:fetch_get_hex_str_value_func(self.fullpath)
+        -- self.hex_buffer = ffi.new("char[?]", utils.cover_with_n(self.width, 4))
+        -- self.get_hex_str = function (this)
+        --     this.__dpi_get_hex_str(this.hex_buffer)
+        --     return ffi_string(this.hex_buffer)
+        -- end
     end
 
     local await_posedge_hdl = _G.await_posedge_hdl

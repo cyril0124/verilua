@@ -8,10 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **xmake / verilua rule**: Presence of a `.vlt` file (or `verilua.verilator_config`) no longer auto-disables default `--public-flat-rw`. Use `set_values("verilua.verilator_no_public_flat_rw", "1")` to opt out, then put fine-grained `public_flat_*` in `.vlt` / `verilua.verilator_config`.
 - **xmake / verilua rule**: Rename make OPT knobs to `set_values("verilua.verilator_opt_fast", ...)` / `set_values("verilua.verilator_opt_slow", ...)`. Replaces `verilator.opt_fast` / `verilator.opt_slow` (no alias).
+- **dpi_exporter / DpiExporter**: Meta field `exportedSignals` (string list) is replaced by `exportedSignalInfos` (`hierPath`, `bitWidth`, `vpiTypeStr`, `handleId`). Old meta files must be regenerated. `DpiExporter:is_exported` is removed; use `DpiExporter:lookup(path)` (info or `nil`).
 
 ### 🚀 Added
 
 - **libverilua**: Hot-path `sim_event` / `sim_event_chunk_N` now use registry-cached raw `lua_pcall` instead of `mlua::Function::call`, reducing per-callback Rust→Lua fixed overhead.
+- **DpiExporter / CallableHDL**: Exported signals can construct without VPI (`hdl = nil`, width/type from meta) and still bind DPI `get`. Lookup is O(1) via an init-time map.
 - **xmake / verilua rule**: Add `set_values("verilua.verilator_config", [[...]])` to inline Verilator control-file content without a separate `.vlt` or `add_files`. Content is written to `verilua_generated.vlt` under the target build dir and only adds directives (does not change public strategy).
 - **xmake / verilua rule**: Add `set_values("verilua.verilator_no_public_flat_rw", "1")` to skip the default `--public-flat-rw` injection.
 - **libverilua**: Enable VPI `set_force` / `set_release` on Verilator (≥ 5.050). Signals must be marked `forceable` (e.g. via `verilua.verilator_config`).
@@ -19,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **dpi_exporter**: Sensitive-group ticks (`dpi_exporter_tick_<group>`) are emitted again in the default always-block as multi-line calls. After the large-arg-list fix stopped expanding `` `CALL_DPI_EXPORTER_TICK ``, sensitive groups only lived in that unused macro and never updated shadow values under Verilator.
 - **libverilua**: Fix `inertial_put` string put path leaking a heap `CString` on every `_vpiml_*_value_*_str` call.
 - **libverilua**: Rebuild iverilog VPI link search paths when `IVERILOG_HOME` / `LD_LIBRARY_PATH` change (`cargo:rerun-if-env-changed` in `build.rs`).
 - **libverilua**: Key `get_symbol_address` cache by `(filename, symbol_name)` and parse ELF outside the cache lock.

@@ -450,7 +450,63 @@ import "DPI-C" function void dpi_exporter_tick_n3(
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @(negedge top.clock) begin
 
-    // Multi-line call (not a macro expansion) — required for large hierarchical arg lists.
+    if ((top.b_inst.valid ^ top_b_inst_valid__LAST) ||top.b_inst.valid ) begin
+        dpi_exporter_tick_i_signals(
+			top.b_inst.valid,
+			top.b_inst.i_value_0,
+			top.b_inst.i_value_1,
+			top.b_inst.i_value_2,
+			top.b_inst.i_value_4,
+			top.b_inst.i_value_5,
+			top.b_inst.i_value_6);
+    end
+        top_b_inst_valid__LAST <= top.b_inst.valid;
+
+    if ((top.b_inst.valid1 ^ top_b_inst_valid1__LAST) ||top.b_inst.valid1 ) begin
+        dpi_exporter_tick_o_signals(
+			top.b_inst.valid1,
+			top.b_inst.o_value_0,
+			top.b_inst.o_value_1,
+			top.b_inst.o_value_2,
+			top.b_inst.o_value_4,
+			top.b_inst.o_value_5,
+			top.b_inst.o_value_6);
+    end
+        top_b_inst_valid1__LAST <= top.b_inst.valid1;
+
+    if ((top.b_inst.signal1 ^ top_b_inst_signal1__LAST) ||(top.b_inst.signal2 ^ top_b_inst_signal2__LAST) ||top.b_inst.signal1 ||top.b_inst.signal2 ) begin
+        dpi_exporter_tick_UNKNOWN_3(
+			top.b_inst.signal,
+			top.b_inst.signal1,
+			top.b_inst.signal2);
+    end
+        top_b_inst_signal1__LAST <= top.b_inst.signal1;
+        top_b_inst_signal2__LAST <= top.b_inst.signal2;
+
+    if ((top.i_value_0 ^ top_i_value_0__LAST) ||top.i_value_0 ) begin
+        dpi_exporter_tick_n2(
+			top.i_value_0,
+			top.i_value_1,
+			top.i_value_2,
+			top.i_value_4,
+			top.i_value_5,
+			top.i_value_6);
+    end
+        top_i_value_0__LAST <= top.i_value_0;
+
+    if ((top.o_value_0 ^ top_o_value_0__LAST) ||top.o_value_0 ) begin
+        dpi_exporter_tick_n3(
+			top.o_value_0,
+			top.o_value_1,
+			top.o_value_2,
+			top.o_value_4,
+			top.o_value_5,
+			top.o_value_6);
+    end
+        top_o_value_0__LAST <= top.o_value_0;
+
+
+    // Multi-line DEFAULT call (not a macro expansion) — required for large hierarchical arg lists.
     dpi_exporter_tick(
 			top.b_inst.a_inst_0.i_value_0,
 			top.b_inst.a_inst_0.i_value_1,

@@ -213,7 +213,8 @@ import "DPI-C" function void dpi_exporter_tick(
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @(negedge top.clock) begin
 
-    // Multi-line call (not a macro expansion) — required for large hierarchical arg lists.
+
+    // Multi-line DEFAULT call (not a macro expansion) — required for large hierarchical arg lists.
     dpi_exporter_tick(
 			top.b_inst.valid1,
 			top.b_inst.o_value_0,

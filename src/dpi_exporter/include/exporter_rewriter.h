@@ -103,11 +103,17 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
             std::string sDpiTickFuncDecl   = "";
             std::string sDpiTickFuncDecl_1 = "";
             std::string sCallDpiTickFunc   = "";
+            // Multi-line form for the default always-block (NOT macro-expanded).
+            // Sensitive ticks used to live only inside `CALL_DPI_EXPORTER_TICK`, but the
+            // Verilator-safe always path no longer expands that macro — so without this
+            // direct form, sensitive groups never update after the large-arg-list fix.
+            std::string sCallDpiTickFuncDirect = "";
             for (size_t i = 1; i < dpiTickFuncDeclParamVec.size(); i++) {
                 std::string sSignals                        = "";
                 std::string sSignalsCond                    = "";
                 std::string sSignalsCondExtra               = "";
                 std::string sSignalsLastRegAssign           = "";
+                std::string sSignalsLastRegAssignDirect     = "";
                 std::vector<std::string> sSignalsLastRegVec = {};
                 for (auto &s : signalGroupVec[i].sensitiveSignalInfoVec) {
                     sSignals += fmt::format("\t{}\n", s.hierPathName);
@@ -121,6 +127,7 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                     sSignalsCond += fmt::format("({} ^ {}) ||", s.hierPath, s.hierPathName + "__LAST");
                     sSignalsCondExtra += fmt::format("{} ||", s.hierPath);
                     sSignalsLastRegAssign += fmt::format("{}__LAST <= {}; \\\n\t", s.hierPathName, s.hierPath);
+                    sSignalsLastRegAssignDirect += fmt::format("        {}__LAST <= {};\n", s.hierPathName, s.hierPath);
                     sSignalsLastRegVec.emplace_back(fmt::format("bit {}__LAST;", s.hierPathName));
                 }
                 sSignals.pop_back(); // Remove the last '\n'
@@ -176,6 +183,21 @@ Sensitive trigger signals:
                         { "name", name },
                         { "dpiTickFuncParam", dpiTickFuncParamVec[i] },
                         { "sSignalsLastRegAssign", sSignalsLastRegAssign }
+                    }
+                );
+
+                // Multi-line always-body form (same logic, no macro backslashes).
+                sCallDpiTickFuncDirect += inja::render(R"(
+    if ({{sSignalsCond}}) begin
+        dpi_exporter_tick_{{name}}(
+{{dpiTickFuncParamDirect}});
+    end
+{{sSignalsLastRegAssignDirect}})",
+                json{
+                        {"sSignalsCond", sSignalsCond },
+                        { "name", name },
+                        { "dpiTickFuncParamDirect", dpiTickFuncParamDirectVec[i] },
+                        { "sSignalsLastRegAssignDirect", sSignalsLastRegAssignDirect }
                     }
                 );
                 // clang-format on
@@ -244,11 +266,12 @@ import "DPI-C" function void dpi_exporter_tick();
             j["pldmGfifoDpiStr"]  = pldmGfifoDpiStr;
             // DEFAULT signal-group args for the non-macro always-block (see comment above).
             j["dpiTickFuncParamDirect"] = dpiTickFuncParamDirectVec.empty() ? "" : dpiTickFuncParamDirectVec[0];
+            j["sCallDpiTickFuncDirect"] = sCallDpiTickFuncDirect;
 
             // Generated SV layout:
             //   1) import "DPI-C" dpi_exporter_tick(...);   // multi-line decl (OK for Verilator)
             //   2) `define DECL_DPI_EXPORTER_TICK / CALL_... // still emitted for manual/PLDM use
-            //   3) default always: call dpi_exporter_tick(...) *in place*
+            //   3) default always: sensitive group ticks (if any) + dpi_exporter_tick(DEFAULT)
             //      DO NOT use `CALL_DPI_EXPORTER_TICK here when the arg list is huge —
             //      Verilator expands that macro into one line and hits token-limit errors.
             auto code = inja::render(R"(
@@ -265,8 +288,9 @@ import "DPI-C" function void dpi_exporter_tick();
 // comment: Verilator "Too many preprocessor tokens on a line" with large export lists).
 `ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
 always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
+{{sCallDpiTickFuncDirect}}
 {% if dpiTickFuncParamDirect != "" %}
-    // Multi-line call (not a macro expansion) — required for large hierarchical arg lists.
+    // Multi-line DEFAULT call (not a macro expansion) — required for large hierarchical arg lists.
     dpi_exporter_tick(
 {{dpiTickFuncParamDirect}});
 {% else %}

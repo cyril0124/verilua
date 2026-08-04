@@ -541,9 +541,9 @@ add_senstive_trigger = add_sensitive_trigger
             DELETE_FILE(file);
         }
 
-        // Print all valid signals
-        int idx = 0;
-        std::vector<std::string> portHierPathVec;
+        // Print all valid signals and collect static signal info for meta
+        int idx                  = 0;
+        json exportedSignalInfos = json::array();
         for (auto &sg : signalGroupVec) {
             for (auto &s : sg.signalInfoVec) {
                 idx++;
@@ -552,18 +552,23 @@ add_senstive_trigger = add_sensitive_trigger
                     fmt::println("[{}] handleId:<{}> hierPath:<{}> signalName:<{}> typeStr:<{}> bitWidth:<{}>", idx, s.handleId, s.hierPath, s.signalName, s.vpiTypeStr, s.bitWidth);
                 }
 
-                portHierPathVec.emplace_back(s.hierPath);
+                exportedSignalInfos.push_back({
+                    {"hierPath", s.hierPath},
+                    {"bitWidth", s.bitWidth},
+                    {"vpiTypeStr", s.vpiTypeStr},
+                    {"handleId", s.handleId},
+                });
             }
         }
 
         // Save the command line arguments and files into json file
-        metaInfoJson["cmdLine"]           = cmdLineStr;
-        metaInfoJson["filelist"]          = driver.getFiles();
-        metaInfoJson["topModuleName"]     = topModuleName;
-        metaInfoJson["dpiFilePath"]       = dpiFilePath;
-        metaInfoJson["insertModuleName"]  = insertModuleName.value_or(topModuleName);
-        metaInfoJson["configFileContent"] = configFileContent;
-        metaInfoJson["exportedSignals"]   = portHierPathVec;
+        metaInfoJson["cmdLine"]             = cmdLineStr;
+        metaInfoJson["filelist"]            = driver.getFiles();
+        metaInfoJson["topModuleName"]       = topModuleName;
+        metaInfoJson["dpiFilePath"]         = dpiFilePath;
+        metaInfoJson["insertModuleName"]    = insertModuleName.value_or(topModuleName);
+        metaInfoJson["configFileContent"]   = configFileContent;
+        metaInfoJson["exportedSignalInfos"] = exportedSignalInfos;
 
         // Write meta info into a json file, which can be used next time to check if the output is up to date
         std::ofstream o(metaInfoFilePath);
