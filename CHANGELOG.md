@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **libverilua**: `get_symbol_address` now loads each ELF symbol table once (symtab + dynsym). Previously every cache miss re-read and re-parsed the whole binary; with a ~200MB Verilator sim and hundreds of DPI mon CHDLs at `abdl` create, env setup became pathologically slow.
 - **dpi_exporter**: Sensitive-group ticks (`dpi_exporter_tick_<group>`) are emitted again in the default always-block as multi-line calls. After the large-arg-list fix stopped expanding `` `CALL_DPI_EXPORTER_TICK ``, sensitive groups only lived in that unused macro and never updated shadow values under Verilator.
 - **libverilua**: Fix `inertial_put` string put path leaking a heap `CString` on every `_vpiml_*_value_*_str` call.
 - **libverilua**: Rebuild iverilog VPI link search paths when `IVERILOG_HOME` / `LD_LIBRARY_PATH` change (`cargo:rerun-if-env-changed` in `build.rs`).

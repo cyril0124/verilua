@@ -195,10 +195,9 @@ pub extern "C" fn get_self_cmdline() -> *mut c_char {
 // ────────────────────────────────────────────────────────────────────────────────
 
 lazy_static! {
-    /// Cache for resolved symbol addresses to avoid repeated ELF parsing.
-    /// Keyed by (filename, symbol_name) so the same symbol in different ELFs
-    /// does not collide.
-    static ref SYMBOL_ADDRESS_MAP: Mutex<HashMap<(String, String), u64>> =
+    /// Per-ELF symbol table: filename -> (symbol_name -> absolute address).
+    /// Whole-file load once: dpi mon abdl does hundreds of lookups.
+    static ref SYMBOL_TABLES: Mutex<HashMap<String, HashMap<String, u64>>> =
         Mutex::new(HashMap::new());
 }
 
@@ -208,17 +207,8 @@ cpp::cpp! {{
     #include <link.h>
 }}
 
-/// Looks up a symbol's runtime address in an ELF file.
-///
-/// Uses dlinfo to get the base address offset and then parses the ELF
-/// symbol table to find the symbol's address. Results are cached.
-#[unsafe(no_mangle)]
-pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *const c_char) -> u64 {
-    let filename = c_char_to_string(filename);
-    let symbol_name = c_char_to_string(symbol_name);
-
-    // Get the ASLR offset for the current process
-    let offset = unsafe {
+fn aslr_load_offset() -> u64 {
+    unsafe {
         cpp::cpp!([] -> u64 as "uint64_t" {
             static uint64_t offset = 0;
             static bool get_offset = false;
@@ -235,42 +225,57 @@ pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *cons
             }
             return offset;
         })
-    };
-
-    let cache_key = (filename.clone(), symbol_name.clone());
-
-    // Check cache first; drop the lock before any file I/O.
-    {
-        let map = SYMBOL_ADDRESS_MAP.lock().unwrap();
-        if let Some(&address) = map.get(&cache_key) {
-            return address;
-        }
     }
+}
 
-    // Parse ELF and find symbol outside the lock.
-    let mut file = File::open(&filename).expect("Failed to load ELF file");
+/// Parse one ELF fully into name→addr (symtab + dynsym).
+fn load_elf_symbol_table(filename: &str, offset: u64) -> HashMap<String, u64> {
+    let mut file = File::open(filename).expect("Failed to load ELF file");
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
         .expect("Failed to read ELF file");
 
     let elf = Elf::parse(&buffer).expect("Failed to parse ELF file");
-    let symtab_opt = elf.syms.iter().find(|symbol| {
-        if let Some(name) = elf.strtab.get_at(symbol.st_name) {
-            name == symbol_name
-        } else {
-            false
-        }
-    });
+    let mut table = HashMap::new();
 
-    if let Some(symtab) = symtab_opt {
-        let final_address = symtab.st_value + offset;
-        let mut map = SYMBOL_ADDRESS_MAP.lock().unwrap();
-        map.insert(cache_key, final_address);
-        final_address
-    } else {
-        // Symbol not found
-        0
+    for symbol in elf.syms.iter() {
+        if let Some(name) = elf.strtab.get_at(symbol.st_name)
+            && !name.is_empty()
+        {
+            table.insert(name.to_string(), symbol.st_value + offset);
+        }
     }
+    for symbol in elf.dynsyms.iter() {
+        if let Some(name) = elf.dynstrtab.get_at(symbol.st_name)
+            && !name.is_empty()
+        {
+            table
+                .entry(name.to_string())
+                .or_insert(symbol.st_value + offset);
+        }
+    }
+    table
+}
+
+/// Looks up a symbol's runtime address in an ELF file.
+///
+/// Uses dlinfo to get the base address offset and then parses the ELF
+/// symbol table. Each file is fully loaded once, then O(1) lookups.
+#[unsafe(no_mangle)]
+pub extern "C" fn get_symbol_address(filename: *const c_char, symbol_name: *const c_char) -> u64 {
+    let filename = c_char_to_string(filename);
+    let symbol_name = c_char_to_string(symbol_name);
+    let offset = aslr_load_offset();
+
+    let mut tables = SYMBOL_TABLES.lock().unwrap();
+    if !tables.contains_key(&filename) {
+        let table = load_elf_symbol_table(&filename, offset);
+        tables.insert(filename.clone(), table);
+    }
+    tables
+        .get(&filename)
+        .and_then(|t| t.get(&symbol_name).copied())
+        .unwrap_or(0)
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
