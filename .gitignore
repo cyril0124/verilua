@@ -40,6 +40,7 @@ tools/signal_db_gen
 tools/testbench_gen
 tools/verilua_prebuild
 tools/wave_vpi_*
+tools/sv_lint
 
 # Waveform and simulator artifacts
 .wave_vpi.meta.yaml
