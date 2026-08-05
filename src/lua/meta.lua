@@ -114,8 +114,11 @@ function await_nsim() end
 --- | "wave_vpi.flags"
 --- | "wave_vpi.run_prefix"
 --- | "wave_vpi.run_flags"
---- | "verilua.top" "Required"
---- | "verilua.lua_main" "Required"
+--- | "nosim.flags"
+--- | "nosim.run_prefix"
+--- | "nosim.run_flags"
+--- | "verilua.top"
+--- | "verilua.lua_main"
 --- | "verilua.tb_top"
 --- | "verilua.version_required"
 --- | "verilua.vcs_no_initreg"
@@ -125,15 +128,18 @@ function await_nsim() end
 --- | "verilua.build_dir_path"
 --- | "verilua.build_dir_name"
 --- | "verilua.user_cfg"
+--- | "verilua.other_cfg" (Deprecated, use verilua.user_cfg)
 --- | "verilua.tb_gen_flags"
 --- | "verilua.tb_top_file"
 --- | "verilua.no_internal_clock"
 --- | "verilua.use_inertial_put"
---- | "before_build" "Optional" User-defined callback function to run before build
---- | "verilua.instrument" "Optional" Instrumentation configuration function for runtime coverage collection
---- | "instrumentation" "Optional" (Deprecated, use verilua.instrument) Instrumentation configuration function
---- | "verilua.verilator_opt_slow" "Optional" Optimization options for slow-path code (make OPT_SLOW)
---- | "verilua.verilator_opt_fast" "Optional" Optimization options for fast-path code (make OPT_FAST)
+--- | "verilua.verilator_config" Inline Verilator control-file (.vlt) content
+--- | "verilua.verilator_no_public_flat_rw" Skip default --public-flat-rw
+--- | "verilua.verilator_opt_slow" Optimization options for slow-path code (make OPT_SLOW)
+--- | "verilua.verilator_opt_fast" Optimization options for fast-path code (make OPT_FAST)
+--- | "verilua.instrument" Instrumentation configuration function for runtime coverage collection
+--- | "instrumentation" (Deprecated, use verilua.instrument)
+--- | "before_build" User-defined callback function to run before build
 
 ---@param cmd verilua.xmake.set_add_values.cmd
 ---@param ... verilua.xmake.set_add_values.yes_or_not|string|function|table
