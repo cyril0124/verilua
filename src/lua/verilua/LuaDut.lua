@@ -70,6 +70,9 @@ local force_path_table = {}
 --- ```
 ---@field set_release fun(self: verilua.handles.ProxyTableHandle)
 ---
+--- Release the `set_imm_force` operation, the immediate variant of `set_release`.
+---@field set_imm_release fun(self: verilua.handles.ProxyTableHandle)
+---
 --- Enable force mode for all subsequent set operations.
 --- e.g.
 --- ```lua
@@ -464,6 +467,9 @@ local function create_proxy(path, use_prefix)
         end,
         set_release = function(_t)
             vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(local_path))
+        end,
+        set_imm_release = function(_t)
+            vpiml.vpiml_release_imm_value(vpiml.vpiml_handle_by_name(local_path))
         end,
 
         force_all = function(_t)

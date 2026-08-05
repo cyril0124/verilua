@@ -54,6 +54,8 @@ assert(b.__type == "ProxyTableHandle")
 
    释放 `set_force` 的强制赋值（等同 SystemVerilog `release`）。未调用时信号值将保持不变。
 
+   对应的立即版本为 `<dut>:set_imm_release()`，用于释放 `set_imm_force` 的立即强制赋值。
+
 7. `<dut>:force_all()`
 
    使用了 `<dut>:force_all()` 之后，接下来 `dut` 的所有赋值操作都会转化为 `force` 类型的赋值。
