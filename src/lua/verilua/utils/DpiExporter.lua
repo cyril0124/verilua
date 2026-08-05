@@ -66,22 +66,16 @@ local function normalize_hierpath(signal_hierpath, dpi_top)
     )
 end
 
--- Auto detect meta_file
----@return string
+-- Auto detect meta_file from linked dpi_exporter (nil if not linked).
+-- Do NOT touch ffi.C.<missing>: LuaJIT resolves it as undefined symbol and aborts.
+---@return string?
 local function try_get_meta_file()
-    if SymbolHelper.get_global_symbol_addr("dpi_exporter_get_meta_info_file_path") ~= 0 then
-        local func = SymbolHelper.ffi_cast("char *(*)()", "dpi_exporter_get_meta_info_file_path")
-        ---@diagnostic disable-next-line: call-non-callable
-        local meta_file = ffi.string(func())
-        return meta_file
-    else
-        ffi.cdef("char *dpi_exporter_get_meta_info_file_path();")
-        assert(
-            ffi.C.dpi_exporter_get_meta_info_file_path,
-            "[DpiExporter] [try_get_meta_file] Failed to get symbol: dpi_exporter_get_meta_info_file_path"
-        )
-        return ffi.string(ffi.C.dpi_exporter_get_meta_info_file_path())
+    if SymbolHelper.get_global_symbol_addr("dpi_exporter_get_meta_info_file_path") == 0 then
+        return nil
     end
+    local func = SymbolHelper.ffi_cast("char *(*)()", "dpi_exporter_get_meta_info_file_path")
+    ---@diagnostic disable-next-line: call-non-callable
+    return ffi.string(func())
 end
 
 function DpiExporter:init(meta_file)
@@ -91,6 +85,11 @@ function DpiExporter:init(meta_file)
 
     if not meta_file then
         meta_file = try_get_meta_file()
+        assert(
+            meta_file,
+            "[DpiExporter] dpi_exporter_get_meta_info_file_path not linked; "
+            .. "build with dpi_exporter or pass meta_file to init()/try_init()"
+        )
     end
 
     local file = io.open(meta_file, "r")
@@ -149,15 +148,17 @@ function DpiExporter:try_init(meta_file)
     if not meta_file then
         meta_file = try_get_meta_file()
     end
+    if not meta_file then
+        return false
+    end
 
     local file = io.open(meta_file, "r")
     if not file then
         return false
-    else
-        file:close()
-        self:init(meta_file)
-        return true
     end
+    file:close()
+    self:init(meta_file)
+    return true
 end
 
 function DpiExporter:lookup(hierpath)
