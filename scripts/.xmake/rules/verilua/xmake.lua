@@ -540,7 +540,7 @@ rule("verilua", function()
                 "--Wno-IMPORTSTAR",
                 "+define+SIM_VERILATOR",
                 "--timescale-override " .. default_timescale,
-                "--top", tb_top,
+                "--top-module", tb_top,
                 [[-CFLAGS "-std=c++20"]],
                 [[-LDFLAGS "-flto"]],
                 [[-LDFLAGS "-u coverageCtrl -u getCoverageCount -u getCoverage -u getCondCoverage"]], -- Reserve symbols for coverage(cov_exporter)

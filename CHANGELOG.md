@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **xmake / verilua rule**: Verilator is now invoked with the canonical `--top-module` flag instead of the `--top` alias (kept for compatibility in current Verilator releases), for forward compatibility.
 - **testbench_gen**: Non-Verilator (VCS/iverilog/Xcelium) generated testbenches now drive the DUT reset port via an internal `reg reset` (`wire <reset_name>; assign <reset_name> = reset;`) instead of declaring the reset signal directly as a `reg` and aliasing it to an internal `wire reset`, matching the Verilator convention so user code can drive/release `reset`.
 - **libverilua**: `get_symbol_address` now loads each ELF symbol table once (symtab + dynsym). Previously every cache miss re-read and re-parsed the whole binary; with a ~200MB Verilator sim and hundreds of DPI mon CHDLs at `abdl` create, env setup became pathologically slow.
 - **dpi_exporter**: Sensitive-group ticks (`dpi_exporter_tick_<group>`) are emitted again in the default always-block as multi-line calls. After the large-arg-list fix stopped expanding `` `CALL_DPI_EXPORTER_TICK ``, sensitive groups only lived in that unused macro and never updated shadow values under Verilator.
