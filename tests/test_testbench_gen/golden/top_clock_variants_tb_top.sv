@@ -57,11 +57,15 @@ module tb_top (
 // -----------------------------------------
 `ifndef SIM_VERILATOR
 reg sys_clk;
-reg sys_rst_n;
+reg reset;
+wire sys_rst_n;
+assign sys_rst_n = reset;
+
+
 
 initial begin
     sys_clk = 0;
-    sys_rst_n = 1;
+    reset = 1;
 end
 
 `ifndef NO_INTERNAL_CLOCK
@@ -83,9 +87,6 @@ assign clock = sys_clk;
 `ifdef SIM_VERILATOR
 wire sys_rst_n;
 assign sys_rst_n = reset;
-`else // SIM_VERILATOR
-wire reset;
-assign reset = sys_rst_n;
 `endif // SIM_VERILATOR
 
 

@@ -69,6 +69,8 @@ parameter  logic [15:0]  LOGIC_PARAM = 16'hEF01
 reg clk;
 reg reset;
 
+
+
 initial begin
     clk = 0;
     reset = 1;

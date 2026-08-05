@@ -373,11 +373,16 @@ module {{tbtopName}} {{tbtopPortParamDecl}}(
 // -----------------------------------------
 `ifndef SIM_VERILATOR
 reg {{clockSignalName}};
-{% if resetSignalName == "" %}// no reset signal found!{% else %}reg {{resetSignalName}};{% endif %}
+{% if resetSignalName == "" %}// no reset signal found!
+{% else %}reg reset;
+{% if resetSignalName != "reset" %}wire {{resetSignalName}};
+assign {{resetSignalName}} = reset;
+{% endif %}
+{% endif %}
 
 initial begin
     {{clockSignalName}} = 0;
-    {% if resetSignalName == "" %}// no reset signal found!{% else %}{{resetSignalName}} = 1;{% endif %}
+    {% if resetSignalName == "" %}// no reset signal found!{% else %}reset = 1;{% endif %}
 end
 
 `ifndef NO_INTERNAL_CLOCK
@@ -399,9 +404,6 @@ assign clock = {{clockSignalName}};
 `ifdef SIM_VERILATOR
 wire {{resetSignalName}};
 assign {{resetSignalName}} = reset;
-`else // SIM_VERILATOR
-wire reset;
-assign reset = {{resetSignalName}};
 `endif // SIM_VERILATOR
 {% endif %}
 
