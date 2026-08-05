@@ -26,8 +26,6 @@ build/
 target/
 test/
 tmp/
-tmp_lua_file_dir/
-tmp_lua_lib_dir/
 shared/
 result
 *.log

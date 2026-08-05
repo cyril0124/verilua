@@ -54,14 +54,15 @@
 - After modifying any Lua file, including standalone Lua test files such as `test_idpool.lua`, always run:
 
 ```bash
-# F must come first, and the path must be absolute.
-F=/abs/path/to/<lua file> xmake r lsp-check-lua
+# F is a Lua file or directory. Relative paths are resolved from the project root.
+F=path/to/<lua file> xmake r lsp-check-lua
 
-# Example
-F=/nfs/home/zhengchuyu/tmp/verilua/src/lua/verilua/LuaUtils.lua xmake r lsp-check-lua
+# Examples
+F=src/lua/verilua/LuaUtils.lua xmake r lsp-check-lua
+F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
 ```
 
-- If you need to check multiple Lua files, run `xmake r lsp-check-lua` serially, one file at a time. Do not run multiple checks in parallel.
+- `lsp-check-lua` runs `scripts/emmylua_ls_check.py` (emmylua_ls over stdio LSP). Without `F`, it checks `src/lua`.
 - Make sure the output contains no errors or warnings.
 - After modifying any Rust code, run `cargo fmt` and then `cargo clippy --all-targets --all-features -- -D warnings`; fix all warnings.
 

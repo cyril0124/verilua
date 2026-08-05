@@ -11,7 +11,8 @@
       "invert-if"
     ],
     "severity": {
-      "redefined-local": "hint"
+      "redefined-local": "hint",
+      "call-non-callable": "error"
     }
   },
   "hint.enable": true,

@@ -282,64 +282,35 @@ target("lsp-check-lua", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        import("lib.detect.find_file")
-        local lua_checker = "emmylua_check"
-        if not find_file(lua_checker, { "$(env PATH)" }) then
-            raise("emmylua_check tool is not found! Please install it via `cargo install emmylua_check`")
+        import("lib.detect.find_tool")
+        local python = find_tool("python3") or find_tool("python")
+        if not python then
+            raise("python3 not found in PATH")
         end
 
-        local emmyrc = path.join(prj_dir, ".emmyrc-lsp-check.json")
-        local F = os.getenv("F") -- F is the filename to check
-        if F then
-            local is_absolute_f = path.is_absolute(F)
-            local has_slash = F:find("/") ~= nil
-
-            local src_lua_dir = path.join(prj_dir, "src", "lua")
-            local src_gen_dir = path.join(prj_dir, "src", "gen")
-            local tests_lua_dir = path.join(prj_dir, "tests")
-            local search_dirs = { path.join(src_lua_dir, "**"), src_gen_dir, tests_lua_dir }
-
-            local file = nil
-            if is_absolute_f then
-                file = F
-            elseif has_slash then
-                file = path.absolute(F)
-            else
-                file = find_file(F, search_dirs)
-                assert(file ~= nil, "file not found: " .. F)
-                assert(type(file) == "string", "multiple files found for: " .. F)
-            end
-            assert(os.isfile(file), "file not found: " .. file)
-            print("[lsp-check-lua] Checking file: " .. file)
-
-            local tmp_file_dir = path.join(prj_dir, "tmp_lua_file_dir")
-            local tmp_lib_dir = path.join(prj_dir, "tmp_lua_lib_dir")
-            os.mkdir(tmp_file_dir)
-            os.cp(file, tmp_file_dir)
-
-            os.mkdir(tmp_lib_dir)
-            os.cp(path.join(src_lua_dir, "*"), tmp_lib_dir)
-            os.cp(path.join(src_gen_dir, "*.lua"), tmp_lib_dir)
-            os.cp(path.join(tests_lua_dir, "*.lua"), tmp_lib_dir)
-
-            local file_name = path.filename(file)
-            local _file = find_file(file_name, { path.join(tmp_lib_dir, "**"), tmp_lib_dir })
-            if _file then
-                assert(type(_file) == "string", "multiple files found in tmp_lib_dir: " .. file_name)
-                os.rm(_file)
-            end
-
-            try {
-                function()
-                    os.exec(lua_checker .. " --config " .. emmyrc .. " " .. tmp_file_dir)
-                end
-            }
-
-            os.exec("rm -rf " .. tmp_file_dir)
-            os.exec("rm -rf " .. tmp_lib_dir)
-        else
-            os.exec(lua_checker .. " --config " .. emmyrc .. " " .. prj_dir)
+        local input = os.getenv("F")
+        local check_path = path.join(prj_dir, "src", "lua")
+        if input and input ~= "" then
+            check_path = path.absolute(input, prj_dir)
         end
+        if not os.isfile(check_path) and not os.isdir(check_path) then
+            raise("lsp-check-lua path not found: " .. check_path)
+        end
+        if os.isfile(check_path) and path.extension(check_path) ~= ".lua" then
+            raise("lsp-check-lua file must be .lua: " .. check_path)
+        end
+
+        local check_script = path.join(prj_dir, "scripts", "emmylua_ls_check.py")
+        if not os.isfile(check_script) then
+            raise("lsp-check-lua script not found: " .. check_script)
+        end
+        print("[lsp-check-lua] Checking: " .. check_path)
+        os.execv(python.program, {
+            check_script,
+            check_path,
+            "--root",
+            prj_dir
+        })
     end)
 end)
 
