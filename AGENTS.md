@@ -43,6 +43,7 @@
 - Lua code must include LuaCATS type annotations written for EmmyLuaLs: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust`.
 - Annotation reference: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust/tree/main/docs/emmylua_doc/annotations_EN`
 - When modifying Lua function signatures, return types, or data structures, update the corresponding LuaCATS annotations so they stay in sync with the implementation.
+- When adding or renaming `set_values` / `add_values` keys handled by Verilua xmake rules (especially `verilua.*` flags in `./scripts/.xmake/rules/verilua/xmake.lua`), also update the `verilua.xmake.set_add_values.cmd` alias list in `./src/lua/meta.lua` so EmmyLua completion and type checks stay in sync.
 - Lua code must follow LuaJIT best practices and account for JIT performance characteristics.
 - Follow the best practices already used in the existing codebase.
 - Add concise English comments for important or non-obvious code blocks when they improve readability.
@@ -133,9 +134,10 @@ F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
   1. Implementation code
   2. Tests (unit and/or integration)
   3. Documentation updates (`./docs` if user-facing behavior changes)
-  4. `CHANGELOG.md` entry under `## Unreleased` (skip for pure doc-only changes like typos or formatting)
-  5. Format checks (`xmake r format-lua` / `xmake r format-cpp`)
-  6. Static checks (`xmake r lsp-check-lua` / `cargo clippy`)
+  4. `CHANGELOG.md` entry under `## Unreleased` (skip pure doc-only changes like typos/formatting, and anything not user-visible: internal tooling, agent rules, private scripts, CI-only, etc.)
+  5. If new or renamed xmake `verilua.*` / rule config flags were introduced, update `./src/lua/meta.lua` (`verilua.xmake.set_add_values.cmd`)
+  6. Format checks (`xmake r format-lua` / `xmake r format-cpp`)
+  7. Static checks (`xmake r lsp-check-lua` / `cargo clippy`)
 
 ## Release Versioning
 

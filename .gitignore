@@ -16,10 +16,12 @@ compile_commands.json
 # Local tool environments and caches
 .luajit_pro/
 .verilua/
+.pi/
 /.xmake
 scripts/.xmake/cache
 scripts/.xmake/linux
 conan_installed/
+__pycache__/
 
 # Build, test, and temporary outputs
 build/
