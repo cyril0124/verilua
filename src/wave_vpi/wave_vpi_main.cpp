@@ -69,7 +69,7 @@ int main(int argc, const char *argv[]) {
     }
 
     // Expose the resolved waveform path for hierarchy cache mtime detection.
-    setenv("VERILUA_WAVEFORM_FILE", waveFile.c_str(), 1);
+    setenv("VL_WAVEFORM_FILE", waveFile.c_str(), 1);
 
     // Bridge --hierarchy-only CLI flag to env var so all is_hierarchy_only_mode() checks work.
     if (program.get<bool>("--hierarchy-only")) {

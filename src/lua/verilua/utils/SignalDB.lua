@@ -99,7 +99,7 @@ local cfg = _G.cfg
 --- It provides methods to initialize, query, and search signals in the design hierarchy.
 ---
 ---@field private db_data verilua.utils.SignalDB.data The parsed signal database
----@field private top string? The top module name (can be set via DUT_TOP env var)
+---@field private top string? The top module name (can be set via VL_DUT_TOP env var)
 ---@field private check_file string? File used to check if regeneration is needed
 ---@field private target_file string Path to store/load the generated database file (default: "./signal_db.ldb")
 ---@field private rtl_filelist string Path to the RTL filelist (default: "dut_file.f")
@@ -126,7 +126,7 @@ local cfg = _G.cfg
 ---@field auto_bundle fun(self: verilua.utils.SignalDB, hier_path: string, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle Automatically create a Bundle from signals matching criteria
 local SignalDB = {
     db_data = {},
-    top = os.getenv("DUT_TOP"),
+    top = os.getenv("VL_DUT_TOP"),
     check_file = nil,
     target_file = "./signal_db.ldb",
     rtl_filelist = "dut_file.f",

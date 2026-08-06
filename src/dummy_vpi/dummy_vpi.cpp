@@ -389,7 +389,7 @@ PLI_INT32 DEFINE_VPI_FUNC(vpi_free_object)(vpiHandle object) {
 
 vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_name)(PLI_BYTE8 *name, vpiHandle scope) {
     static std::string topName = []() {
-        auto envVar = std::getenv("DUT_TOP");
+        auto envVar = std::getenv("VL_DUT_TOP");
         if (envVar == nullptr) {
             return std::string("");
         } else {

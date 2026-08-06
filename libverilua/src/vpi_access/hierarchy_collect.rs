@@ -71,7 +71,7 @@ fn get_file_mtime(path: &str) -> Option<u64> {
 #[cfg(feature = "hierarchy_cache")]
 fn get_source_path() -> Option<String> {
     if cfg!(feature = "wave_vpi") {
-        std::env::var("VERILUA_WAVEFORM_FILE").ok()
+        std::env::var("VL_WAVEFORM_FILE").ok()
     } else {
         let exe_path = std::fs::read_link("/proc/self/exe").ok()?;
         Some(exe_path.to_string_lossy().into_owned())
@@ -80,7 +80,7 @@ fn get_source_path() -> Option<String> {
 
 #[cfg(feature = "hierarchy_cache")]
 fn get_cache_file_path() -> String {
-    std::env::var("VERILUA_HIERARCHY_CACHE_FILE")
+    std::env::var("VL_HIERARCHY_CACHE_FILE")
         .unwrap_or_else(|_| HIERARCHY_CACHE_DEFAULT_PATH.to_string())
 }
 

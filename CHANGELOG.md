@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 💥 Breaking Changes
 
+- **env vars**: Hard-rename runtime env names (old names no longer read):
+  - `DUT_TOP` → `VL_DUT_TOP`
+  - `LUA_SCRIPT` → `VL_LUA_SCRIPT`
+  - `NOSIM_BUILD` → `VL_NOSIM_BUILD`
+  - `VERILUA_WAVEFORM_FILE` → `VL_WAVEFORM_FILE`
+  - `VERILUA_HIERARCHY_CACHE_FILE` → `VL_HIERARCHY_CACHE_FILE`
+  - `VERILUA_PRINT_HIER_STYLE` → `VL_PRINT_HIER_STYLE`
+  Unchanged whitelist: `SIM`, `SEED`, `PRJ_DIR`, `PRJ_TOP`. Install/config entry remains `VERILUA_HOME` / `VERILUA_CFG` / `VERILUA_CFG_PATH`.
 - **xmake / verilua rule**: Presence of a `.vlt` file (or `verilua.verilator_config`) no longer auto-disables default `--public-flat-rw`. Use `set_values("verilua.verilator_no_public_flat_rw", "1")` to opt out, then put fine-grained `public_flat_*` in `.vlt` / `verilua.verilator_config`.
 - **xmake / verilua rule**: Rename make OPT knobs to `set_values("verilua.verilator_opt_fast", ...)` / `set_values("verilua.verilator_opt_slow", ...)`. Replaces `verilator.opt_fast` / `verilator.opt_slow` (no alias).
 - **dpi_exporter / DpiExporter**: Meta field `exportedSignals` (string list) is replaced by `exportedSignalInfos` (`hierPath`, `bitWidth`, `vpiTypeStr`, `handleId`). Old meta files must be regenerated. `DpiExporter:is_exported` is removed; use `DpiExporter:lookup(path)` (info or `nil`).

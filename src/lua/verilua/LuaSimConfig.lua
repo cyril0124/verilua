@@ -349,10 +349,10 @@ function cfg:post_config()
         "[cfg:post_config] <cfg.simulator>(simulator) is not set! You should set <cfg.simulator> via enviroment variable <SIM> or <cfg.simulator>"
     )
 
-    _cfg.script = _cfg.script or os.getenv("LUA_SCRIPT")
+    _cfg.script = _cfg.script or os.getenv("VL_LUA_SCRIPT")
     assert(
         _cfg.script,
-        "[cfg:post_config] <cfg.script>(script) is not set! You should set <cfg.script> via enviroment variable <LUA_SCRIPT> or <cfg.script>"
+        "[cfg:post_config] <cfg.script>(script) is not set! You should set <cfg.script> via enviroment variable <VL_LUA_SCRIPT> or <cfg.script>"
     )
 
     _cfg.is_hse = _cfg:get_or_else("is_hse", false)
@@ -390,7 +390,7 @@ function cfg:post_config()
 
     -- Make `cfg` available globally since it is used by `SignalDB` which provides the `vpiml_get_top_module()` function
     _G.cfg = _cfg
-    _cfg.top = _cfg.top or os.getenv("DUT_TOP")
+    _cfg.top = _cfg.top or os.getenv("VL_DUT_TOP")
     if not _cfg.top then
         local vpiml = require "verilua.vpiml.vpiml"
         config_warn(f(
@@ -400,7 +400,7 @@ function cfg:post_config()
     end
     assert(
         _cfg.top,
-        "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <DUT_TOP> or <cfg.top>"
+        "[cfg:post_config] <cfg.top>(top-level name) is not set! You should set <cfg.top> via enviroment variable <VL_DUT_TOP> or <cfg.top>"
     )
 
     -- Setup configs with default values

@@ -32,9 +32,9 @@ int main(int argc, char **argv) {
     }
 
     if (build) {
-        // Set enviroment variable `NOSIM_BUILD` to 1, which will be used in libverilua_nosim
+        // Set enviroment variable `VL_NOSIM_BUILD` to 1, which will be used in libverilua_nosim
         // to prevent automatically finalization of the simulation.
-        setenv("NOSIM_BUILD", "1", 1);
+        setenv("VL_NOSIM_BUILD", "1", 1);
 
         int ret = signal_db_gen_main(args.data());
         if (ret == 1) {

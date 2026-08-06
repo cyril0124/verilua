@@ -85,8 +85,8 @@ pub unsafe extern "C" fn vpiml_get_top_module() -> *const c_char {
     // Early exit: free the remaining iterator (vpi_scan only auto-frees on NULL).
     unsafe { vpi_free_object(iter) };
 
-    if std::env::var("DUT_TOP").is_err() {
-        unsafe { std::env::set_var("DUT_TOP", utils::c_char_to_str(top_module_name)) };
+    if std::env::var("VL_DUT_TOP").is_err() {
+        unsafe { std::env::set_var("VL_DUT_TOP", utils::c_char_to_str(top_module_name)) };
     }
 
     top_module_name as _

@@ -266,15 +266,15 @@ local function before_build_or_run(target)
     --- Setup lua_main script which is the entry point of the simulation, can be seen as the main function in C language.
     --- You can set it by environment variable or xmake config
     ---
-    --- e.g. (set by enviroment variable `LUA_SCRIPT`)
+    --- e.g. (set by enviroment variable `VL_LUA_SCRIPT`)
     --- ```shell
-    --- export LUA_SCRIPT=/path/to/your/main.lua
+    --- export VL_LUA_SCRIPT=/path/to/your/main.lua
     --- ```
     --- e.g. (set by xmake config)
     --- ```lua
     ---     set_values("verilua.lua_main", "/path/to/your/main.lua")
     --- ```
-    local env_lua_main = os.getenv("LUA_SCRIPT")
+    local env_lua_main = os.getenv("VL_LUA_SCRIPT")
     local cfg_lua_main = get_verilua_value(target, "verilua.lua_main")
     local lua_main = env_lua_main
     if lua_main == nil then

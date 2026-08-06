@@ -8,16 +8,25 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 
 ## 变量概览
 
-| 变量名       | 简要说明 |
-| ------------ | ---------- |
-| `SIM`        | 指定使用的仿真器类型 |
-| `DUT_TOP`    | 指定设计的顶层模块名称 |
-| `PRJ_DIR`    | 指定项目根目录 |
-| `SEED`       | 设置仿真随机种子 |
-| `VL_DEBUG`   | 启用 Verilua debug 输出 |
-| `VL_QUIET`   | 静默模式，禁用日志输出 |
+| 变量名 | 简要说明 |
+| ------ | -------- |
+| `SIM` | 指定使用的仿真器类型 |
+| `SEED` | 设置仿真随机种子 |
+| `PRJ_DIR` | 指定项目根目录 |
+| `PRJ_TOP` | 额外 Lua 搜索路径根 |
+| `VL_DUT_TOP` | 指定设计的顶层模块名称 |
+| `VL_LUA_SCRIPT` | 指定 Lua 主脚本文件 |
+| `VL_DEBUG` | 启用 Verilua debug 输出 |
+| `VL_QUIET` | 静默模式，禁用日志输出 |
+| `VL_LOG_LEVEL` | 日志级别下限 |
 | `VL_PERF_TIME` | 启用性能时间统计 |
-| `LUA_SCRIPT` | 指定 Lua 主脚本文件 |
+| `VL_WAVEFORM_FILE` | WAL/wave_vpi 波形文件路径 |
+| `VL_HIERARCHY_CACHE_FILE` | 层级缓存文件路径 |
+| `VL_PRINT_HIER_STYLE` | 层级打印样式 |
+| `VL_NOSIM_BUILD` | nosim 构建路径标记 |
+| `VERILUA_HOME` | Verilua 安装根路径 |
+| `VERILUA_CFG` | 用户配置文件名或绝对路径 |
+| `VERILUA_CFG_PATH` | 用户配置文件所在目录 |
 
 ---
 
@@ -32,7 +41,7 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
   - `verilator` – Verilator 仿真器
   - `vcs` – Synopsys VCS 仿真器
   - `xcelium` – Cadence Xcelium 仿真器
-- `iverilog` – Icarus Verilog 仿真器
+  - `iverilog` – Icarus Verilog 仿真器
   - `wave_vpi` – Verilua 波形分析后端（WAL 模式）
 - **优先级**：`cfg.simulator` 配置文件 > `SIM` 环境变量 > 自动检测
 - **相关配置影响**：
@@ -54,19 +63,19 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 
 ---
 
-### `LUA_SCRIPT` (可选)
+### `VL_LUA_SCRIPT` (可选)
 
 指定 Lua 主脚本文件。通常由 xmake 配置 `verilua.lua_main` 设置，也可通过此环境变量覆盖。
 
 - **默认值**：由 `verilua.lua_main` 决定
 - **示例**：
   ```bash
-  LUA_SCRIPT=/path/to/main.lua xmake run -P . <target_name>
+  VL_LUA_SCRIPT=/path/to/main.lua xmake run -P . <target_name>
   ```
 
 ---
 
-### `DUT_TOP` (可选)
+### `VL_DUT_TOP` (可选)
 
 指定设计的顶层模块名称。若未设置，Verilua 会自动通过 VPI 接口获取第一个模块的名称作为顶层模块。
 
@@ -76,10 +85,10 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 - **示例**：
   ```bash
   # 临时指定
-  DUT_TOP=tb_top xmake run -P . <target_name>
+  VL_DUT_TOP=tb_top xmake run -P . <target_name>
 
   # 永久设置（当前 shell 有效）
-  export DUT_TOP=tb_top
+  export VL_DUT_TOP=tb_top
   ```
 
 ---

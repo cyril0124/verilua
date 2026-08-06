@@ -312,22 +312,22 @@ impl VeriluaEnv {
             panic!("Failed to load init.lua: {e}");
         };
 
-        if std::env::var("DUT_TOP").is_err() {
+        if std::env::var("VL_DUT_TOP").is_err() {
             unsafe {
                 let dut_top = CStr::from_ptr(vpi_access::vpiml_get_top_module())
                     .to_str()
                     .unwrap();
-                std::env::set_var("DUT_TOP", dut_top);
-                log::info!("DUT_TOP is not set, auto set to `{dut_top}`");
+                std::env::set_var("VL_DUT_TOP", dut_top);
+                log::info!("VL_DUT_TOP is not set, auto set to `{dut_top}`");
             }
         }
 
-        // Environment variable `LUA_SCRIPT` is set while loading `init.lua`
-        let lua_script = std::env::var("LUA_SCRIPT").expect("LUA_SCRIPT not set!");
+        // Environment variable `VL_LUA_SCRIPT` is set while loading `init.lua`
+        let lua_script = std::env::var("VL_LUA_SCRIPT").expect("VL_LUA_SCRIPT not set!");
         if let Err(e) = lua_dofile.call::<()>(lua_script) {
             panic!(
                 "Failed to load {} => {e}",
-                std::env::var("LUA_SCRIPT").unwrap()
+                std::env::var("VL_LUA_SCRIPT").unwrap()
             );
         };
 
@@ -578,8 +578,8 @@ impl VeriluaEnv {
 extern "C" fn automatically_finalize_verilua_env() {
     #[cfg(feature = "nosim")]
     {
-        // If `NOSIM_BUILD` environment variable is set, we will not call `finalize` function.
-        if std::env::var("NOSIM_BUILD").is_ok() {
+        // If `VL_NOSIM_BUILD` environment variable is set, we will not call `finalize` function.
+        if std::env::var("VL_NOSIM_BUILD").is_ok() {
             return;
         }
     }

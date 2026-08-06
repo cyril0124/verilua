@@ -285,19 +285,19 @@ do
     end
 
     --
-    -- setup LUA_SCRIPT inside init.lua, this can be overwrite by outer environment variable
+    -- setup VL_LUA_SCRIPT inside init.lua, this can be overwrite by outer environment variable
     --
     local LUA_SCRIPT = cfg.script
     if LUA_SCRIPT ~= nil then
-        setenv_from_lua("LUA_SCRIPT", LUA_SCRIPT)
+        setenv_from_lua("VL_LUA_SCRIPT", LUA_SCRIPT)
     end
 
     --
-    -- setup DUT_TOP inside init.lua, this can be overwrite by outer environment variable
+    -- setup VL_DUT_TOP inside init.lua, this can be overwrite by outer environment variable
     --
     local DUT_TOP = cfg.top
     if DUT_TOP ~= nil then
-        setenv_from_lua("DUT_TOP", DUT_TOP)
+        setenv_from_lua("VL_DUT_TOP", DUT_TOP)
     end
 
     setenv_from_lua("LUA_PATH", _G.package.path)

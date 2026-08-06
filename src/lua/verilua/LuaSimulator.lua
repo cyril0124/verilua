@@ -210,7 +210,7 @@ end
 
 ---@return "tree"|"compact"
 local function get_print_hierarchy_style()
-    local style = os.getenv("VERILUA_PRINT_HIER_STYLE")
+    local style = os.getenv("VL_PRINT_HIER_STYLE")
     if style == "compact" then
         return "compact"
     end
@@ -274,7 +274,7 @@ end
 
 ---@param name string Node name to render.
 ---@param level integer Hierarchy depth level (root is 0).
----@param style "tree"|"compact" Output style selected by VERILUA_PRINT_HIER_STYLE.
+---@param style "tree"|"compact" Output style selected by VL_PRINT_HIER_STYLE.
 ---@return string
 local function render_hierarchy_line(name, level, style)
     if style == "compact" then
