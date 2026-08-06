@@ -318,27 +318,56 @@ target("format-lua", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        import("lib.detect.find_file")
-        if not find_file("CodeFormat", { "$(env PATH)" }) then
-            raise("CodeFormat tool is not found! Please install it from https://github.com/CppCXY/EmmyLuaCodeStyle")
+        import("lib.detect.find_tool")
+        local python = find_tool("python3") or find_tool("python")
+        if not python then
+            raise("python3 not found in PATH")
         end
 
-        local lua_files = {}
-        table.join2(lua_files, os.files(path.join(prj_dir, "*.lua")))
-        table.join2(lua_files, os.files(path.join(prj_dir, "tests", "**", "*.lua")))
-        table.join2(lua_files, os.files(path.join(prj_dir, "scripts", ".xmake", "**", "*.lua")))
-        table.join2(lua_files, os.files(path.join(prj_dir, "src", "lua", "verilua", "**", "*.lua")))
-        for _, file in ipairs(lua_files) do
+        local format_script = path.join(prj_dir, "scripts", "emmylua_format.py")
+        if not os.isfile(format_script) then
+            raise("format-lua script not found: " .. format_script)
+        end
+
+        local function is_generated_lua(file)
             local filename = path.filename(file)
-            if not filename:startswith("ChdlAccess") and
-                not filename:startswith("LuaEdgeStepScheduler") and
-                not filename:startswith("LuaStepScheduler") and
-                not filename:startswith("LuaNormalScheduler")
-            then
-                cprint("${blue}Formatting: ${green}%s${reset}", file)
-                os.exec("CodeFormat format -f " .. file .. " -ow")
+            return filename:startswith("ChdlAccess")
+                or filename:startswith("LuaEdgeStepScheduler")
+                or filename:startswith("LuaStepScheduler")
+                or filename:startswith("LuaNormalScheduler")
+        end
+
+        local input = os.getenv("F")
+        local format_paths = {}
+        if input and input ~= "" then
+            table.insert(format_paths, path.absolute(input, prj_dir))
+        else
+            table.join2(format_paths, os.files(path.join(prj_dir, "*.lua")))
+            local candidates = {}
+            table.join2(candidates, os.files(path.join(prj_dir, "tests", "**", "*.lua")))
+            table.join2(candidates, os.files(path.join(prj_dir, "scripts", ".xmake", "**", "*.lua")))
+            table.join2(candidates, os.files(path.join(prj_dir, "src", "lua", "verilua", "**", "*.lua")))
+            for _, file in ipairs(candidates) do
+                if not is_generated_lua(file) then
+                    table.insert(format_paths, file)
+                end
             end
         end
+
+        for _, format_path in ipairs(format_paths) do
+            if not os.isfile(format_path) and not os.isdir(format_path) then
+                raise("format-lua path not found: " .. format_path)
+            end
+            if os.isfile(format_path) and path.extension(format_path) ~= ".lua" then
+                raise("format-lua file must be .lua: " .. format_path)
+            end
+        end
+
+        local args = { format_script }
+        for _, format_path in ipairs(format_paths) do
+            table.insert(args, format_path)
+        end
+        os.execv(python.program, args)
     end)
 end)
 

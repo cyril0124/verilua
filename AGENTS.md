@@ -46,7 +46,7 @@
 - Lua code must follow LuaJIT best practices and account for JIT performance characteristics.
 - Follow the best practices already used in the existing codebase.
 - Add concise English comments for important or non-obvious code blocks when they improve readability.
-- After modifying Lua files, run `xmake r format-lua`.
+- After modifying Lua files, run `xmake r format-lua` (uses `scripts/emmylua_format.py`; `F` can select a file/dir).
 - After modifying C or C++ files, run `xmake r format-cpp`.
 
 ## Code Quality Checks
