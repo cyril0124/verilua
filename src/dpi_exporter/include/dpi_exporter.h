@@ -17,6 +17,7 @@
 #include "slang/util/Util.h"
 #include "sol/sol.hpp"
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>

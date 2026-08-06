@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **dpi_exporter**: Add `--cs/--config-str <lua source>` to pass config Lua inline (mutually exclusive with `-c/--config`; empty/whitespace-only is rejected). Cache still keys on normalized `configFileContent`.
 - **libverilua**: Hot-path `sim_event` / `sim_event_chunk_N` now use registry-cached raw `lua_pcall` instead of `mlua::Function::call`, reducing per-callback Rust→Lua fixed overhead.
 - **DpiExporter / CallableHDL**: Exported signals can construct without VPI (`hdl = nil`, width/type from meta) and still bind DPI `get`. Lookup is O(1) via an init-time map.
 - **xmake / verilua rule**: Add `set_values("verilua.verilator_config", [[...]])` to inline Verilator control-file content without a separate `.vlt` or `add_files`. Content is written to `verilua_generated.vlt` under the target build dir and only adds directives (does not change public strategy).

@@ -17,6 +17,7 @@ class DPIExporter {
     std::vector<std::string> tmpFiles;
     std::vector<std::string> _files;
     std::optional<std::string> _configFile;
+    std::optional<std::string> _configStr;
     std::optional<std::string> _outdir;
     std::optional<std::string> _workdir;
     std::optional<std::string> _dpiFile;
@@ -31,6 +32,7 @@ class DPIExporter {
     std::optional<bool> _relativeMetaPath;
 
     std::string configFile;
+    std::string configSource;
     std::string configFileContent;
     std::string outdir;
     std::string workdir;
@@ -260,7 +262,9 @@ end
 add_senstive_trigger = add_sensitive_trigger
 
 )");
-        lua.script_file(configFile);
+        // File path uses the path as chunkname; inline uses [config-str].
+        const std::string chunkname = (configFile == "<inline>") ? "[config-str]" : configFile;
+        lua.script(configSource, chunkname);
 
         std::vector<ConciseSignalPattern> conciseSignalPatternVec;
 
@@ -331,7 +335,8 @@ add_senstive_trigger = add_sensitive_trigger
         driver.addStandardArgs();
 
         driver.cmdLine.add("--fl,--filelist", _files, "input file or filelist", "<file/filelist>");
-        driver.cmdLine.add("-c,--config", _configFile, "`Lua` file that contains the module info and the corresponding signal info", "<lua file>");
+        driver.cmdLine.add("-c,--config", _configFile, "`Lua` file that contains the module info and the corresponding signal info (mutually exclusive with --config-str)", "<lua file>");
+        driver.cmdLine.add("--cs,--config-str", _configStr, "inline `Lua` config source (mutually exclusive with --config)", "<lua source>");
         driver.cmdLine.add("--od,--out-dir", _outdir, "output directory", "<directory>");
         driver.cmdLine.add("--wd,--work-dir", _workdir, "working directory", "<directory>");
         driver.cmdLine.add("--df,--dpi-file", _dpiFile, "name of the generated DPI file", "<file name>");
@@ -348,11 +353,31 @@ add_senstive_trigger = add_sensitive_trigger
     int parseCommandLine(int argc, char **argv) {
         ASSERT(driver.parseCommandLine(argc, argv));
 
-        if (!_configFile.has_value()) {
-            PANIC("No config file specified! please use -c/--config <lua file>");
+        if (_configFile.has_value() && _configStr.has_value()) {
+            PANIC("Cannot specify both -c/--config and --cs/--config-str");
+        }
+        if (!_configFile.has_value() && !_configStr.has_value()) {
+            PANIC("No config specified! please use -c/--config <lua file> or --cs/--config-str <lua source>");
         }
 
-        configFile       = fs::absolute(_configFile.value()).string();
+        if (_configStr.has_value()) {
+            configSource     = _configStr.value();
+            const bool blank = std::all_of(configSource.begin(), configSource.end(), [](unsigned char c) { return std::isspace(c) != 0; });
+            if (blank) {
+                PANIC("--cs/--config-str is empty or whitespace only");
+            }
+            configFile = "<inline>";
+        } else {
+            configFile = fs::absolute(_configFile.value()).string();
+            std::ifstream configFileStream(configFile);
+            if (!configFileStream.is_open()) {
+                PANIC("Failed to open config file: {}", configFile);
+            }
+            std::stringstream buffer;
+            buffer << configFileStream.rdbuf();
+            configSource = buffer.str();
+        }
+
         outdir           = fs::absolute(_outdir.value_or(DEFAULT_OUTPUT_DIR)).string();
         workdir          = fs::absolute(_workdir.value_or(DEFAULT_WORK_DIR)).string();
         topClock         = _topClock.value_or(DEFAULT_CLOCK_NAME);
@@ -366,18 +391,9 @@ add_senstive_trigger = add_sensitive_trigger
 
         driver.setVerbose(!quiet);
 
-        configFileContent = [&]() {
-            std::ifstream configFileStream(configFile);
-            if (!configFileStream.is_open()) {
-                PANIC("Failed to open config file: {}", configFile);
-            }
-            std::stringstream buffer;
-            buffer << configFileStream.rdbuf();
-            std::string content = buffer.str();
-            // Replace newlines with spaces
-            std::replace(content.begin(), content.end(), '\n', ' ');
-            return content;
-        }();
+        // Normalize newlines for cache comparison (meta configFileContent).
+        configFileContent = configSource;
+        std::replace(configFileContent.begin(), configFileContent.end(), '\n', ' ');
 
         if (distributeDPI) {
             ASSERT(insertModuleName->empty(), "`insertModuleName` should be empty when `distributeDPI` is TRUE");

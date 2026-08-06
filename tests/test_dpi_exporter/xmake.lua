@@ -120,6 +120,51 @@ target("test", function()
             end
         end
 
+        -- Inline --config-str must match the only_default golden (file vs str equivalence).
+        -- Reuse only_default outdir so --relative-meta-path embeds the same path as golden.
+        do
+            local cfg_name = "only_default_config_str"
+            local cfg_path = path.join(test_dir, "dpi_cfgs", "only_default.lua")
+            local output_dir = path.join(test_dir, ".dpi_exporter_only_default")
+            local cfg_content = io.readfile(cfg_path)
+            test_count = test_count + 1
+
+            print(string.format("\n[%s] Running dpi_exporter with --config-str...", cfg_name))
+            local ok = try { function()
+                os.execv("dpi_exporter", {
+                    rtl,
+                    "--config-str", cfg_content,
+                    "--no-cache", "-q",
+                    "--od", output_dir,
+                    "--wd", output_dir,
+                    "--relative-meta-path",
+                })
+                return true
+            end }
+
+            if not ok then
+                print(string.format("[%s] FAILED: dpi_exporter execution failed", cfg_name))
+                all_passed = false
+            else
+                local passed = true
+                if not compare_file(path.join(output_dir, "dpi_func.cpp"),
+                        path.join(golden_dir, "only_default_dpi_func.cpp"),
+                        cfg_name .. "_dpi_func") then
+                    passed = false
+                end
+                if not compare_file(path.join(output_dir, "top.sv"),
+                        path.join(golden_dir, "only_default_top.sv"),
+                        cfg_name .. "_top_sv") then
+                    passed = false
+                end
+                if passed then
+                    pass_count = pass_count + 1
+                else
+                    all_passed = false
+                end
+            end
+        end
+
         -- Print summary
         print("\n" .. string.rep("=", 60))
         print(string.format("Test Summary: %d/%d passed", pass_count, test_count))
