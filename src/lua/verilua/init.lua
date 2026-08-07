@@ -165,18 +165,15 @@ _G.verilua_assert = function(cond, ...)
 end
 
 --- Load user configuration file
---- Verilua will read the environment variable `VERILUA_CFG` and ``VERILUA_CFG_PATH`` to load user configuration file.
---- If `VERILUA_CFG_PATH` is not set, Verilua will search the directory name of the configuration file(`VERILUA_CFG`).
---- So the user can set `VERILUA_CFG` to an absolute path of the configuration file, or set `VERILUA_CFG` to the file name and
---- set `VERILUA_CFG_PATH` to the directory name of the configuration file.
+--- Verilua reads `VL_CFG_FILE` as the path to a user configuration Lua file.
+--- Directory for `package.path` is derived from `dirname(VL_CFG_FILE)`.
 --- e.g.
 --- ```shell
----   export VERILUA_CFG=mysim_config.lua
----   export VERILUA_CFG_PATH=../simulator
----   # or
----   export VERILUA_CFG=/home/user/simulator/mysim_config.lua
+---   export VL_CFG_FILE=/home/user/simulator/mysim_config.lua
+---   # or relative
+---   export VL_CFG_FILE=./mysim_config.lua
 --- ```
---- If `VERILUA_CFG` is not set, Verilua will not load any user configuration file.
+--- If `VL_CFG_FILE` is not set, Verilua will not load any user configuration file.
 _G.cfg = require "verilua.LuaSimConfig"
 
 local cfg_name, cfg_path
@@ -184,20 +181,18 @@ do
     local path = require "pl.path"
     local stringx = require "pl.stringx"
 
-    cfg_name, cfg_path = cfg:get_user_cfg()
+    local cfg_file = cfg:get_user_cfg()
 
-    if cfg_name then
-        if cfg_path == nil then
-            cfg_path = path.abspath(path.dirname(cfg_name)) -- get abs path name
-        end
-
+    if cfg_file then
+        -- legacy: VERILUA_CFG_PATH supplies the config directory when set
+        cfg_path = os.getenv("VERILUA_CFG_PATH") or path.abspath(path.dirname(cfg_file))
         assert(type(cfg_path) == "string")
 
         if string.len(cfg_path) ~= 0 then
             _G.package.path = _G.package.path .. ";" .. cfg_path .. "/?.lua"
         end
 
-        cfg_name = path.basename(cfg_name) -- strip basename
+        cfg_name = path.basename(cfg_file)
 
         if stringx.endswith(cfg_name, ".lua") then
             cfg_name = cfg_name:sub(1, -5) -- strip ".lua" suffix

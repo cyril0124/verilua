@@ -1,1 +1,1 @@
-export VERILUA_CFG="$(pwd)/cfg.lua"
+export VL_CFG_FILE="$(pwd)/cfg.lua"

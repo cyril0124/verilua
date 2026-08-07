@@ -260,19 +260,15 @@ setmetatable(cfg, {
     end
 })
 
+--- Return path to user config file from `VL_CFG_FILE`, or legacy `VERILUA_CFG`, or nil.
+---@return string?
 function cfg.get_cfg()
-    local VERILUA_CFG_PATH = os.getenv("VERILUA_CFG_PATH")
-    local VERILUA_CFG = os.getenv("VERILUA_CFG")
-
-    if VERILUA_CFG_PATH ~= nil then
-        -- Add package path for the config file
-        _G.package.path = _G.package.path .. ";" .. VERILUA_CFG_PATH .. "/?.lua"
-    end
-
-    return VERILUA_CFG, VERILUA_CFG_PATH
+    -- legacy: VERILUA_CFG accepted when VL_CFG_FILE is unset
+    return os.getenv("VL_CFG_FILE") or os.getenv("VERILUA_CFG")
 end
 
 -- Alias of `cfg:get_cfg()`
+---@return string?
 function cfg:get_user_cfg()
     return self:get_cfg()
 end

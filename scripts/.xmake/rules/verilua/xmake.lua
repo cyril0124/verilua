@@ -1714,7 +1714,7 @@ rule("verilua", function()
         io.printf(
             path.join(build_dir, "setvars.sh"),
             [[#!/usr/bin/env bash
-export VERILUA_CFG=%s
+export VL_CFG_FILE=%s
 export SIM=%s
 %s]],
             target:get("verilua_cfg_file"),
@@ -1867,9 +1867,9 @@ verdi -f filelist.f -sv -nologo $@]]
             os.addenvs(_env)
         end
 
-        --- Set VERILUA_CFG for verilua
-        --- VERILUA_CFG will be used when verilua call `init.lua` to load user configuration file
-        os.setenv("VERILUA_CFG", target:get("verilua_cfg_file"))
+        --- Set VL_CFG_FILE for verilua
+        --- VL_CFG_FILE is the path to the user/generated configuration file loaded by `init.lua`
+        os.setenv("VL_CFG_FILE", target:get("verilua_cfg_file"))
 
         -- Move into build directory to execute our simulation.
         os.cd(build_dir)
