@@ -868,8 +868,8 @@ target("test", function()
                     if has_verilator then
                         ctx.run_case(join_case_parts(name, "verilator", "cfg_use_inertial_put"), function()
                             ctx.clean(path.join(dir, "build"))
-                            ctx.run(dir, "xmake build -v -P .", { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
-                            ctx.run(dir, "xmake run -v -P .", { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
+                            ctx.run(dir, "xmake build -v -P .", { SIM = "verilator", VL_XMK_USE_INERTIAL_PUT = "1" })
+                            ctx.run(dir, "xmake run -v -P .", { SIM = "verilator", VL_XMK_USE_INERTIAL_PUT = "1" })
                         end)
                     end
                 end

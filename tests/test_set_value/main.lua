@@ -118,7 +118,7 @@ fork {
             clock:posedge()
             -- Deferred force+release coalesce keeps pre-force value (119).
             -- Under inertial_put both ops are immediate, so release keeps 120.
-            if os.getenv("VL_USE_INERTIAL_PUT") == "1" then
+            if os.getenv("VL_XMK_USE_INERTIAL_PUT") == "1" then
                 inc:expect(120)
             else
                 inc:expect(119)

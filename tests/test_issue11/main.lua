@@ -13,6 +13,19 @@ local sv_driven_reg = dut.u_top.sv_driven_reg:chdl()
 local edge_write_from_verilua_src = dut.u_top.edge_write_from_verilua_src:chdl()
 local edge_write_from_sv_src = dut.u_top.edge_write_from_sv_src:chdl()
 
+if os.getenv("VL_XMK_NO_INTERNAL_CLOCK") then
+    fork {
+        function()
+            while true do
+                clock:set(1)
+                await_time(1)
+                clock:set(0)
+                await_time(1)
+            end
+        end,
+    }
+end
+
 -- Results collected by each sub-test
 local sv_src_time = nil ---@type integer?
 local sv_observe_time = nil ---@type integer?

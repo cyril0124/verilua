@@ -24,8 +24,4 @@ target("test", function()
 
     add_values("xcelium.flags", "-define XCELIUM_DUMP_VCD")
     add_values("verilator.flags", "--timing", "--trace")
-
-    if os.getenv("NO_INTERNAL_CLOCK") then
-        set_values("verilua.no_internal_clock", "1")
-    end
 end)

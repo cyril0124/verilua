@@ -2,7 +2,7 @@ local utils = require "verilua.LuaUtils"
 
 local clock = dut.clock:chdl()
 
-if os.getenv("NO_INTERNAL_CLOCK") then
+if os.getenv("VL_XMK_NO_INTERNAL_CLOCK") then
     fork {
         function()
             while true do

@@ -35,13 +35,13 @@ local CYCLES = 20
 fork {
     function()
         if cfg.simulator == "iverilog" or cfg.simulator == "xcelium"
-            or os.getenv("VL_USE_INERTIAL_PUT") == "1"
+            or os.getenv("VL_XMK_USE_INERTIAL_PUT") == "1"
         then
             print(string.format(
                 "[test_force_release_coalesce] skip: set_release/set_force are immediate on %s%s "
                 .. "(no deferred coalesce)",
                 cfg.simulator,
-                os.getenv("VL_USE_INERTIAL_PUT") == "1" and "+inertial_put" or ""
+                os.getenv("VL_XMK_USE_INERTIAL_PUT") == "1" and "+inertial_put" or ""
             ))
             sim.finish()
             return

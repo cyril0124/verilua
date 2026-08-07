@@ -482,6 +482,21 @@ rule("verilua", function()
         ---     }
         --- ```
         local no_internal_clock = get_verilua_value(target, "verilua.no_internal_clock") --[[@as string]]
+        if not no_internal_clock then
+            local env_no_internal_clock = os.getenv("VL_XMK_NO_INTERNAL_CLOCK")
+            if env_no_internal_clock then
+                assert(
+                    env_no_internal_clock == "0" or env_no_internal_clock == "1",
+                    "[on_build] environment variable VL_XMK_NO_INTERNAL_CLOCK should be 0 or 1"
+                )
+                no_internal_clock = env_no_internal_clock
+                cprint(
+                    "${✅} [verilua-xmake] [%s] environment variable ${yellow underline}VL_XMK_NO_INTERNAL_CLOCK = %s${reset}",
+                    target:name(),
+                    env_no_internal_clock
+                )
+            end
+        end
         if no_internal_clock == "1" then
             cprint("${✅} [verilua-xmake] [%s] ${yellow underline}verilua.no_internal_clock${reset} is enabled!",
                 target:name())
@@ -500,15 +515,15 @@ rule("verilua", function()
                 use_inertial_put = "0"
             end
 
-            local env_use_inertial_put = os.getenv("VL_USE_INERTIAL_PUT")
+            local env_use_inertial_put = os.getenv("VL_XMK_USE_INERTIAL_PUT")
             if env_use_inertial_put then
                 assert(
                     env_use_inertial_put == "0" or env_use_inertial_put == "1",
-                    "[on_build] environment variable VL_USE_INERTIAL_PUT should be 0 or 1"
+                    "[on_build] environment variable VL_XMK_USE_INERTIAL_PUT should be 0 or 1"
                 )
                 use_inertial_put = env_use_inertial_put
                 cprint(
-                    "${✅} [verilua-xmake] [%s] environment variable ${yellow underline}VL_USE_INERTIAL_PUT = %s${reset}",
+                    "${✅} [verilua-xmake] [%s] environment variable ${yellow underline}VL_XMK_USE_INERTIAL_PUT = %s${reset}",
                     target:name(),
                     env_use_inertial_put
                 )

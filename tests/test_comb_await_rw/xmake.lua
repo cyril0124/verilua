@@ -23,8 +23,4 @@ target("test", function()
     set_values("verilua.lua_main", "main.lua")
 
     -- set_values("verilua.use_inertial_put", "1")
-
-    if os.getenv("NO_INTERNAL_CLOCK") then
-        set_values("verilua.no_internal_clock", "1")
-    end
 end)

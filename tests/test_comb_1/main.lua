@@ -1,6 +1,6 @@
 local clock = dut.clock:chdl()
 
-local no_internal_clock = os.getenv("NO_INTERNAL_CLOCK")
+local no_internal_clock = os.getenv("VL_XMK_NO_INTERNAL_CLOCK")
 if no_internal_clock then
     fork {
         function()

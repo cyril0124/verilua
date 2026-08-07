@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Preferred config env is `VL_CFG_FILE` (single path; relative or absolute). Directory defaults to `dirname(VL_CFG_FILE)`.
   - Legacy still accepted when `VL_CFG_FILE` is unset: `VERILUA_CFG` (file) and optional `VERILUA_CFG_PATH` (directory).
   Unchanged: `SIM`, `SEED`, `PRJ_DIR`, `PRJ_TOP`, `VERILUA_HOME`.
+- **env / xmake**: `VL_USE_INERTIAL_PUT` → `VL_XMK_USE_INERTIAL_PUT` (xmake-rule override for `verilua.use_inertial_put`; old name no longer read).
+- **env / xmake**: `NO_INTERNAL_CLOCK` → `VL_XMK_NO_INTERNAL_CLOCK` (xmake-rule override for `verilua.no_internal_clock` when unset; old name no longer read by rule/tests).
 - **xmake / verilua rule**: Presence of a `.vlt` file (or `verilua.verilator_config`) no longer auto-disables default `--public-flat-rw`. Use `set_values("verilua.verilator_no_public_flat_rw", "1")` to opt out, then put fine-grained `public_flat_*` in `.vlt` / `verilua.verilator_config`.
 - **xmake / verilua rule**: Rename make OPT knobs to `set_values("verilua.verilator_opt_fast", ...)` / `set_values("verilua.verilator_opt_slow", ...)`. Replaces `verilator.opt_fast` / `verilator.opt_slow` (no alias).
 - **dpi_exporter / DpiExporter**: Meta field `exportedSignals` (string list) is replaced by `exportedSignalInfos` (`hierPath`, `bitWidth`, `vpiTypeStr`, `handleId`). Old meta files must be regenerated. `DpiExporter:is_exported` is removed; use `DpiExporter:lookup(path)` (info or `nil`).
@@ -45,7 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **libverilua**: Restore `RUSTFLAGS` after DPI cargo builds even if cargo fails, so `--wrap` flags no longer leak into later builds.
 - **libverilua**: Guard null `vpi_iterate` results in `vpiml_iterate_vpi_type`, and free the module iterator after early exit in `vpiml_get_top_module`.
 - **dpi_exporter**: Default always-block now calls `dpi_exporter_tick(...)` as a real multi-line call instead of the `CALL_DPI_EXPORTER_TICK` macro, fixing Verilator `Too many preprocessor tokens on a line (>40000)` when exporting large hierarchical signal lists.
-- **libverilua / inertial_put**: `set_force` under `VL_USE_INERTIAL_PUT` used `vpiInertialDelay` instead of `vpiForceFlag`, so force did not stick. Force now keeps `vpiForceFlag`; same-timeslot force+release coalesce remains deferred-only (skip under inertial_put).
+- **libverilua / inertial_put**: `set_force` under `VL_XMK_USE_INERTIAL_PUT` used `vpiInertialDelay` instead of `vpiForceFlag`, so force did not stick. Force now keeps `vpiForceFlag`; same-timeslot force+release coalesce remains deferred-only (skip under inertial_put).
 
 ---
 

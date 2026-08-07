@@ -23,8 +23,4 @@ target("test", function()
     add_files(path.join(rtl_dir, "top.sv"))
     set_values("verilua.top", "top")
     set_values("verilua.lua_main", "main.lua")
-
-    if os.getenv("NO_INTERNAL_CLOCK") then
-        set_values("verilua.no_internal_clock", "1")
-    end
 end)

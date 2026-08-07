@@ -23,8 +23,4 @@ target("test", function()
     set_values("verilua.lua_main", "main.lua")
 
     add_values("verilator.flags", "--timing")
-
-    if os.getenv("NO_INTERNAL_CLOCK") then
-        set_values("verilua.no_internal_clock", "1")
-    end
 end)

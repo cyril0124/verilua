@@ -233,7 +233,7 @@ end
 ---@class SimTestCase
 ---@field dir string Test directory name under tests/ (e.g. "test_edge")
 ---@field name string Test case display name (e.g. "test_edge")
----@field no_internal_clock? boolean Also run with NO_INTERNAL_CLOCK=1
+---@field no_internal_clock? boolean Also run with VL_XMK_NO_INTERNAL_CLOCK=1
 ---@field min_verilator_version? number Skip verilator if version < this (e.g. 5.036)
 ---@field skip_verilator? boolean Skip verilator entirely
 
@@ -283,8 +283,8 @@ for _, case in ipairs(sim_test_cases) do
         if ctx.has_verilator and not skip_verilator then
             ctx.run_case(join_case_parts(case.name, "verilator", "cfg_use_inertial_put"), function()
                 ctx.clean(path.join(cwd, "build"))
-                ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
-                ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = "verilator", VL_XMK_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = "verilator", VL_XMK_USE_INERTIAL_PUT = "1" })
             end)
         end
 
@@ -293,8 +293,8 @@ for _, case in ipairs(sim_test_cases) do
                 if not (skip_verilator and sim == "verilator") then
                     ctx.run_case(join_case_parts(case.name, sim, "no_internal_clock"), function()
                         ctx.clean(path.join(cwd, "build"))
-                        ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = sim, NO_INTERNAL_CLOCK = "1" })
-                        ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = sim, NO_INTERNAL_CLOCK = "1" })
+                        ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = sim, VL_XMK_NO_INTERNAL_CLOCK = "1" })
+                        ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = sim, VL_XMK_NO_INTERNAL_CLOCK = "1" })
                     end)
                 end
             end
@@ -381,8 +381,8 @@ add_group_target("test-benchmarks", function(ctx)
 
         if ctx.has_verilator then
             ctx.run_case(join_case_parts(case_name, "verilator", "cfg_use_inertial_put"), function()
-                ctx.run_cmd(cwd, build_cmd, { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
-                ctx.run_cmd(cwd, run_cmd, { SIM = "verilator", VL_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, build_cmd, { SIM = "verilator", VL_XMK_USE_INERTIAL_PUT = "1" })
+                ctx.run_cmd(cwd, run_cmd, { SIM = "verilator", VL_XMK_USE_INERTIAL_PUT = "1" })
             end)
         end
     end
