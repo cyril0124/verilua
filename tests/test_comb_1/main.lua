@@ -2,16 +2,21 @@ local clock = dut.clock:chdl()
 
 local no_internal_clock = os.getenv("VL_XMK_NO_INTERNAL_CLOCK")
 if no_internal_clock then
-    fork {
-        function()
-            while true do
-                clock:set(1)
-                await_time_ns(10)
-                clock:set(0)
-                await_time_ns(10)
-            end
-        end
-    }
+    if os.getenv("VL_XMK_USE_NATIVE_CLOCK") then
+        local NativeClock = require "verilua.utils.NativeClock"
+        NativeClock(clock):start(20, "ns")
+    else
+        fork {
+            function()
+                while true do
+                    clock:set(1)
+                    await_time_ns(10)
+                    clock:set(0)
+                    await_time_ns(10)
+                end
+            end,
+        }
+    end
 end
 
 local test_ok = false

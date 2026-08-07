@@ -55,6 +55,7 @@
 use std::collections::HashSet;
 
 use crate::complex_handle::{ComplexHandle, ComplexHandleRaw};
+use crate::verilua_env::VeriluaEnv;
 use crate::vpi_user::*;
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -81,11 +82,17 @@ fn get_active_signals() -> &'static mut HashSet<usize> {
 
 /// A high-performance clock driver that toggles entirely in native code.
 ///
-/// NativeClock uses VPI timed callbacks to toggle a clock signal without returning
-/// to Lua for each edge. This significantly reduces overhead compared to Lua-based
-/// clock implementations.
+/// NativeClock uses VPI timed callbacks to schedule edges without returning to Lua.
+/// Each edge is applied through the same deferred `set` path as Lua `clock:set`
+/// (`vpiml_set_value` / pending put queue), not immediate `vpiNoDelay` put.
 pub struct NativeClock {
-    /// VPI handle to the clock signal
+    /// ComplexHandle for deferred set (same path as Lua `set`)
+    complex_handle_raw: ComplexHandleRaw,
+
+    /// VeriluaEnv captured at construction from ComplexHandle.env
+    env: *mut VeriluaEnv,
+
+    /// VPI handle to the clock signal (for active-signal registry keying)
     signal_hdl: vpiHandle,
 
     /// Clock period in simulation time steps
@@ -99,9 +106,6 @@ pub struct NativeClock {
 
     /// Handle to the currently registered VPI callback (None if stopped)
     cb_handle: Option<vpiHandle>,
-
-    /// VPI value structure for setting clock values (reused to avoid allocation)
-    vpi_value: t_vpi_value,
 
     /// Flag to track if we're inside the callback (prevents premature destruction)
     in_callback: bool,
@@ -117,21 +121,24 @@ impl NativeClock {
     /// Create a new NativeClock instance for the given signal.
     ///
     /// # Arguments
-    /// * `signal_hdl` - VPI handle to the clock signal
+    /// * `complex_handle_raw` - ComplexHandle from Lua `chdl.hdl`
     ///
     /// # Returns
     /// A new NativeClock instance (not yet started)
-    pub fn new(signal_hdl: vpiHandle) -> Self {
+    pub fn new(complex_handle_raw: ComplexHandleRaw) -> Self {
+        let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
+        assert!(
+            !complex_handle.env.is_null(),
+            "NativeClock::new: ComplexHandle.env is null; create the handle after VeriluaEnv init",
+        );
         Self {
-            signal_hdl,
+            complex_handle_raw,
+            env: complex_handle.env as *mut VeriluaEnv,
+            signal_hdl: complex_handle.vpi_handle,
             period_steps: 0,
             high_steps: 0,
             current_val: 0,
             cb_handle: None,
-            vpi_value: t_vpi_value {
-                format: vpiIntVal as _,
-                value: t_vpi_value__bindgen_ty_1 { integer: 0 },
-            },
             in_callback: false,
             destroy_pending: false,
         }
@@ -206,16 +213,10 @@ impl NativeClock {
     /// * `0` - Success
     /// * Non-zero - Error code from VPI
     fn toggle(&mut self, first_call: bool) -> i32 {
-        // Set the clock value
-        self.vpi_value.value.integer = self.current_val as _;
-        unsafe {
-            vpi_put_value(
-                self.signal_hdl,
-                &mut self.vpi_value,
-                std::ptr::null_mut(),
-                vpiNoDelay as _,
-            );
-        }
+        // Deferred set path (same as Lua `clock:set`), not immediate set_imm / vpiNoDelay.
+        // Immediate puts change Verilator RW/comb observation vs deferred set loops.
+        let env = unsafe { &mut *self.env };
+        env.vpiml_set_value(self.complex_handle_raw, self.current_val as u32);
 
         // Calculate delay until next toggle
         let delay = if self.current_val == 1 {
@@ -328,11 +329,7 @@ unsafe extern "C" fn native_clock_toggle_callback(cb_data: *mut t_cb_data) -> PL
 pub extern "C" fn vpiml_native_clock_new(
     complex_handle_raw: ComplexHandleRaw,
 ) -> NativeClockHandle {
-    // Extract the actual vpiHandle from the ComplexHandle
-    let complex_handle = ComplexHandle::from_raw(&complex_handle_raw);
-    let vpi_handle = complex_handle.vpi_handle;
-
-    let clock = Box::new(NativeClock::new(vpi_handle));
+    let clock = Box::new(NativeClock::new(complex_handle_raw));
     Box::into_raw(clock)
 }
 

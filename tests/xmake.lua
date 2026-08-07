@@ -296,6 +296,13 @@ for _, case in ipairs(sim_test_cases) do
                         ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = sim, VL_XMK_NO_INTERNAL_CLOCK = "1" })
                         ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = sim, VL_XMK_NO_INTERNAL_CLOCK = "1" })
                     end)
+                    -- Same build flag; NativeClock instead of deferred clock:set loop
+                    ctx.run_case(join_case_parts(case.name, sim, "no_internal_clock_native"), function()
+                        ctx.clean(path.join(cwd, "build"))
+                        local env = { SIM = sim, VL_XMK_NO_INTERNAL_CLOCK = "1", VL_XMK_USE_NATIVE_CLOCK = "1" }
+                        ctx.run_cmd(cwd, "xmake build -v -P .", env)
+                        ctx.run_cmd(cwd, "xmake run -v -P .", env)
+                    end)
                 end
             end
         end

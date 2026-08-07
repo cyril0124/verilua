@@ -3,16 +3,21 @@ local utils = require "verilua.LuaUtils"
 local clock = dut.clock:chdl()
 
 if os.getenv("VL_XMK_NO_INTERNAL_CLOCK") then
-    fork {
-        function()
-            while true do
-                clock:set(1)
-                await_time(1)
-                clock:set(0)
-                await_time(1)
-            end
-        end
-    }
+    if os.getenv("VL_XMK_USE_NATIVE_CLOCK") then
+        local NativeClock = require "verilua.utils.NativeClock"
+        NativeClock(clock):start(2, "ns")
+    else
+        fork {
+            function()
+                while true do
+                    clock:set(1)
+                    await_time(1)
+                    clock:set(0)
+                    await_time(1)
+                end
+            end,
+        }
+    end
 end
 
 fork {

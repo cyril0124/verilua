@@ -55,7 +55,7 @@
 - Prefer documenting user-facing env vars in `./docs/reference/special_env_variables.mdx`.
 - Naming by audience / lifecycle:
   - `VL_*` — Verilua **runtime** (read by `src/lua` / `libverilua`; e.g. `VL_DEBUG`, `VL_CFG_FILE`, `VL_DUT_TOP`).
-  - `VL_XMK_*` — **xmake rule only** (read by `./scripts/.xmake/rules/verilua/xmake.lua`; e.g. `VL_XMK_USE_INERTIAL_PUT`, `VL_XMK_NO_INTERNAL_CLOCK`). Prefer `set_values("verilua.*", ...)` when a permanent project setting is enough; use `VL_XMK_*` for CI/one-shot overrides.
+  - `VL_XMK_*` — **xmake rule / test-matrix knobs** (read by `./scripts/.xmake/rules/verilua/xmake.lua` and/or test `main.lua`; e.g. `VL_XMK_USE_INERTIAL_PUT`, `VL_XMK_NO_INTERNAL_CLOCK`, `VL_XMK_USE_NATIVE_CLOCK`). Prefer `set_values("verilua.*", ...)` when a permanent project setting is enough; use `VL_XMK_*` for CI/one-shot overrides.
   - `VERILUA_HOME` — install root only. Do not invent new `VERILUA_*` env vars.
   - Unprefixed freeze list (do not grow): `SIM`, `SEED`, `PRJ_DIR`, `PRJ_TOP`.
 - Do not add new unprefixed env vars. New runtime knobs → `VL_*`; new xmake-rule-only knobs → `VL_XMK_*`.

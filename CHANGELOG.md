@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **NativeClock**: Edge puts now use the deferred `set` path (`vpiml_set_value` / pending queue) instead of immediate `vpiNoDelay`, matching Lua `clock:set` and Verilator RW/comb observation.
 - **xmake / verilua rule**: `setvars.sh` now shell-quotes `add_runenvs` values so spaces, quotes, and newlines (e.g. multi-line `VL_POST_INIT_SCRIPT`) survive `source setvars.sh`. `PATH` / `LD_LIBRARY_PATH` still append `:$KEY` outside the quotes.
 - **xmake / verilua rule**: Verilator is now invoked with the canonical `--top-module` flag instead of the `--top` alias (kept for compatibility in current Verilator releases), for forward compatibility.
 - **testbench_gen**: Non-Verilator (VCS/iverilog/Xcelium) generated testbenches now drive the DUT reset port via an internal `reg reset` (`wire <reset_name>; assign <reset_name> = reset;`) instead of declaring the reset signal directly as a `reg` and aliasing it to an internal `wire reset`, matching the Verilator convention so user code can drive/release `reset`.
