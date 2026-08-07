@@ -16,6 +16,7 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `PRJ_TOP` | 额外 Lua 搜索路径根 |
 | `VL_DUT_TOP` | 指定设计的顶层模块名称 |
 | `VL_LUA_SCRIPT` | 指定 Lua 主脚本文件 |
+| `VL_POST_INIT_SCRIPT` | `init.lua` 之后、主脚本之前执行的 post-init（文件路径或 Lua 源码） |
 | `VL_DEBUG` | 启用 Verilua debug 输出 |
 | `VL_QUIET` | 静默模式，禁用日志输出 |
 | `VL_LOG_LEVEL` | 日志级别下限 |
@@ -83,6 +84,38 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
   ```bash
   VL_CFG_FILE=/path/to/mysim_config.lua xmake run -P . <target_name>
   export VL_CFG_FILE=./mysim_config.lua
+  ```
+
+---
+
+### `VL_POST_INIT_SCRIPT` (可选)
+
+在 `init.lua` 加载完成、且 `VL_DUT_TOP` 自动补齐之后，主脚本 `VL_LUA_SCRIPT` 之前执行的可选 hook。
+适合**不改 main** 的启动期注入；固定项目配置仍优先用 [`verilua.user_cfg`](./global_configuration.mdx#cfg-user-cfg) / `cfg`。
+
+- **默认值**：未设置则跳过
+- **值形态**：
+  - 若值为**已存在的文件路径** → `dofile` 加载该文件
+  - 否则 → 作为 **Lua 源码字符串** 执行（chunk 名 `VL_POST_INIT_SCRIPT`）
+- **空字符串**：panic（不静默跳过）
+- **歧义**：若源码字符串恰好等于当前工作目录下某个真实文件路径，会按文件执行；文件路径建议使用绝对路径
+- **典型用途**：
+  - 多用例共享的 bootstrap（改 `package.path`、公共 `require`、统一开关）
+  - 临时调试补丁（多打日志、改 seed/flag），不污染 main
+  - CI / 矩阵差异化：同一 main，不同 job 注入不同 post-init
+  - 本地/客户侧覆写：上游固定 main，本地用 hook 塞路径或插件
+  - xmake 侧固定注入：`add_runenvs("VL_POST_INIT_SCRIPT", "...")`（多行源码可用 `[[]]`；写入 `setvars.sh` 时 runenv 值会 shell quote）
+- **示例**：
+  ```bash
+  # 文件模式
+  VL_POST_INIT_SCRIPT=/path/to/post_init.lua xmake run -P . <target_name>
+
+  # 源码字符串模式
+  VL_POST_INIT_SCRIPT='print("post-init")' xmake run -P . <target_name>
+  ```
+
+  ```lua title="xmake.lua"
+  add_runenvs("VL_POST_INIT_SCRIPT", path.join(os.scriptdir(), "scripts", "common_bootstrap.lua"))
   ```
 
 ---

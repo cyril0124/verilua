@@ -13,6 +13,13 @@ local function is_quiet_mode()
     return os.getenv("VL_QUIET") == "1"
 end
 
+--- Quote a value for safe bash export / shell interpolation.
+---@param value any
+---@return string
+local function shell_quote(value)
+    return "'" .. tostring(value):gsub("'", [['"'"']]) .. "'"
+end
+
 local FILE_COUNT_THRESHOLD = 100 -- Threshold for using filelist instead of passing files directly
 
 -- Mapping from old (deprecated) keys to new verilua.* keys.
@@ -1698,15 +1705,17 @@ rule("verilua", function()
         --
         -- Create a clean.sh + build.sh + run.sh that can be used by user to manually build/run/clean the simulation.
         --
-        -- Save the current environment variables
+        -- Save the current environment variables.
+        -- Quote runenv values for bash so spaces / quotes / newlines stay intact in setvars.sh.
         local _runenvs = target:get("runenvs")
         local extra_runenvs = ""
         if _runenvs ~= nil then
             for key, value in pairs(_runenvs) do
+                local quoted = shell_quote(value)
                 if key == "LD_LIBRARY_PATH" or key == "PATH" then
-                    extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. ":$" .. key .. "\n"
+                    extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. quoted .. ":$" .. key .. "\n"
                 else
-                    extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. value .. "\n"
+                    extra_runenvs = extra_runenvs .. "export " .. key .. "=" .. quoted .. "\n"
                 end
             end
         end

@@ -317,6 +317,36 @@ add_group_target("test-readonly-write-error", function(ctx)
     end
 end)
 
+add_group_target("test-post-init-script", function(ctx)
+    local cwd = path.join(ctx.tests_dir, "test_post_init_script")
+
+    for _, sim in ipairs(ctx.simulators) do
+        ctx.run_case(join_case_parts("test_post_init_script", sim, "file"), function()
+            ctx.clean(path.join(cwd, "build"))
+            ctx.run_cmd(cwd, "xmake build -v -P . test", { SIM = sim })
+            ctx.run_cmd(cwd, "xmake run -v -P . test", { SIM = sim })
+        end)
+
+        ctx.run_case(join_case_parts("test_post_init_script", sim, "code"), function()
+            ctx.clean(path.join(cwd, "build"))
+            ctx.run_cmd(cwd, "xmake build -v -P . test_code", { SIM = sim })
+
+            -- Multi-line add_runenvs must survive setvars.sh quoting/source.
+            local setvars = path.join(cwd, "build", sim, "top", "setvars.sh")
+            local check_setvars = table.concat({
+                "set -e",
+                "bash -n " .. shell_quote(setvars),
+                ". " .. shell_quote(setvars),
+                "printf '%s' \"$VL_POST_INIT_SCRIPT\" | od -An -tx1 | grep -q ' 0a ' || { echo 'VL_POST_INIT_SCRIPT missing newline'; exit 1; }",
+                "case \"$VL_POST_INIT_SCRIPT\" in *__vl_boot_order*) ;; *) echo 'VL_POST_INIT_SCRIPT missing code'; exit 1 ;; esac",
+            }, "\n")
+            ctx.run_cmd(cwd, "bash -c " .. shell_quote(check_setvars), { SIM = sim })
+
+            ctx.run_cmd(cwd, "xmake run -v -P . test_code", { SIM = sim })
+        end)
+    end
+end)
+
 -- Wave VPI tests — each directory gets its own parallel target
 for _, dir in ipairs({
     "test_wave_vpi",

@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **libverilua**: Optional `VL_POST_INIT_SCRIPT` runs after `init.lua` (and auto `VL_DUT_TOP`) and before `VL_LUA_SCRIPT`. Value is an existing file path (`dofile`) or a Lua source string (`load`/`exec`). Empty value panics.
 - **dpi_exporter**: Add `--cs/--config-str <lua source>` to pass config Lua inline (mutually exclusive with `-c/--config`; empty/whitespace-only is rejected). Cache still keys on normalized `configFileContent`.
 - **libverilua**: Hot-path `sim_event` / `sim_event_chunk_N` now use registry-cached raw `lua_pcall` instead of `mlua::Function::call`, reducing per-callback Rust→Lua fixed overhead.
 - **DpiExporter / CallableHDL**: Exported signals can construct without VPI (`hdl = nil`, width/type from meta) and still bind DPI `get`. Lookup is O(1) via an init-time map.
@@ -32,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **xmake / verilua rule**: `setvars.sh` now shell-quotes `add_runenvs` values so spaces, quotes, and newlines (e.g. multi-line `VL_POST_INIT_SCRIPT`) survive `source setvars.sh`. `PATH` / `LD_LIBRARY_PATH` still append `:$KEY` outside the quotes.
 - **xmake / verilua rule**: Verilator is now invoked with the canonical `--top-module` flag instead of the `--top` alias (kept for compatibility in current Verilator releases), for forward compatibility.
 - **testbench_gen**: Non-Verilator (VCS/iverilog/Xcelium) generated testbenches now drive the DUT reset port via an internal `reg reset` (`wire <reset_name>; assign <reset_name> = reset;`) instead of declaring the reset signal directly as a `reg` and aliasing it to an internal `wire reset`, matching the Verilator convention so user code can drive/release `reset`.
 - **libverilua**: `get_symbol_address` now loads each ELF symbol table once (symtab + dynsym). Previously every cache miss re-read and re-parsed the whole binary; with a ~200MB Verilator sim and hundreds of DPI mon CHDLs at `abdl` create, env setup became pathologically slow.
