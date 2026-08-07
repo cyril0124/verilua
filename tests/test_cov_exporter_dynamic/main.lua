@@ -38,6 +38,9 @@ fork {
         e:set_imm(0)
 
         clock:posedge()
+
+        CoverageGetter:reset_coverage(HIER)
+
         check_cond_covered("phase0_idle", 0)
 
         -- Phase 1: assert reset -> exercises the reset branch (path 0).
