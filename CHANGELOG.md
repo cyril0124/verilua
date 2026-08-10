@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### 🚀 Added
 
 - **xmake / verilua rule**: Auto-export `VL_TARGET_NAME` (xmake `target:name()`) and `VL_BUILD_DIR` (target build dir absolute path) into runenvs so both `xmake run` and `setvars.sh` / `run.sh` expose them to Lua scripts.
+- **testbench_gen / xmake**: Default log is quiet (one-line `generate ...` / `up-to-date`; warnings always). Detail behind `--verbose`. xmake rule no longer passes `--verbose` by default; use `add_values("verilua.tb_gen_flags", "--verbose")` when needed. Non-verbose runs call slang `runFullCompilation(quiet=true)` to drop "Top level design units" / "Build succeeded" noise.
 - **libverilua**: Optional `VL_POST_INIT_SCRIPT` runs after `init.lua` (and auto `VL_DUT_TOP`) and before `VL_LUA_SCRIPT`. Value is an existing file path (`dofile`) or a Lua source string (`load`/`exec`). Empty value panics.
 - **dpi_exporter**: Add `--cs/--config-str <lua source>` to pass config Lua inline (mutually exclusive with `-c/--config`; empty/whitespace-only is rejected). Cache still keys on normalized `configFileContent`.
 - **libverilua**: Hot-path `sim_event` / `sim_event_chunk_N` now use registry-cached raw `lua_pcall` instead of `mlua::Function::call`, reducing per-callback Rust→Lua fixed overhead.

@@ -23,7 +23,7 @@ Verilua 中，Testbench 是全自动生成的 `testbench_gen` 工具实现（安
 | `--inject-outer-str <string>` | 将字符串内容注入到生成的 testbench `module` 声明之前。 |
 | `--filelist <file/filelist>` | 指定输入文件或 filelist。 |
 | `--regen` | 强制重新生成 testbench。 |
-| `--verbose` | 输出更详细的日志信息。 |
+| `--verbose` | 输出详细日志（文件列表、port 列表、regen 原因等）。**默认安静**：只打一行 `generate ...` 或 `up-to-date`；xmake 默认也不再传 `--verbose`，需要时用 `add_values("verilua.tb_gen_flags", "--verbose")`。 |
 
 完整可用参数请以 `testbench_gen --help` 输出为准。
 

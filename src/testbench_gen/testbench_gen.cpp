@@ -121,16 +121,19 @@ int main(int argc, const char *argv[]) {
 
         filelistSet = metaInfoJson["filelist"].get<std::set<std::string>>();
         if (metaInfoJson["cmdLine"] != cmdLineStr) {
-            fmt::println("[testbench_gen] cmdLine changed, regenerating...");
+            if (verbose)
+                fmt::println("[testbench_gen] cmdLine changed, regenerating");
             shouldRegen = true;
         }
 
         if (fs::exists(othersFilePath) && metaInfoJson["othersFileMTime"] != to_time_t(fs::last_write_time(othersFilePath))) {
-            fmt::println("[testbench_gen] {} changed, regenerating...", othersFilePath);
+            if (verbose)
+                fmt::println("[testbench_gen] {} changed, regenerating", othersFilePath);
             shouldRegen = true;
         }
     } else {
-        fmt::println("[testbench_gen] {} not found, regenerating...", metaInfoFilePath);
+        if (verbose)
+            fmt::println("[testbench_gen] {} missing, regenerating", metaInfoFilePath);
         shouldRegen = true;
     }
 
@@ -140,17 +143,19 @@ int main(int argc, const char *argv[]) {
         fileCount++;
 
         auto fullpath = driver.sourceManager.getFullPath(buffer.id).string();
-        fmt::println("[testbench_gen] [{}] get file: {}", fileCount, fullpath);
-        fflush(stdout);
+        if (verbose)
+            fmt::println("[testbench_gen] file[{}] {}", fileCount, fullpath);
 
         if (!shouldRegen) {
             if (!filelistSet.contains(fullpath)) {
-                fmt::println("[testbench_gen] [{}] file not found in meta.filelist, regenerating...", fileCount);
+                if (verbose)
+                    fmt::println("[testbench_gen] file[{}] not in meta.filelist, regenerating", fileCount);
                 shouldRegen = true;
             }
 
             if (isFileNewer(fullpath, tbtopFilePath)) {
-                fmt::println("[testbench_gen] [{}] file is newer, regenerating...", fileCount);
+                if (verbose)
+                    fmt::println("[testbench_gen] file[{}] newer than tb, regenerating", fileCount);
                 shouldRegen = true;
             }
         }
@@ -161,15 +166,15 @@ int main(int argc, const char *argv[]) {
         metaInfoJson["filelist"] = fileVec;
         metaInfoJson["cmdLine"]  = cmdLineStr;
     } else {
-        fmt::println("[testbench_gen] No need to regenerate");
+        fmt::println("[testbench_gen] up-to-date");
         return 0;
     }
 
     ASSERT(driver.parseAllSources());
     ASSERT(driver.reportParseDiags());
 
-    // Check compilation errors
-    bool compileSuccess = driver.runFullCompilation(false);
+    // quiet=true suppresses slang "Top level design units" / "Build succeeded" noise
+    bool compileSuccess = driver.runFullCompilation(!verbose);
     ASSERT(compileSuccess);
 
     auto compilation = driver.createCompilation();
@@ -189,7 +194,8 @@ int main(int argc, const char *argv[]) {
         dutName = std::string("u_") + topName;
     }
 
-    fmt::println("[testbench_gen] topName: {} dutName: {}", topName, dutName);
+    if (verbose)
+        fmt::println("[testbench_gen] top={}  dut={}", topName, dutName);
 
     // Start iterate the whole design to get all available ports
     TestbenchGenParser parser(topName, verbose);
@@ -301,16 +307,16 @@ int main(int argc, const char *argv[]) {
             PANIC("Clock signal not match", clockSignalName);
         } else {
             clockSignalName = "clock";
-            fmt::println("[testbench_gen] Warning: Clock signal not match! hasProceduralBlock = false");
+            fmt::println("[testbench_gen] warning: clock signal not matched (no procedural block; using \"clock\")");
         }
-    } else {
-        fmt::println("[testbench_gen] clock signal: {}", clockSignalName);
+    } else if (verbose) {
+        fmt::println("[testbench_gen] clock={}", clockSignalName);
     }
 
     if (!resetSignalHasMatch) {
-        fmt::println("[testbench_gen] Warning: Reset signal not match!");
-    } else {
-        fmt::println("[testbench_gen] reset signal: {}", resetSignalName);
+        fmt::println("[testbench_gen] warning: reset signal not matched");
+    } else if (verbose) {
+        fmt::println("[testbench_gen] reset={}", resetSignalName);
     }
 
     { // Generate tbtop file
@@ -820,7 +826,8 @@ endmodule
         tbtopData["customCodeOuterFileContent"] = customCodeOuterFileContent;
 
         if (!std::filesystem::is_directory(outdir)) {
-            fmt::println("[testbench_gen] Creating directory: {}", outdir);
+            if (verbose)
+                fmt::println("[testbench_gen] mkdir {}", outdir);
             std::filesystem::create_directory(outdir);
         }
 
@@ -831,7 +838,8 @@ endmodule
         tbtopFile.close();
 
         if (!std::filesystem::exists(othersFilePath)) {
-            fmt::println("[testbench_gen] Creating others.sv...");
+            if (verbose)
+                fmt::println("[testbench_gen] write others.sv");
             std::ofstream othersFile(othersFilePath);
             ASSERT(othersFile.is_open(), "Cannot open others.sv");
             othersFile << R"(
@@ -862,10 +870,13 @@ endmodule
         std::ofstream o(metaInfoFilePath);
         o << metaInfoJson.dump(4) << "\n";
         o.close();
+
+        fmt::println("[testbench_gen] generate  top={}  clk={}  rst={}  ports={}  → {}", topName, clockSignalName, resetSignalHasMatch ? resetSignalName : "?", portInfos.size(), tbtopFilePath);
     }
 
     if (checkOutput) {
-        fmt::println("\n[testbench_gen] Checking output files...");
+        if (verbose)
+            fmt::println("[testbench_gen] checking output files");
 
         driver.sourceLoader.addFiles(tbtopFilePath);
         driver.sourceLoader.addFiles(othersFilePath);
@@ -875,6 +886,6 @@ endmodule
         ASSERT(driver.processOptions());
         ASSERT(driver.parseAllSources());
 
-        ASSERT(driver.runFullCompilation(false));
+        ASSERT(driver.runFullCompilation(!verbose));
     }
 }

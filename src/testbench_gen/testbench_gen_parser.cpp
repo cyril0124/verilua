@@ -188,7 +188,7 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
                 p.dimSizes.push_back(dimSizeStr);
             }
             if (verbose)
-                fmt::println("[TestbenchGenParser] get ansi port: {}", p.toString());
+                fmt::println("[testbench_gen] port {}", p.toString());
             lastAnsiPortTypeStr = p.type;
             portInfos.push_back(p);
         }));
@@ -317,7 +317,7 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
 
             if (verbose) {
                 for (auto p : ports) {
-                    fmt::println("[TestbenchGenParser] get non-ansi port: {}", p.toString());
+                    fmt::println("[testbench_gen] port {}", p.toString());
                 }
             }
 
@@ -338,5 +338,5 @@ void TestbenchGenParser::handle(const InstanceBodySymbol &ast) {
     }));
 
     if (verbose)
-        fmt::println("[TestbenchGenParser] get module:{}", ast.name);
+        fmt::println("[testbench_gen] module {}", ast.name);
 }

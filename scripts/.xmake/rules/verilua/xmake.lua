@@ -1147,11 +1147,12 @@ rule("verilua", function()
             --- ```
             --- For more information about `testbench_gen`, please refer to `testbench_gen --help`
             local u_tb_gen_flags = get_verilua_value(target, "verilua.tb_gen_flags")
+            -- Default quiet: one-line summary from testbench_gen. Pass "--verbose" via
+            -- verilua.tb_gen_flags when full port/file regen detail is needed.
             local tb_gen_flags = {
                 "--top", top,
                 "--tbtop", tb_top,
                 "--nodpi",
-                "--verbose",
                 "--out-dir", build_dir
             }
             if u_tb_gen_flags then
