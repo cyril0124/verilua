@@ -26,6 +26,8 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_PRINT_HIER_STYLE` | 层级打印样式 |
 | `VL_NOSIM_BUILD` | nosim 构建路径标记 |
 | `VL_CFG_FILE` | 用户配置文件路径 |
+| `VL_TARGET_NAME` | 当前 xmake target 名称（rule 自动注入） |
+| `VL_BUILD_DIR` | 当前 target 构建目录绝对路径（rule 自动注入） |
 | `VERILUA_HOME` | Verilua 安装根路径 |
 
 ---
@@ -84,6 +86,41 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
   ```bash
   VL_CFG_FILE=/path/to/mysim_config.lua xmake run -P . <target_name>
   export VL_CFG_FILE=./mysim_config.lua
+  ```
+
+---
+
+### `VL_TARGET_NAME` (可选，xmake rule 自动注入)
+
+当前 xmake target 的名称（`target:name()`）。由 verilua xmake rule 写入 `runenvs`，因此：
+
+- `xmake run` 时 Lua 可通过 `os.getenv("VL_TARGET_NAME")` 读取
+- 构建目录下的 `setvars.sh` / `run.sh` 也会 `export` 同名变量
+
+适合多 target 共用一份 main 时区分用例、命名日志/输出文件等。
+
+- **默认值**：未走 xmake rule 时不设置；经 rule 构建/运行时为当前 target 名
+- **示例**：
+  ```lua
+  -- main.lua
+  local target_name = os.getenv("VL_TARGET_NAME")
+  print("running target:", target_name)
+  ```
+
+---
+
+### `VL_BUILD_DIR` (可选，xmake rule 自动注入)
+
+当前 target 的构建目录绝对路径（与 rule 计算的 `build_dir` 相同，通常为 `./build/<sim>/<top>` 的绝对形式）。同样写入 `runenvs`，`xmake run` 与 `setvars.sh` / `run.sh` 都可见。
+
+`on_run` 会 `cd` 到该目录，但脚本若需要稳定绝对路径（写日志/波形/产物），应读本变量而不是依赖 cwd。
+
+- **默认值**：未走 xmake rule 时不设置；经 rule 构建/运行时为当前 target 的 build dir
+- **示例**：
+  ```lua
+  -- main.lua
+  local build_dir = os.getenv("VL_BUILD_DIR")
+  local log = build_dir .. "/case.log"
   ```
 
 ---

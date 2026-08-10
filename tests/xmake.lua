@@ -339,6 +339,7 @@ add_group_target("test-post-init-script", function(ctx)
             ctx.run_cmd(cwd, "xmake build -v -P . test_code", { SIM = sim })
 
             -- Multi-line add_runenvs must survive setvars.sh quoting/source.
+            -- Also verify rule-exported VL_TARGET_NAME matches the xmake target.
             local setvars = path.join(cwd, "build", sim, "top", "setvars.sh")
             local check_setvars = table.concat({
                 "set -e",
@@ -346,6 +347,8 @@ add_group_target("test-post-init-script", function(ctx)
                 ". " .. shell_quote(setvars),
                 "printf '%s' \"$VL_POST_INIT_SCRIPT\" | od -An -tx1 | grep -q ' 0a ' || { echo 'VL_POST_INIT_SCRIPT missing newline'; exit 1; }",
                 "case \"$VL_POST_INIT_SCRIPT\" in *__vl_boot_order*) ;; *) echo 'VL_POST_INIT_SCRIPT missing code'; exit 1 ;; esac",
+                "case \"$VL_TARGET_NAME\" in test_code) ;; *) echo \"VL_TARGET_NAME=$VL_TARGET_NAME\"; exit 1 ;; esac",
+                "case \"$VL_BUILD_DIR\" in */build/*/top) ;; *) echo \"VL_BUILD_DIR=$VL_BUILD_DIR\"; exit 1 ;; esac",
             }, "\n")
             ctx.run_cmd(cwd, "bash -c " .. shell_quote(check_setvars), { SIM = sim })
 

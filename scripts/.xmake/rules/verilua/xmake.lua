@@ -378,6 +378,10 @@ return cfg
     end
     target:set("verilua_cfg_file", verilua_cfg_file) -- Used in `on_build` and `on_run` phases
 
+    -- Export xmake target identity/paths for runtime scripts (`xmake run` and `setvars.sh` / `run.sh`).
+    target:add("runenvs", "VL_TARGET_NAME", target:name())
+    target:add("runenvs", "VL_BUILD_DIR", build_dir)
+
     -- Extra info provided by instrumentation
     local _instrumentation = get_verilua_value(target, "verilua.instrument")
     if _instrumentation then
