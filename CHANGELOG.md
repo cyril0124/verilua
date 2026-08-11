@@ -37,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **Scheduler**: Task failures no longer emit a second generic `assertion failed!`; the scheduler now reports that execution was aborted after printing the original traceback.
 - **NativeClock**: Edge puts now use the deferred `set` path (`vpiml_set_value` / pending queue) instead of immediate `vpiNoDelay`, matching Lua `clock:set` and Verilator RW/comb observation.
 - **xmake / verilua rule**: `setvars.sh` now shell-quotes `add_runenvs` values so spaces, quotes, and newlines (e.g. multi-line `VL_POST_INIT_SCRIPT`) survive `source setvars.sh`. `PATH` / `LD_LIBRARY_PATH` still append `:$KEY` outside the quotes.
 - **xmake / verilua rule**: Verilator is now invoked with the canonical `--top-module` flag instead of the `--top` alias (kept for compatibility in current Verilator releases), for forward compatibility.

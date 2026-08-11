@@ -46,6 +46,15 @@ assert(
     "top-level jfork should report a clear scheduler-task context error"
 )
 
+if os.getenv("VL_TEST_SCHEDULER_ASSERT") == "1" then
+    fork {
+        scheduler_assertion = function()
+            assert(false)
+        end,
+    }
+    return
+end
+
 --==============================================================================
 -- All tests must be in one fork because Verilua entry point is fork
 fork {

@@ -471,7 +471,7 @@ function Scheduler:schedule_task(id)
         io.flush()
 
         vl.record_error()
-        assert(false)
+        assert(false, "[Scheduler] task execution aborted; traceback printed above")
     end
 
     if cb_type_or_err == nil or cb_type_or_err == EarlyExit then

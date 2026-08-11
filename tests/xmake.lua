@@ -277,6 +277,25 @@ for _, case in ipairs(sim_test_cases) do
                     ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = sim })
                     ctx.run_cmd(cwd, "xmake run -v -P .", { SIM = sim })
                 end)
+
+                if case.dir == "test_scheduler" then
+                    ctx.run_case(join_case_parts(case.name, sim, "assertion_error"), function()
+                        local log = path.join(cwd, "scheduler-assertion-error-" .. sim .. ".log")
+                        local log_q = shell_quote(log)
+                        local script = table.concat({
+                            "if xmake run -v -P . > " .. log_q .. " 2>&1; then cat " .. log_q .. "; exit 1; fi",
+                            "count=$(grep -F -c 'assertion failed!' " .. log_q .. " || true)",
+                            "test \"$count\" -eq 1 || { cat " .. log_q .. "; exit 1; }",
+                            "grep -Fq '[Scheduler] task execution aborted; traceback printed above' " .. log_q
+                            .. " || { cat " .. log_q .. "; exit 1; }",
+                            "rm -f " .. log_q,
+                        }, "; ")
+                        ctx.run_cmd(cwd, "sh -c " .. shell_quote(script), {
+                            SIM = sim,
+                            VL_TEST_SCHEDULER_ASSERT = "1",
+                        })
+                    end)
+                end
             end
         end
 
