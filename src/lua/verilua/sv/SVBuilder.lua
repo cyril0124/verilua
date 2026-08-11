@@ -36,6 +36,7 @@ local setmetatable = setmetatable
 ---@field private global_envs table<string, any> Global template variables available to all `add` calls.
 ---@field private seq_envs table<string, verilua.sv.SVBuilder.sequence> Registry of defined sequences (accessed via `$(seq:name)`).
 ---@field private prop_envs table<string, verilua.sv.SVBuilder.property> Registry of defined properties (accessed via `$(prop:name)`).
+---@field private preamble_vec string[] Ordered list of raw preamble SV (decls/functions/always) emitted before default_clocking and SVA/covergroups.
 ---@field private sequence_vec string[] Ordered list of rendered sequence statements.
 ---@field private property_vec string[] Ordered list of rendered property statements.
 ---@field private content_vec string[] Ordered list of rendered cover/assert statements.
@@ -44,8 +45,8 @@ local setmetatable = setmetatable
 ---@field private coverage_report_enabled boolean Whether the final block coverage report is generated.
 ---@field private lint_enabled boolean Whether automatic sv_lint checking is active on each `add` call.
 ---@field with_global_envs fun(self: verilua.sv.SVBuilder, envs: table<string, any>): verilua.sv.SVBuilder Register global template variables for all subsequent `add` calls.
----@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | nil Curried entry point: select type, then pass params.
----@field default_clocking fun(self: verilua.sv.SVBuilder, signal: verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sv.SVBuilder Set the default sampling clock for SVA and covergroups.
+---@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | nil Curried entry point: select type, then pass params.
+---@field default_clocking fun(self: verilua.sv.SVBuilder, signal: string|verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sv.SVBuilder Set the default sampling clock for SVA and covergroups.
 ---@field clean fun(self: verilua.sv.SVBuilder): verilua.sv.SVBuilder Reset all internal state to empty.
 ---@field set_lint fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable automatic sv_lint checking on each `add` call.
 ---@field set_coverage_report fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable the `final` block coverage report for covergroups.
@@ -57,6 +58,7 @@ local SVBuilder = {
     global_envs = {},
     seq_envs = {},
     prop_envs = {},
+    preamble_vec = {},
     sequence_vec = {},
     property_vec = {},
     content_vec = {},
@@ -69,6 +71,12 @@ local SVBuilder = {
 setmetatable(SVBuilder, {
     __tostring = function(self)
         local parts = {}
+
+        -- Preamble first so bare clock/reset declared in raw are visible to
+        -- default_clocking (and match normal SV: declare signals, then clocking).
+        for _, v in ipairs(self.preamble_vec) do
+            parts[#parts + 1] = tostring(v)
+        end
 
         if self.default_clocking_expr ~= "" then
             parts[#parts + 1] = self.default_clocking_expr
@@ -219,9 +227,18 @@ local diag_buf = ffi.new("char[4096]")
 -- Build a module shell containing all existing context + the new statement,
 -- then invoke sv_lint (FFI or subprocess). Returns nil on success, or the
 -- first diagnostic string on failure.
-local function run_sv_lint(self, new_statement, _stmt_name)
-    -- Assemble the full SV text for lint
+-- `as_preamble`: when true (add "raw"), insert new_statement with other
+-- preamble chunks before default_clocking so bare clock decls resolve.
+---@param as_preamble boolean?
+local function run_sv_lint(self, new_statement, _stmt_name, as_preamble)
+    -- Assemble the full SV text for lint (match generate() order).
     local parts = { "module __sva_lint;" }
+    for _, v in ipairs(self.preamble_vec) do
+        parts[#parts + 1] = tostring(v)
+    end
+    if as_preamble then
+        parts[#parts + 1] = new_statement
+    end
     if self.default_clocking_expr ~= "" then
         parts[#parts + 1] = self.default_clocking_expr
     end
@@ -231,7 +248,9 @@ local function run_sv_lint(self, new_statement, _stmt_name)
     for _, v in ipairs(self.property_vec) do
         parts[#parts + 1] = tostring(v)
     end
-    parts[#parts + 1] = new_statement
+    if not as_preamble then
+        parts[#parts + 1] = new_statement
+    end
     parts[#parts + 1] = "endmodule"
     local sv_text = table.concat(parts, "\n")
 
@@ -486,6 +505,18 @@ function SVBuilder:add(typ)
             -- Sequences are reachable only via `$(seq:name)`, never flat.
             self.seq_envs[params.name] = sequence
             return sequence
+        elseif typ == "raw" then
+            -- Free-form SV preamble (typedef/function/logic/always). Keep newlines.
+            if self.lint_enabled then
+                local lint_err = run_sv_lint(self, ret, params.name, true)
+                if lint_err then
+                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                end
+            end
+
+            self.preamble_vec[#self.preamble_vec + 1] = ret
+            self.unique_stmt_name_map[params.name] = true
+            return
         elseif typ == "covergroup" then
             -- Determine sampling event: per-covergroup override or default_clocking
             local sample_event_raw = params.sample_event or self.default_clocking_event
@@ -545,10 +576,30 @@ function SVBuilder:add(typ)
 end
 
 function SVBuilder:default_clocking(signal, edge_type, overwrite)
+    assert(
+        edge_type == "posedge" or edge_type == "negedge",
+        "[SVBuilder] default_clocking error: `edge_type` should be `posedge` or `negedge`"
+    )
+
+    if not overwrite and self.default_clocking_expr ~= "" then
+        assert(
+            false,
+            "[SVBuilder] default_clocking error: `overwrite` is false, but `self.default_clocking_expr` is not empty"
+        )
+    end
+
     local t = type(signal)
+    if t == "string" then
+        assert(signal ~= "", "[SVBuilder] default_clocking error: path string must be non-empty")
+        self.default_clocking_expr = f("default clocking @(%s %s); endclocking", edge_type, signal)
+        self.default_clocking_event = f("%s %s", edge_type, signal)
+        return self
+    end
+
     assert(
         t == "table",
-        "[SVBuilder] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " .. t
+        "[SVBuilder] default_clocking error: `signal` should be a path string, ProxyTableHandle or CallableHDL, but got "
+        .. t
     )
 
     local handle_t = signal.__type
@@ -556,8 +607,8 @@ function SVBuilder:default_clocking(signal, edge_type, overwrite)
     local is_dut = handle_t == "ProxyTableHandle"
     assert(
         is_chdl or is_dut,
-        "[SVBuilder] default_clocking error: `signal` should be a ProxyTableHandle or CallableHDL, but got " ..
-        tostring(handle_t)
+        "[SVBuilder] default_clocking error: `signal` should be a path string, ProxyTableHandle or CallableHDL, but got "
+        .. tostring(handle_t)
     )
 
     ---@type verilua.handles.CallableHDL
@@ -573,18 +624,6 @@ function SVBuilder:default_clocking(signal, edge_type, overwrite)
     end
 
     assert(chdl:get_width() == 1, "[SVBuilder] default_clocking error: `signal` should be a 1-bit signal")
-
-    assert(
-        edge_type == "posedge" or edge_type == "negedge",
-        "[SVBuilder] default_clocking error: `edge_type` should be `posedge` or `negedge`"
-    )
-
-    if not overwrite and self.default_clocking_expr ~= "" then
-        assert(
-            false,
-            "[SVBuilder] default_clocking error: `overwrite` is false, but `self.default_clocking_expr` is not empty"
-        )
-    end
 
     self.default_clocking_expr = f("default clocking @(%s %s); endclocking", edge_type, chdl.fullpath)
     self.default_clocking_event = f("%s %s", edge_type, chdl.fullpath)
@@ -606,6 +645,7 @@ function SVBuilder:clean()
     self.global_envs = {}
     self.seq_envs = {}
     self.prop_envs = {}
+    self.preamble_vec = {}
     self.sequence_vec = {}
     self.property_vec = {}
     self.content_vec = {}

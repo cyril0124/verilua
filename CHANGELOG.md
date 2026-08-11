@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **sv / SVBuilder**: `add "raw"` injects free-form preamble SV (`typedef` / function / `logic` / `always`) before `default clocking`, sequences/properties/covergroups; lint context includes preamble so later covergroups (and bare clock/reset used by `default_clocking`) can reference helper signals. `default_clocking` also accepts a hierarchical path string when no CHDL handle is available.
 - **xmake / verilua rule**: Auto-export `VL_TARGET_NAME` (xmake `target:name()`) and `VL_BUILD_DIR` (target build dir absolute path) into runenvs so both `xmake run` and `setvars.sh` / `run.sh` expose them to Lua scripts.
 - **testbench_gen / xmake**: Default log is quiet (one-line `generate ...` / `up-to-date`; warnings always). Detail behind `--verbose`. xmake rule no longer passes `--verbose` by default; use `add_values("verilua.tb_gen_flags", "--verbose")` when needed. Non-verbose runs call slang `runFullCompilation(quiet=true)` to drop "Top level design units" / "Build succeeded" noise.
 - **libverilua**: Optional `VL_POST_INIT_SCRIPT` runs after `init.lua` (and auto `VL_DUT_TOP`) and before `VL_LUA_SCRIPT`. Value is an existing file path (`dofile`) or a Lua source string (`load`/`exec`). Empty value panics.

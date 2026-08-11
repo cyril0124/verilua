@@ -155,13 +155,15 @@ chk_handshake: assert property (_GEN_chk_handshake_PROPERTY);
 
 ### `ctx:add(typ)(params)`
 
-柯里化调用，`typ` 为 `"sequence"` | `"property"` | `"cover"` | `"assert"`。
+柯里化调用，`typ` 为 `"sequence"` | `"property"` | `"cover"` | `"assert"` | `"covergroup"` | `"raw"`。
 
 ```lua
-ctx:add "sequence" { name = "s1", expr = "...", envs = {...} }
-ctx:add "property" { name = "p1", expr = "..." }
-ctx:add "cover"    { name = "c1", expr = "...", cov_type = "sequence" }
-ctx:add "assert"   { name = "a1", expr = "..." }
+ctx:add "sequence"   { name = "s1", expr = "...", envs = {...} }
+ctx:add "property"   { name = "p1", expr = "..." }
+ctx:add "cover"      { name = "c1", expr = "...", cov_type = "sequence" }
+ctx:add "assert"     { name = "a1", expr = "..." }
+ctx:add "covergroup" { name = "cg1", expr = "..." }
+ctx:add "raw"        { name = "helper", expr = "logic sample_en;" }
 ```
 
 **参数（params）：**
@@ -169,15 +171,16 @@ ctx:add "assert"   { name = "a1", expr = "..." }
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `name` | string | ✓ | 语句名称，整个 context 内唯一 |
-| `expr` | string | ✓ | SVA 表达式，支持 `$(var)` 模板语法 |
+| `expr` | string | ✓ | SVA/SV 表达式，支持 `$(var)` 模板语法 |
 | `envs` | table | | 模板变量表，key→value 映射 |
 | `cov_type` | string | | 仅 cover 有效：`"property"`（默认）或 `"sequence"` |
+| `sample_event` | string | | 仅 covergroup 有效：覆盖默认采样事件 |
 
 **返回值：**
 
 - `"sequence"` → 返回 `Sequence` handle（可通过 `$(seq:name)` 引用）
 - `"property"` → 返回 `Property` handle（可通过 `$(prop:name)` 引用）
-- `"cover"` / `"assert"` → 返回 `nil`
+- `"cover"` / `"assert"` / `"covergroup"` / `"raw"` → 返回 `nil`
 
 ### `ctx:default_clocking(signal, edge_type, overwrite?)`
 
@@ -186,9 +189,10 @@ ctx:add "assert"   { name = "a1", expr = "..." }
 ```lua
 ctx:default_clocking(dut.clk, "posedge")
 ctx:default_clocking(dut.clk, "negedge", true)  -- overwrite 已有设置
+ctx:default_clocking("top.dut.clk", "posedge")  -- 无 handle 时直接给层次路径
 ```
 
-- `signal`：`CallableHDL` 或 `ProxyTableHandle`，必须是 1-bit 信号
+- `signal`：`CallableHDL` / `ProxyTableHandle`（1-bit），或层次路径字符串（如 `"top.dut.clk"`）
 - `edge_type`：`"posedge"` 或 `"negedge"`
 - `overwrite`：是否覆盖已有的 default clocking（默认 `false`）
 
@@ -367,10 +371,15 @@ local sva_text = ctx:generate()
 
 `generate()` 输出的文本按以下顺序拼接：
 
-1. `default clocking` 声明（如果设置了）
-2. 所有 `sequence` 定义
-3. 所有 `property` 定义
-4. 所有 `cover` / `assert` 语句（带 `// i/n` 编号注释）
+1. 所有 `raw` preamble（typedef / function / logic / always 等）
+2. `default clocking` 声明（如果设置了）
+3. 所有 `sequence` 定义
+4. 所有 `property` 定义
+5. 所有 `cover` / `assert` 语句（带 `// i/n` 编号注释）
+6. 所有 `covergroup` 定义与实例化
+7. `final` coverage 报告（若启用）
+
+`raw` 排在 `default clocking` 之前，这样 preamble 里声明的 bare `clock` / `reset` 能被 clocking 与后续 lint 解析（与注入 `tb_top` 后的常见写法一致）。
 
 每个语句之间用空行分隔，可直接嵌入 SystemVerilog module 中使用。
 
@@ -634,3 +643,51 @@ covergroup 同样受 sv_lint 自动检查保护，能在定义时捕获：
 - cross 引用不存在的 coverpoint
 - coverpoint 表达式类型错误（如 `real` 类型）
 - 范围倒置（如 `{[7:0]}`，报 `-Wreversed-range` 警告）
+
+## Raw preamble（辅助逻辑）
+
+功能覆盖经常需要 covergroup 之外的辅助 SV：`typedef`、function、中间 `logic`、`always` 采样状态机。用 `add "raw"` 把这些内容放进 preamble（在 `default clocking` / sequence/property/covergroup 之前），后续 covergroup 可直接引用这些信号；lint 上下文也会包含 preamble。
+
+```lua
+-- bare clock/reset：先在 raw 里声明，再 default_clocking（输出/lint 顺序固定为 preamble → clocking）
+ctx:add "raw" {
+    name = "fcov_helper",
+    expr = [[
+logic clock;
+logic reset;
+logic        sample_en;
+logic [2:0]  size;
+logic [1:0]  be_class;
+
+always @(posedge clock or posedge reset) begin
+    if (reset) sample_en <= 1'b0;
+    else begin
+        sample_en <= req_fire;
+        size      <= req_size;
+        be_class  <= be_class_fn(req_be, req_size);
+    end
+end
+]],
+}
+ctx:default_clocking("clock", "posedge") -- 也可用 dut.clk handle / 层次路径字符串
+
+ctx:add "covergroup" {
+    name = "cg_req",
+    expr = [[
+    cp_size: coverpoint size iff (sample_en) {
+        bins B1 = {3'd0};
+        bins B2 = {3'd1};
+    }
+    cp_be: coverpoint be_class iff (sample_en) {
+        bins Zero    = {2'd0};
+        bins Partial = {2'd1};
+        bins Full    = {2'd2};
+    }
+    ]],
+}
+```
+
+- `expr` 原样保留换行（不会做 SVA 那套空白压缩）
+- 支持 `$(var)` 模板与 `envs`
+- 参与 `sv_lint`：raw 自身语法错误会立刻报；后续语句 lint 时能看到 preamble 里声明的标识符
+- 输出顺序固定为 `raw` → `default clocking` → …，与 `add` / `default_clocking` 的调用先后无关

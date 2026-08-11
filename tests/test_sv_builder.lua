@@ -441,7 +441,7 @@ default clocking @(negedge path.to.clock); endclocking
         expect.equal(ok, true)
         ctx:clean()
 
-        -- Syntax error: missing semicolons / malformed expression
+        -- sequence: trailing ## without RHS
         ok, err = pcall(function()
             ctx:add "sequence" { name = "s_bad", expr = "top.dut.req ##" }
         end)
@@ -450,6 +450,42 @@ default clocking @(negedge path.to.clock); endclocking
         assert(
             err_str:find("[SVBuilder] lint error in 's_bad'", 1, true),
             "expected lint error for s_bad, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- property: implication missing RHS
+        ok, err = pcall(function()
+            ctx:add "property" { name = "p_bad", expr = "top.dut.a |->" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'p_bad'", 1, true),
+            "expected lint error for p_bad, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- assert: wraps property body, same class of syntax error
+        ok, err = pcall(function()
+            ctx:add "assert" { name = "a_bad", expr = "top.dut.a |->" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'a_bad'", 1, true),
+            "expected lint error for a_bad, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- cover: trailing ## without RHS
+        ok, err = pcall(function()
+            ctx:add "cover" { name = "c_bad", expr = "top.dut.a ##" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'c_bad'", 1, true),
+            "expected lint error for c_bad, got: " .. err_str
         )
         ctx:clean()
 
@@ -472,6 +508,66 @@ default clocking @(negedge path.to.clock); endclocking
         assert(
             err_str:find("sequence range minimum", 1, true),
             "expected 'sequence range minimum' in error, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- Implication is property-only; sequence body must reject |->
+        ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_imp", expr = "top.dut.a |-> top.dut.b" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 's_imp'", 1, true),
+            "expected lint error for s_imp, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- Undeclared local identifier in sequence (XMR paths are allowed)
+        ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_miss", expr = "no_sig ##1 top.dut.ack" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 's_miss'", 1, true),
+            "expected lint error for s_miss, got: " .. err_str
+        )
+        assert(
+            err_str:find("undeclared identifier", 1, true),
+            "expected undeclared identifier for s_miss, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- Undeclared local identifier in assert property body
+        ok, err = pcall(function()
+            ctx:add "assert" { name = "a_miss", expr = "foo_bar |-> top.dut.valid" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'a_miss'", 1, true),
+            "expected lint error for a_miss, got: " .. err_str
+        )
+        assert(
+            err_str:find("undeclared identifier", 1, true),
+            "expected undeclared identifier for a_miss, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- Undeclared property name inside a property
+        ok, err = pcall(function()
+            ctx:add "property" { name = "p_ref", expr = "missing_prop |-> top.dut.a" }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'p_ref'", 1, true),
+            "expected lint error for p_ref, got: " .. err_str
+        )
+        assert(
+            err_str:find("undeclared identifier", 1, true),
+            "expected undeclared identifier for p_ref, got: " .. err_str
         )
         ctx:clean()
 
@@ -511,6 +607,14 @@ default clocking @(negedge path.to.clock); endclocking
             err_str:find("[SVBuilder] lint error in 'chk2'", 1, true),
             "expected lint error for chk2, got: " .. err_str
         )
+        ctx:clean()
+
+        -- Defined property can be referenced from assert via prop: namespace
+        ctx:add "property" { name = "p_hold", expr = "top.dut.a |-> top.dut.b" }
+        ok, err = pcall(function()
+            ctx:add "assert" { name = "chk3", expr = "$(prop:p_hold)" }
+        end)
+        expect.equal(ok, true, "expected prop: reference to pass lint, got: " .. tostring(err))
         ctx:clean()
 
         ctx:set_lint(false)
@@ -810,6 +914,93 @@ default clocking @(negedge path.to.clock); endclocking
         )
         ctx:clean()
 
+        -- Undeclared local coverpoint signal (hierarchical XMR is ok; bare id is not)
+        ctx:default_clocking(clock_signal, "posedge")
+        ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_lint_undeclared",
+                expr = [[
+    coverpoint local_sig {
+        bins b = {0};
+    }]],
+            }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'cg_lint_undeclared'", 1, true),
+            "expected lint error for cg_lint_undeclared, got: " .. err_str
+        )
+        assert(
+            err_str:find("undeclared identifier", 1, true),
+            "expected undeclared identifier for cg_lint_undeclared, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- ignore_bins references unknown bin name (pure covergroup, no raw)
+        ctx:default_clocking(clock_signal, "posedge")
+        ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_lint_bad_binsof",
+                expr = [[
+    cp_a: coverpoint top.dut.a { bins b0={0}; bins b1={1}; }
+    cp_b: coverpoint top.dut.b { bins c0={0}; bins c1={1}; }
+    cx: cross cp_a, cp_b {
+        ignore_bins bad = binsof(cp_a.NOPE) && binsof(cp_b.c0);
+    }]],
+            }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'cg_lint_bad_binsof'", 1, true),
+            "expected lint error for cg_lint_bad_binsof, got: " .. err_str
+        )
+        assert(
+            err_str:find("NOPE", 1, true),
+            "expected diagnostic mentioning NOPE, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- Reversed bins range is diagnosed (warning promoted to lint failure)
+        ctx:default_clocking(clock_signal, "posedge")
+        ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_lint_rev_range",
+                expr = [[
+    coverpoint top.dut.data {
+        bins bad = {[7:0]};
+    }]],
+            }
+        end)
+        expect.equal(ok, false)
+        err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'cg_lint_rev_range'", 1, true),
+            "expected lint error for cg_lint_rev_range, got: " .. err_str
+        )
+        assert(
+            err_str:find("reversed range", 1, true),
+            "expected reversed range diagnostic, got: " .. err_str
+        )
+        ctx:clean()
+
+        -- Control: valid ignore_bins with hierarchical coverpoints passes
+        ctx:default_clocking(clock_signal, "posedge")
+        ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_lint_binsof_ok",
+                expr = [[
+    cp_a: coverpoint top.dut.a { bins b0={0}; bins b1={1}; }
+    cp_b: coverpoint top.dut.b { bins c0={0}; bins c1={1}; }
+    cx: cross cp_a, cp_b {
+        ignore_bins okb = binsof(cp_a.b0) && binsof(cp_b.c0);
+    }]],
+            }
+        end)
+        expect.equal(ok, true, "expected valid ignore_bins to pass lint, got: " .. tostring(err))
+        ctx:clean()
+
         ctx:set_lint(false)
     end)
 
@@ -914,5 +1105,332 @@ default clocking @(negedge path.to.clock); endclocking
             "expected rejection for sequence, got: " .. tostring(err))
 
         ctx:clean()
+    end)
+
+    it("default_clocking accepts hierarchical path string", function()
+        ctx:default_clocking("top.dut.clk", "posedge")
+        expect.equal(tostring(ctx), [[
+default clocking @(posedge top.dut.clk); endclocking
+
+]])
+
+        local ok, err = pcall(function()
+            ctx:default_clocking("", "posedge", true)
+        end)
+        assert(not ok)
+        assert(tostring(err):find("path string must be non-empty", 1, true),
+            "expected empty path rejection, got: " .. tostring(err))
+
+        ok = pcall(function()
+            ctx:default_clocking("top.dut.clk2", "negedge")
+        end)
+        assert(not ok)
+
+        ok = pcall(function()
+            ctx:default_clocking("top.dut.clk2", "negedge", true)
+        end)
+        assert(ok)
+        expect.equal(tostring(ctx), [[
+default clocking @(negedge top.dut.clk2); endclocking
+
+]])
+
+        -- covergroup reuses string-path default_clocking_event
+        ctx:set_coverage_report(false)
+        ctx:add "covergroup" {
+            name = "cg_path_clk",
+            expr = "coverpoint top.dut.x { bins b = {0}; }",
+        }
+        local out = tostring(ctx)
+        assert(out:find("covergroup cg_path_clk @(negedge top.dut.clk2);", 1, true),
+            "expected covergroup to reuse path-string clock, got: " .. out)
+
+        ctx:set_coverage_report(true)
+        ctx:clean()
+    end)
+
+    it("can add raw preamble before covergroups", function()
+        ctx:default_clocking("top.dut.clk", "posedge")
+
+        ctx:add "raw" {
+            name = "helper_decls",
+            expr = [[
+logic        fcov_sample_en;
+logic [2:0]  fcov_size;
+function automatic logic [1:0] fcov_be_class(input logic [3:0] be);
+    return 2'd0;
+endfunction]],
+        }
+
+        ctx:add "covergroup" {
+            name = "cg_fcov",
+            expr = [[
+    coverpoint fcov_size iff (fcov_sample_en) {
+        bins B1 = {3'd0};
+    }]],
+        }
+
+        local result = tostring(ctx)
+        local raw_pos = result:find("logic        fcov_sample_en;", 1, true)
+        local clk_pos = result:find("default clocking @(posedge top.dut.clk);", 1, true)
+        local cg_pos = result:find("covergroup cg_fcov", 1, true)
+        local final_pos = result:find("final begin", 1, true)
+
+        assert(raw_pos, "expected raw preamble in output, got: " .. result)
+        assert(clk_pos, "expected default_clocking in output, got: " .. result)
+        assert(cg_pos, "expected covergroup in output, got: " .. result)
+        assert(raw_pos < clk_pos, "raw preamble should come before default_clocking")
+        assert(clk_pos < cg_pos, "default_clocking should come before covergroup")
+        assert(cg_pos < final_pos, "covergroup should come before final block")
+        -- Multi-line raw must keep newlines (not process_content squash)
+        assert(result:find("function automatic logic", 1, true),
+            "expected multi-line raw body preserved, got: " .. result)
+
+        ctx:clean()
+    end)
+
+    it("lint accepts bare clock declared in raw before default_clocking", function()
+        ctx:set_lint(true)
+
+        -- Declare bare clock/reset in preamble; default_clocking must emit after
+        -- raw so sv_lint can resolve the identifiers (tb_top inject style).
+        ctx:add "raw" {
+            name = "clk_rst_decl",
+            expr = [[
+logic clock;
+logic reset;
+logic sample_en;
+logic [2:0] size;
+
+always @(posedge clock or posedge reset) begin
+    if (reset) sample_en <= 1'b0;
+    else sample_en <= 1'b1;
+end]],
+        }
+        ctx:default_clocking("clock", "posedge")
+
+        local ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_bare_clk",
+                expr = [[
+    coverpoint size iff (sample_en) {
+        bins b0 = {3'd0};
+    }]],
+            }
+        end)
+        expect.equal(ok, true, "expected bare clock + raw decl to pass lint, got: " .. tostring(err))
+
+        local out = tostring(ctx)
+        local raw_pos = out:find("logic clock;", 1, true)
+        local clk_pos = out:find("default clocking @(posedge clock);", 1, true)
+        assert(raw_pos and clk_pos and raw_pos < clk_pos,
+            "expected raw before default_clocking, got: " .. out)
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("lint accepts default_clocking then raw that declares bare clock", function()
+        -- Call order clocking-then-raw still lints: new raw is inserted with preamble.
+        ctx:set_lint(true)
+        ctx:default_clocking("clock", "posedge")
+
+        local ok, err = pcall(function()
+            ctx:add "raw" {
+                name = "late_clk_decl",
+                expr = [[
+logic clock;
+logic sample_en;
+logic [1:0] sz;]],
+            }
+        end)
+        expect.equal(ok, true, "expected raw after default_clocking to pass lint, got: " .. tostring(err))
+
+        ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_late_clk",
+                expr = [[
+    coverpoint sz iff (sample_en) {
+        bins b0 = {2'd0};
+    }]],
+            }
+        end)
+        expect.equal(ok, true, "expected covergroup with late clock decl to pass lint, got: " .. tostring(err))
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("raw supports template expansion", function()
+        ctx:add "raw" {
+            name = "templated_raw",
+            expr = "logic [$(w)-1:0] $(name);",
+            envs = { w = 8, name = "fcov_be" },
+        }
+
+        local result = tostring(ctx)
+        assert(result:find("logic [8-1:0] fcov_be;", 1, true),
+            "expected expanded raw, got: " .. result)
+
+        ctx:clean()
+    end)
+
+    it("sv_lint includes raw preamble for later covergroups", function()
+        ctx:set_lint(true)
+        ctx:default_clocking("top.dut.clk", "posedge")
+
+        ctx:add "raw" {
+            name = "fcov_helper",
+            expr = [[
+logic sample_en;
+logic [2:0] size;]],
+        }
+
+        -- Covergroup references signals declared in raw preamble; lint must see them.
+        local ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_uses_raw",
+                expr = [[
+    coverpoint size iff (sample_en) {
+        bins b0 = {3'd0};
+    }]],
+            }
+        end)
+        expect.equal(ok, true, "expected covergroup lint to pass with raw preamble, got: " .. tostring(err))
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("sv_lint catches raw syntax errors", function()
+        ctx:set_lint(true)
+
+        local ok, err = pcall(function()
+            ctx:add "raw" {
+                name = "raw_bad",
+                expr = "logic ;;;;",
+            }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'raw_bad'", 1, true),
+            "expected lint error for raw_bad, got: " .. err_str
+        )
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("sv_lint rejects covergroup signals not declared in raw preamble", function()
+        ctx:set_lint(true)
+        ctx:default_clocking("top.dut.clk", "posedge")
+
+        -- No raw preamble: local identifiers must be undeclared.
+        local ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_no_raw",
+                expr = [[
+    coverpoint size iff (sample_en) {
+        bins b0 = {3'd0};
+    }]],
+            }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'cg_no_raw'", 1, true),
+            "expected lint error for cg_no_raw, got: " .. err_str
+        )
+        assert(
+            err_str:find("undeclared identifier", 1, true),
+            "expected undeclared identifier diagnostic, got: " .. err_str
+        )
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("sv_lint rejects raw always with undeclared signals", function()
+        ctx:set_lint(true)
+
+        local ok, err = pcall(function()
+            ctx:add "raw" {
+                name = "raw_always_bad",
+                expr = [[
+always @(posedge clock) begin
+    no_such_sig <= 1'b1;
+end]],
+            }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'raw_always_bad'", 1, true),
+            "expected lint error for raw_always_bad, got: " .. err_str
+        )
+        assert(
+            err_str:find("undeclared identifier", 1, true),
+            "expected undeclared identifier diagnostic, got: " .. err_str
+        )
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("sv_lint rejects ignore_bins with unknown bin name", function()
+        ctx:set_lint(true)
+        ctx:default_clocking("top.dut.clk", "posedge")
+
+        ctx:add "raw" {
+            name = "ign_helper",
+            expr = "logic [1:0] sz; logic excl;",
+        }
+
+        local ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_ign_bad",
+                expr = [[
+    cp_size: coverpoint sz { bins B1={2'd0}; bins B2={2'd1}; }
+    cp_excl: coverpoint excl { bins e0={0}; bins e1={1}; }
+    cx: cross cp_size, cp_excl {
+        ignore_bins bad = binsof(cp_size.NOPE) && binsof(cp_excl.e0);
+    }]],
+            }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 'cg_ign_bad'", 1, true),
+            "expected lint error for cg_ign_bad, got: " .. err_str
+        )
+        assert(
+            err_str:find("NOPE", 1, true),
+            "expected diagnostic mentioning bad bin NOPE, got: " .. err_str
+        )
+
+        -- Control: correct bin names pass lint.
+        ctx:clean()
+        ctx:set_lint(true)
+        ctx:default_clocking("top.dut.clk", "posedge")
+        ctx:add "raw" {
+            name = "ign_helper_ok",
+            expr = "logic [1:0] sz; logic excl;",
+        }
+        ok, err = pcall(function()
+            ctx:add "covergroup" {
+                name = "cg_ign_ok",
+                expr = [[
+    cp_size: coverpoint sz { bins B1={2'd0}; bins B2={2'd1}; }
+    cp_excl: coverpoint excl { bins e0={0}; bins e1={1}; }
+    cx: cross cp_size, cp_excl {
+        ignore_bins okb = binsof(cp_size.B1) && binsof(cp_excl.e0);
+    }]],
+            }
+        end)
+        expect.equal(ok, true, "expected good ignore_bins to pass lint, got: " .. tostring(err))
+
+        ctx:clean()
+        ctx:set_lint(false)
     end)
 end)
