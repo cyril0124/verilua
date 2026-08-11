@@ -65,7 +65,7 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                 } else {
                     dpiTickFuncDeclParam1Vec.emplace_back(joinStrVec(declParamVec, ", "));
                 }
-                // Used by `CALL_DPI_EXPORTER_TICK` macro body (backslash-continued single logical line).
+                // Used by `VL_DPI_EXP_CALL_TICK` macro body (backslash-continued single logical line).
                 dpiTickFuncParamVec.emplace_back(joinStrVec(paramVec, ", \\\n"));
 
                 sgIdx++;
@@ -76,9 +76,9 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
             //
             // Historical default always-block was:
             //   always @(...) begin
-            //   `CALL_DPI_EXPORTER_TICK
+            //   `VL_DPI_EXP_CALL_TICK   (legacy: `CALL_DPI_EXPORTER_TICK)
             //   end
-            // and CALL_DPI_EXPORTER_TICK expands to dpi_exporter_tick(arg0, arg1, ...).
+            // and VL_DPI_EXP_CALL_TICK expands to dpi_exporter_tick(arg0, arg1, ...).
             //
             // When many hierarchical signals are exported, that macro expansion becomes
             // one logical preprocessor line with tens of thousands of tokens. Verilator
@@ -86,9 +86,10 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
             //   %Error: Too many preprocessor tokens on a line (>40000);
             //           perhaps recursive `define
             //
-            // Fix: keep DECL/CALL macros for PLDM / MANUALLY_CALL_DPI_EXPORTER_TICK users,
-            // but emit the *default* always-block as a real multi-line function call
-            // (comma + newline, not macro-expanded). See always-block template below.
+            // Fix: keep DECL/CALL macros for PLDM / VL_DPI_EXP_MANUAL_TICK users
+            // (legacy: MANUALLY_CALL_DPI_EXPORTER_TICK), but emit the *default*
+            // always-block as a real multi-line function call (comma + newline, not
+            // macro-expanded). See always-block template below.
             // ---------------------------------------------------------------------------
             std::vector<std::string> dpiTickFuncParamDirectVec;
             for (auto &sg : signalGroupVec) {
@@ -104,7 +105,7 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
             std::string sDpiTickFuncDecl_1 = "";
             std::string sCallDpiTickFunc   = "";
             // Multi-line form for the default always-block (NOT macro-expanded).
-            // Sensitive ticks used to live only inside `CALL_DPI_EXPORTER_TICK`, but the
+            // Sensitive ticks used to live only inside `VL_DPI_EXP_CALL_TICK`, but the
             // Verilator-safe always path no longer expands that macro — so without this
             // direct form, sensitive groups never update after the large-arg-list fix.
             std::string sCallDpiTickFuncDirect = "";
@@ -144,14 +145,14 @@ import "DPI-C" function void dpi_exporter_tick_{1}(
 );)",
                                                        joinStrVec(sSignalsLastRegVec, "\n"), name, dpiTickFuncDeclParamVec[i]);
                 sDpiTickFuncDecl += fmt::format(R"(
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 /*
 Sensitive group name: {0}
 Sensitive trigger signals:
 {1}
 */
 {2}
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 )",
                                                 name, sSignals, sSignalGroupContent);
 
@@ -227,16 +228,18 @@ import "DPI-C" function void dpi_exporter_tick();
                 }
             );
 
-            std::string dpiTickDeclMacro = inja::render(R"(`define DECL_DPI_EXPORTER_TICK \
+            std::string dpiTickDeclMacro = inja::render(R"(`define VL_DPI_EXP_DECL_TICK \
     import "DPI-C" function void dpi_exporter_tick( \
 {{dpiTickFuncDeclParam_1}}); {% if sDpiTickFuncDecl_1 != "" %}\{% endif %}
     {{sDpiTickFuncDecl_1}}
+// Legacy aliases (deprecated): same expansion as VL_DPI_EXP_DECL_TICK / VL_DPI_EXP_CALL_TICK.
+`define DECL_DPI_EXPORTER_TICK `VL_DPI_EXP_DECL_TICK
             )", json {
                 { "dpiTickFuncDeclParam_1", dpiTickFuncDeclParam1Vec[0] },
                 { "sDpiTickFuncDecl_1", sDpiTickFuncDecl_1 }
             });
 
-            std::string callDpiTickMacro = inja::render(R"(`define CALL_DPI_EXPORTER_TICK \
+            std::string callDpiTickMacro = inja::render(R"(`define VL_DPI_EXP_CALL_TICK \
     {% if sCallDpiTickFunc != "" %}{{sCallDpiTickFunc}}{% endif %}begin \
     {% if dpiTickFuncParam != "" %}    dpi_exporter_tick( \
 {{dpiTickFuncParam}}); \
@@ -244,6 +247,7 @@ import "DPI-C" function void dpi_exporter_tick();
     {% else %}    dpi_exporter_tick(); \
     end
     {% endif %}
+`define CALL_DPI_EXPORTER_TICK `VL_DPI_EXP_CALL_TICK
             )", json {
                 { "sCallDpiTickFunc", sCallDpiTickFunc },
                 { "dpiTickFuncParam", dpiTickFuncParamVec[0] }
@@ -270,12 +274,20 @@ import "DPI-C" function void dpi_exporter_tick();
 
             // Generated SV layout:
             //   1) import "DPI-C" dpi_exporter_tick(...);   // multi-line decl (OK for Verilator)
-            //   2) `define DECL_DPI_EXPORTER_TICK / CALL_... // still emitted for manual/PLDM use
-            //   3) default always: sensitive group ticks (if any) + dpi_exporter_tick(DEFAULT)
-            //      DO NOT use `CALL_DPI_EXPORTER_TICK here when the arg list is huge —
+            //   2) lift legacy MANUALLY_CALL_DPI_EXPORTER_TICK -> VL_DPI_EXP_MANUAL_TICK
+            //   3) `define VL_DPI_EXP_DECL_TICK / VL_DPI_EXP_CALL_TICK (+ legacy aliases)
+            //   4) default always: sensitive group ticks (if any) + dpi_exporter_tick(DEFAULT)
+            //      DO NOT use `VL_DPI_EXP_CALL_TICK here when the arg list is huge —
             //      Verilator expands that macro into one line and hits token-limit errors.
             auto code = inja::render(R"(
 {{dpiTickFuncDecl}}
+
+// Prefer VL_DPI_EXP_MANUAL_TICK. Legacy: MANUALLY_CALL_DPI_EXPORTER_TICK.
+`ifdef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
+`define VL_DPI_EXP_MANUAL_TICK
+`endif
+`endif
 
 {{sDpiTickFuncDecl}}
 
@@ -283,10 +295,11 @@ import "DPI-C" function void dpi_exporter_tick();
 
 {{callDpiTickMacro}}
 
-// Manual override: define MANUALLY_CALL_DPI_EXPORTER_TICK and use DECL_/CALL_ macros yourself.
-// Default path below intentionally does NOT invoke `CALL_DPI_EXPORTER_TICK (see ExporterRewriter
+// Manual override: define VL_DPI_EXP_MANUAL_TICK (or legacy MANUALLY_CALL_DPI_EXPORTER_TICK)
+// and use VL_DPI_EXP_DECL_TICK / VL_DPI_EXP_CALL_TICK yourself (legacy: DECL_/CALL_DPI_EXPORTER_TICK).
+// Default path below intentionally does NOT invoke `VL_DPI_EXP_CALL_TICK (see ExporterRewriter
 // comment: Verilator "Too many preprocessor tokens on a line" with large export lists).
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
 {{sCallDpiTickFuncDirect}}
 {% if dpiTickFuncParamDirect != "" %}
@@ -297,7 +310,7 @@ always @({{sampleEdge}} {{topModuleName}}.{{clock}}) begin
     dpi_exporter_tick();
 {% endif %}
 end
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
 {{pldmGfifoDpiStr}}
 )",

@@ -314,26 +314,30 @@ extern "C" char *dpi_exporter_get_meta_info_file_path() {
 
 
 
-// Call verilua_main_step_safe() in dpi_exporter_tick() if `DPI_EXP_CALL_VERILUA_ENV_STEP` macro is defined.
+// Call verilua_main_step[_safe]() in dpi_exporter_tick() if `VL_DPI_EXP_CALL_ENV_STEP` is defined.
 // Only available when `distributeDPI` is 0.
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+// Legacy cflags still accepted: DPI_EXP_CALL_VERILUA_ENV_STEP / DPI_EXP_USE_STRICT_STEP.
+#if defined(DPI_EXP_CALL_VERILUA_ENV_STEP) && !defined(VL_DPI_EXP_CALL_ENV_STEP)
+#define VL_DPI_EXP_CALL_ENV_STEP
+#endif
+#if defined(DPI_EXP_USE_STRICT_STEP) && !defined(VL_DPI_EXP_USE_STRICT_STEP)
+#define VL_DPI_EXP_USE_STRICT_STEP
+#endif
 
-// The `DPI_EXP_USE_STRICT_STEP` macro controls error handling semantics for the Verilua step
-// invoked from the simulator:
-// - If `DPI_EXP_USE_STRICT_STEP` is defined, `verilua_main_step()` is used. In strict mode,
-//   any uncaught Lua error will cause an immediate termination of the whole simulation. Use this
-//   when you prefer fail-fast semantics and want simulation to stop on script errors.
-// - If `DPI_EXP_USE_STRICT_STEP` is NOT defined, `verilua_main_step_safe()` is used. In safe
-//   mode, Lua errors are caught/reported and the simulator continues running. Use this when you
-//   need resilience to scripting errors and prefer the simulator to keep running.
-#ifdef DPI_EXP_USE_STRICT_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
+
+// `VL_DPI_EXP_USE_STRICT_STEP` controls error handling for the Verilua step from the simulator:
+// - Defined: `verilua_main_step()` — fail-fast, uncaught Lua error aborts simulation.
+// - Not defined: `verilua_main_step_safe()` — catch/report Lua errors, keep running.
+// Legacy alias: DPI_EXP_USE_STRICT_STEP.
+#ifdef VL_DPI_EXP_USE_STRICT_STEP
 extern "C" void verilua_main_step();
-#else // DPI_EXP_USE_STRICT_STEP
+#else // VL_DPI_EXP_USE_STRICT_STEP
 extern "C" void verilua_main_step_safe();
-#endif // DPI_EXP_USE_STRICT_STEP
+#endif // VL_DPI_EXP_USE_STRICT_STEP
 
 
-#endif // DPI_EXP_CALL_VERILUA_ENV_STEP
+#endif // VL_DPI_EXP_CALL_ENV_STEP
 
 extern "C" void dpi_exporter_tick(const uint8_t top_b_inst_valid1, const uint8_t top_b_inst_o_value_0, const uint8_t top_b_inst_o_value_1, const uint8_t top_b_inst_o_value_2, const uint8_t top_b_inst_o_value_4, const uint8_t top_b_inst_o_value_5, const uint8_t top_b_inst_o_value_6) {
 	__top_b_inst_valid1 = top_b_inst_valid1;
@@ -344,16 +348,16 @@ extern "C" void dpi_exporter_tick(const uint8_t top_b_inst_valid1, const uint8_t
 	__top_b_inst_o_value_5 = top_b_inst_o_value_5;
 	__top_b_inst_o_value_6 = top_b_inst_o_value_6;
 
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
 
-#ifdef DPI_EXP_USE_STRICT_STEP
+#ifdef VL_DPI_EXP_USE_STRICT_STEP
     verilua_main_step();
-#else // DPI_EXP_USE_STRICT_STEP
+#else // VL_DPI_EXP_USE_STRICT_STEP
     verilua_main_step_safe();
-#endif // DPI_EXP_USE_STRICT_STEP
+#endif // VL_DPI_EXP_USE_STRICT_STEP
 
 
-#endif // DPI_EXP_CALL_VERILUA_ENV_STEP
+#endif // VL_DPI_EXP_CALL_ENV_STEP
 }
 
 
@@ -362,12 +366,12 @@ extern "C" void dpi_exporter_tick(const uint8_t top_b_inst_valid1, const uint8_t
 // When sensitive signal groups are updated(i.e. dpi_exporter_tick_<SensitiveGroupName>), this function can be used to check whether any signal has changed.
 // Normally used for optimizing the performance of obtaining signal values by reducing unnecessary signal value sampling actions.
 extern "C" bool dpi_exporter_sensitive_trigger() {
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
 
     assert(0 && "dpi_exporter_sensitive_trigger() should not be called when hasSensitiveSignals is FALSE");
 
 #else
-    assert(0 && "dpi_exporter_sensitive_trigger() should not be called when cflags macro DPI_EXP_CALL_VERILUA_ENV_STEP is not defined");
+    assert(0 && "dpi_exporter_sensitive_trigger() should not be called when cflags macro VL_DPI_EXP_CALL_ENV_STEP (or legacy DPI_EXP_CALL_VERILUA_ENV_STEP) is not defined");
 #endif
 }
 

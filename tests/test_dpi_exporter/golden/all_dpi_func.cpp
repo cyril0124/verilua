@@ -2462,30 +2462,34 @@ extern "C" char *dpi_exporter_get_meta_info_file_path() {
 
 
 
-// Call verilua_main_step_safe() in dpi_exporter_tick() if `DPI_EXP_CALL_VERILUA_ENV_STEP` macro is defined.
+// Call verilua_main_step[_safe]() in dpi_exporter_tick() if `VL_DPI_EXP_CALL_ENV_STEP` is defined.
 // Only available when `distributeDPI` is 0.
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+// Legacy cflags still accepted: DPI_EXP_CALL_VERILUA_ENV_STEP / DPI_EXP_USE_STRICT_STEP.
+#if defined(DPI_EXP_CALL_VERILUA_ENV_STEP) && !defined(VL_DPI_EXP_CALL_ENV_STEP)
+#define VL_DPI_EXP_CALL_ENV_STEP
+#endif
+#if defined(DPI_EXP_USE_STRICT_STEP) && !defined(VL_DPI_EXP_USE_STRICT_STEP)
+#define VL_DPI_EXP_USE_STRICT_STEP
+#endif
 
-// The `DPI_EXP_USE_STRICT_STEP` macro controls error handling semantics for the Verilua step
-// invoked from the simulator:
-// - If `DPI_EXP_USE_STRICT_STEP` is defined, `verilua_main_step()` is used. In strict mode,
-//   any uncaught Lua error will cause an immediate termination of the whole simulation. Use this
-//   when you prefer fail-fast semantics and want simulation to stop on script errors.
-// - If `DPI_EXP_USE_STRICT_STEP` is NOT defined, `verilua_main_step_safe()` is used. In safe
-//   mode, Lua errors are caught/reported and the simulator continues running. Use this when you
-//   need resilience to scripting errors and prefer the simulator to keep running.
-#ifdef DPI_EXP_USE_STRICT_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
+
+// `VL_DPI_EXP_USE_STRICT_STEP` controls error handling for the Verilua step from the simulator:
+// - Defined: `verilua_main_step()` — fail-fast, uncaught Lua error aborts simulation.
+// - Not defined: `verilua_main_step_safe()` — catch/report Lua errors, keep running.
+// Legacy alias: DPI_EXP_USE_STRICT_STEP.
+#ifdef VL_DPI_EXP_USE_STRICT_STEP
 extern "C" void verilua_main_step();
-#else // DPI_EXP_USE_STRICT_STEP
+#else // VL_DPI_EXP_USE_STRICT_STEP
 extern "C" void verilua_main_step_safe();
-#endif // DPI_EXP_USE_STRICT_STEP
+#endif // VL_DPI_EXP_USE_STRICT_STEP
 
 
 bool hasSignalChanged = false; // Used for sensitive signals to indicate if there is a change in all sensitive signals.
 bool hasSignalChanged_test = false;
 bool hasSignalChanged_test1 = false;
 
-#endif // DPI_EXP_CALL_VERILUA_ENV_STEP
+#endif // VL_DPI_EXP_CALL_ENV_STEP
 
 extern "C" void dpi_exporter_tick(const uint32_t *top_b_inst_a_inst_0_i_value_0, const uint32_t *top_b_inst_a_inst_0_i_value_1, const uint32_t *top_b_inst_a_inst_0_i_value_2, const uint32_t *top_b_inst_a_inst_0_i_value_3, uint8_t *top_a_inst_0_c_inst_w_value_1, uint8_t *top_a_inst_1_c_inst_w_value_1, uint8_t *top_b_inst_a_inst_1_c_inst_w_value_1, uint32_t *top_a_inst_0_c_inst_w_value_2, uint32_t *top_a_inst_1_c_inst_w_value_2, uint32_t *top_b_inst_a_inst_1_c_inst_w_value_2, uint32_t *top_a_inst_0_c_inst_w_value_3, uint32_t *top_a_inst_1_c_inst_w_value_3, uint32_t *top_b_inst_a_inst_1_c_inst_w_value_3, uint32_t *top_a_inst_0_c_inst_w_value_4, uint32_t *top_a_inst_1_c_inst_w_value_4, uint32_t *top_b_inst_a_inst_1_c_inst_w_value_4, uint32_t *top_a_inst_0_c_inst_w_value_5, uint32_t *top_a_inst_1_c_inst_w_value_5, uint32_t *top_b_inst_a_inst_1_c_inst_w_value_5, uint8_t *top_b_inst_a_inst_0_c_inst_w_value_1, uint32_t *top_b_inst_a_inst_0_c_inst_w_value_2, uint32_t *top_b_inst_a_inst_0_c_inst_w_value_3, uint32_t *top_b_inst_a_inst_0_c_inst_w_value_4, uint32_t *top_b_inst_a_inst_0_c_inst_w_value_5, const uint8_t top_d_inst_value_0, const uint8_t top_d_inst_value_2) {
 	__top_b_inst_a_inst_0_i_value_0 = *top_b_inst_a_inst_0_i_value_0;
@@ -2515,20 +2519,20 @@ extern "C" void dpi_exporter_tick(const uint32_t *top_b_inst_a_inst_0_i_value_0,
 	__top_d_inst_value_0 = top_d_inst_value_0;
 	__top_d_inst_value_2 = top_d_inst_value_2;
 
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
 
-#ifdef DPI_EXP_USE_STRICT_STEP
+#ifdef VL_DPI_EXP_USE_STRICT_STEP
     verilua_main_step();
-#else // DPI_EXP_USE_STRICT_STEP
+#else // VL_DPI_EXP_USE_STRICT_STEP
     verilua_main_step_safe();
-#endif // DPI_EXP_USE_STRICT_STEP
+#endif // VL_DPI_EXP_USE_STRICT_STEP
 
 
     hasSignalChanged = false;
     hasSignalChanged_test = false;
 hasSignalChanged_test1 = false;
 
-#endif // DPI_EXP_CALL_VERILUA_ENV_STEP
+#endif // VL_DPI_EXP_CALL_ENV_STEP
 }
 
 
@@ -2540,7 +2544,7 @@ extern "C" void dpi_exporter_tick_n3(const uint8_t top_o_value_0, const uint8_t 
 	__top_o_value_5 = top_o_value_5;
 	__top_o_value_6 = top_o_value_6;
 
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
     hasSignalChanged = true;
     hasSignalChanged_test1 = true;
 #endif
@@ -2551,7 +2555,7 @@ extern "C" void dpi_exporter_tick_UNKNOWN_3(const uint32_t *top_b_inst_signal, c
 	__top_b_inst_signal1 = top_b_inst_signal1;
 	__top_b_inst_signal2 = top_b_inst_signal2;
 
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
     hasSignalChanged = true;
     hasSignalChanged_test = true;
 #endif
@@ -2566,7 +2570,7 @@ extern "C" void dpi_exporter_tick_o_signals(const uint8_t top_b_inst_valid1, con
 	__top_b_inst_o_value_5 = top_b_inst_o_value_5;
 	__top_b_inst_o_value_6 = top_b_inst_o_value_6;
 
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
     hasSignalChanged = true;
     hasSignalChanged_test = true;
 #endif
@@ -2580,7 +2584,7 @@ extern "C" void dpi_exporter_tick_n2(const uint8_t top_i_value_0, const uint8_t 
 	__top_i_value_5 = top_i_value_5;
 	__top_i_value_6 = top_i_value_6;
 
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
     hasSignalChanged = true;
     hasSignalChanged_test1 = true;
 #endif
@@ -2595,7 +2599,7 @@ extern "C" void dpi_exporter_tick_i_signals(const uint8_t top_b_inst_valid, cons
 	__top_b_inst_i_value_5 = top_b_inst_i_value_5;
 	__top_b_inst_i_value_6 = top_b_inst_i_value_6;
 
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
     hasSignalChanged = true;
     hasSignalChanged_test = true;
 #endif
@@ -2606,34 +2610,34 @@ extern "C" void dpi_exporter_tick_i_signals(const uint8_t top_b_inst_valid, cons
 // When sensitive signal groups are updated(i.e. dpi_exporter_tick_<SensitiveGroupName>), this function can be used to check whether any signal has changed.
 // Normally used for optimizing the performance of obtaining signal values by reducing unnecessary signal value sampling actions.
 extern "C" bool dpi_exporter_sensitive_trigger() {
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
 
     return hasSignalChanged;
 
 #else
-    assert(0 && "dpi_exporter_sensitive_trigger() should not be called when cflags macro DPI_EXP_CALL_VERILUA_ENV_STEP is not defined");
+    assert(0 && "dpi_exporter_sensitive_trigger() should not be called when cflags macro VL_DPI_EXP_CALL_ENV_STEP (or legacy DPI_EXP_CALL_VERILUA_ENV_STEP) is not defined");
 #endif
 }
 
 
 extern "C" bool dpi_exporter_sensitive_trigger_test() {
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
 
     return hasSignalChanged_test;
 
 #else
-    assert(0 && "dpi_exporter_sensitive_trigger_test() should not be called when cflags macro DPI_EXP_CALL_VERILUA_ENV_STEP is not defined");
+    assert(0 && "dpi_exporter_sensitive_trigger_test() should not be called when cflags macro VL_DPI_EXP_CALL_ENV_STEP (or legacy DPI_EXP_CALL_VERILUA_ENV_STEP) is not defined");
 #endif
 }
         
 
 extern "C" bool dpi_exporter_sensitive_trigger_test1() {
-#ifdef DPI_EXP_CALL_VERILUA_ENV_STEP
+#ifdef VL_DPI_EXP_CALL_ENV_STEP
 
     return hasSignalChanged_test1;
 
 #else
-    assert(0 && "dpi_exporter_sensitive_trigger_test1() should not be called when cflags macro DPI_EXP_CALL_VERILUA_ENV_STEP is not defined");
+    assert(0 && "dpi_exporter_sensitive_trigger_test1() should not be called when cflags macro VL_DPI_EXP_CALL_ENV_STEP (or legacy DPI_EXP_CALL_VERILUA_ENV_STEP) is not defined");
 #endif
 }
         

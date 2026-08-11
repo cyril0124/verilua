@@ -22,6 +22,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **xmake / verilua rule**: Rename make OPT knobs to `set_values("verilua.verilator_opt_fast", ...)` / `set_values("verilua.verilator_opt_slow", ...)`. Replaces `verilator.opt_fast` / `verilator.opt_slow` (no alias).
 - **dpi_exporter / DpiExporter**: Meta field `exportedSignals` (string list) is replaced by `exportedSignalInfos` (`hierPath`, `bitWidth`, `vpiTypeStr`, `handleId`). Old meta files must be regenerated. `DpiExporter:is_exported` is removed; use `DpiExporter:lookup(path)` (info or `nil`).
 
+### ⚙️ Changed
+
+- **dpi_exporter**: Control macros renamed to `VL_DPI_EXP_*` (preferred). Legacy names still accepted:
+  - C cflags: `DPI_EXP_CALL_VERILUA_ENV_STEP` → `VL_DPI_EXP_CALL_ENV_STEP`; `DPI_EXP_USE_STRICT_STEP` → `VL_DPI_EXP_USE_STRICT_STEP`
+  - SV: `` `DECL_DPI_EXPORTER_TICK `` → `` `VL_DPI_EXP_DECL_TICK ``; `` `CALL_DPI_EXPORTER_TICK `` → `` `VL_DPI_EXP_CALL_TICK ``; `` `MANUALLY_CALL_DPI_EXPORTER_TICK `` → `` `VL_DPI_EXP_MANUAL_TICK ``
+
 ### 🚀 Added
 
 - **sv / SVBuilder**: `add "raw"` injects free-form preamble SV (`typedef` / function / `logic` / `always`) before `default clocking`, sequences/properties/covergroups; lint context includes preamble so later covergroups (and bare clock/reset used by `default_clocking`) can reference helper signals. `default_clocking` also accepts a hierarchical path string when no CHDL handle is available.

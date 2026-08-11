@@ -198,8 +198,15 @@ import "DPI-C" function void dpi_exporter_tick(
 );
 
 
+// Prefer VL_DPI_EXP_MANUAL_TICK. Legacy: MANUALLY_CALL_DPI_EXPORTER_TICK.
+`ifdef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
+`define VL_DPI_EXP_MANUAL_TICK
+`endif
+`endif
 
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+
+`ifndef VL_DPI_EXP_MANUAL_TICK
 /*
 Sensitive group name: i_signals
 Sensitive trigger signals:
@@ -215,9 +222,9 @@ import "DPI-C" function void dpi_exporter_tick_i_signals(
 	input bit top_b_inst_i_value_5,
 	input bit top_b_inst_i_value_6
 );
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 /*
 Sensitive group name: o_signals
 Sensitive trigger signals:
@@ -233,9 +240,9 @@ import "DPI-C" function void dpi_exporter_tick_o_signals(
 	input bit top_b_inst_o_value_5,
 	input bit top_b_inst_o_value_6
 );
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 /*
 Sensitive group name: UNKNOWN_3
 Sensitive trigger signals:
@@ -249,9 +256,9 @@ import "DPI-C" function void dpi_exporter_tick_UNKNOWN_3(
 	input bit top_b_inst_signal1,
 	input bit top_b_inst_signal2
 );
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 /*
 Sensitive group name: n2
 Sensitive trigger signals:
@@ -266,9 +273,9 @@ import "DPI-C" function void dpi_exporter_tick_n2(
 	input bit top_i_value_5,
 	input bit top_i_value_6
 );
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 /*
 Sensitive group name: n3
 Sensitive trigger signals:
@@ -283,10 +290,10 @@ import "DPI-C" function void dpi_exporter_tick_n3(
 	input bit top_o_value_5,
 	input bit top_o_value_6
 );
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
 
-`define DECL_DPI_EXPORTER_TICK \
+`define VL_DPI_EXP_DECL_TICK \
     import "DPI-C" function void dpi_exporter_tick( \
 	input bit [31:0] top_b_inst_a_inst_0_i_value_0, \
 	input bit [63:0] top_b_inst_a_inst_0_i_value_1, \
@@ -359,9 +366,11 @@ import "DPI-C" function void dpi_exporter_tick_n3(
 		input bit top_o_value_5, \
 		input bit top_o_value_6 \
 	); 
+// Legacy aliases (deprecated): same expansion as VL_DPI_EXP_DECL_TICK / VL_DPI_EXP_CALL_TICK.
+`define DECL_DPI_EXPORTER_TICK `VL_DPI_EXP_DECL_TICK
             
 
-`define CALL_DPI_EXPORTER_TICK \
+`define VL_DPI_EXP_CALL_TICK \
     if((top.b_inst.valid ^ top_b_inst_valid__LAST) ||top.b_inst.valid ) begin \
         dpi_exporter_tick_i_signals( \
 			top.b_inst.valid, \
@@ -442,12 +451,14 @@ import "DPI-C" function void dpi_exporter_tick_n3(
 			top.d_inst.value_2); \
     end
     
+`define CALL_DPI_EXPORTER_TICK `VL_DPI_EXP_CALL_TICK
             
 
-// Manual override: define MANUALLY_CALL_DPI_EXPORTER_TICK and use DECL_/CALL_ macros yourself.
-// Default path below intentionally does NOT invoke `CALL_DPI_EXPORTER_TICK (see ExporterRewriter
+// Manual override: define VL_DPI_EXP_MANUAL_TICK (or legacy MANUALLY_CALL_DPI_EXPORTER_TICK)
+// and use VL_DPI_EXP_DECL_TICK / VL_DPI_EXP_CALL_TICK yourself (legacy: DECL_/CALL_DPI_EXPORTER_TICK).
+// Default path below intentionally does NOT invoke `VL_DPI_EXP_CALL_TICK (see ExporterRewriter
 // comment: Verilator "Too many preprocessor tokens on a line" with large export lists).
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 always @(negedge top.clock) begin
 
     if ((top.b_inst.valid ^ top_b_inst_valid__LAST) ||top.b_inst.valid ) begin
@@ -536,7 +547,7 @@ always @(negedge top.clock) begin
 			top.d_inst.value_2);
 
 end
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
 
 

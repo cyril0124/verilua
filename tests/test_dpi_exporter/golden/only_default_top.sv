@@ -179,9 +179,16 @@ import "DPI-C" function void dpi_exporter_tick(
 );
 
 
+// Prefer VL_DPI_EXP_MANUAL_TICK. Legacy: MANUALLY_CALL_DPI_EXPORTER_TICK.
+`ifdef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
+`define VL_DPI_EXP_MANUAL_TICK
+`endif
+`endif
 
 
-`define DECL_DPI_EXPORTER_TICK \
+
+`define VL_DPI_EXP_DECL_TICK \
     import "DPI-C" function void dpi_exporter_tick( \
 	input bit top_b_inst_valid1, \
 	input bit top_b_inst_o_value_0, \
@@ -191,9 +198,11 @@ import "DPI-C" function void dpi_exporter_tick(
 	input bit top_b_inst_o_value_5, \
 	input bit top_b_inst_o_value_6); 
     
+// Legacy aliases (deprecated): same expansion as VL_DPI_EXP_DECL_TICK / VL_DPI_EXP_CALL_TICK.
+`define DECL_DPI_EXPORTER_TICK `VL_DPI_EXP_DECL_TICK
             
 
-`define CALL_DPI_EXPORTER_TICK \
+`define VL_DPI_EXP_CALL_TICK \
     begin \
         dpi_exporter_tick( \
 			top.b_inst.valid1, \
@@ -205,12 +214,14 @@ import "DPI-C" function void dpi_exporter_tick(
 			top.b_inst.o_value_6); \
     end
     
+`define CALL_DPI_EXPORTER_TICK `VL_DPI_EXP_CALL_TICK
             
 
-// Manual override: define MANUALLY_CALL_DPI_EXPORTER_TICK and use DECL_/CALL_ macros yourself.
-// Default path below intentionally does NOT invoke `CALL_DPI_EXPORTER_TICK (see ExporterRewriter
+// Manual override: define VL_DPI_EXP_MANUAL_TICK (or legacy MANUALLY_CALL_DPI_EXPORTER_TICK)
+// and use VL_DPI_EXP_DECL_TICK / VL_DPI_EXP_CALL_TICK yourself (legacy: DECL_/CALL_DPI_EXPORTER_TICK).
+// Default path below intentionally does NOT invoke `VL_DPI_EXP_CALL_TICK (see ExporterRewriter
 // comment: Verilator "Too many preprocessor tokens on a line" with large export lists).
-`ifndef MANUALLY_CALL_DPI_EXPORTER_TICK
+`ifndef VL_DPI_EXP_MANUAL_TICK
 always @(negedge top.clock) begin
 
 
@@ -225,7 +236,7 @@ always @(negedge top.clock) begin
 			top.b_inst.o_value_6);
 
 end
-`endif // MANUALLY_CALL_DPI_EXPORTER_TICK
+`endif // VL_DPI_EXP_MANUAL_TICK
 
 
 
