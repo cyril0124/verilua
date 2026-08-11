@@ -35,27 +35,32 @@ To get started with Verilua, visit our [documentation website](https://cyril0124
 
 ```
 verilua/
-├── docs/                    # Documentation files (MDX format)
-├── docs-website/            # Docusaurus documentation website
-├── src/                     # Main source code
-│   ├── lua/verilua/         # Lua code entry point
-│   ├── testbench_gen/       # Testbench auto-generation tool
-│   ├── verilator/           # Verilator simulator main files
-│   ├── wave_vpi/            # Waveform simulation backend
-│   ├── nosim/               # No-simulation backend for analysis
-│   ├── signal_db_gen/       # SignalDB generator
-│   ├── dummy_vpi/           # VPI to DPI converter for HSE performance
-│   ├── dpi_exporter/        # DPI exporter for signal access
-│   ├── cov_exporter/        # Coverage exporter
-│   └── include/             # Some common header files
-├── libverilua/              # Core VPI implementation (Rust)
-├── tests/                   # Test cases (also serves as examples for Verilua API usage)
-├── examples/                # Example projects
-├── scripts/                 # Build scripts and utility scripts
-│   ├── .xmake/              # Xmake build rules and toolchains for various simulators
-├── tools/                   # Compiled tool binaries and hardware simulator wrappers for Verilua integration
-├── xmake.lua                # Top-level xmake build script
-└── DEVELOPMENT.md           # Development guidelines
+├── docs/                    # Documentation sources (MDX)
+├── docs-website/            # Docusaurus site
+├── src/
+│   ├── lua/verilua/         # Lua runtime & public scripting APIs
+│   ├── gen/                 # Lua generators (scheduler, CHDL access)
+│   ├── verilator/           # Verilator main program
+│   ├── wave_vpi/            # Waveform backend (VCD/FST/FSDB)
+│   ├── nosim/               # No-simulation analysis backend
+│   ├── sv_lint/             # SystemVerilog lint (slang-backed)
+│   ├── slang_common/        # Shared slang helpers for generators
+│   ├── testbench_gen/       # Testbench generator
+│   ├── signal_db_gen/       # SignalDB generator + shared lib
+│   ├── dummy_vpi/           # VPI shim over generated DPI accessors
+│   ├── dpi_exporter/        # DPI code generator for signal access
+│   ├── cov_exporter/        # Coverage instrumentation exporter
+│   └── include/             # Common C/C++ headers
+├── libverilua/              # Rust VPI core & simulator shims
+├── tests/                   # Tests (also API usage examples)
+├── examples/                # Example projects & guided tour
+├── scripts/
+│   ├── .xmake/              # Xmake rules, plugins, simulator toolchains
+│   └── conan/               # Conan packaging helpers
+├── tools/                   # Simulator wrappers (vl-verilator, vl-vcs, …)
+├── xmake.lua                # Top-level build entry
+├── AGENTS.md                # Contributor / agent project map
+└── DEVELOPMENT.md           # Generated-code & broader dev notes
 ```
 
 ## 💡 Why Lua/LuaJIT?
