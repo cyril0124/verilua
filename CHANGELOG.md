@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 💥 Breaking Changes
 
+- **dummy_vpi**: Control macros hard-renamed (old names no longer recognized):
+  - `DUMMY_VPI_NOT_USE_WRAPPER` → `VL_DUMMY_VPI_NOT_USE_WRAPPER`
+  - `DUMMY_VPI_TIME_PRECISION` → `VL_DUMMY_VPI_TIME_PRECISION`
+  - `DUMMY_VPI_STRICT_HANDLE_BY_NAME` → `VL_DUMMY_VPI_STRICT_HANDLE_BY_NAME`
 - **env vars**: Hard-rename runtime env names (old names no longer read):
   - `DUT_TOP` → `VL_DUT_TOP`
   - `LUA_SCRIPT` → `VL_LUA_SCRIPT`

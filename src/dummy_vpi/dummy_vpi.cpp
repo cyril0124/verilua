@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#ifdef DUMMY_VPI_NOT_USE_WRAPPER
+#ifdef VL_DUMMY_VPI_NOT_USE_WRAPPER
 #define DEFINE_VPI_FUNC(func) func
 #else
 // The reason for appending `__wrap_` prefix to the function name is that in some case the origin `vpi_*`
@@ -360,19 +360,19 @@ PLI_INT32 DEFINE_VPI_FUNC(vpi_get)(PLI_INT32 property, vpiHandle object) {
         return static_cast<PLI_INT32>(complexHandle->bitwidth);
     }
     case vpiTimePrecision: {
-#ifndef DUMMY_VPI_TIME_PRECISION
-#define DUMMY_VPI_TIME_PRECISION -9 // ns
-        WARN("In dummy_vpi, we assume vpiTimePrecision is ns (-9).\n\tYou can define `DUMMY_VPI_TIME_PRECISION` macro to override this value\n");
+#ifndef VL_DUMMY_VPI_TIME_PRECISION
+#define VL_DUMMY_VPI_TIME_PRECISION -9 // ns
+        WARN("In dummy_vpi, we assume vpiTimePrecision is ns (-9).\n\tYou can define `VL_DUMMY_VPI_TIME_PRECISION` macro to override this value\n");
 #else
-        // Check the value of DUMMY_VPI_TIME_PRECISION
-        static_assert(std::is_integral<decltype(DUMMY_VPI_TIME_PRECISION)>::value, "DUMMY_VPI_TIME_PRECISION must be an integer");
-        FATAL(std::is_integral<decltype(DUMMY_VPI_TIME_PRECISION)>::value, "DUMMY_VPI_TIME_PRECISION must be an integer, got non-integer type!\n");
-        static_assert(DUMMY_VPI_TIME_PRECISION <= 0 && DUMMY_VPI_TIME_PRECISION >= -15, "DUMMY_VPI_TIME_PRECISION should be between -15 and 0 (inclusive)");
-        FATAL(DUMMY_VPI_TIME_PRECISION <= 0 && DUMMY_VPI_TIME_PRECISION >= -15, "DUMMY_VPI_TIME_PRECISION should be between -15 and 0 (inclusive), got %d\n", DUMMY_VPI_TIME_PRECISION);
+        // Check the value of VL_DUMMY_VPI_TIME_PRECISION
+        static_assert(std::is_integral<decltype(VL_DUMMY_VPI_TIME_PRECISION)>::value, "VL_DUMMY_VPI_TIME_PRECISION must be an integer");
+        FATAL(std::is_integral<decltype(VL_DUMMY_VPI_TIME_PRECISION)>::value, "VL_DUMMY_VPI_TIME_PRECISION must be an integer, got non-integer type!\n");
+        static_assert(VL_DUMMY_VPI_TIME_PRECISION <= 0 && VL_DUMMY_VPI_TIME_PRECISION >= -15, "VL_DUMMY_VPI_TIME_PRECISION should be between -15 and 0 (inclusive)");
+        FATAL(VL_DUMMY_VPI_TIME_PRECISION <= 0 && VL_DUMMY_VPI_TIME_PRECISION >= -15, "VL_DUMMY_VPI_TIME_PRECISION should be between -15 and 0 (inclusive), got %d\n", VL_DUMMY_VPI_TIME_PRECISION);
 
-        INFO("In dummy_vpi, vpiTimePrecision is set to %d by DUMMY_VPI_TIME_PRECISION macro.\n", DUMMY_VPI_TIME_PRECISION);
+        INFO("In dummy_vpi, vpiTimePrecision is set to %d by VL_DUMMY_VPI_TIME_PRECISION macro.\n", VL_DUMMY_VPI_TIME_PRECISION);
 #endif
-        return DUMMY_VPI_TIME_PRECISION;
+        return VL_DUMMY_VPI_TIME_PRECISION;
     }
     default:
         FATAL(0, "unsupported property: %d\n", property);
@@ -407,7 +407,7 @@ vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_name)(PLI_BYTE8 *name, vpiHandle scope) 
     std::replace(nameString.begin(), nameString.end(), '[', '_');
     std::replace(nameString.begin(), nameString.end(), ']', '_');
 
-#ifdef DUMMY_VPI_STRICT_HANDLE_BY_NAME
+#ifdef VL_DUMMY_VPI_STRICT_HANDLE_BY_NAME
     auto _hdl = dpi_exporter_handle_by_name(nameString);
     FATAL(_hdl != -1, "[dummy_vpi] vpi_handle_by_name: Cannot find handle => name: %s, org_name: %s, topName:<%s> topModuleName:<%s>\n", nameString.c_str(), name, topName.c_str(), topModuleName.c_str());
 
