@@ -90,7 +90,8 @@ local post_init_mt = setmetatable({
 ---@field name string
 ---@field private always_fired boolean
 ---@field private width integer
----@field hdl verilua.handles.ComplexHandleRaw VPI handle; nil at runtime for dpi-only construct
+---@field hdl verilua.handles.ComplexHandleRaw VPI handle; nil at runtime for dpi-only (no dummy_vpi)
+---@field is_dpi_only boolean True when exported and dummy_vpi is not linked (`hdl` is nil)
 ---@field private hdl_type string
 ---@field is_array boolean
 ---@field array_size integer
@@ -220,23 +221,35 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.is_array = false
     self.array_size = 0
+    self.is_dpi_only = false
 
     if dpi_info then
-        -- dpi-only construct: static width/type from meta; ignore any passed VPI hdl.
+        -- Exported signal: width/type from meta. Keep VPI handle only when dummy_vpi is linked.
         local t = dpi_info.vpiTypeStr
         assert(
             t == "vpiReg" or t == "vpiNet" or t == "vpiLogicVar" or t == "vpiBitVar",
             f(
-                "[CallableHDL:_init] dpi-only supports scalar net/reg, got %s fullpath => %s",
+                "[CallableHDL:_init] dpi export supports scalar net/reg, got %s fullpath => %s",
                 t,
                 fullpath
             )
         )
-        -- dpi-only: no VPI handle; non-get APIs that touch hdl fail at runtime (by design).
-        ---@diagnostic disable-next-line: assign-type-mismatch
-        self.hdl = nil
         self.hdl_type = t
         self.width = dpi_info.bitWidth
+        ---@cast DpiExporter verilua.utils.DpiExporter
+        if DpiExporter:dummy_vpi_linked() then
+            local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
+            assert(
+                tmp_hdl ~= nil and tmp_hdl ~= -1,
+                f("[CallableHDL:_init] dummy_vpi handle missing! fullpath: %s", fullpath)
+            )
+            self.hdl = tmp_hdl
+        else
+            -- dpi-only: ignore passed VPI hdl; non-get APIs that touch hdl fail at runtime.
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            self.hdl = nil
+            self.is_dpi_only = true
+        end
     else
         local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
         if tmp_hdl == -1 then
@@ -292,7 +305,7 @@ function CallableHDL:_init(fullpath, name, hdl)
         "width: " .. self.width,
         "beat_num: " .. self.beat_num,
         "is_multi_beat: " .. tostring(self.is_multi_beat),
-        "dpi_only: " .. tostring(dpi_info ~= nil)
+        "dpi_only: " .. tostring(self.is_dpi_only)
     )
 
     if self.beat_num == 1 then
@@ -460,12 +473,14 @@ function CallableHDL:_init(fullpath, name, hdl)
         verilua_debug(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
 
         -- Assign new `get`
+        -- GET_VEC writes words at values[0]; chdl c_results is [0]=beat_num, words at [1..].
         if self.width <= 32 then
             self.__vpi_get = self.get
             self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
             self.get = function(this)
                 return this.__dpi_get()
             end
+            self.get64 = self.get
         else
             self.__vpi_get = self.get
             self.__dpi_get = DpiExporter:fetch_get_value_func(self.fullpath)
@@ -474,7 +489,8 @@ function CallableHDL:_init(fullpath, name, hdl)
             if self.width <= 64 then
                 self.get = function(this, force_multi_beat)
                     if force_multi_beat then
-                        this.__dpi_get_vec(this.c_results)
+                        this.__dpi_get_vec(this.c_results + 1)
+                        this.c_results[0] = this.beat_num
                         return this.c_results --[[@as verilua.handles.MultiBeatData]]
                     else
                         return this.__dpi_get64()
@@ -482,7 +498,8 @@ function CallableHDL:_init(fullpath, name, hdl)
                 end
             else
                 self.get = function(this)
-                    this.__dpi_get_vec(this.c_results)
+                    this.__dpi_get_vec(this.c_results + 1)
+                    this.c_results[0] = this.beat_num
                     return this.c_results --[[@as verilua.handles.MultiBeatData]]
                 end
             end
@@ -493,14 +510,15 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
 
         -- TODO: has some problem with PLDM
-        -- Assign new `get_hex_str`
-        -- self.__vpi_get_hex_str = self.get_hex_str
-        -- self.__dpi_get_hex_str = DpiExporter:fetch_get_hex_str_value_func(self.fullpath)
-        -- self.hex_buffer = ffi.new("char[?]", utils.cover_with_n(self.width, 4))
-        -- self.get_hex_str = function (this)
-        --     this.__dpi_get_hex_str(this.hex_buffer)
-        --     return ffi_string(this.hex_buffer)
-        -- end
+        -- dummy_vpi keeps VPI get_hex_str. dpi-only must bind DPI.
+        if self.is_dpi_only then
+            self.__dpi_get_hex_str = DpiExporter:fetch_get_hex_str_value_func(self.fullpath)
+            self.hex_buffer = ffi_new("char[?]", utils.cover_with_n(self.width, 4) + 1)
+            self.get_hex_str = function(this)
+                this.__dpi_get_hex_str(this.hex_buffer)
+                return ffi_string(this.hex_buffer)
+            end
+        end
     end
 
     local await_posedge_hdl = _G.await_posedge_hdl

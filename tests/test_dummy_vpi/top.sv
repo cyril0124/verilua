@@ -1,4 +1,4 @@
-// Simple DUT for dpi_exporter + dpi-only CallableHDL integration.
+// DUT for dummy_vpi + DpiExporter CallableHDL (keep VPI handle).
 module top (
     input  wire        clock,
     input  wire        reset,

@@ -511,6 +511,19 @@ add_group_target("test-dpi-exporter-chdl", function(ctx)
     end)
 end)
 
+add_group_target("test-dummy-vpi", function(ctx)
+    local cwd = path.join(ctx.tests_dir, "test_dummy_vpi")
+    for _, sim in ipairs(ctx.simulators) do
+        if sim == "verilator" or sim == "vcs" then
+            ctx.run_case(join_case_parts("test_dummy_vpi", sim), function()
+                ctx.clean(path.join(cwd, "build"))
+                ctx.run_cmd(cwd, "xmake build -P . test", { SIM = sim })
+                ctx.run_cmd(cwd, "xmake run -P .", { SIM = sim })
+            end)
+        end
+    end
+end)
+
 add_group_target("test-cov-exporter", function(ctx)
     ctx.run_case("test_cov_exporter", function()
         ctx.run_cmd(path.join(ctx.tests_dir, "test_cov_exporter"), "xmake run -P .")

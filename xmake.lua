@@ -1008,6 +1008,7 @@ target("test", function()
             -- Tool tests (one per directory)
             "test-dpi-exporter",
             "test-dpi-exporter-chdl",
+            "test-dummy-vpi",
             "test-cov-exporter",
             "test-cov-exporter-dynamic",
             "test-signal-db",

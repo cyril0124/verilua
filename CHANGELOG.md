@@ -28,12 +28,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
+- **DpiExporter / CallableHDL**: Exported-signal `hdl` is nil (dpi-only) only when `dummy_vpi` is not linked. If `vl_dummy_vpi_linked` is present, the VPI handle is kept so dummy_vpi still serves `get_hex_str` / `set` / edge. `get` / `get64` / `get_vec` stay on DPI in both cases.
 - **dpi_exporter**: Control macros renamed to `VL_DPI_EXP_*` (preferred). Legacy names still accepted:
   - C cflags: `DPI_EXP_CALL_VERILUA_ENV_STEP` → `VL_DPI_EXP_CALL_ENV_STEP`; `DPI_EXP_USE_STRICT_STEP` → `VL_DPI_EXP_USE_STRICT_STEP`
   - SV: `` `DECL_DPI_EXPORTER_TICK `` → `` `VL_DPI_EXP_DECL_TICK ``; `` `CALL_DPI_EXPORTER_TICK `` → `` `VL_DPI_EXP_CALL_TICK ``; `` `MANUALLY_CALL_DPI_EXPORTER_TICK `` → `` `VL_DPI_EXP_MANUAL_TICK ``
 
 ### 🚀 Added
 
+- **dummy_vpi**: Export `vl_dummy_vpi_linked()` so Lua can distinguish dummy_vpi from real simulator VPI (`SymbolHelper.get_global_symbol_addr` / `DpiExporter:dummy_vpi_linked()`).
+- **CallableHDL**: Add `is_dpi_only` (`true` when the signal is exported and dummy_vpi is not linked).
 - **sv / SVBuilder**: `add "raw"` injects free-form preamble SV (`typedef` / function / `logic` / `always`) before `default clocking`, sequences/properties/covergroups; lint context includes preamble so later covergroups (and bare clock/reset used by `default_clocking`) can reference helper signals. `default_clocking` also accepts a hierarchical path string when no CHDL handle is available.
 - **xmake / verilua rule**: Auto-export `VL_TARGET_NAME` (xmake `target:name()`) and `VL_BUILD_DIR` (target build dir absolute path) into runenvs so both `xmake run` and `setvars.sh` / `run.sh` expose them to Lua scripts.
 - **testbench_gen / xmake**: Default log is quiet (one-line `generate ...` / `up-to-date`; warnings always). Detail behind `--verbose`. xmake rule no longer passes `--verbose` by default; use `add_values("verilua.tb_gen_flags", "--verbose")` when needed. Non-verbose runs call slang `runFullCompilation(quiet=true)` to drop "Top level design units" / "Build succeeded" noise.
@@ -48,6 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **DpiExporter / CallableHDL**: dpi-only `get64` (width ≤ 32), `get_hex_str`, and multi-beat `get`/`get(true)` now bind to DPI. `GET_VEC` is copied into the chdl `c_results` layout (`[0]=beat_num`, words from `[1]`).
 - **Scheduler**: Task failures no longer emit a second generic `assertion failed!`; the scheduler now reports that execution was aborted after printing the original traceback.
 - **NativeClock**: Edge puts now use the deferred `set` path (`vpiml_set_value` / pending queue) instead of immediate `vpiNoDelay`, matching Lua `clock:set` and Verilator RW/comb observation.
 - **xmake / verilua rule**: `setvars.sh` now shell-quotes `add_runenvs` values so spaces, quotes, and newlines (e.g. multi-line `VL_POST_INIT_SCRIPT`) survive `source setvars.sh`. `PATH` / `LD_LIBRARY_PATH` still append `:$KEY` outside the quotes.

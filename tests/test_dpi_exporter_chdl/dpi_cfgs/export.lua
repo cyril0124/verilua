@@ -2,5 +2,5 @@
 add_pattern {
     name = "export",
     module = "top",
-    signals = "count|valid|wide64",
+    signals = "count|valid|wide64|wide128",
 }

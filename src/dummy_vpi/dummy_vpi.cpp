@@ -235,6 +235,10 @@ inline std::string replace(std::string input, std::string toReplace, std::string
 extern "C" {
 #endif
 
+// Unique marker so Lua can tell dummy_vpi is linked (not real simulator VPI).
+// `used` keeps the symbol under LTO; do not probe dpi_exporter_* / __wrap_vpi_*.
+__attribute__((used)) int vl_dummy_vpi_linked(void) { return 1; }
+
 vpiHandle DEFINE_VPI_FUNC(vpi_handle_by_index)(vpiHandle object, PLI_INT32 indx) { FATAL(0, "`vpi_handle_by_index` not implemented\n"); }
 
 vpiHandle DEFINE_VPI_FUNC(vpi_put_value)(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
