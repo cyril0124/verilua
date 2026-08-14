@@ -9,6 +9,9 @@ on:
     branches:
       - master
 
+env:
+  VL_BUNDLE_KEY_HEX: ${{ secrets.VL_BUNDLE_KEY_HEX }}
+
 jobs:
   changes:
     name: Changes Detection
@@ -195,8 +198,11 @@ jobs:
       #   uses: owenthereal/action-upterm@v1
 
       - name: Setup and test in CentOS 7 container
+        env:
+          VL_BUNDLE_KEY_HEX: ${{ secrets.VL_BUNDLE_KEY_HEX }}
         run: |
           docker run --rm \
+            -e VL_BUNDLE_KEY_HEX \
             -v ${{ github.workspace }}:/workspace \
             -v /nix:/nix \
             -v "$HOME/.nix-profile:/nix-profile" \

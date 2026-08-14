@@ -32,6 +32,7 @@ jobs:
     env:
       verilator-version: 'v5.038'
       iverilog-tag: 's20250103'
+      VL_BUNDLE_KEY_HEX: ${{ secrets.VL_BUNDLE_KEY_HEX }}
 
     steps:
       - name: Install hyperfine

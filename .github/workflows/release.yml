@@ -6,6 +6,9 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+env:
+  VL_BUNDLE_KEY_HEX: ${{ secrets.VL_BUNDLE_KEY_HEX }}
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -140,8 +143,11 @@ jobs:
           bash ./ci/make_tools_wrapper.sh
 
       - name: Setup and test in CentOS 7 container
+        env:
+          VL_BUNDLE_KEY_HEX: ${{ secrets.VL_BUNDLE_KEY_HEX }}
         run: |
           docker run --rm \
+            -e VL_BUNDLE_KEY_HEX \
             -v ${{ github.workspace }}:/workspace \
             -v /nix:/nix \
             -v "$HOME/.nix-profile:/nix-profile" \
