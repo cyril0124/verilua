@@ -15,7 +15,7 @@ local wave_vpi_features = "chunk_task " .. common_features
 local nosim_features = "chunk_task " .. common_features
 
 local build_iverilog_vpi_module_cmd = format(
-    [[cargo build --release --features "iverilog iverilog_vpi_mod %s"]],
+    [[cargo build -p libverilua --release --features "iverilog iverilog_vpi_mod %s"]],
     iverilog_features
 )
 
@@ -58,7 +58,7 @@ local function build_lib_common(simulator)
             local ok, err
             try {
                 function()
-                    os.vrun([[cargo build --release --features "%s"]], feature_args)
+                    os.vrun([[cargo build -p libverilua --release --features "%s"]], feature_args)
                 end,
                 finally {
                     function(succeeded, result_or_errors)
@@ -76,25 +76,25 @@ local function build_lib_common(simulator)
         end
 
         if simulator == "verilator" then
-            os.vrun([[cargo build --release --features "verilator %s"]], verilator_features)
+            os.vrun([[cargo build -p libverilua --release --features "verilator %s"]], verilator_features)
         elseif simulator == "verilator_i" then
-            os.vrun([[cargo build --release --features "verilator %s"]], verilator_features .. " inertial_put")
+            os.vrun([[cargo build -p libverilua --release --features "verilator %s"]], verilator_features .. " inertial_put")
         elseif simulator == "verilator_dpi" then
             cargo_build_with_wrap(format("verilator dpi %s", verilator_features))
         elseif simulator == "vcs" then
-            os.vrun([[cargo build --release --features "vcs %s"]], vcs_features)
+            os.vrun([[cargo build -p libverilua --release --features "vcs %s"]], vcs_features)
         elseif simulator == "xcelium" then
-            os.vrun([[cargo build --release --features "vcs %s"]], xcelium_features)
+            os.vrun([[cargo build -p libverilua --release --features "vcs %s"]], xcelium_features)
         elseif simulator == "vcs_dpi" then
             cargo_build_with_wrap(format("vcs dpi %s", vcs_features))
         elseif simulator == "xcelium_dpi" then
             cargo_build_with_wrap(format("vcs dpi %s", xcelium_features))
         elseif simulator == "wave_vpi" then
-            os.vrun([[cargo build --release --features "wave_vpi %s"]], wave_vpi_features)
+            os.vrun([[cargo build -p libverilua --release --features "wave_vpi %s"]], wave_vpi_features)
         elseif simulator == "iverilog" then
             os.vrun(build_iverilog_vpi_module_cmd)
         elseif simulator == "nosim" then
-            os.vrun([[cargo build --release --features "nosim %s"]], nosim_features)
+            os.vrun([[cargo build -p libverilua --release --features "nosim %s"]], nosim_features)
         else
             raise("Unknown simulator => " .. simulator)
         end
@@ -232,21 +232,21 @@ target("build_libverilua_no_opt", function()
         os.mkdir(path.join(shared_dir, "no_opt"))
 
         print("[build libverilua_no_opt] build libverilua_verilator.so...")
-        os.vrun([[cargo build --release --features "verilator verilator_inner_step_callback %s"]], common_features)
+        os.vrun([[cargo build -p libverilua --release --features "verilator verilator_inner_step_callback %s"]], common_features)
         os.cp(
             path.join(prj_dir, "target", "release", "libverilua.so"),
             path.join(shared_dir, "no_opt", "libverilua_verilator.so")
         )
 
         print("[build libverilua_no_opt] build libverilua_vcs.so...")
-        os.vrun([[cargo build --release --features "vcs %s"]], common_features)
+        os.vrun([[cargo build -p libverilua --release --features "vcs %s"]], common_features)
         os.cp(
             path.join(prj_dir, "target", "release", "libverilua.so"),
             path.join(shared_dir, "no_opt", "libverilua_vcs.so")
         )
 
         local _build_iverilog_vpi_module_cmd = format(
-            [[cargo build --release --features "iverilog iverilog_vpi_mod %s"]],
+            [[cargo build -p libverilua --release --features "iverilog iverilog_vpi_mod %s"]],
             common_features
         )
         print("[build libverilua_no_opt] build libverilua_iverilog.so...")

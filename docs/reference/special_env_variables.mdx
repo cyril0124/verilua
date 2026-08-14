@@ -28,6 +28,7 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_CFG_FILE` | 用户配置文件路径 |
 | `VL_TARGET_NAME` | 当前 xmake target 名称（rule 自动注入） |
 | `VL_BUILD_DIR` | 当前 target 构建目录绝对路径（rule 自动注入） |
+| `VL_BUNDLE_KEY_HEX` | 编译 libverilua 时注入的打包密钥（64 hex 为裸密钥，否则 SHA-256；仅构建） |
 | `VERILUA_HOME` | Verilua 安装根路径 |
 
 ---
@@ -269,8 +270,21 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 
 ---
 
+### `VL_BUNDLE_KEY_HEX` (可选，构建期)
+
+编译 `libverilua` 时写入 AES-256-GCM 密钥。运行时不读此变量。未设置则库能链，但不能打/解 `.vlbc`。不要提交仓库。
+
+- **默认值**：未设置
+- **格式**：64 个 hex → 裸密钥；其它非空字符串 → 整串 SHA-256（不截断）。多/少一个字符都是另一把钥匙
+- **范围**：仅编译 libverilua。打包须在已加载该库的 Verilua 进程里做
+- **示例**：`VL_BUNDLE_KEY_HEX='口令' xmake run build_libverilua`
+- **相关文档**：[加密打包验证组件（BundleToVlbc）](./bundle_to_vlbc.mdx)
+
+---
+
 ## 相关文档
 
 - [全局配置信息](./global_configuration.mdx)
 - [仿真器控制](./simulator_control.mdx)
 - [xmake 参数说明](./xmake_params.mdx)
+- [加密打包验证组件（BundleToVlbc）](./bundle_to_vlbc.mdx)

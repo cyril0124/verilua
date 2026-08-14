@@ -1,0 +1,141 @@
+# 加密打包验证组件（BundleToVlbc）
+
+`BundleToVlbc` 用来把一套 Lua 验证组件打成加密后的 `.vlbc` 文件，再交给客户用官方 Verilua 加载。
+
+Lua 写的 agent、scoreboard、VIP 如果直接发源码，客户打开文件就能看到实现。SystemVerilog VIP 可以用 IEEE 1735（`pragma protect`）做到「仿真器能跑、编辑器里看不到源码」。`.vlbc` 就是 Verilua 这边对应的做法：客户照常 `require`，看不到 Lua 源码。
+
+另外一个好处是分发简单。整棵 `require` 依赖树会收进**一个文件**，不用再给客户一堆 `.lua`。
+
+典型流程：
+
+```lua
+local BundleToVlbc = require "verilua.utils.BundleToVlbc"
+
+-- 必须在已经加载带密钥 libverilua 的 Verilua 进程里打包
+BundleToVlbc.bundle_to_vlbc("axi.agent", {
+    out = "dist/axi/agent.vlbc",
+    path = "src/?.lua",
+})
+
+-- 客户侧：init.lua 已经注册了 loader
+package.path = "dist/?.lua;dist/?.vlbc;" .. package.path
+local agent = require("axi.agent")
+```
+
+```text
+axi/agent.lua --require--> axi/inner.lua --require--> axi/util.lua
+      |                         |                         |
+      +-------------- bundle_to_bc（一份 LuaJIT 字节码）----+
+                                |
+                         AES-256-GCM 加密
+                                |
+                                v
+                      dist/axi/agent.vlbc
+                                |
+                   require("axi.agent")  （loader）
+                                |
+                                v
+                   package.preload["axi.agent"]
+                   package.preload["axi.inner"]
+                   package.preload["axi.util"]
+```
+
+密钥在编译 `libverilua` 时写入官方库，跑仿真时不会再读环境变量。
+
+## 初始化
+
+`require` 即可。打包必须在 Verilua 进程里做（和平时跑仿真同一个环境），因为加密走的是 `libverilua` 里的 `vl_bundle_seal`。
+
+```lua
+local BundleToVlbc = require "verilua.utils.BundleToVlbc"
+```
+
+加载侧不用自己调用 `install_loader()`，`init.lua` 启动时已经注册过。
+
+## 编译带密钥的 libverilua
+
+```bash
+VL_BUNDLE_KEY_HEX='你们组的口令' SIM=verilator xmake run build_libverilua
+```
+
+`VL_BUNDLE_KEY_HEX` 只在编译库时使用：
+
+| 输入 | 实际密钥 |
+| --- | --- |
+| 正好 64 个十六进制字符 | 当作 AES-256 裸密钥，不再哈希 |
+| 其它非空字符串（更短或更长） | 整串做 SHA-256，得到 32 字节，不截断 |
+
+64 个 hex 再多写或少写一个字符，就会变成另一把钥匙。口令不要太短，不要写进 `activate_verilua.sh`，也不要提交到仓库。
+
+不设这个变量也能编译、也能跑普通 `.lua`，只是不能生成或解开 `.vlbc`。只有用**同一把钥匙**编出来的 libverilua，才能解开对应的包。这和 Verilua 的版本号无关：v1 和 v2 只要钥匙相同就可以互相打开。
+
+完整说明见 [VL_BUNDLE_KEY_HEX](./special_env_variables.mdx#vl_bundle_key_hex-可选构建期)。
+
+## 函数参考
+
+### `bundle_to_vlbc(entry, opts?)`
+
+收集 `entry` 及其依赖，编成 LuaJIT 字节码后再加密，写成 `.vlbc` 文件。
+
+- **参数**：
+  - `entry` (`string`)：模块名，例如 `"axi.agent"`，不是文件路径
+  - `opts.out` (`string?`)：输出路径，默认是把模块名里的 `.` 换成 `/` 再加 `.vlbc`
+  - `opts.path` (`string?`)：打包时到哪里去找 `.lua` 源文件。默认用当前进程的 `package.path`。仿真里的 `package.path` 通常指向 DUT、build 目录，不一定包含你的 VIP 源码，这时要自己指定，例如 `"/home/you/vip/src/?.lua"`。只影响打包，不会写进 `.vlbc`，客户加载时仍用他们自己的 `package.path` 找 `.vlbc`。
+  - `opts.skip` (`table?`)：额外不要打进包的模块名或根名，例如 `{ ["axi.debug"] = true }`
+- **返回值**：`string` 实际写出的文件路径
+- **说明**：
+  - 只跟踪写成 `require("...")` / `require '...'` 的依赖。`require(x)`、`require("a" .. "b")` 不会被收进去。
+  - `--` 和 `--[[ ]]` 注释里的 `require` 会被忽略。
+  - 循环 `require` 不会死循环。缺了字面量依赖会在打包时报错。
+  - 默认不打包 `verilua.*`、`pl.*`、Lua / LuaJIT 标准库，以及只在 `package.cpath` 上能找到的原生模块。公开 API 可以继续留成明文 `.lua`，方便 IDE 补全。
+- **示例**：
+  ```lua
+  local out = BundleToVlbc.bundle_to_vlbc("axi.agent", {
+      out = "dist/axi/agent.vlbc",
+      path = "src/?.lua",
+      skip = { ["axi.debug"] = true },
+  })
+  print("wrote", out)
+  ```
+
+### `bundle_to_bc(entry, opts?)`
+
+只做收集和编译，返回一份未加密的 LuaJIT 字节码字符串，不写文件。`bundle_to_vlbc` 内部会先调用它再加密。
+
+- **参数**：与 `bundle_to_vlbc` 相同，忽略 `opts.out`
+- **返回值**：`string` 字节码。`load(bc)()` 等价于 `require(entry)`
+- **说明**：字节码里保留行号，运行时报错形如 `vlbc://axi.agent:42`，没有源码正文。
+
+### `install_loader()`
+
+向 `package.loaders` 注册 `.vlbc` 搜索器，插在默认 `.lua` 搜索器后面。`init.lua` 已经调用过，一般不用再调。
+
+加载到 `.vlbc` 时会打一条 `verilua_warning`，例如：
+
+```text
+VLBC  require(axi.agent) <= dist/axi/agent.vlbc
+```
+
+## 客户如何加载
+
+`package.path` 里写成 `?.lua` 的路径，也会被用来找 `?.vlbc`。
+
+```lua
+package.path = "dist/?.lua;dist/?.vlbc;" .. package.path
+local agent = require("axi.agent")
+```
+
+如果同名的 `.lua` 和 `.vlbc` 都在，会先用 `.lua`。
+
+两个包里如果都包含同一个模块（比如 `axi.common`），运行时仍然只有 `package.loaded` 里的那一份；谁先被 `require`，就用谁打包进去的代码。
+
+## 报错
+
+| 情况 | 报错里会出现 |
+| --- | --- |
+| 当前 libverilua 编译时没带密钥 | `no compile-time key` |
+| 密钥对不上，或文件被改过 | `key mismatch or corrupted blob` |
+| 文件格式或版本不对 | `not a compatible VLBC` |
+| 组件自己调用 `error` | `vlbc://axi.agent:42: ...`（有行号，没有源码） |
+
+AES-GCM 分不清是密钥错了还是文件坏了，所以这两种情况会报同一条。

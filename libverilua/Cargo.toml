@@ -27,6 +27,8 @@ tabled = "0.18.0"
 cpp = "0.5"
 wildmatch = "2.4.0"
 fslock = "0.2.1"
+aes-gcm = "0.10"
+sha2 = "0.10"
 memmap2 = { version = "0.9", optional = true }
 
 [lib]

@@ -1129,3 +1129,5 @@ end
 
 ---@type verilua.handles.ProxyTableHandle
 _G.dut = (require "verilua.LuaDut").create_proxy(cfg.top)
+
+require("verilua.utils.BundleToVlbc").install_loader()

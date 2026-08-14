@@ -257,15 +257,18 @@ local function before_build_or_run(target)
     local sourcefiles = target:sourcefiles()
     for _, sourcefile in ipairs(sourcefiles) do
         local ext = path.extension(sourcefile)
-        if ext == ".lua" or ext == ".luau" or ext == ".tl" then
+        if ext == ".lua" or ext == ".luau" or ext == ".tl" or ext == ".vlbc" then
             local dir = path.directory(path.absolute(sourcefile))
             local last_dir = path.normalize(path.join(dir, ".."))
             local last_last_dir = path.normalize(path.join(dir, "..", ".."))
             if not deps_path_map[dir] then
                 deps_path_map[dir] = true
                 deps_vec[#deps_vec + 1] = path.join(dir, "?.lua")
+                deps_vec[#deps_vec + 1] = path.join(dir, "?.vlbc")
                 deps_vec[#deps_vec + 1] = path.join(last_dir, "?.lua")
+                deps_vec[#deps_vec + 1] = path.join(last_dir, "?.vlbc")
                 deps_vec[#deps_vec + 1] = path.join(last_last_dir, "?.lua")
+                deps_vec[#deps_vec + 1] = path.join(last_last_dir, "?.vlbc")
             end
         end
     end
@@ -437,7 +440,7 @@ end
 
 rule("verilua", function()
     add_imports("lib.detect.find_file")
-    set_extensions(".v", ".sv", ".svh", ".lua", ".luau", ".tl", ".d.tl", ".vlt", ".vcd", ".fst", ".fsdb")
+    set_extensions(".v", ".sv", ".svh", ".lua", ".luau", ".tl", ".d.tl", ".vlbc", ".vlt", ".vcd", ".fst", ".fsdb")
 
     before_build(before_build_or_run)
 

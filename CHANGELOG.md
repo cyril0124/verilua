@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **BundleToVlbc**: Pack a module tree into a sealed `.vlbc` (`require("verilua.utils.BundleToVlbc")`). `bundle_to_bc` collects literal `require()` deps into LuaJIT bytecode (lineinfo kept as `vlbc://mod:line`); `bundle_to_vlbc` AES-256-GCM-seals it. Key is compile-time `VL_BUNDLE_KEY_HEX` (64 hex = raw key, otherwise SHA-256). Loader is installed from `init.lua`. Unseal/require maps AES-GCM auth failure to a key-mismatch error.
 - **dummy_vpi**: Export `vl_dummy_vpi_linked()` so Lua can distinguish dummy_vpi from real simulator VPI (`SymbolHelper.get_global_symbol_addr` / `DpiExporter:dummy_vpi_linked()`).
 - **CallableHDL**: Add `is_dpi_only` (`true` when the signal is exported and dummy_vpi is not linked).
 - **sv / SVBuilder**: `add "raw"` injects free-form preamble SV (`typedef` / function / `logic` / `always`) before `default clocking`, sequences/properties/covergroups; lint context includes preamble so later covergroups (and bare clock/reset used by `default_clocking`) can reference helper signals. `default_clocking` also accepts a hierarchical path string when no CHDL handle is available.

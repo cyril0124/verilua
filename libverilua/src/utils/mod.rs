@@ -3,6 +3,8 @@
 //! This module provides FFI utilities, system interaction functions, and
 //! helper routines used throughout the Verilua codebase.
 
+pub mod bundle_crypto;
+
 use fslock::LockFile;
 use goblin::elf::Elf;
 use hashbrown::HashMap;
