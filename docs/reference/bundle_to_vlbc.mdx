@@ -1,6 +1,6 @@
 # 加密打包验证组件（BundleToVlbc）
 
-`BundleToVlbc` 用来把一套 Lua 验证组件打成加密后的 `.vlbc` 文件，再交给客户用官方 Verilua 加载。
+`.vlbc` 是 Verilua 中用于安全、方便地共享与分发验证组件的二进制封装格式。
 
 Lua 写的 agent、scoreboard、VIP 如果直接发源码，客户打开文件就能看到实现。SystemVerilog VIP 可以用 IEEE 1735（`pragma protect`）做到「仿真器能跑、编辑器里看不到源码」。`.vlbc` 就是 Verilua 这边对应的做法：客户照常 `require`，看不到 Lua 源码。
 
@@ -121,11 +121,11 @@ VLBC  require(axi.agent) <= dist/axi/agent.vlbc
 `package.path` 里写成 `?.lua` 的路径，也会被用来找 `?.vlbc`。
 
 ```lua
-package.path = "dist/?.lua;dist/?.vlbc;" .. package.path
+package.path = "dist/?.lua;" .. package.path
 local agent = require("axi.agent")
 ```
 
-如果同名的 `.lua` 和 `.vlbc` 都在，会先用 `.lua`。
+同名时 `.lua` 优先于 `.vlbc`。
 
 两个包里如果都包含同一个模块（比如 `axi.common`），运行时仍然只有 `package.loaded` 里的那一份；谁先被 `require`，就用谁打包进去的代码。
 

@@ -263,12 +263,12 @@ local function before_build_or_run(target)
             local last_last_dir = path.normalize(path.join(dir, "..", ".."))
             if not deps_path_map[dir] then
                 deps_path_map[dir] = true
+                -- Only ?.lua goes into package.path. A ?.vlbc entry is opened
+                -- as Lua source by the default file searcher.
+                -- BundleToVlbc maps ?.lua -> ?.vlbc itself.
                 deps_vec[#deps_vec + 1] = path.join(dir, "?.lua")
-                deps_vec[#deps_vec + 1] = path.join(dir, "?.vlbc")
                 deps_vec[#deps_vec + 1] = path.join(last_dir, "?.lua")
-                deps_vec[#deps_vec + 1] = path.join(last_dir, "?.vlbc")
                 deps_vec[#deps_vec + 1] = path.join(last_last_dir, "?.lua")
-                deps_vec[#deps_vec + 1] = path.join(last_last_dir, "?.vlbc")
             end
         end
     end
