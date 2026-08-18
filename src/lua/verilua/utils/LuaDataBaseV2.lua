@@ -19,6 +19,9 @@ local sqlite3_clib
 ---@type verilua.utils.duckdb
 local duckdb
 
+---@type verilua.utils.Turso
+local turso
+
 local DB_OK = 0
 local DB_ERR = 1
 
@@ -31,6 +34,7 @@ local f = string.format
 local table_insert = table.insert
 
 local verilua_debug = _G.verilua_debug
+local verilua_warning = _G.verilua_warning
 
 ffi.cdef [[
     typedef int pid_t;
@@ -75,8 +79,8 @@ end
 ---@field table_cnt_max? integer Default: nil
 ---@field verbose? boolean Default: false
 ---@field no_check_bind_value? boolean Default: false, the caller is responsible for the data to be bound, good for performance
----@field backend? "sqlite3" | "duckdb"
----@field lib_name? string Default: sqlite3/duckdb
+---@field backend? "sqlite3" | "duckdb" | "turso" | "auto" `auto` probes libsqlite3 health and loudly falls back to turso when it is unusable
+---@field lib_name? string Default: sqlite3/duckdb (unused by the turso backend)
 ---@field lib_path? string Default: nil
 ---@field pragmas? verilua.utils.LuaDataBase.pragmas
 
@@ -86,7 +90,7 @@ end
 ---@field private duckdb_config verilua.utils.DuckDB.duckdb_config
 ---@field private duckdb_conn verilua.utils.DuckDB.duckdb_connection
 ---@field private duckdb_appd verilua.utils.DuckDB.duckdb_appender
----@field backend "sqlite3" | "duckdb"
+---@field backend "sqlite3" | "duckdb" | "turso"
 ---@field private size_limit? integer
 ---@field private file_count integer
 ---@field private path_name string
@@ -155,6 +159,36 @@ local LuaDataBaseV2 = class()
 ---      db:save(123, 456, 789, "hello") -- Notice: parametes passed into this function should hold the `same order` and same number as the elements in the table
 --- ```
 
+--- Arbitration for `backend = "auto"`: prefer sqlite3, fall back to turso with a
+--- loud warning when libsqlite3 is unusable. Never silent; opt out by picking a
+--- concrete backend (explicit "sqlite3" still fails hard).
+---@param params verilua.utils.LuaDataBase.params
+---@return "sqlite3" | "turso"
+local function resolve_auto_backend(params)
+    local reason
+    local ok, mod_or_err = pcall(function()
+        return require("thirdparty_lib.sqlite3") {
+            name = params.lib_name or "sqlite3",
+            path = params.lib_path,
+        }
+    end)
+    if ok then
+        local mod = mod_or_err
+        -- dlsym canary: sqlite3_errstr exists since sqlite 3.7.15 (2012). EDA tools
+        -- may put ancient copies on LD_LIBRARY_PATH (e.g. VCS ships 3.7.13) which
+        -- break modern sqlite consumers at symbol-resolution time.
+        if pcall(function() return mod.clib.sqlite3_errstr end) then
+            return "sqlite3"
+        end
+        local version = ffi.string(mod.clib.sqlite3_libversion())
+        reason = "libsqlite3 is too old (version " .. version .. ", missing sqlite3_errstr)"
+    else
+        reason = "cannot load libsqlite3: " .. tostring(mod_or_err)
+    end
+    verilua_warning("[LuaDataBaseV2] backend \"auto\": " .. reason .. " => falling back to \"turso\"")
+    return "turso"
+end
+
 ---@param params verilua.utils.LuaDataBase.params
 function LuaDataBaseV2:_init(params)
     texpect.expect_table(params, "LuaDataBaseV2::_init::params", {
@@ -184,7 +218,10 @@ function LuaDataBaseV2:_init(params)
     local pragmas       = params.pragmas or {} --[[@as verilua.utils.LuaDataBase.pragmas]]
 
     local backend       = params.backend or "sqlite3"
-    self.backend        = backend
+    if backend == "auto" then
+        backend = resolve_auto_backend(params)
+    end
+    self.backend = backend
 
     if backend == "sqlite3" then
         local lib_name = params.lib_name or "sqlite3"
@@ -196,6 +233,15 @@ function LuaDataBaseV2:_init(params)
             }
             sqlite3_clib = sqlite3.clib
         end
+    elseif backend == "turso" then
+        -- Loaded by absolute path with no external sqlite dependency: immune to
+        -- stale libsqlite3.so copies shipped by EDA tools on LD_LIBRARY_PATH
+        -- (e.g. VCS bundles sqlite 3.7.13 which lacks sqlite3_errstr).
+        turso = require("verilua.utils.Turso").init {
+            -- lib_path belongs to the backend the user explicitly chose; do not
+            -- reuse a sqlite3 lib_path when "auto" fell back to turso.
+            lib_path = params.backend == "turso" and params.lib_path or nil,
+        }
     else
         assert(backend == "duckdb", "Unsupported backend: " .. backend)
         local lib_name = params.lib_name or "duckdb"
@@ -489,20 +535,24 @@ function LuaDataBaseV2:_init(params)
         end
     else
         if no_check_bind_value then
+            -- turso and sqlite3 share this code path; only the raw bind calls differ.
+            local is_turso = self.backend == "turso"
+            local int_tpl = is_turso and [[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        turso_clib.turso_ffi_bind_int(stmt, $(i), __cache_value__$(n)) ]] or [[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        sqlite3_clib.sqlite3_bind_double(stmt, $(i), __cache_value__$(n)) ]]
+            local text_tpl = is_turso and [[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        turso_clib.turso_ffi_bind_text(stmt, $(i), __cache_value__$(n), #__cache_value__$(n)) ]] or [[
+                        local __cache_value__$(n) = __cache_value[$(i)]
+                        sqlite3_clib.sqlite3_bind_text(stmt, $(i), __cache_value__$(n), #__cache_value__$(n), nil) ]]
             local t = {}
             for i, entry in ipairs(self.entries) do
                 if entry.type == "INTEGER" then
-                    t[#t + 1] = subst([[
-                        local __cache_value__$(n) = __cache_value[$(i)]
-                        sqlite3_clib.sqlite3_bind_double(stmt, $(i), __cache_value__$(n)) ]],
-                        { i = i, n = entry.name }
-                    )
+                    t[#t + 1] = subst(int_tpl, { i = i, n = entry.name })
                 elseif entry.type == "TEXT" then
-                    t[#t + 1] = subst([[
-                        local __cache_value__$(n) = __cache_value[$(i)]
-                        sqlite3_clib.sqlite3_bind_text(stmt, $(i), __cache_value__$(n), #__cache_value__$(n), nil) ]],
-                        { i = i, n = entry.name }
-                    )
+                    t[#t + 1] = subst(text_tpl, { i = i, n = entry.name })
                 else
                     assert(false, "[LuaDataBaseV2] Unsupported data type: " .. entry.type)
                 end
@@ -523,21 +573,22 @@ function LuaDataBaseV2:_init(params)
     --      save = function (this, v1, v2, v3)
     --          local save_cnt = this.save_cnt
     --          this.cache[save_cnt] = {v1, v2, v3}
+    --          this.save_cnt = save_cnt + 1
     --          if save_cnt >= 1000 then
     --              this:commit()
-    --          else
-    --              this.save_cnt = save_cnt + 1
     --          end
     --      end
     --
+    -- Invariant: `save_cnt` is always the next free cache slot, so `commit`
+    -- flushes slots `1 .. save_cnt - 1`. This keeps manual `commit()` (and the
+    -- finalization commit) from rewriting a stale row after a partial batch.
     local save_func_code = subst([[
         return function(this, $(args))
             local save_cnt = this.save_cnt
             this.cache[save_cnt] = {$(args)}
+            this.save_cnt = save_cnt + 1
             if save_cnt >= $(save_cnt_max) then
                 this:commit()
-            else
-                this.save_cnt = save_cnt + 1
             end
         end
     ]], {
@@ -596,7 +647,7 @@ function LuaDataBaseV2:_init(params)
                 this.db:exec("BEGIN TRANSACTION")
                 code, stmt = this.db:prepare_v2($(prepare))
                 if code ~= $(sqlite3_ok) then
-                    assert(false, "[LuaDataBaseV2] [commit] SQLite3 error: " .. this.db:errmsg())
+                    assert(false, "[LuaDataBaseV2] [commit] $(backend) error: " .. this.db:errmsg())
                 end
 |> end
             end
@@ -618,7 +669,7 @@ function LuaDataBaseV2:_init(params)
             end
 
 |> if backend == "duckdb" then
-            for cnt = 1, this.save_cnt do
+            for cnt = 1, this.save_cnt - 1 do
                 local __cache_value = this.cache[cnt]
                 $(bind_values_code)
                 this.duckdb_appd:end_row()
@@ -631,10 +682,10 @@ function LuaDataBaseV2:_init(params)
             this.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
             local code, stmt = this.db:prepare_v2($(prepare))
             if code ~= $(sqlite3_ok) then
-                assert(false, "[LuaDataBaseV2] [commit] SQLite3 error: " .. this.db:errmsg())
+                assert(false, "[LuaDataBaseV2] [commit] $(backend) error: " .. this.db:errmsg())
             end
 
-            for cnt = 1, this.save_cnt do
+            for cnt = 1, this.save_cnt - 1 do
                 local __cache_value = this.cache[cnt]
                 $(bind_values_code)
                 stmt:step()
@@ -677,6 +728,7 @@ function LuaDataBaseV2:_init(params)
             sqlite3_bind_values = sqlite3_bind_values,
             lfs_attributes = lfs.attributes,
             sqlite3_clib = sqlite3_clib,
+            turso_clib = turso and turso.clib or nil,
             print = print,
             path_join = path.join
         },
@@ -721,6 +773,8 @@ function LuaDataBaseV2:create_db()
     local is_duckdb = self.backend == "duckdb"
     if is_duckdb then
         backend_db = duckdb
+    elseif self.backend == "turso" then
+        backend_db = turso
     end
 
     -- Open database

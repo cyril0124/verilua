@@ -1,0 +1,16 @@
+[package]
+name = "turso_ffi"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "turso_ffi"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+# Pre-release APIs churn between pre.N bumps (e.g. pre.4 changed
+# TursoDatabaseConfig); pin exactly to the validated version.
+turso_sdk_kit = "=0.8.0-pre.3"
+turso_core = "=0.8.0-pre.3"

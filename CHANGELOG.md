@@ -35,6 +35,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **LuaDataBaseV2**: New `backend = "auto"`: probes libsqlite3 health (loadability + `sqlite3_errstr` dlsym canary) and falls back to the turso backend with a loud `verilua_warning` when libsqlite3 is unusable (e.g. VCS's bundled sqlite 3.7.13 on `LD_LIBRARY_PATH`). Explicit `backend = "sqlite3"` still fails hard; pick a concrete backend to opt out of arbitration.
+- **LuaDataBaseV2**: New `backend = "turso"` (Rust sqlite-compatible engine via `shared/libturso_ffi.so`, wrapper `verilua.utils.Turso`). Loaded by absolute path with no `libsqlite3.so` dependency, so it is immune to stale sqlite copies that EDA tools put on `LD_LIBRARY_PATH` (e.g. VCS ships sqlite 3.7.13 without `sqlite3_errstr`, which breaks `require "lsqlite3"` / `ffi.load("sqlite3")` inside `simv`). The library is built during `xmake install verilua` (step `setup_verilua`); rebuild manually with `xmake b turso_ffi`.
 - **BundleToVlbc**: Pack a module tree into a sealed `.vlbc` (`require("verilua.utils.BundleToVlbc")`). `bundle_to_bc` collects literal `require()` deps into LuaJIT bytecode (lineinfo kept as `vlbc://mod:line`); `bundle_to_vlbc` AES-256-GCM-seals it. Key is compile-time `VL_BUNDLE_KEY_HEX` (64 hex = raw key, otherwise SHA-256). Loader is installed from `init.lua`. Unseal/require maps AES-GCM auth failure to a key-mismatch error.
 - **dummy_vpi**: Export `vl_dummy_vpi_linked()` so Lua can distinguish dummy_vpi from real simulator VPI (`SymbolHelper.get_global_symbol_addr` / `DpiExporter:dummy_vpi_linked()`).
 - **CallableHDL**: Add `is_dpi_only` (`true` when the signal is exported and dummy_vpi is not linked).
@@ -52,6 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **LuaDataBase / LuaDataBaseV2**: Manual `commit()` (including the finalization commit) after a partial batch no longer writes one extra stale/duplicate row, and an empty commit no longer writes a garbage row. `save_cnt` now always tracks the next free cache slot and commit flushes `1 .. save_cnt - 1`.
 - **DpiExporter / CallableHDL**: dpi-only `get64` (width ≤ 32), `get_hex_str`, and multi-beat `get`/`get(true)` now bind to DPI. `GET_VEC` is copied into the chdl `c_results` layout (`[0]=beat_num`, words from `[1]`).
 - **Scheduler**: Task failures no longer emit a second generic `assertion failed!`; the scheduler now reports that execution was aborted after printing the original traceback.
 - **NativeClock**: Edge puts now use the deferred `set` path (`vpiml_set_value` / pending queue) instead of immediate `vpiNoDelay`, matching Lua `clock:set` and Verilator RW/comb observation.

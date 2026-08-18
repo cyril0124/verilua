@@ -365,10 +365,9 @@ function LuaDataBase:_init(params)
     --      save = function (this, v1, v2, v3)
     --          local save_cnt = this.save_cnt
     --          this.cache[save_cnt] = {v1, v2, v3}
+    --          this.save_cnt = save_cnt + 1
     --          if save_cnt >= 1000 then
     --              this:commit()
-    --          else
-    --              this.save_cnt = save_cnt + 1
     --          end
     --      end
     --
@@ -376,10 +375,9 @@ function LuaDataBase:_init(params)
         return function(this, $(args))
             local save_cnt = this.save_cnt
             this.cache[save_cnt] = {$(args)}
+            this.save_cnt = save_cnt + 1
             if save_cnt >= $(save_cnt_max) then
                 this:commit()
-            else
-                this.save_cnt = save_cnt + 1
             end
         end
     ]], {
@@ -401,7 +399,8 @@ function LuaDataBase:_init(params)
             this.db:exec("BEGIN TRANSACTION") -- Start transaction(improve db performance)
             local stmt = assert(this.db:prepare($(prepare)), "[commit] stmt is nil")
 
-            for cnt = 1, this.save_cnt do
+            -- `save_cnt` is the next free slot; flush `1 .. save_cnt - 1`.
+            for cnt = 1, this.save_cnt - 1 do
                 local __cache_value = this.cache[cnt]
                 $(bind_values_code)
                 stmt:step()

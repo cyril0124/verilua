@@ -52,6 +52,7 @@ verilua/
 │   ├── cov_exporter/        # Coverage instrumentation exporter
 │   └── include/             # Common C/C++ headers
 ├── libverilua/              # Rust VPI core & simulator shims
+├── crates/                  # Standalone Rust crates (turso_ffi DB backend)
 ├── tests/                   # Tests (also API usage examples)
 ├── examples/                # Example projects & guided tour
 ├── scripts/
