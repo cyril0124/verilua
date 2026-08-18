@@ -704,7 +704,7 @@ function texpect.expect_abdl(value, name, params)
     end
 end
 
----@param value verilua.utils.LuaDataBase|verilua.utils.LuaDataBase
+---@param value verilua.utils.LuaDataBase
 ---@param name string
 ---@param elements_table string[]
 function texpect.expect_database(value, name, elements_table)

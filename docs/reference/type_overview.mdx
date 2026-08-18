@@ -42,7 +42,7 @@
 | `verilua.utils.BitVec` | 可变长位向量，支持位运算与格式化输出 | [查看](./bitvec.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/BitVec.lua) |
 | `verilua.utils.NativeClock` | Rust 原生高性能时钟驱动，避免 Lua-VPI 频繁上下文切换 | [查看](./native_clock.mdx) | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/NativeClock.lua) |
 | `verilua.utils.IDPool` | 可分配/回收的整数 ID 池 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/IDPool.lua) |
-| `verilua.utils.LuaDataBase` | 基于 SQLite 的仿真数据记录器 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/LuaDataBase.lua) |
+| `verilua.utils.LuaDataBase` | `LuaDataBaseV2` 的兼容别名（同一实现，新代码请直接使用 `LuaDataBaseV2`） | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/LuaDataBase.lua) |
 | `verilua.utils.LuaDataBaseV2` | SQLite / DuckDB / Turso 多后端数据记录器（Turso 后端无 libsqlite3 依赖，不受 EDA 工具自带旧版 sqlite 干扰；`backend = "auto"` 可在 libsqlite3 不可用时告警并自动回退 Turso） | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/LuaDataBaseV2.lua) |
 | `verilua.utils.Logger` | 带颜色与级别的日志输出 | ⏳ Coming soon | [源码](https://github.com/cyril0124/verilua/blob/master/src/lua/verilua/utils/Logger.lua) |
 

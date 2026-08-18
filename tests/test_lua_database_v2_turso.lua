@@ -128,6 +128,25 @@ do
     print("[ok] turso no_check_bind_value save/commit/readback")
 end
 
+-- turso: int64 bind is exact above 2^31 (checked path uses turso_ffi_bind_int, i64)
+do
+    local db = make_db("turso", "func_turso_big.db", 10)
+    local big = 2 ^ 40 + 12345
+    db:save(big, "big")
+    close_db(db)
+    local Turso = require("verilua.utils.Turso").init {}
+    local rc, rdb = Turso.open(path.join(workdir, "func_turso_big.db"))
+    assert(rc == Turso.OK, "turso open for readback failed")
+    local code, st = rdb:prepare_v2("SELECT id FROM t")
+    assert(code == Turso.OK and st, rdb:errmsg())
+    assert(st:step() == Turso.ROW)
+    local got = tonumber(st:column_int(0))
+    st:finalize()
+    rdb:close()
+    assert(got == big, "expected " .. big .. ", got " .. tostring(got))
+    print("[ok] turso int64 bind exact above 2^31")
+end
+
 local function bench(backend, nrows, batch)
     local file = string.format("bench_%s_%d.db", backend, nrows)
     local t0 = os.clock()

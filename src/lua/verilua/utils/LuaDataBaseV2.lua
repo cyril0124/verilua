@@ -41,7 +41,27 @@ ffi.cdef [[
     pid_t getpid(void);
 ]]
 
+-- sqlite3 backend: bind numbers as double (53-bit exact integers), matching the
+-- original lsqlite3-based LuaDataBase and the no_check_bind_value fast path.
+-- sqlite3_bind_int would truncate values above 2^31 (C int); INTEGER column
+-- affinity converts integral doubles back to integers on store.
 local function sqlite3_bind_values(stmt, ...)
+    local n = select("#", ...)
+    for i = 1, n do
+        local v = select(i, ...)
+        local t = type(v)
+        if t == "number" then
+            stmt:bind_double(i, v)
+        elseif t == "string" then
+            stmt:bind_text(i, v)
+        else
+            assert(false, "[LuaDataBaseV2.sqlite3_bind_values] Unsupported data type: " .. t)
+        end
+    end
+end
+
+-- turso backend: native int64 bind, exact for Lua-number integers up to 2^53.
+local function turso_bind_values(stmt, ...)
     local n = select("#", ...)
     for i = 1, n do
         local v = select(i, ...)
@@ -51,7 +71,7 @@ local function sqlite3_bind_values(stmt, ...)
         elseif t == "string" then
             stmt:bind_text(i, v)
         else
-            assert(false, "[LuaDataBaseV2.sqlite3_bind_values] Unsupported data type: " .. t)
+            assert(false, "[LuaDataBaseV2.turso_bind_values] Unsupported data type: " .. t)
         end
     end
 end
@@ -560,8 +580,9 @@ function LuaDataBaseV2:_init(params)
             bind_values_code = table.concat(t, "\n\n")
         else
             bind_values_code = subst(
-                "sqlite3_bind_values(stmt, $(commit))",
+                "$(bind_helper)(stmt, $(commit))",
                 {
+                    bind_helper = self.backend == "turso" and "turso_bind_values" or "sqlite3_bind_values",
                     commit = table.concat(commit_data_unpack_items, ", ")
                 }
             )
@@ -726,6 +747,7 @@ function LuaDataBaseV2:_init(params)
             assert = assert,
             f = string.format,
             sqlite3_bind_values = sqlite3_bind_values,
+            turso_bind_values = turso_bind_values,
             lfs_attributes = lfs.attributes,
             sqlite3_clib = sqlite3_clib,
             turso_clib = turso and turso.clib or nil,

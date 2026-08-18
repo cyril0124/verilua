@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 💥 Breaking Changes
 
+- **LuaDataBase**: Now an alias of `LuaDataBaseV2` (single implementation; the old lsqlite3-based one is removed). Same constructor params, `save`/`commit` semantics, and `__type`. Notable differences: libsqlite3 is loaded lazily via FFI (no more hard failure at `require` time under stale EDA-bundled libsqlite3), all V2 backends/params are accepted (`backend = "duckdb" | "turso" | "auto"`, `no_check_bind_value`, ...), log prefix is `[LuaDataBaseV2]`, and the private `db` handle is the FFI wrapper instead of an lsqlite3 object.
 - **dummy_vpi**: Control macros hard-renamed (old names no longer recognized):
   - `DUMMY_VPI_NOT_USE_WRAPPER` → `VL_DUMMY_VPI_NOT_USE_WRAPPER`
   - `DUMMY_VPI_TIME_PRECISION` → `VL_DUMMY_VPI_TIME_PRECISION`
@@ -54,6 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **LuaDataBaseV2**: The sqlite3 backend's checked bind path bound numbers with `sqlite3_bind_int` (32-bit C int), truncating values above 2^31 (e.g. long-run cycle counts). Numbers are now bound as doubles (53-bit exact, matching the no_check fast path); the turso backend binds native int64.
 - **LuaDataBase / LuaDataBaseV2**: Manual `commit()` (including the finalization commit) after a partial batch no longer writes one extra stale/duplicate row, and an empty commit no longer writes a garbage row. `save_cnt` now always tracks the next free cache slot and commit flushes `1 .. save_cnt - 1`.
 - **DpiExporter / CallableHDL**: dpi-only `get64` (width ≤ 32), `get_hex_str`, and multi-beat `get`/`get(true)` now bind to DPI. `GET_VEC` is copied into the chdl `c_results` layout (`[0]=beat_num`, words from `[1]`).
 - **Scheduler**: Task failures no longer emit a second generic `assertion failed!`; the scheduler now reports that execution was aborted after printing the original traceback.
