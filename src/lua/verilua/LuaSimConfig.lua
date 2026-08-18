@@ -5,6 +5,7 @@ local debug = require "debug"
 
 ffi.cdef [[
     void srand(unsigned int seed);
+    char *getcwd(char *buf, size_t size);
 ]]
 
 local type = type
@@ -31,7 +32,7 @@ local colors = _G.colors
 ---@field is_wal boolean Whether use verilua as WAL(Waveform Analysis Language)
 ---@field period integer
 ---@field unit string
----@field prj_dir string Project directory
+---@field prj_dir string Project directory (resolved to an absolute path at runtime)
 ---@field time_precision integer Time precision as exponent (e.g., -9 for ns, -12 for ps)
 ---@field time_unit string Time unit corresponding to time precision ("fs", "ps", "ns", "us", "ms", "s")
 ---@field seed integer
@@ -323,6 +324,26 @@ function cfg.merge_config_1(src_cfg, other_cfg, info_str)
     end
 end
 
+--- Resolve a project directory to an absolute path.
+--- nil / "" / "." -> current working directory; relative -> joined with cwd;
+--- absolute -> unchanged. `cfg.prj_dir` is normalized to an absolute path so
+--- the public field is unambiguous in logs and safe to join into paths that
+--- are consumed outside the launch directory.
+---@param prj_dir? string
+---@return string
+local function resolve_prj_dir(prj_dir)
+    local buf = ffi.new("char[4096]")
+    assert(ffi.C.getcwd(buf, 4096) ~= nil, "[resolve_prj_dir] cannot get cwd")
+    local cwd = ffi.string(buf)
+    if prj_dir == nil or prj_dir == "" or prj_dir == "." then
+        return cwd
+    end
+    if prj_dir:sub(1, 1) == "/" then
+        return prj_dir
+    end
+    return cwd .. "/" .. prj_dir
+end
+
 function cfg:post_config()
     -- Check necessary configs
     local _cfg = self
@@ -404,7 +425,7 @@ function cfg:post_config()
     _cfg.deps                = _cfg:get_or_else("deps", {}) -- Dependencies
     _cfg.period              = _cfg:get_or_else("period", 10)
     _cfg.unit                = _cfg:get_or_else("unit", "ns")
-    _cfg.prj_dir             = _cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR") or ".")
+    _cfg.prj_dir             = resolve_prj_dir(_cfg:get_or_else("prj_dir", os.getenv("PRJ_DIR")))
 
     --- This flag is enabled by calling:
     --- ```lua
