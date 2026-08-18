@@ -1,6 +1,6 @@
 local ffi = require "ffi"
 
--- LuaJIT FFI wrapper over `libturso_ffi.so` (see `crates/turso_ffi`), exposing the
+-- LuaJIT FFI wrapper over `libturso_ffi.so` (see `src/turso_ffi`), exposing the
 -- same `open`/`db`/`stmt` object model as `thirdparty_lib.sqlite3` so that
 -- LuaDataBaseV2 can reuse its sqlite3 code path unchanged.
 --

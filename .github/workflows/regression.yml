@@ -248,6 +248,7 @@ jobs:
               xmake run install_lua_modules
               xmake run install_tinycc
               xmake run -y -v build_libverilua
+              xmake build -y -v turso_ffi
               xmake build -y -v iverilog_vpi_module
               xmake clean wave_vpi_main
               xmake f --clean

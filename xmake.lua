@@ -11,7 +11,7 @@ includes(path.join(prj_dir, "src", "testbench_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "wave_vpi", "xmake.lua"))
 includes(path.join(prj_dir, "src", "nosim", "xmake.lua"))
 includes(path.join(prj_dir, "src", "sv_lint", "xmake.lua"))
-includes(path.join(prj_dir, "crates", "xmake.lua"))
+includes(path.join(prj_dir, "src", "turso_ffi", "xmake.lua"))
 
 local CC = os.getenv("CC")
 local CXX = os.getenv("CXX")

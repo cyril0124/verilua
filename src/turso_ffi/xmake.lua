@@ -7,7 +7,7 @@ target("turso_ffi", function()
     set_kind("phony")
     set_default(false)
     on_build(function()
-        os.cd(path.join(prj_dir, "crates", "turso_ffi"))
+        os.cd(path.join(prj_dir, "src", "turso_ffi"))
         os.exec("cargo build --release -p turso_ffi")
     end)
 

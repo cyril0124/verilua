@@ -50,9 +50,9 @@ verilua/
 │   ├── dummy_vpi/           # VPI shim over generated DPI accessors
 │   ├── dpi_exporter/        # DPI code generator for signal access
 │   ├── cov_exporter/        # Coverage instrumentation exporter
+│   ├── turso_ffi/           # Turso FFI DB backend (Rust)
 │   └── include/             # Common C/C++ headers
 ├── libverilua/              # Rust VPI core & simulator shims
-├── crates/                  # Standalone Rust crates (turso_ffi DB backend)
 ├── tests/                   # Tests (also API usage examples)
 ├── examples/                # Example projects & guided tour
 ├── scripts/
