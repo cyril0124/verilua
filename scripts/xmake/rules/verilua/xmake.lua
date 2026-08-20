@@ -737,6 +737,13 @@ rule("verilua", function()
                 extra_verilator_flags[#extra_verilator_flags + 1] = "--public-flat-rw"
             end
 
+            if mem_direct_enabled(target) then
+                -- libmem_direct.so resolves Verilated runtime symbols from the
+                -- simulation executable. Verilator < 5.050 does not add this
+                -- export flag automatically for --vpi builds.
+                extra_verilator_flags[#extra_verilator_flags + 1] = [[-LDFLAGS "-rdynamic"]]
+            end
+
             -- Enables slow optimizations for the code Verilator itself generates. -O3 may improve simulation performance at the cost of compile time.
             local verilator_opt = "-O3"
             local verilator_x_assign = "--x-assign unique"
