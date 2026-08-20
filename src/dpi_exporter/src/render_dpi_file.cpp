@@ -264,6 +264,9 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::vector<
         auto hasSensitiveSignals = !sg.sensitiveSignalInfoVec.empty();
 
         for (auto &s : sg.signalInfoVec) {
+            if (s.isMetaOnly) {
+                continue; // meta_only: no handle map entry, no accessor, no tick sampling
+            }
             std::string extraInfo = fmt::format("/* hierPath: {} bitWidth: {} handleId: {} */", s.hierPath, s.bitWidth, s.handleId);
             handleByNameVec.push_back(fmt::format("\t\t{{ \"{}\", {} }} {}", s.hierPathName, s.handleId, extraInfo));
             getTypeStrVec.push_back(fmt::format("\t\t{{ {}, \"{}\" }} {}", s.handleId, s.vpiTypeStr, extraInfo));
@@ -333,6 +336,9 @@ std::string renderDpiFile(std::vector<SignalGroup> &signalGroupVec, std::vector<
         std::string dpiSignalDecl = "";
         std::vector<std::string> dpiSignalAccessFunctionsVec;
         for (auto &s : sg.signalInfoVec) {
+            if (s.isMetaOnly) {
+                continue; // meta_only: no shadow buffer, no reader/writer functions
+            }
             std::string extraInfo = fmt::format("/* hierPath: {} bitWidth: {} handleId: {} */", s.hierPath, s.bitWidth, s.handleId);
 
             if (s.beatSize == 1) {
