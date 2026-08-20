@@ -208,99 +208,74 @@ int main(int argc, const char *argv[]) {
     metaInfoJson["portInfos"]      = portInfos;
     metaInfoJson["portParamStmts"] = portParamStmts;
 
-    // Check whether clock and reset signal has been matched
-    bool clockSignalHasMatch = false;
-    bool resetSignalHasMatch = false;
-    bool userSpecifiedClock  = _clockSignalName.has_value() && !_clockSignalName.value().empty();
-    bool userSpecifiedReset  = _resetSignalName.has_value() && !_resetSignalName.value().empty();
-
-    // Clock signal name patterns (case-insensitive)
-    // Patterns: clk, clock, clk_*, clock_*, *_clk, *_clock, i_clk, sys_clk, etc.
-    auto isClockSignal = [](const std::string &name) -> bool {
+    // Resolve clock and reset ports by priority instead of declaration order.
+    auto toLower = [](const std::string &name) {
         std::string lowerName = name;
         std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+        return lowerName;
+    };
 
-        // Exact matches
+    auto clockScore = [&](const std::string &name) -> std::optional<int> {
+        const auto lowerName = toLower(name);
         if (lowerName == "clk" || lowerName == "clock")
-            return true;
-
-        // Prefix patterns: clk_*, clock_*, i_clk*, i_clock*
-        if (lowerName.starts_with("clk_") || lowerName.starts_with("clock_"))
-            return true;
-        if (lowerName.starts_with("i_clk") || lowerName.starts_with("i_clock"))
-            return true;
-
-        // Suffix patterns: *_clk, *_clock
-        if (lowerName.ends_with("_clk") || lowerName.ends_with("_clock"))
-            return true;
-
-        // Common patterns
-        if (lowerName == "sys_clk" || lowerName == "sys_clock")
-            return true;
-        if (lowerName == "clk_i" || lowerName == "clock_i")
-            return true;
-
-        return false;
+            return 0;
+        if (lowerName.starts_with("clk_") || lowerName.starts_with("clock_") || lowerName.starts_with("i_clk") || lowerName.starts_with("i_clock") || lowerName.ends_with("_clk") || lowerName.ends_with("_clock"))
+            return 1;
+        return std::nullopt;
     };
 
-    // Reset signal name patterns (case-insensitive)
-    // Patterns: rst, reset, rst_*, reset_*, *_rst, *_reset, rst_n, reset_n, etc.
-    auto isResetSignal = [](const std::string &name) -> bool {
-        std::string lowerName = name;
-        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-
-        // Exact matches (including active-low variants)
+    auto resetScore = [&](const std::string &name) -> std::optional<int> {
+        const auto lowerName = toLower(name);
         if (lowerName == "rst" || lowerName == "reset")
-            return true;
+            return 0;
         if (lowerName == "rst_n" || lowerName == "reset_n" || lowerName == "rstn" || lowerName == "resetn")
-            return true;
-
-        // Prefix patterns: rst_*, reset_*, i_rst*, i_reset*
-        if (lowerName.starts_with("rst_") || lowerName.starts_with("reset_"))
-            return true;
-        if (lowerName.starts_with("i_rst") || lowerName.starts_with("i_reset"))
-            return true;
-
-        // Suffix patterns: *_rst, *_reset, *_rst_n, *_reset_n
-        if (lowerName.ends_with("_rst") || lowerName.ends_with("_reset"))
-            return true;
-        if (lowerName.ends_with("_rst_n") || lowerName.ends_with("_reset_n"))
-            return true;
-
-        // Common patterns
-        if (lowerName == "sys_rst" || lowerName == "sys_reset")
-            return true;
-        if (lowerName == "sys_rst_n" || lowerName == "sys_reset_n")
-            return true;
-        if (lowerName == "rst_i" || lowerName == "reset_i")
-            return true;
-
-        return false;
+            return 1;
+        if (lowerName.starts_with("rst_") || lowerName.starts_with("reset_") || lowerName.starts_with("i_rst") || lowerName.starts_with("i_reset") || lowerName.ends_with("_rst") || lowerName.ends_with("_reset") || lowerName.ends_with("_rst_n") || lowerName.ends_with("_reset_n"))
+            return 2;
+        return std::nullopt;
     };
 
-    for (auto &port : portInfos) {
-        // If user specified clock signal, check exact match
-        if (userSpecifiedClock && port.name == clockSignalName) {
-            clockSignalHasMatch = true;
+    auto selectSignal = [&](const std::string &kind, const std::optional<std::string> &requested, auto score) -> std::optional<std::string> {
+        if (requested.has_value() && !requested->empty()) {
+            for (auto &port : portInfos) {
+                if (port.isInput() && port.name == *requested)
+                    return port.name;
+            }
+            PANIC(fmt::format("Specified {} signal is not an input port", kind), *requested);
         }
 
-        // If user specified reset signal, check exact match
-        if (userSpecifiedReset && port.name == resetSignalName) {
-            resetSignalHasMatch = true;
+        std::optional<int> bestScore;
+        std::vector<std::string> candidates;
+        for (auto &port : portInfos) {
+            if (!port.isInput())
+                continue;
+            const auto candidateScore = score(port.name);
+            if (!candidateScore.has_value())
+                continue;
+            if (!bestScore.has_value() || *candidateScore < *bestScore) {
+                bestScore  = candidateScore;
+                candidates = {port.name};
+            } else if (*candidateScore == *bestScore) {
+                candidates.push_back(port.name);
+            }
         }
 
-        // If user didn't specify clock signal, use smart detection
-        if (!userSpecifiedClock && !clockSignalHasMatch && isClockSignal(port.name)) {
-            clockSignalHasMatch = true;
-            clockSignalName     = port.name;
+        if (candidates.size() > 1) {
+            PANIC(fmt::format("Ambiguous {} signals; specify one with --{}-signal", kind, kind), joinStrVec(candidates, ", "));
         }
+        if (candidates.empty())
+            return std::nullopt;
+        return candidates.front();
+    };
 
-        // If user didn't specify reset signal, use smart detection
-        if (!userSpecifiedReset && !resetSignalHasMatch && isResetSignal(port.name)) {
-            resetSignalHasMatch = true;
-            resetSignalName     = port.name;
-        }
-    }
+    const auto selectedClock = selectSignal("clock", _clockSignalName, clockScore);
+    const auto selectedReset = selectSignal("reset", _resetSignalName, resetScore);
+    bool clockSignalHasMatch = selectedClock.has_value();
+    bool resetSignalHasMatch = selectedReset.has_value();
+    if (clockSignalHasMatch)
+        clockSignalName = *selectedClock;
+    if (resetSignalHasMatch)
+        resetSignalName = *selectedReset;
 
     if (!clockSignalHasMatch) {
         if (parser.hasProceduralBlock) {

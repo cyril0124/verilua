@@ -131,6 +131,30 @@ target("test", function()
             return false
         end
 
+        local function reject_snippet(output_file, snippet, test_name)
+            if not os.isfile(output_file) then
+                print(string.format("[%s] FAILED: Output file not found: %s", test_name, output_file))
+                return false
+            end
+
+            local content = io.readfile(output_file)
+            if not content then
+                print(string.format("[%s] FAILED: Cannot read output file: %s", test_name, output_file))
+                return false
+            end
+
+            if not content:find(snippet, 1, true) then
+                print(string.format("[%s] PASSED (snippet absent)", test_name))
+                return true
+            end
+
+            print(string.format("[%s] FAILED: Unexpected snippet found", test_name))
+            print(string.format("  Output: %s", output_file))
+            print("  Unexpected snippet:")
+            print(snippet)
+            return false
+        end
+
         local test_dir = os.scriptdir()
         local golden_dir = path.join(test_dir, "golden")
         local build_dir = path.join(test_dir, "build")
@@ -198,7 +222,9 @@ target("test", function()
 
         print("\n[clock_variants] Running testbench_gen for top_clock_variants.sv...")
         local ok3 = try { function()
-            os.exec("testbench_gen %s --out-dir %s --regen --verbose --check-output", clock_variants_rtl, build_dir)
+            os.exec(
+                "testbench_gen %s --out-dir %s --regen --verbose --check-output --clock-signal sys_clk --reset-signal sys_rst_n",
+                clock_variants_rtl, build_dir)
             return true
         end }
         if ok3 then
@@ -214,6 +240,37 @@ target("test", function()
             all_passed = false
         end
 
+        -- Exact reset names must win over earlier fuzzy matches such as *_reset.
+        test_count = test_count + 1
+        local reset_priority_rtl = path.join(test_dir, "top_reset_priority.sv")
+        local reset_priority_output = path.join(build_dir, "tb_top.sv")
+
+        print("\n[reset_priority] Running testbench_gen for top_reset_priority.sv...")
+        local ok4 = try { function()
+            os.exec("testbench_gen %s --out-dir %s --regen --verbose --check-output", reset_priority_rtl, build_dir)
+            return true
+        end }
+        if ok4 then
+            local snapshot_is_regular_input = compare_snippet(
+                reset_priority_output,
+                "reg io_sys_snapshot_reset; // input wire io_sys_snapshot_reset",
+                "reset_priority_snapshot_input"
+            )
+            local reset_is_not_redeclared = reject_snippet(
+                reset_priority_output,
+                "reg reset; // input wire reset",
+                "reset_priority_exact_reset"
+            )
+            if snapshot_is_regular_input and reset_is_not_redeclared then
+                pass_count = pass_count + 1
+            else
+                all_passed = false
+            end
+        else
+            print("[reset_priority] FAILED: testbench_gen execution failed")
+            all_passed = false
+        end
+
         -- Test cfg.tb_gen_flags preserves multiline custom code strings in xmake rule
         test_count = test_count + 1
         local custom_code_build_dir = path.join(build_dir, "custom_code_str")
@@ -221,11 +278,11 @@ target("test", function()
 
         print("\n[custom_code_str] Running xmake build for multiline custom code strings...")
         os.tryrm(custom_code_build_dir)
-        local ok4 = try { function()
+        local ok5 = try { function()
             os.execv("xmake", { "build", "-P", test_dir, "test_run_custom_code_str" })
             return true
         end }
-        if ok4 then
+        if ok5 then
             print("[custom_code_str] xmake build PASSED")
             local outer_ok = compare_snippet(
                 custom_code_output,
@@ -289,7 +346,8 @@ target("regen_golden", function()
         -- Generate golden for top_clock_variants.sv
         local clock_variants_rtl = path.join(test_dir, "top_clock_variants.sv")
         print("[clock_variants] Generating golden file...")
-        os.exec("testbench_gen %s --out-dir %s --regen --check-output", clock_variants_rtl, build_dir)
+        os.exec("testbench_gen %s --out-dir %s --regen --check-output --clock-signal sys_clk --reset-signal sys_rst_n",
+            clock_variants_rtl, build_dir)
         os.cp(path.join(build_dir, "tb_top.sv"), path.join(golden_dir, "top_clock_variants_tb_top.sv"))
 
         print("\nGolden files regenerated successfully!")
