@@ -258,16 +258,14 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
     {
         let env = get_verilua_env();
 
-        #[cfg(feature = "acc_time")]
-        let s = std::time::Instant::now();
+        let s = env.acc_lua_time.then(std::time::Instant::now);
 
         if let Err(e) = env.call_sim_event_chunk({{i}}, &user_data.task_id_vec) {
             env.finalize();
             panic!("{}", e);
         }
 
-        #[cfg(feature = "acc_time")]
-        {
+        if let Some(s) = s {
             env.lua_time += s.elapsed();
         }
 
@@ -395,7 +393,8 @@ pub struct VeriluaEnv {
     pub rd_phase_active: bool, // true while executing cbReadOnlySynch callbacks
     pub start_time: Instant,
 
-    #[cfg(feature = "acc_time")]
+    /// Runtime switch for Lua time accounting, set from `VL_ACC_LUA_TIME` in initialize()
+    pub acc_lua_time: bool,
     pub lua_time: Duration,
 
     pub lua: Lua,
@@ -455,7 +454,7 @@ Self {
     rd_phase_active: false,
     start_time: Instant::now(),
 
-    #[cfg(feature = "acc_time")]
+    acc_lua_time: false,
     lua_time: Duration::default(),
 
     lua,

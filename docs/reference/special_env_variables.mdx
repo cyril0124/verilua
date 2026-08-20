@@ -21,6 +21,7 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_QUIET` | 静默模式，禁用日志输出 |
 | `VL_LOG_LEVEL` | 日志级别下限 |
 | `VL_PERF_TIME` | 启用性能时间统计 |
+| `VL_ACC_LUA_TIME` | 启用 libverilua 侧 Lua 执行时间统计（lua_time_taken / lua_overhead） |
 | `VL_WAVEFORM_FILE` | WAL/wave_vpi 波形文件路径 |
 | `VL_HIERARCHY_CACHE_FILE` | 层级缓存文件路径 |
 | `VL_PRINT_HIER_STYLE` | 层级打印样式 |
@@ -266,6 +267,19 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 
   # 永久启用（当前 shell 有效）
   export VL_PERF_TIME=1
+  ```
+
+---
+
+### `VL_ACC_LUA_TIME` (可选)
+
+启用 libverilua（Rust 侧）的 Lua 时间统计。开启后，仿真结束统计表中的 `lua_time_taken` 与 `lua_overhead` 列显示进入 Lua 回调的累计耗时及占比；未设置时这两列显示 `--` 并打印灰色提示。取代旧的编译期 cargo feature `acc_time`，无需重新编译即可切换。
+
+- **默认值**：未启用
+- **取值**：`1` 或 `true` 启用
+- **示例**：
+  ```bash
+  VL_ACC_LUA_TIME=1 xmake run -P . <target_name>
   ```
 
 ---

@@ -69,9 +69,7 @@ use mlua::ffi;
 use mlua::prelude::*;
 use std::cell::UnsafeCell;
 use std::ffi::{CStr, CString};
-#[allow(unused_imports)]
-use std::time::Duration;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 #[allow(unused_imports)]
 use crate::EdgeCallbackID;
@@ -255,7 +253,6 @@ impl VeriluaEnv {
         log_feature!("verilator_inner_step_callback");
         log_feature!("dpi");
         log_feature!("debug");
-        log_feature!("acc_time");
         log_feature!("opt_cb_task");
         log_feature!("merge_cb");
         log_feature!("chunk_task");
@@ -301,6 +298,9 @@ impl VeriluaEnv {
             self.resolve_x_as_zero =
                 std::env::var("VL_RESOLVE_X_AS_ZERO").map_or(true, |v| v == "1" || v == "true");
         }
+
+        // Runtime switch for Lua time accounting (lua_time/lua_overhead statistics).
+        self.acc_lua_time = std::env::var("VL_ACC_LUA_TIME").is_ok_and(|v| v == "1" || v == "true");
 
         // Make current verilua_env instance available in lua scope.
         let _ = self.lua.globals().set(
@@ -424,19 +424,15 @@ impl VeriluaEnv {
         let mut builder = Builder::new();
         builder.push_record(["total_time_taken", "lua_time_taken", "lua_overhead"]);
 
-        let mut _overhead: f64 = 0.0;
-        #[cfg(feature = "acc_time")]
-        {
-            _overhead = (self.lua_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0;
+        let mut overhead: f64 = 0.0;
+        if self.acc_lua_time {
+            overhead = (self.lua_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0;
             builder.push_record([
                 format!("{:.4} sec", total_time.as_secs_f64()).as_str(),
                 format!("{:.4} sec", self.lua_time.as_secs_f64()).as_str(),
-                format!("{_overhead:.2}%").as_str(),
+                format!("{overhead:.2}%").as_str(),
             ]);
-        }
-
-        #[cfg(not(feature = "acc_time"))]
-        {
+        } else {
             builder.push_record([
                 format!("{:.4} sec", total_time.as_secs_f64()).as_str(),
                 "--",
@@ -452,9 +448,8 @@ impl VeriluaEnv {
             .with(Style::modern())
             .modify(Rows::new(0..), Width::increase(25));
 
-        #[cfg(feature = "acc_time")]
-        {
-            if _overhead > 50.0 {
+        if self.acc_lua_time {
+            if overhead > 50.0 {
                 table.modify((2, 2), tabled::settings::Color::FG_RED);
             } else {
                 table.modify((2, 2), tabled::settings::Color::FG_GREEN);
@@ -464,6 +459,12 @@ impl VeriluaEnv {
         // Suppress statistics output in quiet mode
         if std::env::var("VL_QUIET").ok().as_deref() != Some("1") {
             println!("{}", table);
+            if !self.acc_lua_time {
+                // Dim hint: how to enable the Lua time columns above
+                println!(
+                    "\x1b[2mnote: set VL_ACC_LUA_TIME=1 to see lua_time_taken / lua_overhead\x1b[0m"
+                );
+            }
         }
 
         if log::log_enabled!(log::Level::Trace) {
@@ -651,15 +652,13 @@ macro_rules! gen_verilua_step {
                 concat!($msg, " called before verilua_init()")
             );
 
-            #[cfg(feature = "acc_time")]
-            let s = Instant::now();
+            let s = env.acc_lua_time.then(Instant::now);
 
             if let Err(e) = unsafe { env.$field.as_ref().unwrap_unchecked() }.call::<()>(()) {
                 panic!("Error calling {}: {}", stringify!($field), e);
             };
 
-            #[cfg(feature = "acc_time")]
-            {
+            if let Some(s) = s {
                 env.lua_time += s.elapsed();
             }
 
@@ -687,16 +686,14 @@ macro_rules! gen_verilua_step_safe {
             let env = get_verilua_env();
             assert!(env.initialized, concat!("[", stringify!($name), "] ", $msg, " called before verilua_init()"));
 
-            #[cfg(feature = "acc_time")]
-            let s = Instant::now();
+            let s = env.acc_lua_time.then(Instant::now);
 
             if let Err(e) = unsafe { env.$field.as_ref().unwrap_unchecked() }.call::<()>(()) {
                 HAS_ERROR.with(|has_error| unsafe { *has_error.get() = true; });
                 println!(concat!("[", stringify!($name), "] Error calling ", stringify!($field), ": {}"), e);
             };
 
-            #[cfg(feature = "acc_time")]
-            {
+            if let Some(s) = s {
                 env.lua_time += s.elapsed();
             }
 

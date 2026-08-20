@@ -837,16 +837,14 @@ unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
     if new_value == expected_edge_value || expected_edge_value == EdgeValue::DontCare {
         let env = VeriluaEnv::from_complex_handle_raw(user_data.complex_handle_raw);
 
-        #[cfg(feature = "acc_time")]
-        let s = std::time::Instant::now();
+        let s = env.acc_lua_time.then(std::time::Instant::now);
 
         if let Err(e) = env.call_sim_event(user_data.task_id) {
             env.finalize();
             panic!("{}", e);
         }
 
-        #[cfg(feature = "acc_time")]
-        {
+        if let Some(s) = s {
             env.lua_time += s.elapsed();
         }
 
@@ -946,16 +944,14 @@ unsafe extern "C" fn time_callback_handler(cb_data: *mut t_cb_data) -> PLI_INT32
     let task_id = task_id_with_env.task_id;
     let env = VeriluaEnv::from_void_ptr(task_id_with_env.env);
 
-    #[cfg(feature = "acc_time")]
-    let s = std::time::Instant::now();
+    let s = env.acc_lua_time.then(std::time::Instant::now);
 
     if let Err(e) = env.call_sim_event(task_id) {
         env.finalize();
         panic!("{}", e);
     }
 
-    #[cfg(feature = "acc_time")]
-    {
+    if let Some(s) = s {
         env.lua_time += s.elapsed()
     }
     0
@@ -1079,16 +1075,14 @@ unsafe extern "C" fn edge_callback_always(cb_data: *mut t_cb_data) -> PLI_INT32 
     if new_value == expected_edge_value || expected_edge_value == EdgeValue::DontCare {
         let env = get_verilua_env();
 
-        #[cfg(feature = "acc_time")]
-        let s = std::time::Instant::now();
+        let s = env.acc_lua_time.then(std::time::Instant::now);
 
         if let Err(e) = env.call_sim_event(user_data.task_id) {
             env.finalize();
             panic!("{}", e);
         }
 
-        #[cfg(feature = "acc_time")]
-        {
+        if let Some(s) = s {
             env.lua_time += s.elapsed();
         }
     }

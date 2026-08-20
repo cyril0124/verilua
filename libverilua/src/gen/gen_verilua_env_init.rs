@@ -30,7 +30,7 @@ Self {
     rd_phase_active: false,
     start_time: Instant::now(),
 
-    #[cfg(feature = "acc_time")]
+    acc_lua_time: false,
     lua_time: Duration::default(),
 
     lua,

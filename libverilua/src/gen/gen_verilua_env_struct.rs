@@ -35,7 +35,8 @@ pub struct VeriluaEnv {
     pub rd_phase_active: bool, // true while executing cbReadOnlySynch callbacks
     pub start_time: Instant,
 
-    #[cfg(feature = "acc_time")]
+    /// Runtime switch for Lua time accounting, set from `VL_ACC_LUA_TIME` in initialize()
+    pub acc_lua_time: bool,
     pub lua_time: Duration,
 
     pub lua: Lua,
