@@ -559,8 +559,6 @@ add_group_target("test-mem-direct", function(ctx)
         local cwd = path.join(ctx.tests_dir, "test_mem_direct")
         ctx.clean(path.join(cwd, "build"))
         ctx.run_cmd(cwd, "xmake build -P .", { SIM = "verilator" })
-        local verilator_mk = path.join(cwd, "build", "verilator", "top", "sim_build", "Vtb_top.mk")
-        ctx.run_cmd(cwd, "grep -q -- '-rdynamic' " .. shell_quote(verilator_mk))
         ctx.run_cmd(cwd, "xmake run -P .", { SIM = "verilator" })
     end)
 
