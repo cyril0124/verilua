@@ -19,6 +19,10 @@ fork {
         local wide64 = dut.u_top.wide64:chdl()
         local wide128 = dut.u_top.wide128:chdl()
 
+        -- meta_only signal: meta from the dpi table, no DPI accessor generated;
+        -- value access falls back to the real VPI handle in this flow.
+        local meta16 = dut.u_top.meta16:chdl()
+
         assert(count.hdl == nil and count.is_dpi_only, "count should be dpi-only (hdl nil)")
         assert(valid.hdl == nil and valid.is_dpi_only, "valid should be dpi-only (hdl nil)")
         assert(wide64.hdl == nil and wide64.is_dpi_only, "wide64 should be dpi-only (hdl nil)")
@@ -33,6 +37,18 @@ fork {
 
         -- Clock still uses VPI (not exported for edge).
         assert(clock.hdl ~= nil and not clock.is_dpi_only, "clock should keep VPI handle")
+
+        -- meta_only construct: dpi meta + VPI value path, never dpi-only.
+        local SymbolHelper = require "verilua.utils.SymbolHelper"
+        local meta16_info = DpiExporter:lookup(meta16.fullpath)
+        assert(meta16_info ~= nil, "meta16 must be in the dpi meta table")
+        assert(meta16_info.metaOnly == true, "meta16 must be marked metaOnly")
+        assert(meta16.hdl ~= nil and not meta16.is_dpi_only, "meta16 should keep VPI handle")
+        assert(meta16:get_width() == 16, "meta16 width from dpi meta")
+        assert(
+            SymbolHelper.get_global_symbol_addr("VERILUA_DPI_EXPORTER_top_meta16_GET") == 0,
+            "meta16 must have no generated DPI accessor"
+        )
 
         -- lookup: raw exporter path + normalized sim fullpath
         local info_norm = DpiExporter:lookup(count.fullpath)
@@ -157,16 +173,19 @@ fork {
         local c0 = count:get()
         local w0 = tonumber(wide64:get64())
         local w128_0 = tonumber(wide128:get64())
+        local m0 = tonumber(meta16:get())
         assert(type(c0) == "number")
 
         clock:posedge()
         local c1 = count:get()
         local w1 = tonumber(wide64:get64())
         local w128_1 = tonumber(wide128:get64())
+        local m1 = tonumber(meta16:get())
         assert(c1 == band(c0 + 1, 0xff), string.format("count %s -> %s", tostring(c0), tostring(c1)))
         assert(valid:get() == band(c1, 1), "valid == count[0]")
         assert(w1 == w0 + 3, string.format("wide64 %s -> %s", tostring(w0), tostring(w1)))
         assert(w128_1 == w128_0 + 5, string.format("wide128 %s -> %s", tostring(w128_0), tostring(w128_1)))
+        assert(m1 == m0 + 2, string.format("meta16 %s -> %s (VPI value path)", tostring(m0), tostring(m1)))
         check_get_maps(c1, band(c1, 1), w1, w128_1)
 
         clock:posedge(5)

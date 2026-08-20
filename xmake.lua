@@ -1011,6 +1011,7 @@ target("test", function()
             "test-dpi-exporter",
             "test-dpi-exporter-chdl",
             "test-dummy-vpi",
+            "test-mem-direct",
             "test-cov-exporter",
             "test-cov-exporter-dynamic",
             "test-signal-db",

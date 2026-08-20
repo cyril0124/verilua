@@ -546,6 +546,51 @@ add_group_target("test-signal-db", function(ctx)
     end)
 end)
 
+add_group_target("test-mem-direct", function(ctx)
+    -- mem_direct is Verilator-only (rootp + offset native access).
+    if not ctx.has_verilator then
+        print("  - SKIPPED tests/test-mem-direct (verilator not found)")
+        return
+    end
+
+    -- xmake flow: full table + pending-set cross check
+    ctx.run_case("test_mem_direct", function()
+        local cwd = path.join(ctx.tests_dir, "test_mem_direct")
+        ctx.clean(path.join(cwd, "build"))
+        ctx.run_cmd(cwd, "xmake build -P .", { SIM = "verilator" })
+        ctx.run_cmd(cwd, "xmake run -P .", { SIM = "verilator" })
+    end)
+
+    -- xmake flow: no global --public-flat-rw, include filter + fine-grained .vlt
+    ctx.run_case("test_mem_direct_no_public_flat", function()
+        local cwd = path.join(ctx.tests_dir, "test_mem_direct_no_public_flat")
+        ctx.clean(path.join(cwd, "build"))
+        ctx.run_cmd(cwd, "xmake build -P .", { SIM = "verilator" })
+        ctx.run_cmd(cwd, "xmake run -P .", { SIM = "verilator" })
+    end)
+
+    -- vl-verilator flow: --vl-mem-direct one-shot + custom main contract
+    ctx.run_case("test_mem_direct_vl_verilator", function()
+        local cwd = path.join(ctx.tests_dir, "test_mem_direct_vl_verilator")
+        ctx.clean(path.join(cwd, "sim_build"))
+        ctx.run_cmd(cwd, "./run.sh")
+    end)
+
+    -- vl-verilator-p flow: user .vlt visibility instead of --public-flat-rw
+    ctx.run_case("test_mem_direct_vl_verilator_p", function()
+        local cwd = path.join(ctx.tests_dir, "test_mem_direct_vl_verilator")
+        ctx.clean(path.join(cwd, "sim_build_p"))
+        ctx.run_cmd(cwd, "./run_p.sh")
+    end)
+
+    -- vl-verilator-dpi flow: dummy_vpi + mem_direct for un-exported signals
+    ctx.run_case("test_mem_direct_vl_verilator_dpi", function()
+        local cwd = path.join(ctx.tests_dir, "test_mem_direct_vl_verilator")
+        ctx.clean(path.join(cwd, "sim_build_dpi"), path.join(cwd, ".dpi_exporter"))
+        ctx.run_cmd(cwd, "./run_dpi.sh")
+    end)
+end)
+
 add_group_target("test-slang-common", function(ctx)
     -- Opt-out via env: regression integration tests of cov_exporter /
     -- dpi_exporter / signal_db_gen / testbench_gen already cover slang_common

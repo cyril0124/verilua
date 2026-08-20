@@ -21,6 +21,7 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_QUIET` | 静默模式，禁用日志输出 |
 | `VL_LOG_LEVEL` | 日志级别下限 |
 | `VL_PERF_TIME` | 启用性能时间统计 |
+| `VL_ACC_LUA_TIME` | 启用 Rust 层 Lua 耗时统计（退出统计表的 `lua_time_taken` / `lua_overhead`） |
 | `VL_WAVEFORM_FILE` | WAL/wave_vpi 波形文件路径 |
 | `VL_HIERARCHY_CACHE_FILE` | 层级缓存文件路径 |
 | `VL_PRINT_HIER_STYLE` | 层级打印样式 |
@@ -29,6 +30,8 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_TARGET_NAME` | 当前 xmake target 名称（rule 自动注入） |
 | `VL_BUILD_DIR` | 当前 target 构建目录绝对路径（rule 自动注入） |
 | `VL_BUNDLE_KEY_HEX` | 编译 libverilua 时注入的打包密钥（64 hex 为裸密钥，否则 SHA-256；仅构建） |
+| `VL_XMK_VERILATOR_MEM_DIRECT` | xmake 构建时开启 Verilator mem_direct |
+| `VL_MEM_DIRECT_SO` | 运行时 `libmem_direct.so` 路径（xmake rule 自动注入） |
 | `VERILUA_HOME` | Verilua 安装根路径 |
 
 ---
@@ -270,6 +273,22 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 
 ---
 
+### `VL_ACC_LUA_TIME` (可选)
+
+启用 Rust 层的 Lua 耗时统计。仿真结束时，`VERILUA STATISTIC` 表格中的 `lua_time_taken` 与 `lua_overhead` 会显示实际数值（overhead 超过 50% 时红色告警）；未启用时这两列显示 `--`，并在表格下方以暗色提示如何开启。计时在每个回调事件上有少量开销，因此默认关闭。
+
+- **默认值**：未启用
+- **示例**：
+  ```bash
+  # 临时启用
+  VL_ACC_LUA_TIME=1 xmake run -P . <target_name>
+
+  # 永久启用（当前 shell 有效）
+  export VL_ACC_LUA_TIME=1
+  ```
+
+---
+
 ### `VL_BUNDLE_KEY_HEX` (可选，构建期)
 
 编译 `libverilua` 时写入 AES-256-GCM 密钥。运行时不读此变量。未设置则库能链，但不能打/解 `.vlbc`。不要提交仓库。
@@ -279,6 +298,38 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 - **范围**：仅编译 libverilua。打包须在已加载该库的 Verilua 进程里做
 - **示例**：`VL_BUNDLE_KEY_HEX='口令' xmake run build_libverilua`
 - **相关文档**：[加密打包验证组件（BundleToVlbc）](./bundle_to_vlbc.mdx)
+
+---
+
+### `VL_XMK_VERILATOR_MEM_DIRECT` (可选，构建期)
+
+在 xmake 构建 Verilator 目标时生成 mem_direct 访问表并编译 `libmem_direct.so`。
+
+- **默认值**：未设置；由 `set_values("verilua.verilator_mem_direct")` 决定
+- **可选值**：`0` / `1`，其它值会导致构建失败
+- **优先级**：xmake 的 `set_values` 高于此环境变量
+- **作用范围**：只影响构建；运行时仍要调用 `MemDirect:init()` / `try_init()`
+- **示例**：
+  ```bash
+  VL_XMK_VERILATOR_MEM_DIRECT=1 SIM=verilator xmake build -P . <target>
+  ```
+- **相关文档**：[mem_direct](./mem_direct.mdx)
+
+---
+
+### `VL_MEM_DIRECT_SO` (可选，运行期)
+
+`MemDirect` 运行时通过此路径 `ffi.load` 加载 mem_direct 访问表库。
+
+- **默认值**：未设置；未设置时 `MemDirect:try_init()` 返回 `false`
+- **注入方式**：xmake 流程在 `libmem_direct.so` 存在时自动设置；`vl-verilator --vl-mem-direct` 结尾会打印 `export` 提示行；其它手工流程需自行 `export`
+- **失败行为**：设置了但文件缺失、符号无法解析时，初始化直接报错
+- **示例**：
+  ```bash
+  export VL_MEM_DIRECT_SO=$PWD/libmem_direct.so
+  ./sim_build/Vtb_top
+  ```
+- **相关文档**：[mem_direct](./mem_direct.mdx)
 
 ---
 

@@ -5,11 +5,19 @@ import sys
 import subprocess
 import shutil
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import vl_mem_direct
+
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 BLUE = "\033[34m"
 RESET = "\033[0m"
+
+PREFIX = f"[{YELLOW}vl-verilator{RESET}]"
+
+# Wrapper-level mem_direct flags are stripped before invoking verilator.
+vl_args, verilator_args = vl_mem_direct.parse_args(sys.argv[1:], PREFIX)
 
 verilua_path = os.getenv("VERILUA_HOME")
 
@@ -37,11 +45,10 @@ cmd_list = [verilator] + [
     "--public-flat-rw",
     "+define+VERILUA",
     "-LDFLAGS", LDFLAGS,
-    "-CFLAGS", CFLAGS] + sys.argv[1:]
+    "-CFLAGS", CFLAGS] + verilator_args
 
 cmd = " ".join(cmd_list)
 
-PREFIX = f"[{YELLOW}vl-verilator{RESET}]"
 print(f'''
 {PREFIX} libpath: {GREEN}{libpath}{RESET}
 {PREFIX} liblua_path: {GREEN}{liblua_path}{RESET}
@@ -50,4 +57,8 @@ print(f'''
 {GREEN}{cmd}{RESET}
 ''', flush = True)
 
-exit(subprocess.call(cmd_list))
+rc = subprocess.call(cmd_list)
+if rc != 0:
+    exit(rc)
+
+vl_mem_direct.post_step(vl_args, PREFIX, verilua_path, verilator, verilator_args)
