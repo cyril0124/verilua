@@ -462,12 +462,14 @@ function LuaDataBaseV2:_init(params)
         table_insert(self.cache, pre_alloc_entry)
     end
 
-    -- Create path folder if not exist
-    local attributes, err = lfs.attributes(self.path_name .. "/")
-    if attributes == nil then
+    -- Create path folder if not exist. Tolerate losing the mkdir race: parallel
+    -- simulations may create the same database path concurrently, so EEXIST from
+    -- another process is fine; any other failure (permission, missing parent,
+    -- path occupied by a regular file) still fails loudly.
+    if lfs.attributes(self.path_name .. "/") == nil then
         local success, message = lfs.mkdir(self.path_name .. "/")
-        if not success then
-            assert(false, "[LuaDataBaseV2] Cannot create folder: " .. self.path_name .. " err: " .. message)
+        if not success and lfs.attributes(self.path_name .. "/", "mode") ~= "directory" then
+            assert(false, "[LuaDataBaseV2] Cannot create folder: " .. self.path_name .. " err: " .. tostring(message))
         end
     end
 

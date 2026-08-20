@@ -56,6 +56,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **LuaDataBaseV2**: Creating the database directory now tolerates losing the mkdir race: parallel simulations sharing the same `path_name` no longer crash with "Cannot create folder" when another process created the directory first; any other mkdir failure (permission, missing parent, non-directory path) still fails loudly.
 - **LuaDataBaseV2**: The sqlite3 backend's checked bind path bound numbers with `sqlite3_bind_int` (32-bit C int), truncating values above 2^31 (e.g. long-run cycle counts). Numbers are now bound as doubles (53-bit exact, matching the no_check fast path); the turso backend binds native int64.
 - **LuaDataBase / LuaDataBaseV2**: Manual `commit()` (including the finalization commit) after a partial batch no longer writes one extra stale/duplicate row, and an empty commit no longer writes a garbage row. `save_cnt` now always tracks the next free cache slot and commit flushes `1 .. save_cnt - 1`.
 - **DpiExporter / CallableHDL**: dpi-only `get64` (width ≤ 32), `get_hex_str`, and multi-beat `get`/`get(true)` now bind to DPI. `GET_VEC` is copied into the chdl `c_results` layout (`[0]=beat_num`, words from `[1]`).
