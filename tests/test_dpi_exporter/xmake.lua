@@ -88,6 +88,18 @@ target("test", function()
                     passed = false
                 end
 
+                -- public.vlt: golden-compared when expected; unexpected generation fails
+                local vlt_output = path.join(output_dir, "dpi_exporter.public.vlt")
+                local vlt_golden = path.join(golden_dir, cfg_name .. "_public.vlt")
+                if os.isfile(vlt_golden) then
+                    if not compare_file(vlt_output, vlt_golden, cfg_name .. "_public_vlt") then
+                        passed = false
+                    end
+                elseif os.isfile(vlt_output) then
+                    print(string.format("[%s] FAILED: unexpected %s (no golden)", cfg_name, vlt_output))
+                    passed = false
+                end
+
                 -- Meta must carry static signal infos (no exportedSignals list)
                 local meta_output = path.join(output_dir, "dpi_exporter.meta.json")
                 if not os.isfile(meta_output) then
@@ -104,7 +116,8 @@ target("test", function()
                     elseif not meta_content:find('"hierPath"', 1, true)
                         or not meta_content:find('"bitWidth"', 1, true)
                         or not meta_content:find('"vpiTypeStr"', 1, true)
-                        or not meta_content:find('"handleId"', 1, true) then
+                        or not meta_content:find('"handleId"', 1, true)
+                        or not meta_content:find('"metaOnly"', 1, true) then
                         print(string.format("[%s] FAILED: meta infos missing required fields", cfg_name))
                         passed = false
                     else
@@ -165,6 +178,42 @@ target("test", function()
             end
         end
 
+        -- Same-group conflict: meta_only + sensitive_signals must be rejected
+        -- by the config layer with a clear message.
+        do
+            local cfg_name = "meta_only_sensitive_conflict"
+            local output_dir = path.join(test_dir, ".dpi_exporter_" .. cfg_name)
+            test_count = test_count + 1
+
+            print(string.format("\n[%s] Running dpi_exporter (expected to fail)...", cfg_name))
+            local conflict_cfg =
+            'add_pattern { module = "B", signals = "(i_.*)|(.*valid)", sensitive_signals = ".*valid", meta_only = true }'
+            local out_file = os.tmpfile()
+            local err_file = os.tmpfile()
+            local code = os.execv("dpi_exporter", {
+                rtl,
+                "--config-str", conflict_cfg,
+                "--no-cache", "-q",
+                "--od", output_dir,
+                "--wd", output_dir,
+            }, { try = true, stdout = out_file, stderr = err_file })
+            local output = (io.readfile(out_file) or "") .. (io.readfile(err_file) or "")
+            os.tryrm(out_file)
+            os.tryrm(err_file)
+
+            if code == 0 then
+                print(string.format("[%s] FAILED: conflicting cfg unexpectedly succeeded", cfg_name))
+                all_passed = false
+            elseif not output:find("meta_only cannot be used with sensitive_signals", 1, true) then
+                print(string.format("[%s] FAILED: unexpected error message:", cfg_name))
+                print(output)
+                all_passed = false
+            else
+                print(string.format("[%s] PASSED (rejected with clear message)", cfg_name))
+                pass_count = pass_count + 1
+            end
+        end
+
         -- Print summary
         print("\n" .. string.rep("=", 60))
         print(string.format("Test Summary: %d/%d passed", pass_count, test_count))
@@ -202,6 +251,12 @@ target("regen_golden", function()
             -- Copy generated files to golden directory
             os.cp(path.join(output_dir, "dpi_func.cpp"), path.join(golden_dir, cfg_name .. "_dpi_func.cpp"))
             os.cp(path.join(output_dir, "top.sv"), path.join(golden_dir, cfg_name .. "_top.sv"))
+
+            -- meta_only cfgs also produce a public vlt
+            local vlt_output = path.join(output_dir, "dpi_exporter.public.vlt")
+            if os.isfile(vlt_output) then
+                os.cp(vlt_output, path.join(golden_dir, cfg_name .. "_public.vlt"))
+            end
         end
 
         print("\nGolden files regenerated successfully!")

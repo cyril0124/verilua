@@ -29,6 +29,7 @@ local DecStr = _G.DecStr
 local verilua_debug = _G.verilua_debug
 
 local DpiExporter
+local MemDirect
 
 -- TODO: better indexed CallableHDL
 -- local t = setmetatable({a = 123}, {
@@ -219,11 +220,51 @@ function CallableHDL:_init(fullpath, name, hdl)
         dpi_info = DpiExporter:lookup(fullpath)
     end
 
+    ---@type verilua.utils.MemDirect.entry?
+    local md_info = nil
+    if cfg.enable_mem_direct then
+        if not MemDirect then
+            MemDirect = require "verilua.utils.MemDirect"
+        end
+        ---@cast MemDirect verilua.utils.MemDirect
+        md_info = MemDirect:lookup(fullpath)
+    end
+
     self.is_array = false
     self.array_size = 0
     self.is_dpi_only = false
 
-    if dpi_info then
+    if dpi_info and dpi_info.metaOnly then
+        -- meta_only group: static meta comes from the exporter table, but no DPI
+        -- accessor exists. Value access falls to mem_direct (verilator) or a real
+        -- VPI handle (other simulators); with neither, fail loudly at bind time.
+        local t = dpi_info.vpiTypeStr
+        assert(
+            t == "vpiReg" or t == "vpiNet" or t == "vpiLogicVar" or t == "vpiBitVar",
+            f(
+                "[CallableHDL:_init] dpi export supports scalar net/reg, got %s fullpath => %s",
+                t,
+                fullpath
+            )
+        )
+        self.hdl_type = t
+        self.width = dpi_info.bitWidth
+
+        local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
+        if tmp_hdl ~= nil and tmp_hdl ~= -1 then
+            self.hdl = tmp_hdl
+        else
+            assert(
+                md_info ~= nil,
+                f(
+                    "[CallableHDL:_init] meta_only signal has no value path (not in mem_direct table, no VPI handle)! fullpath: %s",
+                    fullpath
+                )
+            )
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            self.hdl = nil
+        end
+    elseif dpi_info then
         -- Exported signal: width/type from meta. Keep VPI handle only when dummy_vpi is linked.
         local t = dpi_info.vpiTypeStr
         assert(
@@ -249,6 +290,37 @@ function CallableHDL:_init(fullpath, name, hdl)
             ---@diagnostic disable-next-line: assign-type-mismatch
             self.hdl = nil
             self.is_dpi_only = true
+        end
+    elseif md_info then
+        -- mem_direct construction: width/array metadata comes from the generated table.
+        -- Keep a VPI handle when available so edge/pending APIs remain usable; otherwise
+        -- get/get64/get_hex_str/set_imm still work without a signal handle.
+        ---@cast md_info verilua.utils.MemDirect.entry
+        self.width = md_info.rtl_width
+        if md_info.array_size > 0 then
+            self.is_array = true
+            self.array_size = md_info.array_size
+        end
+
+        local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
+        if tmp_hdl ~= nil and tmp_hdl ~= -1 then
+            self.hdl = tmp_hdl
+            self.hdl_type = ffi_string(vpiml.vpiml_get_hdl_type(self.hdl))
+            if self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiArrayVar" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
+                self.is_array = true
+                self.array_size = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
+                self.array_hdls = table_new(self.array_size, 0)
+                self.array_bitvecs = table_new(self.array_size, 0)
+                for i = 1, self.array_size do
+                    self.array_hdls[i] = vpiml.vpiml_handle_by_index(self.hdl, i - 1)
+                end
+                self.hdl = self.array_hdls[1]
+            end
+            self.width = tonumber(vpiml.vpiml_get_signal_width(self.hdl)) --[[@as integer]]
+        else
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            self.hdl = nil
+            self.hdl_type = self.is_array and "vpiMemory" or "vpiReg"
         end
     else
         local tmp_hdl = hdl or vpiml.vpiml_handle_by_name_safe(fullpath)
@@ -468,7 +540,11 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     -- Bind DPI get when this signal is in the exporter map.
     -- Notice: Call `DpiExporter:init()` before creating any `CallableHDL` if you want to access the signal by dpi_exporter API.
-    if dpi_info then
+    -- FFI pointer indexing below (`p[0]`, `c_results[i]`) is valid LuaJIT cdata
+    -- access; emmylua models `ffi.cdata*` as a plain object, so scope-disable
+    -- the two index-related false-positive categories until the enable below.
+    ---@diagnostic disable: undefined-field, inject-field
+    if dpi_info and not dpi_info.metaOnly then
         ---@cast DpiExporter verilua.utils.DpiExporter
         verilua_debug(f("[CallableHDL] %s is exported by dpi_exporter!", self.fullpath))
 
@@ -520,6 +596,208 @@ function CallableHDL:_init(fullpath, name, hdl)
             end
         end
     end
+
+    -- Bind a typed pointer once; hot reads then compile to a cdata load without
+    -- per-call ffi.cast, width dispatch, or an extra C call.
+    if md_info then
+        ---@cast MemDirect verilua.utils.MemDirect
+        ---@cast md_info verilua.utils.MemDirect.entry
+        verilua_debug(f("[CallableHDL] %s is mapped by mem_direct!", self.fullpath))
+
+        local md_mem_bytes = md_info.mem_bytes
+        local md_array_size = md_info.array_size
+        local md_ptr = ffi.cast("uint8_t *", MemDirect.base + md_info.offset)
+        local c_results = self.c_results
+        local nhex = math.max(1, math.ceil(self.width / 4))
+
+        if md_mem_bytes == 1 then
+            local p = ffi.cast("uint8_t *", md_ptr)
+            self.get = function(_this)
+                return p[0]
+            end
+            self.get64 = self.get
+            self.set_imm = function(_this, value)
+                p[0] = value
+            end
+            self.get_hex_str = function(_this)
+                return bit_tohex(p[0], nhex)
+            end
+        elseif md_mem_bytes == 2 then
+            local p = ffi.cast("uint16_t *", md_ptr)
+            self.get = function(_this)
+                return p[0]
+            end
+            self.get64 = self.get
+            self.set_imm = function(_this, value)
+                p[0] = value
+            end
+            self.get_hex_str = function(_this)
+                return bit_tohex(p[0], nhex)
+            end
+        elseif md_mem_bytes == 4 then
+            local p = ffi.cast("uint32_t *", md_ptr)
+            self.get = function(_this)
+                return p[0]
+            end
+            self.get64 = self.get
+            self.set_imm = function(_this, value)
+                p[0] = value
+            end
+            self.get_hex_str = function(_this)
+                return bit_tohex(p[0], nhex)
+            end
+        elseif md_mem_bytes == 8 then
+            local p = ffi.cast("uint64_t *", md_ptr)
+            local p32 = ffi.cast("uint32_t *", md_ptr)
+            self.get = function(_this, force_multi_beat)
+                if force_multi_beat then
+                    c_results[0] = 2
+                    c_results[1] = p32[0]
+                    c_results[2] = p32[1]
+                    return c_results --[[@as verilua.handles.MultiBeatData]]
+                end
+                return p[0]
+            end
+            self.get64 = function(_this)
+                return p[0]
+            end
+            self.set_imm = function(_this, value)
+                if type(value) == "table" then
+                    if value[0] then
+                        p32[0] = value[1] or 0
+                        p32[1] = value[2] or 0
+                    else
+                        p[0] = value[1] or 0
+                    end
+                else
+                    p[0] = value
+                end
+            end
+            if nhex <= 8 then
+                self.get_hex_str = function(_this)
+                    return bit_tohex(p32[0], nhex)
+                end
+            else
+                local hi_digits = nhex - 8
+                self.get_hex_str = function(_this)
+                    return bit_tohex(p32[1], hi_digits) .. bit_tohex(p32[0], 8)
+                end
+            end
+        else
+            -- VlWide stores little-endian 32-bit words; display hex most-significant word first.
+            local p32 = ffi.cast("uint32_t *", md_ptr)
+            local words = math.ceil(md_mem_bytes / 4)
+            self.get = function(_this)
+                c_results[0] = words
+                for i = 0, words - 1 do
+                    c_results[i + 1] = p32[i]
+                end
+                return c_results --[[@as verilua.handles.MultiBeatData]]
+            end
+            self.get64 = function(_this)
+                return ffi.cast("uint64_t *", md_ptr)[0]
+            end
+            self.set_imm = function(_this, value)
+                if type(value) == "table" then
+                    for i = 0, words - 1 do
+                        p32[i] = value[i + 1] or 0
+                    end
+                else
+                    p32[0] = value
+                    for i = 1, words - 1 do
+                        p32[i] = 0
+                    end
+                end
+            end
+            self.get_hex_str = function(_this)
+                local rem = nhex
+                local s = ""
+                for wi = words - 1, 0, -1 do
+                    local take = rem >= 8 and 8 or rem
+                    if take > 0 then
+                        s = s .. bit_tohex(p32[wi], take)
+                        rem = rem - take
+                    end
+                end
+                return s
+            end
+        end
+        self.set_imm_unsafe = self.set_imm
+
+        if self.is_array or md_array_size > 0 then
+            if md_array_size > 0 then
+                self.is_array = true
+                self.array_size = md_array_size
+            end
+            local elem_bytes = md_mem_bytes
+            local base_u8 = md_ptr
+            if elem_bytes == 1 then
+                local p = ffi.cast("uint8_t *", base_u8)
+                self.get_index = function(_this, index)
+                    return p[index]
+                end
+                self.set_imm_index = function(_this, index, value)
+                    p[index] = value
+                end
+            elseif elem_bytes == 2 then
+                local p = ffi.cast("uint16_t *", base_u8)
+                self.get_index = function(_this, index)
+                    return p[index]
+                end
+                self.set_imm_index = function(_this, index, value)
+                    p[index] = value
+                end
+            elseif elem_bytes == 4 then
+                local p = ffi.cast("uint32_t *", base_u8)
+                self.get_index = function(_this, index)
+                    return p[index]
+                end
+                self.set_imm_index = function(_this, index, value)
+                    p[index] = value
+                end
+            elseif elem_bytes == 8 then
+                local p = ffi.cast("uint64_t *", base_u8)
+                self.get_index = function(_this, index)
+                    return p[index]
+                end
+                self.set_imm_index = function(_this, index, value)
+                    p[index] = value
+                end
+            else
+                local words = math.ceil(elem_bytes / 4)
+                self.get_index = function(_this, index)
+                    local src = ffi.cast("uint32_t *", base_u8 + index * elem_bytes)
+                    c_results[0] = words
+                    for i = 0, words - 1 do
+                        c_results[i + 1] = src[i]
+                    end
+                    return c_results --[[@as verilua.handles.MultiBeatData]]
+                end
+                self.set_imm_index = function(_this, index, value)
+                    local dst = ffi.cast("uint32_t *", base_u8 + index * elem_bytes)
+                    if type(value) == "table" then
+                        for i = 0, words - 1 do
+                            dst[i] = value[i + 1] or 0
+                        end
+                    else
+                        dst[0] = value
+                        for i = 1, words - 1 do
+                            dst[i] = 0
+                        end
+                    end
+                end
+            end
+            self.set_imm_index_unsafe = self.set_imm_index
+            self.get_index_all = function(_this)
+                local ret = table_new(self.array_size, 0)
+                for index = 0, self.array_size - 1 do
+                    ret[index + 1] = self.get_index(_this, index)
+                end
+                return ret
+            end
+        end
+    end
+    ---@diagnostic enable: undefined-field, inject-field
 
     local await_posedge_hdl = _G.await_posedge_hdl
     local await_negedge_hdl = _G.await_negedge_hdl
