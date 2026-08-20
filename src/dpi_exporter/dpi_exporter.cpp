@@ -162,6 +162,7 @@ local valid_keys_for_add_pattern = {
     "sensitive_signals",
     "clock",
     "writable",
+    "meta_only",
 }
 function add_pattern(params)
     local name = params.name or "UNKNOWN_" .. count
@@ -173,6 +174,7 @@ function add_pattern(params)
     local sensitive_signals = params.sensitive_signals or ""
     local clock = params.clock or ""
     local writable = params.writable or false
+    local meta_only = params.meta_only or false
 
     for k, _ in pairs(params) do
         local find_matched_key = false
@@ -193,6 +195,12 @@ function add_pattern(params)
 
     assert(not(disable and writable), "[add_pattern] disable and writable cannot be both `true`")
 
+    -- meta_only groups have no DPI accessor at all, so nothing can be written
+    -- or tick-sampled: writable/sensitive settings are contradictions.
+    assert(not(meta_only and writable), f("[add_pattern] meta_only and writable cannot be both `true`, params.name: %s", name))
+    assert(not(meta_only and writable_signals ~= ""), f("[add_pattern] meta_only cannot be used with writable_signals, params.name: %s", name))
+    assert(not(meta_only and sensitive_signals ~= ""), f("[add_pattern] meta_only cannot be used with sensitive_signals, params.name: %s", name))
+
     assert(is_valid_name(name), f("[add_pattern] name `%s` is not a valid name", name))
     assert(not name_map[name], f("[add_pattern] name `%s` is already used", name))
 
@@ -206,6 +214,7 @@ function add_pattern(params)
         sensitive_signals = sensitive_signals,
         clock = clock,
         writable = writable,
+        meta_only = meta_only,
     })
     count = count + 1
 
@@ -279,6 +288,7 @@ add_senstive_trigger = add_sensitive_trigger
             std::string writableSignals  = patternData["writable_signals"].get<std::string>();
             std::string disableSignals   = patternData["disable_signals"].get<std::string>();
             std::string sensitiveSignals = patternData["sensitive_signals"].get<std::string>();
+            bool metaOnly                = patternData["meta_only"].get<bool>();
 
             if (!quiet) {
                 fmt::println("[dpi_exporter] get pattern:");
@@ -290,6 +300,7 @@ add_senstive_trigger = add_sensitive_trigger
                 fmt::println("\twritable_signals: {}", writableSignals);
                 fmt::println("\tdisable_signals: {}", disableSignals);
                 fmt::println("\tsensitive_signals: {}", sensitiveSignals);
+                fmt::println("\tmeta_only: {}", metaOnly);
                 fmt::println("\n");
                 fflush(stdout);
             }
@@ -303,7 +314,8 @@ add_senstive_trigger = add_sensitive_trigger
                 signals,
                 writableSignals,
                 disableSignals,
-                sensitiveSignals
+                sensitiveSignals,
+                metaOnly
             });
             // clang-format on
         });
@@ -565,7 +577,7 @@ add_senstive_trigger = add_sensitive_trigger
                 idx++;
 
                 if (!quiet) {
-                    fmt::println("[{}] handleId:<{}> hierPath:<{}> signalName:<{}> typeStr:<{}> bitWidth:<{}>", idx, s.handleId, s.hierPath, s.signalName, s.vpiTypeStr, s.bitWidth);
+                    fmt::println("[{}] handleId:<{}> hierPath:<{}> signalName:<{}> typeStr:<{}> bitWidth:<{}> metaOnly:<{}>", idx, s.handleId, s.hierPath, s.signalName, s.vpiTypeStr, s.bitWidth, s.isMetaOnly);
                 }
 
                 exportedSignalInfos.push_back({
@@ -573,7 +585,42 @@ add_senstive_trigger = add_sensitive_trigger
                     {"bitWidth", s.bitWidth},
                     {"vpiTypeStr", s.vpiTypeStr},
                     {"handleId", s.handleId},
+                    {"metaOnly", s.isMetaOnly},
                 });
+            }
+        }
+
+        // meta_only signals carry no DPI accessor that would keep them alive, so
+        // pin them through a generated verilator config file (ignored by other
+        // simulators). Consumers pass this file to verilator alongside the RTL.
+        {
+            std::vector<std::string> publicVltLines;
+            std::unordered_set<std::string> publicVltSeen;
+            for (auto &sg : signalGroupVec) {
+                for (auto &s : sg.signalInfoVec) {
+                    if (!s.isMetaOnly) {
+                        continue;
+                    }
+                    auto line = fmt::format("public_flat_rd -module \"{}\" -var \"{}\"", sg.moduleName, s.signalName);
+                    if (publicVltSeen.insert(line).second) {
+                        publicVltLines.push_back(line);
+                    }
+                }
+            }
+
+            const std::string publicVltPath = outdir + "/" + DEFAULT_PUBLIC_VLT_NAME;
+            if (publicVltLines.empty()) {
+                DELETE_FILE(publicVltPath); // stale file from a previous meta_only config
+            } else {
+                std::ofstream vltFile(publicVltPath);
+                vltFile << "`verilator_config\n";
+                vltFile << "// Auto generated by `dpi_exporter` for meta_only signal groups.\n";
+                vltFile << "// Pass this file to verilator together with the rewritten RTL.\n";
+                for (auto &line : publicVltLines) {
+                    vltFile << line << "\n";
+                }
+                vltFile.close();
+                fmt::println("[dpi_exporter] meta_only: {} public_flat_rd entr{} -> {}", publicVltLines.size(), publicVltLines.size() == 1 ? "y" : "ies", publicVltPath);
             }
         }
 

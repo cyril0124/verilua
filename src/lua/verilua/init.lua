@@ -144,8 +144,10 @@ _G.enable_verilua_debug = enable_verilua_debug
 if enable_verilua_debug then
     _G.verilua_debug = function(...) default_logger:debug(...) end
 else
-    -- VL_DEBUG not set, use empty function (zero overhead)
-    _G.verilua_debug = function() end
+    -- VL_DEBUG not set, use empty function (zero overhead).
+    -- Explicit type keeps the inferred global signature variadic for call sites.
+    ---@type fun(...: any)
+    _G.verilua_debug = function(...) end
 end
 
 _G.verilua_info = function(...) default_logger:info(...) end
@@ -1129,5 +1131,14 @@ end
 
 ---@type verilua.handles.ProxyTableHandle
 _G.dut = (require "verilua.LuaDut").create_proxy(cfg.top)
+
+--
+-- Auto-enable mem_direct when the build produced its table library
+-- (VL_MEM_DIRECT_SO is injected by the xmake rule / embedding build).
+-- Must happen before any CHDL is created so signals bind to the table.
+--
+if os.getenv("VL_MEM_DIRECT_SO") ~= nil and cfg.simulator == "verilator" then
+    require("verilua.utils.MemDirect"):init()
+end
 
 require("verilua.utils.BundleToVlbc").install_loader()
