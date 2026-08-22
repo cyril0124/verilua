@@ -31,6 +31,24 @@ log_step() {
     echo -e "${CYAN}▶${NC}  ${1}"
 }
 
+# Replace dest with a copy of src. Restore dest from backup if copy fails.
+_vl_replace_dir() {
+    local src="$1"
+    local dest="$2"
+    local backup="$3"
+
+    if [ -d "$backup" ]; then
+        rm -rf "$backup"
+    fi
+    mv "$dest" "$backup" || return 1
+    if ! cp -r "$src" "$dest"; then
+        rm -rf "$dest"
+        mv "$backup" "$dest" || return 1
+        return 1
+    fi
+    return 0
+}
+
 # Detect script directory
 if [ -n "$BASH_VERSION" ]; then
     script_file=$(realpath "${BASH_SOURCE[0]}")
@@ -153,8 +171,8 @@ test_verilua() {
 
     if [ ${#simulators[@]} -eq 0 ]; then
         log_warning "No simulators found (iverilog, verilator, vcs, xcelium)"
-        log_info "Skipping verilua test"
-        return 0
+        log_error "Need at least one simulator to verify the install"
+        return 1
     fi
 
     echo ""
@@ -388,13 +406,12 @@ update_verilua() {
     local verilua_home_dirname=$(dirname "$VERILUA_HOME")
     local verilua_home_old="${verilua_home_dirname}/.${verilua_home_basename}.old"
 
-    # Backup old version
-    if [ -d "$verilua_home_old" ]; then
-        rm -rf "$verilua_home_old"
+    if ! _vl_replace_dir "$dist_dir/verilua" "$VERILUA_HOME" "$verilua_home_old"; then
+        log_error "Failed to install new version, restored backup"
+        cd "$curr_dir" || return 1
+        rm -rf "$temp_dir"
+        return 1
     fi
-
-    mv "$VERILUA_HOME" "$verilua_home_old"
-    cp -r "$dist_dir/verilua" "$VERILUA_HOME"
 
     cd "$curr_dir" || return 1
     rm -rf "$temp_dir"

@@ -45,11 +45,16 @@ target("install_luarocks", function()
         -- Build luarocks
         do
             os.cd(luajit_pro_dir)
-            os.exec(
-                "wget -P %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz",
-                luajit_pro_dir,
-                luarocks_version
-            )
+            local tarball = path.join(luajit_pro_dir, "luarocks-" .. luarocks_version .. ".tar.gz")
+            if not os.isfile(tarball) then
+                local tmp = tarball .. ".tmp"
+                os.exec(
+                    "wget -O %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz",
+                    tmp,
+                    luarocks_version
+                )
+                os.mv(tmp, tarball)
+            end
             os.exec("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
             os.cd("luarocks-" .. luarocks_version)
 
@@ -428,26 +433,45 @@ target("setup_verilua", function()
     set_kind("phony")
     on_run(function()
         local shell_rc = path.join(os.getenv("HOME"), "." .. os.shell() .. "rc")
-        local has_match = false
-
-        for line in io.lines(shell_rc) do
-            if line:match("^[^#]*export VERILUA_HOME=") then
-                has_match = true
+        if os.islink(shell_rc) then
+            shell_rc = path.absolute(os.readlink(shell_rc), path.directory(shell_rc))
+        end
+        local activate = "source '" .. path.join(prj_dir, "verilua.sh"):gsub("'", "'\\''") .. "'"
+        local lines = {}
+        local in_block = false
+        if os.isfile(shell_rc) then
+            for line in io.lines(shell_rc) do
+                if line:find("# >>> verilua setup >>>", 1, true) then
+                    in_block = true
+                elseif line:find("# <<< verilua setup <<<", 1, true) then
+                    in_block = false
+                elseif not in_block then
+                    table.insert(lines, line)
+                end
+            end
+            if in_block then
+                raise("setup_verilua: unterminated verilua setup block in " .. shell_rc)
+            end
+            while #lines > 0 and lines[#lines] == "" do
+                table.remove(lines)
             end
         end
-        if not has_match then
-            local file = io.open(shell_rc, "a")
-            if file then
-                file:print("")
-                file:print("# >>> verilua setup >>>")
-                file:print("export VERILUA_HOME=$(curdir)")
-                file:print("source $VERILUA_HOME/activate_verilua.sh")
-                file:print("# <<< verilua setup <<<")
-                file:close()
-            end
+        if #lines > 0 then
+            table.insert(lines, "")
         end
-
-        cprint("[setup_verilua] shell_rc: ${green underline}%s${reset}, has_match: %s", shell_rc, tostring(has_match))
+        table.insert(lines, "# >>> verilua setup >>>")
+        table.insert(lines, activate)
+        table.insert(lines, "# <<< verilua setup <<<")
+        local content = table.concat(lines, "\n") .. "\n"
+        local tmp = shell_rc .. ".tmp"
+        io.writefile(tmp, content)
+        if os.filesize(tmp) ~= #content then
+            os.rm(tmp)
+            raise("setup_verilua: incomplete write to " .. tmp)
+        end
+        os.mv(tmp, shell_rc)
+        cprint("[setup_verilua] wrote ${green}%s${reset}", activate)
+        cprint("[setup_verilua] this shell: ${green}%s${reset}", activate)
 
         os.exec("xmake run -y -v build_libverilua")
         os.exec("xmake build -y -v libsignal_db_gen")
