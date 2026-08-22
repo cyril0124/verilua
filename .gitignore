@@ -17,6 +17,7 @@ compile_commands.json
 .luajit_pro/
 .verilua/
 .pi/
+.worktrees/
 /.xmake
 conan_installed/
 __pycache__/

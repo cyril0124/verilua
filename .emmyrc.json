@@ -26,6 +26,7 @@
       "build",
       "tmp",
       "luajit-pro",
+      ".worktrees",
       "src/gen/out",
       "src/lua/thirdparty_lib"
     ]
