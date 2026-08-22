@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Install Verilua | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/getting-started/install"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Install Verilua | Verilua"><meta data-rh="true" name="description" content="本节主要介绍如何安装 Verilua。Verilua 支持两种安装方式，您可以根据需求选择合适的方式："><meta data-rh="true" property="og:description" content="本节主要介绍如何安装 Verilua。Verilua 支持两种安装方式，您可以根据需求选择合适的方式："><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/getting-started/install"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/getting-started/install" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/getting-started/install" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Install Verilua","item":"https://cyril0124.github.io/verilua/docs/getting-started/install"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.bc66b8d3.css">
-<script src="/verilua/assets/js/runtime~main.336d1fd5.js" defer="defer"></script>
-<script src="/verilua/assets/js/main.aa156e40.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.49d90de4.js" defer="defer"></script>
+<script src="/verilua/assets/js/main.6c8f63fb.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -106,7 +106,7 @@
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="q1安装后-test_verilua-命令找不到">Q1：安装后 <code>test_verilua</code> 命令找不到？<a href="#q1安装后-test_verilua-命令找不到" class="hash-link" aria-label="Direct link to q1安装后-test_verilua-命令找不到" title="Direct link to q1安装后-test_verilua-命令找不到" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>原因</strong>：未正确激活环境，或 <code>verilua.sh</code> 未被 source。</li>
-<li class=""><strong>解决</strong>：确保进入解压目录并执行 <code>source verilua.sh</code>。</li>
+<li class=""><strong>解决</strong>：确保进入解压目录并执行 <code>source verilua.sh</code>。激活后 <code>XMAKE_RCFILES</code> 会指向 Verilua 的 xmake rcfile，<code>~/.xmake</code> 用户配置仍生效。</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="q2源码安装时-xmake-install-verilua-失败提示缺少依赖">Q2：源码安装时 <code>xmake install verilua</code> 失败，提示缺少依赖？<a href="#q2源码安装时-xmake-install-verilua-失败提示缺少依赖" class="hash-link" aria-label="Direct link to q2源码安装时-xmake-install-verilua-失败提示缺少依赖" title="Direct link to q2源码安装时-xmake-install-verilua-失败提示缺少依赖" translate="no">​</a></h3>
 <ul>
