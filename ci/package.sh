@@ -68,7 +68,6 @@ cp -r ./conan_installed/lib/libfmt.a ./dist/conan_installed/lib
 cp -r ./conan_installed/lib/libmimalloc.a ./dist/conan_installed/lib
 cp -r ./conan_installed/include/fmt ./dist/conan_installed/include
 cp -r ./conan_installed/include/mimalloc* ./dist/conan_installed/include
-cp -r ./conan_installed/include/argparse ./dist/conan_installed/include
 cp -r ./conan_installed/include/nlohmann ./dist/conan_installed/include
 
 if [ -d "./libc" ]; then

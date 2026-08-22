@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
+- **wave_vpi_main**: Drop Conan `argparse`. CLI is hand-parsed (`-w/--wave-file`, `--hierarchy-only`, `-h/--help`); `WAVE_FILE` env fallback is unchanged.
 - **xmake / env**: `source verilua.sh` / `activate_verilua.sh` prepend `$VERILUA_HOME/scripts/xmakerc.lua` to `XMAKE_RCFILES` so `add_rules("verilua")` and simulator toolchains resolve. `unload_verilua` restores the previous `XMAKE_RCFILES`. Rule/toolchain files moved from `scripts/.xmake/` to `scripts/xmake/`. Removed `xmake run apply_xmake_patch`.
 - **LuaSimConfig**: `cfg.prj_dir` is now resolved to an absolute path at runtime (nil/`""`/`"."` -> cwd; relative -> cwd-joined; absolute unchanged), making the public field unambiguous in logs and safe to hand to consumers with a different working directory.
 - **DpiExporter / CallableHDL**: Exported-signal `hdl` is nil (dpi-only) only when `dummy_vpi` is not linked. If `vl_dummy_vpi_linked` is present, the VPI handle is kept so dummy_vpi still serves `get_hex_str` / `set` / edge. `get` / `get64` / `get_vec` stay on DPI in both cases.

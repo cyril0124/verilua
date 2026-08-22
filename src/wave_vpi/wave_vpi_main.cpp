@@ -1,7 +1,7 @@
 #include "wave_vpi.h"
 
-#include <argparse/argparse.hpp>
 #include <csignal>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 
@@ -31,30 +31,53 @@ int main(int argc, const char *argv[]) {
     });
 
 #ifdef USE_FSDB
-    argparse::ArgumentParser program("wave_vpi_main_fsdb", VERILUA_VERSION);
-    program.add_argument("-w", "--wave-file").default_value(std::string("")).required().help("input wave file for wave vpi(FSDB)");
+    const char *prog     = "wave_vpi_main_fsdb";
+    const char *waveHelp = "input wave file for wave vpi(FSDB)";
 #else
-    argparse::ArgumentParser program("wave_vpi_main", VERILUA_VERSION);
-    program.add_argument("-w", "--wave-file").default_value(std::string("")).required().help("input wave file for wave vpi(VCD, FST)");
+    const char *prog     = "wave_vpi_main";
+    const char *waveHelp = "input wave file for wave vpi(VCD, FST)";
 #endif
-    program.add_argument("--hierarchy-only").default_value(false).implicit_value(true).help("only load hierarchy, skip signal data and time table");
+    auto print_usage = [&]() {
+        std::cerr << prog << " " << VERILUA_VERSION << "\n"
+                  << "  -w, --wave-file FILE   " << waveHelp << "\n"
+                  << "  --hierarchy-only       only load hierarchy, skip signal data and time table\n"
+                  << "  -h, --help             show this help\n";
+    };
 
-    try {
-        program.parse_args(argc, argv);
-    } catch (const std::exception &err) {
-        std::cerr << err.what() << std::endl;
-        std::cerr << program;
+    std::string waveFileArg;
+    bool hierarchyOnly = false;
+    for (int i = 1; i < argc; ++i) {
+        const char *arg = argv[i];
+        if (std::strcmp(arg, "-h") == 0 || std::strcmp(arg, "--help") == 0) {
+            print_usage();
+            return 0;
+        }
+        if (std::strcmp(arg, "--hierarchy-only") == 0) {
+            hierarchyOnly = true;
+            continue;
+        }
+        if (std::strcmp(arg, "-w") == 0 || std::strcmp(arg, "--wave-file") == 0) {
+            if (i + 1 >= argc) {
+                std::cerr << "missing value for " << arg << '\n';
+                print_usage();
+                return 1;
+            }
+            waveFileArg = argv[++i];
+            continue;
+        }
+        std::cerr << "unknown argument: " << arg << '\n';
+        print_usage();
         return 1;
     }
 
     auto waveFile = std::string("");
-    if (program.is_used("--wave-file")) {
-        waveFile = std::filesystem::absolute(program.get<std::string>("--wave-file"));
+    if (!waveFileArg.empty()) {
+        waveFile = std::filesystem::absolute(waveFileArg);
     } else {
         auto _waveFile = std::getenv("WAVE_FILE");
         if (_waveFile == nullptr) {
             std::cerr << "[wave_vpi::main] either env var WAVE_FILE or command line argument --wave-file is required" << std::endl;
-            std::cerr << program;
+            print_usage();
             return 1;
         }
         waveFile = std::string(_waveFile);
@@ -72,7 +95,7 @@ int main(int argc, const char *argv[]) {
     setenv("VL_WAVEFORM_FILE", waveFile.c_str(), 1);
 
     // Bridge --hierarchy-only CLI flag to env var so all is_hierarchy_only_mode() checks work.
-    if (program.get<bool>("--hierarchy-only")) {
+    if (hierarchyOnly) {
         setenv("WAVE_VPI_HIERARCHY_ONLY", "1", 1);
     }
 
