@@ -240,8 +240,8 @@ Verilua 会将这些文件交给对应后端参与构建。某些仿真器或特
 
 ## 7. 常见问题
 
-**Q1：编译时报错 `unknown toolchain`**
-A：请确保 `add_toolchains` 中使用了正确的名称（`@verilator`, `@iverilog`, `@vcs`, `@xcelium`, `@wave_vpi`），且对应工具已安装在 `PATH` 中。
+**Q1：编译时报错 `unknown toolchain` 或 `unknown rule: verilua`**
+A：请先 `source verilua.sh`（或 `activate_verilua.sh`）激活环境，确认 `XMAKE_RCFILES` 指向 `$VERILUA_HOME/scripts/xmakerc.lua`。`add_toolchains` 须使用正确名称（`@verilator`, `@iverilog`, `@vcs`, `@xcelium`, `@wave_vpi`），且对应工具已在 `PATH` 中。
 
 **Q2：波形文件未生成（HVL）**
 A：检查 `verilator.flags` 是否包含 `--trace` 或 `--trace-fst`，并在 Lua 中调用了 `sim.dump_wave()`。

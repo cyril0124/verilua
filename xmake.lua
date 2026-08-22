@@ -346,7 +346,7 @@ target("format-lua", function()
             table.join2(format_paths, os.files(path.join(prj_dir, "*.lua")))
             local candidates = {}
             table.join2(candidates, os.files(path.join(prj_dir, "tests", "**", "*.lua")))
-            table.join2(candidates, os.files(path.join(prj_dir, "scripts", ".xmake", "**", "*.lua")))
+            table.join2(candidates, os.files(path.join(prj_dir, "scripts", "xmake", "**", "*.lua")))
             table.join2(candidates, os.files(path.join(prj_dir, "src", "lua", "verilua", "**", "*.lua")))
             for _, file in ipairs(candidates) do
                 if not is_generated_lua(file) then
@@ -462,28 +462,6 @@ target("setup_verilua", function()
     end)
 end)
 
-target("apply_xmake_patch", function()
-    set_kind("phony")
-    on_run(function()
-        local verilua_xmake_dir = path.join(prj_dir, "scripts", ".xmake")
-
-        os.mkdir(path.join("~", ".xmake", "rules", "verilua"))
-        os.cp(
-            path.join(verilua_xmake_dir, "rules", "verilua", "xmake.lua"),
-            path.join("~", ".xmake", "rules", "verilua", "xmake.lua")
-        )
-
-        for _, toolchain_dir in ipairs(os.dirs(path.join(verilua_xmake_dir, "toolchains", "*"))) do
-            local toolchain_name = path.basename(toolchain_dir)
-            os.mkdir(path.join("~", ".xmake", "toolchains", toolchain_name))
-            os.cp(
-                path.join(toolchain_dir, "*"),
-                path.join("~", ".xmake", "toolchains", toolchain_name)
-            )
-        end
-    end)
-end)
-
 target("clean_all", function()
     set_kind("phony")
     on_run(function()
@@ -517,26 +495,23 @@ end)
 target("verilua", function()
     set_kind("phony")
     on_install(function()
-        cprint("${💥} ${yellow}[1/7]${reset} Update git submodules...")
+        cprint("${💥} ${yellow}[1/6]${reset} Update git submodules...")
         os.exec("xmake run update_submodules")
 
-        cprint("${💥} ${yellow}[2/7]${reset} Install other libs...")
+        cprint("${💥} ${yellow}[2/6]${reset} Install other libs...")
         os.exec("xmake run install_other_libs")
 
-        cprint("${💥} ${yellow}[3/7]${reset} Install LuaJIT-2.1...")
+        cprint("${💥} ${yellow}[3/6]${reset} Install LuaJIT-2.1...")
         os.exec("xmake run install_luajit")
 
-        cprint("${💥} ${yellow}[4/7]${reset} Install lua modules...")
+        cprint("${💥} ${yellow}[4/6]${reset} Install lua modules...")
         os.exec("xmake run install_lua_modules")
 
-        cprint("${💥} ${yellow}[5/7]${reset} Install tinycc...")
+        cprint("${💥} ${yellow}[5/6]${reset} Install tinycc...")
         os.exec("xmake run install_tinycc")
 
-        cprint("${💥} ${yellow}[6/7]${reset} Setup verilua home on ${green}%s${reset}...", os.shell())
+        cprint("${💥} ${yellow}[6/6]${reset} Setup verilua home on ${green}%s${reset}...", os.shell())
         os.exec("xmake run setup_verilua")
-
-        cprint("${💥} ${yellow}[7/7]${reset} Applying verilua patch for xmake...")
-        os.exec("xmake run apply_xmake_patch")
     end)
 end)
 

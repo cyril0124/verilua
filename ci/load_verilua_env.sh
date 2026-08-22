@@ -22,9 +22,11 @@ echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
 echo "LUA_PATH=$LUA_PATH" >> $GITHUB_ENV
 echo "LUA_CPATH=$LUA_CPATH" >> $GITHUB_ENV
 echo "CONFIG_TCCDIR=$CONFIG_TCCDIR" >> $GITHUB_ENV
+echo "XMAKE_RCFILES=$XMAKE_RCFILES" >> $GITHUB_ENV
 
 echo "[load_verilua_env.sh] PATH is: $PATH"
 echo "[load_verilua_env.sh] LD_LIBRARY_PATH is: $LD_LIBRARY_PATH"
 echo "[load_verilua_env.sh] LUA_PATH is: $LUA_PATH"
 echo "[load_verilua_env.sh] LUA_CPATH is: $LUA_CPATH"
 echo "[load_verilua_env.sh] CONFIG_TCCDIR is: $CONFIG_TCCDIR"
+echo "[load_verilua_env.sh] XMAKE_RCFILES is: $XMAKE_RCFILES"

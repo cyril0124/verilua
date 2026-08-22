@@ -18,8 +18,6 @@ compile_commands.json
 .verilua/
 .pi/
 /.xmake
-scripts/.xmake/cache
-scripts/.xmake/linux
 conan_installed/
 __pycache__/
 

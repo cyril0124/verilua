@@ -72,9 +72,23 @@ build_wave_vpi_main_fsdb() {
     return 1
 }
 
+# Save caller xmake env once so unload_verilua can restore it.
+_vl_save_xmake_env() {
+    if [ -z "${_VL_UNLOAD_SAVED+x}" ]; then
+        _VL_UNLOAD_SAVED=1
+        if [ -n "${XMAKE_RCFILES+x}" ]; then
+            _VL_UNLOAD_HAD_XMAKE_RCFILES=1
+            _VL_UNLOAD_XMAKE_RCFILES="$XMAKE_RCFILES"
+        else
+            _VL_UNLOAD_HAD_XMAKE_RCFILES=0
+            _VL_UNLOAD_XMAKE_RCFILES=""
+        fi
+    fi
+}
+
 # Initialize environment
 export VERILUA_HOME="$script_dir"
-export XMAKE_GLOBALDIR="$VERILUA_HOME/scripts"
+_vl_save_xmake_env
 source "$VERILUA_HOME/activate_verilua.sh"
 
 # Auto-build wave_vpi_main_fsdb if VERDI_HOME is set
@@ -86,18 +100,17 @@ fi
 # Load verilua environment
 load_verilua() {
     export VERILUA_HOME="$script_dir"
-    export XMAKE_GLOBALDIR="$VERILUA_HOME/scripts"
+    _vl_save_xmake_env
 
     echo ""
     echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BOLD}${CYAN}║${NC}                  ${GREEN}Loading Verilua${NC}"
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    log_info "VERILUA_HOME    = ${GREEN}${VERILUA_HOME}${NC}"
-    log_info "XMAKE_GLOBALDIR = ${GREEN}${XMAKE_GLOBALDIR}${NC}"
-    echo ""
-
     source "$VERILUA_HOME/activate_verilua.sh"
+    log_info "VERILUA_HOME  = ${GREEN}${VERILUA_HOME}${NC}"
+    log_info "XMAKE_RCFILES = ${GREEN}${XMAKE_RCFILES}${NC}"
+    echo ""
     log_success "Verilua environment loaded!"
     echo ""
 }
@@ -109,11 +122,18 @@ unload_verilua() {
     echo -e "${BOLD}${YELLOW}║${NC}                 ${YELLOW}Unloading Verilua${NC}"
     echo -e "${BOLD}${YELLOW}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    log_info "Previous VERILUA_HOME    = ${DIM}${VERILUA_HOME}${NC}"
-    log_info "Previous XMAKE_GLOBALDIR = ${DIM}${XMAKE_GLOBALDIR}${NC}"
+    log_info "Previous VERILUA_HOME  = ${DIM}${VERILUA_HOME}${NC}"
+    log_info "Previous XMAKE_RCFILES = ${DIM}${XMAKE_RCFILES}${NC}"
 
     unset VERILUA_HOME
-    unset XMAKE_GLOBALDIR
+    if [ "${_VL_UNLOAD_HAD_XMAKE_RCFILES:-0}" = 1 ]; then
+        export XMAKE_RCFILES="$_VL_UNLOAD_XMAKE_RCFILES"
+    else
+        unset XMAKE_RCFILES
+    fi
+    unset _VL_UNLOAD_SAVED
+    unset _VL_UNLOAD_HAD_XMAKE_RCFILES
+    unset _VL_UNLOAD_XMAKE_RCFILES
 
     echo ""
     log_success "Verilua environment unloaded!"

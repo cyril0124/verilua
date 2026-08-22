@@ -24,8 +24,8 @@
 - Coverage instrumentation and export generator: `./src/cov_exporter`
 - Common C/C++ headers: `./src/include`
 - Examples and tutorials: `./examples`
-- Xmake rules, plugins, and simulator toolchains: `./scripts/.xmake`
-- Verilua's xmake rule implementation: `./scripts/.xmake/rules/verilua/xmake.lua`
+- Xmake rules, plugins, and simulator toolchains: `./scripts/xmake`
+- Verilua's xmake rule implementation: `./scripts/xmake/rules/verilua/xmake.lua`
 - Conan packaging helpers: `./scripts/conan`
 - Simulator wrapper commands: `./tools`
 - Documentation content: `./docs`
@@ -44,7 +44,7 @@
 - Lua code must include LuaCATS type annotations written for EmmyLuaLs: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust`.
 - Annotation reference: `https://github.com/EmmyLuaLs/emmylua-analyzer-rust/tree/main/docs/emmylua_doc/annotations_EN`
 - When modifying Lua function signatures, return types, or data structures, update the corresponding LuaCATS annotations so they stay in sync with the implementation.
-- When adding or renaming `set_values` / `add_values` keys handled by Verilua xmake rules (especially `verilua.*` flags in `./scripts/.xmake/rules/verilua/xmake.lua`), also update the `verilua.xmake.set_add_values.cmd` alias list in `./src/lua/meta.lua` so EmmyLua completion and type checks stay in sync.
+- When adding or renaming `set_values` / `add_values` keys handled by Verilua xmake rules (especially `verilua.*` flags in `./scripts/xmake/rules/verilua/xmake.lua`), also update the `verilua.xmake.set_add_values.cmd` alias list in `./src/lua/meta.lua` so EmmyLua completion and type checks stay in sync.
 - Lua code must follow LuaJIT best practices and account for JIT performance characteristics.
 - Follow the best practices already used in the existing codebase.
 - Add concise English comments for important or non-obvious code blocks when they improve readability.
@@ -56,7 +56,7 @@
 - Prefer documenting user-facing env vars in `./docs/reference/special_env_variables.mdx`.
 - Naming by audience / lifecycle:
   - `VL_*` — Verilua **runtime** (read by `src/lua` / `libverilua`; e.g. `VL_DEBUG`, `VL_CFG_FILE`, `VL_DUT_TOP`).
-  - `VL_XMK_*` — **xmake rule / test-matrix knobs** (read by `./scripts/.xmake/rules/verilua/xmake.lua` and/or test `main.lua`; e.g. `VL_XMK_USE_INERTIAL_PUT`, `VL_XMK_NO_INTERNAL_CLOCK`, `VL_XMK_USE_NATIVE_CLOCK`). Prefer `set_values("verilua.*", ...)` when a permanent project setting is enough; use `VL_XMK_*` for CI/one-shot overrides.
+  - `VL_XMK_*` — **xmake rule / test-matrix knobs** (read by `./scripts/xmake/rules/verilua/xmake.lua` and/or test `main.lua`; e.g. `VL_XMK_USE_INERTIAL_PUT`, `VL_XMK_NO_INTERNAL_CLOCK`, `VL_XMK_USE_NATIVE_CLOCK`). Prefer `set_values("verilua.*", ...)` when a permanent project setting is enough; use `VL_XMK_*` for CI/one-shot overrides.
   - `VERILUA_HOME` — install root only. Do not invent new `VERILUA_*` env vars.
   - Unprefixed freeze list (do not grow): `SIM`, `SEED`, `PRJ_DIR`, `PRJ_TOP`.
 - Do not add new unprefixed env vars. New runtime knobs → `VL_*`; new xmake-rule-only knobs → `VL_XMK_*`.

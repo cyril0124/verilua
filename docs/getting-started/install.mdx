@@ -168,7 +168,7 @@ export IVERILOG_HOME=/path/to/iverilog   # 添加到 shell 配置文件
 ### Q1：安装后 `test_verilua` 命令找不到？
 
 - **原因**：未正确激活环境，或 `verilua.sh` 未被 source。
-- **解决**：确保进入解压目录并执行 `source verilua.sh`。
+- **解决**：确保进入解压目录并执行 `source verilua.sh`。激活后 `XMAKE_RCFILES` 会指向 Verilua 的 xmake rcfile，`~/.xmake` 用户配置仍生效。
 
 ### Q2：源码安装时 `xmake install verilua` 失败，提示缺少依赖？
 

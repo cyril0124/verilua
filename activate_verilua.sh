@@ -10,6 +10,18 @@ if [ -z "$VERILUA_HOME" ]; then
 fi
 
 # -----------------------------------------------------------------------------
+# Inject Verilua xmake rules and toolchains
+# -----------------------------------------------------------------------------
+_vl_xmakerc="$VERILUA_HOME/scripts/xmakerc.lua"
+case ":${XMAKE_RCFILES:-}:" in
+    *":$_vl_xmakerc:"*) ;;
+    *)
+        export XMAKE_RCFILES="$_vl_xmakerc${XMAKE_RCFILES:+:$XMAKE_RCFILES}"
+        ;;
+esac
+unset _vl_xmakerc
+
+# -----------------------------------------------------------------------------
 # PATH configuration
 # -----------------------------------------------------------------------------
 export PATH="$VERILUA_HOME/tools:$PATH"

@@ -56,7 +56,7 @@ verilua/
 ├── tests/                   # Tests (also API usage examples)
 ├── examples/                # Example projects & guided tour
 ├── scripts/
-│   ├── .xmake/              # Xmake rules, plugins, simulator toolchains
+│   ├── xmake/               # Xmake rules and simulator toolchains
 │   └── conan/               # Conan packaging helpers
 ├── tools/                   # Simulator wrappers (vl-verilator, vl-vcs, …)
 ├── xmake.lua                # Top-level build entry
