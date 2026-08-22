@@ -14,12 +14,14 @@ repos:
         language: system
         pass_filenames: false
         files: \.(lua)$
+        exclude: (^|/)xmake\.lua$
       - id: lsp-check-lua
         name: lsp-check-lua
         entry: xmake run lsp-check-lua
         language: system
         pass_filenames: false
         files: \.(lua)$
+        exclude: (^|/)xmake\.lua$
       - id: format-cpp
         name: format-cpp
         entry: xmake run format-cpp

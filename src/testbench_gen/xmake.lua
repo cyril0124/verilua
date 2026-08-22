@@ -32,11 +32,11 @@ target("testbench_gen", function()
         curr_dir,
         slang_common_dir,
         boost_unordered_dir,
-        path.join(libs_dir, "include")
+        path.join(libs_dir, "include"),
+        path.join(prj_dir, "src", "include")
     )
 
-    add_links("svlang", "fmt", "mimalloc")                -- order is important
-    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libasser
+    add_links("svlang", "fmt", "mimalloc") -- order is important
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 

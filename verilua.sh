@@ -57,7 +57,7 @@ build_wave_vpi_main_fsdb() {
     build_log=$(mktemp)
 
     # Run build and capture all output to a temporary file
-    if NO_DEPS=1 NO_CPPTRACE=1 xmake b -P "$VERILUA_HOME/src/wave_vpi" wave_vpi_main_fsdb > "$build_log" 2>&1; then
+    if NO_DEPS=1 xmake b -P "$VERILUA_HOME/src/wave_vpi" wave_vpi_main_fsdb > "$build_log" 2>&1; then
         # Check for success marker and binary existence
         if grep -q "build ok" "$build_log" && command -v wave_vpi_main_fsdb >/dev/null 2>&1; then
             log_success "wave_vpi_main_fsdb built successfully!"

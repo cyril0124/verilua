@@ -37,9 +37,6 @@ target("nosim", function()
         "-Wl,--no-as-needed"
     )
 
-    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
-    add_linkdirs(path.join(libs_dir, "lib"))
-    add_rpathdirs(path.join(libs_dir, "lib"))
 
     add_linkgroups("luajit-5.1", { static = true, whole = true })
     add_linkdirs(path.join(lua_dir, "lib"))

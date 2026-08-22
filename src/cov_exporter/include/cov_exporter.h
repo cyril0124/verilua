@@ -3,13 +3,13 @@
 #include "SlangCommon.h"
 #include "fmt/core.h"
 #include "fmt/format.h"
-#include "libassert/assert.hpp"
 #include "nlohmann/json.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
+#include "vl_assert.h"
 #include <cassert>
 #include <chrono>
 #include <fstream>

@@ -6,7 +6,6 @@
 #include "fmt/base.h"
 #include "fmt/color.h"
 #include "inja/inja.hpp"
-#include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/Symbol.h"
@@ -16,6 +15,7 @@
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
 #include "sol/sol.hpp"
+#include "vl_assert.h"
 #include <algorithm>
 #include <cctype>
 #include <cstddef>

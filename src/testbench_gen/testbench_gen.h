@@ -4,7 +4,6 @@
 #include "fmt/base.h"
 #include "fmt/color.h"
 #include "inja/inja.hpp"
-#include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/Symbol.h"
@@ -14,6 +13,7 @@
 #include "slang/driver/Driver.h"
 #include "slang/parsing/TokenKind.h"
 #include "slang/syntax/AllSyntax.h"
+#include "vl_assert.h"
 #include <array>
 #include <chrono>
 #include <cstdio>

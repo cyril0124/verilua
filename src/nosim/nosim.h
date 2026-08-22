@@ -1,4 +1,4 @@
 #pragma once
 
 #include "fmt/format.h"
-#include "libassert/assert.hpp"
+#include "vl_assert.h"

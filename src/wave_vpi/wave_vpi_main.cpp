@@ -5,10 +5,6 @@
 #include <filesystem>
 #include <iostream>
 
-#ifdef USE_CPPTRACE
-#include <cpptrace/cpptrace.hpp>
-#endif
-
 #ifndef VERILUA_VERSION
 #define VERILUA_VERSION "Unknown"
 #endif
@@ -16,17 +12,11 @@
 int main(int argc, const char *argv[]) {
     signal(SIGABRT, [](int sig) {
         fmt::println("[wave_vpi::main] SIGABRT");
-#ifdef USE_CPPTRACE
-        cpptrace::generate_trace().print(std::cerr, true);
-#endif
         _exit(1);
     });
 
     signal(SIGSEGV, [](int sig) {
         fmt::println("[wave_vpi::main] SIGSEGV");
-#ifdef USE_CPPTRACE
-        cpptrace::generate_trace().print(std::cerr, true);
-#endif
         _exit(1);
     });
 

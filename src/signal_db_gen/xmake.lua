@@ -34,11 +34,11 @@ target("signal_db_gen", function()
         slang_common_dir,
         boost_unordered_dir,
         path.join(libs_dir, "include"),
-        path.join(lua_dir, "include", "luajit-2.1")
+        path.join(lua_dir, "include", "luajit-2.1"),
+        path.join(prj_dir, "src", "include")
     )
 
     add_links("svlang", "fmt", "mimalloc")
-    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
@@ -85,11 +85,11 @@ target("libsignal_db_gen", function()
         slang_common_dir,
         boost_unordered_dir,
         path.join(libs_dir, "include"),
-        path.join(lua_dir, "include", "luajit-2.1")
+        path.join(lua_dir, "include", "luajit-2.1"),
+        path.join(prj_dir, "src", "include")
     )
 
     add_links("svlang", "fmt", "mimalloc")
-    add_links("assert", "cpptrace", "dwarf", "zstd", "z") -- libassert
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 

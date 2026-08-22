@@ -6,7 +6,6 @@
 #pragma once
 
 #include "fmt/core.h"
-#include "libassert/assert.hpp"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/Symbol.h"
@@ -17,6 +16,7 @@
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
 #include "sol/sol.hpp"
+#include "vl_assert.h"
 #include <algorithm>
 #include <chrono>
 #include <cstddef>

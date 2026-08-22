@@ -66,14 +66,6 @@ local function wave_vpi_main_common()
     add_linkdirs(shared_dir)
     add_rpathdirs(shared_dir)
 
-    local no_cpptrace = os.getenv("NO_CPPTRACE")
-    if not no_cpptrace then
-        add_defines("USE_CPPTRACE")
-        add_links("cpptrace", "dwarf", "zstd", "z")
-        add_linkdirs(path.join(libs_dir, "lib"))
-        add_rpathdirs(path.join(libs_dir, "lib"))
-    end
-
     before_build(function(target)
         -- Add version info
         local version = io.readfile(path.join(prj_dir, "VERSION")):trim()
