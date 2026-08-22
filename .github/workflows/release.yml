@@ -215,7 +215,6 @@ jobs:
           fi
           echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
 
-          xmake run clean_all
           bash ./ci/package.sh ./artifact/${PACKAGE_NAME}.zip
           unzip ./artifact/${PACKAGE_NAME}.zip -d ./artifact/${PACKAGE_NAME}_unzipped
 
