@@ -171,16 +171,16 @@ target("build_libverilua", function()
                         setup_cargo_env(os)
 
                         cprint("* Build ${green}libverilua_iverilog${reset}")
-                        os.vrun("xmake build libverilua_iverilog")
+                        os.vrun("xmake build -P %s libverilua_iverilog", prj_dir)
 
                         cprint("* Build ${green}iverilog_vpi_module${reset}")
-                        os.vrun("xmake build iverilog_vpi_module")
+                        os.vrun("xmake build -P %s iverilog_vpi_module", prj_dir)
                     end
 
                     build_iverilog = true
                 else
                     cprint("* Build ${green}%s${reset}", target_name)
-                    os.vrun("xmake build " .. target_name)
+                    os.vrun("xmake build -P %s %s", prj_dir, target_name)
                 end
             end
         else
@@ -191,10 +191,10 @@ target("build_libverilua", function()
                         setup_cargo_env(os)
 
                         cprint("* Build ${green}libverilua_iverilog${reset}")
-                        os.vrun("xmake build libverilua_iverilog")
+                        os.vrun("xmake build -P %s libverilua_iverilog", prj_dir)
 
                         cprint("* Build ${green}iverilog_vpi_module${reset}")
-                        os.vrun("xmake build iverilog_vpi_module")
+                        os.vrun("xmake build -P %s iverilog_vpi_module", prj_dir)
                     else
                         raise("[build_libverilua with SIM=iverilog] iverilog not found in PATH! Build failed!")
                     end
@@ -202,7 +202,7 @@ target("build_libverilua", function()
                     build_iverilog = true
                 elseif target_name:find(sim) then
                     cprint("* Build ${green}%s${reset}", target_name)
-                    os.vrun("xmake build " .. target_name)
+                    os.vrun("xmake build -P %s %s", prj_dir, target_name)
                 end
             end
         end

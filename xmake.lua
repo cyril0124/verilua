@@ -87,7 +87,7 @@ target("install_luajit", function()
         os.addenvs({ PATH = path.join(luajit_dir, "bin") })
 
         -- Install luarocks
-        os.exec("xmake run install_luarocks")
+        os.exec("xmake run -P %s install_luarocks", prj_dir)
 
         -- Rebuild luajit_pro_helper
         os.cd(luajit_pro_dir)
@@ -203,7 +203,7 @@ target("install_other_libs", function()
         os.exec(conan_cmd .. " install . --output-folder=%s --build=missing", libs_dir)
 
         -- Install libgmp
-        os.exec("xmake run install_libgmp")
+        os.exec("xmake run -P %s install_libgmp", prj_dir)
     end)
 end)
 
@@ -267,13 +267,13 @@ target("build_all_tools", function()
             "nosim"
         }
         for _, target in ipairs(tools_target) do
-            os.exec("xmake build -y -v %s", target)
+            os.exec("xmake build -P %s -y -v %s", prj_dir, target)
         end
 
         import("lib.detect.find_file")
         if find_file("verdi", { "$(env PATH)" }) then
             local ok = try { function()
-                os.exec("xmake build -y -v wave_vpi_main_fsdb")
+                os.exec("xmake build -P %s -y -v wave_vpi_main_fsdb", prj_dir)
                 return true
             end }
             if not ok then
@@ -423,8 +423,8 @@ target("format", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        os.exec("xmake run format-lua")
-        os.exec("xmake run format-cpp")
+        os.exec("xmake run -P %s format-lua", prj_dir)
+        os.exec("xmake run -P %s format-cpp", prj_dir)
         os.exec("cargo fmt")
     end)
 end)
@@ -473,15 +473,15 @@ target("setup_verilua", function()
         cprint("[setup_verilua] wrote ${green}%s${reset}", activate)
         cprint("[setup_verilua] this shell: ${green}%s${reset}", activate)
 
-        os.exec("xmake run -y -v build_libverilua")
-        os.exec("xmake build -y -v libsignal_db_gen")
-        os.exec("xmake build -y -v libsv_lint")
-        os.exec("xmake build -y -v turso_ffi")
-        os.exec("xmake run -y -v build_all_tools")
+        os.exec("xmake run -P %s -y -v build_libverilua", prj_dir)
+        os.exec("xmake build -P %s -y -v libsignal_db_gen", prj_dir)
+        os.exec("xmake build -P %s -y -v libsv_lint", prj_dir)
+        os.exec("xmake build -P %s -y -v turso_ffi", prj_dir)
+        os.exec("xmake run -P %s -y -v build_all_tools", prj_dir)
 
         import("lib.detect.find_file")
         if find_file("iverilog", { "$(env PATH)" }) then
-            os.exec("xmake build -y -v iverilog_vpi_module")
+            os.exec("xmake build -P %s -y -v iverilog_vpi_module", prj_dir)
         end
     end)
 end)
@@ -520,22 +520,22 @@ target("verilua", function()
     set_kind("phony")
     on_install(function()
         cprint("${💥} ${yellow}[1/6]${reset} Update git submodules...")
-        os.exec("xmake run update_submodules")
+        os.exec("xmake run -P %s update_submodules", prj_dir)
 
         cprint("${💥} ${yellow}[2/6]${reset} Install other libs...")
-        os.exec("xmake run install_other_libs")
+        os.exec("xmake run -P %s install_other_libs", prj_dir)
 
         cprint("${💥} ${yellow}[3/6]${reset} Install LuaJIT-2.1...")
-        os.exec("xmake run install_luajit")
+        os.exec("xmake run -P %s install_luajit", prj_dir)
 
         cprint("${💥} ${yellow}[4/6]${reset} Install lua modules...")
-        os.exec("xmake run install_lua_modules")
+        os.exec("xmake run -P %s install_lua_modules", prj_dir)
 
         cprint("${💥} ${yellow}[5/6]${reset} Install tinycc...")
-        os.exec("xmake run install_tinycc")
+        os.exec("xmake run -P %s install_tinycc", prj_dir)
 
         cprint("${💥} ${yellow}[6/6]${reset} Setup verilua home on ${green}%s${reset}...", os.shell())
-        os.exec("xmake run setup_verilua")
+        os.exec("xmake run -P %s setup_verilua", prj_dir)
     end)
 end)
 
