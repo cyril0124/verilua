@@ -1,5 +1,6 @@
 #include "vpi_compat.h"
 #include "vpi_user.h"
+#include <memory>
 
 namespace vpi_compat {
 std::unique_ptr<s_cb_data> startOfSimulationCb = nullptr;
