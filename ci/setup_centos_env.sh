@@ -46,6 +46,7 @@ install_dependencies() {
         flex bison make \
         sqlite sqlite-devel \
         lz4 lz4-devel \
+        zlib zlib-devel \
         which
     
     log_success "Installed devtoolset-11"
