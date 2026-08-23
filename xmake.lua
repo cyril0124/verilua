@@ -281,7 +281,10 @@ target("install_lua_modules", function()
         os.tryrm("/tmp/lsqlite-src")
         os.exec("git clone https://github.com/cyril0124/lsqlite-src.git")
         os.cd("lsqlite-src")
-        os.exec("unzip lsqlite3_v096.zip")
+
+        import("utils.archive")
+        archive.extract("lsqlite3_v096.zip", ".")
+
         os.cd("lsqlite3_v096")
         os.exec("luarocks make --force-lock lsqlite3complete-0.9.6-1.rockspec")
         os.exec("luarocks make --force-lock lsqlite3-0.9.6-1.rockspec")
@@ -434,35 +437,17 @@ target("format-cpp", function()
             raise("clang-format tool is not found!")
         end
 
-        -- Find all C++ source and header files in src directory
-        local cpp_patterns = { "*.cpp", "*.hpp", "*.h", "*.cc", "*.cxx", "*.hxx" }
-        local files = {}
-
-        -- Try to use fd first, fallback to find
-        local use_fd = find_file("fd", { "$(env PATH)" }) ~= nil
-
-        for _, pattern in ipairs(cpp_patterns) do
-            local found
-            if use_fd then
-                found = os.iorunv("fd", { "--glob", pattern, "src" })
-            else
-                found = os.iorunv("find", { "src", "-name", pattern, "-type", "f" })
-            end
-
-            if found then
-                for file in found:gmatch("[^\r\n]+") do
-                    table.insert(files, file)
-                end
-            end
-        end
+        local src_dir = path.join(prj_dir, "src")
+        local files = os.files(path.join(src_dir, "**.cpp|**.hpp|**.h|**.cc|**.cxx|**.hxx"), function(file)
+            local filename = path.filename(file)
+            return not filename:startswith("svdpi")
+                and not filename:startswith("vpi_user")
+                and not filename:startswith("lightsss")
+        end)
 
         for _, file in ipairs(files) do
-            file = path.absolute(file)
-            local filename = path.filename(file)
-            if not filename:startswith("svdpi") and not filename:startswith("vpi_user") and not filename:startswith("lightsss") then
-                cprint("${blue}Formatting: ${green}%s${reset}", file)
-                os.exec("clang-format -i %s", file)
-            end
+            cprint("${blue}Formatting: ${green}%s${reset}", file)
+            os.exec("clang-format -i %s", file)
         end
     end)
 end)
