@@ -1,6 +1,7 @@
 # Run `./scripts/setup-precommit.sh` once per clone to install the git hooks.
 # Hooks are executed by prek (https://github.com/j178/prek), a Rust drop-in
 # replacement for pre-commit that reads this same config file.
+default_stages: [pre-commit]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -15,6 +16,8 @@ repos:
       - id: check-case-conflict
   - repo: local
     hooks:
+      # Whole-tree runners (pass_filenames: false) would reformat out-of-scope
+      # files at push time and hang/fail on a dirty tree; gate them to commits.
       - id: format-lua
         name: format-lua
         entry: xmake run format-lua
