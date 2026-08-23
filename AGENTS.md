@@ -16,7 +16,7 @@
 - Waveform backend binaries and readers: `./src/wave_vpi`
 - No-simulation analysis backend: `./src/nosim`
 - SystemVerilog lint tool (slang-backed): `./src/sv_lint`
-- Lua code generators for schedulers and CHDL access: `./src/gen`
+- Code generators for schedulers (Python) and CHDL access (Lua): `./src/gen`
 - Testbench generator: `./src/testbench_gen`
 - SignalDB generator and shared library: `./src/signal_db_gen`
 - VPI shim over generated DPI accessors: `./src/dummy_vpi`
@@ -35,7 +35,7 @@
 ## Generated Code
 
 - Generated-code workflows are documented in `./DEVELOPMENT.md`; keep the detailed source-to-generated file mapping there to avoid duplication.
-- For scheduler changes, edit `./src/gen/gen_scheduler.lua` and regenerate from `./src/gen`.
+- For scheduler changes, edit `./src/gen/scheduler_template.lua` and regenerate from `./src/gen`.
 - For CHDL access changes, edit `./src/gen/gen_chdl_access.lua` (and its `gen_chdl_*.lua` modules) and regenerate from `./src/gen`.
 - For generated Rust changes, edit `./libverilua/src/gen/gen.lua` and regenerate from `./libverilua/src/gen`.
 

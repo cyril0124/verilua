@@ -1,5 +1,3 @@
---[[luajit-pro, {NORMAL = 1, STEP = 0, EDGE_STEP = 0, ACC_TIME = 0, SAFETY = 0}]]
-
 ---@diagnostic disable: need-check-nil, unnecessary-assert
 
 if _G.NORMAL and _G.STEP and _G.EDGE_STEP then
@@ -450,17 +448,17 @@ function Scheduler:schedule_task(id)
         s = os_clock()
     end
 
-    local old_curr_task_id            = self.curr_task_id
-    self.curr_task_id                 = id
+    local old_curr_task_id = self.curr_task_id
+    self.curr_task_id      = id
 
     local ok
     local cb_type_or_err
-    ok, cb_type_or_err = coro_resume(self.task_coroutine_map[id])
+    ok, cb_type_or_err     = coro_resume(self.task_coroutine_map[id])
 
     ---@cast ok boolean
     ---@cast cb_type_or_err verilua.scheduler.TaskCallbackType
 
-    self.curr_task_id                 = old_curr_task_id
+    self.curr_task_id      = old_curr_task_id
     if not ok then
         print(f(
             "[Scheduler] Error while executing task(id: %d, name: %s)\n\t%s",

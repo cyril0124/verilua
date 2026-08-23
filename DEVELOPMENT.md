@@ -18,11 +18,13 @@ Verilua requires multiple scheduler variants to support different simulation mod
 - **STEP mode**: Fixed-period step simulation
 - **EDGE_STEP mode**: Edge-triggered simulation with separate posedge/negedge handling
 
-Each mode has two variants - with and without performance profiling (P suffix). This specialization eliminates runtime conditionals and optimizes memory usage by including only mode-specific code.
+Each mode has two variants - with and without performance profiling (P suffix).
+
+The shared implementation lives in `src/gen/scheduler_template.lua`, which reads its mode switches as `_G.NORMAL`, `_G.STEP`, `_G.EDGE_STEP`, `_G.ACC_TIME` and `_G.SAFETY` so the template itself stays valid, lintable Lua. The generator rewrites those reads into chunk-level `local`s that are assigned exactly once, so every method captures them as immutable upvalues and LuaJIT constifies them while recording a trace (`rec_upvalue_constify` in `lj_record.c`). The branches of the other modes are therefore folded away at JIT time and cost nothing on the hot path.
 
 **To modify scheduler files:**
-1. Edit the generator: `src/gen/gen_scheduler.lua`
-2. Run the generation script: `cd src/gen && ./gen_scheduler.sh`
+1. Edit the template: `src/gen/scheduler_template.lua`
+2. Run the generator: `cd src/gen && ./gen_scheduler.py`
 
 The following files are generated (in `src/lua/verilua/scheduler/`):
 - `LuaNormalSchedulerV2.lua`
