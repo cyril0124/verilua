@@ -1,7 +1,6 @@
 ---@diagnostic disable: undefined-global, undefined-field, unnecessary-assert, unnecessary-if
 
 local f = string.format
-local default_timescale = "1ns/1ps"
 local verilua_home = os.getenv("VERILUA_HOME") or ""
 local verilua_tools_home = path.join(verilua_home, "tools")
 local verilua_libs_home = path.join(verilua_home, "shared")
@@ -21,6 +20,7 @@ local function shell_quote(value)
 end
 
 local FILE_COUNT_THRESHOLD = 100 -- Threshold for using filelist instead of passing files directly
+local DEFAULT_TIMESCALE = "1ns/1ps"
 
 -- Mapping from old (deprecated) keys to new verilua.* keys.
 -- Most old keys use the `cfg.*` prefix; a few legacy keys had no prefix at all
@@ -568,7 +568,7 @@ rule("verilua", function()
                 "--Wno-UNOPTTHREADS",
                 "--Wno-IMPORTSTAR",
                 "+define+SIM_VERILATOR",
-                "--timescale-override " .. default_timescale,
+                "--timescale-override " .. DEFAULT_TIMESCALE,
                 "--top-module", tb_top,
                 [[-CFLAGS "-std=c++20"]],
                 [[-LDFLAGS "-flto"]],
@@ -771,7 +771,7 @@ rule("verilua", function()
 
             -- Some iverilog flags need to be added to the command file
             local extra_iverilog_cmds = {
-                "+timescale+" .. default_timescale,
+                "+timescale+" .. DEFAULT_TIMESCALE,
             }
 
             if no_internal_clock == "1" then
@@ -823,7 +823,7 @@ rule("verilua", function()
                 "-lca",
                 "-kdb",
                 "-j" .. tostring((os.cpuinfo().ncpu or 128)),
-                "-timescale=" .. default_timescale,
+                "-timescale=" .. DEFAULT_TIMESCALE,
                 "+define+SIM_VCS",
                 "+define+VCS",
                 "-q",
@@ -930,7 +930,7 @@ rule("verilua", function()
                 "-xmlibdirpath " .. build_dir,
                 "-xmlibdirname " .. path.basename(sim_build_dir),
                 "-sv",
-                "-timescale " .. default_timescale,
+                "-timescale " .. DEFAULT_TIMESCALE,
                 "-l " .. path.join(build_dir, "xrun_comp.log"),
                 "-access +rw",
                 "-loadvpi " ..
