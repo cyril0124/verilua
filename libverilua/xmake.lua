@@ -49,36 +49,19 @@ local function build_lib_common(simulator)
 
         -- try { function () os.vrun("cargo clean") end }
 
-        -- Set RUSTFLAGS for --wrap, always restore even if cargo fails so the
-        -- flags do not leak into subsequent cargo invocations in this process.
+        -- `cargo rustc` passes the -Clink-arg only to the final crate's rustc
+        -- invocation, so RUSTFLAGS never changes and dependency fingerprints
+        -- stay valid when switching between dpi / non-dpi variants.
         local function cargo_build_with_wrap(feature_args)
-            local old_rustflags = os.getenv("RUSTFLAGS") or ""
-            os.setenv("RUSTFLAGS", "-Clink-arg=-Wl,--wrap=" .. table.concat(vpi_funcs, ",--wrap="))
-            -- try+finally alone swallows errors in xmake; re-raise after restore.
-            local ok, err
-            try {
-                function()
-                    os.vrun([[cargo build -p libverilua --release --features "%s"]], feature_args)
-                end,
-                finally {
-                    function(succeeded, result_or_errors)
-                        os.setenv("RUSTFLAGS", old_rustflags)
-                        ok = succeeded
-                        if not succeeded then
-                            err = result_or_errors
-                        end
-                    end
-                }
-            }
-            if not ok then
-                raise(err)
-            end
+            os.vrun([[cargo rustc -p libverilua --release --features "%s" -- -Clink-arg=-Wl,--wrap=%s]],
+                feature_args, table.concat(vpi_funcs, ",--wrap="))
         end
 
         if simulator == "verilator" then
             os.vrun([[cargo build -p libverilua --release --features "verilator %s"]], verilator_features)
         elseif simulator == "verilator_i" then
-            os.vrun([[cargo build -p libverilua --release --features "verilator %s"]], verilator_features .. " inertial_put")
+            os.vrun([[cargo build -p libverilua --release --features "verilator %s"]],
+                verilator_features .. " inertial_put")
         elseif simulator == "verilator_dpi" then
             cargo_build_with_wrap(format("verilator dpi %s", verilator_features))
         elseif simulator == "vcs" then
@@ -114,14 +97,16 @@ local all_libverilua_targets = {}
 for _, simulator in ipairs({
     "verilator",
     "verilator_i", -- `verilator` with `inertial_put` feature
-    "verilator_dpi",
     "vcs",
-    "vcs_dpi",
     "xcelium",
-    "xcelium_dpi",
     "iverilog",
     "wave_vpi",
-    "nosim"
+    "nosim",
+    -- dpi variants are grouped at the end: they share the `mlua/send`
+    -- feature, so mlua is rebuilt only once when entering this block.
+    "verilator_dpi",
+    "vcs_dpi",
+    "xcelium_dpi"
 }) do
     -- libverilua_verilator
     -- libverilua_verilator_i
@@ -216,7 +201,8 @@ target("iverilog_vpi_module", function()
     on_build(function(_target)
         setup_cargo_env(os)
 
-        try { function() os.vrun("cargo clean") end }
+        -- Same cargo command as libverilua_iverilog: building it after that
+        -- target is a fingerprint cache hit, only the .vpi copy is new.
         os.vrun(build_iverilog_vpi_module_cmd)
 
         os.cp(path.join(prj_dir, "target", "release", "libverilua.so"), path.join(shared_dir, "libverilua_iverilog.vpi"))
