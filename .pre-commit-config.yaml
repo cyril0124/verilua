@@ -1,11 +1,18 @@
-# Use `pre-commit install` to install the pre-commit hooks.
-# You only need to do this once.
+# Run `./scripts/setup-precommit.sh` once per clone to install the git hooks.
+# Hooks are executed by prek (https://github.com/j178/prek), a Rust drop-in
+# replacement for pre-commit that reads this same config file.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-yaml
       - id: check-merge-conflict
+      - id: check-toml
+      - id: check-json
+        exclude: ^\.(vscode|emmyrc)|tsconfig
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-case-conflict
   - repo: local
     hooks:
       - id: format-lua
@@ -28,4 +35,18 @@ repos:
         language: system
         pass_filenames: false
         files: \.(cpp|hpp|h|c)$
+      - id: cargo-fmt
+        name: cargo-fmt
+        entry: cargo fmt --all --check
+        language: system
+        pass_filenames: false
+        files: \.rs$
+      # Slow (full build): only on push.
+      - id: cargo-clippy
+        name: cargo-clippy
+        entry: cargo clippy --all-targets --all-features -- -D warnings
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: \.rs$
 
