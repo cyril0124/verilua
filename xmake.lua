@@ -27,7 +27,7 @@ target("update_submodules", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        os.exec("git submodule update --init --recursive")
+        os.exec("git -C %s submodule update --init --recursive", prj_dir)
     end)
 end)
 
@@ -44,23 +44,23 @@ target("install_luarocks", function()
 
         -- Build luarocks
         do
-            os.cd(luajit_pro_dir)
+            import("net.http")
+            import("utils.archive")
+
             local tarball = path.join(luajit_pro_dir, "luarocks-" .. luarocks_version .. ".tar.gz")
             if not os.isfile(tarball) then
-                local tmp = tarball .. ".tmp"
-                os.exec(
-                    "wget -O %s https://luarocks.github.io/luarocks/releases/luarocks-%s.tar.gz",
-                    tmp,
-                    luarocks_version
-                )
-                os.mv(tmp, tarball)
+                local url = "https://luarocks.github.io/luarocks/releases/luarocks-" .. luarocks_version .. ".tar.gz"
+                print("[xmake.lua] [install_luarocks] Downloading luarocks...")
+                http.download(url, tarball)
             end
-            os.exec("tar -zxvf luarocks-%s.tar.gz", luarocks_version)
-            os.cd("luarocks-" .. luarocks_version)
+            archive.extract(tarball, luajit_pro_dir)
+
+            local luarocks_src_dir = path.join(luajit_pro_dir, "luarocks-" .. luarocks_version)
+            os.cd(luarocks_src_dir)
 
             os.exec("make clean")
             os.exec("./configure --with-lua=%s --prefix=%s", luajit_dir, luajit_dir)
-            os.exec("make")
+            os.exec("make -j%d", os.cpuinfo().ncpu or 4)
             os.exec("make install")
         end
 
@@ -76,8 +76,8 @@ target("install_luajit", function()
         local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
 
         -- Build luajit_pro_helper
+        os.exec("git -C %s submodule update --init", luajit_pro_dir)
         os.cd(luajit_pro_dir)
-        os.exec("git submodule update --init")
         os.exec("cargo build --release")
         -- Build luajit
         os.exec("bash init.sh")
@@ -140,14 +140,24 @@ target("install_libgmp", function()
 
         local libgmp_xz = "gmp-6.3.0.tar.xz"
         local libgmp_dir = path.join(build_dir, "gmp-6.3.0")
-        os.cd(build_dir)
-        os.tryrm(libgmp_dir)
-        os.tryrm(libgmp_xz)
-        os.exec("wget https://ftp.gnu.org/gnu/gmp/" .. libgmp_xz)
-        os.exec("tar xJf " .. libgmp_xz)
+        local libgmp_tarball = path.join(build_dir, libgmp_xz)
+
+        if not os.isdir(libgmp_dir) then
+            import("net.http")
+            import("utils.archive")
+
+            if not os.isfile(libgmp_tarball) then
+                print("[xmake.lua] [install_libgmp] Downloading libgmp...")
+                http.download("https://ftp.gnu.org/gnu/gmp/" .. libgmp_xz, libgmp_tarball)
+            end
+
+            print("[xmake.lua] [install_libgmp] Extracting libgmp...")
+            archive.extract(libgmp_tarball, build_dir)
+        end
+
         os.cd(libgmp_dir)
         os.exec("./configure --prefix=%s --disable-static", libs_dir)
-        os.exec("make -j" .. os.cpuinfo().ncpu)
+        os.exec("make -j%d", os.cpuinfo().ncpu or 4)
         os.exec("make install")
 
         -- Copy libgmp into shared dir
@@ -171,6 +181,9 @@ target("install_other_libs", function()
 
         local conan_cmd = "conan"
         local build_dir = path.join(prj_dir, "build")
+        local conan_dir = path.join(build_dir, "conan")
+        local conan_bin = path.join(conan_dir, "bin", "conan")
+
         local has_conan = try { function() return os.iorun("conan --version") end }
 
         if not os.isdir(build_dir) then
@@ -178,29 +191,64 @@ target("install_other_libs", function()
         end
 
         if not has_conan then
-            os.cd(build_dir)
-            os.exec("wget https://github.com/conan-io/conan/releases/download/2.14.0/conan-2.14.0-linux-x86_64.tgz")
-            os.mkdir("./conan")
-            os.exec("tar -xvf conan-2.14.0-linux-x86_64.tgz -C ./conan")
-            conan_cmd = path.join(prj_dir, "build", "conan", "bin", "conan")
+            if os.isexec(conan_bin) then
+                conan_cmd = conan_bin
+            else
+                import("net.http")
+                import("utils.archive")
+
+                local url = "https://github.com/conan-io/conan/releases/download/2.14.0/conan-2.14.0-linux-x86_64.tgz"
+                local tgz_path = path.join(build_dir, "conan-2.14.0.tgz")
+
+                print("[xmake.lua] [install_other_libs] Downloading conan...")
+                local downloaded = false
+                for attempt = 1, 3 do
+                    local ok = try {
+                        function()
+                            http.download(url, tgz_path)
+                            return true
+                        end
+                    }
+                    if ok and os.isfile(tgz_path) then
+                        downloaded = true
+                        break
+                    else
+                        print(string.format("[xmake.lua] [install_other_libs] Download failed (attempt %d/3), retrying...", attempt))
+                        os.tryrm(tgz_path)
+                        os.sleep(1000)
+                    end
+                end
+                if not downloaded then
+                    raise("[xmake.lua] [install_other_libs] Failed to download conan after 3 attempts.")
+                end
+
+                print("[xmake.lua] [install_other_libs] Extracting conan...")
+                archive.extract(tgz_path, conan_dir)
+                os.rm(tgz_path)
+
+                conan_cmd = conan_bin
+            end
         end
+
+        local ncpu = os.cpuinfo().ncpu or 4
+        local jobs_arg = string.format("-c tools.build:jobs=%d", ncpu)
 
         os.cd(path.join(prj_dir, "scripts", "conan", "slang"))
         try {
             function()
-                os.exec(conan_cmd .. " create . --build=missing")
+                os.exec("%s create . --build=missing %s", conan_cmd, jobs_arg)
             end,
             catch
             {
                 function(e)
                     os.exec(conan_cmd .. " profile detect --force")
-                    os.exec(conan_cmd .. " create . --build=missing")
+                    os.exec("%s create . --build=missing %s", conan_cmd, jobs_arg)
                 end
             }
         }
 
         os.cd(prj_dir)
-        os.exec(conan_cmd .. " install . --output-folder=%s --build=missing", libs_dir)
+        os.exec("%s install . --output-folder=%s --build=missing %s", conan_cmd, libs_dir, jobs_arg)
 
         -- Install libgmp
         os.exec("xmake run -P %s install_libgmp", prj_dir)
