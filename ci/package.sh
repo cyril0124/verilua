@@ -59,7 +59,6 @@ cp -r ./scripts ./dist
 cp -r ./tests ./dist
 cp -r ./examples ./dist
 cp -r ./extern/luafun ./dist/extern
-cp -r ./extern/debugger.lua ./dist/extern
 cp -r ./extern/luajit_tcc/tcc.lua ./dist/extern/luajit_tcc
 cp -r ./extern/luajit_tcc/setvars.sh ./dist/extern/luajit_tcc
 cp -r ./extern/luajit_tcc/tinycc/install ./dist/extern/luajit_tcc/tinycc
