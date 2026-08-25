@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - luajit-pro-only features are gone: `--[[luajit-pro]]` compile-time transforms (`__LJP:COMP_TIME()`, `__ljp:include()`, comp-time enums, Teal/Luau passthrough) and the Lua 5.3 operator syntax extension are no longer supported in user scripts.
   - `libluajit_pro_helper` is no longer built or linked; prebuilt binaries and `vl-*` wrappers now link only `libluajit-5.1`.
   - `table.nkeys` now uses the pure-Lua fallback (openresty `table.nkeys` C API is unavailable in official LuaJIT); behavior is unchanged.
+  - Official LuaJIT is built with `LJ_MAX_UPVAL=120` (upstream default is 60).
   - No measurable runtime performance difference (within noise on the `tests/benchmarks` runtime cases).
 
 - **LuaDataBase**: Now an alias of `LuaDataBaseV2` (single implementation; the old lsqlite3-based one is removed). Same constructor params, `save`/`commit` semantics, and `__type`. Notable differences: libsqlite3 is loaded lazily via FFI (no more hard failure at `require` time under stale EDA-bundled libsqlite3), all V2 backends/params are accepted (`backend = "duckdb" | "turso" | "auto"`, `no_check_bind_value`, ...), log prefix is `[LuaDataBaseV2]`, and the private `db` handle is the FFI wrapper instead of an lsqlite3 object.

@@ -75,8 +75,11 @@ target("install_luajit", function()
 
         -- Build official LuaJIT and install it in place (bin/lib/include under the submodule dir).
         -- Clean first so leftover objects from another host or libc are not reused.
+        -- Raise the upvalue cap to 120; upstream default is 60.
         os.exec("git -C %s submodule update --init luajit", prj_dir)
         os.cd(luajit_dir)
+        local def_h = path.join(luajit_dir, "src", "lj_def.h")
+        io.writefile(def_h, (io.readfile(def_h):gsub("#define LJ_MAX_UPVAL%s+60", "#define LJ_MAX_UPVAL\t120", 1)))
         os.exec("make clean")
         os.exec("make -j%d XCFLAGS=-DLUAJIT_ENABLE_LUA52COMPAT", os.cpuinfo().ncpu or 4)
         os.exec("make install PREFIX=%s", luajit_dir)
@@ -101,6 +104,8 @@ target("reinstall_luajit", function()
         -- Full rebuild from a clean tree; leftover objects from another host or libc
         -- would otherwise be reinstalled.
         os.cd(luajit_dir)
+        local def_h = path.join(luajit_dir, "src", "lj_def.h")
+        io.writefile(def_h, (io.readfile(def_h):gsub("#define LJ_MAX_UPVAL%s+60", "#define LJ_MAX_UPVAL\t120", 1)))
         os.exec("make clean")
         os.exec("make -j%d XCFLAGS=-DLUAJIT_ENABLE_LUA52COMPAT", os.cpuinfo().ncpu or 4)
         os.exec("make install PREFIX=%s", luajit_dir)
