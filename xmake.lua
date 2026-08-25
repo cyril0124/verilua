@@ -73,9 +73,11 @@ target("install_luajit", function()
     on_run(function()
         local luajit_dir = path.join(prj_dir, "luajit")
 
-        -- Build official LuaJIT and install it in place (bin/lib/include under the submodule dir)
+        -- Build official LuaJIT and install it in place (bin/lib/include under the submodule dir).
+        -- Clean first so leftover objects from another host or libc are not reused.
         os.exec("git -C %s submodule update --init luajit", prj_dir)
         os.cd(luajit_dir)
+        os.exec("make clean")
         os.exec("make -j%d XCFLAGS=-DLUAJIT_ENABLE_LUA52COMPAT", os.cpuinfo().ncpu or 4)
         os.exec("make install PREFIX=%s", luajit_dir)
         os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
@@ -96,7 +98,10 @@ target("reinstall_luajit", function()
     on_run(function()
         local luajit_dir = path.join(prj_dir, "luajit")
 
+        -- Full rebuild from a clean tree; leftover objects from another host or libc
+        -- would otherwise be reinstalled.
         os.cd(luajit_dir)
+        os.exec("make clean")
         os.exec("make -j%d XCFLAGS=-DLUAJIT_ENABLE_LUA52COMPAT", os.cpuinfo().ncpu or 4)
         os.exec("make install PREFIX=%s", luajit_dir)
         os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
