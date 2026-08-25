@@ -169,7 +169,7 @@ jobs:
               export NO_CPPTRACE=1
 
               git config --global --add safe.directory /workspace
-              git config --global --add safe.directory /workspace/luajit-pro
+              git config --global --add safe.directory /workspace/luajit
               git config --global --add safe.directory /workspace/extern/luajit_tcc
               git config --global http.sslVerify false
 

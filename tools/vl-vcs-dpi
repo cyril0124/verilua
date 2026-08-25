@@ -14,7 +14,7 @@ RESET = "\033[0m"
 verilua_path = os.getenv("VERILUA_HOME")
 assert verilua_path != None, "[vl-vcs] cannot find VERILUA_HOME!"
 
-luapath = verilua_path + "/luajit-pro/luajit2.1"
+luapath = verilua_path + "/luajit"
 libpath = verilua_path + "/shared"
 liblua_path = luapath + "/lib"
 

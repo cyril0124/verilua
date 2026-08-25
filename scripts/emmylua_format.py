@@ -182,7 +182,7 @@ def collect_paths(raw_paths: list[Path]) -> list[Path]:
 
 def run_codeformat(binary: Path, path: Path, check: bool) -> int:
     # Do not pass -d/--detect-config: walking the repo can hit broken symlink loops
-    # (e.g. luajit-pro lockfile.lfs) and abort CodeFormat.
+    # (e.g. a stale luarocks lockfile.lfs under luajit/) and abort CodeFormat.
     selector = "-w" if path.is_dir() else "-f"
     if check:
         command = [str(binary), "check", selector, str(path), "--diagnosis-as-error"]

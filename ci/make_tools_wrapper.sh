@@ -6,7 +6,7 @@ cat <<'EOF' > ./tools/nosim
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT="$HERE/.."
 MY_LOADER="$ROOT/libc/ld-linux-x86-64.so.2"
-MY_LIBS="$ROOT/libc:$ROOT/shared:$ROOT/luajit-pro/luajit2.1/lib"
+MY_LIBS="$ROOT/libc:$ROOT/shared:$ROOT/luajit/lib"
 exec "$MY_LOADER" --library-path "$MY_LIBS" "$HERE/nosim_1" "$@"
 EOF
 chmod +x ./tools/nosim
@@ -17,7 +17,7 @@ cat <<'EOF' > ./tools/wave_vpi_main
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT="$HERE/.."
 MY_LOADER="$ROOT/libc/ld-linux-x86-64.so.2"
-MY_LIBS="$ROOT/libc:$ROOT/shared:$ROOT/luajit-pro/luajit2.1/lib"
+MY_LIBS="$ROOT/libc:$ROOT/shared:$ROOT/luajit/lib"
 exec "$MY_LOADER" --library-path "$MY_LIBS" "$HERE/wave_vpi_main_1" "$@"
 EOF
 chmod +x ./tools/wave_vpi_main

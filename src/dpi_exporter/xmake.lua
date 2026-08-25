@@ -4,7 +4,7 @@ local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
-local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
+local lua_dir = path.join(prj_dir, "luajit")
 local slang_common_dir = path.join(prj_dir, "src", "slang_common")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
@@ -46,11 +46,6 @@ target("dpi_exporter", function()
     add_links("svlang", "fmt", "mimalloc")
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
-
-    add_links("luajit_pro_helper")
-    add_linkdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
-    add_rpathdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
-
 
     before_build(function(target)
         -- Add version info

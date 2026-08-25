@@ -24,7 +24,7 @@ assert len(vlt_files) == 1, f"{RED}[vl-verilator-p Error] Only one *.vlt file is
 verilua_path = os.getenv("VERILUA_HOME")
 
 libpath = verilua_path + "/shared"
-luapath = verilua_path + "/luajit-pro/luajit2.1"
+luapath = verilua_path + "/luajit"
 liblua_path = luapath + "/lib"
 
 assert os.path.exists(liblua_path + "/libluajit-5.1.so"), "[vl-verilator-p] cannot find liblua in " + liblua_path

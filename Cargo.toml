@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["libverilua", "src/wave_vpi/wellen_impl", "src/turso_ffi"]
-exclude = ["luajit-pro", "wave_vpi"]
+exclude = ["wave_vpi"]
 
 [profile.release]
 panic = "abort"

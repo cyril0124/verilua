@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 💥 Breaking Changes
 
+- **runtime / LuaJIT**: Replace the `luajit-pro` fork with official [LuaJIT](https://github.com/LuaJIT/LuaJIT) (v2.1 branch, built with `LUAJIT_ENABLE_LUA52COMPAT`), installed in place under the top-level `luajit/` submodule (was `luajit-pro/luajit2.1`). Consequences:
+  - luajit-pro-only features are gone: `--[[luajit-pro]]` compile-time transforms (`__LJP:COMP_TIME()`, `__ljp:include()`, comp-time enums, Teal/Luau passthrough) and the Lua 5.3 operator syntax extension are no longer supported in user scripts.
+  - `libluajit_pro_helper` is no longer built or linked; prebuilt binaries and `vl-*` wrappers now link only `libluajit-5.1`.
+  - `table.nkeys` now uses the pure-Lua fallback (openresty `table.nkeys` C API is unavailable in official LuaJIT); behavior is unchanged.
+  - No measurable runtime performance difference (within noise on the `tests/benchmarks` runtime cases).
+
 - **LuaDataBase**: Now an alias of `LuaDataBaseV2` (single implementation; the old lsqlite3-based one is removed). Same constructor params, `save`/`commit` semantics, and `__type`. Notable differences: libsqlite3 is loaded lazily via FFI (no more hard failure at `require` time under stale EDA-bundled libsqlite3), all V2 backends/params are accepted (`backend = "duckdb" | "turso" | "auto"`, `no_check_bind_value`, ...), log prefix is `[LuaDataBaseV2]`, and the private `db` handle is the FFI wrapper instead of an lsqlite3 object.
 - **dummy_vpi**: Control macros hard-renamed (old names no longer recognized):
   - `DUMMY_VPI_NOT_USE_WRAPPER` → `VL_DUMMY_VPI_NOT_USE_WRAPPER`

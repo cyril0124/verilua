@@ -25,16 +25,15 @@ unset _vl_xmakerc
 # PATH configuration
 # -----------------------------------------------------------------------------
 export PATH="$VERILUA_HOME/tools:$PATH"
-export PATH="$VERILUA_HOME/luajit-pro/luajit2.1/bin:$PATH"
+export PATH="$VERILUA_HOME/luajit/bin:$PATH"
 
 # -----------------------------------------------------------------------------
 # Library paths (LD_LIBRARY_PATH)
 # -----------------------------------------------------------------------------
-export LD_LIBRARY_PATH="$VERILUA_HOME/luajit-pro/luajit2.1/lib:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH="$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH="$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/socket:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$VERILUA_HOME/luajit/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$VERILUA_HOME/luajit/lib/lua/5.1:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$VERILUA_HOME/luajit/lib/lua/5.1/socket:$LD_LIBRARY_PATH"
 export LD_LIBRARY_PATH="$VERILUA_HOME/wave_vpi/target/release:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH="$VERILUA_HOME/luajit-pro/target/release:$LD_LIBRARY_PATH"
 
 # Optional: Add shared libs if exists
 if [ -d "$VERILUA_HOME/shared" ]; then
@@ -44,7 +43,7 @@ fi
 # -----------------------------------------------------------------------------
 # Lua configuration (used by libverilua)
 # -----------------------------------------------------------------------------
-export LUA_LIB="$VERILUA_HOME/luajit-pro/luajit2.1/lib"
+export LUA_LIB="$VERILUA_HOME/luajit/lib"
 export LUA_LIB_NAME="luajit-5.1"
 export LUA_LINK="shared"
 
@@ -54,9 +53,9 @@ export LUA_LINK="shared"
 # -----------------------------------------------------------------------------
 export LUA_PATH="\
 ./?.lua;\
-$VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?.lua;\
-$VERILUA_HOME/luajit-pro/luajit2.1/share/lua/5.1/?/init.lua;\
-$VERILUA_HOME/luajit-pro/luajit2.1/share/luajit-2.1/?.lua;\
+$VERILUA_HOME/luajit/share/lua/5.1/?.lua;\
+$VERILUA_HOME/luajit/share/lua/5.1/?/init.lua;\
+$VERILUA_HOME/luajit/share/luajit-2.1/?.lua;\
 $VERILUA_HOME/src/lua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/?.lua;\
 $VERILUA_HOME/src/lua/verilua/vpiml/?.lua;\
@@ -75,8 +74,8 @@ $VERILUA_HOME/extern/luajit_tcc/?.lua;\
 # All Lua C module search paths
 # -----------------------------------------------------------------------------
 export LUA_CPATH="\
-$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?.so;\
-$VERILUA_HOME/luajit-pro/luajit2.1/lib/lua/5.1/?/?.so;\
+$VERILUA_HOME/luajit/lib/lua/5.1/?.so;\
+$VERILUA_HOME/luajit/lib/lua/5.1/?/?.so;\
 "
 
 # -----------------------------------------------------------------------------

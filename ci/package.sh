@@ -38,9 +38,7 @@ rm -rf ./dist
 mkdir -p ./dist/extern
 mkdir -p ./dist/extern/luajit_tcc/tinycc
 mkdir -p ./dist/extern/boost_unordered
-mkdir -p ./dist/luajit-pro/target/release
-mkdir -p ./dist/luajit-pro/luajit2.1
-mkdir -p ./dist/luajit-pro/tl
+mkdir -p ./dist/luajit
 mkdir -p ./dist/conan_installed/include
 mkdir -p ./dist/conan_installed/lib
 
@@ -73,18 +71,14 @@ if [ -d "./libc" ]; then
     cp -r ./libc ./dist
 fi
 
-cp -r ./luajit-pro/src ./dist/luajit-pro
-cp -r ./luajit-pro/target/release/libluajit_pro_helper.a ./dist/luajit-pro/target/release
-cp -r ./luajit-pro/luajit2.1/bin ./dist/luajit-pro/luajit2.1/bin
-cp -r ./luajit-pro/luajit2.1/lib ./dist/luajit-pro/luajit2.1/lib
-cp -r ./luajit-pro/luajit2.1/etc ./dist/luajit-pro/luajit2.1/etc
-cp -r ./luajit-pro/luajit2.1/share ./dist/luajit-pro/luajit2.1/share
-cp -r ./luajit-pro/luajit2.1/include ./dist/luajit-pro/luajit2.1/include
-cp -r ./luajit-pro/tl/tl.lua ./dist/luajit-pro/tl
-cp -r ./luajit-pro/tl/tl.tl ./dist/luajit-pro/tl
+cp -r ./luajit/bin ./dist/luajit/bin
+cp -r ./luajit/lib ./dist/luajit/lib
+cp -r ./luajit/etc ./dist/luajit/etc
+cp -r ./luajit/share ./dist/luajit/share
+cp -r ./luajit/include ./dist/luajit/include
 
-tool_rpath='$ORIGIN:$ORIGIN/../shared:$ORIGIN/../luajit-pro/luajit2.1/lib:$ORIGIN/../luajit-pro/target/release:$ORIGIN/../conan_installed/lib'
-shared_rpath='$ORIGIN:$ORIGIN/../luajit-pro/luajit2.1/lib:$ORIGIN/../luajit-pro/target/release:$ORIGIN/../conan_installed/lib'
+tool_rpath='$ORIGIN:$ORIGIN/../shared:$ORIGIN/../luajit/lib:$ORIGIN/../conan_installed/lib'
+shared_rpath='$ORIGIN:$ORIGIN/../luajit/lib:$ORIGIN/../conan_installed/lib'
 
 for file in ./dist/tools/*; do
     patch_elf_rpath "$file" "$tool_rpath"

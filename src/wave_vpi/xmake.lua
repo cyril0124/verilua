@@ -5,7 +5,7 @@ local prj_dir = path.join(curr_dir, "..", "..")
 local shared_dir = path.join(prj_dir, "shared")
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
-local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
+local lua_dir = path.join(prj_dir, "luajit")
 local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 local function wave_vpi_main_common()
@@ -53,10 +53,6 @@ local function wave_vpi_main_common()
 
     add_linkgroups("luajit-5.1", { static = true, whole = true, as_needed = false })
     add_linkdirs(path.join(lua_dir, "lib"))
-
-    add_links("luajit_pro_helper")
-    add_linkdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
-    add_rpathdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
 
     add_links("fmt", "mimalloc")
     add_linkdirs(path.join(libs_dir, "lib"))

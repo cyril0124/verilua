@@ -14,7 +14,6 @@ compile_commands.json
 .nfs*
 
 # Local tool environments and caches
-.luajit_pro/
 .verilua/
 .pi/
 .worktrees/
