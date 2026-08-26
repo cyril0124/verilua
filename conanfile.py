@@ -9,7 +9,7 @@ class VeriluaConan(ConanFile):
     requires = (
         # `libgmp` is being installed when executing the xmake target(install_other_libs)
         # in order to get shared libraries for libgmp.
-        "slang/10.0",
+        "slang/11.0",
         "sol2/3.3.1",
         "inja/3.4.0",
         "fmt/12.1.0",

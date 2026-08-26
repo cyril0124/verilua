@@ -7,7 +7,6 @@ local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local lua_dir = path.join(prj_dir, "luajit")
 local slang_common_dir = path.join(prj_dir, "src", "slang_common")
-local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 target("signal_db_gen", function()
     set_kind("binary")
@@ -32,13 +31,12 @@ target("signal_db_gen", function()
     add_includedirs(
         curr_dir,
         slang_common_dir,
-        boost_unordered_dir,
         path.join(libs_dir, "include"),
         path.join(lua_dir, "include", "luajit-2.1"),
         path.join(prj_dir, "src", "include")
     )
 
-    add_links("svlang", "fmt", "mimalloc")
+    add_links("svlang", "fmt") -- mimalloc lives in libsvlang.a
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
@@ -79,13 +77,12 @@ target("libsignal_db_gen", function()
     add_includedirs(
         curr_dir,
         slang_common_dir,
-        boost_unordered_dir,
         path.join(libs_dir, "include"),
         path.join(lua_dir, "include", "luajit-2.1"),
         path.join(prj_dir, "src", "include")
     )
 
-    add_links("svlang", "fmt", "mimalloc")
+    add_links("svlang", "fmt") -- mimalloc lives in libsvlang.a
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 

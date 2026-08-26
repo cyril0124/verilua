@@ -13,7 +13,7 @@ using json = nlohmann::json;
 json metaInfoJson;
 std::string metaInfoFilePath;
 
-struct InstanceVisitor : public slang::ast::ASTVisitor<InstanceVisitor, false, false> {
+struct InstanceVisitor : public slang::ast::ASTVisitor<InstanceVisitor> {
     int targetDepth;
     std::string moduleName;
     std::set<std::string> subModuleSet;

@@ -2,6 +2,8 @@
 
 #include "dpi_exporter.h"
 
+#include "slang/syntax/SyntaxRewriter.h"
+
 using json = nlohmann::json;
 
 // Used when distributeDPI is FALSE

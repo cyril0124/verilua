@@ -7,7 +7,7 @@ from conan.tools.files import get, copy, patch
 
 class SlangConan(ConanFile):
     name = "slang"
-    version = "10.0"
+    version = "11.0"
     license = "MIT"
     url = "https://github.com/MikePopoloski/slang"
     description = "SystemVerilog compiler and language services"
@@ -25,7 +25,7 @@ class SlangConan(ConanFile):
                  dst=os.path.join(self.export_sources_folder, "patches"))
 
     def source(self):
-        get(self, "https://github.com/MikePopoloski/slang/archive/refs/tags/v10.0.tar.gz",
+        get(self, "https://github.com/MikePopoloski/slang/archive/refs/tags/v11.0.tar.gz",
             strip_root=True)
         self._apply_patches()
 

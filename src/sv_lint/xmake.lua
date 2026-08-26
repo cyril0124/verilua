@@ -4,7 +4,6 @@ local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
-local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 target("sv_lint", function()
     set_kind("binary")
@@ -25,11 +24,10 @@ target("sv_lint", function()
 
     add_includedirs(
         curr_dir,
-        boost_unordered_dir,
         path.join(libs_dir, "include")
     )
 
-    add_links("svlang", "fmt", "mimalloc")
+    add_links("svlang", "fmt") -- mimalloc lives in libsvlang.a
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
@@ -66,11 +64,10 @@ target("libsv_lint", function()
 
     add_includedirs(
         curr_dir,
-        boost_unordered_dir,
         path.join(libs_dir, "include")
     )
 
-    add_links("svlang", "fmt", "mimalloc")
+    add_links("svlang", "fmt") -- mimalloc lives in libsvlang.a
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 

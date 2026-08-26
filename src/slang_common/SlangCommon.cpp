@@ -439,7 +439,7 @@ const InstanceSymbol *getInstSymbol(Compilation &compilation, const ModuleDeclar
 // Walk the elaborated design and collect all hierarchical paths where
 // `moduleName` is instantiated.
 std::vector<std::string> getHierPaths(slang::ast::Compilation &compilation, std::string moduleName) {
-    struct HierPathGetter : public slang::ast::ASTVisitor<HierPathGetter, false, false> {
+    struct HierPathGetter : public slang::ast::ASTVisitor<HierPathGetter> {
         std::string moduleName;
         std::vector<std::string> hierPaths;
         HierPathGetter(std::string moduleName) : moduleName(moduleName) {}

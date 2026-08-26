@@ -4,12 +4,13 @@ Date: Wed, 9 Apr 2025 17:57:48 +0800
 Subject: [PATCH 3/4] fix: allow overwriting existing command line arguments
  with a warning
 
-Rebased for slang v10.0.
+Rebased for slang v11.0.
 ---
-diff -ruN step2/source/util/CommandLine.cpp step3/source/util/CommandLine.cpp
+diff --git a/source/util/CommandLine.cpp b/source/util/CommandLine.cpp
+index 7bc6712..6937c11 100644
 --- a/source/util/CommandLine.cpp
 +++ b/source/util/CommandLine.cpp
-@@ -124,8 +124,12 @@
+@@ -129,8 +129,12 @@ void CommandLine::addInternal(std::string_view name, OptionStorage storage, std:
          }
  
          if (!optionMap.try_emplace(std::string(curr), option).second) {
@@ -26,4 +27,3 @@ diff -ruN step2/source/util/CommandLine.cpp step3/source/util/CommandLine.cpp
          if (index == std::string_view::npos)
 -- 
 2.52.0
-

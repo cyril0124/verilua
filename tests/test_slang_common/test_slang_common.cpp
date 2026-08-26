@@ -2,8 +2,8 @@
 // Verifies that Driver, SemanticModel, and helper functions work correctly
 // against real SystemVerilog parsing.
 
-#include "SlangCommon.h"
 #include "SemanticModel.h"
+#include "SlangCommon.h"
 
 #include <cassert>
 #include <cstdio>
@@ -77,7 +77,7 @@ endmodule
 
     // Find module and get instance symbol
     assert(cuSyntax.members.size() > 0);
-    auto &member = cuSyntax.members[0];
+    auto member = cuSyntax.members[0];
     assert(member->kind == slang::syntax::SyntaxKind::ModuleDeclaration);
     auto &modDecl = member->as<slang::syntax::ModuleDeclarationSyntax>();
 

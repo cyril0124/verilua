@@ -8,9 +8,10 @@ When reprinting a modified syntax tree, the expanded integer/string
 literals following `__LINE__ / `__FILE__ directives are stale.
 Suppress them so only the directive itself is emitted.
 
-Rebased for slang v10.0.
+Rebased for slang v11.0.
 ---
-diff -ruN step3/include/slang/syntax/SyntaxPrinter.h step4/include/slang/syntax/SyntaxPrinter.h
+diff --git a/include/slang/syntax/SyntaxPrinter.h b/include/slang/syntax/SyntaxPrinter.h
+index 32632e6..cc79a00 100644
 --- a/include/slang/syntax/SyntaxPrinter.h
 +++ b/include/slang/syntax/SyntaxPrinter.h
 @@ -7,6 +7,7 @@
@@ -21,7 +22,7 @@ diff -ruN step3/include/slang/syntax/SyntaxPrinter.h step4/include/slang/syntax/
  #include <string>
  
  #include "slang/parsing/Token.h"
-@@ -29,7 +30,7 @@
+@@ -29,7 +30,7 @@ public:
  
      /// Append raw text to the buffer.
      /// @return a reference to this object, to allow chaining additional method calls.
@@ -30,9 +31,9 @@ diff -ruN step3/include/slang/syntax/SyntaxPrinter.h step4/include/slang/syntax/
  
      /// Print the provided @a trivia to the internal buffer.
      /// @return a reference to this object, to allow chaining additional method calls.
-@@ -144,6 +145,11 @@
-     bool expandMacros = false;
+@@ -163,6 +164,11 @@ private:
      bool includeComments = true;
+     bool includeSource = false;
      bool squashNewlines = true;
 +    bool getLineDirective = false;
 +    bool getFileDirective = false;
@@ -42,10 +43,11 @@ diff -ruN step3/include/slang/syntax/SyntaxPrinter.h step4/include/slang/syntax/
  };
  
  } // namespace slang::syntax
-diff -ruN step3/source/syntax/SyntaxPrinter.cpp step4/source/syntax/SyntaxPrinter.cpp
+diff --git a/source/syntax/SyntaxPrinter.cpp b/source/syntax/SyntaxPrinter.cpp
+index 8ccc008..273d632 100644
 --- a/source/syntax/SyntaxPrinter.cpp
 +++ b/source/syntax/SyntaxPrinter.cpp
-@@ -9,12 +9,16 @@
+@@ -11,12 +11,16 @@
  
  #include "slang/parsing/ParserMetadata.h"
  #include "slang/parsing/Token.h"
@@ -62,7 +64,7 @@ diff -ruN step3/source/syntax/SyntaxPrinter.cpp step4/source/syntax/SyntaxPrinte
  namespace slang::syntax {
  
  using namespace parsing;
-@@ -104,8 +108,9 @@
+@@ -116,8 +120,9 @@ SyntaxPrinter& SyntaxPrinter::print(Token token) {
      }
  
      if (!excluded && (includeMissing || !token.isMissing()))
@@ -73,7 +75,7 @@ diff -ruN step3/source/syntax/SyntaxPrinter.cpp step4/source/syntax/SyntaxPrinte
      return *this;
  }
  
-@@ -213,7 +218,31 @@
+@@ -225,7 +230,31 @@ std::string SyntaxPrinter::printFile(const SyntaxTree& tree) {
          .str();
  }
  
@@ -108,4 +110,3 @@ diff -ruN step3/source/syntax/SyntaxPrinter.cpp step4/source/syntax/SyntaxPrinte
          return *this;
 -- 
 2.52.0
-

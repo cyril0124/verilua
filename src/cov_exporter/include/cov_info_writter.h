@@ -3,6 +3,8 @@
 #include "config.h"
 #include "cov_exporter.h"
 
+#include "slang/syntax/SyntaxRewriter.h"
+
 // ===================================================================
 // cov_info_writter — rewrite modules to embed coverage instrumentation
 // ===================================================================

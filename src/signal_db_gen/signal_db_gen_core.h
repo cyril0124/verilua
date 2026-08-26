@@ -123,7 +123,7 @@ class FileLock {
     std::string lock_path_;
 };
 
-class SignalGetter : public ASTVisitor<SignalGetter, false, false> {
+class SignalGetter : public ASTVisitor<SignalGetter> {
   public:
     std::vector<std::string> hierPathVec;
     std::vector<size_t> bitWidthVec;

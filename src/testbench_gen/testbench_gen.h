@@ -187,7 +187,7 @@ template <> struct adl_serializer<PortInfo> {
 };
 } // namespace nlohmann
 
-class TestbenchGenParser : public ASTVisitor<TestbenchGenParser, false, false> {
+class TestbenchGenParser : public ASTVisitor<TestbenchGenParser> {
   private:
     int portIdAllocator = 0;
     std::string topName;

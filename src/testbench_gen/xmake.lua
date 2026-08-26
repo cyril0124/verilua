@@ -5,7 +5,6 @@ local curr_dir = os.scriptdir()
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
 local slang_common_dir = path.join(prj_dir, "src", "slang_common")
-local boost_unordered_dir = path.join(prj_dir, "extern", "boost_unordered")
 
 target("testbench_gen", function()
     set_kind("binary")
@@ -31,12 +30,11 @@ target("testbench_gen", function()
     add_includedirs(
         curr_dir,
         slang_common_dir,
-        boost_unordered_dir,
         path.join(libs_dir, "include"),
         path.join(prj_dir, "src", "include")
     )
 
-    add_links("svlang", "fmt", "mimalloc") -- order is important
+    add_links("svlang", "fmt") -- mimalloc lives in libsvlang.a
     add_linkdirs(path.join(libs_dir, "lib"))
     add_rpathdirs(path.join(libs_dir, "lib"))
 
