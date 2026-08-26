@@ -33,54 +33,37 @@ jobs:
           predicate-quantifier: 'every'
           filters: .github/filters.yml
 
-  test:
-    runs-on: ${{ matrix.os }}
+  # Each job sweeps one dimension; the rest use run-test.yml defaults
+  # (ubuntu-24.04 + verilator v5.046 + iverilog s20250103).
+  test-verilator:
     needs: changes
     if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ 'ubuntu-22.04', 'ubuntu-24.04' ]
-        verilator-version: [ 'v5.036', 'v5.040', 'v5.046', 'v5.050' ]
-        iverilog-tag: [ 's20250103', 'v13_0' ]
+        version: [ 'v5.036', 'v5.040', 'v5.046', 'v5.050' ]
+    uses: ./.github/workflows/run-test.yml
+    secrets: inherit
+    with:
+      verilator-version: ${{ matrix.version }}
+      package: ${{ matrix.version == 'v5.046' }}
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: 'true'
+  test-iverilog:
+    needs: changes
+    if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
+    uses: ./.github/workflows/run-test.yml
+    secrets: inherit
+    with:
+      iverilog-tag: 'v13_0'
 
-      - name: Setup verilua
-        uses: ./.github/actions/setup-verilua
-        with:
-          runner-os: ${{ matrix.os }}
-          verilator-version: ${{ matrix.verilator-version }}
-          iverilog-tag: ${{ matrix.iverilog-tag }}
-
-      - name: Test verilua (Basic test)
-        run: |
-          STOP_ON_FAIL=1 VERBOSE=1 xmake run test
-
-      - name: Before upload artifact(package)
-        if: ${{ matrix.verilator-version == 'v5.046' && matrix.iverilog-tag == 's20250103' }}
-        run: |
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "x86_64" ]; then ARCH="x64"; fi
-          PACKAGE_NAME=verilua-${ARCH}-${{ matrix.os }}-${GITHUB_SHA:0:7}
-          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
-
-          xmake run clean_all
-          bash ./ci/package.sh ./artifact/${PACKAGE_NAME}.zip
-          unzip ./artifact/${PACKAGE_NAME}.zip -d ./artifact/${PACKAGE_NAME}_unzipped
-
-      - name: Upload artifact
-        if: ${{ matrix.verilator-version == 'v5.046' && matrix.iverilog-tag == 's20250103' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: "${{ env.PACKAGE_NAME }}"
-          path: "./artifact/${{ env.PACKAGE_NAME }}_unzipped/"
-          include-hidden-files: true
-          retention-days: 30
+  test-os:
+    needs: changes
+    if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
+    uses: ./.github/workflows/run-test.yml
+    secrets: inherit
+    with:
+      os: 'ubuntu-22.04'
+      package: true
 
   # NHL2 runs with SIM=iverilog only, so it is independent of the Verilator
   # version matrix and only needs one job per iverilog tag.

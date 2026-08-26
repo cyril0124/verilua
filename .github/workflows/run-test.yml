@@ -1,0 +1,63 @@
+# Reusable workflow: run the regression suite with one simulator/OS combination.
+name: Run Test
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        type: string
+        default: 'ubuntu-24.04'
+      verilator-version:
+        type: string
+        default: 'v5.046'
+      iverilog-tag:
+        type: string
+        default: 's20250103'
+      package:
+        description: 'Package verilua and upload it as a CI artifact'
+        type: boolean
+        default: false
+
+env:
+  VL_BUNDLE_KEY_HEX: ${{ secrets.VL_BUNDLE_KEY_HEX }}
+
+jobs:
+  test:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Setup verilua
+        uses: ./.github/actions/setup-verilua
+        with:
+          runner-os: ${{ inputs.os }}
+          verilator-version: ${{ inputs.verilator-version }}
+          iverilog-tag: ${{ inputs.iverilog-tag }}
+
+      - name: Test verilua (Basic test)
+        run: |
+          STOP_ON_FAIL=1 VERBOSE=1 xmake run test
+
+      - name: Before upload artifact(package)
+        if: ${{ inputs.package }}
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then ARCH="x64"; fi
+          PACKAGE_NAME=verilua-${ARCH}-${{ inputs.os }}-${GITHUB_SHA:0:7}
+          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
+
+          xmake run clean_all
+          bash ./ci/package.sh ./artifact/${PACKAGE_NAME}.zip
+          unzip ./artifact/${PACKAGE_NAME}.zip -d ./artifact/${PACKAGE_NAME}_unzipped
+
+      - name: Upload artifact
+        if: ${{ inputs.package }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.PACKAGE_NAME }}"
+          path: "./artifact/${{ env.PACKAGE_NAME }}_unzipped/"
+          include-hidden-files: true
+          retention-days: 30
