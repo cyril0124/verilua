@@ -17,9 +17,9 @@ class SlangConan(ConanFile):
     generators = "CMakeDeps"
 
     def export_sources(self):
-        # Copy patches from the project-level scripts/patches/ directory into conan cache
+        # Copy patches from the project-level scripts/patches/slang/ directory into conan cache
         patches_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                   "..", "..", "patches")
+                                   "..", "..", "patches", "slang")
         if os.path.isdir(patches_dir):
             copy(self, "*.patch", src=patches_dir,
                  dst=os.path.join(self.export_sources_folder, "patches"))
@@ -34,7 +34,7 @@ class SlangConan(ConanFile):
         patches_dir = os.path.join(self.export_sources_folder, "patches")
         if not os.path.isdir(patches_dir):
             # Fallback: patches next to conanfile (local development)
-            patches_dir = os.path.join(self.recipe_folder, "..", "..", "patches")
+            patches_dir = os.path.join(self.recipe_folder, "..", "..", "patches", "slang")
         if os.path.isdir(patches_dir):
             patch_files = sorted(glob.glob(os.path.join(patches_dir, "*.patch")))
             for pf in patch_files:
