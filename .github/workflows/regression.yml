@@ -9,6 +9,11 @@ on:
     branches:
       - master
 
+# Cancel superseded runs on the same ref (only for PRs; master pushes run to completion)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   VL_BUNDLE_KEY_HEX: ${{ secrets.VL_BUNDLE_KEY_HEX }}
 
@@ -76,6 +81,30 @@ jobs:
           path: "./artifact/${{ env.PACKAGE_NAME }}_unzipped/"
           include-hidden-files: true
           retention-days: 30
+
+  # NHL2 runs with SIM=iverilog only, so it is independent of the Verilator
+  # version matrix and only needs one job per iverilog tag.
+  test-nhl2:
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: ${{ needs.changes.outputs.has_changes == 'true' && !contains(github.event.head_commit.message, '[skip-ci]') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        iverilog-tag: [ 's20250103', 'v13_0' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Setup verilua
+        uses: ./.github/actions/setup-verilua
+        with:
+          runner-os: ubuntu-24.04
+          verilator-version: 'v5.046'
+          iverilog-tag: ${{ matrix.iverilog-tag }}
 
       - name: Install mill
         run: |
