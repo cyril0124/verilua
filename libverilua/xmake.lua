@@ -2,7 +2,7 @@
 
 local prj_dir = os.projectdir()
 local shared_dir = path.join(prj_dir, "shared")
-local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
+local lua_dir = path.join(prj_dir, "luajit")
 
 local common_features = "hierarchy_cache"
 -- local common_features = "debug hierarchy_cache"

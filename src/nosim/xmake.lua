@@ -4,7 +4,7 @@ local prj_dir = os.projectdir()
 local curr_dir = os.scriptdir()
 local build_dir = path.join(prj_dir, "build")
 local libs_dir = path.join(prj_dir, "conan_installed")
-local lua_dir = path.join(prj_dir, "luajit-pro", "luajit2.1")
+local lua_dir = path.join(prj_dir, "luajit")
 local shared_dir = path.join(prj_dir, "shared")
 
 target("nosim", function()
@@ -43,10 +43,6 @@ target("nosim", function()
 
     add_linkgroups("luajit-5.1", { static = true, whole = true })
     add_linkdirs(path.join(lua_dir, "lib"))
-
-    add_links("luajit_pro_helper")
-    add_linkdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
-    add_rpathdirs(path.join(prj_dir, "luajit-pro", "target", "release"))
 
     add_links("signal_db_gen")
     add_linkgroups("verilua_nosim", { as_needed = false })

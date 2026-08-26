@@ -4,7 +4,7 @@ local f = string.format
 local verilua_home = os.getenv("VERILUA_HOME") or ""
 local verilua_tools_home = path.join(verilua_home, "tools")
 local verilua_libs_home = path.join(verilua_home, "shared")
-local luajitpro_home = path.join(verilua_home, "luajit-pro", "luajit2.1")
+local luajit_home = path.join(verilua_home, "luajit")
 
 --- Check if VL_QUIET mode is enabled
 ---@return boolean
@@ -811,7 +811,7 @@ rule("verilua", function()
                 target:add("values", "iverilog.flags", eflag)
             end
         elseif sim == "vcs" then
-            local libluajit51_lib = path.join(luajitpro_home, "lib")
+            local libluajit51_lib = path.join(luajit_home, "lib")
             local libverilua_vcs_so = path.join(verilua_libs_home, "libverilua_vcs.so")
             local extra_vcs_flags = {
                 "-sverilog",
@@ -1082,14 +1082,14 @@ rule("verilua", function()
 
         -- Add extra includedirs and link flags
         target:add("includedirs",
-            path.join(luajitpro_home, "include"),
-            path.join(luajitpro_home, "include", "luajit-2.1"),
+            path.join(luajit_home, "include"),
+            path.join(luajit_home, "include", "luajit-2.1"),
             path.join(verilua_home, "src", "include")
         )
         -- target:add("links", "luajit-5.1") -- This is move into `apply_build_flags`
-        target:add("linkdirs", path.join(luajitpro_home, "lib"), verilua_libs_home)
+        target:add("linkdirs", path.join(luajit_home, "lib"), verilua_libs_home)
         target:add("linkdirs", path.join(verilua_home, "conan_installed", "lib"))
-        target:add("rpathdirs", path.join(luajitpro_home, "lib"), verilua_libs_home)
+        target:add("rpathdirs", path.join(luajit_home, "lib"), verilua_libs_home)
         target:add("rpathdirs", path.join(verilua_home, "conan_installed", "lib"))
         target:add("includedirs", path.join(verilua_home, "conan_installed", "include"))
 

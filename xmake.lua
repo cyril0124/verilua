@@ -35,11 +35,10 @@ target("install_luarocks", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
+        local luajit_dir = path.join(prj_dir, "luajit")
         local luarocks_version = "3.12.2"
 
         -- Add luajit to PATH
-        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
         os.addenvs({ PATH = path.join(luajit_dir, "bin") })
 
         -- Build luarocks
@@ -47,15 +46,15 @@ target("install_luarocks", function()
             import("net.http")
             import("utils.archive")
 
-            local tarball = path.join(luajit_pro_dir, "luarocks-" .. luarocks_version .. ".tar.gz")
+            local tarball = path.join(luajit_dir, "luarocks-" .. luarocks_version .. ".tar.gz")
             if not os.isfile(tarball) then
                 local url = "https://luarocks.github.io/luarocks/releases/luarocks-" .. luarocks_version .. ".tar.gz"
                 print("[xmake.lua] [install_luarocks] Downloading luarocks...")
                 http.download(url, tarball)
             end
-            archive.extract(tarball, luajit_pro_dir)
+            archive.extract(tarball, luajit_dir)
 
-            local luarocks_src_dir = path.join(luajit_pro_dir, "luarocks-" .. luarocks_version)
+            local luarocks_src_dir = path.join(luajit_dir, "luarocks-" .. luarocks_version)
             os.cd(luarocks_src_dir)
 
             os.exec("make clean")
@@ -72,15 +71,21 @@ target("install_luajit", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
-        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
+        local luajit_dir = path.join(prj_dir, "luajit")
 
-        -- Build luajit_pro_helper
-        os.exec("git -C %s submodule update --init", luajit_pro_dir)
-        os.cd(luajit_pro_dir)
-        os.exec("cargo build --release")
-        -- Build luajit
-        os.exec("bash init.sh")
+        -- Build official LuaJIT and install it in place (bin/lib/include under the submodule dir).
+        -- Clean first so leftover objects from another host or libc are not reused.
+        os.exec("git -C %s submodule update --init luajit", prj_dir)
+        os.exec("git -C %s checkout -- src", luajit_dir)
+        local patches = os.files(path.join(prj_dir, "scripts", "patches", "luajit", "*.patch"))
+        table.sort(patches)
+        for _, pf in ipairs(patches) do
+            os.exec("git -C %s apply %s", luajit_dir, pf)
+        end
+        os.cd(luajit_dir)
+        os.exec("make clean")
+        os.exec("make -j%d XCFLAGS=-DLUAJIT_ENABLE_LUA52COMPAT", os.cpuinfo().ncpu or 4)
+        os.exec("make install PREFIX=%s", luajit_dir)
         os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
 
         -- Add luajit to PATH
@@ -88,10 +93,6 @@ target("install_luajit", function()
 
         -- Install luarocks
         os.exec("xmake run -P %s install_luarocks", prj_dir)
-
-        -- Rebuild luajit_pro_helper
-        os.cd(luajit_pro_dir)
-        os.exec("cargo build --release")
 
         os.cd(prj_dir)
     end)
@@ -101,16 +102,20 @@ target("reinstall_luajit", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
-        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
+        local luajit_dir = path.join(prj_dir, "luajit")
 
-        -- build luajit_pro_helper
-        os.cd(luajit_pro_dir)
-        os.exec("cargo build --release")
-
-        -- execute("git reset --hard origin/master")
-        -- execute("git pull origin master")
-        os.exec("bash init.sh")
+        -- Full rebuild from a clean tree; leftover objects from another host or libc
+        -- would otherwise be reinstalled.
+        os.exec("git -C %s checkout -- src", luajit_dir)
+        local patches = os.files(path.join(prj_dir, "scripts", "patches", "luajit", "*.patch"))
+        table.sort(patches)
+        for _, pf in ipairs(patches) do
+            os.exec("git -C %s apply %s", luajit_dir, pf)
+        end
+        os.cd(luajit_dir)
+        os.exec("make clean")
+        os.exec("make -j%d XCFLAGS=-DLUAJIT_ENABLE_LUA52COMPAT", os.cpuinfo().ncpu or 4)
+        os.exec("make install PREFIX=%s", luajit_dir)
         os.trycp(path.join(luajit_dir, "bin", "luajit"), path.join(luajit_dir, "bin", "lua"))
 
         -- Add luajit to PATH
@@ -259,8 +264,7 @@ target("install_lua_modules", function()
     set_kind("phony")
     set_default(false)
     on_run(function()
-        local luajit_pro_dir = path.join(prj_dir, "luajit-pro")
-        local luajit_dir = path.join(luajit_pro_dir, "luajit2.1")
+        local luajit_dir = path.join(prj_dir, "luajit")
         local libs = {
             "penlight",
             "luasocket",

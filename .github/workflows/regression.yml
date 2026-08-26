@@ -226,7 +226,7 @@ jobs:
               export CXX=/opt/rh/devtoolset-11/root/usr/bin/g++
 
               git config --global --add safe.directory /workspace
-              git config --global --add safe.directory /workspace/luajit-pro
+              git config --global --add safe.directory /workspace/luajit
               git config --global --add safe.directory /workspace/extern/luajit_tcc
               git config --global http.sslVerify false
 
