@@ -224,6 +224,20 @@ chdl.set_bits_imm_hex_str = function(this, s, e, hex_str)
     return this:set_imm_unchecked(bv.u32_vec)
 end
 
+-- Skip the VPI write when the value equals the one written by the previous
+-- cached write. reset_set_cached() clears the cache.
+chdl.set_cached = function(this, value)
+    if this.cached_value == value then return end
+    this.cached_value = value
+    return this:set(value)
+end
+
+chdl.set_imm_cached = function(this, value)
+    if this.cached_value == value then return end
+    this.cached_value = value
+    return this:set_imm(value)
+end
+
 local function deprecated(old, new)
     _G.verilua_warning("[deprecated] <chdl>:" .. old .. "() is deprecated, use " .. new .. " instead")
 end
@@ -276,20 +290,6 @@ end
 chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
     deprecated("set_imm_bitfield_hex_str", "<chdl>:set_bits_imm_hex_str()")
     return this:set_bits_imm_hex_str(s, e, hex_str)
-end
-
-chdl.set_cached = function(this, value)
-    deprecated("set_cached", "<chdl>:set()")
-    if this.cached_value == value then return end
-    this.cached_value = value
-    return this:set(value)
-end
-
-chdl.set_imm_cached = function(this, value)
-    deprecated("set_imm_cached", "<chdl>:set_imm()")
-    if this.cached_value == value then return end
-    this.cached_value = value
-    return this:set_imm(value)
 end
 
 chdl_array.at = function(this, idx)

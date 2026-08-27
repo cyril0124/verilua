@@ -268,6 +268,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 | `force(v)` | 强制驱动，同 SystemVerilog 的 `force` | `force_imm` |
 | `release()` | 解除 `force` / `freeze` | `release_imm` |
 | `freeze()` | 把信号钉在当前值，用 `release()` 解除 | `freeze_imm` |
+| `set_cached(v)` | 值和上次写入相同就跳过本次写，用 `reset_set_cached()` 清缓存 | `set_imm_cached` |
 
 数组信号额外有下标和整体写入：
 
@@ -531,11 +532,31 @@ arr:set_all { 0x11, 0x22, 0x33, 0x44 }
 
     每个赋值方法均有对应的 `set_imm_*` 立即赋值变体，行为与普通版本完全相同，但立即生效（参见[立即赋值和普通赋值的区别](#set-and-set-imm)）：
 
-    `set_imm_unchecked`、`set_imm_str`、`set_imm_hex_str`、`set_imm_bin_str`、`set_imm_dec_str`、`randomize_imm`、`set_bits_imm`、`set_bits_imm_hex_str`、`force_imm`、`release_imm`、`freeze_imm`
+    `set_imm_unchecked`、`set_imm_str`、`set_imm_hex_str`、`set_imm_bin_str`、`set_imm_dec_str`、`randomize_imm`、`set_bits_imm`、`set_bits_imm_hex_str`、`force_imm`、`release_imm`、`freeze_imm`、`set_imm_cached`
 
 14. `<chdl>:freeze()`
 
     冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<chdl>:release()` 来取消冻结。
+
+15. `<chdl>:set_cached(value)`
+
+    带缓存的赋值：`value` 与上一次通过 `set_cached` 写入的值相同时直接返回，不产生 VPI 调用。适合每拍都要驱动、但取值很少变化的信号。
+
+    ```lua
+    local signal = dut.value:chdl()
+
+    signal:set_cached(1) -- 实际写入
+    signal:set_cached(1) -- 跳过
+
+    signal:set(2)               -- 绕过缓存写入，缓存仍记录为 1
+    signal:reset_set_cached()   -- 清空缓存，下一次 set_cached 必定写入
+    ```
+
+    :::warning
+
+    缓存只跟踪 `set_cached` / `set_imm_cached` 自己写入的值。如果信号还被 `set`、`force` 等其他方式改动，需要调用 `reset_set_cached()` 使缓存失效。
+
+    :::
 
 ### debug 相关
 

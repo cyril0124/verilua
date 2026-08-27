@@ -127,6 +127,23 @@ local function check_scalar(sig, width, label)
     sig:randomize()
     clock:posedge()
     assert(#sig:get_hex_str() == width / 4, label .. ": randomize produced an out-of-width value")
+
+    -- A cached write is dropped when the value matches the previous cached
+    -- write, so a plain write made in between stays visible
+    sig:reset_set_cached()
+    sig:set_imm_cached(0x5a)
+    is("5a", "set_imm_cached")
+    sig:set_imm(0x11)
+    sig:set_imm_cached(0x5a)
+    is("11", "set_imm_cached (unchanged value must be skipped)")
+    sig:reset_set_cached()
+    sig:set_imm_cached(0x5a)
+    is("5a", "set_imm_cached (after reset_set_cached)")
+
+    sig:reset_set_cached()
+    sig:set_cached(0xa5)
+    clock:posedge()
+    is("a5", "set_cached")
 end
 
 --- force / release / freeze, run against one forceable handle.
