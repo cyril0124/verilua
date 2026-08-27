@@ -151,6 +151,10 @@ F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
   6. Format checks (`xmake r format-lua` / `xmake r format-cpp`)
   7. Static checks (`xmake r lsp-check-lua` / `cargo clippy`)
 
+## Pull Requests
+
+- Before creating a PR, show the full PR title and description to the user and wait for explicit approval. Do not create or update the PR until it is approved.
+
 ## Release Versioning
 
 - Before creating or pushing a release tag, update the root `VERSION` file in the same release commit and verify that it exactly matches the tag, including the leading `v`.
