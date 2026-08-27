@@ -154,6 +154,7 @@ F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
 ## Pull Requests
 
 - Before creating a PR, show the full PR title and description to the user and wait for explicit approval. Do not create or update the PR until it is approved.
+- Write the PR body with one line per paragraph or bullet, without hard wrapping. GitHub renders a single newline in a PR body as a line break, so wrapped text breaks mid-sentence.
 
 ## Release Versioning
 
