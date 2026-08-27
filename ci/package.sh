@@ -88,8 +88,16 @@ for file in ./dist/shared/*.so; do
     patch_elf_rpath "$file" "$shared_rpath"
 done
 
-pushd dist
-zip -r $zip_file .
+# Stage the payload under a top-level directory named after the zip file
+# so the archive extracts into a single folder.
+top_dir="${zip_file_name%.zip}"
+rm -rf ./dist_pkg
+mkdir ./dist_pkg
+mv ./dist "./dist_pkg/${top_dir}"
+pushd dist_pkg
+zip -r "$zip_file" "$top_dir"
 popd
+mv "./dist_pkg/${top_dir}" ./dist
+rmdir ./dist_pkg
 
 echo -e "[package.sh] $zip_file is successfully created!"
