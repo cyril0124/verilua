@@ -13,6 +13,7 @@ local BeatWidth = 32
 
 local type = type
 local print = print
+local rawget = rawget
 local rawset = rawset
 local assert = assert
 local f = string.format
@@ -27,6 +28,12 @@ local HexStr = _G.HexStr
 local BinStr = _G.BinStr
 local DecStr = _G.DecStr
 local verilua_debug = _G.verilua_debug
+
+--- Warn once per call that `old` is deprecated in favour of `new`, in the same
+--- wording the generated ChdlAccess files use.
+local function deprecated(old, new)
+    _G.verilua_warning("[deprecated] <chdl>:" .. old .. "() is deprecated, use " .. new .. " instead")
+end
 
 local DpiExporter
 
@@ -96,6 +103,7 @@ local post_init_mt = setmetatable({
 ---@field is_array boolean
 ---@field array_size integer
 ---@field private array_hdls table<integer, verilua.handles.ComplexHandleRaw>
+---@field private _elems table<integer, verilua.handles.CallableHDL> Cached `arr[i]` element views
 ---@field private array_bitvecs table<integer, verilua.utils.BitVec>
 ---@field private beat_num integer
 ---@field private is_multi_beat boolean
@@ -109,19 +117,31 @@ local post_init_mt = setmetatable({
 ---@field get64 fun(self: verilua.handles.CallableHDL): uint64_t
 ---@field get_bitvec fun(self: verilua.handles.CallableHDL): verilua.utils.BitVec
 ---@field set fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_unchecked fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_bits fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
+---@field set_bits_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string) Write bits `[e:s]` from a hex string; unlike `set_bits`, the field may exceed 64 bits
 ---@field set_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
 ---@field set_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
+---@field force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field release fun(self: verilua.handles.CallableHDL)
 ---@field set_release fun(self: verilua.handles.CallableHDL)
 ---@field set_imm fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_imm_unchecked fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_imm_unsafe fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field set_imm_cached fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_bits_imm fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
+---@field set_bits_imm_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string) Immediate `set_bits_hex_str`
 ---@field set_imm_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
 ---@field set_imm_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
----@field set_imm_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[], force_single_beat?: boolean)
+---@field force_imm fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field set_imm_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field release_imm fun(self: verilua.handles.CallableHDL)
 ---@field set_imm_release fun(self: verilua.handles.CallableHDL)
+---@field chdl fun(self: verilua.handles.CallableHDL): verilua.handles.CallableHDL
+---@field [integer] verilua.handles.CallableHDL
 ---
 ---@field at fun(self: verilua.handles.CallableHDL, index: integer): verilua.handles.CallableHDL
 ---@field get_index fun(self: verilua.handles.CallableHDL, index: integer, force_multi_beat?: boolean): integer|verilua.handles.MultiBeatData
@@ -130,6 +150,10 @@ local post_init_mt = setmetatable({
 ---@field set_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|verilua.handles.MultiBeatData)
 ---@field set_index_bitfield fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, v: integer)
 ---@field set_index_bitfield_hex_str fun(self: verilua.handles.CallableHDL, index: integer, s: integer, e: integer, hex_str: string)
+---@field set_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
+---@field set_all_imm fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
+---@field set_all_unchecked fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
+---@field set_all_imm_unchecked fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
 ---@field set_index_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
 ---@field set_index_unsafe_all fun(self: verilua.handles.CallableHDL, values: table<integer, integer|uint64_t|integer[]>)
 ---@field set_imm_index fun(self: verilua.handles.CallableHDL, index: integer, value: integer|uint64_t|integer[])
@@ -147,6 +171,8 @@ local post_init_mt = setmetatable({
 ---@field set_hex_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_bin_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_dec_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field freeze fun(self: verilua.handles.CallableHDL)
+---@field freeze_imm fun(self: verilua.handles.CallableHDL)
 ---@field set_freeze fun(self: verilua.handles.CallableHDL)
 ---@field set_imm_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_imm_hex_str fun(self: verilua.handles.CallableHDL, str: string)
@@ -154,6 +180,8 @@ local post_init_mt = setmetatable({
 ---@field set_imm_dec_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_imm_freeze fun(self: verilua.handles.CallableHDL)
 ---
+---@field randomize fun(self: verilua.handles.CallableHDL)
+---@field randomize_imm fun(self: verilua.handles.CallableHDL)
 ---@field set_shuffled fun(self: verilua.handles.CallableHDL) Randomly set the value according to the shuffled range(if shuffled range is set) or bitwidth
 ---@field set_imm_shuffled fun(self: verilua.handles.CallableHDL)
 ---@field shuffled_range_u32 fun(self: verilua.handles.CallableHDL, u32_vec: table<integer, integer>)
@@ -265,7 +293,9 @@ function CallableHDL:_init(fullpath, name, hdl)
         self.hdl = tmp_hdl
         self.hdl_type = ffi_string(vpiml.vpiml_get_hdl_type(self.hdl))
 
-        if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" or self.hdl_type == "vpiBitVar" then
+        -- iverilog reports a memory element as `vpiMemoryWord`, which is the type
+        -- seen when `arr[i]` wraps an element handle into its own CallableHDL.
+        if self.hdl_type == "vpiReg" or self.hdl_type == "vpiNet" or self.hdl_type == "vpiLogicVar" or self.hdl_type == "vpiBitVar" or self.hdl_type == "vpiMemoryWord" then
             self.is_array = false
         elseif self.hdl_type == "vpiRegArray" or self.hdl_type == "vpiArrayVar" or self.hdl_type == "vpiNetArray" or self.hdl_type == "vpiMemory" then
             --
@@ -291,6 +321,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     self.beat_num = math.ceil(self.width / BeatWidth)
     self.is_multi_beat = not (self.beat_num == 1)
     self.cached_value = nil
+    self._elems = {}
     self.reset_set_cached = function(this)
         this.cached_value = nil
     end
@@ -360,12 +391,22 @@ function CallableHDL:_init(fullpath, name, hdl)
         vpiml.vpiml_set_value_dec_str(this.hdl, str)
     end
 
-    self.set_shuffled = function(this)
+    self.randomize = function(this)
         vpiml.vpiml_set_shuffled(this.hdl)
     end
 
-    self.set_freeze = function(this)
+    self.set_shuffled = function(this)
+        deprecated("set_shuffled", "<chdl>:randomize()")
+        return this:randomize()
+    end
+
+    self.freeze = function(this)
         vpiml.vpiml_set_freeze(this.hdl)
+    end
+
+    self.set_freeze = function(this)
+        deprecated("set_freeze", "<chdl>:freeze()")
+        return this:freeze()
     end
 
     self.set_imm_str = function(this, str)
@@ -384,12 +425,22 @@ function CallableHDL:_init(fullpath, name, hdl)
         vpiml.vpiml_set_imm_value_dec_str(this.hdl, str)
     end
 
-    self.set_imm_shuffled = function(this)
+    self.randomize_imm = function(this)
         vpiml.vpiml_set_imm_shuffled(this.hdl)
     end
 
-    self.set_imm_freeze = function(this)
+    self.set_imm_shuffled = function(this)
+        deprecated("set_imm_shuffled", "<chdl>:randomize_imm()")
+        return this:randomize_imm()
+    end
+
+    self.freeze_imm = function(this)
         vpiml.vpiml_set_imm_freeze(this.hdl)
+    end
+
+    self.set_imm_freeze = function(this)
+        deprecated("set_imm_freeze", "<chdl>:freeze_imm()")
+        return this:freeze_imm()
     end
 
     self.shuffled_range_u32 = function(this, u32_vec)
@@ -446,23 +497,23 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
 
         self.set_index_str = function(this, index, str)
-            local chosen_hdl = this.array_hdls[index + 1]
-            vpiml.vpiml_set_value_str(chosen_hdl, str)
+            deprecated("set_index_str", "<chdl>[index]:set_str()")
+            this[index]:set_str(str)
         end
 
         self.set_index_hex_str = function(this, index, str)
-            local chosen_hdl = this.array_hdls[index + 1]
-            vpiml.vpiml_set_value_hex_str(chosen_hdl, str)
+            deprecated("set_index_hex_str", "<chdl>[index]:set_hex_str()")
+            this[index]:set_hex_str(str)
         end
 
         self.set_index_bin_str = function(this, index, str)
-            local chosen_hdl = this.array_hdls[index + 1]
-            vpiml.vpiml_set_value_bin_str(chosen_hdl, str)
+            deprecated("set_index_bin_str", "<chdl>[index]:set_bin_str()")
+            this[index]:set_bin_str(str)
         end
 
         self.set_index_dec_str = function(this, index, str)
-            local chosen_hdl = this.array_hdls[index + 1]
-            vpiml.vpiml_set_value_dec_str(chosen_hdl, str)
+            deprecated("set_index_dec_str", "<chdl>[index]:set_dec_str()")
+            this[index]:set_dec_str(str)
         end
     end
 
@@ -893,7 +944,8 @@ function CallableHDL:__newindex(k, v)
         local v_type = type(v)
 
         if v_type == "number" then
-            self:set_unsafe(v)
+            ---@cast v integer
+            self:set_unchecked(v)
         elseif v_type == "string" then
             self:set_str(v)
         elseif v_type == "table" then
@@ -901,28 +953,28 @@ function CallableHDL:__newindex(k, v)
                 self:set_hex_str(v:to_hex_str())
             else
                 if self.beat_num == 1 then
-                    self:set_unsafe(v[1])
+                    self:set_unchecked(v[1])
                 else
                     self:set(v)
                 end
             end
         elseif v_type == "cdata" then
             if ffi.istype("uint64_t", v) then
-                self:set_unsafe(v)
+                self:set_unchecked(v)
             elseif ffi.istype("uint32_t[]", v) then
                 if self.beat_num == 1 then
-                    self:set_unsafe(v[1])
+                    self:set_unchecked(v[1])
                 else
-                    self:set_unsafe(v)
+                    self:set_unchecked(v)
                 end
             else
                 assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
             end
         elseif v_type == "boolean" then
             if v then
-                self:set_unsafe(1)
+                self:set_unchecked(1)
             else
-                self:set_unsafe(0)
+                self:set_unchecked(0)
             end
         else
             assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
@@ -933,7 +985,8 @@ function CallableHDL:__newindex(k, v)
         local v_type = type(v)
 
         if v_type == "number" then
-            self:set_imm_unsafe(v)
+            ---@cast v integer
+            self:set_imm_unchecked(v)
         elseif v_type == "string" then
             self:set_imm_str(v)
         elseif v_type == "table" then
@@ -941,33 +994,40 @@ function CallableHDL:__newindex(k, v)
                 self:set_imm_hex_str(v:to_hex_str())
             else
                 if self.beat_num == 1 then
-                    self:set_imm_unsafe(v[1])
+                    self:set_imm_unchecked(v[1])
                 else
                     self:set_imm(v)
                 end
             end
         elseif v_type == "cdata" then
             if ffi.istype("uint64_t", v) then
-                self:set_imm_unsafe(v)
+                self:set_imm_unchecked(v)
             elseif ffi.istype("uint32_t[]", v) then
                 if self.beat_num == 1 then
-                    self:set_imm_unsafe(v[1])
+                    self:set_imm_unchecked(v[1])
                 else
-                    self:set_imm_unsafe(v)
+                    self:set_imm_unchecked(v)
                 end
             else
                 assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
             end
         elseif v_type == "boolean" then
             if v then
-                self:set_imm_unsafe(1)
+                self:set_imm_unchecked(1)
             else
-                self:set_imm_unsafe(0)
+                self:set_imm_unchecked(0)
             end
         else
             assert(false, "[CallableHDL.__newindex] invalid value type: " .. v_type)
         end
     else
+        -- Route numeric writes to the element view so `arr[i] = v` matches the
+        -- dut proxy semantics instead of rawset-poisoning the element cache.
+        -- Direct call skips a second __index metamethod hop on the hot path.
+        if type(k) == "number" then
+            CallableHDL._elem(self, k).value = v
+            return
+        end
         rawset(self, k, v)
     end
 end
@@ -1145,6 +1205,53 @@ function CallableHDL:__tostring()
             self.beat_num
         )
     end
+end
+
+-- dut.arr[i] is already a CallableHDL. Keep :chdl() so Proxy and indexed
+-- elements share the same call shape: x:chdl():set(v).
+function CallableHDL:chdl()
+    return self
+end
+
+function CallableHDL:_elem(index)
+    if not self.is_array then
+        error(f("<chdl>[index] requires an array handle, fullpath => %s", self.fullpath))
+    end
+    if type(index) ~= "number" then
+        error(f("<chdl>[index] index must be a number, got %s", type(index)))
+    end
+    local idx = math.floor(index)
+    ---@cast idx integer
+    if idx ~= index then
+        error(f("<chdl>[index] index must be an integer, got %s", tostring(index)))
+    end
+    if idx < 0 or idx >= self.array_size then
+        error(f("<chdl>[%s] out of range [0, %d), fullpath => %s", tostring(index), self.array_size, self.fullpath))
+    end
+    local elems = self._elems
+    ---@diagnostic disable-next-line: undefined-field
+    local elem = elems[idx]
+    if elem then
+        return elem
+    end
+    ---@diagnostic disable-next-line: undefined-field
+    elem = CallableHDL(self.fullpath .. "[" .. idx .. "]", self.name, self.array_hdls[idx + 1])
+    ---@diagnostic disable-next-line: undefined-field, inject-field
+    elems[idx] = elem
+    return elem
+end
+
+-- Instance fields carry the hot methods (set/get/force/... are copied onto the
+-- instance in _init), so this metamethod only runs on misses: numeric keys and
+-- class-level methods. Hot loops (arr[i], elem:set(v), .value = v) stay JIT
+-- compiled. Class-method calls such as :chdl() from an already compiled loop
+-- hit NYI (return to lower frame) and drop to the interpreter, which only
+-- costs on cold paths.
+function CallableHDL.__index(this, k)
+    if type(k) == "number" then
+        return CallableHDL._elem(this, k)
+    end
+    return rawget(CallableHDL, k)
 end
 
 --

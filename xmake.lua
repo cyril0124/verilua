@@ -1029,6 +1029,7 @@ target("test", function()
             "test-bitvec-signal",
             "test-no-internal-clock",
             "test-handles",
+            "test-chdl-write-api",
             "test-force-release-coalesce",
             "test-native-clock",
             "test-queue-waitable",

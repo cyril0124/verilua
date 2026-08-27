@@ -99,6 +99,34 @@ local chdl = ("tb_top.clock"):chdl()
 
 这种方式在 Verilua 中被称为 **S**tring **L**iteral **C**onstructor **P**attern（SLCP），使用 SLCP 的好处在于可以不用像 `class` 构建那样提前使用 `require` 将 `LuaCallableHDL` 加载到代码中，而是在使用时根据后缀的方法名（`:chdl()`）来直接创建 `chdl`。除了 `chdl` 之外，其他的数据结构同样也支持使用 SLCP 的方式来创建，详见 [字符串字面量构造模式（SLCP）](../slcp.mdx)。
 
+### 信号名与接口名重名时
+
+`dut.path.to.signal` 这种写法把信号名当字段查，而 `set`、`set_unchecked`、`randomize`、`force`、`release`、`freeze`、`get`、`name`、`dump` 这些接口名优先命中。RTL 里真有同名信号时，`dut` 路径拿到的是接口函数：
+
+```lua
+type(dut.u_top.set) -- "function"，不是信号
+```
+
+用字符串路径构造 `chdl`，信号名只是路径的一部分，不参与名字解析：
+
+```lua
+local sig = ("tb_top.u_top.set"):chdl()
+
+-- 已经持有父节点时，用 get_local_path() 拼出完整路径
+local u_top = dut.u_top
+local sig = (u_top:get_local_path() .. ".set"):chdl()
+```
+
+拿到 `chdl` 之后和普通信号一样：
+
+```lua
+sig:set(1)
+sig:randomize()
+sig.value = 0x11
+```
+
+[Bundle](./bundle.mdx#信号名与-bundle-接口重名) 上的重名会在构造时报错，处理方式一样。如果想保留结构化的访问方式，可以用 [AliasBundle](./bundle.mdx#bundle-vs-aliasbundle-选型) 把它映射成不重名的别名。
+
 ## CallableHDL 接口
 
 `CallableHDL` 支持多种信号操作接口，且相关接口函数的功能会与具体信号的位宽有关，因此在使用时需要注意一些细节。
@@ -225,6 +253,37 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
 ### 信号赋值
 
+写入默认是延迟的，写完马上 `get()` 读到的还是旧值。每个方法都有立即生效的 `_imm` 版本，区别见[立即赋值和普通赋值的区别](#set-and-set-imm)。
+
+| API | 作用 | 立即版本 |
+|---|---|---|
+| `set(v)` | 常规写入，根据位宽校验 `v` 的类型与大小 | `set_imm` |
+| `.value = v` | 属性写法，等价于 `set(v)` | `.value_imm = v` |
+| `set_unchecked(v)` | 跳过校验的写入，用于逐拍写的热点路径 | `set_imm_unchecked` |
+| `set_bits(s, e, v)` | 只改 `[e:s]` 这段位，其余位保持不变，位段宽度上限 64 bit | `set_bits_imm` |
+| `set_bits_hex_str(s, e, hex_str)` | 同上，但值用十六进制字符串给，位段可以超过 64 bit | `set_bits_imm_hex_str` |
+| `set_str(str)` | 字符串写入，由前缀定进制：`0x` 走十六进制，`0b` 走二进制，其余按十进制 | `set_imm_str` |
+| `set_hex_str(str)` | 进制已知时直接指定，另有 `set_bin_str` / `set_dec_str` | `set_imm_hex_str` 等 |
+| `randomize()` | 写入一个随机值 | `randomize_imm` |
+| `force(v)` | 强制驱动，同 SystemVerilog 的 `force` | `force_imm` |
+| `release()` | 解除 `force` / `freeze` | `release_imm` |
+| `freeze()` | 把信号钉在当前值，用 `release()` 解除 | `freeze_imm` |
+
+数组信号额外有下标和整体写入：
+
+| API | 作用 | 立即版本 |
+|---|---|---|
+| `arr[i]` | 取第 `i` 个元素的句柄，从 0 数，同一下标返回同一个句柄 | 无 |
+| `set_all(values)` | 按 `values` 依次写入整个数组 | `set_all_imm` |
+| `set_all_unchecked(values)` | 跳过校验的整数组写入 | `set_all_imm_unchecked` |
+
+```lua
+local arr = dut.u_top.array_signal:chdl()
+arr[0]:set(0x11)
+arr[0].value = 0x22
+arr:set_all { 0x11, 0x22, 0x33, 0x44 }
+```
+
 1. `<chdl>:set(value)`
 
    <Tabs>
@@ -274,26 +333,11 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
      </TabItem>
    </Tabs>
 
-2. `<chdl>:set_unsafe(value)`
+2. `<chdl>:set_unchecked(value)`
 
    和 `set` 类似，但是不会检查 `value` 的正确性，省去了 `assert` 的开销。适合在热路径（例如每拍都需要驱动的信号）中使用；功能性测试建议使用 `set`。
 
-3. `<chdl>:set_cached(value)`
-
-   <Tabs>
-     <TabItem value="single" label="Single">
-
-       和 `set` 一样都用于赋值信号，但是在赋值的时候会将当前的信号值加入到缓存中，如果下次赋值的时候发现当前的信号值没有变化，那么就不会赋值，这样可以减少一些不必要的信号赋值。
-
-     </TabItem>
-     <TabItem value="double-multi" label="Double / Multi">
-
-       暂不支持 Cached 赋值方式。
-
-     </TabItem>
-   </Tabs>
-
-4. `<chdl>:set_str(str)`
+3. `<chdl>:set_str(str)`
 
    <div id="chdl-set-str"></div>
 
@@ -314,7 +358,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
    `0x` 表示为 Hex String，`0b` 表示为 Binary String，其他的字符串则表示为 Decimal String。
 
-5. `<chdl>:set_hex_str(str)`
+4. `<chdl>:set_hex_str(str)`
 
    <div id="chdl-set-hex-str"></div>
 
@@ -330,7 +374,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
    signal:expect(0x123)
    ```
 
-6. `<chdl>:set_bin_str(value)`
+5. `<chdl>:set_bin_str(value)`
 
    使用 Binary String 赋值，`value` 是一个 Lua string 类型的字符串。
 
@@ -344,7 +388,7 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
    signal:expect(0xA)
    ```
 
-7. `<chdl>:set_dec_str(value)`
+6. `<chdl>:set_dec_str(value)`
 
    使用 Decimal String 赋值，`value` 是一个 Lua string 类型的字符串。
 
@@ -358,38 +402,36 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
    signal:expect(12)
    ```
 
-8. `<chdl>:set_shuffled()`
+7. `<chdl>:randomize()`
 
    对当前信号进行**随机赋值**，这在验证中很常用。
 
-9. `<chdl>:set_bitfield(s, e, v)`
+8. `<chdl>:set_bits(s, e, v)`
 
-   设置信号的值 `v`，并且只在 `s` 到 `e` 之间的位宽上赋值。`v` 可以是 Lua number 类型的数值，也可以是一个 `uint64_t` 类型的 `cdata`。
+   设置信号的值 `v`，并且只在 `s` 到 `e` 之间的位宽上赋值。`v` 可以是 Lua number 类型的数值，也可以是一个 `uint64_t` 类型的 `cdata`，因此位段宽度（`e - s + 1`）不能超过 64 bit。
 
    ```lua
    local signal = dut.value:chdl()
 
    local value = 0x123
-   signal:set_bitfield(0, 7, value)
+   signal:set_bits(0, 7, value)
    ```
 
-10. `<chdl>:set_bitfield_hex_str(s, e, hex_str)`
+9. `<chdl>:set_bits_hex_str(s, e, hex_str)`
 
-    设置信号的值，并且只在 `s` 到 `e` 之间的位宽上赋值。`hex_str` 是一个 Hex String 类型的字符串。
+   和 `set_bits` 一样只写 `s` 到 `e` 这段位，但值用十六进制字符串给，所以位段可以超过 64 bit：
 
-    ```lua
-    local signal = dut.value:chdl()
+   ```lua
+   local wide = ("tb_top.u_top.wide_signal"):chdl() -- 128 bit
+   wide:set_bits_hex_str(0, 127, "1234567890abcdef1234567890abcdef")
+   ```
 
-    local value = "123"
-    signal:set_bitfield_hex_str(0, 7, value)
-    ```
+10. `<chdl>:force(value)`
 
-11. `<chdl>:set_force(value)`
-
-    强制赋值（与 `set_release` 配合使用），与 SystemVerilog 中的 `force` 关键字相同。除了 `force` 这个属性上的区别之外，其他和 `set` 一样。
+    强制赋值（与 `release` 配合使用），与 SystemVerilog 中的 `force` 关键字相同。除了 `force` 这个属性上的区别之外，其他和 `set` 一样。
 
     :::note[Verilator 需要 ≥ 5.050 且 forceable]
-    在 Verilator 上使用 `set_force` / `set_release` 时：
+    在 Verilator 上使用 `force` / `release` 时：
 
     1. **forceable**：目标信号必须标记为 forceable，例如通过 [`verilua.verilator_config`](../xmake_params.mdx) 或 `.vlt`：
 
@@ -407,18 +449,18 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
     ```lua
     local signal = dut.value:chdl()
     local value = 0x123
-    signal:set_force(value)
+    signal:force(value)
 
     -- ...
 
-    signal:set_release()
+    signal:release()
     ```
 
-12. `<chdl>:set_release()`
+11. `<chdl>:release()`
 
-    释放赋值（与 `set_force` 配合使用），与 SystemVerilog 中的 `release` 关键字相同。对于使用了 `set_force` 的信号，需要使用 `set_release` 来释放赋值，否则会导致信号的值不会更新。
+    释放赋值（与 `force` 配合使用），与 SystemVerilog 中的 `release` 关键字相同。对于使用了 `force` 的信号，需要使用 `release` 来释放赋值，否则会导致信号的值不会更新。
 
-13. `<chdl>:set_imm(value)`
+12. `<chdl>:set_imm(value)`
 
     立即赋值版本的 `set`，除了立即赋值的属性之外，其他和 `set` 一样。
 
@@ -485,15 +527,15 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 
     :::
 
-14. `set_imm_*` 立即赋值变体
+13. `set_imm_*` 立即赋值变体
 
     每个赋值方法均有对应的 `set_imm_*` 立即赋值变体，行为与普通版本完全相同，但立即生效（参见[立即赋值和普通赋值的区别](#set-and-set-imm)）：
 
-    `set_imm_unsafe`、`set_imm_cached`、`set_imm_str`、`set_imm_hex_str`、`set_imm_bin_str`、`set_imm_dec_str`、`set_imm_shuffled`、`set_imm_bitfield`、`set_imm_bitfield_hex_str`、`set_imm_force`、`set_imm_release`
+    `set_imm_unchecked`、`set_imm_str`、`set_imm_hex_str`、`set_imm_bin_str`、`set_imm_dec_str`、`randomize_imm`、`set_bits_imm`、`set_bits_imm_hex_str`、`force_imm`、`release_imm`、`freeze_imm`
 
-15. `<chdl>:set_freeze()`
+14. `<chdl>:freeze()`
 
-    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<chdl>:set_release()` 来取消冻结。
+    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<chdl>:release()` 来取消冻结。
 
 ### debug 相关
 

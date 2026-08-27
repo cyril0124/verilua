@@ -15,37 +15,24 @@ local chdl = {
     get64 = function(this) assert(false, f("<chdl>:get64() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set = function(this) assert(false, f("<chdl>:set() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
     set_imm = function(this) assert(false, f("<chdl>:set_imm() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_unsafe = function(this) assert(false, f("<chdl>:set_unsafe() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_unsafe = function(this) assert(false, f("<chdl>:set_imm_unsafe() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_cached = function(this) assert(false, f("<chdl>:set_cached() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_cached = function(this) assert(false, f("<chdl>:set_imm_cached() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_bitfield = function(this) assert(false, f("<chdl>:set_bitfield() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_bitfield = function(this) assert(false, f("<chdl>:set_imm_bitfield() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_bitfield_hex_str = function(this) assert(false, f("<chdl>:set_bitfield_hex_str() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_bitfield_hex_str = function(this) assert(false, f("<chdl>:set_imm_bitfield_hex_str() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_force = function(this) assert(false, f("<chdl>:set_force() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_force = function(this) assert(false, f("<chdl>:set_imm_force() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_release = function(this) assert(false, f("<chdl>:set_release() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
-    set_imm_release = function(this) assert(false, f("<chdl>:set_imm_release() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    set_unchecked = function(this) assert(false, f("<chdl>:set_unchecked() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    set_imm_unchecked = function(this) assert(false, f("<chdl>:set_imm_unchecked() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    set_bits = function(this) assert(false, f("<chdl>:set_bits() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    set_bits_imm = function(this) assert(false, f("<chdl>:set_bits_imm() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    force = function(this) assert(false, f("<chdl>:force() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    force_imm = function(this) assert(false, f("<chdl>:force_imm() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    release = function(this) assert(false, f("<chdl>:release() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
+    release_imm = function(this) assert(false, f("<chdl>:release_imm() is not implemented! fullpath => %s bitwidth => %d", this.fullpath, this.width)) end,
 }
 
 local chdl_array = {
-    at = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    get_index = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_index = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_imm_index = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_index_unsafe = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_imm_index_unsafe = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    get_index_all = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    get_index_bitvec = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_index_bitfield = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_imm_index_bitfield = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_index_bitfield_hex_str = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_imm_index_bitfield_hex_str = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_index_all = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_imm_index_all = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_index_unsafe_all = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
-    set_imm_index_unsafe_all = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
+    get_index = function(this) assert(false, f("Normal handle does not support <chdl>:get_index(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
+    get_index_all = function(this) assert(false, f("Normal handle does not support <chdl>:get_index_all(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
+    get_index_bitvec = function(this) assert(false, f("Normal handle does not support <chdl>:get_index_bitvec(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
+    set_all = function(this) assert(false, f("Normal handle does not support <chdl>:set_all(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
+    set_all_imm = function(this) assert(false, f("Normal handle does not support <chdl>:set_all_imm(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
+    set_all_unchecked = function(this) assert(false, f("Normal handle does not support <chdl>:set_all_unchecked(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
+    set_all_imm_unchecked = function(this) assert(false, f("Normal handle does not support <chdl>:set_all_imm_unchecked(), fullpath => %s bitwidth => %d is_array => %s", this.fullpath, this.width, tostring(this.is_array))) end,
 }
 -- Singleton methods: created once at require() time
 chdl.get = function(this)
@@ -68,27 +55,17 @@ chdl.set = function(this, value)
     vpiml.vpiml_set_value(this.hdl, value)
 end
 
-chdl.set_unsafe = chdl.set
+chdl.set_unchecked = chdl.set
 
-chdl.set_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_value(this.hdl, value)
-end
-
-chdl.set_bitfield = function(this, s, e, v)
+chdl.set_bits = function(this, s, e, v)
     vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
 end
 
-chdl.set_bitfield_hex_str = function(this, s, e, hex_str)
-    vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
-end
-
-chdl.set_force = function(this, value)
+chdl.force = function(this, value)
     vpiml.vpiml_force_value(this.hdl, value)
 end
 
-chdl.set_release = function(this)
+chdl.release = function(this)
     vpiml.vpiml_release_value(this.hdl)
 end
 
@@ -96,36 +73,21 @@ chdl.set_imm = function(this, value)
     vpiml.vpiml_set_imm_value(this.hdl, value)
 end
 
-chdl.set_imm_unsafe = chdl.set_imm
+chdl.set_imm_unchecked = chdl.set_imm
 
-chdl.set_imm_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_imm_value(this.hdl, value)
-end
-
-chdl.set_imm_bitfield = function(this, s, e, v)
+chdl.set_bits_imm = function(this, s, e, v)
     vpiml.vpiml_set_imm_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
 end
 
-chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
-    vpiml.vpiml_set_imm_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
-end
-
-chdl.set_imm_force = function(this, value)
+chdl.force_imm = function(this, value)
     vpiml.vpiml_force_imm_value(this.hdl, value)
 end
 
-chdl.set_imm_release = function(this)
+chdl.release_imm = function(this)
     vpiml.vpiml_release_imm_value(this.hdl)
 end
 
 -- Array methods (also singleton)
-chdl_array.at = function(this, idx)
-    this.hdl = this.array_hdls[idx + 1]
-    return this
-end
-
 chdl_array.get_index = function(this, index)
     return vpiml.vpiml_get_value(this.array_hdls[index + 1])
 end
@@ -149,49 +111,178 @@ chdl_array.get_index_bitvec = function(this, index)
     end
 end
 
-chdl_array.set_index = function(this, index, value)
-    vpiml.vpiml_set_value(this.array_hdls[index + 1], value)
+chdl_array.set_all = function(this, values)
+    for index = 0, this.array_size - 1 do
+        this[index]:set(values[index + 1])
+    end
 end
 
-chdl_array.set_index_unsafe = chdl_array.set_index
+chdl_array.set_all_imm = function(this, values)
+    for index = 0, this.array_size - 1 do
+        this[index]:set_imm(values[index + 1])
+    end
+end
+
+chdl_array.set_all_unchecked = function(this, values)
+    for index = 0, this.array_size - 1 do
+        this[index]:set_unchecked(values[index + 1])
+    end
+end
+
+chdl_array.set_all_imm_unchecked = function(this, values)
+    for index = 0, this.array_size - 1 do
+        this[index]:set_imm_unchecked(values[index + 1])
+    end
+end
+
+chdl.set_bits_hex_str = function(this, s, e, hex_str)
+    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
+    if this.beat_num == 1 then
+        return this:set_unchecked(bv.u32_vec[1])
+    end
+    return this:set_unchecked(bv.u32_vec)
+end
+
+chdl.set_bits_imm_hex_str = function(this, s, e, hex_str)
+    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
+    if this.beat_num == 1 then
+        return this:set_imm_unchecked(bv.u32_vec[1])
+    end
+    return this:set_imm_unchecked(bv.u32_vec)
+end
+
+local function deprecated(old, new)
+    _G.verilua_warning("[deprecated] <chdl>:" .. old .. "() is deprecated, use " .. new .. " instead")
+end
+
+chdl.set_unsafe = function(this, value)
+    deprecated("set_unsafe", "<chdl>:set_unchecked()")
+    return this:set_unchecked(value)
+end
+
+chdl.set_imm_unsafe = function(this, value)
+    deprecated("set_imm_unsafe", "<chdl>:set_imm_unchecked()")
+    return this:set_imm_unchecked(value)
+end
+
+chdl.set_force = function(this, value)
+    deprecated("set_force", "<chdl>:force()")
+    return this:force(value)
+end
+
+chdl.set_imm_force = function(this, value)
+    deprecated("set_imm_force", "<chdl>:force_imm()")
+    return this:force_imm(value)
+end
+
+chdl.set_release = function(this)
+    deprecated("set_release", "<chdl>:release()")
+    return this:release()
+end
+
+chdl.set_imm_release = function(this)
+    deprecated("set_imm_release", "<chdl>:release_imm()")
+    return this:release_imm()
+end
+
+chdl.set_bitfield = function(this, s, e, v)
+    deprecated("set_bitfield", "<chdl>:set_bits()")
+    return this:set_bits(s, e, v)
+end
+
+chdl.set_imm_bitfield = function(this, s, e, v)
+    deprecated("set_imm_bitfield", "<chdl>:set_bits_imm()")
+    return this:set_bits_imm(s, e, v)
+end
+
+chdl.set_bitfield_hex_str = function(this, s, e, hex_str)
+    deprecated("set_bitfield_hex_str", "<chdl>:set_bits_hex_str()")
+    return this:set_bits_hex_str(s, e, hex_str)
+end
+
+chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
+    deprecated("set_imm_bitfield_hex_str", "<chdl>:set_bits_imm_hex_str()")
+    return this:set_bits_imm_hex_str(s, e, hex_str)
+end
+
+chdl.set_cached = function(this, value)
+    deprecated("set_cached", "<chdl>:set()")
+    if this.cached_value == value then return end
+    this.cached_value = value
+    return this:set(value)
+end
+
+chdl.set_imm_cached = function(this, value)
+    deprecated("set_imm_cached", "<chdl>:set_imm()")
+    if this.cached_value == value then return end
+    this.cached_value = value
+    return this:set_imm(value)
+end
+
+chdl_array.at = function(this, idx)
+    deprecated("at", "<chdl>[index]")
+    return this[idx]
+end
+
+chdl_array.set_index = function(this, index, value)
+    deprecated("set_index", "<chdl>[index]:set()")
+    return this[index]:set(value)
+end
+
+chdl_array.set_imm_index = function(this, index, value)
+    deprecated("set_imm_index", "<chdl>[index]:set_imm()")
+    return this[index]:set_imm(value)
+end
+
+chdl_array.set_index_unsafe = function(this, index, value)
+    deprecated("set_index_unsafe", "<chdl>[index]:set_unchecked()")
+    return this[index]:set_unchecked(value)
+end
+
+chdl_array.set_imm_index_unsafe = function(this, index, value)
+    deprecated("set_imm_index_unsafe", "<chdl>[index]:set_imm_unchecked()")
+    return this[index]:set_imm_unchecked(value)
+end
 
 chdl_array.set_index_bitfield = function(this, index, s, e, v)
-    vpiml.vpiml_set_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
+    deprecated("set_index_bitfield", "<chdl>[index]:set_bits()")
+    return this[index]:set_bits(s, e, v)
+end
+
+chdl_array.set_imm_index_bitfield = function(this, index, s, e, v)
+    deprecated("set_imm_index_bitfield", "<chdl>[index]:set_bits_imm()")
+    return this[index]:set_bits_imm(s, e, v)
 end
 
 chdl_array.set_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    vpiml.vpiml_set_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
-end
-
-chdl_array.set_index_all = function(this, values)
-    for index = 0, this.array_size - 1 do
-        vpiml.vpiml_set_value(this.array_hdls[index + 1], values[index + 1])
-    end
-end
-
-chdl_array.set_index_unsafe_all = chdl_array.set_index_all
-
-chdl_array.set_imm_index = function(this, index, value)
-    vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], value)
-end
-
-chdl_array.set_imm_index_unsafe = chdl_array.set_imm_index
-
-chdl_array.set_imm_index_bitfield = function(this, index, s, e, v)
-    vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
+    deprecated("set_index_bitfield_hex_str", "<chdl>[index]:set_bits_hex_str()")
+    return this[index]:set_bits_hex_str(s, e, hex_str)
 end
 
 chdl_array.set_imm_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
+    deprecated("set_imm_index_bitfield_hex_str", "<chdl>[index]:set_bits_imm_hex_str()")
+    return this[index]:set_bits_imm_hex_str(s, e, hex_str)
+end
+
+chdl_array.set_index_all = function(this, values)
+    deprecated("set_index_all", "<chdl>:set_all()")
+    return this:set_all(values)
 end
 
 chdl_array.set_imm_index_all = function(this, values)
-    for index = 0, this.array_size - 1 do
-        vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], values[index + 1])
-    end
+    deprecated("set_imm_index_all", "<chdl>:set_all_imm()")
+    return this:set_all_imm(values)
 end
 
-chdl_array.set_imm_index_unsafe_all = chdl_array.set_imm_index_all
+chdl_array.set_index_unsafe_all = function(this, values)
+    deprecated("set_index_unsafe_all", "<chdl>:set_all_unchecked()")
+    return this:set_all_unchecked(values)
+end
+
+chdl_array.set_imm_index_unsafe_all = function(this, values)
+    deprecated("set_imm_index_unsafe_all", "<chdl>:set_all_imm_unchecked()")
+    return this:set_all_imm_unchecked(values)
+end
 
 -- Pre-built combined table (methods + array_methods merged at load time)
 local M_combined = {}

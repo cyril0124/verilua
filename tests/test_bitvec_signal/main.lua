@@ -69,12 +69,12 @@ fork {
 
         do
             clock:negedge()
-            value32:set_bitfield(16, 31, 0xdead)
+            value32:set_bits(16, 31, 0xdead)
             clock:negedge()
             expect.equal(value32:get_hex_str(), "dead5678")
 
             clock:negedge()
-            value32:set_bitfield_hex_str(0, 15, "beef")
+            value32:set_bits_hex_str(0, 15, "beef")
             clock:negedge()
             expect.equal(value32:get_hex_str(), "deadbeef")
 
@@ -90,12 +90,12 @@ fork {
             value64:set_hex_str("0000000000000000")
 
             clock:negedge()
-            value64:set_bitfield(32, 63, 0xdead)
+            value64:set_bits(32, 63, 0xdead)
             clock:negedge()
             expect.equal(value64:get_hex_str(), "0000dead00000000")
 
             clock:negedge()
-            value64:set_bitfield_hex_str(0, 15, "beef")
+            value64:set_bits_hex_str(0, 15, "beef")
             clock:negedge()
             expect.equal(value64:get_hex_str(), "0000dead0000beef")
 
@@ -111,12 +111,12 @@ fork {
             value128:set_hex_str("000000000000000000000000")
 
             clock:negedge()
-            value128:set_bitfield(64, 127, 0xdead)
+            value128:set_bits(64, 127, 0xdead)
             clock:negedge()
             expect.equal(value128:get_hex_str(), "000000000000dead0000000000000000")
 
             clock:negedge()
-            value128:set_bitfield_hex_str(0, 15, "beef")
+            value128:set_bits_hex_str(0, 15, "beef")
             clock:negedge()
             expect.equal(value128:get_hex_str(), "000000000000dead000000000000beef")
             expect.equal(tonumber(value128:get_bitvec():get_bitfield(0, 15)), 0xbeef)

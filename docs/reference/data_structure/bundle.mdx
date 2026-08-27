@@ -196,9 +196,9 @@ bdl.bits.data:set(0x456)
 
    :::
 
-3. `<bdl>:set_all(values_tbl)`
+3. `<bdl>:set_all(values_tbl)` / `<bdl>:set_all_imm(values_tbl)`
 
-   设置所有的信号，并以 Lua table 的形式返回，例如：
+   设置所有的信号，`set_all_imm` 是立即赋值版本，例如：
 
    ```lua
    local bdl = ("opcode | data"):bdl {hier = "path.to.hier", prefix = "some_prefix_", is_decoupled = false}
@@ -244,6 +244,18 @@ bdl.bits.data:set(0x456)
 7. `<bdl>:format_dump_str(format_func)`
 
    返回 `format_dump()` 的输出字符串。
+
+## 信号名与 Bundle 接口重名
+
+信号句柄直接挂在 Bundle 实例上，因此信号名不能和 Bundle 自身的字段或方法重名（`name`、`prefix`、`hierarchy`、`bits`、`fire`、`get_all`、`set_all`、`dump` 等），重名会在构造时报错：
+
+```lua
+("dump"):bdl { hier = "tb_top.u_top", prefix = "", is_decoupled = false }
+-- error: [Unknown] signal name `dump` collides with a Bundle method,
+--        use ("tb_top.u_top.dump"):chdl() instead
+```
+
+按提示改用完整路径构造 `CallableHDL` 即可，详见 [信号名与接口名重名时](./callable_hdl.mdx#信号名与接口名重名时)。如果只是想换个访问名，也可以用 [AliasBundle](#bundle-vs-aliasbundle-选型) 把它映射成别名。
 
 ## Bundle vs AliasBundle 选型
 
