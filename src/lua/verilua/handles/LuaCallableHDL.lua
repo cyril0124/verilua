@@ -125,6 +125,7 @@ local post_init_mt = setmetatable({
 ---@field set_bitfield fun(self: verilua.handles.CallableHDL, s: integer, e: integer, v: integer)
 ---@field set_bitfield_hex_str fun(self: verilua.handles.CallableHDL, s: integer, e: integer, hex_str: string)
 ---@field force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
+---@field force_hex_str fun(self: verilua.handles.CallableHDL, hex_str: string) Force from a hex string; unlike `force`, the value may exceed 64 bits
 ---@field set_force fun(self: verilua.handles.CallableHDL, value: integer|uint64_t|integer[])
 ---@field release fun(self: verilua.handles.CallableHDL)
 ---@field set_release fun(self: verilua.handles.CallableHDL)
@@ -171,6 +172,7 @@ local post_init_mt = setmetatable({
 ---@field set_hex_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_bin_str fun(self: verilua.handles.CallableHDL, str: string)
 ---@field set_dec_str fun(self: verilua.handles.CallableHDL, str: string)
+---@field force_imm_hex_str fun(self: verilua.handles.CallableHDL, hex_str: string) Force from a hex string; unlike `force_imm`, the value may exceed 64 bits
 ---@field freeze fun(self: verilua.handles.CallableHDL)
 ---@field freeze_imm fun(self: verilua.handles.CallableHDL)
 ---@field set_freeze fun(self: verilua.handles.CallableHDL)
@@ -389,6 +391,16 @@ function CallableHDL:_init(fullpath, name, hdl)
 
     self.set_dec_str = function(this, str)
         vpiml.vpiml_set_value_dec_str(this.hdl, str)
+    end
+
+    -- Forcing from a hex string is the only form that reaches past 64 bits,
+    -- since `force()` takes a number or one value per beat.
+    self.force_hex_str = function(this, str)
+        vpiml.vpiml_force_value_hex_str(this.hdl, str)
+    end
+
+    self.force_imm_hex_str = function(this, str)
+        vpiml.vpiml_force_imm_value_hex_str(this.hdl, str)
     end
 
     self.randomize = function(this)

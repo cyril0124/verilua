@@ -165,6 +165,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ✨ Added
 
+- **CallableHDL / ProxyTableHandle**: `force_hex_str(hex_str)` and `force_imm_hex_str(hex_str)` force a signal from a hexadecimal string, so values wider than 64 bits can be forced (`force()` takes a number or one value per beat).
 - **LuaUtils**: Add `deepcopy()` for recursive table copying with cycle handling and metatable preservation.
 - **LuaUtils**: `get_env_or_else()` now accepts a function default that is called when the environment variable is unset, validates the generated value type, and logs the generated value. Added `rand_int()`, `rand_bool()`, and `rand_choice()` helpers for lightweight runtime parameter randomization; `rand_choice()` also supports optional relative weights.
 - **LuaSimConfig**: Seed setup is available before loading user config so function defaults in user config can be reproducible under the same `SEED`.

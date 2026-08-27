@@ -971,6 +971,19 @@ fork {
                 clock:posedge() -- Wait a cycle for release to take effect
                 dut.u_top.opt_valid:set_imm(0x0)
                 assert(dut.u_top.opt_valid:get() == 0x0)
+
+                dut.u_top.opt_valid:force_hex_str("5a")
+                clock:posedge()
+                assert(dut.u_top.opt_valid:get() == 0x5a)
+                dut.u_top.opt_valid:release()
+                clock:posedge()
+
+                dut.u_top.opt_valid:force_imm_hex_str("a5")
+                assert(dut.u_top.opt_valid:get() == 0xa5)
+                dut.u_top.opt_valid:release_imm()
+                clock:posedge()
+                dut.u_top.opt_valid:set_imm(0x0)
+                assert(dut.u_top.opt_valid:get() == 0x0)
             end
         end
 

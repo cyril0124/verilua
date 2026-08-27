@@ -100,6 +100,9 @@ ffi.cdef [[
     void vpiml_set_imm_value_bin_str(long long handle, const char *str);
     void vpiml_set_imm_value_dec_str(long long handle, const char *str);
 
+    void vpiml_force_value_hex_str(long long handle, const char *str);
+    void vpiml_force_imm_value_hex_str(long long handle, const char *str);
+
     void vpiml_set_shuffled(long long handle);
     void vpiml_set_freeze(long long handle);
 
@@ -231,6 +234,8 @@ local vpiml = {
     vpiml_force_value64_force_single = C.vpiml_force_value64_force_single,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
     vpiml_force_value_str = C.vpiml_force_value_str,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
+    vpiml_force_value_hex_str = C.vpiml_force_value_hex_str,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, values: ffi.cdata*[])
     vpiml_force_value_multi = C.vpiml_force_value_multi,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer)
@@ -256,6 +261,8 @@ local vpiml = {
     vpiml_force_imm_value64_force_single = C.vpiml_force_imm_value64_force_single,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
     vpiml_force_imm_value_str = C.vpiml_force_imm_value_str,
+    ---@type fun(handle: verilua.handles.ComplexHandleRaw, str: string)
+    vpiml_force_imm_value_hex_str = C.vpiml_force_imm_value_hex_str,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, values: ffi.cdata*[])
     vpiml_force_imm_value_multi = C.vpiml_force_imm_value_multi,
     ---@type fun(handle: verilua.handles.ComplexHandleRaw, v0: integer, v1: integer)

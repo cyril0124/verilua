@@ -59,6 +59,12 @@ local elem = dut.arr[0]:chdl()
 
    强制赋值，等同 SystemVerilog `force`，需配合 `release` 使用。`<value>` 只能是 Lua number。
 
+   位宽超过 64 bit 的信号用 `<dut>:force_hex_str(str)`（立即版本 `force_imm_hex_str`），十六进制字符串不带前缀：
+
+   ```lua
+   dut.u_top.wide_data:force_hex_str("7000000000001dead")
+   ```
+
 6. `<dut>:release()`
 
    释放 `force` 的强制赋值（等同 SystemVerilog `release`）。未调用时信号值将保持不变。

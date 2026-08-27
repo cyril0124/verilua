@@ -188,6 +188,20 @@ local function check_force(sig, width, label)
     clock:posedge()
     sig:set_imm(0x77)
     is("77", "release_imm after freeze_imm")
+
+    -- Hex strings reach past the 64 bit limit of force(), which takes a number
+    local wide = string.rep("d", math.floor(width / 4))
+    sig:force_hex_str(wide)
+    clock:posedge()
+    is(wide, "force_hex_str")
+    sig:release()
+    clock:posedge()
+
+    local wide_imm = string.rep("6", math.floor(width / 4))
+    sig:force_imm_hex_str(wide_imm)
+    is(wide_imm, "force_imm_hex_str")
+    sig:release_imm()
+    clock:posedge()
 end
 
 --- Array-only write APIs, plus the full scalar suite on element views.

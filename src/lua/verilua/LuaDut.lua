@@ -67,6 +67,15 @@ end
 --- ```
 ---@field force fun(self: verilua.handles.ProxyTableHandle, v: integer)
 ---@field force_imm fun(self: verilua.handles.ProxyTableHandle, v: integer)
+---
+--- Force the signal from a hexadecimal string (no prefix required). Unlike `force`,
+--- which takes a 32-bit integer, the value may be wider than 64 bits.
+--- e.g.
+--- ```lua
+--- dut.path.to.wide_signal:force_hex_str("7000000000001dead")
+--- ```
+---@field force_hex_str fun(self: verilua.handles.ProxyTableHandle, hex_str: string)
+---@field force_imm_hex_str fun(self: verilua.handles.ProxyTableHandle, hex_str: string)
 --- Deprecated: use `force` / `force_imm`.
 ---@field set_force fun(self: verilua.handles.ProxyTableHandle, v: integer)
 ---
@@ -583,8 +592,16 @@ local function create_proxy(path, use_prefix)
             end
         end,
 
+        force_hex_str = function(_t, str)
+            vpiml.vpiml_force_value_hex_str(vpiml.vpiml_handle_by_name(local_path), str)
+        end,
+
+        force_imm_hex_str = function(_t, str)
+            vpiml.vpiml_force_imm_value_hex_str(vpiml.vpiml_handle_by_name(local_path), str)
+        end,
+
         set_force_str = function(_t, str)
-            proxy_deprecated("set_force_str", "<dut>:force() or <dut>:chdl():force()")
+            proxy_deprecated("set_force_str", "<dut>:force() or <dut>:force_hex_str()")
             vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), str)
         end,
 

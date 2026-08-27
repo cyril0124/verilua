@@ -265,7 +265,8 @@ Verilua 中根据信号的位宽不同，隐式地将 `chdl` 分为了三种类�
 | `set_str(str)` | 字符串写入，由前缀定进制：`0x` 走十六进制，`0b` 走二进制，其余按十进制 | `set_imm_str` |
 | `set_hex_str(str)` | 进制已知时直接指定，另有 `set_bin_str` / `set_dec_str` | `set_imm_hex_str` 等 |
 | `randomize()` | 写入一个随机值 | `randomize_imm` |
-| `force(v)` | 强制驱动，同 SystemVerilog 的 `force` | `force_imm` |
+| `force(v)` | 强制驱动，同 SystemVerilog 的 `force`，值上限 64 bit（或按 beat 给一个数组） | `force_imm` |
+| `force_hex_str(str)` | 用十六进制字符串强制驱动，值可以超过 64 bit | `force_imm_hex_str` |
 | `release()` | 解除 `force` / `freeze` | `release_imm` |
 | `freeze()` | 把信号钉在当前值，用 `release()` 解除 | `freeze_imm` |
 | `set_cached(v)` | 值和上次写入相同就跳过本次写，用 `reset_set_cached()` 清缓存 | `set_imm_cached` |
