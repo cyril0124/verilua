@@ -29,6 +29,12 @@ local BinStr = _G.BinStr
 local DecStr = _G.DecStr
 local verilua_debug = _G.verilua_debug
 
+--- Warn once per call that `old` is deprecated in favour of `new`, in the same
+--- wording the generated ChdlAccess files use.
+local function deprecated(old, new)
+    _G.verilua_warning("[deprecated] <chdl>:" .. old .. "() is deprecated, use " .. new .. " instead")
+end
+
 local DpiExporter
 
 -- TODO: better indexed CallableHDL
@@ -390,7 +396,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     self.set_shuffled = function(this)
-        _G.verilua_warning("[deprecated] <chdl>:set_shuffled() is deprecated, use <chdl>:randomize() instead")
+        deprecated("set_shuffled", "<chdl>:randomize()")
         return this:randomize()
     end
 
@@ -399,7 +405,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     self.set_freeze = function(this)
-        _G.verilua_warning("[deprecated] <chdl>:set_freeze() is deprecated, use <chdl>:freeze() instead")
+        deprecated("set_freeze", "<chdl>:freeze()")
         return this:freeze()
     end
 
@@ -424,7 +430,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     self.set_imm_shuffled = function(this)
-        _G.verilua_warning("[deprecated] <chdl>:set_imm_shuffled() is deprecated, use <chdl>:randomize_imm() instead")
+        deprecated("set_imm_shuffled", "<chdl>:randomize_imm()")
         return this:randomize_imm()
     end
 
@@ -433,7 +439,7 @@ function CallableHDL:_init(fullpath, name, hdl)
     end
 
     self.set_imm_freeze = function(this)
-        _G.verilua_warning("[deprecated] <chdl>:set_imm_freeze() is deprecated, use <chdl>:freeze_imm() instead")
+        deprecated("set_imm_freeze", "<chdl>:freeze_imm()")
         return this:freeze_imm()
     end
 
@@ -491,25 +497,22 @@ function CallableHDL:_init(fullpath, name, hdl)
         end
 
         self.set_index_str = function(this, index, str)
-            _G.verilua_warning("[deprecated] <chdl>:set_index_str() is deprecated, use <chdl>[index]:set_str() instead")
+            deprecated("set_index_str", "<chdl>[index]:set_str()")
             this[index]:set_str(str)
         end
 
         self.set_index_hex_str = function(this, index, str)
-            _G.verilua_warning(
-                "[deprecated] <chdl>:set_index_hex_str() is deprecated, use <chdl>[index]:set_hex_str() instead")
+            deprecated("set_index_hex_str", "<chdl>[index]:set_hex_str()")
             this[index]:set_hex_str(str)
         end
 
         self.set_index_bin_str = function(this, index, str)
-            _G.verilua_warning(
-                "[deprecated] <chdl>:set_index_bin_str() is deprecated, use <chdl>[index]:set_bin_str() instead")
+            deprecated("set_index_bin_str", "<chdl>[index]:set_bin_str()")
             this[index]:set_bin_str(str)
         end
 
         self.set_index_dec_str = function(this, index, str)
-            _G.verilua_warning(
-                "[deprecated] <chdl>:set_index_dec_str() is deprecated, use <chdl>[index]:set_dec_str() instead")
+            deprecated("set_index_dec_str", "<chdl>[index]:set_dec_str()")
             this[index]:set_dec_str(str)
         end
     end
