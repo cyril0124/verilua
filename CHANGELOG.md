@@ -76,7 +76,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
-- **ChdlAccess Multi**: `set_imm_index_bitfield_hex_str` now uses the immediate write path instead of deferred `set_index_unsafe`.
 - **Bundle**: A signal whose name collides with a Bundle field or method (`name`, `prefix`, `bits`, `fire`, `get_all`, `set_all`, `dump`, ...) used to silently lose its handle. Construction now fails, and the message gives the full-path form to use instead: `("<hier>.<prefix><signal>"):chdl()`.
 - **install / setup_verilua**: Shell rc now gets `source <abs>/verilua.sh` (replaces the broken `VERILUA_HOME=$(curdir)` block on re-run). The current shell still needs one manual `source`. `test_verilua` now fails when no simulator is on `PATH`. `update_verilua` restores the previous install if the new copy fails. `install_luarocks` reuses an existing tarball instead of `wget -P` every time.
 - **testbench_gen**: Clock/reset port selection is now priority-based (exact `clk`/`clock`/`rst`/`reset` beat active-low `rst_n`-style names, which beat `clk_*`/`*_clk`/`rst_*`/`*_rst_n` patterns) instead of first-declaration-order, and only input ports are eligible. Multiple same-priority matches now error with an explicit `--clock-signal`/`--reset-signal` hint instead of silently picking the first; a specified signal that is not an input port also errors out.
