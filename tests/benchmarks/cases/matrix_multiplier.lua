@@ -40,11 +40,11 @@ fork {
             clock:negedge()
 
             for i = 0, 60 - 1 do
-                a_i:at(i):set(random(1, 100))
+                a_i[i]:set(random(1, 100))
             end
 
             for i = 0, 24 - 1 do
-                b_i:at(i):set(random(1, 100))
+                b_i[i]:set(random(1, 100))
             end
 
             valid_i:set(1)

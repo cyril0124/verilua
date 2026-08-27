@@ -19,6 +19,15 @@ assert(b.__type == "ProxyTableHandle")
 
 ## ProxyTableHandle 接口
 
+`dut` 上的写入和 `CallableHDL` 一样：`set`、`set_imm`、`force`、`release`、`randomize`、`freeze`。
+数组也是 `dut.arr[0]`，从 0 数。
+
+```lua
+dut.arr[0]:set(1)
+dut.arr[0].value = 1
+local elem = dut.arr[0]:chdl()
+```
+
 1. `<dut>:get_local_path()`
 
    获得当前的 hierarchy path，例如：
@@ -42,40 +51,21 @@ assert(b.__type == "ProxyTableHandle")
 
    立即赋值版本的 `set`，除了立即赋值之外，数值处理规则与 `<dut>:set(<value>)` 相同。详见 [立即赋值和普通赋值的区别](./callable_hdl.mdx#set-and-set-imm)。
 
-4. `<dut>:set_shuffled(<value>)`
+4. `<dut>:randomize()`
 
    对信号进行随机赋值，这在验证中很常用。
 
-5. `<dut>:set_force(<value>)`
+5. `<dut>:force(<value>)`
 
-   强制赋值，等同 SystemVerilog `force`，需配合 `set_release` 使用。`<value>` 只能是 Lua number。
+   强制赋值，等同 SystemVerilog `force`，需配合 `release` 使用。`<value>` 只能是 Lua number。
 
-6. `<dut>:set_release()`
+6. `<dut>:release()`
 
-   释放 `set_force` 的强制赋值（等同 SystemVerilog `release`）。未调用时信号值将保持不变。
+   释放 `force` 的强制赋值（等同 SystemVerilog `release`）。未调用时信号值将保持不变。
 
-   对应的立即版本为 `<dut>:set_imm_release()`，用于释放 `set_imm_force` 的立即强制赋值。
+   对应的立即版本为 `<dut>:release_imm()`，用于释放 `force_imm` 的立即强制赋值。
 
-7. `<dut>:force_all()`
-
-   使用了 `<dut>:force_all()` 之后，接下来 `dut` 的所有赋值操作都会转化为 `force` 类型的赋值。
-
-8. `<dut>:release_all()`
-
-   解除 `<dut>:force_all()` 的作用。
-
-9. `<dut>:force_region(func)`
-
-   在一个区域内（也就是 `func`）强制赋值，这个区域内的所有赋值操作都会转化为 `force` 类型的赋值。
-
-   ```lua
-   dut:force_region(function ()
-       dut.value:set(0x123)
-       dut.value:set(0x456)
-   end)
-   ```
-
-10. `<dut>:get()`
+7. `<dut>:get()`
 
     获得一个信号的值，返回的值是一个 Lua 的 number 类型的值，例如：
 
@@ -85,27 +75,23 @@ assert(b.__type == "ProxyTableHandle")
 
     对于超过 32 bit 的信号，返回值仍是 Lua number；如果需要 `CallableHDL` 的宽度感知返回值，请显式使用 `<dut>:chdl():get()`。
 
-11. `<dut>:get_str(fmt)`
+8. `<dut>:get_str(fmt)`
 
     作用类似 [`<chdl>:get_str(fmt)`](./callable_hdl.mdx#chdl-get-str)。
 
-12. `<dut>:get_hex_str()`
+9. `<dut>:get_hex_str()`
 
     作用类似 [`<chdl>:get_hex_str()`](./callable_hdl.mdx#chdl-get-hex-str)。
 
-13. `<dut>:set_str(str)`
+10. `<dut>:set_str(str)`
 
     按历史逻辑把 `str` 转成 Lua number 后写入。如果需要 `CallableHDL` 的字符串写入语义，请使用 `<dut>:chdl():set_str(str)`。
 
-14. `<dut>:set_hex_str(str)`
+11. `<dut>:set_hex_str(str)`
 
     作用类似 [`<chdl>:set_hex_str(str)`](./callable_hdl.mdx#chdl-set-hex-str)。
 
-15. `<dut>:set_force_str(str)`
-
-    `force` 版本的 `<dut>:set_str(str)`。
-
-16. `<dut>:posedge(times, func)`
+12. `<dut>:posedge(times, func)`
 
     作用类似 [`<chdl>:posedge(times, func)`](./callable_hdl.mdx#chdl-posedge)。
 
@@ -270,9 +256,9 @@ assert(b.__type == "ProxyTableHandle")
     建议优先缓存句柄后赋值，例如 `local sig = dut.path.to.signal:chdl(); sig.value = <value>`。
     :::
 
-28. `<dut>:set_freeze()`
+24. `<dut>:freeze()`
 
-    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<dut>:set_release()` 来取消冻结。
+    冻结当前的信号值，在后续的仿真中，该信号的值将保持不变。需要调用 `<dut>:release()` 来取消冻结。
 
 ## ProxyTableHandle 的使用
 
@@ -285,3 +271,13 @@ local another_mod = mode.path.to.another_mod
 assert(mod.value:get_local_path() == "tb_top.path.to.mod.value")
 assert(another_mod.value:get_local_path() == "tb_top.path.to.mode.path.to.another_mod.value")
 ```
+
+## 信号名与 ProxyTableHandle 接口重名
+
+上表中的接口名（`set`、`get`、`force`、`release`、`freeze`、`randomize`、`chdl`、`hdl`、`name`、`dump`、`is`、`expect*` 等）优先于同名子节点，所以 RTL 里若有信号叫 `force`，`dut.u_top.force` 拿到的是接口函数而不是信号：
+
+```lua
+type(dut.u_top.force) -- "function"，信号被接口遮蔽
+```
+
+取这类信号要用字符串路径构造 `chdl`，写法见 [信号名与接口名重名时](./callable_hdl.mdx#信号名与接口名重名时)。

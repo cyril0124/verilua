@@ -116,35 +116,34 @@ fork {
                 "ComplexHandle.name must survive caller buffer free")
         end
 
-        -- Test at() method for accessing array elements
-        local elem0 = arr:at(0)
+        -- Test arr[i] for accessing array elements
+        local elem0 = arr[0]
         assert(elem0.__type == "CallableHDL")
         -- Initial value from RTL
         assert(elem0:get() == 0x10)
 
-        local elem1 = arr:at(1)
+        local elem1 = arr[1]
         assert(elem1.__type == "CallableHDL")
         assert(elem1:get() == 0x20)
 
-        -- `:chdl()` returns a fresh CallableHDL, so mutable array `:at()`
-        -- selection must stay isolated from later proxy lookups.
+        -- `:chdl()` returns a fresh CallableHDL, so element selection on a mutable
+        -- array must stay isolated from later proxy lookups.
         local arr_from_dut = dut.u_top.array_signal:chdl()
         local array_root_value = dut.u_top.array_signal:get()
-        arr_from_dut:at(1)
+        local _ = arr_from_dut[1]
         assert(dut.u_top.array_signal:get() == array_root_value)
 
         -- Test index-based operations (use regular set to demonstrate non-imm usage)
-        arr:set_index(0, 0x55)
+        arr[0]:set(0x55)
         clock:posedge() -- Wait for set to take effect
         assert(arr:get_index(0) == 0x55)
-        -- Note: elem0 is a separate CallableHDL, re-fetch to verify
-        local elem0_updated = arr:at(0)
-        assert(elem0_updated:get() == 0x55)
+        -- elem0 is the same cached handle, so it reads the new value
+        assert(elem0:get() == 0x55)
 
-        -- Test set_index_all
+        -- Test set_all
         ---@type table<integer, integer>
         local array_values = { 0xAA, 0xBB, 0xCC, 0xDD }
-        arr:set_index_all(array_values)
+        arr:set_all(array_values)
         clock:posedge() -- Wait for set to take effect
         assert(arr:get_index(0) == 0xAA)
         assert(arr:get_index(1) == 0xBB)
@@ -162,6 +161,83 @@ fork {
         assert(all_vals[2] == 0xBB)
         assert(all_vals[3] == 0xCC)
         assert(all_vals[4] == 0xDD)
+
+        test_section("Set API - canonical names, index views, legacy warnings")
+
+        local warns = {}
+        local old_warn = _G.verilua_warning
+        ---@diagnostic disable-next-line: global-in-non-module
+        _G.verilua_warning = function(msg)
+            warns[#warns + 1] = msg
+        end
+
+        arr[0]:set_imm(0x11)
+        assert(#warns == 0, "canonical set_imm must not warn, got: " .. tostring(warns[1]))
+        assert(arr[0]:get() == 0x11)
+        assert(rawequal(arr[0], arr[0]), "indexed element handles must be cached")
+        assert(not rawequal(arr[0], arr[1]), "different indices must be different handles")
+        assert(rawequal(arr[0]:chdl(), arr[0]))
+
+        local parent_before = arr[0]:get()
+        arr:at(1)
+        assert(#warns == 1 and warns[1]:find(":at()", 1, true), "at() must warn once")
+        assert(arr[0]:get() == parent_before, "arr[i] must not retarget the parent handle")
+
+        arr:set_index(2, 0x22)
+        assert(warns[#warns]:find("set_index", 1, true))
+        assert(warns[#warns]:find("[index]:set()", 1, true))
+
+        data_2:set_imm(0)
+        data_2:set_bits_imm(0, 3, 0xA)
+        assert(data_2:get() == 0xA, "set_bits_imm")
+        data_2:set_imm_bitfield(4, 7, 0x5)
+        assert(warns[#warns]:find("set_imm_bitfield", 1, true))
+        assert(data_2:get() == 0x5A, "legacy set_imm_bitfield still writes")
+
+        local warn_n = #warns
+        data_2.value_imm = 0x12
+        assert(#warns == warn_n, ".value_imm must not emit a legacy warning")
+        assert(data_2:get() == 0x12)
+
+        arr:set_index_bitfield(0, 0, 3, 0x7)
+        assert(warns[#warns]:find("set_index_bitfield", 1, true))
+        clock:posedge()
+        assert(arr[0]:get() % 16 == 0x7, "set_index_bitfield must write bits")
+
+        -- Multi-beat array: imm hex bitfield write must be immediate (no clock)
+        local warr = ("tb_top.u_top.wide_array"):chdl()
+        assert(warr.is_array and warr[0]:get_width() == 128)
+        warr:set_imm_index_bitfield_hex_str(0, 0, 127, "1234567890abcdef1234567890abcdef")
+        assert(warns[#warns]:find("set_imm_index_bitfield_hex_str", 1, true))
+        assert(warr[0]:get_hex_str() == "1234567890abcdef1234567890abcdef",
+            "Multi array imm hex bitfield got " .. warr[0]:get_hex_str())
+
+        local proxy_elem = dut.u_top.array_signal[0]
+        assert(proxy_elem.__type == "CallableHDL", "dut.arr[i] should be a CallableHDL")
+        proxy_elem:set_imm(0x33)
+        assert(proxy_elem:get() == 0x33,
+            "proxy index set_imm/get got " .. tostring(proxy_elem:get()) .. " path=" .. tostring(proxy_elem.fullpath))
+        dut.u_top.array_signal[0].value_imm = 0x44
+        assert(dut.u_top.array_signal[0]:get() == 0x44)
+        assert(dut.u_top.array_signal[0]:chdl().__type == "CallableHDL")
+
+        local ok_region, _err = pcall(function()
+            dut:force_region(function()
+                error("force_region boom")
+            end)
+        end)
+        assert(ok_region == false)
+        dut:force_all()
+        dut:release_all()
+
+        -- arr[i] = v must route to the element view, not rawset-poison the cache
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        arr[1] = 0x77
+        clock:posedge()
+        ---@diagnostic disable-next-line: undefined-field
+        assert(arr[1]:get() == 0x77, "arr[i] = v must write the element")
+
+        _G.verilua_warning = old_warn
 
         -- ========================================================================
         -- Test: CallableHDL - Edge waiting operations
@@ -291,7 +367,7 @@ fork {
         -- Verify all values in the shuffled range are encountered
         local seen_values = {}
         for i = 1, 100 do
-            data_0:set_imm_shuffled()
+            data_0:randomize_imm()
             local val = data_0:get()
             assert(val == 10 or val == 20 or val == 30, "Invalid shuffled value: " .. val)
             seen_values[val] = true
@@ -426,6 +502,34 @@ fork {
         assert(opt_bdl3.data.__type == "CallableHDL")
         assert(opt_bdl3.missing1 == nil)
         assert(opt_bdl3.missing2 == nil)
+
+        -- ========================================================================
+        -- Test: Bundle - signal names colliding with Bundle fields/methods
+        -- ========================================================================
+        test_section("Bundle - name collisions")
+
+        -- `name` is a Bundle field assigned before the signals are bound
+        local ok_field, err_field = pcall(function()
+            return ("name"):bdl { hier = "tb_top.u_top", prefix = "", is_decoupled = false }
+        end)
+        assert(not ok_field, "a signal colliding with a Bundle field must be rejected")
+        assert(tostring(err_field):find('use ("tb_top.u_top.name"):chdl() instead', 1, true),
+            "Got: " .. tostring(err_field))
+
+        -- `dump` is a Bundle method assigned after the signals are bound
+        local ok_method, err_method = pcall(function()
+            return ("dump"):bdl { hier = "tb_top.u_top", prefix = "", is_decoupled = false }
+        end)
+        assert(not ok_method, "a signal colliding with a Bundle method must be rejected")
+        assert(tostring(err_method):find('use ("tb_top.u_top.dump"):chdl() instead', 1, true),
+            "Got: " .. tostring(err_method))
+
+        -- `dump` is shadowed on `dut` too, so both full-path forms must reach it
+        assert(type(dut.u_top.dump) == "function", "`dump` must be shadowed by the proxy API")
+        assert(("tb_top.u_top.dump"):chdl():get() == 0x66)
+
+        local u_top = dut.u_top
+        assert((u_top:get_local_path() .. ".dump"):chdl():get() == 0x66)
 
         -- ========================================================================
         -- Test: Bundle - Dump methods
@@ -865,10 +969,10 @@ fork {
 
                 local freeze_sig = dut.u_top.opt_data:chdl()
                 freeze_sig:set_imm(0x88)
-                freeze_sig:set_freeze()
+                freeze_sig:freeze()
                 clock:posedge()
                 assert(freeze_sig:get() == 0x88)
-                freeze_sig:set_release()
+                freeze_sig:release()
                 clock:posedge() -- Wait a cycle for release to take effect
                 freeze_sig:set_imm(0x99)
                 assert(freeze_sig:get() == 0x99)
@@ -879,11 +983,11 @@ fork {
                 test_section("CallableHDL - Force and release")
 
                 local force_sig = ("tb_top.u_top.opt_valid"):chdl()
-                force_sig:set_force(0x1)
+                force_sig:force(0x1)
                 clock:posedge()
                 assert(force_sig:get() == 0x1)
 
-                force_sig:set_release()
+                force_sig:release()
                 clock:posedge() -- Wait a cycle for release to take effect
                 force_sig:set_imm(0x0)
                 assert(force_sig:get() == 0x0)
@@ -893,11 +997,11 @@ fork {
                 -- ========================================================================
                 test_section("ProxyTableHandle - Force and release")
 
-                dut.u_top.opt_valid:set_force(0x1)
+                dut.u_top.opt_valid:force(0x1)
                 clock:posedge()
                 assert(dut.u_top.opt_valid:get() == 0x1)
 
-                dut.u_top.opt_valid:set_release()
+                dut.u_top.opt_valid:release()
                 clock:posedge() -- Wait a cycle for release to take effect
                 dut.u_top.opt_valid:set_imm(0x0)
                 assert(dut.u_top.opt_valid:get() == 0x0)

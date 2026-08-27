@@ -41,20 +41,15 @@ local ffi_istype = ffi.istype
 """
 
 CHDL_APIS = [
-    "get", "get64", "set", "set_imm", "set_unsafe", "set_imm_unsafe",
-    "set_cached", "set_imm_cached", "set_bitfield", "set_imm_bitfield",
-    "set_bitfield_hex_str", "set_imm_bitfield_hex_str",
-    "set_force", "set_imm_force", "set_release", "set_imm_release",
+    "get", "get64", "set", "set_imm",
+    "set_unchecked", "set_imm_unchecked",
+    "set_bits", "set_bits_imm",
+    "force", "force_imm", "release", "release_imm",
 ]
 
 CHDL_ARRAY_APIS = [
-    "at", "get_index", "set_index", "set_imm_index",
-    "set_index_unsafe", "set_imm_index_unsafe",
-    "get_index_all", "get_index_bitvec",
-    "set_index_bitfield", "set_imm_index_bitfield",
-    "set_index_bitfield_hex_str", "set_imm_index_bitfield_hex_str",
-    "set_index_all", "set_imm_index_all",
-    "set_index_unsafe_all", "set_imm_index_unsafe_all",
+    "get_index", "get_index_all", "get_index_bitvec",
+    "set_all", "set_all_imm", "set_all_unchecked", "set_all_imm_unchecked",
 ]
 
 FOOTER = """
@@ -68,9 +63,168 @@ return function(is_array)
 end
 """
 
+# Canonical methods whose body is the same for every beat_num, so they are
+# emitted once instead of being repeated in each variant body.
+COMMON = """
+chdl.set_bits_hex_str = function(this, s, e, hex_str)
+    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
+    if this.beat_num == 1 then
+        return this:set_unchecked(bv.u32_vec[1])
+    end
+    return this:set_unchecked(bv.u32_vec)
+end
+
+chdl.set_bits_imm_hex_str = function(this, s, e, hex_str)
+    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
+    if this.beat_num == 1 then
+        return this:set_imm_unchecked(bv.u32_vec[1])
+    end
+    return this:set_imm_unchecked(bv.u32_vec)
+end
+"""
+
+LEGACY_WRAP = r"""
+local function deprecated(old, new)
+    _G.verilua_warning("[deprecated] <chdl>:" .. old .. "() is deprecated, use " .. new .. " instead")
+end
+
+chdl.set_unsafe = function(this, value)
+    deprecated("set_unsafe", "<chdl>:set_unchecked()")
+    return this:set_unchecked(value)
+end
+
+chdl.set_imm_unsafe = function(this, value)
+    deprecated("set_imm_unsafe", "<chdl>:set_imm_unchecked()")
+    return this:set_imm_unchecked(value)
+end
+
+chdl.set_force = function(this, value)
+    deprecated("set_force", "<chdl>:force()")
+    return this:force(value)
+end
+
+chdl.set_imm_force = function(this, value)
+    deprecated("set_imm_force", "<chdl>:force_imm()")
+    return this:force_imm(value)
+end
+
+chdl.set_release = function(this)
+    deprecated("set_release", "<chdl>:release()")
+    return this:release()
+end
+
+chdl.set_imm_release = function(this)
+    deprecated("set_imm_release", "<chdl>:release_imm()")
+    return this:release_imm()
+end
+
+chdl.set_bitfield = function(this, s, e, v)
+    deprecated("set_bitfield", "<chdl>:set_bits()")
+    return this:set_bits(s, e, v)
+end
+
+chdl.set_imm_bitfield = function(this, s, e, v)
+    deprecated("set_imm_bitfield", "<chdl>:set_bits_imm()")
+    return this:set_bits_imm(s, e, v)
+end
+
+chdl.set_bitfield_hex_str = function(this, s, e, hex_str)
+    deprecated("set_bitfield_hex_str", "<chdl>:set_bits_hex_str()")
+    return this:set_bits_hex_str(s, e, hex_str)
+end
+
+chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
+    deprecated("set_imm_bitfield_hex_str", "<chdl>:set_bits_imm_hex_str()")
+    return this:set_bits_imm_hex_str(s, e, hex_str)
+end
+
+chdl.set_cached = function(this, value)
+    deprecated("set_cached", "<chdl>:set()")
+    if this.cached_value == value then return end
+    this.cached_value = value
+    return this:set(value)
+end
+
+chdl.set_imm_cached = function(this, value)
+    deprecated("set_imm_cached", "<chdl>:set_imm()")
+    if this.cached_value == value then return end
+    this.cached_value = value
+    return this:set_imm(value)
+end
+
+chdl_array.at = function(this, idx)
+    deprecated("at", "<chdl>[index]")
+    return this[idx]
+end
+
+chdl_array.set_index = function(this, index, value)
+    deprecated("set_index", "<chdl>[index]:set()")
+    return this[index]:set(value)
+end
+
+chdl_array.set_imm_index = function(this, index, value)
+    deprecated("set_imm_index", "<chdl>[index]:set_imm()")
+    return this[index]:set_imm(value)
+end
+
+chdl_array.set_index_unsafe = function(this, index, value)
+    deprecated("set_index_unsafe", "<chdl>[index]:set_unchecked()")
+    return this[index]:set_unchecked(value)
+end
+
+chdl_array.set_imm_index_unsafe = function(this, index, value)
+    deprecated("set_imm_index_unsafe", "<chdl>[index]:set_imm_unchecked()")
+    return this[index]:set_imm_unchecked(value)
+end
+
+chdl_array.set_index_bitfield = function(this, index, s, e, v)
+    deprecated("set_index_bitfield", "<chdl>[index]:set_bits()")
+    return this[index]:set_bits(s, e, v)
+end
+
+chdl_array.set_imm_index_bitfield = function(this, index, s, e, v)
+    deprecated("set_imm_index_bitfield", "<chdl>[index]:set_bits_imm()")
+    return this[index]:set_bits_imm(s, e, v)
+end
+
+chdl_array.set_index_bitfield_hex_str = function(this, index, s, e, hex_str)
+    deprecated("set_index_bitfield_hex_str", "<chdl>[index]:set_bits_hex_str()")
+    return this[index]:set_bits_hex_str(s, e, hex_str)
+end
+
+chdl_array.set_imm_index_bitfield_hex_str = function(this, index, s, e, hex_str)
+    deprecated("set_imm_index_bitfield_hex_str", "<chdl>[index]:set_bits_imm_hex_str()")
+    return this[index]:set_bits_imm_hex_str(s, e, hex_str)
+end
+
+chdl_array.set_index_all = function(this, values)
+    deprecated("set_index_all", "<chdl>:set_all()")
+    return this:set_all(values)
+end
+
+chdl_array.set_imm_index_all = function(this, values)
+    deprecated("set_imm_index_all", "<chdl>:set_all_imm()")
+    return this:set_all_imm(values)
+end
+
+chdl_array.set_index_unsafe_all = function(this, values)
+    deprecated("set_index_unsafe_all", "<chdl>:set_all_unchecked()")
+    return this:set_all_unchecked(values)
+end
+
+chdl_array.set_imm_index_unsafe_all = function(this, values)
+    deprecated("set_imm_index_unsafe_all", "<chdl>:set_all_imm_unchecked()")
+    return this:set_all_imm_unchecked(values)
+end
+"""
+
 
 def gen_stubs() -> str:
-    """Error stubs for every API, overwritten by the variant body below."""
+    """Error stubs for canonical APIs only; the variant body overwrites them.
+
+    Legacy names (set_force, set_index*, ...) are defined solely by LEGACY_WRAP
+    as warning wrappers, so stubbing them would be dead code.
+    """
     lines = ["local chdl = {"]
     for api in CHDL_APIS:
         lines.append(
@@ -82,8 +236,8 @@ def gen_stubs() -> str:
     lines.append("local chdl_array = {")
     for api in CHDL_ARRAY_APIS:
         lines.append(
-            '    %s = function(this) assert(false, f("Normal handle does not support <chdl>:at(), fullpath => %%s bitwidth => %%d is_array => %%s", this.fullpath, this.width, tostring(this.is_array))) end,'
-            % api
+            '    %s = function(this) assert(false, f("Normal handle does not support <chdl>:%s(), fullpath => %%s bitwidth => %%d is_array => %%s", this.fullpath, this.width, tostring(this.is_array))) end,'
+            % (api, api)
         )
     lines.append("}")
     lines.append("")
@@ -113,27 +267,17 @@ chdl.set = function(this, value)
     vpiml.vpiml_set_value(this.hdl, value)
 end
 
-chdl.set_unsafe = chdl.set
+chdl.set_unchecked = chdl.set
 
-chdl.set_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_value(this.hdl, value)
-end
-
-chdl.set_bitfield = function(this, s, e, v)
+chdl.set_bits = function(this, s, e, v)
     vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
 end
 
-chdl.set_bitfield_hex_str = function(this, s, e, hex_str)
-    vpiml.vpiml_set_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
-end
-
-chdl.set_force = function(this, value)
+chdl.force = function(this, value)
     vpiml.vpiml_force_value(this.hdl, value)
 end
 
-chdl.set_release = function(this)
+chdl.release = function(this)
     vpiml.vpiml_release_value(this.hdl)
 end
 
@@ -141,36 +285,21 @@ chdl.set_imm = function(this, value)
     vpiml.vpiml_set_imm_value(this.hdl, value)
 end
 
-chdl.set_imm_unsafe = chdl.set_imm
+chdl.set_imm_unchecked = chdl.set_imm
 
-chdl.set_imm_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_imm_value(this.hdl, value)
-end
-
-chdl.set_imm_bitfield = function(this, s, e, v)
+chdl.set_bits_imm = function(this, s, e, v)
     vpiml.vpiml_set_imm_value(this.hdl, this:get_bitvec():_set_bitfield(s, e, v).u32_vec[1])
 end
 
-chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
-    vpiml.vpiml_set_imm_value(this.hdl, this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
-end
-
-chdl.set_imm_force = function(this, value)
+chdl.force_imm = function(this, value)
     vpiml.vpiml_force_imm_value(this.hdl, value)
 end
 
-chdl.set_imm_release = function(this)
+chdl.release_imm = function(this)
     vpiml.vpiml_release_imm_value(this.hdl)
 end
 
 -- Array methods (also singleton)
-chdl_array.at = function(this, idx)
-    this.hdl = this.array_hdls[idx + 1]
-    return this
-end
-
 chdl_array.get_index = function(this, index)
     return vpiml.vpiml_get_value(this.array_hdls[index + 1])
 end
@@ -194,49 +323,29 @@ chdl_array.get_index_bitvec = function(this, index)
     end
 end
 
-chdl_array.set_index = function(this, index, value)
-    vpiml.vpiml_set_value(this.array_hdls[index + 1], value)
-end
-
-chdl_array.set_index_unsafe = chdl_array.set_index
-
-chdl_array.set_index_bitfield = function(this, index, s, e, v)
-    vpiml.vpiml_set_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
-end
-
-chdl_array.set_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    vpiml.vpiml_set_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
-end
-
-chdl_array.set_index_all = function(this, values)
+chdl_array.set_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        vpiml.vpiml_set_value(this.array_hdls[index + 1], values[index + 1])
+        this[index]:set(values[index + 1])
     end
 end
 
-chdl_array.set_index_unsafe_all = chdl_array.set_index_all
-
-chdl_array.set_imm_index = function(this, index, value)
-    vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], value)
-end
-
-chdl_array.set_imm_index_unsafe = chdl_array.set_imm_index
-
-chdl_array.set_imm_index_bitfield = function(this, index, s, e, v)
-    vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield(s, e, v).u32_vec[1])
-end
-
-chdl_array.set_imm_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str).u32_vec[1])
-end
-
-chdl_array.set_imm_index_all = function(this, values)
+chdl_array.set_all_imm = function(this, values)
     for index = 0, this.array_size - 1 do
-        vpiml.vpiml_set_imm_value(this.array_hdls[index + 1], values[index + 1])
+        this[index]:set_imm(values[index + 1])
     end
 end
 
-chdl_array.set_imm_index_unsafe_all = chdl_array.set_imm_index_all
+chdl_array.set_all_unchecked = function(this, values)
+    for index = 0, this.array_size - 1 do
+        this[index]:set_unchecked(values[index + 1])
+    end
+end
+
+chdl_array.set_all_imm_unchecked = function(this, values)
+    for index = 0, this.array_size - 1 do
+        this[index]:set_imm_unchecked(values[index + 1])
+    end
+end
 """
 
 
@@ -279,7 +388,7 @@ chdl.set = function(this, value)
     end
 end
 
-chdl.set_unsafe = function(this, value)
+chdl.set_unchecked = function(this, value)
     local t = type(value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_value64(this.hdl, value)
@@ -288,34 +397,23 @@ chdl.set_unsafe = function(this, value)
     end
 end
 
-chdl.set_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_value64(this.hdl, value)
-end
-
-chdl.set_bitfield = function(this, s, e, v)
+chdl.set_bits = function(this, s, e, v)
     local bv = this:get_bitvec():_set_bitfield(s, e, v)
     vpiml.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
 end
 
-chdl.set_bitfield_hex_str = function(this, s, e, hex_str)
-    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-    vpiml.vpiml_set_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
-end
-
-chdl.set_force = function(this, value)
+chdl.force = function(this, value)
     local t = type(value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_force_value64(this.hdl, value)
     else
-        if t ~= "table" then assert(false, "set_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if t ~= "table" then assert(false, "force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
         if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_force_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
 
-chdl.set_release = function(this)
+chdl.release = function(this)
     vpiml.vpiml_release_value(this.hdl)
 end
 
@@ -330,7 +428,7 @@ chdl.set_imm = function(this, value)
     end
 end
 
-chdl.set_imm_unsafe = function(this, value)
+chdl.set_imm_unchecked = function(this, value)
     local t = type(value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_set_imm_value64(this.hdl, value)
@@ -339,43 +437,27 @@ chdl.set_imm_unsafe = function(this, value)
     end
 end
 
-chdl.set_imm_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_imm_value64(this.hdl, value)
-end
-
-chdl.set_imm_bitfield = function(this, s, e, v)
+chdl.set_bits_imm = function(this, s, e, v)
     local bv = this:get_bitvec():_set_bitfield(s, e, v)
     vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
 end
 
-chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
-    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-    vpiml.vpiml_set_imm_value_multi_beat_2(this.hdl, bv.u32_vec[1], bv.u32_vec[2])
-end
-
-chdl.set_imm_force = function(this, value)
+chdl.force_imm = function(this, value)
     local t = type(value)
     if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
         vpiml.vpiml_force_imm_value64(this.hdl, value)
     else
-        if t ~= "table" then assert(false, "set_imm_force() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
+        if t ~= "table" then assert(false, "force_imm() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
         if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
         vpiml.vpiml_force_imm_value_multi_beat_2(this.hdl, value[1], value[2])
     end
 end
 
-chdl.set_imm_release = function(this)
+chdl.release_imm = function(this)
     vpiml.vpiml_release_imm_value(this.hdl)
 end
 
 -- Array methods (also singleton)
-chdl_array.at = function(this, idx)
-    this.hdl = this.array_hdls[idx + 1]
-    return this
-end
-
 chdl_array.get_index = function(this, index, force_multi_beat)
     local chosen_hdl = this.array_hdls[index + 1]
     if force_multi_beat then
@@ -417,95 +499,27 @@ chdl_array.get_index_bitvec = function(this, index)
     end
 end
 
-chdl_array.set_index = function(this, index, value)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.vpiml_set_value64(chosen_hdl, value)
-    else
-        if t ~= "table" then assert(false, "set_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
-        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
-        vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
-    end
-end
-
-chdl_array.set_index_unsafe = function(this, index, value)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.vpiml_set_value64(chosen_hdl, value)
-    else
-        vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, value[1], value[2])
-    end
-end
-
-chdl_array.set_index_bitfield = function(this, index, s, e, v)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
-    vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
-end
-
-chdl_array.set_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
-    vpiml.vpiml_set_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
-end
-
-chdl_array.set_index_all = function(this, values)
+chdl_array.set_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index(index, values[index + 1])
+        this[index]:set(values[index + 1])
     end
 end
 
-chdl_array.set_index_unsafe_all = function(this, values)
+chdl_array.set_all_imm = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index_unsafe(index, values[index + 1])
+        this[index]:set_imm(values[index + 1])
     end
 end
 
-chdl_array.set_imm_index = function(this, index, value)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.vpiml_set_imm_value64(chosen_hdl, value)
-    else
-        if t ~= "table" then assert(false, "set_imm_index() expects number, uint64_t, or table; got " .. t .. ", fullpath => " .. this.fullpath) end
-        if #value ~= 2 then assert(false, "len: " .. #value .. " =/= " .. this.beat_num .. ", fullpath => " .. this.fullpath) end
-        vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, value[1], value[2])
-    end
-end
-
-chdl_array.set_imm_index_unsafe = function(this, index, value)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.vpiml_set_imm_value64(chosen_hdl, value)
-    else
-        vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, value[1], value[2])
-    end
-end
-
-chdl_array.set_imm_index_bitfield = function(this, index, s, e, v)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
-    vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
-end
-
-chdl_array.set_imm_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
-    vpiml.vpiml_set_imm_value_multi_beat_2(chosen_hdl, bv.u32_vec[1], bv.u32_vec[2])
-end
-
-chdl_array.set_imm_index_all = function(this, values)
+chdl_array.set_all_unchecked = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index(index, values[index + 1])
+        this[index]:set_unchecked(values[index + 1])
     end
 end
 
-chdl_array.set_imm_index_unsafe_all = function(this, values)
+chdl_array.set_all_imm_unchecked = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index_unsafe(index, values[index + 1])
+        this[index]:set_imm_unchecked(values[index + 1])
     end
 end
 """
@@ -575,52 +589,25 @@ chdl.get_bitvec = function(this)
 end
 """
 
-MULTI_SCALAR_TAIL = """chdl.set_bitfield = function(this, s, e, v)
+MULTI_SCALAR_TAIL = """chdl.set_bits = function(this, s, e, v)
     local bv = this:get_bitvec():_set_bitfield(s, e, v)
-    this:set_unsafe(bv.u32_vec)
+    this:set_unchecked(bv.u32_vec)
 end
 
-chdl.set_bitfield_hex_str = function(this, s, e, hex_str)
-    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-    this:set_unsafe(bv.u32_vec)
-end
-
-chdl.set_imm_bitfield = function(this, s, e, v)
+chdl.set_bits_imm = function(this, s, e, v)
     local bv = this:get_bitvec():_set_bitfield(s, e, v)
-    this:set_imm_unsafe(bv.u32_vec)
+    this:set_imm_unchecked(bv.u32_vec)
 end
 
-chdl.set_imm_bitfield_hex_str = function(this, s, e, hex_str)
-    local bv = this:get_bitvec():_set_bitfield_hex_str(s, e, hex_str)
-    this:set_imm_unsafe(bv.u32_vec)
-end
-
-chdl.set_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_value64_force_single(this.hdl, value)
-end
-
-chdl.set_imm_cached = function(this, value)
-    if this.cached_value == value then return end
-    this.cached_value = value
-    vpiml.vpiml_set_imm_value64_force_single(this.hdl, value)
-end
-
-chdl.set_release = function(this)
+chdl.release = function(this)
     vpiml.vpiml_release_value(this.hdl)
 end
 
-chdl.set_imm_release = function(this)
+chdl.release_imm = function(this)
     vpiml.vpiml_release_imm_value(this.hdl)
 end
 
 -- Array methods (also singleton)
-chdl_array.at = function(this, idx)
-    this.hdl = this.array_hdls[idx + 1]
-    return this
-end
-
 chdl_array.get_index = function(this, index)
     local chosen_hdl = this.array_hdls[index + 1]
     vpiml.vpiml_get_value_multi(chosen_hdl, this.c_results, this.beat_num)
@@ -653,47 +640,27 @@ chdl_array.get_index_bitvec = function(this, index)
 end
 """
 
-MULTI_ARRAY_TAIL = """chdl_array.set_index_bitfield = function(this, index, s, e, v)
-    local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
-    this:set_index_unsafe(index, bv.u32_vec)
-end
-
-chdl_array.set_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
-    this:set_index_unsafe(index, bv.u32_vec)
-end
-
-chdl_array.set_imm_index_bitfield = function(this, index, s, e, v)
-    local bv = this:get_index_bitvec(index):_set_bitfield(s, e, v)
-    this:set_imm_index_unsafe(index, bv.u32_vec)
-end
-
-chdl_array.set_imm_index_bitfield_hex_str = function(this, index, s, e, hex_str)
-    local bv = this:get_index_bitvec(index):_set_bitfield_hex_str(s, e, hex_str)
-    this:set_index_unsafe(index, bv.u32_vec)
-end
-
-chdl_array.set_index_all = function(this, values)
+MULTI_ARRAY_TAIL = """chdl_array.set_all = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index(index, values[index + 1])
+        this[index]:set(values[index + 1])
     end
 end
 
-chdl_array.set_index_unsafe_all = function(this, values)
+chdl_array.set_all_imm = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_index_unsafe(index, values[index + 1])
+        this[index]:set_imm(values[index + 1])
     end
 end
 
-chdl_array.set_imm_index_all = function(this, values)
+chdl_array.set_all_unchecked = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index(index, values[index + 1])
+        this[index]:set_unchecked(values[index + 1])
     end
 end
 
-chdl_array.set_imm_index_unsafe_all = function(this, values)
+chdl_array.set_all_imm_unchecked = function(this, values)
     for index = 0, this.array_size - 1 do
-        this:set_imm_index_unsafe(index, values[index + 1])
+        this[index]:set_imm_unchecked(values[index + 1])
     end
 end
 """
@@ -702,23 +669,13 @@ end
 MULTI_SET_VARIANTS = [
     ("set", "vpiml_set_value", "vpiml_set_value64_force_single"),
     ("set_imm", "vpiml_set_imm_value", "vpiml_set_imm_value64_force_single"),
-    ("set_force", "vpiml_force_value", "vpiml_force_value64_force_single"),
-    ("set_imm_force", "vpiml_force_imm_value", "vpiml_force_imm_value64_force_single"),
+    ("force", "vpiml_force_value", "vpiml_force_value64_force_single"),
+    ("force_imm", "vpiml_force_imm_value", "vpiml_force_imm_value64_force_single"),
 ]
 
 MULTI_UNSAFE_VARIANTS = [
-    ("set_unsafe", "vpiml_set_value", "vpiml_set_value64_force_single"),
-    ("set_imm_unsafe", "vpiml_set_imm_value", "vpiml_set_imm_value64_force_single"),
-]
-
-MULTI_ARRAY_SET_VARIANTS = [
-    ("set_index", "vpiml_set_value", "vpiml_set_value64_force_single"),
-    ("set_imm_index", "vpiml_set_imm_value", "vpiml_set_imm_value64_force_single"),
-]
-
-MULTI_ARRAY_UNSAFE_VARIANTS = [
-    ("set_index_unsafe", "vpiml_set_value", "vpiml_set_value64_force_single"),
-    ("set_imm_index_unsafe", "vpiml_set_imm_value", "vpiml_set_imm_value64_force_single"),
+    ("set_unchecked", "vpiml_set_value", "vpiml_set_value64_force_single"),
+    ("set_imm_unchecked", "vpiml_set_imm_value", "vpiml_set_imm_value64_force_single"),
 ]
 
 SCALAR_SETTER = """chdl.%s = function(this, value)
@@ -731,18 +688,6 @@ SCALAR_SETTER = """chdl.%s = function(this, value)
 end
 """
 
-ARRAY_SETTER = """chdl_array.%s = function(this, index, value)
-    local chosen_hdl = this.array_hdls[index + 1]
-    local t = type(value)
-    if t == "number" or (t == "cdata" and ffi_istype("uint64_t", value)) then
-        vpiml.%s(chosen_hdl, value)
-    else
-%s
-    end
-end
-"""
-
-
 def gen_multi() -> str:
     parts = [MULTI_HEAD]
 
@@ -752,12 +697,6 @@ def gen_multi() -> str:
         parts.append(SCALAR_SETTER % (name, vpi64, gen_multi_set_unsafe_dispatch(vpi)))
 
     parts.append(MULTI_SCALAR_TAIL)
-
-    for name, vpi, vpi64 in MULTI_ARRAY_SET_VARIANTS:
-        parts.append(ARRAY_SETTER % (name, vpi64, gen_multi_set_dispatch(vpi, "chosen_hdl")))
-    for name, vpi, vpi64 in MULTI_ARRAY_UNSAFE_VARIANTS:
-        parts.append(ARRAY_SETTER % (name, vpi64, gen_multi_set_unsafe_dispatch(vpi, "chosen_hdl")))
-
     parts.append(MULTI_ARRAY_TAIL)
 
     return "\n".join(parts)
@@ -768,7 +707,7 @@ def write_file(filename: str, body: str, needs_type_dispatch: bool) -> None:
     content = HEADER_BASE
     if needs_type_dispatch:
         content += HEADER_TYPE_DISPATCH
-    content += gen_stubs() + body + FOOTER
+    content += gen_stubs() + body + COMMON + LEGACY_WRAP + FOOTER
     path.write_text(content, encoding="utf-8")
     print("Generated: " + str(path))
 

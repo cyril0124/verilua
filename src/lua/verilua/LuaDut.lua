@@ -13,6 +13,10 @@ local setmetatable = setmetatable
 local set_force_enable = false
 local force_path_table = {}
 
+local function proxy_deprecated(old, new)
+    _G.verilua_warning("[deprecated] <dut>:" .. old .. "() is deprecated, use " .. new .. " instead")
+end
+
 ---@class (partial) verilua.handles.ProxyTableHandle
 ---@field __type "ProxyTableHandle"
 ---
@@ -33,72 +37,76 @@ local force_path_table = {}
 --- Randomly set value into the signal.
 --- e.g.
 --- ```lua
---- dut.path.to.signal:set_shuffled()
+--- dut.path.to.signal:randomize()
 --- ```
+---@field randomize fun(self: verilua.handles.ProxyTableHandle)
+---@field randomize_imm fun(self: verilua.handles.ProxyTableHandle)
+--- Deprecated: use `randomize` / `randomize_imm`.
 ---@field set_shuffled fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Freeze the current value of the signal.
 --- e.g.
 --- ```lua
 --- assert(dut.path.to.signal:get() == 123)
---- dut.path.to.signal:set_freeze()
+--- dut.path.to.signal:freeze()
 --- -- ...
 --- assert(dut.path.to.signal:get() == 123)
 --- ```
+---@field freeze fun(self: verilua.handles.ProxyTableHandle)
+---@field freeze_imm fun(self: verilua.handles.ProxyTableHandle)
+--- Deprecated: use `freeze` / `freeze_imm`.
 ---@field set_freeze fun(self: verilua.handles.ProxyTableHandle)
 ---
 --- Forcely set value into the signal, the value must be an integer(32-bit value).
 --- e.g.
 --- ```lua
---- dut.path.to.signal:set_force(123)
+--- dut.path.to.signal:force(123)
 --- dut.path.to.signal:set(111) -- this will be ignored
 --- -- ...
 --- assert(dut.path.to.signal:get() == 123)
 --- ```
+---@field force fun(self: verilua.handles.ProxyTableHandle, v: integer)
+---@field force_imm fun(self: verilua.handles.ProxyTableHandle, v: integer)
+--- Deprecated: use `force` / `force_imm`.
 ---@field set_force fun(self: verilua.handles.ProxyTableHandle, v: integer)
 ---
---- Release the `set_force` operation.
+--- Release the `force` operation.
 --- e.g.
 --- ```lua
---- dut.path.to.signal:set_force(123)
+--- dut.path.to.signal:force(123)
 --- assert(dut.path.to.signal:get() == 123)
---- dut.path.to.signal:set_release()
+--- dut.path.to.signal:release()
 --- -- ...
 --- dut.path.to.signal:set(111)
 --- -- ...
 --- assert(dut.path.to.signal:get() == 111)
 --- ```
+---@field release fun(self: verilua.handles.ProxyTableHandle)
+---@field release_imm fun(self: verilua.handles.ProxyTableHandle)
+--- Deprecated: use `release` / `release_imm`.
 ---@field set_release fun(self: verilua.handles.ProxyTableHandle)
 ---
---- Release the `set_imm_force` operation, the immediate variant of `set_release`.
+--- Deprecated: use `release_imm` (immediate variant of `release`).
 ---@field set_imm_release fun(self: verilua.handles.ProxyTableHandle)
 ---
---- Enable force mode for all subsequent set operations.
+--- Deprecated: use explicit `force` / `release` per signal.
 --- e.g.
 --- ```lua
---- dut:force_all()
---- dut.cycles:set(1)
---- dut.path.to.signal:set(1)
+--- dut.cycles:force(1)
+--- dut.path.to.signal:force(1)
 --- ```
 ---@field force_all fun(self: verilua.handles.ProxyTableHandle)
 ---
---- Release all forced signals, disabling force mode.
---- e.g.
---- ```lua
---- dut:force_all()
---- dut.clock:posedge()
---- dut:release_all()
---- ```
+--- Deprecated: use explicit `release` per signal (undoes `force_all`).
 ---@field release_all fun(self: verilua.handles.ProxyTableHandle)
 ---
---- Execute a code block where all set operations are treated as force operations.
---- Automatically releases forced signals after execution.
+--- Deprecated: use explicit `force` / `release` per signal. Runs `code_func`
+--- with all `set` operations treated as `force`, then releases (also on error).
 --- e.g.
 --- ```lua
---- dut:force_region(function()
----     dut.clock:negedge()
----     dut.cycles:set(1)
---- end)
+--- dut.clock:negedge()
+--- dut.cycles:force(1)
+--- dut.cycles:release()
 --- ```
 ---@field force_region fun(self: verilua.handles.ProxyTableHandle, code_func: fun())
 ---
@@ -383,7 +391,15 @@ local force_path_table = {}
 ---      - endswith + filter
 ---@field auto_bundle fun(self, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle
 ---
+--- Full hierarchy path of this node, e.g. `"tb_top.u_top"`. Use it to reach a
+--- child whose name collides with an interface name:
+--- ```lua
+--- local sig = (dut.u_top:get_local_path() .. ".set"):chdl()
+--- ```
+---@field get_local_path fun(self: verilua.handles.ProxyTableHandle): string
+---
 ---@overload fun(v: "integer"|"hex"|"name"|"hdl"): integer|string|verilua.handles.ComplexHandleRaw `__call` metamethod, deprecated
+---@field [integer] verilua.handles.CallableHDL
 ---@field [string] verilua.handles.ProxyTableHandle
 
 ---@type table<string, verilua.handles.ProxyTableHandle>
@@ -398,9 +414,7 @@ local function get_chdl(path)
     local chdl = chdl_cache[path]
     if not chdl then
         chdl = CallableHDL(path, "")
-        if not chdl.is_array then
-            chdl_cache[path] = chdl
-        end
+        chdl_cache[path] = chdl
     end
     return chdl
 end
@@ -444,39 +458,71 @@ local function create_proxy(path, use_prefix)
         end,
 
 
-        set_shuffled = function(_t)
+        randomize = function(_t)
             vpiml.vpiml_set_shuffled(vpiml.vpiml_handle_by_name(local_path))
         end,
-        set_freeze = function(_t)
+        randomize_imm = function(_t)
+            vpiml.vpiml_set_imm_shuffled(vpiml.vpiml_handle_by_name(local_path))
+        end,
+        set_shuffled = function(t)
+            proxy_deprecated("set_shuffled", "<dut>:randomize()")
+            return t:randomize()
+        end,
+        freeze = function(_t)
             vpiml.vpiml_set_freeze(vpiml.vpiml_handle_by_name(local_path))
         end,
+        freeze_imm = function(_t)
+            vpiml.vpiml_set_imm_freeze(vpiml.vpiml_handle_by_name(local_path))
+        end,
+        set_freeze = function(t)
+            proxy_deprecated("set_freeze", "<dut>:freeze()")
+            return t:freeze()
+        end,
 
-        set_force = function(_t, v)
+        force = function(_t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
             vpiml.vpiml_force_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
         end,
-        set_imm_force = function(_t, v)
+        force_imm = function(_t, v)
             assert(v ~= nil)
             if set_force_enable then
                 table_insert(force_path_table, local_path)
             end
             vpiml.vpiml_force_imm_value(vpiml.vpiml_handle_by_name(local_path), tonumber(v) --[[@as integer]])
         end,
-        set_release = function(_t)
+        release = function(_t)
             vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(local_path))
         end,
-        set_imm_release = function(_t)
+        release_imm = function(_t)
             vpiml.vpiml_release_imm_value(vpiml.vpiml_handle_by_name(local_path))
+        end,
+        set_force = function(t, v)
+            proxy_deprecated("set_force", "<dut>:force()")
+            return t:force(v)
+        end,
+        set_imm_force = function(t, v)
+            proxy_deprecated("set_imm_force", "<dut>:force_imm()")
+            return t:force_imm(v)
+        end,
+        set_release = function(t)
+            proxy_deprecated("set_release", "<dut>:release()")
+            return t:release()
+        end,
+        set_imm_release = function(t)
+            proxy_deprecated("set_imm_release", "<dut>:release_imm()")
+            return t:release_imm()
         end,
 
         force_all = function(_t)
+            proxy_deprecated("force_all", "explicit <dut>:force()")
             assert(set_force_enable == false)
             set_force_enable = true
         end,
         release_all = function(_t)
+            proxy_deprecated("release_all", "explicit <dut>:release()")
             assert(set_force_enable == true)
             set_force_enable = false
 
@@ -487,11 +533,20 @@ local function create_proxy(path, use_prefix)
             force_path_table = {}
         end,
 
-        force_region = function(t, code_func)
+        force_region = function(_t, code_func)
+            proxy_deprecated("force_region", "explicit <dut>:force() / <dut>:release()")
             assert(type(code_func) == "function")
-            t:force_all()
-            code_func()
-            t:release_all()
+            assert(set_force_enable == false)
+            set_force_enable = true
+            local ok, err = pcall(code_func)
+            set_force_enable = false
+            for _i, _path in ipairs(force_path_table) do
+                vpiml.vpiml_release_value(vpiml.vpiml_handle_by_name(_path))
+            end
+            force_path_table = {}
+            if not ok then
+                error(err, 0)
+            end
         end,
 
         get = function(_t)
@@ -529,6 +584,7 @@ local function create_proxy(path, use_prefix)
         end,
 
         set_force_str = function(_t, str)
+            proxy_deprecated("set_force_str", "<dut>:force() or <dut>:chdl():force()")
             vpiml.vpiml_force_value_str(vpiml.vpiml_handle_by_name(local_path), str)
         end,
 
@@ -678,6 +734,10 @@ local function create_proxy(path, use_prefix)
         end
     }, {
         __index = function(_t, k)
+            if type(k) == "number" then
+                ---@cast k integer
+                return get_chdl(local_path)[k]
+            end
             ---@diagnostic disable-next-line: unnecessary-if
             if not use_prefix then
                 return create_proxy(local_path .. '.' .. k, false)
@@ -691,6 +751,11 @@ local function create_proxy(path, use_prefix)
         -- This syntax (`dut.xxx = v`) is convenience-oriented for quick/temporary access.
         -- Prefer cached CallableHDL (`local sig = dut.xxx:chdl()`) in hot paths for better clarity/perf.
         __newindex = function(_t, k, v)
+            if type(k) == "number" then
+                ---@cast k integer
+                get_chdl(local_path)[k].value = v
+                return
+            end
             local fullpath = local_path .. '.' .. k
             local chdl = get_chdl(fullpath)
             chdl.value = v

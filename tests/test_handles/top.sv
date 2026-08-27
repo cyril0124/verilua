@@ -45,10 +45,15 @@ module top (
 
     // Array signals for testing array operations
     logic [7:0]  array_signal [0:3];
+    logic [127:0] wide_array [0:1];
 
     // Optional signals for testing
     logic [7:0]  opt_valid;
     logic [7:0]  opt_data;
+
+    // Signal names that collide with Bundle fields/methods
+    logic [7:0]  name;
+    logic [7:0]  dump;
 
     // Submodule for ProxyTableHandle testing
     sub_module u_sub (
@@ -99,9 +104,14 @@ module top (
         array_signal[1] = 8'h20;
         array_signal[2] = 8'h30;
         array_signal[3] = 8'h40;
+        wide_array[0] = 128'h0;
+        wide_array[1] = 128'h0;
 
         opt_valid = 8'h99;
         opt_data = 8'h88;
+
+        name = 8'h55;
+        dump = 8'h66;
     end
 
     always @(posedge clock) begin

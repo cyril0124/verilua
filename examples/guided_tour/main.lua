@@ -354,13 +354,13 @@ fork {
             assert(reg128 ~= v("0x12346"))
         end
 
-        -- `<chdl>:set_shuffled()` allows you to randomly assign values to the signal based on the signal width
+        -- `<chdl>:randomize()` allows you to randomly assign values to the signal based on the signal width
         do
             -- For example, for a 4-bit signal, it will randomly assign a value from `0x0` to `0xf`
             local reg4 = dut.u_top.reg4:chdl()
             local values = {}
             for _ = 1, 100 do
-                reg4:set_shuffled()
+                reg4:randomize()
                 clock:posedge()
                 local v = reg4:get()
                 values[v] = true
@@ -384,7 +384,7 @@ fork {
             -- And the only argument is a lua table that contains the range values.
             reg4:shuffled_range_u32({ 1, 3 }) --- Only need to specify the range values one time
             for _ = 1, 100 do
-                reg4:set_shuffled()
+                reg4:randomize()
                 clock:posedge()
                 local v = reg4:get()
                 values[v] = true
@@ -398,7 +398,7 @@ fork {
 
             reg4:shuffled_range_hex_str({ "2", "0", "1" })
             for _ = 1, 100 do
-                reg4:set_shuffled()
+                reg4:randomize()
                 clock:posedge()
                 local v = reg4:get()
                 values[v] = true
@@ -626,14 +626,14 @@ fork {
             dut.clock:posedge(2)
             counter:expect(3)
 
-            -- `<chdl>:set_force(<...>)` is similar to `<chdl>:set(...)` but with force operation, the assigned value will be kept until we call `<chdl>:set_release()`
-            counter:set_force(1)
+            -- `<chdl>:force(<...>)` is similar to `<chdl>:set(...)` but with force operation, the assigned value will be kept until we call `<chdl>:release()`
+            counter:force(1)
             dut.clock:posedge()
             dut.clock:posedge(100, function(_count)
                 -- Keep the value of `counter` as 1
                 counter:expect(1)
             end)
-            counter:set_release()
+            counter:release()
             dut.clock:posedge()
             -- After release, the value of `counter` will be updated as expected
             counter:expect(2)

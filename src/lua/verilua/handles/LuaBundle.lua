@@ -29,6 +29,7 @@ local verilua_debug = _G.verilua_debug
 ---@field fire fun(self: verilua.handles.Bundle): boolean
 ---@field get_all fun(self: verilua.handles.Bundle): table<integer, integer|verilua.handles.MultiBeatData>
 ---@field set_all fun(self: verilua.handles.Bundle, values_tbl: table<integer, integer|integer[]>)
+---@field set_all_imm fun(self: verilua.handles.Bundle, values_tbl: table<integer, integer|integer[]>)
 ---@field private __dump_parts table<integer, string>
 ---@field dump_str fun(self: verilua.handles.Bundle): string
 ---@field format_dump_str fun(self: verilua.handles.Bundle, format_func: fun(chdl: verilua.handles.CallableHDL, name: string): string): string
@@ -61,6 +62,20 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
         assert(prefix ~= nil, "prefix is required for decoupled bundle!")
     end
 
+    -- Signal handles live directly on the Bundle instance, so a signal name that
+    -- collides with a Bundle field would clobber it. Reject it here and point at
+    -- the full-path form, which skips name resolution.
+    local function bind_signal(signal, fullpath, hdl)
+        assert(
+            rawget(self, signal) == nil,
+            f(
+                "[%s] signal name `%s` collides with a Bundle field, use (\"%s\"):chdl() instead",
+                self.name, signal, fullpath
+            )
+        )
+        rawset(self, signal, CallableHDL(fullpath, signal, hdl))
+    end
+
     verilua_debug(
         "New Bundle => ",
         "name: " .. self.name,
@@ -78,13 +93,13 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
                 local fullpath = hierarchy .. "." .. prefix .. signal
 
                 if not tablex.find(optional_signals, signal) then
-                    rawset(self, signal, CallableHDL(fullpath, signal))
+                    bind_signal(signal, fullpath)
                 else
                     ---@diagnostic disable-next-line
                     local hdl = vpiml.vpiml_handle_by_name_safe(fullpath)
                     if hdl ~= -1 then
                         -- optional are allowed to be empty
-                        rawset(self, signal, CallableHDL(fullpath, signal, hdl))
+                        bind_signal(signal, fullpath, hdl)
                     end
                 end
             else
@@ -113,14 +128,14 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
             end
 
             if not tablex.find(optional_signals, signal) then
-                rawset(self, signal, CallableHDL(fullpath, signal))
+                bind_signal(signal, fullpath)
                 table_insert(self.signals_table, signal)
             else
                 ---@diagnostic disable-next-line
                 local hdl = vpiml.vpiml_handle_by_name_safe(fullpath)
                 if hdl ~= -1 then
                     -- optional signals are allowed to be empty
-                    rawset(self, signal, CallableHDL(fullpath, signal, hdl))
+                    bind_signal(signal, fullpath, hdl)
                     table_insert(self.signals_table, signal)
                 end
             end
@@ -162,6 +177,12 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
                 self[sig]:set(values_tbl[i])
             end
         end
+
+        self.set_all_imm = function(this, values_tbl)
+            for i, sig in ipairs(this.signals_table) do
+                self[sig]:set_imm(values_tbl[i])
+            end
+        end
     else
         self.get_all = function(this)
             ---@diagnostic disable-next-line: missing-return
@@ -170,6 +191,10 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
         end
 
         self.set_all = function(this, values_tbl)
+            assert(false, "TODO: is_decoupled")
+        end
+
+        self.set_all_imm = function(this, values_tbl)
             assert(false, "TODO: is_decoupled")
         end
     end
@@ -288,6 +313,23 @@ function Bundle:_init(signals_table, prefix, hierarchy, name, is_decoupled, opti
     ---@param format_func fun(chdl, name: string): string
     self.format_dump = function(this, format_func)
         print(this:format_dump_str(format_func))
+    end
+
+    -- The methods assigned above are instance fields too, so a signal named after
+    -- one of them ends up replaced by the method. Fail here instead of returning
+    -- a Bundle whose signal handle is gone.
+    for _, signal in ipairs(self.signals_table) do
+        if not self.is_decoupled or signal == "valid" or signal == "ready" then
+            local sig_hdl = rawget(self, signal)
+            -- `nil` means an absent optional signal, which is allowed
+            assert(
+                sig_hdl == nil or (type(sig_hdl) == "table" and sig_hdl.__type == "CallableHDL"),
+                f(
+                    "[%s] signal name `%s` collides with a Bundle method, use (\"%s.%s%s\"):chdl() instead",
+                    self.name, signal, self.hierarchy, self.prefix or "", signal
+                )
+            )
+        end
     end
 end
 

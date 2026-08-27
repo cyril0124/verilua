@@ -1,22 +1,22 @@
--- Same-timeslot set_release() + set_force() must not let the signal rise.
+-- Same-timeslot release() + force() must not let the signal rise.
 --
 -- Pattern under test (continuous backpressure):
---   ready:set_force(0)
+--   ready:force(0)
 --   for each cycle:
 --     clock:posedge()
---     ready:set_release()
---     ready:set_force(0)
+--     ready:release()
+--     ready:force(0)
 --
 -- Expected (when both ops are deferred and coalesce via the pending-put queue):
 --   - ready never rises while bp_armed (ready_glitch == 0)
 --   - DUT accepts no beats (count == 0)
 --
--- If set_release/set_force take effect immediately without coalescing,
+-- If release/force take effect immediately without coalescing,
 -- ready glitches 0->1->0 inside the timeslot and both checks fail.
 --
 -- Simulator notes:
 --   - verilator: needs forceable on forced signals (via verilua.verilator_config)
---   - iverilog/xcelium: set_release has long been immediate (historically wired
+--   - iverilog/xcelium: release has long been immediate (historically wired
 --     to vpiml_release_imm_value), so release+force never coalesced there;
 --     this check is only meaningful where both ops share the deferred queue
 
@@ -38,7 +38,7 @@ fork {
             or os.getenv("VL_XMK_USE_INERTIAL_PUT") == "1"
         then
             print(string.format(
-                "[test_force_release_coalesce] skip: set_release/set_force are immediate on %s%s "
+                "[test_force_release_coalesce] skip: release/force are immediate on %s%s "
                 .. "(no deferred coalesce)",
                 cfg.simulator,
                 os.getenv("VL_XMK_USE_INERTIAL_PUT") == "1" and "+inertial_put" or ""
@@ -56,17 +56,17 @@ fork {
         clock:posedge()
 
         bp_armed:set(1)
-        ready:set_force(0)
+        ready:force(0)
 
         for _ = 1, CYCLES do
             valid:set(1)
             clock:posedge()
-            ready:set_release()
-            ready:set_force(0)
+            ready:release()
+            ready:force(0)
         end
 
         valid:set(0)
-        ready:set_release()
+        ready:release()
         bp_armed:set(0)
         clock:posedge(2)
 
@@ -82,7 +82,7 @@ fork {
             glitch == 0,
             string.format(
                 "ready rose under continuous force (ready_glitch=%d); "
-                .. "same-timeslot set_release()+set_force() must coalesce",
+                .. "same-timeslot release()+force() must coalesce",
                 glitch
             )
         )
