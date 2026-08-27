@@ -162,55 +162,23 @@ fork {
         assert(all_vals[3] == 0xCC)
         assert(all_vals[4] == 0xDD)
 
-        test_section("Set API - canonical names, index views, legacy warnings")
-
-        local warns = {}
-        local old_warn = _G.verilua_warning
-        ---@diagnostic disable-next-line: global-in-non-module
-        _G.verilua_warning = function(msg)
-            warns[#warns + 1] = msg
-        end
+        test_section("Set API - canonical names and index views")
 
         arr[0]:set_imm(0x11)
-        assert(#warns == 0, "canonical set_imm must not warn, got: " .. tostring(warns[1]))
         assert(arr[0]:get() == 0x11)
         assert(rawequal(arr[0], arr[0]), "indexed element handles must be cached")
         assert(not rawequal(arr[0], arr[1]), "different indices must be different handles")
         assert(rawequal(arr[0]:chdl(), arr[0]))
 
         local parent_before = arr[0]:get()
-        arr:at(1)
-        assert(#warns == 1 and warns[1]:find(":at()", 1, true), "at() must warn once")
+        local _ = arr[1]
         assert(arr[0]:get() == parent_before, "arr[i] must not retarget the parent handle")
-
-        arr:set_index(2, 0x22)
-        assert(warns[#warns]:find("set_index", 1, true))
-        assert(warns[#warns]:find("[index]:set()", 1, true))
 
         data_2:set_imm(0)
         data_2:set_bits_imm(0, 3, 0xA)
         assert(data_2:get() == 0xA, "set_bits_imm")
-        data_2:set_imm_bitfield(4, 7, 0x5)
-        assert(warns[#warns]:find("set_imm_bitfield", 1, true))
-        assert(data_2:get() == 0x5A, "legacy set_imm_bitfield still writes")
-
-        local warn_n = #warns
         data_2.value_imm = 0x12
-        assert(#warns == warn_n, ".value_imm must not emit a legacy warning")
         assert(data_2:get() == 0x12)
-
-        arr:set_index_bitfield(0, 0, 3, 0x7)
-        assert(warns[#warns]:find("set_index_bitfield", 1, true))
-        clock:posedge()
-        assert(arr[0]:get() % 16 == 0x7, "set_index_bitfield must write bits")
-
-        -- Multi-beat array: imm hex bitfield write must be immediate (no clock)
-        local warr = ("tb_top.u_top.wide_array"):chdl()
-        assert(warr.is_array and warr[0]:get_width() == 128)
-        warr:set_imm_index_bitfield_hex_str(0, 0, 127, "1234567890abcdef1234567890abcdef")
-        assert(warns[#warns]:find("set_imm_index_bitfield_hex_str", 1, true))
-        assert(warr[0]:get_hex_str() == "1234567890abcdef1234567890abcdef",
-            "Multi array imm hex bitfield got " .. warr[0]:get_hex_str())
 
         local proxy_elem = dut.u_top.array_signal[0]
         assert(proxy_elem.__type == "CallableHDL", "dut.arr[i] should be a CallableHDL")
@@ -236,8 +204,6 @@ fork {
         clock:posedge()
         ---@diagnostic disable-next-line: undefined-field
         assert(arr[1]:get() == 0x77, "arr[i] = v must write the element")
-
-        _G.verilua_warning = old_warn
 
         -- ========================================================================
         -- Test: CallableHDL - Edge waiting operations
