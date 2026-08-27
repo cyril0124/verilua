@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+---
+
+## v4.0.0 - 2026-08-27
+
 ### 💥 Breaking Changes
 
 - **runtime / LuaJIT**: Replace the `luajit-pro` fork with official [LuaJIT](https://github.com/LuaJIT/LuaJIT) (v2.1 branch, built with `LUAJIT_ENABLE_LUA52COMPAT`), installed in place under the top-level `luajit/` submodule (was `luajit-pro/luajit2.1`). Consequences:
@@ -55,6 +59,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### 🚀 Added
 
 - **CallableHDL / ProxyTableHandle**: Signal writes now use `force`, `release`, `randomize`, `freeze`, plus `_imm` variants. CallableHDL also has `set_bits`, `set_bits_hex_str` (bit fields wider than 64 bits), `set_unchecked`, and `set_all`. Index an array from 0 with `arr[i]` or `dut.arr[i]`. The same index returns the same handle.
+- **CallableHDL / ProxyTableHandle**: `force_hex_str(hex_str)` and `force_imm_hex_str(hex_str)` force a signal from a hexadecimal string, so values wider than 64 bits can be forced (`force()` takes a number or one value per beat).
+- **CallableHDL / ProxyTableHandle**: `set_cached` / `set_imm_cached` stay canonical write APIs (not deprecated aliases): they skip the VPI call when the value equals the previous cached write, which no other write API does.
 - **Bundle**: Add `set_all_imm`.
 - **libverilua**: Lua time accounting is now runtime-controlled: set `VL_ACC_LUA_TIME=1` (or `true`) to fill the `lua_time_taken` / `lua_overhead` columns in the final statistics table, no rebuild needed. The compile-time cargo feature `acc_time` is removed; when the variable is unset the columns show `--` plus a dim hint on how to enable them.
 - **LuaDataBaseV2**: New `backend = "auto"`: probes libsqlite3 health (loadability + `sqlite3_errstr` dlsym canary) and falls back to the turso backend with a loud `verilua_warning` when libsqlite3 is unusable (e.g. VCS's bundled sqlite 3.7.13 on `LD_LIBRARY_PATH`). Explicit `backend = "sqlite3"` still fails hard; pick a concrete backend to opt out of arbitration.
@@ -165,7 +171,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ✨ Added
 
-- **CallableHDL / ProxyTableHandle**: `force_hex_str(hex_str)` and `force_imm_hex_str(hex_str)` force a signal from a hexadecimal string, so values wider than 64 bits can be forced (`force()` takes a number or one value per beat).
 - **LuaUtils**: Add `deepcopy()` for recursive table copying with cycle handling and metatable preservation.
 - **LuaUtils**: `get_env_or_else()` now accepts a function default that is called when the environment variable is unset, validates the generated value type, and logs the generated value. Added `rand_int()`, `rand_bool()`, and `rand_choice()` helpers for lightweight runtime parameter randomization; `rand_choice()` also supports optional relative weights.
 - **LuaSimConfig**: Seed setup is available before loading user config so function defaults in user config can be reproducible under the same `SEED`.
