@@ -218,7 +218,8 @@ target("install_other_libs", function()
                         downloaded = true
                         break
                     else
-                        print(string.format("[xmake.lua] [install_other_libs] Download failed (attempt %d/3), retrying...", attempt))
+                        print(string.format(
+                            "[xmake.lua] [install_other_libs] Download failed (attempt %d/3), retrying...", attempt))
                         os.tryrm(tgz_path)
                         os.sleep(1000)
                     end
