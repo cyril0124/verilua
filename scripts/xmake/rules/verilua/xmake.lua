@@ -22,11 +22,9 @@ end
 local FILE_COUNT_THRESHOLD = 100 -- Threshold for using filelist instead of passing files directly
 local DEFAULT_TIMESCALE = "1ns/1ps"
 
--- Mapping from old (deprecated) keys to new verilua.* keys.
--- Most old keys use the `cfg.*` prefix; a few legacy keys had no prefix at all
--- (e.g. `instrumentation`). All of them are deprecated; the `verilua.*` form
--- should be used instead.
--- The helper below reads the new key first, then falls back to the old key with a warning.
+-- Maps each `verilua.*` key to the deprecated key(s) it replaces, tried in order.
+-- Most old keys use the `cfg.*` prefix; a few had no prefix at all (e.g. `instrumentation`).
+-- get_verilua_value() reads the new key first, then falls back with a warning.
 local CFG_DEPRECATION_MAP = {
     ["verilua.top"]                = "cfg.top",
     ["verilua.lua_main"]           = "cfg.lua_main",
@@ -43,13 +41,13 @@ local CFG_DEPRECATION_MAP = {
     ["verilua.xcelium_no_initreg"] = "cfg.xcelium_no_initreg",
     ["verilua.user_cfg"]           = "cfg.user_cfg",
     ["verilua.other_cfg"]          = "cfg.other_cfg",
-    ["verilua.version_required"]   = "cfg.version_required",
+    ["verilua.require_version"]    = { "verilua.version_required", "cfg.version_required" },
     ["verilua.instrument"]         = "instrumentation",
 }
 
 --- Read a verilua config value from the target.
 --- Tries the new `verilua.*` key first. If not set, falls back to the
---- deprecated `cfg.*` key (if one exists) and prints a deprecation warning.
+--- deprecated key(s) (if any) and prints a deprecation warning.
 ---@param target table xmake target
 ---@param key string The new key, e.g. "verilua.top"
 ---@return any
@@ -58,18 +56,16 @@ local function get_verilua_value(target, key)
     if value ~= nil then
         return value
     end
-    local old_key = CFG_DEPRECATION_MAP[key]
-    if not old_key then
-        return nil
-    end
-    local old_value = target:values(old_key)
-    if old_value ~= nil then
-        if not is_quiet_mode() then
-            print(
-                "[verilua-xmake] [%s] warning: `set_values(\"%s\", ...)` is deprecated, use `set_values(\"%s\", ...)` instead",
-                target:name(), old_key, key)
+    for _, old_key in ipairs(table.wrap(CFG_DEPRECATION_MAP[key])) do
+        local old_value = target:values(old_key)
+        if old_value ~= nil then
+            if not is_quiet_mode() then
+                print(
+                    "[verilua-xmake] [%s] warning: `set_values(\"%s\", ...)` is deprecated, use `set_values(\"%s\", ...)` instead",
+                    target:name(), old_key, key)
+            end
+            return old_value
         end
-        return old_value
     end
     return nil
 end
@@ -192,22 +188,25 @@ local function before_build_or_run(target)
     --- Check verilua version using semantic versioning
     --- e.g.
     --- ```lua
-    ---     set_values("verilua.version_required", "1.0.0")
-    ---     set_values("verilua.version_required", "> 1.0.0")
-    ---     set_values("verilua.version_required", ">= 1.0.0")
-    ---     set_values("verilua.version_required", "< 1.0.0")
-    ---     set_values("verilua.version_required", "<= 1.0.0")
-    ---     set_values("verilua.version_required", "1.0.x")
+    ---     set_values("verilua.require_version", "1.0.0")
+    ---     set_values("verilua.require_version", "> 1.0.0")
+    ---     set_values("verilua.require_version", ">= 1.0.0")
+    ---     set_values("verilua.require_version", "< 1.0.0")
+    ---     set_values("verilua.require_version", "<= 1.0.0")
+    ---     set_values("verilua.require_version", "1.0.x")
     --- ```
-    local version_required = get_verilua_value(target, "verilua.version_required")
-    if version_required then
+    local require_version = get_verilua_value(target, "verilua.require_version")
+    if require_version then
         import("core.base.semver")
         local curr_version = io.readfile(path.join(verilua_home, "VERSION")):trim()
+        -- semver.satisfies() rejects a space between the operator and the version
+        -- (">= 1.0.0"), so strip it. Spaces that separate range parts must stay.
+        local constraint = require_version:trim():gsub("([<>=~^]=?)%s+", "%1")
         assert(
-            semver.satisfies(curr_version, version_required),
-            "[before_build_or_run] [%s] verilua version is satisfied, expected: %s, current version: %s",
+            semver.satisfies(curr_version, constraint),
+            "[before_build_or_run] [%s] verilua version is not satisfied, expected: %s, current version: %s",
             target:name(),
-            version_required,
+            require_version,
             curr_version
         )
     end

@@ -120,7 +120,8 @@ function await_nsim() end
 --- | "verilua.top"
 --- | "verilua.lua_main"
 --- | "verilua.tb_top"
---- | "verilua.version_required"
+--- | "verilua.require_version"
+--- | "verilua.version_required" (Deprecated, use verilua.require_version)
 --- | "verilua.vcs_no_initreg"
 --- | "verilua.xcelium_no_initreg"
 --- | "verilua.not_gen_tb"

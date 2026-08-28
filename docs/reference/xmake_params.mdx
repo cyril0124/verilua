@@ -367,12 +367,12 @@ set_values("verilua.build_dir_path", "/tmp/builds")
 
 ### 限制最低 Verilua 版本
 
-对应配置：`set_values("verilua.version_required", "<version constraint>")`
+对应配置：`set_values("verilua.require_version", "<version constraint>")`
 
 指定最低 Verilua 版本要求。例如：
 
 ```lua
-set_values("verilua.version_required", ">=1.0.0")
+set_values("verilua.require_version", ">=1.0.0")
 ```
 
 构建时会自动校验当前 Verilua 版本是否满足要求。
