@@ -51,6 +51,7 @@ verilua/
 │   ├── dpi_exporter/        # DPI code generator for signal access
 │   ├── cov_exporter/        # Coverage instrumentation exporter
 │   ├── turso_ffi/           # Turso FFI DB backend (Rust)
+│   ├── bigint_ffi/          # Big-integer backend for StrBitsUtils (Rust)
 │   └── include/             # Common C/C++ headers
 ├── libverilua/              # Rust VPI core & simulator shims
 ├── tests/                   # Tests (also API usage examples)

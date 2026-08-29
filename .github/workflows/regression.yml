@@ -255,14 +255,13 @@ jobs:
 
               rm -rf .xmake build
 
-              xmake run -P . install_libgmp
-
               xmake run -P . reinstall_luajit
               xmake run -P . install_luarocks
               xmake run -P . install_lua_modules
               xmake run -P . install_tinycc
               xmake run -P . -y -v build_libverilua
               xmake build -P . -y -v turso_ffi
+              xmake build -P . -y -v bigint_ffi
               xmake build -P . -y -v iverilog_vpi_module
               xmake clean -P . wave_vpi_main
               xmake f -P . --clean

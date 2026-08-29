@@ -1,0 +1,13 @@
+[package]
+name = "bigint_ffi"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "bigint_ffi"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+num-bigint = "0.5"

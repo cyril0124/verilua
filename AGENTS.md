@@ -12,6 +12,7 @@
 - Lua runtime and public scripting APIs: `./src/lua/verilua`
 - Rust VPI core and simulator-specific shared libraries: `./libverilua`
 - Turso FFI database backend: `./src/turso_ffi`
+- Rust big-integer backend for StrBitsUtils: `./src/bigint_ffi`
 - Verilator main program and LightSSS support: `./src/verilator`
 - Waveform backend binaries and readers: `./src/wave_vpi`
 - No-simulation analysis backend: `./src/nosim`
@@ -126,6 +127,7 @@ F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
 - If you modify `nosim`, run `xmake b nosim`.
 - If you modify `sv_lint`, run `xmake b sv_lint`.
 - If you modify `src/turso_ffi`, run `xmake b turso_ffi`.
+- If you modify `src/bigint_ffi`, run `xmake b bigint_ffi`.
 - If building `wave_vpi_main` fails, build `wave_vpi_wellen_impl` first with `xmake b wave_vpi_wellen_impl`.
 - If you modify Rust code in `wellen_impl`, build `wave_vpi_wellen_impl` first with `xmake b wave_vpi_wellen_impl`.
 

@@ -531,6 +531,29 @@ local function run_tests()
                 expect.equal(carry, false)
             end
 
+            -- Deterministic carry boundary cases with bitwidth (all-ones + 1 wraps to 0)
+            print("\nTesting deterministic carry boundaries with bitwidth...")
+            local carry_boundary_cases = {
+                -- {hex1, hex2, bitwidth, expected_result, expected_carry}
+                { "f",                 "1", 4,   "0",                 true },
+                { "ff",                "1", 8,   "00",                true },
+                { "ffff",              "1", 16,  "0000",              true },
+                { "ffffffff",          "1", 32,  "00000000",          true },
+                { "ffffffffffffffff",  "1", 64,  "0000000000000000",  true },
+                { string.rep("f", 32), "1", 128, string.rep("0", 32), true },
+                { "7",                 "1", 4,   "8",                 false },
+                { "fe",                "1", 8,   "ff",                false },
+            }
+
+            for _, test in ipairs(carry_boundary_cases) do
+                local hex1, hex2, bw, expected, exp_carry = test[1], test[2], test[3], test[4], test[5]
+                local result, carry = sbu.add_hex_str(hex1, hex2, bw)
+                expect.equal(result, expected,
+                    f("add_hex_str(%s, %s, %d) result", hex1, hex2, bw))
+                expect.equal(carry, exp_carry,
+                    f("add_hex_str(%s, %s, %d) carry", hex1, hex2, bw))
+            end
+
             -- Test systematic coverage for 1-64 bits with bitwidth parameter
             print("\nTesting 1-64 bits with bitwidth parameter...")
             for bits = 1, 64 do
@@ -1639,17 +1662,6 @@ local function run_tests()
     end)
 end -- run_tests
 
--- Run tests without libgmp
-print("\n" .. string.rep("=", 80))
-print("Running tests WITHOUT libgmp...")
-print(string.rep("=", 80))
-run_tests()
-
--- Run tests with libgmp
-print("\n" .. string.rep("=", 80))
-print("Running tests WITH libgmp...")
-print(string.rep("=", 80))
-sbu.init_use_libgmp()
 run_tests()
 
 print("\n" .. string.rep("=", 80))

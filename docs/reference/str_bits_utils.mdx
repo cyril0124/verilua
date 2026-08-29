@@ -1,19 +1,6 @@
 # 字符串位操作工具（StrBitsUtils）
 
-`StrBitsUtils` 是一组基于字符串的位操作工具函数，用于处理超出 Lua 数字范围的大位宽数据。它将信号值表示为十六进制或二进制字符串，并提供提取、设置、移位、逻辑运算等功能，常用于需要高精度位操作的验证场景。
-
-## 初始化
-
-在首次使用前，可以选择性地初始化 GMP（GNU Multiple Precision）库以提升大整数运算的性能。如果不初始化，则使用纯 Lua 实现（基于字符串操作）。
-
-```lua
-local sbu = require "verilua.utils.StrBitsUtils"
-sbu:init_use_libgmp()   -- 启用 GMP 后端（可选）
-```
-
-:::tip
-GMP 后端的性能通常优于纯 Lua 实现，尤其在进行大量大数运算时。但需要注意 GMP 库需要单独安装（Verilua 的安装脚本会自动处理）。
-:::
+`StrBitsUtils` 是一组基于字符串的位操作工具函数，用于处理超出 Lua 数字范围的大位宽数据。它将信号值表示为十六进制或二进制字符串，并提供提取、设置、移位、逻辑运算等功能，常用于需要高精度位操作的验证场景。大整数运算由 Rust 实现的内置库承担，直接 `require` 即可使用。
 
 ## 函数概览
 
@@ -148,23 +135,6 @@ print(adj)  --> "0123"   (补零到 16 位)
 
 与 `adjust_hex_bitwidth` 类似，但操作对象为二进制字符串。
 
-## 使用 GMP 后端
-
-当需要进行大量高精度运算时，可以启用 GMP 后端。启用后，所有核心运算将委托给 GMP 库，性能显著提升。
-
-```lua
-local sbu = require "verilua.utils.StrBitsUtils"
-sbu:init_use_libgmp()   -- 切换至 GMP 后端
-
--- 后续所有函数调用都将使用 GMP 实现
-local res = sbu.add_hex_str("ffffffffffffffff", "1")
-print(res)  --> "10000000000000000"
-```
-
-:::note
-`init_use_libgmp()` 只需调用一次，且必须在所有其他函数调用之前执行。如果未调用，则使用纯 Lua 实现。
-:::
-
 ## 与 BitVec 的关系
 
 `StrBitsUtils` 与 `BitVec` 都提供了位操作能力，但适用场景略有不同：
@@ -178,7 +148,6 @@ print(res)  --> "10000000000000000"
 
 ```lua
 local sbu = require "verilua.utils.StrBitsUtils"
-sbu:init_use_libgmp()   -- 启用 GMP
 
 -- 原始值
 local orig = "1234567890abcdef"
@@ -205,7 +174,7 @@ print(sbu.popcount_hex_str(result))  --> 16
 - 所有输入字符串应为纯十六进制或二进制，不含 `0x` 或 `0b` 前缀。
 - 位索引 `s` 和 `e` 遵循 **LSB 0** 规则，即最低位为索引 0。
 - 当指定 `bitwidth` 时，函数会确保输入输出符合指定位宽，超出部分将被截断或补零。
-- 使用 GMP 后端时，确保系统已安装 `libgmp`（Verilua 安装脚本会自动处理）。
+- 大整数运算由 `$VERILUA_HOME/shared/libbigint_ffi.so` 实现，随 Verilua 安装流程自动构建。
 
 ## 相关文档
 

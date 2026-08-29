@@ -186,13 +186,12 @@ jobs:
 
               rm -rf .xmake build
 
-              xmake run -P . install_libgmp
-
               xmake run -P . reinstall_luajit
               xmake run -P . install_luarocks
               xmake run -P . install_lua_modules
               xmake run -P . install_tinycc
               xmake run -P . -y -v build_libverilua
+              xmake build -P . -y -v bigint_ffi
               xmake build -P . -y -v iverilog_vpi_module
 
               xmake run -P . clean_all

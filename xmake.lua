@@ -12,6 +12,7 @@ includes(path.join(prj_dir, "src", "wave_vpi", "xmake.lua"))
 includes(path.join(prj_dir, "src", "nosim", "xmake.lua"))
 includes(path.join(prj_dir, "src", "sv_lint", "xmake.lua"))
 includes(path.join(prj_dir, "src", "turso_ffi", "xmake.lua"))
+includes(path.join(prj_dir, "src", "bigint_ffi", "xmake.lua"))
 
 local CC = os.getenv("CC")
 local CXX = os.getenv("CXX")
@@ -125,51 +126,6 @@ target("reinstall_luajit", function()
     end)
 end)
 
-target("install_libgmp", function()
-    set_kind("phony")
-    set_default(false)
-    on_run(function()
-        if os.getenv("CI_USE_CONAN_CACHE") and os.isfile(libs_dir, "lib", "libgmp.so") then
-            print("[xmake.lua] [install_libgmp] Using cached libgmp...")
-            return
-        end
-
-        local build_dir = path.join(prj_dir, "build")
-        local shared_gmp_dir = path.join(prj_dir, "shared", "gmp")
-        if not os.isdir(build_dir) then
-            os.mkdir(build_dir)
-        end
-        if not os.isdir(shared_gmp_dir) then
-            os.mkdir(shared_gmp_dir)
-        end
-
-        local libgmp_xz = "gmp-6.3.0.tar.xz"
-        local libgmp_dir = path.join(build_dir, "gmp-6.3.0")
-        local libgmp_tarball = path.join(build_dir, libgmp_xz)
-
-        if not os.isdir(libgmp_dir) then
-            import("net.http")
-            import("utils.archive")
-
-            if not os.isfile(libgmp_tarball) then
-                print("[xmake.lua] [install_libgmp] Downloading libgmp...")
-                http.download("https://ftp.gnu.org/gnu/gmp/" .. libgmp_xz, libgmp_tarball)
-            end
-
-            print("[xmake.lua] [install_libgmp] Extracting libgmp...")
-            archive.extract(libgmp_tarball, build_dir)
-        end
-
-        os.cd(libgmp_dir)
-        os.exec("./configure --prefix=%s --disable-static", libs_dir)
-        os.exec("make -j%d", os.cpuinfo().ncpu or 4)
-        os.exec("make install")
-
-        -- Copy libgmp into shared dir
-        os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_gmp_dir)
-    end)
-end)
-
 target("install_other_libs", function()
     set_kind("phony")
     set_default(false)
@@ -177,10 +133,6 @@ target("install_other_libs", function()
         -- Environment variable `CI_USE_CONAN_CACHE` is set by `.github/workflows/regression.yml`(Check conan libs)
         if os.getenv("CI_USE_CONAN_CACHE") then
             print("[xmake.lua] [install_other_libs] Using cached conan libs...")
-
-            local shared_gmp_dir = path.join(prj_dir, "shared", "gmp")
-            os.mkdir(shared_gmp_dir)
-            os.cp(path.join(libs_dir, "lib", "libgmp.so*"), shared_gmp_dir)
             return
         end
 
@@ -255,9 +207,6 @@ target("install_other_libs", function()
 
         os.cd(prj_dir)
         os.exec("%s install . --output-folder=%s --build=missing %s", conan_cmd, libs_dir, jobs_arg)
-
-        -- Install libgmp
-        os.exec("xmake run -P %s install_libgmp", prj_dir)
     end)
 end)
 
@@ -515,6 +464,7 @@ target("setup_verilua", function()
         os.exec("xmake build -P %s -y -v libsignal_db_gen", prj_dir)
         os.exec("xmake build -P %s -y -v libsv_lint", prj_dir)
         os.exec("xmake build -P %s -y -v turso_ffi", prj_dir)
+        os.exec("xmake build -P %s -y -v bigint_ffi", prj_dir)
         os.exec("xmake run -P %s -y -v build_all_tools", prj_dir)
 
         import("lib.detect.find_file")
