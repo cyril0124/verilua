@@ -99,12 +99,19 @@ setmetatable(SVBuilder, {
             parts[#parts + 1] = tostring(v)
         end
 
-        -- Generate final block for coverage report
+        -- Generate final block for coverage report.
+        -- The report calls inst.get_coverage(), which returns type coverage.
+        -- Do not switch to get_inst_coverage(): it is only meaningful with
+        -- `option.per_instance = 1` (default 0). Without that option a
+        -- simulator need not keep per-instance data, and e.g. VCS then
+        -- reads 0 for the covergroups generated here.
+        -- unique_stmt_name_map guarantees one `new` per covergroup name, so
+        -- type coverage equals instance coverage.
         if self.coverage_report_enabled and #self._covergroup_names > 0 then
             local final_lines = { "final begin" }
             for _, entry in ipairs(self._covergroup_names) do
                 final_lines[#final_lines + 1] = f(
-                    '    $display("[COVERAGE] %s: %%.2f%%%%", %s.get_inst_coverage());',
+                    '    $display("[COVERAGE] %s: %%.2f%%%%", %s.get_coverage());',
                     entry.name, entry.inst_name
                 )
             end

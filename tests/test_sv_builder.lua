@@ -658,8 +658,8 @@ default clocking @(negedge path.to.clock); endclocking
             "expected final block, got: " .. result)
         assert(result:find('[COVERAGE] cg_basic', 1, true),
             "expected coverage display, got: " .. result)
-        assert(result:find("_GEN_cg_basic_inst.get_inst_coverage()", 1, true),
-            "expected get_inst_coverage call, got: " .. result)
+        assert(result:find("_GEN_cg_basic_inst.get_coverage()", 1, true),
+            "expected get_coverage call, got: " .. result)
 
         ctx:clean()
     end)

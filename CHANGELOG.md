@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **SVBuilder**: The generated `final` block coverage report now calls `inst.get_coverage()` instead of `inst.get_inst_coverage()`. `get_inst_coverage()` is only meaningful with `option.per_instance = 1` (default `0`); without it a simulator need not keep per-instance data, and the report could print `0.00%` even with all bins hit. SVBuilder creates exactly one instance per covergroup, so type coverage equals instance coverage.
 - **xmake / verilua rule**: Accept a space between the operator and the version in `verilua.require_version` (`">= 1.0.0"`). Such constraints previously failed the version check no matter what version was installed. Spaces separating range parts (`">=1.0.0 <5.0.0"`) are unaffected.
 - **xmake / verilua rule**: Report a version mismatch as `verilua version is not satisfied`; the message previously said the version was satisfied.
 
