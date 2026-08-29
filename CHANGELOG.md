@@ -4,12 +4,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
-### Changed
+### ⚙️ Changed
 
 - **StrBitsUtils / build**: Big-number hex-string operations now use a Rust implementation (`src/bigint_ffi`, built on `num-bigint`, installed as `shared/libbigint_ffi.so`), replacing both the pure-Lua implementations and the optional GMP backend (`LibGMP.lua`, the `install_libgmp` xmake target, and the `shared/gmp` install flow are removed; `init_use_libgmp()` remains as a deprecated no-op that prints a warning). Installation no longer downloads or compiles GMP.
 - **xmake / verilua rule**: Rename `set_values("verilua.version_required", ...)` to `set_values("verilua.require_version", ...)`. The old name keeps working and prints a deprecation warning.
 
-### Fixed
+### 🐛 Fixed
 
 - **SVBuilder**: The generated `final` block coverage report now calls `inst.get_coverage()` instead of `inst.get_inst_coverage()`. `get_inst_coverage()` is only meaningful with `option.per_instance = 1` (default `0`); without it a simulator need not keep per-instance data, and the report could print `0.00%` even with all bins hit. SVBuilder creates exactly one instance per covergroup, so type coverage equals instance coverage.
 - **xmake / verilua rule**: Accept a space between the operator and the version in `verilua.require_version` (`">= 1.0.0"`). Such constraints previously failed the version check no matter what version was installed. Spaces separating range parts (`">=1.0.0 <5.0.0"`) are unaffected.
