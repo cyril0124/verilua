@@ -19,7 +19,8 @@ target("test-top", function()
     end)
 
     add_files("./top.sv")
-    set_values("verilua.user_cfg", "./cfg.lua")
+    -- Several config files can be given; they are merged in order, later ones win
+    set_values("verilua.user_cfg", "./cfg.lua", "./extra_cfg.lua")
     set_values("verilua.top", "top")
     set_values("verilua.lua_main", "./main.lua")
     add_values("verilator.flags", "--trace")

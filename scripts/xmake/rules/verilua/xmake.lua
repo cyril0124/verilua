@@ -298,9 +298,13 @@ local function before_build_or_run(target)
     deps_vec[#deps_vec + 1] = path.join(path.directory(lua_main), "?.lua")
 
     --- Verilua allows user to add their own configuration file(written in lua) which will be loaded before the main script.
+    --- One or more files can be given. They are merged in declaration order. Later files
+    --- override duplicate ordinary keys; `srcs` and `deps` are appended.
     --- e.g.
     --- ```lua
     ---     set_values("verilua.user_cfg", "/path/to/your/cfg.lua")
+    ---     set_values("verilua.user_cfg", "common/cfg.lua", "case/cfg.lua")
+    ---     add_values("verilua.user_cfg", "extra/cfg.lua")
     --- ```
     --- The user configuration file is a lua script and also require to return a table.
     --- e.g. (cfg.lua)
@@ -323,15 +327,16 @@ local function before_build_or_run(target)
     --- ```
     ---
     --- Notice: `verilua.other_cfg` is deprecated, please use `verilua.user_cfg` instead.
-    local user_cfg = get_verilua_value(target, "verilua.user_cfg") or get_verilua_value(target, "verilua.other_cfg")
-    local user_cfg_path = "nil"
-    if user_cfg == nil or user_cfg == "" then
-        user_cfg = "nil"
-    else
-        local _user_cfg = user_cfg
-        user_cfg = path.basename(user_cfg)
-        user_cfg_path = path.absolute(path.directory(_user_cfg), os.projectdir())
-        cprint("${✅} [verilua-xmake] [%s] user_cfg is ${green underline}%s${reset}", target:name(), user_cfg)
+    local user_cfg_values = get_verilua_value(target, "verilua.user_cfg") or
+        get_verilua_value(target, "verilua.other_cfg")
+    local user_cfg_entries = {}
+    for _, user_cfg in ipairs(table.wrap(user_cfg_values)) do
+        if user_cfg ~= "" then
+            local user_cfg_file = path.absolute(user_cfg, os.projectdir())
+            user_cfg_entries[#user_cfg_entries + 1] = f("    { file = %q, dir = %q },\n",
+                user_cfg_file, path.directory(user_cfg_file))
+            cprint("${✅} [verilua-xmake] [%s] user_cfg is ${green underline}%s${reset}", target:name(), user_cfg_file)
+        end
     end
 
     -- Generate verilua_cfg.lua which is used for loading some common settings used by verilua.
@@ -349,26 +354,39 @@ cfg.simulator = "%s"
 cfg.script = "%s"
 cfg.deps = {"%s"}
 
-local user_cfg = "%s"
-local user_cfg_path = "%s"
+-- User config files, loaded and merged in declaration order (later file wins)
+local user_cfgs = {
+%s}
 
 -- Add deps to package.path so user_cfg can require modules from them
 for _, dep in ipairs(cfg.deps) do
     _G.package.path = _G.package.path .. ";" .. dep
 end
 
--- Mix with other config
-if user_cfg ~= "nil" then
-    _G.package.path = _G.package.path .. ";" .. user_cfg_path .. "/?.lua"
-    local _cfg = require(user_cfg)
-    assert(type(_cfg) == "table", "cfg is not a table! => type(cfg): " .. type(_cfg) .. " cfg: " .. tostring(_cfg) .. " cfg_path: " .. tostring(user_cfg_path) .. " cfg_name: " .. tostring(user_cfg))
-
+-- Mix with user config files
+if #user_cfgs > 0 then
     local sim_cfg = require "LuaSimConfig"
-    sim_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua]")
+    local base_path = _G.package.path
+    local user_cfg_path = ""
+    for _, entry in ipairs(user_cfgs) do
+        -- Only this file's config directory is added among user config paths while it
+        -- loads, so config directories are not searched together
+        _G.package.path = base_path .. ";" .. entry.dir .. "/?.lua"
+
+        -- dofile() rather than require(): config files may share a basename across
+        -- directories, and require() would hand back the first one for all of them
+        local _cfg = dofile(entry.file)
+        assert(type(_cfg) == "table", "cfg is not a table! => type(cfg): " .. type(_cfg) .. " cfg: " .. tostring(_cfg) .. " cfg_file: " .. entry.file)
+
+        sim_cfg.merge_config_1(cfg, _cfg, "[xmake.lua -> verilua_cfg.lua] " .. entry.file)
+        user_cfg_path = user_cfg_path .. ";" .. entry.dir .. "/?.lua"
+    end
+    -- Keep every config directory requirable after loading
+    _G.package.path = base_path .. user_cfg_path
 end
 
 return cfg
-]], tb_top, os.projectdir(), sim, lua_main, path.joinenv(deps_vec, ";"), user_cfg, user_cfg_path)
+]], tb_top, os.projectdir(), sim, lua_main, path.joinenv(deps_vec, ";"), table.concat(user_cfg_entries))
     if os.isfile(verilua_cfg_file) and io.readfile(verilua_cfg_file) == cfg_file_str then
         cprint("${✅} [verilua-xmake] [%s] ${green underline}verilua_cfg.lua${reset} is up-to-date", target:name())
     else

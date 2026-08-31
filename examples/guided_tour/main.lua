@@ -103,13 +103,15 @@ fork {
         assert(cfg.top == "tb_top")
         print("Current project directory: ", cfg.prj_dir)
 
-        -- `cfg` also merged the configuration from the configuration settings in `xmake.lua`: `set_values("verilua.user_cfg", "./cfg.lua")`
+        -- `cfg` also merged the configuration from the configuration settings in `xmake.lua`: `set_values("verilua.user_cfg", "./cfg.lua", "./extra_cfg.lua")`
+        -- Both files are merged in order, so `var2` comes from the second one.
         assert(cfg.var1 == 1)
-        assert(cfg.var2 == "hello")
+        assert(cfg.var2 == "hello from extra_cfg")
+        assert(cfg.var3 == 3)
 
         -- `cfg:get_or_else` can be used to get the value of the configuration, if the configuration is not found, it will return the default value
         assert(cfg:get_or_else("var1", 4) == 1)
-        assert(cfg:get_or_else("var3", "default") == "default")
+        assert(cfg:get_or_else("var4", "default") == "default")
 
         -- `cycles` is also the internal signal of `tb_top` which is a 64-bit signal containing the number of clock cycles in posedge.
         -- The value of the `cycles` signal will never be reset even if the `reset` signal is set.

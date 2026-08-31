@@ -41,8 +41,8 @@ Verilua 中，`cfg` 这个全局变量（`table` 类型）用于存储运行期�
 
 ## 用户自定义配置
 
-Verilua 允许用户在 `xmake.lua` 中通过 `set_values("verilua.user_cfg", <user cfg file>)`
-指定一个 Lua 配置文件，并将其返回的 table 合并到运行期全局变量 `cfg` 中。
+Verilua 允许用户在 `xmake.lua` 中通过 `set_values("verilua.user_cfg", <user cfg file>, ...)`
+指定一个或多个 Lua 配置文件，并将它们返回的 table 合并到运行期全局变量 `cfg` 中。
 
 :::warning[常见误解]
 `set_values("verilua.user_cfg", ...)` 里的 `verilua.user_cfg` 是 xmake 里的配置项名字，
@@ -119,6 +119,27 @@ target("test", function()
     add_files("Top.v")
 end)
 ```
+
+### 多个配置文件
+
+可以一次指定多个文件，也可以用 `add_values` 追加：
+
+```lua title="xmake.lua"
+set_values("verilua.user_cfg", "common/cfg.lua", "case/cfg.lua")
+add_values("verilua.user_cfg", "extra/cfg.lua")
+```
+
+合并规则：
+
+1. 按声明顺序逐个加载（上例为 `common/cfg.lua` → `case/cfg.lua` → `extra/cfg.lua`），后加载的文件覆盖先前的同名字段。`srcs` 和 `deps` 除外，这两个字段是追加。
+2. 每个文件按完整路径加载，不同目录下都叫 `cfg.lua` 也不会互相覆盖。
+3. 加载某个配置文件时，`base_path` 中的路径先于当前配置目录搜索，其中包括 Verilua 自身与 `deps` 的路径。全部加载完后，所有配置目录一起保留在 `package.path` 中。
+
+:::warning[同名模块]
+Lua 的模块缓存（`package.loaded`）按**模块名**索引，不区分来源目录。两个配置目录下都有 `helper.lua`，且两个配置文件都 `require "helper"` 时，第二次 `require` 拿到的仍然是第一次加载的模块。共享模块请用唯一名字，例如 `common_helper.lua`。
+
+配置文件内部对 `package.path` 的修改也不会保留到加载结束之后。需要额外搜索路径时，用 `add_files` 或把模块放在配置文件同目录。
+:::
 
 在仿真运行时，用户配置文件中返回的字段会被直接展开到全局变量 `cfg` 上：
 

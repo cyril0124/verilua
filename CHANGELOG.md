@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **StrBitsUtils / build**: Big-number hex-string operations now use a Rust implementation (`src/bigint_ffi`, built on `num-bigint`, installed as `shared/libbigint_ffi.so`), replacing both the pure-Lua implementations and the optional GMP backend (`LibGMP.lua`, the `install_libgmp` xmake target, and the `shared/gmp` install flow are removed; `init_use_libgmp()` remains as a deprecated no-op that prints a warning). Installation no longer downloads or compiles GMP.
 - **xmake / verilua rule**: Rename `set_values("verilua.version_required", ...)` to `set_values("verilua.require_version", ...)`. The old name keeps working and prints a deprecation warning.
+- **xmake / verilua rule**: `verilua.user_cfg` accepts multiple config files, through `set_values("verilua.user_cfg", "common/cfg.lua", "case/cfg.lua")` or `add_values(...)`. Files are merged in declaration order. Later files override duplicate ordinary keys, while `srcs` and `deps` are appended. Debug logs report duplicate keys. While a file loads, only its config directory is added among the user config paths. Config files are loaded by absolute path with `dofile()`, so a user config file no longer lands in `package.loaded` and can no longer be a bundled `.vlbc` module.
 
 ### 🐛 Fixed
 

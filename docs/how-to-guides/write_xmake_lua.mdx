@@ -69,7 +69,7 @@ end)
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `set_values("verilua.user_cfg", "<file>")` | string | - | 指定用户自定义 Lua 配置文件；其返回表的字段会合并到运行期全局 `cfg` 中 |
+| `set_values("verilua.user_cfg", "<file>", ...)` | string 或 string 列表 | - | 指定一个或多个用户自定义 Lua 配置文件；返回表的字段按声明顺序合并到运行期全局 `cfg` 中，后者覆盖前者，`srcs` 和 `deps` 会追加 |
 | `set_values("verilua.build_dir_name", "<name>")` | string | `verilua.top` | 构建目录名称（位于 `build/<sim>/` 下） |
 | `set_values("verilua.build_dir_path", "<path>")` | string | `build/<sim>` | 构建目录的父路径 |
 
