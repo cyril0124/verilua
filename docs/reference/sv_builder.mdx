@@ -317,15 +317,21 @@ SVBuilder 在每次 `add` 调用后自动对生成的 SVA 进行 lint 检查（�
 报错格式：
 
 ```
-[SVBuilder] lint error in 'chk_handshake': sv_lint_input:4:8: error: sequence range minimum '5' is greater than specified maximum '2'
+[SVBuilder] lint error in 'chk_handshake'
+
+dump: /tmp/sv_builder_lint_lua_XXXXXX.sv
+
+/tmp/sv_builder_lint_lua_XXXXXX.sv:4:8: error: sequence range minimum '5' is greater than specified maximum '2'
     ##[5:2] top.dut.ack
        ^ ~
-sv_lint_input:2:10: note: while expanding sequence 'handshake'
+/tmp/sv_builder_lint_lua_XXXXXX.sv:2:10: note: while expanding sequence 'handshake'
 sequence handshake(); top.dut.req
          ^
 ```
 
 报错包含行号、列号和 caret 指示，可以直接定位到 `expr` 中出错的位置。
+
+lint 失败时，会把送进 slang 的那段 SV 写到 `/tmp/sv_builder_lint_<随机>.sv`。报错里 `dump:` 后面就是路径，诊断里的文件名也指向它，行号和文件内容对齐。失败的那条不会进入 `generate()`。
 
 ### 关闭 lint
 

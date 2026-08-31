@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 🚀 Added
+
+- **SVBuilder**: On `sv_lint` failure, write slang's lint input to `/tmp/sv_builder_lint_<random>.sv`. The error lists that path on its own `dump:` line and reprints the slang diagnostic against the dump file. The failing statement is not added to the builder.
+
 ### ⚙️ Changed
 
 - **StrBitsUtils / build**: Big-number hex-string operations now use a Rust implementation (`src/bigint_ffi`, built on `num-bigint`, installed as `shared/libbigint_ffi.so`), replacing both the pure-Lua implementations and the optional GMP backend (`LibGMP.lua`, the `install_libgmp` xmake target, and the `shared/gmp` install flow are removed; `init_use_libgmp()` remains as a deprecated no-op that prints a warning). Installation no longer downloads or compiles GMP.

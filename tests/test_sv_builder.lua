@@ -13,6 +13,18 @@ ctx:set_lint(false)
 lester.parse_args()
 
 describe("SVBuilder test", function()
+    -- Remove lint-fail dumps recorded on the builder.
+    lester.after(function()
+        local paths = ctx._lint_dump_paths
+        if not paths then
+            return
+        end
+        for i = #paths, 1, -1 do
+            os.remove(paths[i])
+            paths[i] = nil
+        end
+    end)
+
     it("can add cover/assert", function()
         local ret = ctx:add "cover" {
             name = "test",
@@ -584,6 +596,99 @@ default clocking @(negedge path.to.clock); endclocking
         expect.equal(ok, true)
 
         ctx:clean()
+    end)
+
+    it("sv_lint dumps failing input to /tmp/sv_builder_lint_*.sv", function()
+        ctx:set_lint(true)
+        ctx:clean()
+
+        local n0 = #(ctx._lint_dump_paths or {})
+
+        -- Success does not dump.
+        local ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_ok_dump", expr = "top.dut.req ##1 top.dut.ack" }
+        end)
+        expect.equal(ok, true, "expected valid sequence to pass lint, got: " .. tostring(err))
+        expect.equal(#(ctx._lint_dump_paths or {}), n0)
+
+        ctx:clean()
+
+        -- Fail dumps slang input.
+        ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_dump", expr = "top.dut.req ##" }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("[SVBuilder] lint error in 's_dump'\n", 1, true),
+            "expected title on its own line, got: " .. err_str
+        )
+        local dump_path = err_str:match("dump: ([^\n]+)")
+        assert(dump_path, "expected dump path in error, got: " .. err_str)
+        ---@cast dump_path string
+        assert(
+            dump_path:match("^/tmp/sv_builder_lint_.+%.sv$"),
+            "unexpected dump path: " .. dump_path
+        )
+        assert(
+            not err_str:find("sv_lint_input", 1, true),
+            "expected dump path in diagnostic, got: " .. err_str
+        )
+        assert(
+            err_str:find(dump_path .. ":", 1, true),
+            "expected diagnostic to use dump path, got: " .. err_str
+        )
+
+        local fh = io.open(dump_path, "r")
+        assert(fh, "dump file missing: " .. dump_path)
+        local dumped = fh:read("*a")
+        fh:close()
+        assert(dumped:find("module __sva_lint;", 1, true), dumped)
+        assert(dumped:find("endmodule", 1, true), dumped)
+        assert(dumped:find("top.dut.req ##", 1, true), dumped)
+
+        local cwd_name = dump_path:match("([^/]+)$")
+        assert(cwd_name)
+        ---@cast cwd_name string
+        local cwd_fh = io.open(cwd_name, "r")
+        expect.equal(cwd_fh, nil)
+        if cwd_fh then
+            cwd_fh:close()
+        end
+
+        local gen = ctx:generate()
+        assert(not gen:find("s_dump", 1, true), "failed stmt leaked into generate(): " .. gen)
+        ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_dump", expr = "top.dut.req ##1 top.dut.ack" }
+        end)
+        expect.equal(ok, true, "expected name reusable after lint fail, got: " .. tostring(err))
+        ctx:clean()
+
+        -- Second fail gets a new file; the first dump stays.
+        ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_dump2", expr = "top.dut.req ##" }
+        end)
+        expect.equal(ok, false)
+        local dump_path2 = tostring(err):match("dump: ([^\n]+)")
+        assert(dump_path2, "expected second dumped path, got: " .. tostring(err))
+        ---@cast dump_path2 string
+        assert(dump_path2 ~= dump_path, "expected unique dump paths")
+        local fh1 = io.open(dump_path, "r")
+        assert(fh1, "first dump was overwritten/removed: " .. dump_path)
+        fh1:close()
+        ctx:clean()
+
+        -- set_lint(false) does not dump.
+        local n1 = #(ctx._lint_dump_paths or {})
+        ctx:set_lint(false)
+        ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_off", expr = "bare_signal ##1 another" }
+        end)
+        expect.equal(ok, true)
+        expect.equal(#(ctx._lint_dump_paths or {}), n1)
+
+        ctx:clean()
+        ctx:set_lint(false)
     end)
 
     it("sv_lint validates cross-statement references", function()

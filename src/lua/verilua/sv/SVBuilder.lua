@@ -44,6 +44,7 @@ local setmetatable = setmetatable
 ---@field private _covergroup_names {name: string, inst_name: string}[] Metadata for final-block coverage report generation.
 ---@field private coverage_report_enabled boolean Whether the final block coverage report is generated.
 ---@field private lint_enabled boolean Whether automatic sv_lint checking is active on each `add` call.
+---@field private _lint_dump_paths string[] Absolute paths of lint-fail dumps written this process.
 ---@field with_global_envs fun(self: verilua.sv.SVBuilder, envs: table<string, any>): verilua.sv.SVBuilder Register global template variables for all subsequent `add` calls.
 ---@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | nil Curried entry point: select type, then pass params.
 ---@field default_clocking fun(self: verilua.sv.SVBuilder, signal: string|verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sv.SVBuilder Set the default sampling clock for SVA and covergroups.
@@ -66,6 +67,7 @@ local SVBuilder = {
     _covergroup_names = {},
     lint_enabled = true,
     coverage_report_enabled = true,
+    _lint_dump_paths = {},
 }
 
 setmetatable(SVBuilder, {
@@ -231,6 +233,53 @@ end
 
 local diag_buf = ffi.new("char[4096]")
 
+-- Write slang lint input to /tmp/sv_builder_lint_<tmpnam>.sv.
+---@param sv_text string
+---@return string? dump_path
+---@return string? dump_err
+local function dump_lint_input(sv_text)
+    local tmp = os.tmpname()
+    if not tmp or tmp == "" then
+        return nil, "os.tmpname() failed"
+    end
+    -- tmpnam can create an empty file. Delete it before writing the prefixed dump.
+    os.remove(tmp)
+    local leaf = tmp:match("([^/]+)$") or tmp
+    local dump_path = "/tmp/sv_builder_lint_" .. leaf .. ".sv"
+    local fh, open_err = io.open(dump_path, "w")
+    if not fh then
+        return nil, open_err or ("cannot open " .. dump_path)
+    end
+    fh:write(sv_text)
+    if sv_text:sub(-1) ~= "\n" then
+        fh:write("\n")
+    end
+    fh:close()
+    local paths = SVBuilder._lint_dump_paths
+    paths[#paths + 1] = dump_path
+    return dump_path
+end
+
+---@param sv_text string
+---@param diag string
+---@return string
+local function lint_fail_message(sv_text, diag)
+    local dump_path, dump_err = dump_lint_input(sv_text)
+    if dump_path then
+        diag = diag:gsub("sv_lint_input", function()
+            return dump_path
+        end)
+        return f("dump: %s\n\n%s", dump_path, diag)
+    end
+    return f("dump failed: %s\n\n%s", tostring(dump_err), diag)
+end
+
+---@param name string
+---@param lint_err string
+local function raise_lint_error(name, lint_err)
+    error(f("[SVBuilder] lint error in '%s'\n\n%s", name, lint_err), 0)
+end
+
 -- Build a module shell containing all existing context + the new statement,
 -- then invoke sv_lint (FFI or subprocess). Returns nil on success, or the
 -- first diagnostic string on failure.
@@ -269,7 +318,7 @@ local function run_sv_lint(self, new_statement, _stmt_name, as_preamble)
             if rc == 0 then
                 return nil
             end
-            return ffi.string(diag_buf)
+            return lint_fail_message(sv_text, ffi.string(diag_buf))
         end
         -- FFI call failed (e.g. lazy-binding glibc mismatch): disable FFI,
         -- fall through to subprocess.
@@ -294,7 +343,7 @@ local function run_sv_lint(self, new_statement, _stmt_name, as_preamble)
 
     if exit_code ~= 0 and output and #output > 0 then
         -- Trim trailing whitespace
-        return output:gsub("%s+$", "")
+        return lint_fail_message(sv_text, output:gsub("%s+$", ""))
     end
     return nil
 end
@@ -439,7 +488,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, pre_content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                    raise_lint_error(params.name, lint_err)
                 end
             end
 
@@ -457,7 +506,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, pre_content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                    raise_lint_error(params.name, lint_err)
                 end
             end
 
@@ -474,7 +523,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                    raise_lint_error(params.name, lint_err)
                 end
             end
 
@@ -496,7 +545,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
                 if lint_err then
-                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                    raise_lint_error(params.name, lint_err)
                 end
             end
 
@@ -517,7 +566,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, ret, params.name, true)
                 if lint_err then
-                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                    raise_lint_error(params.name, lint_err)
                 end
             end
 
@@ -558,7 +607,7 @@ function SVBuilder:add(typ)
                 local lint_err = run_sv_lint(self, cg_raw .. "\n" .. f("%s %s = new;", params.name, inst_name),
                     params.name)
                 if lint_err then
-                    assert(false, f("[SVBuilder] lint error in '%s': %s", params.name, lint_err))
+                    raise_lint_error(params.name, lint_err)
                 end
             end
 
