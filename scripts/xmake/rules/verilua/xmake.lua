@@ -72,6 +72,20 @@ end
 
 ---@alias SimulatorType "iverilog" | "verilator" | "vcs" | "xcelium" | "wave_vpi" | "nosim"
 
+--- Resolve whether Verilator mem_direct is enabled for this target.
+--- `set_values("verilua.verilator_mem_direct", ...)` wins; the env var
+--- `VL_XMK_VERILATOR_MEM_DIRECT` only applies when the xmake value is unset.
+--- Env value validation lives in `before_build_or_run` (this helper also runs
+--- in description scope where `assert` is unavailable).
+---@return boolean
+local function mem_direct_enabled(target)
+    local value = get_verilua_value(target, "verilua.verilator_mem_direct")
+    if not value then
+        value = os.getenv("VL_XMK_VERILATOR_MEM_DIRECT")
+    end
+    return (value == "1") or (type(value) == "table" and value[1] == "1")
+end
+
 ---@alias InstrumentationType "cov_exporter"
 
 ---@class CovExporterConfig: {module: string, disable_signal?: string, clock?: string, recursive?: boolean}
@@ -402,6 +416,21 @@ return cfg
     target:add("runenvs", "VL_TARGET_NAME", target:name())
     target:add("runenvs", "VL_BUILD_DIR", build_dir)
 
+    -- mem_direct table library is loaded by `MemDirect.lua` via this path.
+    -- Artifact-driven: `VL_XMK_VERILATOR_MEM_DIRECT` is a build-time knob, so at run
+    -- phase the presence of libmem_direct.so (kept in sync by on_build) is the truth.
+    if sim == "verilator" then
+        local env_mem_direct = os.getenv("VL_XMK_VERILATOR_MEM_DIRECT")
+        assert(
+            env_mem_direct == nil or env_mem_direct == "0" or env_mem_direct == "1",
+            "[before_build_or_run] environment variable VL_XMK_VERILATOR_MEM_DIRECT should be 0 or 1"
+        )
+        local mem_direct_so = path.join(build_dir, "libmem_direct.so")
+        if mem_direct_enabled(target) or os.isfile(mem_direct_so) then
+            target:add("runenvs", "VL_MEM_DIRECT_SO", mem_direct_so)
+        end
+    end
+
     -- Extra info provided by instrumentation
     local _instrumentation = get_verilua_value(target, "verilua.instrument")
     if _instrumentation then
@@ -482,6 +511,7 @@ rule("verilua", function()
         local argv = {}
         local toolchain = ""
         local buildcmd = ""
+        local verilator_bin = nil
 
         --- Check if user has set `verilua.no_internal_clock`
         --- Verilua will generate a clock signal internally if `verilua.no_internal_clock` is not set.
@@ -705,6 +735,13 @@ rule("verilua", function()
                 )
             else
                 extra_verilator_flags[#extra_verilator_flags + 1] = "--public-flat-rw"
+            end
+
+            if mem_direct_enabled(target) then
+                -- libmem_direct.so resolves Verilated runtime symbols from the
+                -- simulation executable. Verilator < 5.050 does not add this
+                -- export flag automatically for --vpi builds.
+                extra_verilator_flags[#extra_verilator_flags + 1] = [[-LDFLAGS "-rdynamic"]]
             end
 
             -- Enables slow optimizations for the code Verilator itself generates. -O3 may improve simulation performance at the cost of compile time.
@@ -1519,6 +1556,7 @@ rule("verilua", function()
             )
             buildcmd = find_file("verilator", { "$(env PATH)" }) or
                 assert(toolchain:config("verilator"), "[on_build] verilator not found!")
+            verilator_bin = buildcmd
 
             apply_build_flags(argv)
         elseif sim == "iverilog" then
@@ -1671,6 +1709,126 @@ rule("verilua", function()
 
                 local nproc = os.cpuinfo().ncpu or 128
                 local tb_top_mk = path.join(sim_build_dir, "V" .. tb_top .. ".mk")
+
+                -- Optional mem_direct: parse generated ___024root.h, emit the entry-table TU,
+                -- then compile it into a standalone shared library. The generated TU only has
+                -- compile-time dependencies on Verilator headers, so it is NOT linked into the
+                -- simulator binary; MemDirect.lua loads it at runtime via `VL_MEM_DIRECT_SO`.
+                if mem_direct_enabled(target) then
+                    local root_hdr = path.join(sim_build_dir, "V" .. tb_top .. "___024root.h")
+                    assert(
+                        os.isfile(root_hdr),
+                        "[on_build] verilua.verilator_mem_direct=1 but root header not found: %s",
+                        root_hdr
+                    )
+
+                    local gen_script = path.join(verilua_home, "src", "mem_direct_gen", "mem_direct_gen.py")
+                    assert(os.isfile(gen_script), "[on_build] mem_direct_gen.py not found: %s", gen_script)
+                    local out_cpp = path.join(build_dir, "mem_direct_generated.cpp")
+                    local out_so = path.join(build_dir, "libmem_direct.so")
+                    local root_class = "V" .. tb_top .. "___024root"
+
+                    ---@param val nil|string|table
+                    ---@return string[]
+                    local function flatten_patterns(val)
+                        local out = {}
+                        if val == nil then
+                            return out
+                        end
+                        if type(val) == "string" then
+                            if val ~= "" then
+                                out[#out + 1] = val
+                            end
+                            return out
+                        end
+                        if type(val) == "table" then
+                            for _, item in ipairs(val) do
+                                if type(item) == "string" and item ~= "" then
+                                    out[#out + 1] = item
+                                elseif type(item) == "table" then
+                                    for _, sub in ipairs(item) do
+                                        if type(sub) == "string" and sub ~= "" then
+                                            out[#out + 1] = sub
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        return out
+                    end
+
+                    local includes = flatten_patterns(get_verilua_value(target, "verilua.verilator_mem_direct_include"))
+                    local excludes = flatten_patterns(get_verilua_value(target, "verilua.verilator_mem_direct_exclude"))
+                    local gen_argv = { gen_script, root_hdr, out_cpp, root_class }
+                    for _, pat in ipairs(includes) do
+                        gen_argv[#gen_argv + 1] = "--include"
+                        gen_argv[#gen_argv + 1] = pat
+                    end
+                    for _, pat in ipairs(excludes) do
+                        gen_argv[#gen_argv + 1] = "--exclude"
+                        gen_argv[#gen_argv + 1] = pat
+                    end
+
+                    cprint(
+                        "${✅} [verilua-xmake] [%s] generating mem_direct sources from ${green underline}%s${reset}",
+                        target:name(),
+                        root_hdr
+                    )
+                    if #includes > 0 or #excludes > 0 then
+                        cprint(
+                            "${✅} [verilua-xmake] [%s] mem_direct filter include=%d exclude=%d",
+                            target:name(),
+                            #includes,
+                            #excludes
+                        )
+                    end
+                    os.vrunv("python3", gen_argv)
+                    assert(os.isfile(out_cpp), "[on_build] mem_direct_gen did not write %s", out_cpp)
+
+                    -- Compile the generated TUs into a standalone .so against the freshly
+                    -- generated Verilator headers. Offset chunk TUs each include the huge
+                    -- root header, so compile all TUs in parallel and then link.
+                    local verilator_root = os.iorunv(verilator_bin, { "--getenv", "VERILATOR_ROOT" }):trim()
+                    assert(verilator_root ~= "", "[on_build] `verilator --getenv VERILATOR_ROOT` returned empty")
+                    local cxx = os.getenv("CXX") or "g++"
+                    local md_srcs = os.files(path.join(build_dir, "mem_direct_generated*.cpp"))
+                    assert(#md_srcs > 0, "[on_build] generator produced no mem_direct_generated*.cpp")
+                    local cxxflags = f(
+                        "-std=c++20 -O2 -fPIC -I%s -I%s -I%s",
+                        sim_build_dir,
+                        path.join(verilator_root, "include"),
+                        path.join(verilator_root, "include", "vltstd")
+                    )
+                    local compile_script = { "set -e" }
+                    local md_objs = {}
+                    for _, src in ipairs(md_srcs) do
+                        md_objs[#md_objs + 1] = src .. ".o"
+                        compile_script[#compile_script + 1] = f("%s %s -c %s -o %s.o &", cxx, cxxflags, src, src)
+                    end
+                    compile_script[#compile_script + 1] = "wait"
+                    local md_objs_str = table.concat(md_objs, " ")
+                    -- -z now: unresolved Verilated symbols fail loudly at dlopen
+                    -- instead of aborting at first lazy-bound call.
+                    compile_script[#compile_script + 1] = f("%s -shared -Wl,-z,now %s -o %s", cxx, md_objs_str, out_so)
+                    compile_script[#compile_script + 1] = f("rm -f %s", md_objs_str)
+                    cprint(
+                        "${✅} [verilua-xmake] [%s] compiling mem_direct library (%d TUs in parallel)",
+                        target:name(),
+                        #md_srcs
+                    )
+                    os.execv(os.shell(), { "-c", table.concat(compile_script, "\n") })
+                    assert(os.isfile(out_so), "[on_build] failed to build %s", out_so)
+                    cprint(
+                        "${✅} [verilua-xmake] [%s] mem_direct library is ${green underline}%s${reset}",
+                        target:name(),
+                        out_so
+                    )
+                else
+                    -- Keep artifacts in sync with the latest build config so a stale .so
+                    -- from a previously enabled build cannot silently re-enable mem_direct.
+                    os.tryrm(path.join(build_dir, "libmem_direct.so"))
+                    os.tryrm(path.join(build_dir, "mem_direct_generated*.cpp"))
+                end
 
                 -- OPT_SLOW applies to slow-path code, which rarely executes, often only once at the beginning or end of the simulation.
                 local opt_slow = user_opt_slow or "-O0"
