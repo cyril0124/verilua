@@ -1,3 +1,4 @@
+#include "verilua_version.h"
 #include "wave_vpi.h"
 
 #include <csignal>
@@ -27,10 +28,12 @@ int main(int argc, const char *argv[]) {
     const char *prog     = "wave_vpi_main";
     const char *waveHelp = "input wave file for wave vpi(VCD, FST)";
 #endif
+    verilua_check_version_arg(argc, argv, prog);
     auto print_usage = [&]() {
         std::cerr << prog << " " << VERILUA_VERSION << "\n"
                   << "  -w, --wave-file FILE   " << waveHelp << "\n"
                   << "  --hierarchy-only       only load hierarchy, skip signal data and time table\n"
+                  << "  --version              print version information and exit\n"
                   << "  -h, --help             show this help\n";
     };
 

@@ -2,6 +2,7 @@
 #include "exporter_rewriter.h"
 #include "render_dpi_file.h"
 #include "signal_info_getter.h"
+#include "verilua_version.h"
 
 using json   = nlohmann::json;
 namespace fs = std::filesystem;
@@ -597,6 +598,8 @@ add_senstive_trigger = add_sensitive_trigger
 
 int main(int argc, char **argv) {
     OS::setupConsole();
+    verilua_check_version_arg(argc, argv, "dpi_exporter");
+
     DPIExporter dpiExporter;
 
     if (dpiExporter.parseCommandLine(argc, argv) == 0) {

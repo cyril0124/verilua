@@ -1,10 +1,13 @@
 // signal_db_gen — CLI binary entry point.
 
 #include "signal_db_gen_core.h"
+#include "verilua_version.h"
 
 int main(int argc, char **argv) {
     try {
         OS::setupConsole();
+        verilua_check_version_arg(argc, argv, "signal_db_gen");
+
         WrappedDriver wDriver;
 
         // Parse command line to get `outfile` option

@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **Tools**: All bundled CLI tools (`cov_exporter`, `dpi_exporter`, `testbench_gen`, `signal_db_gen`, `sv_lint`, `nosim`, `wave_vpi_main`, `wave_vpi_main_fsdb`) now support `--version`, which prints `<tool> <verilua-version>` (from the root `VERSION` file) and exits 0. `nosim` handles `--version` before any initialization, so it no longer panics on the missing `VL_LUA_SCRIPT` environment variable.
 - **SVBuilder**: On `sv_lint` failure, write slang's lint input to `/tmp/sv_builder_lint_<random>.sv`. The error lists that path on its own `dump:` line and reprints the slang diagnostic against the dump file. The failing statement is not added to the builder.
 
 ### ⚙️ Changed

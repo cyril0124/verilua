@@ -1,4 +1,5 @@
 #include "nosim.h"
+#include "verilua_version.h"
 #include "vpi_compat.h"
 
 extern "C" int signal_db_gen_main(const char *argList);
@@ -7,6 +8,8 @@ extern "C" int signal_db_gen_main(const char *argList);
 extern "C" void vlog_startup_routines_bootstrap();
 
 int main(int argc, char **argv) {
+    verilua_check_version_arg(argc, argv, "nosim");
+
     bool build = false;
 
     // Transform argVec into string

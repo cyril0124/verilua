@@ -24,7 +24,8 @@ target("sv_lint", function()
 
     add_includedirs(
         curr_dir,
-        path.join(libs_dir, "include")
+        path.join(libs_dir, "include"),
+        path.join(prj_dir, "src", "include")
     )
 
     add_links("svlang", "fmt") -- mimalloc lives in libsvlang.a

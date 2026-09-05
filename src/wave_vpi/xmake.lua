@@ -100,6 +100,10 @@ target("wave_vpi_main_fsdb", function()
     before_build(function(target)
         assert(os.host() == "linux", "[wave_vpi_main_fsdb] `wave_vpi_main_fsdb` is only supported on linux")
 
+        -- Add version info (this before_build overrides the common one in wave_vpi_main_common)
+        local version = io.readfile(path.join(prj_dir, "VERSION")):trim()
+        target:add("defines", format([[VERILUA_VERSION="%s"]], version))
+
         local verdi = try { function() return os.iorunv("which", { "verdi" }):trim() end }
         assert(verdi and verdi ~= "", "[wave_vpi_main_fsdb] `verdi` is not found in PATH!")
 

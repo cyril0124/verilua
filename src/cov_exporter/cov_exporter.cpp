@@ -8,6 +8,7 @@
 #include "cov_info_getter.h"
 #include "cov_info_writter.h"
 #include "slang/syntax/SyntaxPrinter.h"
+#include "verilua_version.h"
 
 using json = nlohmann::json;
 json metaInfoJson;
@@ -327,6 +328,8 @@ struct CovExporter {
 };
 
 int main(int argc, char **argv) {
+    verilua_check_version_arg(argc, argv, "cov_exporter");
+
     CovExporter covExporter;
     covExporter.parse(argc, argv);
     return 0;

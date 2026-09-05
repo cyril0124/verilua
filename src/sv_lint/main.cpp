@@ -7,15 +7,21 @@
 // lint failure (first diagnostic printed to stderr).
 
 #include "sv_lint_core.h"
+#include "verilua_version.h"
 
 #include "fmt/core.h"
 
 #include <cstring>
 
-static void printUsage() { fmt::println(stderr, "Usage: sv_lint --text '<sv_code>'"); }
+static void printUsage() {
+    fmt::println(stderr, "Usage: sv_lint --text '<sv_code>'");
+    fmt::println(stderr, "       sv_lint --version");
+}
 
 int main(int argc, char *argv[]) {
     std::string svText;
+
+    verilua_check_version_arg(argc, argv, "sv_lint");
 
     // Parse arguments: --text '<code>'
     for (int i = 1; i < argc; ++i) {

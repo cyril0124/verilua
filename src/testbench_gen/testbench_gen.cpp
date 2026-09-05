@@ -1,10 +1,13 @@
 #include "testbench_gen.h"
+#include "verilua_version.h"
 
 using json   = nlohmann::json;
 namespace fs = std::filesystem;
 
 int main(int argc, const char *argv[]) {
     OS::setupConsole();
+    verilua_check_version_arg(argc, argv, "testbench_gen");
+
     slang::driver::Driver driver;
 
     std::vector<std::string> _files;
