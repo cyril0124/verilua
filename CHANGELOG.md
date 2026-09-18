@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **xmake / verilua rule**: Rename `set_values("verilua.version_required", ...)` to `set_values("verilua.require_version", ...)`. The old name keeps working and prints a deprecation warning.
 - **xmake / verilua rule**: `verilua.user_cfg` accepts multiple config files, through `set_values("verilua.user_cfg", "common/cfg.lua", "case/cfg.lua")` or `add_values(...)`. Files are merged in declaration order. Later files override duplicate ordinary keys, while `srcs` and `deps` are appended. Debug logs report duplicate keys. While a file loads, only its config directory is added among the user config paths. Config files are loaded by absolute path with `dofile()`, so a user config file no longer lands in `package.loaded` and can no longer be a bundled `.vlbc` module.
 
+---
+
+## v4.0.1 - 2026-09-18
+
 ### 🐛 Fixed
 
 - **SVBuilder**: The generated `final` block coverage report now calls `inst.get_coverage()` instead of `inst.get_inst_coverage()`. `get_inst_coverage()` is only meaningful with `option.per_instance = 1` (default `0`); without it a simulator need not keep per-instance data, and the report could print `0.00%` even with all bins hit. SVBuilder creates exactly one instance per covergroup, so type coverage equals instance coverage.
