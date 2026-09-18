@@ -1,6 +1,6 @@
 # SV 生成（SVBuilder）
 
-SVBuilder 是 Verilua 提供的 SystemVerilog 生成工具，支持 SVA（断言/覆盖）和 covergroup（功能覆盖率）。它的核心价值在于**复用 Verilua testbench 中已有的信号 handle**，结合 Lua 的编程能力（循环、条件、模板），批量生成可嵌入 RTL 的 SV 文本，由仿真器原生引擎执行。
+SVBuilder 是 Verilua 提供的 SystemVerilog 生成工具，用于生成 SVA 断言/cover 语句和 covergroup（功能覆盖率）。它复用 Verilua testbench 中已有的信号 handle，结合 Lua 的循环、条件、模板能力，批量生成可嵌入 RTL 的 SV 文本，由仿真器原生引擎执行。
 
 ## 什么时候使用
 
@@ -219,6 +219,16 @@ ctx:set_lint(true)   -- 重新开启
 
 返回 `self`，支持链式调用。
 
+### `ctx:set_coverage_report(enable)`
+
+启用或禁用 covergroup 的 `final` coverage 报告（默认开启）。
+
+```lua
+ctx:set_coverage_report(false)
+```
+
+返回 `self`，支持链式调用。
+
 ### `ctx:generate()`
 
 返回生成的完整 SVA 文本字符串。等价于 `tostring(ctx)`。
@@ -409,7 +419,7 @@ endproperty
 assert property (aw_valid_hold);
 ```
 
-用 SVBuilder，信号路径从 testbench 已有的 handle 自动提取：
+用 SVBuilder，信号路径从 testbench 已有的 handle 自动提取。路径变了（比如模块重命名）只需改 testbench 一处，生成的 SVA 随之更新：
 
 ```lua
 -- SVBuilder：复用 testbench 里的 handle，路径自动解析
@@ -430,11 +440,6 @@ ctx:add "assert" {
     expr = "$(prop:aw_valid_hold)",
 }
 ```
-
-优势：
-- 信号路径只在 testbench 里定义一次，不用在 SVA 里重复拼写
-- 路径改了（比如模块重命名），只需改 testbench 一处，SVA 自动更新
-- lint 即时检查语法正确性
 
 ### 示例 2：批量生成
 
@@ -458,7 +463,7 @@ endproperty
 chk_ar: assert property (ar_valid_hold);
 ```
 
-SVBuilder 只需一个循环：
+SVBuilder 只需一个循环。新增 channel 在 `channels` 表里加一行即可，断言逻辑只写一份，不会漏改某个 channel：
 
 ```lua
 local channels = {
@@ -480,11 +485,6 @@ for _, ch in ipairs(channels) do
 end
 ```
 
-优势：
-- 新增 channel 只需在 `channels` 表里加一行，不用复制粘贴断言代码
-- 断言逻辑只写一次，修改时不会漏改某个 channel
-- 每条生成的断言都经过 lint 检查，拼写错误立即暴露
-
 ### 示例 3：模板渲染能力
 
 当断言逻辑本身包含重复模式时，可以用 `expr` 内置的模板引擎（`#` 开头的 Lua 代码行 + `$(expr)` 内联求值）直接在表达式内部展开。
@@ -501,7 +501,7 @@ sequence burst_nonzero();
 endsequence
 ```
 
-SVBuilder 用模板循环生成：
+SVBuilder 用模板循环生成，beat 数量变化时只改循环边界，信号 handle 和循环变量可以混用：
 
 ```lua
 ctx:add "sequence" {
@@ -523,11 +523,6 @@ ctx:add "sequence" {
 ```systemverilog
 sequence burst_nonzero(); (top.dut.wdata[0] != 0) ##1 (top.dut.wdata[1] != 0) ##1 (top.dut.wdata[2] != 0) ##1 (top.dut.wdata[3] != 0); endsequence
 ```
-
-优势：
-- beat 数量变化时只改循环边界，不用手动增删行
-- 模板内可以用任意 Lua 逻辑（条件、函数调用、计算）控制生成内容
-- 信号 handle 和循环变量可以混合使用
 
 ## Covergroup 生成
 
@@ -643,7 +638,7 @@ ctx:add "covergroup" {
 
 ### sv_lint 检查
 
-covergroup 同样受 sv_lint 自动检查保护，能在定义时捕获：
+sv_lint 同样检查 covergroup，能在定义时捕获：
 
 - 重复的 bins/coverpoint 名称
 - cross 引用不存在的 coverpoint
