@@ -256,7 +256,7 @@ local function before_build_or_run(target)
     local sourcefiles = target:sourcefiles()
     for _, sourcefile in ipairs(sourcefiles) do
         local ext = path.extension(sourcefile)
-        if ext == ".lua" or ext == ".luau" or ext == ".tl" or ext == ".vlbc" then
+        if ext == ".lua" or ext == ".vlbc" then
             local dir = path.directory(path.absolute(sourcefile))
             local last_dir = path.normalize(path.join(dir, ".."))
             local last_last_dir = path.normalize(path.join(dir, "..", ".."))
@@ -457,7 +457,7 @@ end
 
 rule("verilua", function()
     add_imports("lib.detect.find_file")
-    set_extensions(".v", ".sv", ".svh", ".lua", ".luau", ".tl", ".d.tl", ".vlbc", ".vlt", ".vcd", ".fst", ".fsdb")
+    set_extensions(".v", ".sv", ".svh", ".lua", ".vlbc", ".vlt", ".vcd", ".fst", ".fsdb")
 
     before_build(before_build_or_run)
 
@@ -1607,7 +1607,7 @@ rule("verilua", function()
                 local ext = path.extension(sourcefile) --[[@as string]]
                 local abs_sourcefile = path.absolute(sourcefile)
                 cprint("${📄} read file ${green dim}%s${reset}", abs_sourcefile)
-                if ext ~= ".lua" and ext ~= ".luau" and ext ~= ".tl" then
+                if ext ~= ".lua" then
                     if ext == ".vlt" then
                         if sim == "verilator" then
                             -- Ignore "*.vlt" file if current simulator is not verilator
