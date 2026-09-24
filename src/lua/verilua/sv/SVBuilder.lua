@@ -46,7 +46,7 @@ local setmetatable = setmetatable
 ---@field private lint_enabled boolean Whether automatic sv_lint checking is active on each `add` call.
 ---@field private _lint_dump_paths string[] Absolute paths of lint-fail dumps written this process.
 ---@field with_global_envs fun(self: verilua.sv.SVBuilder, envs: table<string, any>): verilua.sv.SVBuilder Register global template variables for all subsequent `add` calls.
----@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | nil Curried entry point: select type, then pass params.
+---@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | string | nil Curried entry point: select type, then pass params. `add "covergroup"` returns the generated instance name (`_GEN_<name>_inst`).
 ---@field default_clocking fun(self: verilua.sv.SVBuilder, signal: string|verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sv.SVBuilder Set the default sampling clock for SVA and covergroups.
 ---@field clean fun(self: verilua.sv.SVBuilder): verilua.sv.SVBuilder Reset all internal state to empty.
 ---@field set_lint fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable automatic sv_lint checking on each `add` call.
@@ -622,7 +622,10 @@ function SVBuilder:add(typ)
                 name = params.name,
                 inst_name = inst_name,
             }
-            return
+
+            -- Hand back the generated instance name so callers can build SV text
+            -- that references this covergroup, e.g. an explicit `sample()` call.
+            return inst_name
         else
             assert(false, "[SVBuilder] add error: unknown type `" .. typ .. "`")
         end

@@ -180,7 +180,8 @@ ctx:add "raw"        { name = "helper", expr = "logic sample_en;" }
 
 - `"sequence"` → 返回 `Sequence` handle（可通过 `$(seq:name)` 引用）
 - `"property"` → 返回 `Property` handle（可通过 `$(prop:name)` 引用）
-- `"cover"` / `"assert"` / `"covergroup"` / `"raw"` → 返回 `nil`
+- `"covergroup"` → 返回该 covergroup 的实例名字符串（`_GEN_<name>_inst`，见下文「显式采样」）
+- `"cover"` / `"assert"` / `"raw"` → 返回 `nil`
 
 ### `ctx:default_clocking(signal, edge_type, overwrite?)`
 
@@ -585,7 +586,7 @@ end
 |------|------|------|------|
 | `name` | string | ✓ | covergroup 名称（必须唯一） |
 | `expr` | string | ✓ | covergroup 体（coverpoint/bins/cross/option），支持 `$(var)` 模板语法 |
-| `sample_event` | string | ✗ | 覆盖默认采样事件（默认复用 `default_clocking`） |
+| `sample_event` | string | ✗ | 覆盖默认采样事件（默认复用 `default_clocking`）；也支持 `"with function sample(...)"` 声明显式采样形参 |
 | `envs` | table | ✗ | 模板变量，handle 自动解析为 XMR 路径 |
 
 ### 自动生成内容
@@ -619,6 +620,60 @@ ctx:add "covergroup" {
 ```lua
 ctx:set_coverage_report(false)  -- 禁用 final block 生成
 ```
+
+### 显式采样（with function sample）
+
+`sample_event` 写成 `with function sample(...)` 时，covergroup 头不带 `@()`，采样由外部显式调用 `sample()` 决定。形参在该 covergroup 体内直接可见，反过来说：这些形参在 `add "assert"` / `add "cover"` 生成的上行 SVA 里不可见，`envs` 也影响不到它们。
+
+`add "covergroup"` 返回该 covergroup 的实例名字符串（`_GEN_<name>_inst`），采样调用点用它拼出来即可，不必自己记实例名格式。
+
+采样调用点要自己放进 SV。最方便是写进 `add "raw"`，把实例名通过 `envs` 交给模板引擎渲染：`raw` 里的内容统一输出在 covergroup 之前（不管 `add` 的顺序），而 module 作用域内只要求声明与使用同属一个 module，所以这条前向引用合法：
+
+```lua
+ctx:add "raw" {
+    name = "sample_decls",
+    expr = "logic clk;\nlogic [3:0] burst;\nlogic [7:0] len;",
+}
+
+local cg_inst = ctx:add "covergroup" {
+    name = "cg_axi_cmd",
+    sample_event = "with function sample(bit [3:0] burst, bit [7:0] len)",
+    expr = [[    cp_burst: coverpoint burst { bins incr = {4'd1}; }
+    cp_len: coverpoint len     { bins short = {[0:15]}; bins long = {[16:255]}; }]],
+}
+
+ctx:add "raw" {
+    name = "cg_axi_sample_driver",
+    expr = [[always @(posedge clk) begin
+    $(cg_inst).sample($(args));
+end]],
+    envs = { cg_inst = cg_inst, args = "burst, len" },
+}
+```
+
+例子里第一个 `raw` 只是让示例自带声明；实际工程里 `clk` / `burst` / `len` 由 `testbench_gen` 生成的 `tb_top` 提供，只要能解析，`sv_lint` 就不会在 `add` 阶段报未声明标识符。生成结果：
+
+```systemverilog
+logic clk;
+logic [3:0] burst;
+logic [7:0] len;
+
+always @(posedge clk) begin
+    _GEN_cg_axi_cmd_inst.sample(burst, len);
+end
+
+covergroup cg_axi_cmd with function sample(bit [3:0] burst, bit [7:0] len);
+    cp_burst: coverpoint burst { bins incr = {4'd1}; }
+    cp_len: coverpoint len     { bins short = {[0:15]}; bins long = {[16:255]}; }
+endgroup
+cg_axi_cmd _GEN_cg_axi_cmd_inst = new;
+
+final begin
+    $display("[COVERAGE] cg_axi_cmd: %.2f%%", _GEN_cg_axi_cmd_inst.get_coverage());
+end
+```
+
+返回的是普通字符串，用 `..` 直接拼接也可以。
 
 ### 使用模板批量生成 coverpoint
 

@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 🚀 Added
+
+- **SVBuilder**: `add "covergroup"` now returns the generated instance name (`_GEN_<name>_inst`) as a string, so an explicit sampling call site for a `with function sample` covergroup can be built without hard-coding the instance-name format. The call previously returned nothing.
+
 ---
 
 ## v4.1.0 - 2026-09-18

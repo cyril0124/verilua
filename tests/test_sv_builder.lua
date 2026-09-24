@@ -769,6 +769,72 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:clean()
     end)
 
+    it("returns the generated covergroup instance name", function()
+        ctx:set_lint(false)
+        ctx:default_clocking("top.dut.clk", "posedge")
+
+        local inst_name = ctx:add "covergroup" {
+            name = "cg_handle",
+            expr = "coverpoint top.dut.d { bins b = {0}; }",
+        }
+        expect.equal(type(inst_name), "string")
+        expect.equal(inst_name, "_GEN_cg_handle_inst")
+        -- The name is the identifier the covergroup is instantiated as.
+        assert(tostring(ctx):find("cg_handle _GEN_cg_handle_inst = new;", 1, true),
+            "expected the returned name to be the instantiated identifier, got: " .. tostring(ctx))
+
+        -- A plain string, so it is usable as a template variable as well.
+        ctx:add "raw" { name = "inst_env", expr = "// using $(inst)", envs = { inst = inst_name } }
+        assert(tostring(ctx):find("// using _GEN_cg_handle_inst", 1, true),
+            "expected the instance name to render, got: " .. tostring(ctx))
+
+        ctx:clean()
+    end)
+
+    it("covergroup instance name drives an explicit sample() call site", function()
+        ctx:set_lint(true)
+        ctx:add "raw" {
+            name = "sample_decls",
+            expr = "logic clk;\nlogic [3:0] burst;\nlogic [7:0] len;",
+        }
+
+        local inst_name = ctx:add "covergroup" {
+            name = "cg_axi_cmd",
+            sample_event = "with function sample(bit [3:0] burst, bit [7:0] len)",
+            expr = [[
+    cp_burst: coverpoint burst {
+        bins incr = {4'd1};
+    }]],
+        }
+
+        ctx:add "raw" {
+            name = "sample_driver",
+            expr = "always @(posedge clk) begin\n    $(cg_inst).sample($(args));\nend",
+            envs = { cg_inst = inst_name, args = "burst, len" },
+        }
+
+        local result = tostring(ctx)
+        assert(result:find("_GEN_cg_axi_cmd_inst.sample(burst, len);", 1, true),
+            "expected sample call site, got: " .. result)
+        assert(
+            result:find("covergroup cg_axi_cmd with function sample(bit [3:0] burst, bit [7:0] len);", 1, true),
+            "expected 'with function sample' header, got: " .. result
+        )
+        assert(result:find('[COVERAGE] cg_axi_cmd', 1, true),
+            "expected coverage report, got: " .. result)
+
+        ctx:set_lint(false)
+        ctx:clean()
+    end)
+
+    it("returns nothing for cover/assert/raw", function()
+        ctx:set_lint(false)
+        expect.equal(select("#", ctx:add("cover")({ name = "c_noret", expr = "x" })), 0)
+        expect.equal(select("#", ctx:add("assert")({ name = "a_noret", expr = "x" })), 0)
+        expect.equal(select("#", ctx:add("raw")({ name = "r_noret", expr = "logic x;" })), 0)
+        ctx:clean()
+    end)
+
     it("covergroup uses per-covergroup sample_event override", function()
         local clock_signal = {
             __type = "CallableHDL",
