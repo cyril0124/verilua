@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **SVBuilder**: `add "sequence"` and `add "property"` now accept an optional `formal_args` field (e.g. `formal_args = "logic req, logic ack"`). The string is emitted verbatim between the parentheses of the SV declaration, enabling parameterized sequences and properties.
 - **SVBuilder**: `add "covergroup"` now returns a `covergroup` handle `{ __type = "Covergroup", name, inst_name }` instead of a bare string. The `.inst_name` field holds the generated instance name (`_GEN_<name>_inst`). The handle is also registered under the new `cov:` namespace so `$(cov:my_cg)` in a subsequent `add "raw"` expression renders to `inst_name` without hard-coding the naming convention.
 
+### ⚙️ Changed
+
+- **testbench_gen**: `--help` now marks the `--cc` / `--ccs` / `--cco` / `--ccso` (`--custom-code*`) option names as deprecated aliases and points at `--iif` / `--iis` / `--iof` / `--ios` (`--inject-*`). The aliases keep working; only the help text changed.
+
 ---
 
 ## v4.1.0 - 2026-09-18

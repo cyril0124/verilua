@@ -32,10 +32,11 @@ int main(int argc, const char *argv[]) {
     driver.cmdLine.add("--od,--out-dir", _outdir, "output directory", "<directory>");
     driver.cmdLine.add("--cs,--clock-signal", _clockSignalName, "clock signal name", "<signal name>");
     driver.cmdLine.add("--rs,--reset-signal", _resetSignalName, "reset signal name", "<signal name>");
-    driver.cmdLine.add("--iif,--inject-inner-file,--cc,--custom-code", _customCodeFile, "inject code from <file> into the testbench module inner (bottom, before endmodule)", "<file>");
-    driver.cmdLine.add("--iis,--inject-inner-str,--ccs,--custom-code-str", _customCodeStr, "inject code from <string> into the testbench module inner (bottom, before endmodule)", "<string>");
-    driver.cmdLine.add("--iof,--inject-outer-file,--cco,--custom-code-outer", _customCodeOuterFile, "inject code from <file> into the testbench module outer (before module declaration)", "<file>");
-    driver.cmdLine.add("--ios,--inject-outer-str,--ccso,--custom-code-str-outer", _customCodeStrOuter, "inject code from <string> into the testbench module outer (before module declaration)", "<string>");
+    // The --cc* / --custom-* aliases are deprecated, keep them working but document the replacement.
+    driver.cmdLine.add("--iif,--inject-inner-file,--cc,--custom-code", _customCodeFile, "inject code from <file> into the testbench module inner (bottom, before endmodule). Deprecated alias: --cc/--custom-code", "<file>");
+    driver.cmdLine.add("--iis,--inject-inner-str,--ccs,--custom-code-str", _customCodeStr, "inject code from <string> into the testbench module inner (bottom, before endmodule). Deprecated alias: --ccs/--custom-code-str", "<string>");
+    driver.cmdLine.add("--iof,--inject-outer-file,--cco,--custom-code-outer", _customCodeOuterFile, "inject code from <file> into the testbench module outer (before module declaration). Deprecated alias: --cco/--custom-code-outer", "<file>");
+    driver.cmdLine.add("--ios,--inject-outer-str,--ccso,--custom-code-str-outer", _customCodeStrOuter, "inject code from <string> into the testbench module outer (before module declaration). Deprecated alias: --ccso/--custom-code-str-outer", "<string>");
     driver.cmdLine.add("--fl,--filelist", _files, "input file or filelist", "<file/filelist>");
     driver.cmdLine.add("-p,--period", _period, "clock period", "<period value>");
     driver.cmdLine.add("--vb,--verbose", _verbose, "verbose output");
