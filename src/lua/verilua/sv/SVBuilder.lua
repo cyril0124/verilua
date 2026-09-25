@@ -18,6 +18,7 @@ local setmetatable = setmetatable
 ---@class verilua.sv.SVBuilder.sequence
 ---@field __type "Sequence" Discriminator tag.
 ---@field name string The sequence identifier as declared in SV.
+---@field formal_args string Formal parameter list as declared (empty string when none).
 
 --- Handle returned by `add "covergroup"`, used to reference a covergroup instance via `$(cov:name)`.
 ---@class verilua.sv.SVBuilder.covergroup
@@ -433,13 +434,24 @@ function SVBuilder:add(typ)
         -- of the same name still wins (guarded by the rawget check).
         for name in pairs(self.seq_envs) do
             if rawget(final_envs, name) == nil then
-                ---@diagnostic disable-next-line: assign-type-mismatch
-                final_envs[name] = {
-                    __render_error = f(
+                local seq = self.seq_envs[name]
+                local hint
+                if seq.formal_args ~= "" then
+                    -- Sequence has formal parameters; a bare name is invalid in SV.
+                    -- The error message shows the declared args so the caller knows what to pass.
+                    hint = f(
+                        "[SVBuilder] sequence `%s` has formal_args `%s`; bare `$(%s)` is invalid -- "
+                        .. "use `$(seq:%s)` and pass arguments, e.g. `$(seq:%s)(arg1, arg2)`",
+                        name, seq.formal_args, name, name, name
+                    )
+                else
+                    hint = f(
                         "[SVBuilder] cannot reference sequence `%s` as a flat `$(%s)`; use the `seq:` prefix, e.g. `$(seq:%s)`",
                         name, name, name
-                    ),
-                }
+                    )
+                end
+                ---@diagnostic disable-next-line: assign-type-mismatch
+                final_envs[name] = { __render_error = hint }
             end
         end
         for name in pairs(self.prop_envs) do
@@ -582,6 +594,7 @@ function SVBuilder:add(typ)
             local sequence = {
                 __type = "Sequence",
                 name = params.name,
+                formal_args = formal_args,
             }
             -- Sequences are reachable only via `$(seq:name)`, never flat.
             self.seq_envs[params.name] = sequence

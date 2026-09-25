@@ -219,6 +219,47 @@ property no_overflow_p(logic ovf); !ovf; endproperty
         ctx:clean()
     end)
 
+    it("sequence with formal_args: lint catches bare $(seq:name), explicit args work", function()
+        ctx:set_lint(true)
+        -- Declare signals so lint can type-check the expression.
+        ctx:add "raw" { name = "fa_decls", expr = "logic req;\nlogic ack;" }
+        ctx:add "sequence" {
+            name = "handshake_p",
+            formal_args = "logic req, logic ack",
+            expr = "req ##1 ack",
+        }
+
+        -- Bare $(seq:handshake_p) renders as `handshake_p` with no args;
+        -- slang rejects the resulting SV because the sequence requires arguments.
+        local ok, err = pcall(function()
+            ctx:add "assert" { name = "chk_bare", expr = "$(seq:handshake_p) |-> 1" }
+        end)
+        expect.equal(ok, false)
+        local err_str = tostring(err)
+        assert(
+            err_str:find("too few arguments", 1, true) or err_str:find("lint error", 1, true),
+            "expected lint error about missing arguments, got: " .. err_str
+        )
+
+        -- $(seq:handshake_p)(req, ack) passes arguments explicitly and renders correctly.
+        ctx:set_lint(false)
+        local ok2, err2 = pcall(function()
+            ctx:add "assert" {
+                name = "chk_with_args",
+                expr = "$(seq:handshake_p)($(req), $(ack)) |-> 1",
+                envs = { req = "top.dut.req", ack = "top.dut.ack" },
+            }
+        end)
+        expect.equal(ok2, true, "expected parameterized call to succeed, err: " .. tostring(err2))
+        assert(
+            tostring(ctx):find("handshake_p(top.dut.req, top.dut.ack)", 1, true),
+            "expected parameterized sequence call, got: " .. tostring(ctx)
+        )
+
+        ctx:set_lint(false)
+        ctx:clean()
+    end)
+
     it("can reference sequence/property via seq:/prop: namespace", function()
         ctx:add "sequence" {
             name = "handshake",

@@ -239,7 +239,7 @@ ctx:set_coverage_report(false)
 
 重置所有状态（sequences、properties、content、envs、default clocking）。返回 `self`。
 
-## 命名空间引用：`$(seq:name)` / `$(prop:name)`
+## 命名空间引用：`$(seq:name)` / `$(prop:name)` / `$(cov:name)`
 
 通过 `ctx:add "sequence"` 或 `ctx:add "property"` 定义的语句，必须通过命名空间前缀引用：
 
@@ -260,9 +260,38 @@ ctx:add "assert" { name = "a1", expr = "$(prop:p1)" }
 use the `seq:` prefix, e.g. `$(seq:hs)`
 ```
 
+### 带 `formal_args` 的 sequence 实参传递
+
+如果 sequence 声明了 `formal_args`，在 `expr` 里引用时需要在 `$(seq:name)` 后面直接跟括号传入实参。`$(seq:name)` 渲染为 sequence 名称，括号和其中的模板表达式由引擎继续展开：
+
+```lua
+ctx:add "sequence" {
+    name = "handshake",
+    formal_args = "logic req, logic ack",
+    expr = "req ##1 ack",
+}
+
+-- 在引用处传入实参：$(seq:handshake) 渲染为 "handshake"，
+-- ($(req), $(ack)) 继续由模板引擎展开
+ctx:add "assert" {
+    name = "chk",
+    expr = "$(seq:handshake)($(req), $(ack)) |-> !$(err)",
+    envs = { req = dut.req, ack = dut.ack, err = dut.err },
+}
+-- 生成: handshake(top.dut.req, top.dut.ack) |-> !top.dut.err
+```
+
+如果有 `formal_args` 的 sequence 被裸 `$(seq:name)` 引用（不传实参），SV 是非法的，sv_lint 会在 `add` 阶段报出 slang 错误：
+
+```
+[SVBuilder] lint error in 'chk'
+error: too few arguments for 'handshake'; expected 2 but 0 were provided
+```
+
 这样设计的好处：
 - 引用点一眼能看出类型（sequence 还是 property）
 - sequence/property 不会和普通 env 变量命名冲突
+- 有形参的 sequence 缺实参时，lint 在定义阶段即报错，不会等到仿真器运行时才发现
 
 ## 模板语法
 
