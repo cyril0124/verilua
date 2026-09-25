@@ -19,10 +19,17 @@ local setmetatable = setmetatable
 ---@field __type "Sequence" Discriminator tag.
 ---@field name string The sequence identifier as declared in SV.
 
+--- Handle returned by `add "covergroup"`, used to reference a covergroup instance via `$(cov:name)`.
+---@class verilua.sv.SVBuilder.covergroup
+---@field __type "Covergroup" Discriminator tag.
+---@field name string The covergroup type identifier as declared in SV.
+---@field inst_name string The generated instance name (e.g. `_GEN_<name>_inst`).
+
 --- Parameters accepted by the curried `add(typ)(params)` call.
 ---@class verilua.sv.SVBuilder.add.params
 ---@field name string Unique statement name (becomes the SV identifier).
 ---@field expr string SV expression body; supports `$(var)` template substitution.
+---@field formal_args? string For `add "sequence"` and `add "property"` only: formal parameter list, e.g. `"logic req, logic ack"`. Emitted verbatim between the parentheses.
 ---@field cov_type? "sequence" | "property" For `add "cover"` only: wrap as sequence or property (default: "property").
 ---@field sample_event? string For `add "covergroup"` only: per-covergroup sampling event override (e.g. "posedge alt_clk").
 ---@field envs? table<string, any> Per-call template variables; merged on top of global_envs.
@@ -36,6 +43,7 @@ local setmetatable = setmetatable
 ---@field private global_envs table<string, any> Global template variables available to all `add` calls.
 ---@field private seq_envs table<string, verilua.sv.SVBuilder.sequence> Registry of defined sequences (accessed via `$(seq:name)`).
 ---@field private prop_envs table<string, verilua.sv.SVBuilder.property> Registry of defined properties (accessed via `$(prop:name)`).
+---@field private cov_envs table<string, verilua.sv.SVBuilder.covergroup> Registry of defined covergroups (accessed via `$(cov:name)`).
 ---@field private preamble_vec string[] Ordered list of raw preamble SV (decls/functions/always) emitted before default_clocking and SVA/covergroups.
 ---@field private sequence_vec string[] Ordered list of rendered sequence statements.
 ---@field private property_vec string[] Ordered list of rendered property statements.
@@ -46,7 +54,7 @@ local setmetatable = setmetatable
 ---@field private lint_enabled boolean Whether automatic sv_lint checking is active on each `add` call.
 ---@field private _lint_dump_paths string[] Absolute paths of lint-fail dumps written this process.
 ---@field with_global_envs fun(self: verilua.sv.SVBuilder, envs: table<string, any>): verilua.sv.SVBuilder Register global template variables for all subsequent `add` calls.
----@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | string | nil Curried entry point: select type, then pass params. `add "covergroup"` returns the generated instance name (`_GEN_<name>_inst`).
+---@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | verilua.sv.SVBuilder.covergroup | nil Curried entry point: select type, then pass params. `add "covergroup"` returns a `covergroup` handle whose `.inst_name` field holds the generated instance name; the handle is also accessible via `$(cov:name)` in subsequent `add "raw"` expressions.
 ---@field default_clocking fun(self: verilua.sv.SVBuilder, signal: string|verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sv.SVBuilder Set the default sampling clock for SVA and covergroups.
 ---@field clean fun(self: verilua.sv.SVBuilder): verilua.sv.SVBuilder Reset all internal state to empty.
 ---@field set_lint fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable automatic sv_lint checking on each `add` call.
@@ -59,6 +67,7 @@ local SVBuilder = {
     global_envs = {},
     seq_envs = {},
     prop_envs = {},
+    cov_envs = {},
     preamble_vec = {},
     sequence_vec = {},
     property_vec = {},
@@ -155,6 +164,7 @@ local function rewrite_ns_refs(expr, inline_escape, open_bracket)
     local anchor = pat_escape(inline_escape) .. pat_escape(open_bracket)
     expr = expr:gsub("(" .. anchor .. "%s*)seq:", "%1seq.")
     expr = expr:gsub("(" .. anchor .. "%s*)prop:", "%1prop.")
+    expr = expr:gsub("(" .. anchor .. "%s*)cov:", "%1cov.")
     return expr
 end
 
@@ -383,6 +393,14 @@ function SVBuilder:add(typ)
             )
         end
 
+        -- formal_args is only valid for sequence and property
+        if params.formal_args ~= nil then
+            assert(
+                typ == "sequence" or typ == "property",
+                "[SVBuilder] add error: `formal_args` is only valid for `sequence` or `property`, not `" .. typ .. "`"
+            )
+        end
+
         -- Merge envs: params.envs overrides global_envs
         local final_envs = {}
         for k, v in pairs(self.global_envs) do
@@ -403,6 +421,10 @@ function SVBuilder:add(typ)
         assert(
             rawget(final_envs, "prop") == nil,
             "[SVBuilder] add error: `envs` contains reserved key `prop`; this name is used for the property namespace"
+        )
+        assert(
+            rawget(final_envs, "cov") == nil,
+            "[SVBuilder] add error: `envs` contains reserved key `cov`; this name is used for the covergroup namespace"
         )
 
         -- Reserve the flat names of registered sequences/properties with a
@@ -432,10 +454,11 @@ function SVBuilder:add(typ)
             end
         end
 
-        -- Inject namespaced views so `$(seq:name)` / `$(prop:name)` resolve.
+        -- Inject namespaced views so `$(seq:name)` / `$(prop:name)` / `$(cov:name)` resolve.
         -- Injected last so they always shadow same-named plain envs / sentinels.
         final_envs.seq = self.seq_envs
         final_envs.prop = self.prop_envs
+        final_envs.cov = self.cov_envs
 
         for _, v in pairs(final_envs) do
             if type(v) == "table" and rawget(v, "__type") then
@@ -518,7 +541,8 @@ function SVBuilder:add(typ)
             self.unique_stmt_name_map[pre_content_name] = true
             return
         elseif typ == "property" then
-            local content_raw = f("property %s(); %s; endproperty", params.name, ret)
+            local formal_args = params.formal_args or ""
+            local content_raw = f("property %s(%s); %s; endproperty", params.name, formal_args, ret)
 
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
@@ -540,7 +564,8 @@ function SVBuilder:add(typ)
             self.prop_envs[params.name] = property
             return property
         elseif typ == "sequence" then
-            local content_raw = f("sequence %s(); %s; endsequence", params.name, ret)
+            local formal_args = params.formal_args or ""
+            local content_raw = f("sequence %s(%s); %s; endsequence", params.name, formal_args, ret)
 
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
@@ -623,9 +648,18 @@ function SVBuilder:add(typ)
                 inst_name = inst_name,
             }
 
-            -- Hand back the generated instance name so callers can build SV text
-            -- that references this covergroup, e.g. an explicit `sample()` call.
-            return inst_name
+            ---@type verilua.sv.SVBuilder.covergroup
+            local covergroup = {
+                __type = "Covergroup",
+                name = params.name,
+                inst_name = inst_name,
+            }
+            -- Covergroups are reachable via `$(cov:name)` in raw exprs, never flat.
+            self.cov_envs[params.name] = covergroup
+
+            -- Hand back the handle so callers access .inst_name without
+            -- knowing the internal naming convention.
+            return covergroup
         else
             assert(false, "[SVBuilder] add error: unknown type `" .. typ .. "`")
         end
@@ -704,6 +738,7 @@ function SVBuilder:clean()
     self.global_envs = {}
     self.seq_envs = {}
     self.prop_envs = {}
+    self.cov_envs = {}
     self.preamble_vec = {}
     self.sequence_vec = {}
     self.property_vec = {}

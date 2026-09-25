@@ -234,6 +234,9 @@ function template.compile(str, opts)
                 elseif v.__type == "Property" then
                     ---@cast v verilua.sv.SVBuilder.property
                     return v.name
+                elseif v.__type == "Covergroup" then
+                    ---@cast v verilua.sv.SVBuilder.covergroup
+                    return v.inst_name
                 end
             end
 

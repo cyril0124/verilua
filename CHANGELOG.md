@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
-- **SVBuilder**: `add "covergroup"` now returns the generated instance name (`_GEN_<name>_inst`) as a string, so an explicit sampling call site for a `with function sample` covergroup can be built without hard-coding the instance-name format. The call previously returned nothing.
+- **SVBuilder**: `add "sequence"` and `add "property"` now accept an optional `formal_args` field (e.g. `formal_args = "logic req, logic ack"`). The string is emitted verbatim between the parentheses of the SV declaration, enabling parameterized sequences and properties.
+- **SVBuilder**: `add "covergroup"` now returns a `covergroup` handle `{ __type = "Covergroup", name, inst_name }` instead of a bare string. The `.inst_name` field holds the generated instance name (`_GEN_<name>_inst`). The handle is also registered under the new `cov:` namespace so `$(cov:my_cg)` in a subsequent `add "raw"` expression renders to `inst_name` without hard-coding the naming convention.
 
 ---
 

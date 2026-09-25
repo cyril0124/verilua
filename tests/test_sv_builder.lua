@@ -186,6 +186,39 @@ test2: cover property (_GEN_test2_PROPERTY);
         expect.equal(tostring(ctx), "")
     end)
 
+    it("can add sequence/property with formal_args", function()
+        local ret = ctx:add "sequence" {
+            name = "handshake_p",
+            formal_args = "logic req, logic ack",
+            expr = "req ##1 ack",
+        }
+        ---@cast ret verilua.sv.SVBuilder.sequence
+        expect.equal(ret.__type, "Sequence")
+        expect.equal(ret.name, "handshake_p")
+        expect.equal(tostring(ctx), [[
+sequence handshake_p(logic req, logic ack); req ##1 ack; endsequence
+
+]])
+
+        ctx:clean()
+
+        -- property with formal_args
+        local ret1 = ctx:add "property" {
+            name = "no_overflow_p",
+            formal_args = "logic ovf",
+            expr = "!ovf",
+        }
+        ---@cast ret1 verilua.sv.SVBuilder.property
+        expect.equal(ret1.__type, "Property")
+        expect.equal(ret1.name, "no_overflow_p")
+        expect.equal(tostring(ctx), [[
+property no_overflow_p(logic ovf); !ovf; endproperty
+
+]])
+
+        ctx:clean()
+    end)
+
     it("can reference sequence/property via seq:/prop: namespace", function()
         ctx:add "sequence" {
             name = "handshake",
@@ -769,22 +802,24 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:clean()
     end)
 
-    it("returns the generated covergroup instance name", function()
+    it("returns the generated covergroup instance handle", function()
         ctx:set_lint(false)
         ctx:default_clocking("top.dut.clk", "posedge")
 
-        local inst_name = ctx:add "covergroup" {
+        local cov = ctx:add "covergroup" {
             name = "cg_handle",
             expr = "coverpoint top.dut.d { bins b = {0}; }",
         }
-        expect.equal(type(inst_name), "string")
-        expect.equal(inst_name, "_GEN_cg_handle_inst")
-        -- The name is the identifier the covergroup is instantiated as.
+        expect.equal(type(cov), "table")
+        expect.equal(cov.__type, "Covergroup")
+        expect.equal(cov.name, "cg_handle")
+        expect.equal(cov.inst_name, "_GEN_cg_handle_inst")
+        -- The inst_name is the identifier the covergroup is instantiated as.
         assert(tostring(ctx):find("cg_handle _GEN_cg_handle_inst = new;", 1, true),
-            "expected the returned name to be the instantiated identifier, got: " .. tostring(ctx))
+            "expected the inst_name to be the instantiated identifier, got: " .. tostring(ctx))
 
-        -- A plain string, so it is usable as a template variable as well.
-        ctx:add "raw" { name = "inst_env", expr = "// using $(inst)", envs = { inst = inst_name } }
+        -- The handle is usable as a template variable via .inst_name.
+        ctx:add "raw" { name = "inst_env", expr = "// using $(inst)", envs = { inst = cov.inst_name } }
         assert(tostring(ctx):find("// using _GEN_cg_handle_inst", 1, true),
             "expected the instance name to render, got: " .. tostring(ctx))
 
@@ -798,7 +833,7 @@ default clocking @(negedge path.to.clock); endclocking
             expr = "logic clk;\nlogic [3:0] burst;\nlogic [7:0] len;",
         }
 
-        local inst_name = ctx:add "covergroup" {
+        local cov = ctx:add "covergroup" {
             name = "cg_axi_cmd",
             sample_event = "with function sample(bit [3:0] burst, bit [7:0] len)",
             expr = [[
@@ -810,7 +845,7 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:add "raw" {
             name = "sample_driver",
             expr = "always @(posedge clk) begin\n    $(cg_inst).sample($(args));\nend",
-            envs = { cg_inst = inst_name, args = "burst, len" },
+            envs = { cg_inst = cov.inst_name, args = "burst, len" },
         }
 
         local result = tostring(ctx)
@@ -824,6 +859,41 @@ default clocking @(negedge path.to.clock); endclocking
             "expected coverage report, got: " .. result)
 
         ctx:set_lint(false)
+        ctx:clean()
+    end)
+
+    it("supports $(cov:name) in raw expressions", function()
+        ctx:set_lint(false)
+        ctx:default_clocking("top.dut.clk", "posedge")
+
+        local cov = ctx:add "covergroup" {
+            name = "cg_ns",
+            expr = "coverpoint top.dut.d { bins b = {0}; }",
+        }
+        -- $(cov:cg_ns) should render to the inst_name
+        ctx:add "raw" {
+            name = "cg_sample",
+            expr = "always @(posedge clk) $(cov:cg_ns).sample();",
+        }
+        assert(tostring(ctx):find("_GEN_cg_ns_inst.sample();", 1, true),
+            "expected $(cov:cg_ns) to render as inst_name, got: " .. tostring(ctx))
+
+        ctx:clean()
+    end)
+
+    it("rejects formal_args for non-sequence/property types", function()
+        ctx:set_lint(false)
+        ctx:default_clocking("top.dut.clk", "posedge")
+
+        local ok, err = pcall(function()
+            ctx:add "cover" { name = "bad", expr = "x", formal_args = "logic x" }
+        end)
+        expect.equal(ok, false)
+        assert(err:find("`formal_args` is only valid", 1, true),
+            "expected formal_args guard error, got: " .. tostring(err))
+        assert(err:find("`cover`", 1, true),
+            "expected type name in error, got: " .. tostring(err))
+
         ctx:clean()
     end)
 

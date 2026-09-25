@@ -173,6 +173,7 @@ ctx:add "raw"        { name = "helper", expr = "logic sample_en;" }
 | `name` | string | ✓ | 语句名称，整个 context 内唯一 |
 | `expr` | string | ✓ | SVA/SV 表达式，支持 `$(var)` 模板语法 |
 | `envs` | table | | 模板变量表，key→value 映射 |
+| `formal_args` | string | | 仅 `sequence`/`property` 有效：形参列表，如 `"logic req, logic ack"`，直接插入括号内 |
 | `cov_type` | string | | 仅 cover 有效：`"property"`（默认）或 `"sequence"` |
 | `sample_event` | string | | 仅 covergroup 有效：覆盖默认采样事件 |
 
@@ -180,7 +181,7 @@ ctx:add "raw"        { name = "helper", expr = "logic sample_en;" }
 
 - `"sequence"` → 返回 `Sequence` handle（可通过 `$(seq:name)` 引用）
 - `"property"` → 返回 `Property` handle（可通过 `$(prop:name)` 引用）
-- `"covergroup"` → 返回该 covergroup 的实例名字符串（`_GEN_<name>_inst`，见下文「显式采样」）
+- `"covergroup"` → 返回 `Covergroup` handle，`.name` 为 covergroup 类型名，`.inst_name` 为生成的实例名（`_GEN_<name>_inst`）；可通过 `$(cov:name)` 在 `add "raw"` 的 expr 里引用（渲染为 `inst_name`）
 - `"cover"` / `"assert"` / `"raw"` → 返回 `nil`
 
 ### `ctx:default_clocking(signal, edge_type, overwrite?)`
@@ -625,9 +626,12 @@ ctx:set_coverage_report(false)  -- 禁用 final block 生成
 
 `sample_event` 写成 `with function sample(...)` 时，covergroup 头不带 `@()`，采样由外部显式调用 `sample()` 决定。形参在该 covergroup 体内直接可见，反过来说：这些形参在 `add "assert"` / `add "cover"` 生成的上行 SVA 里不可见，`envs` 也影响不到它们。
 
-`add "covergroup"` 返回该 covergroup 的实例名字符串（`_GEN_<name>_inst`），采样调用点用它拼出来即可，不必自己记实例名格式。
+`add "covergroup"` 返回一个 `Covergroup` handle，`.inst_name` 字段持有生成的实例名。采样调用点要自己放进 SV，最方便是写进 `add "raw"`，有两种方式引用实例名：
 
-采样调用点要自己放进 SV。最方便是写进 `add "raw"`，把实例名通过 `envs` 交给模板引擎渲染：`raw` 里的内容统一输出在 covergroup 之前（不管 `add` 的顺序），而 module 作用域内只要求声明与使用同属一个 module，所以这条前向引用合法：
+- **`$(cov:name)`**：直接在 raw expr 里通过 `cov:` 命名空间引用（推荐）
+- **`.inst_name`**：把 handle 的 `.inst_name` 字段放进 `envs`，通过普通模板变量引用
+
+`raw` 里的内容统一输出在 covergroup 之前，而 module 作用域内只要求声明与使用同属一个 module，所以这条前向引用合法：
 
 ```lua
 ctx:add "raw" {
@@ -635,20 +639,29 @@ ctx:add "raw" {
     expr = "logic clk;\nlogic [3:0] burst;\nlogic [7:0] len;",
 }
 
-local cg_inst = ctx:add "covergroup" {
+local cov = ctx:add "covergroup" {
     name = "cg_axi_cmd",
     sample_event = "with function sample(bit [3:0] burst, bit [7:0] len)",
     expr = [[    cp_burst: coverpoint burst { bins incr = {4'd1}; }
     cp_len: coverpoint len     { bins short = {[0:15]}; bins long = {[16:255]}; }]],
 }
 
+-- 方式一：$(cov:cg_axi_cmd) 直接在 expr 里引用（推荐）
 ctx:add "raw" {
     name = "cg_axi_sample_driver",
     expr = [[always @(posedge clk) begin
-    $(cg_inst).sample($(args));
+    $(cov:cg_axi_cmd).sample(burst, len);
 end]],
-    envs = { cg_inst = cg_inst, args = "burst, len" },
 }
+
+-- 方式二：把 .inst_name 放进 envs，作为普通模板变量
+-- ctx:add "raw" {
+--     name = "cg_axi_sample_driver",
+--     expr = [[always @(posedge clk) begin
+--     $(cg_inst).sample($(args));
+-- end]],
+--     envs = { cg_inst = cov.inst_name, args = "burst, len" },
+-- }
 ```
 
 例子里第一个 `raw` 只是让示例自带声明；实际工程里 `clk` / `burst` / `len` 由 `testbench_gen` 生成的 `tb_top` 提供，只要能解析，`sv_lint` 就不会在 `add` 阶段报未声明标识符。生成结果：
