@@ -36,24 +36,11 @@ function _G.encode_signal_db(out_file)
     end
 end
 
----@param type_str string
----@param hier_path string
----@return "vpiNet" | "vpiReg"
-local function type_str_to_vpi_type(type_str, hier_path)
-    if type_str:match("^logic") or type_str:match("^bit") then
-        return "vpiNet"
-    elseif type_str:match("^reg") then
-        return "vpiReg"
-    else
-        error("Unsupported type: " .. type_str .. " at <" .. hier_path .. ">")
-    end
-end
-
 ---@param size integer
 ---@param hier_path_vec table<integer, string>
 ---@param bitwidth_vec table<integer, integer>
----@param type_str_vec table<integer, string>
-function _G.insert_signal_db(size, hier_path_vec, bitwidth_vec, type_str_vec)
+---@param vpi_type_str_vec table<integer, string>
+function _G.insert_signal_db(size, hier_path_vec, bitwidth_vec, vpi_type_str_vec)
     for i = 1, size do
         ---@type string[]
         local hier_path = {}
@@ -68,12 +55,12 @@ function _G.insert_signal_db(size, hier_path_vec, bitwidth_vec, type_str_vec)
             if j == end_idx then
                 -- `v` is the signal name
                 ---@type verilua.utils.SignalInfo
-                local singal_info = {
+                local signal_info = {
                     v,
                     bitwidth_vec[i],
-                    type_str_to_vpi_type(type_str_vec[i], hier_path_vec[i]),
+                    vpi_type_str_vec[i],
                 }
-                curr[#curr + 1] = singal_info
+                curr[#curr + 1] = signal_info
             else
                 -- intermediate signal hierarchy path
                 -- `v` is the instance name

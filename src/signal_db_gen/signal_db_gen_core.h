@@ -128,6 +128,7 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
     std::vector<std::string> hierPathVec;
     std::vector<size_t> bitWidthVec;
     std::vector<std::string> typeStrVec;
+    std::vector<std::string> vpiTypeVec;
 
     SignalGetter(std::vector<std::string> enableModules, std::vector<std::string> disableModules, bool ignoreChiselTrivialSignals = true, bool ignoreUnderscoreSignals = true, bool verbose = false) : enableModules(enableModules), disableModules(disableModules), ignoreChiselTrivialSignals(ignoreChiselTrivialSignals), ignoreUnderscoreSignals(ignoreUnderscoreSignals), verbose(verbose) {}
 
@@ -162,7 +163,7 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
             auto bitWidth = var.getType().getBitWidth();
             auto typeStr  = var.getType().toString();
 
-            collectSignalInfo(hierPath, bitWidth, typeStr);
+            collectSignalInfo(hierPath, bitWidth, typeStr, "vpiReg");
 
             if (verbose) {
                 fmt::println("[InstanceBodySymbol] [VAR] {} bitwidth: {} type: {}", hierPath, bitWidth, typeStr);
@@ -177,7 +178,7 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
             auto dataType = net.netType.getDataType().toString();
             auto typeStr  = net.getType().toString();
 
-            collectSignalInfo(hierPath, bitWidth, typeStr);
+            collectSignalInfo(hierPath, bitWidth, typeStr, "vpiNet");
 
             if (verbose) {
                 fmt::println("[InstanceBodySymbol] [NET] {} bitwidth: {} dataType: {} type: {}", hierPath, bitWidth, dataType, typeStr);
@@ -194,7 +195,7 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
     bool ignoreChiselTrivialSignals = true;
     bool ignoreUnderscoreSignals    = true;
 
-    void collectSignalInfo(std::string_view hierPath, size_t bitWidth, std::string typeStr) {
+    void collectSignalInfo(std::string_view hierPath, size_t bitWidth, std::string typeStr, std::string_view vpiType) {
         if (hierPath.starts_with(".")) {
             // TODO: Handle this case
             return;
@@ -213,6 +214,7 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
             hierPathVec.emplace_back(hierPath);
             bitWidthVec.emplace_back(bitWidth);
             typeStrVec.emplace_back(typeStr);
+            vpiTypeVec.emplace_back(vpiType);
         }
     }
 
@@ -352,9 +354,9 @@ class WrappedDriver {
         ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
 
         SignalGetter getter(enableModules, disableModules, ignoreChiselTrivialSignals.value_or(false), ignoreUnderscoreSignals.value_or(false), verbose.value_or(false));
-        this->getCompilelation()->getRoot().visit(getter);
+        this->getCompilation()->getRoot().visit(getter);
 
-        auto ret = lua["insert_signal_db"](getter.hierPathVec.size(), getter.hierPathVec, getter.bitWidthVec, getter.typeStrVec);
+        auto ret = lua["insert_signal_db"](getter.hierPathVec.size(), getter.hierPathVec, getter.bitWidthVec, getter.vpiTypeVec);
         if (!ret.valid()) {
             sol::error err = ret;
             PANIC("[signal_db_gen] Failed to call lua function `insert_signal_db", err.what());
@@ -462,13 +464,10 @@ class WrappedDriver {
             return 0;
         }
 
-        size_t fileCount = 0;
-        for (auto buffer : driver.sourceLoader.loadSources()) {
-            fileCount++;
-            auto fullpathName = driver.sourceManager.getFullPath(buffer.id);
-
+        // Use already-collected files list to avoid consuming the loadSources() iterator a second time.
+        for (size_t i = 0; i < files.size(); ++i) {
             if (!quiet.has_value() || !quiet.value()) {
-                fmt::println("[signal_db_gen] [{}] get file: {}", fileCount, fullpathName.string());
+                fmt::println("[signal_db_gen] [{}] get file: {}", i + 1, files[i]);
                 fflush(stdout);
             }
         }
@@ -482,7 +481,7 @@ class WrappedDriver {
         return 1;
     }
 
-    std::unique_ptr<slang::ast::Compilation> getCompilelation() {
+    std::unique_ptr<slang::ast::Compilation> getCompilation() {
         ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
         bool compileSuccess = driver.runFullCompilation(quiet.value_or(false));
         ASSERT(compileSuccess);

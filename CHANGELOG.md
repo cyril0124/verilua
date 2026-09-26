@@ -4,6 +4,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## Unreleased
 
+### 🐛 Fixed
+
+- **signal_db_gen**: `VariableSymbol` (logic/reg variables) and `NetSymbol` (wire nets) are now mapped to the correct VPI types — `vpiReg` and `vpiNet` respectively. Previously the Lua encoder tried to infer VPI type from `getType().toString()`, but Slang normalizes `reg` to `logic` at elaboration time, so the `^reg` branch never matched and all signals were classified as `vpiNet`. The fix moves the decision to C++: each symbol passes its resolved `"vpiReg"` or `"vpiNet"` string directly to the Lua encoder, which no longer does any type mapping.
+- **signal_db_gen**: Fixed `loadSources()` being called twice (once in `checkForRegenerate` and again in `doParseCmdLine`), which caused the second file-listing loop to silently enumerate zero files. The second call now reuses the already-collected `files` vector.
+- **signal_db_gen**: Fixed `getCompilelation` typo (renamed to `getCompilation`).
+- **signal_db_gen**: Fixed `singal_info` local variable name typo (renamed to `signal_info`).
+
 ### 🚀 Added
 
 - **SVBuilder**: `add "sequence"` and `add "property"` now accept an optional `formal_args` field (e.g. `formal_args = "logic req, logic ack"`). The string is emitted verbatim between the parentheses of the SV declaration, enabling parameterized sequences and properties.
