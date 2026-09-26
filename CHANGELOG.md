@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **nosim**: `vpiml_get_simulator_auto()` returns `"nosim"` instead of aborting, so a script that asks which simulator is running no longer crashes.
+- **nosim**: The command line handed to `signal_db_gen` reaches it unchanged, apart from the executable name being reported as `signal_db_gen` and `--build` being stripped wherever it appears. Rebuilding it could previously rewrite any argument ending in `nosim` and leave a trailing space in the cached command line.
 - **signal_db_gen**: `VariableSymbol` (logic/reg variables) and `NetSymbol` (wire nets) are now mapped to the correct VPI types — `vpiReg` and `vpiNet` respectively. Previously the Lua encoder tried to infer VPI type from `getType().toString()`, but Slang normalizes `reg` to `logic` at elaboration time, so the `^reg` branch never matched and all signals were classified as `vpiNet`. The fix moves the decision to C++: each symbol passes its resolved `"vpiReg"` or `"vpiNet"` string directly to the Lua encoder, which no longer does any type mapping.
 - **signal_db_gen**: Fixed `loadSources()` being called twice (once in `checkForRegenerate` and again in `doParseCmdLine`), which caused the second file-listing loop to silently enumerate zero files. The second call now reuses the already-collected `files` vector.
 - **signal_db_gen**: Fixed `getCompilelation` typo (renamed to `getCompilation`).

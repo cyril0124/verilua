@@ -26,7 +26,7 @@ void endOfSimulation() {
 using namespace vpi_compat;
 
 PLI_INT32 vpi_free_object(vpiHandle object) {
-    // PANIC("vpi_free_object not implemented");
+    // `nosim` does not allocate VPI objects; callers own the handles they pass here.
     return 0;
 }
 
@@ -41,6 +41,8 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
         endOfSimulationCb = std::make_unique<s_cb_data>(*cb_data_p);
         break;
     case cbNextSimTime:
+        // `nosim` never advances simulation time, so this callback can never fire. libverilua
+        // registers one in every backend during bootstrap; ignoring it here is intentional.
         break;
     default:
         PANIC("vpi_register_cb not implemented", cb_data_p->reason);

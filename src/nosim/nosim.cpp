@@ -2,6 +2,12 @@
 #include "verilua_version.h"
 #include "vpi_compat.h"
 
+#include "fmt/ranges.h"
+
+#include <string>
+#include <string_view>
+#include <vector>
+
 extern "C" int signal_db_gen_main(const char *argList);
 
 // VPI bootstrap function implemented by the user.
@@ -12,34 +18,33 @@ int main(int argc, char **argv) {
 
     bool build = false;
 
-    // Transform argVec into string
-    std::string args;
+    // `signal_db_gen_main` takes a single command-line string, so rebuild `argv` into one.
+    // The first token becomes the program name in help and error output: report `signal_db_gen`
+    // rather than the `nosim` executable that is being run.
+    std::vector<std::string> args;
+    args.reserve(static_cast<size_t>(argc));
     for (int i = 0; i < argc; i++) {
-        std::string arg = argv[i];
-
-        if (arg.ends_with("nosim")) {
-            args += "signal_db_gen";
-            args += " ";
+        if (i == 0) {
+            args.emplace_back("signal_db_gen");
             continue;
         }
 
-        if (arg == "--build") {
+        if (std::string_view(argv[i]) == "--build") {
             build = true;
             continue;
         }
 
-        args += argv[i];
-        if (i != argc - 1) {
-            args += " ";
-        }
+        args.emplace_back(argv[i]);
     }
 
+    std::string argList = fmt::format("{}", fmt::join(args, " "));
+
     if (build) {
-        // Set enviroment variable `VL_NOSIM_BUILD` to 1, which will be used in libverilua_nosim
-        // to prevent automatically finalization of the simulation.
+        // Set environment variable `VL_NOSIM_BUILD` to 1, which `libverilua_nosim` reads to
+        // disable automatic finalization of the simulation.
         setenv("VL_NOSIM_BUILD", "1", 1);
 
-        int ret = signal_db_gen_main(args.data());
+        int ret = signal_db_gen_main(argList.c_str());
         if (ret == 1) {
             // No signal_db generated
             return 0;
@@ -47,8 +52,6 @@ int main(int argc, char **argv) {
             PANIC("signal_db_gen_main failed, Exception occurred!");
         }
     } else {
-        setenv("NOSIM_RUN", "1", 1);
-
         vlog_startup_routines_bootstrap();
 
         vpi_compat::startOfSimulation();
