@@ -8,6 +8,7 @@ local assert = assert
 local f = string.format
 local tostring = tostring
 local setmetatable = setmetatable
+local debug_getinfo = debug.getinfo
 
 --- Handle returned by `add "property"`, used to reference a property via `$(prop:name)`.
 ---@class verilua.sv.SVBuilder.property
@@ -287,8 +288,10 @@ end
 
 ---@param name string
 ---@param lint_err string
-local function raise_lint_error(name, lint_err)
-    error(f("[SVBuilder] lint error in '%s'\n\n%s", name, lint_err), 0)
+---@param source_info string?
+local function raise_lint_error(name, lint_err, source_info)
+    local source_line = source_info and f("\nsource: %s", source_info) or ""
+    error(f("[SVBuilder] lint error in '%s'%s\n\n%s", name, source_line, lint_err), 0)
 end
 
 -- Build a module shell containing all existing context + the new statement,
@@ -382,6 +385,16 @@ end
 function SVBuilder:add(typ)
     ---@param params verilua.sv.SVBuilder.add.params
     return function(params)
+        local callsite = debug_getinfo(2, "Sl")
+        local source_info
+        if callsite and callsite.currentline and callsite.currentline > 0 then
+            local source = callsite.source
+            if source then
+                source = source:gsub("^[=@]", "")
+                source_info = f("%s:%d", source, callsite.currentline)
+            end
+        end
+
         assert(type(params) == "table", "[SVBuilder] add error: `params` should be a table")
         assert(type(params.name) == "string", "[SVBuilder] add error: `params.name` should be a string")
         assert(type(params.expr) == "string", "[SVBuilder] add error: `params.expr` should be a string")
@@ -523,7 +536,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, pre_content_raw, params.name)
                 if lint_err then
-                    raise_lint_error(params.name, lint_err)
+                    raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
@@ -541,7 +554,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, pre_content_raw, params.name)
                 if lint_err then
-                    raise_lint_error(params.name, lint_err)
+                    raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
@@ -559,7 +572,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
                 if lint_err then
-                    raise_lint_error(params.name, lint_err)
+                    raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
@@ -582,7 +595,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, content_raw, params.name)
                 if lint_err then
-                    raise_lint_error(params.name, lint_err)
+                    raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
@@ -604,7 +617,7 @@ function SVBuilder:add(typ)
             if self.lint_enabled then
                 local lint_err = run_sv_lint(self, ret, params.name, true)
                 if lint_err then
-                    raise_lint_error(params.name, lint_err)
+                    raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
@@ -645,7 +658,7 @@ function SVBuilder:add(typ)
                 local lint_err = run_sv_lint(self, cg_raw .. "\n" .. f("%s %s = new;", params.name, inst_name),
                     params.name)
                 if lint_err then
-                    raise_lint_error(params.name, lint_err)
+                    raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 

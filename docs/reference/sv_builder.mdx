@@ -359,6 +359,7 @@ SVBuilder 在每次 `add` 调用后自动对生成的 SVA 进行 lint 检查（�
 
 ```
 [SVBuilder] lint error in 'chk_handshake'
+source: /project/tb/checks.lua:137
 
 dump: /tmp/sv_builder_lint_lua_XXXXXX.sv
 
@@ -370,7 +371,10 @@ sequence handshake(); top.dut.req
          ^
 ```
 
-报错包含行号、列号和 caret 指示，可以直接定位到 `expr` 中出错的位置。
+报错包含两层定位信息：
+
+- `source`：调用 `ctx:add(...)` 的 Lua 文件和行号
+- `dump`：送进 slang 的生成 SV 文件；后续诊断中的行号、列号和 caret 都对应这个文件
 
 lint 失败时，会把送进 slang 的那段 SV 写到 `/tmp/sv_builder_lint_<随机>.sv`。报错里 `dump:` 后面就是路径，诊断里的文件名也指向它，行号和文件内容对齐。失败的那条不会进入 `generate()`。
 

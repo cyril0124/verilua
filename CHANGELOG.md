@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
+- **SVBuilder**: lint 失败时的错误现在同时包含 `ctx:add(...)` 的 Lua 文件/行号和生成 SV dump 的路径，便于从 Lua 定义定位到 slang 的行列诊断。
 - **testbench_gen**: `--help` now marks the `--cc` / `--ccs` / `--cco` / `--ccso` (`--custom-code*`) option names as deprecated aliases and points at `--iif` / `--iis` / `--iof` / `--ios` (`--inject-*`). The aliases keep working; only the help text changed.
 
 ---

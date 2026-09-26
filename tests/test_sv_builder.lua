@@ -578,6 +578,50 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:set_lint(false)
     end)
 
+    it("sv_lint reports the Lua callsite", function()
+        ctx:set_lint(true)
+        local source = assert(debug.getinfo(1, "S")).source:gsub("^[=@]", "")
+
+        local ok, err = pcall(function()
+            ctx:add "sequence" { name = "s_source", expr = "top.dut.req ##" }
+        end)
+        expect.equal(ok, false)
+
+        local err_str = tostring(err)
+        local source_start = err_str:find(source, 1, true)
+        assert(source_start, "expected Lua source in lint error, got: " .. err_str)
+        local source_suffix = err_str:sub(source_start + #source)
+        assert(source_suffix:match("^:%d+"), "expected Lua line number in lint error, got: " .. err_str)
+        assert(err_str:find("dump: /tmp/sv_builder_lint_", 1, true), "expected SV dump path, got: " .. err_str)
+        assert(err_str:find("error:", 1, true), "expected slang diagnostic, got: " .. err_str)
+
+        ctx:set_lint(false)
+        ctx:clean()
+    end)
+
+    it("sv_lint preserves diagnostics without Lua debug information", function()
+        ctx:clean()
+        ctx:set_lint(true)
+
+        ---@param builder verilua.sv.SVBuilder
+        local function add_invalid_sequence(builder)
+            builder:add "sequence" { name = "s_stripped", expr = "top.dut.req ##" }
+        end
+        local stripped = assert(loadstring(string.dump(add_invalid_sequence, true)))
+        local ok, err = pcall(stripped, ctx)
+        expect.equal(ok, false)
+
+        local diagnostic = tostring(err)
+        assert(diagnostic:find("[SVBuilder] lint error in 's_stripped'", 1, true), diagnostic)
+        assert(not diagnostic:find("\nsource:", 1, true), diagnostic)
+        assert(diagnostic:find("dump: /tmp/sv_builder_lint_", 1, true), diagnostic)
+        assert(diagnostic:find("error: expected expression", 1, true), diagnostic)
+        expect.equal(ctx:generate(), "")
+
+        ctx:set_lint(false)
+        ctx:clean()
+    end)
+
     it("sv_lint catches semantic errors", function()
         ctx:set_lint(true)
 
