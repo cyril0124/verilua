@@ -25,12 +25,13 @@ fork {
                     { "r1",    1,   "vpiReg" },
                     { "r8",    8,   "vpiReg" },
                     { "r128",  128, "vpiReg" },
-                    { "l1",    1,   "vpiNet" },
-                    { "l8",    8,   "vpiNet" },
-                    { "l128",  128, "vpiNet" },
-                    { "b1",    1,   "vpiNet" },
-                    { "b8",    8,   "vpiNet" },
-                    { "b128",  128, "vpiNet" },
+                    -- variables (reg/logic/bit) are vpiReg, nets (wire) are vpiNet
+                    { "l1",    1,   "vpiReg" },
+                    { "l8",    8,   "vpiReg" },
+                    { "l128",  128, "vpiReg" },
+                    { "b1",    1,   "vpiReg" },
+                    { "b8",    8,   "vpiReg" },
+                    { "b128",  128, "vpiReg" },
                     { "clock", 1,   "vpiNet" },
                     { "reset", 1,   "vpiNet" },
                     { "w1",    1,   "vpiNet" },
@@ -64,7 +65,7 @@ fork {
 
         assert(sd:get_top_module() == "tb_top")
 
-        expect_eq_table(sd:get_signal_info("tb_top.u_top.l128"), { "l128", 128, "vpiNet" })
+        expect_eq_table(sd:get_signal_info("tb_top.u_top.l128"), { "l128", 128, "vpiReg" })
 
         local ret = sd:find_hier("*sub*")
         assert(#ret == 2)
