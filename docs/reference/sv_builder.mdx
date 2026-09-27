@@ -18,10 +18,10 @@ SVBuilder 是 Verilua 提供的 SystemVerilog 生成工具，用于生成 SVA �
 
 ## 推荐用法
 
-SVA 生成通常不需要在每次仿真时都执行。推荐通过环境变量控制，只在需要重新生成 SVA 文件时才运行：
+生成通常不需要在每次仿真时都执行。推荐通过环境变量控制，只在需要重新生成时才运行：
 
 ```lua
-if os.getenv("SVA_GEN") == "1" then
+if os.getenv("SV_GEN") == "1" then
     fork {
         function()
             local ctx = require "verilua.sv.SVBuilder"
@@ -33,7 +33,7 @@ if os.getenv("SVA_GEN") == "1" then
             ctx:add "assert" { name = "chk_hs", expr = "$(seq:hs) |-> $(valid)", envs = { valid = dut.valid } }
 
             -- 写入文件，后续通过 testbench_gen --iif 注入 tb_top
-            local output_path = require("verilua.LuaUtils").get_scriptdir() .. "/sva_output.sv"
+            local output_path = require("verilua.LuaUtils").get_scriptdir() .. "/svbuilder_output.sv"
             local f = io.open(output_path, "w")
             f:write(ctx:generate())
             f:close()
@@ -49,7 +49,7 @@ end
 运行时通过环境变量触发：
 
 ```bash
-SVA_GEN=1 xmake run -P tests/test_xxx
+SV_GEN=1 xmake run -P tests/test_xxx
 ```
 
 这样做的好处：
@@ -58,20 +58,22 @@ SVA_GEN=1 xmake run -P tests/test_xxx
 - 正常仿真时不会执行生成代码，零开销
 - 生成的 `.sv` 文件可以纳入版本控制，如有变化可以 diff 审查
 
+如果不想每次手动跑两遍（先 `SV_GEN=1 xmake r` 生成、再 `xmake b` 注入），可以用 `before_build` + `nosim` 在每次 build 前自动重新生成，见 [自动生成：build 前用 nosim 刷新](#自动生成build-前用-nosim-刷新)。
+
 ## 集成到 RTL
 
-生成的 `.sv` 文件通过 `verilua.tb_gen_flags` 传给 `testbench_gen`，用 `--iif`（inject-inner-file）将内容注入到 `tb_top` module 内部。SVA 内部使用 handle 渲染出的 XMR 路径（如 `tb_top.clk`），在 tb_top 内部上下文中完全合法。
+生成的 `.sv` 文件通过 `verilua.tb_gen_flags` 传给 `testbench_gen`，用 `--iif`（inject-inner-file）将内容注入到 `tb_top` module 内部。生成内容内部使用 handle 渲染出的 XMR 路径（如 `tb_top.clk`），在 tb_top 内部上下文中完全合法。
 
 在 `xmake.lua` 里配置：
 
 ```lua
-local sva_file = path.join(os.scriptdir(), "sva_output.sv")
-if os.isfile(sva_file) and not os.getenv("SVA_GEN") then
-    set_values("verilua.tb_gen_flags", { "--iif", sva_file })
+local sv_file = path.join(os.scriptdir(), "svbuilder_output.sv")
+if os.isfile(sv_file) and not os.getenv("SV_GEN") then
+    set_values("verilua.tb_gen_flags", { "--iif", sv_file })
 end
 ```
 
-这样 `testbench_gen` 会把 `sva_output.sv` 的内容插入到生成的 `tb_top.sv` 末尾（endmodule 之前）。
+这样 `testbench_gen` 会把 `svbuilder_output.sv` 的内容插入到生成的 `tb_top.sv` 末尾（endmodule 之前）。
 
 生成的 `tb_top.sv` 效果如下：
 
@@ -94,8 +96,98 @@ endmodule
 ```
 
 :::tip
-`SVA_GEN=1` 时不加 `--iif` flag，不然 testbench_gen 尝试 compile `sva_output.sv` 时 tb_top 还不存在会报错。
+`SV_GEN=1` 时不加 `--iif` flag，不然 testbench_gen 尝试 compile `svbuilder_output.sv` 时 tb_top 还不存在会报错。
 :::
+
+## 自动生成：build 前用 nosim 刷新
+
+`nosim` 是 Verilua 的不仿真后端，用 slang 做 elaborate，不推进仿真时间，也不读写信号值。
+
+手动流程要先生成、再 build 一次，因为 SVBuilder 的输出只能在运行阶段产生，注入的是下一次编译的 `tb_top.sv`。用 `before_build` + `nosim` 可以让 `xmake build` 一步到位：build 前先用 slang（nosim）跑一遍生成逻辑刷新输出文件，再让同一次 build 的 `testbench_gen` 注入。
+
+原理：
+
+1. 生成逻辑仍写在 `verilua.lua_main` 里，由 `SV_GEN` 环境变量控制。
+2. 在 `xmake.lua` 注册 `before_build`：当前后端不是 nosim 时，用子进程 xmake 以 `SIM=nosim SV_GEN=1` 先 `build` + `run` 一次刷新输出文件；输出路径写成 `SV_OUT` 传给生成进程，只在这一处定义。
+3. `before_build` 早于 Verilua 规则的 `testbench_gen`（后者在 `on_build` 阶段执行），所以刚生成的文件能在同一次 build 里被 `--iif` 注入 `tb_top.sv`。
+4. 子进程设置独立的 `XMAKE_CONFIGDIR`，否则会和外层 build 争用 `project.lock` 死锁。
+5. 生成进程带 `SV_GEN=1` 时不加 `--iif`，避免去注入一个还没生成的文件。
+
+`xmake.lua`：
+
+```lua
+local prj_dir = os.scriptdir()
+local sv_file = path.join(prj_dir, "svbuilder_output.sv")
+
+target("my_test", function()
+    add_rules("verilua")
+
+    on_config(function(target)
+        local sim = os.getenv("SIM") or "verilator"
+        -- 按 SIM 选择 @nosim / @verilator / @vcs / ...
+    end)
+
+    add_files("rtl/*.sv")
+    set_values("verilua.top", "Top")
+    set_values("verilua.lua_main", path.join(prj_dir, "main.lua"))
+
+    -- 生成进程（SV_GEN=1）不注入，其余后端把生成内容注入 tb_top
+    if not os.getenv("SV_GEN") then
+        add_values("verilua.tb_gen_flags", "--iif", sv_file)
+    end
+
+    before_build(function(target)
+        if (os.getenv("SIM") or "verilator") == "nosim" then
+            return
+        end
+        local gen_envs = {
+            SIM = "nosim",
+            SV_GEN = "1",
+            SV_OUT = sv_file,
+            -- 独立 config dir：避免与外层 build 争用 project.lock
+            XMAKE_CONFIGDIR = path.join(prj_dir, ".xmake", ".xmake-nosim"),
+        }
+        local target_name = target:name()
+        os.execv("xmake", { "build", "-P", prj_dir, target_name }, { envs = gen_envs })
+        os.execv("xmake", { "run", "-P", prj_dir, target_name }, { envs = gen_envs })
+    end)
+end)
+```
+
+`main.lua` 用同一个 gate，输出路径直接从环境变量读取：
+
+```lua
+if os.getenv("SV_GEN") == "1" then
+    fork {
+        function()
+            local ctx = require "verilua.sv.SVBuilder"
+            ctx:clean()
+            ctx:default_clocking(dut.clk, "posedge")
+
+            -- ... 定义 sequence / property / assert / covergroup ...
+
+            local out = assert(os.getenv("SV_OUT"))
+            local f = assert(io.open(out, "w"))
+            f:write(ctx:generate())
+            f:close()
+
+            sim.finish()
+        end,
+    }
+end
+```
+
+之后每次只需要一条命令，注入的始终是本次 build 开始时生成的内容：
+
+```bash
+xmake build my_test
+```
+
+注意：
+
+- 生成进程用 slang（nosim），`dut.*` handle 可用，但 `<chdl>:get()` 之类会报错。
+- nosim 与真实后端的 build 目录默认分开（`build/<sim>/...`），互不覆盖。
+- `xmake build` 会改写输出文件；若它已纳入版本控制，构建后需要自行确认 diff。
 
 ## 初始化
 
