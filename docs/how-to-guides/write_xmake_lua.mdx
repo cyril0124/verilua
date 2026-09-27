@@ -34,7 +34,7 @@ end)
 
 - `target("...")`：定义一个构建目标，名称可任意。
 - `add_rules("verilua")`：**必须**，引入 Verilua 的构建规则。
-- `add_toolchains("@...")`：指定后端，HVL 常用 `@verilator`、`@iverilog`、`@vcs`、`@xcelium`；WAL 必须使用 `@wave_vpi`。
+- `add_toolchains("@...")`：指定后端，HVL 常用 `@verilator`、`@iverilog`、`@vcs`、`@xcelium`；WAL 必须使用 `@wave_vpi`；`@nosim` 用 slang 做 elaborate 与 signal_db 生成，见 [6.2](#62-nosim-后端不仿真)。
 - `add_files(...)`：HVL 中通常添加 RTL 文件，以及需要参与工程管理的 Lua/C/C++ 文件；WAL 中添加波形文件和需要复用的 Lua 模块。`verilua.lua_main` 指向的 Lua 入口脚本不需要额外放进 `add_files(...)`。WAL 模式支持 `.vcd`、`.fst`、`.fsdb` 三种波形格式，且**只能添加一个波形文件**，添加多个会报错。
 
   `add_files` 支持 xmake 的通配符（glob）写法，例如 `add_files("rtl/*.sv")`、`add_files("src/**/*.v")`，便于批量添加同一目录或多个子目录下的源文件。
@@ -56,7 +56,7 @@ end)
 | 参数 | HVL 说明 | WAL 说明 |
 |------|----------|----------|
 | `add_rules("verilua")` | 必须 | 必须 |
-| `add_toolchains("@...")` | 指定仿真器 | 必须为 `@wave_vpi` |
+| `add_toolchains("@...")` | 指定仿真器（nosim 见 [6.2](#62-nosim-后端不仿真)） | 必须为 `@wave_vpi` |
 | `set_values("verilua.top", "...")` | DUT 顶层模块名 | 波形顶层模块名 |
 | `set_values("verilua.lua_main", "...")` | Lua 主脚本 | Lua 主脚本 |
 | `add_files(...)` | RTL + 可选 Lua/C/C++ | 1 个波形文件 + 可选 Lua |
@@ -236,12 +236,33 @@ add_files("src/dpi_funcs.cpp")
 
 Verilua 会将这些文件交给对应后端参与构建。某些仿真器或特定场景下，您可能还需要补充额外的链接标志或仿真器参数；如果遇到这类情况，建议参考仓库中的实际示例（如 `tests/test_dpic/xmake.lua`）。
 
+### 6.2 nosim 后端（不仿真）
+
+`add_toolchains("@nosim")` 用 slang 做 elaborate 与 signal_db 生成，不需要安装仿真器。它不推进仿真时间，也不读写信号值，`xmake run` 只在 time 0 执行一次 `verilua.lua_main`：
+
+```lua
+target("elaborate_only", function()
+    add_rules("verilua")
+    add_toolchains("@nosim")
+    add_files("src/design.sv")
+    set_values("verilua.top", "Design")
+    set_values("verilua.lua_main", "src/main.lua")
+end)
+```
+
+- 激励类接口（`set_*`、`force_*`、`release_*`、`shuffled_range_*`、`reset_shuffled_range`）是空实现，调用不报错，也不产生效果。
+- 回调注册（`register_*`）同样被接受，但 nosim 没有时间推进，回调不会触发。
+- 读值接口（`<chdl>:get()`、`get_hex_str()` 等）和 `NativeClock` 会直接报错，报错信息说明 nosim 没有仿真时间且不读写信号值。
+- 需要驱动信号或等待时间的 testbench 请换用真实仿真器。
+
+构建阶段可以复用其他仿真器的 `*.flags`（`-I`、`-D`、`--timescale` 等），写法见 [xmake 参数详细说明](../reference/xmake_params.mdx) 中的 `verilua.infer_nosim_flag`。
+
 ---
 
 ## 7. 常见问题
 
 **Q1：编译时报错 `unknown toolchain` 或 `unknown rule: verilua`**
-A：请先 `source verilua.sh`（或 `activate_verilua.sh`）激活环境，确认 `XMAKE_RCFILES` 指向 `$VERILUA_HOME/scripts/xmakerc.lua`。`add_toolchains` 须使用正确名称（`@verilator`, `@iverilog`, `@vcs`, `@xcelium`, `@wave_vpi`），且对应工具已在 `PATH` 中。
+A：请先 `source verilua.sh`（或 `activate_verilua.sh`）激活环境，确认 `XMAKE_RCFILES` 指向 `$VERILUA_HOME/scripts/xmakerc.lua`。`add_toolchains` 须使用正确名称（`@verilator`, `@iverilog`, `@vcs`, `@xcelium`, `@wave_vpi`, `@nosim`），且对应工具已在 `PATH` 中。
 
 **Q2：波形文件未生成（HVL）**
 A：检查 `verilator.flags` 是否包含 `--trace` 或 `--trace-fst`，并在 Lua 中调用了 `sim.dump_wave()`。
