@@ -1,9 +1,16 @@
 ---@diagnostic disable: invisible, access-invisible, assign-type-mismatch
 
 local lester = require 'lester'
+local path = require "pl.path"
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
 local ctx = require "verilua.sv.SVBuilder"
+local lint_dump_dir
+if os.getenv("VL_BUILD_DIR") and os.getenv("VL_BUILD_DIR") ~= "" then
+    lint_dump_dir = path.abspath(path.join(os.getenv("VL_BUILD_DIR"), "svbuilder", "lint"))
+else
+    lint_dump_dir = path.abspath(path.join(".svbuilder", "lint"))
+end
 
 -- Disable lint for most tests since they use synthetic/fake data (bare
 -- identifiers like `test`, `123`) that would trigger undeclared-identifier
@@ -592,7 +599,8 @@ default clocking @(negedge path.to.clock); endclocking
         assert(source_start, "expected Lua source in lint error, got: " .. err_str)
         local source_suffix = err_str:sub(source_start + #source)
         assert(source_suffix:match("^:%d+"), "expected Lua line number in lint error, got: " .. err_str)
-        assert(err_str:find("dump: /tmp/sv_builder_lint_", 1, true), "expected SV dump path, got: " .. err_str)
+        assert(err_str:find("dump: " .. lint_dump_dir .. "/sv_builder_lint_", 1, true),
+            "expected SV dump path, got: " .. err_str)
         assert(err_str:find("error:", 1, true), "expected slang diagnostic, got: " .. err_str)
 
         ctx:set_lint(false)
@@ -614,7 +622,7 @@ default clocking @(negedge path.to.clock); endclocking
         local diagnostic = tostring(err)
         assert(diagnostic:find("[SVBuilder] lint error in 's_stripped'", 1, true), diagnostic)
         assert(not diagnostic:find("\nsource:", 1, true), diagnostic)
-        assert(diagnostic:find("dump: /tmp/sv_builder_lint_", 1, true), diagnostic)
+        assert(diagnostic:find("dump: " .. lint_dump_dir .. "/sv_builder_lint_", 1, true), diagnostic)
         assert(diagnostic:find("error: expected expression", 1, true), diagnostic)
         expect.equal(ctx:generate(), "")
 
@@ -716,10 +724,11 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:clean()
     end)
 
-    it("sv_lint dumps failing input to /tmp/sv_builder_lint_*.sv", function()
+    it("sv_lint dumps failing input below the build directory", function()
         ctx:set_lint(true)
         ctx:clean()
 
+        local dump_dir = lint_dump_dir
         local n0 = #(ctx._lint_dump_paths or {})
 
         -- Success does not dump.
@@ -745,8 +754,12 @@ default clocking @(negedge path.to.clock); endclocking
         assert(dump_path, "expected dump path in error, got: " .. err_str)
         ---@cast dump_path string
         assert(
-            dump_path:match("^/tmp/sv_builder_lint_.+%.sv$"),
+            dump_path:sub(1, #dump_dir + 1) == dump_dir .. "/",
             "unexpected dump path: " .. dump_path
+        )
+        assert(
+            dump_path:match("/sv_builder_lint_.+%.sv$"),
+            "unexpected dump filename: " .. dump_path
         )
         assert(
             not err_str:find("sv_lint_input", 1, true),
