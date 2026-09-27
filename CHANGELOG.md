@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **xmake toolchains**: Removed the deprecated `toolchain:configs_save()` call from the `vcs`, `xcelium`, `wave_vpi` and `nosim` toolchains. xmake has persisted toolchain configs by itself since 2.9.5, and Verilua already requires xmake >= 2.9.9 (`add_toolchaindirs`), so the call was a no-op that printed `toolchain:configs_save() is deprecated, please remove it` on every toolchain check.
 - **nosim**: `vpiml_get_simulator_auto()` returns `"nosim"` instead of aborting, so a script that asks which simulator is running no longer crashes.
 - **nosim**: The `nosim` backend accepts the stimulus interfaces as no-ops (`set_*`, `force_*`, `release_*`, `shuffled_range_*`, `reset_shuffled_range`, `register_*`), so `xmake run` on a nosim target reaches the end of a time-0 script instead of aborting on its first stimulus call. Value reads and the native clock still fail, and their error now states that nosim has no simulation time and never reads or drives signal values.
 - **nosim**: The command line handed to `signal_db_gen` reaches it unchanged, apart from the executable name being reported as `signal_db_gen` and `--build` being stripped wherever it appears. Rebuilding it could previously rewrite any argument ending in `nosim` and leave a trailing space in the cached command line.
@@ -16,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **xmake / rcfile**: `scripts/xmakerc.lua` prints `verilua: xmake >= 2.9.9 is required (found <version>), please upgrade xmake` when it is loaded by an older xmake. Verilua injects rules and toolchains through `add_toolchaindirs`, which xmake only provides since 2.9.9; previously that version only produced the raw `global 'add_toolchaindirs' is not callable`. The minimum is now also stated in the install prerequisites.
 - **xmake / verilua rule**: `set_values("verilua.infer_nosim_flags", "1")` makes a nosim build reuse the flags of the other backends. `verilator.flags`, `vcs.flags`, `iverilog.flags` and `xcelium.flags` are scanned and their common subset (include dirs, macro defines, library dirs/extensions, timescale) is translated into the slang spelling and appended to `nosim.flags`, so switching a target to nosim no longer requires duplicating those flags. Flags with no nosim equivalent are listed on the build output. The switch is off by default; when unset, nothing is read.
 - **SVBuilder**: `add "sequence"` and `add "property"` now accept an optional `formal_args` field (e.g. `formal_args = "logic req, logic ack"`). The string is emitted verbatim between the parentheses of the SV declaration, enabling parameterized sequences and properties.
 - **SVBuilder**: `add "covergroup"` now returns a `covergroup` handle `{ __type = "Covergroup", name, inst_name }` instead of a bare string. The `.inst_name` field holds the generated instance name (`_GEN_<name>_inst`). The handle is also registered under the new `cov:` namespace so `$(cov:my_cg)` in a subsequent `add "raw"` expression renders to `inst_name` without hard-coding the naming convention.

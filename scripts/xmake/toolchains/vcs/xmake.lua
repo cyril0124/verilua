@@ -22,7 +22,6 @@ toolchain("vcs", function()
             cprint("${dim}checking for vcs ... ${color.nothing}${text.nothing}")
             raise("[toolchain] vcs not found!")
         end
-        toolchain:configs_save()
         return true
     end)
 

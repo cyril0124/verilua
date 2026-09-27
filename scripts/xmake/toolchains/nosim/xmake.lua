@@ -23,7 +23,6 @@ toolchain("nosim", function()
             cprint("${dim}checking for nosim ... ${color.nothing}${text.nothing}")
             raise("[toolchain] nosim not found!")
         end
-        toolchain:configs_save()
         return true
     end)
 

@@ -22,7 +22,6 @@ toolchain("xcelium", function()
             cprint("${dim}checking for xrun ... ${color.nothing}${text.nothing}")
             raise("[toolchain] xrun not found!")
         end
-        toolchain:configs_save()
         return true
     end)
 

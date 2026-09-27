@@ -22,7 +22,6 @@ toolchain("wave_vpi", function()
             cprint("${dim}checking for wave_vpi_main ... ${color.nothing}${text.nothing}")
             raise("[toolchain] wave_vpi_main not found!")
         end
-        toolchain:configs_save()
         return true
     end)
 
