@@ -244,6 +244,40 @@ flowchart LR
 - 对于 WAL 场景，这一设置不起作用。
 :::
 
+### 切换到 nosim 时复用其他仿真器的 flags
+
+对应配置：`set_values("verilua.infer_nosim_flag", "1")`
+
+`nosim` 后端底层是 slang，只能理解 slang 自己的参数。打开这个开关后，构建 `nosim` 时会扫描 `verilator.flags`、`vcs.flags`、`iverilog.flags`、`xcelium.flags`，把两边都支持的写法翻译成 slang 拼写后追加进 `nosim.flags`，切到 `nosim` 时无需重复维护这些参数。
+
+```lua title="xmake.lua"
+set_values("vcs.flags", "+incdir+/path/to/include", "+define+MY_MACRO=1", "-timescale=1ps/1ps")
+set_values("verilator.flags", "-I/path/to/include", "-DMY_MACRO=1")
+
+-- 切到 nosim（add_toolchains("@nosim")）时自动带上上面的 -I / -D / --timescale
+set_values("verilua.infer_nosim_flag", "1")
+```
+
+翻译范围（其余参数一律丢弃，因为 slang 不认识这些厂商私有选项）。识别只看写法，不看来自哪个仿真器：同一个写法写在任何一个 `*.flags` 里都会被翻译（报错文案里的仿真器名只是提示来源）：
+
+| nosim(slang) | 识别到的写法 |
+|--------------|--------------|
+| `-I <dir>` | `-I <dir>`、`-I<dir>`、`+incdir+...`、`-incdir <dir>` |
+| `-D <macro>` | `-D <macro>`、`-D<macro>`、`+define+...`、`-define <macro>` |
+| `-y <dir>` | `-y <dir>` |
+| `+libext+<ext>` | `+libext+...` |
+| `--timescale <v>` | `--timescale <v>`、`--timescale-override <v>`、`--timescale=`、`--timescale-override=`、`-timescale=`、`+timescale+`、`-timescale <v>` |
+
+常见对应关系：`+incdir+` / `+define+` / `-timescale=` 是 VCS 写法，`-I<dir>` / `--timescale` 是 Verilator 写法，`-incdir` / `-define` 是 Xcelium 写法，`+timescale+` 是 Icarus 写法。
+
+- 不设置该开关时行为完全不变（不读取也不翻译任何 `*.flags`）。
+- `+incdir+dir_a+dir_b` 这种 `+` 分隔的多值会展开成多个 `-I`。`+` 在这里就是分隔符，所以路径本身含 `+` 时请改用 `-I <dir>` 写法。
+- 参数按空白切分，值里不能带空格，否则只会取到第一个词。
+- 没有 nosim 等价写法的参数会被丢弃，并在构建时打印一行提示（按来源 `*.flags` 分组）；需要照样传给 nosim 时写进 `nosim.flags`。
+- 推断结果内部会去重；`timescale` 是单值，按 `verilator`、`vcs`、`iverilog`、`xcelium` 的顺序后写覆盖前写。用户自己写的 `nosim.flags` 不会被去重或覆盖。
+- 推断出的 `-I` 同时会传给 `testbench_gen`；宏定义不会，`testbench_gen` 需要用 `verilua.tb_gen_flags` 自行传 `-D`。
+- `-f` / `-F` 文件列表不在翻译范围内，`-top` / `--top-module` 等顶部模块参数也不翻译（由 `verilua.top` / `tb_top` 决定）。
+
 ### 内联 Verilator control file
 
 对应配置：`set_values("verilua.verilator_config", <vlt content>)` / `add_values("verilua.verilator_config", <vlt content>)`

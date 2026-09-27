@@ -396,6 +396,19 @@ for _, dir in ipairs({
     end)
 end
 
+add_group_target("test-infer-nosim-flag", function(ctx)
+    if not ctx.find_file("nosim", { "$(env PATH)" }) then
+        print("[test_infer_nosim_flag] SKIPPED: nosim not found in PATH")
+        return
+    end
+
+    local cwd = path.join(ctx.tests_dir, "test_infer_nosim_flag")
+    ctx.run_case("test_infer_nosim_flag", function()
+        ctx.clean(path.join(cwd, "build"))
+        ctx.run_cmd(cwd, "xmake run -v -P . test")
+    end)
+end)
+
 add_group_target("test-benchmarks", function(ctx)
     local cwd = path.join(ctx.tests_dir, "benchmarks")
     for _, case_name in ipairs({

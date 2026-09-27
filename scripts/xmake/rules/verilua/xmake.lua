@@ -70,6 +70,162 @@ local function get_verilua_value(target, key)
     return nil
 end
 
+--- Simulators whose `<sim>.flags` are scanned when `verilua.infer_nosim_flag` is enabled.
+local NOSIM_FLAG_SOURCE_SIMS = { "verilator", "vcs", "iverilog", "xcelium" }
+
+--- Split the value part of `+incdir+` / `+libext+`, whose VCS-style spelling joins several
+--- values with `+` (e.g. `+incdir+dir_a+dir_b`).
+---@param values string
+---@return string[]
+local function split_plus_separated_values(values)
+    local result = {}
+    for _, value in ipairs(values:split("+", { plain = true })) do
+        if value ~= "" then
+            result[#result + 1] = value
+        end
+    end
+    return result
+end
+
+--- Translate the flags of one simulator into their nosim(slang) equivalent.
+---
+--- Only the flags both tools have in common are translated; everything else is dropped, because
+--- slang rejects the vendor-specific options of the other simulators.
+---
+--- Malformed options are returned as `error` instead of raised: xmake's sandbox gives module-scope
+--- helpers no `assert`/`raise`, so the caller raises them.
+---@param flags string[] Raw `<sim>.flags` values
+---@param sim string Source simulator name, used in error messages
+---@return { flags: string[], timescale?: string, dropped?: string[], error?: string } `flags` in slang
+--- spelling, in the order they were found; `timescale` is kept separate because it is single-valued
+--- and the caller has to resolve it across simulators; `dropped` lists the tokens with no nosim
+--- equivalent, so the caller can report them
+local function translate_to_nosim_flags(flags, sim)
+    local tokens = table.concat(flags, " "):split(" ", { plain = true })
+    local translated = {}
+    local seen = {}
+    local dropped = {}
+    local dropped_seen = {}
+    local consumed = {}   -- Positions of tokens used as the preceding option's value
+    local timescale = nil -- Single-valued: the last occurrence of this simulator wins
+    local failure = nil
+
+    ---@param flag string
+    local function push(flag)
+        if flag == "" or seen[flag] then
+            return
+        end
+        seen[flag] = true
+        translated[#translated + 1] = flag
+    end
+
+    ---@param option string
+    ---@param value string|nil
+    ---@param value_index integer|nil Position of `value` in `tokens`, when it is a separate token
+    ---@return string
+    local function require_value(option, value, value_index)
+        if not value or value == "" then
+            failure = failure or
+                f("Invalid `%s` option for %s.flags, `%s` should be followed by a value", option, sim, option)
+            return ""
+        end
+        if value_index then
+            consumed[value_index] = true
+        end
+        return value
+    end
+
+    for i, token in ipairs(tokens) do
+        local next_token = tokens[i + 1]
+        if token == "-I" or token == "-incdir" then
+            push("-I " .. require_value(token, next_token, i + 1))
+        elseif token:startswith("-I") then
+            push("-I " .. require_value(token, token:sub(3)))
+        elseif token:startswith("+incdir+") then
+            for _, include_dir in ipairs(split_plus_separated_values(require_value(token, token:sub(#"+incdir+" + 1)))) do
+                push("-I " .. include_dir)
+            end
+        elseif token == "-D" or token == "-define" then
+            push("-D " .. require_value(token, next_token, i + 1))
+        elseif token:startswith("+define+") then
+            for _, macro in ipairs(split_plus_separated_values(require_value(token, token:sub(#"+define+" + 1)))) do
+                push("-D " .. macro)
+            end
+        elseif token:startswith("-D") then
+            push("-D " .. require_value(token, token:sub(3)))
+        elseif token == "-y" then
+            push("-y " .. require_value(token, next_token, i + 1))
+        elseif token:startswith("+libext+") then
+            for _, ext in ipairs(split_plus_separated_values(require_value(token, token:sub(#"+libext+" + 1)))) do
+                push("+libext+" .. ext)
+            end
+        elseif token == "--timescale" or token == "--timescale-override" or token == "-timescale" then
+            timescale = require_value(token, next_token, i + 1)
+        elseif token:startswith("--timescale-override=") then
+            timescale = require_value(token, token:sub(#"--timescale-override=" + 1))
+        elseif token:startswith("--timescale=") then
+            timescale = require_value(token, token:sub(#"--timescale=" + 1))
+        elseif token:startswith("-timescale=") then
+            timescale = require_value(token, token:sub(#"-timescale=" + 1))
+        elseif token:startswith("+timescale+") then
+            timescale = require_value(token, token:sub(#"+timescale+" + 1))
+        elseif not consumed[i] and not dropped_seen[token] then
+            dropped_seen[token] = true
+            dropped[#dropped + 1] = token
+        end
+    end
+
+    if failure then
+        return { flags = {}, error = failure }
+    end
+    return { flags = translated, timescale = timescale, dropped = dropped }
+end
+
+--- Collect the nosim flags inferred from every other simulator's `<sim>.flags`.
+--- Returns nothing unless `set_values("verilua.infer_nosim_flag", "1")` is set.
+---@param target table xmake target
+---@return { flags: string[], error?: string, dropped?: { sim: string, flags: string[] }[] }
+local function infer_nosim_flags(target)
+    local enabled = get_verilua_value(target, "verilua.infer_nosim_flag")
+    if type(enabled) == "table" then
+        enabled = enabled[1]
+    end
+    if enabled ~= "1" then
+        return { flags = {} }
+    end
+
+    local inferred = {}
+    local seen = {}
+    local dropped = {}
+    local timescale = nil -- Single-valued across simulators: the last source that sets it wins
+    for _, sim in ipairs(NOSIM_FLAG_SOURCE_SIMS) do
+        local flags = target:values(sim .. ".flags") or {}
+        if type(flags) ~= "table" then
+            flags = { flags }
+        end
+        local translation = translate_to_nosim_flags(flags, sim)
+        if translation.error then
+            return { flags = {}, error = translation.error }
+        end
+        for _, flag in ipairs(translation.flags) do
+            if not seen[flag] then
+                seen[flag] = true
+                inferred[#inferred + 1] = flag
+            end
+        end
+        if translation.dropped and #translation.dropped > 0 then
+            dropped[#dropped + 1] = { sim = sim, flags = translation.dropped }
+        end
+        if translation.timescale then
+            timescale = translation.timescale
+        end
+    end
+    if timescale then
+        inferred[#inferred + 1] = "--timescale " .. timescale
+    end
+    return { flags = inferred, dropped = dropped }
+end
+
 ---@alias SimulatorType "iverilog" | "verilator" | "vcs" | "xcelium" | "wave_vpi" | "nosim"
 
 ---@alias InstrumentationType "cov_exporter"
@@ -1049,6 +1205,33 @@ rule("verilua", function()
         elseif sim == "wave_vpi" then
             -- Do nothing
         elseif sim == "nosim" then
+            --- Reuse the include dirs, macro defines, library dirs/extensions and timescale of the
+            --- other simulators, so switching a target to nosim does not require duplicating them in
+            --- `nosim.flags`.
+            --- e.g.(in your xmake.lua)
+            --- ```lua
+            ---     set_values("verilua.infer_nosim_flag", "1")
+            --- ```
+            local inference = infer_nosim_flags(target)
+            if inference.error then
+                raise(inference.error)
+            end
+            if #inference.flags > 0 then
+                for _, flag in ipairs(inference.flags) do
+                    target:add("values", "nosim.flags", flag)
+                end
+                cprint(
+                    "${✅} [verilua-xmake] [%s] inferred nosim flags from other simulators' flags: ${green underline}%s${reset}",
+                    target:name(), table.concat(inference.flags, " ")
+                )
+            end
+            for _, entry in ipairs(inference.dropped or {}) do
+                cprint(
+                    "${yellow}[verilua-xmake] [%s] flags in %s have no nosim equivalent and were dropped: %s${reset}",
+                    target:name(), entry.sim .. ".flags", table.concat(entry.flags, " ")
+                )
+            end
+
             local signal_db_file = path.join(build_dir, "signal_db.ldb")
             local extra_nosim_flags = {
                 "--build",

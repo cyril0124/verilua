@@ -134,6 +134,7 @@ function await_nsim() end
 --- | "verilua.tb_top_file"
 --- | "verilua.no_internal_clock"
 --- | "verilua.use_inertial_put"
+--- | "verilua.infer_nosim_flag" Reuse other simulators' `*.flags` when building with nosim
 --- | "verilua.verilator_config" Inline Verilator control-file (.vlt) content
 --- | "verilua.verilator_no_public_flat_rw" Skip default --public-flat-rw
 --- | "verilua.verilator_opt_slow" Optimization options for slow-path code (make OPT_SLOW)
