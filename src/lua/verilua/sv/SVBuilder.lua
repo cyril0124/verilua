@@ -1,6 +1,4 @@
 local ffi = require "ffi"
-local dir = require "pl.dir"
-local path = require "pl.path"
 local stringx = require "pl.stringx"
 local template = require "verilua.sv.SVTemplate"
 
@@ -247,6 +245,12 @@ end
 
 local diag_buf = ffi.new("char[4096]")
 
+---@param value string
+---@return string
+local function shell_quote(value)
+    return "'" .. value:gsub("'", "'\\''") .. "'"
+end
+
 -- Write slang lint input with the active build artifacts. The environment
 -- variable is exported by the verilua xmake rule; the fallback keeps direct
 -- Lua invocations self-contained.
@@ -254,27 +258,19 @@ local diag_buf = ffi.new("char[4096]")
 ---@return string? dump_path
 ---@return string? dump_err
 local function dump_lint_input(sv_text)
-    local tmp = os.tmpname()
-    if not tmp or tmp == "" then
-        return nil, "os.tmpname() failed"
-    end
-    -- tmpnam can create an empty file. Delete it before writing the prefixed dump.
-    os.remove(tmp)
-
     local build_dir = os.getenv("VL_BUILD_DIR")
     local dump_dir
     if build_dir and build_dir ~= "" then
-        dump_dir = path.abspath(path.join(build_dir, "svbuilder", "lint"))
+        dump_dir = build_dir .. "/svbuilder/lint"
     else
-        dump_dir = path.abspath(path.join(".svbuilder", "lint"))
+        dump_dir = ".svbuilder/lint"
     end
-    local ok, mkdir_err = dir.makepath(dump_dir)
-    if not ok then
-        return nil, mkdir_err or ("cannot create " .. dump_dir)
+    local mkdir_ok = os.execute("mkdir -p " .. shell_quote(dump_dir))
+    if not mkdir_ok then
+        return nil, "cannot create " .. dump_dir
     end
 
-    local leaf = path.basename(tmp)
-    local dump_path = path.join(dump_dir, "sv_builder_lint_" .. leaf .. ".sv")
+    local dump_path = dump_dir .. "/sv_builder_lint.sv"
     local fh, open_err = io.open(dump_path, "w")
     if not fh then
         return nil, open_err or ("cannot open " .. dump_path)

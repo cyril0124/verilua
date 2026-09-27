@@ -361,12 +361,12 @@ SVBuilder 在每次 `add` 调用后自动对生成的 SVA 进行 lint 检查（�
 [SVBuilder] lint error in 'chk_handshake'
 source: /project/tb/checks.lua:137
 
-dump: <build_dir>/svbuilder/lint/sv_builder_lint_lua_XXXXXX.sv
+dump: <build_dir>/svbuilder/lint/sv_builder_lint.sv
 
-<build_dir>/svbuilder/lint/sv_builder_lint_lua_XXXXXX.sv:4:8: error: sequence range minimum '5' is greater than specified maximum '2'
+<build_dir>/svbuilder/lint/sv_builder_lint.sv:4:8: error: sequence range minimum '5' is greater than specified maximum '2'
     ##[5:2] top.dut.ack
        ^ ~
-<build_dir>/svbuilder/lint/sv_builder_lint_lua_XXXXXX.sv:2:10: note: while expanding sequence 'handshake'
+<build_dir>/svbuilder/lint/sv_builder_lint.sv:2:10: note: while expanding sequence 'handshake'
 sequence handshake(); top.dut.req
          ^
 ```
@@ -376,7 +376,7 @@ sequence handshake(); top.dut.req
 - `source`：调用 `ctx:add(...)` 的 Lua 文件和行号
 - `dump`：送进 slang 的生成 SV 文件；后续诊断中的行号、列号和 caret 都对应这个文件
 
-lint 失败时，会把送进 slang 的那段 SV 写到 `<build_dir>/svbuilder/lint/sv_builder_lint_<随机>.sv`。`<build_dir>` 优先取 xmake 导出的 `VL_BUILD_DIR`；直接运行 Lua 时回退到当前目录下的 `.svbuilder/`。报错里 `dump:` 后面就是路径，诊断里的文件名也指向它，行号和文件内容对齐。失败的那条不会进入 `generate()`。
+lint 失败时，会把送进 slang 的那段 SV 写到 `<build_dir>/svbuilder/lint/sv_builder_lint.sv`。`<build_dir>` 优先取 xmake 导出的 `VL_BUILD_DIR`；直接运行 Lua 时回退到当前目录下的 `.svbuilder/`。同一个构建目录只保留最近一次 lint 失败的输入。报错里 `dump:` 后面就是路径，诊断里的文件名也指向它，行号和文件内容对齐。失败的那条不会进入 `generate()`。
 
 ### 关闭 lint
 

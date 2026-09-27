@@ -24,7 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
-- **SVBuilder**: lint 失败时的错误现在同时包含 `ctx:add(...)` 的 Lua 文件/行号和生成 SV dump 的路径，便于从 Lua 定义定位到 slang 的行列诊断；dump 文件改为写入 `VL_BUILD_DIR/svbuilder/lint/`（直接运行 Lua 时回退到 `.svbuilder/lint/`），不再写入全局 `/tmp`。
+- **SVBuilder**: lint 失败时的错误现在同时包含 `ctx:add(...)` 的 Lua 文件/行号和生成 SV dump 的路径，便于从 Lua 定义定位到 slang 的行列诊断；dump 文件改为固定写入 `VL_BUILD_DIR/svbuilder/lint/sv_builder_lint.sv`（直接运行 Lua 时回退到 `.svbuilder/lint/sv_builder_lint.sv`），不再写入全局 `/tmp`，同一构建目录只保留最近一次失败输入。
 - **testbench_gen**: `--help` now marks the `--cc` / `--ccs` / `--cco` / `--ccso` (`--custom-code*`) option names as deprecated aliases and points at `--iif` / `--iis` / `--iof` / `--ios` (`--inject-*`). The aliases keep working; only the help text changed.
 
 ---

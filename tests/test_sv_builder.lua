@@ -1,16 +1,11 @@
 ---@diagnostic disable: invisible, access-invisible, assign-type-mismatch
 
 local lester = require 'lester'
-local path = require "pl.path"
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
 local ctx = require "verilua.sv.SVBuilder"
-local lint_dump_dir
-if os.getenv("VL_BUILD_DIR") and os.getenv("VL_BUILD_DIR") ~= "" then
-    lint_dump_dir = path.abspath(path.join(os.getenv("VL_BUILD_DIR"), "svbuilder", "lint"))
-else
-    lint_dump_dir = path.abspath(path.join(".svbuilder", "lint"))
-end
+local build_dir = os.getenv("VL_BUILD_DIR")
+local lint_dump_dir = build_dir and build_dir ~= "" and build_dir .. "/svbuilder/lint" or ".svbuilder/lint"
 
 -- Disable lint for most tests since they use synthetic/fake data (bare
 -- identifiers like `test`, `123`) that would trigger undeclared-identifier
@@ -599,7 +594,7 @@ default clocking @(negedge path.to.clock); endclocking
         assert(source_start, "expected Lua source in lint error, got: " .. err_str)
         local source_suffix = err_str:sub(source_start + #source)
         assert(source_suffix:match("^:%d+"), "expected Lua line number in lint error, got: " .. err_str)
-        assert(err_str:find("dump: " .. lint_dump_dir .. "/sv_builder_lint_", 1, true),
+        assert(err_str:find("dump: " .. lint_dump_dir .. "/sv_builder_lint.sv", 1, true),
             "expected SV dump path, got: " .. err_str)
         assert(err_str:find("error:", 1, true), "expected slang diagnostic, got: " .. err_str)
 
@@ -622,7 +617,7 @@ default clocking @(negedge path.to.clock); endclocking
         local diagnostic = tostring(err)
         assert(diagnostic:find("[SVBuilder] lint error in 's_stripped'", 1, true), diagnostic)
         assert(not diagnostic:find("\nsource:", 1, true), diagnostic)
-        assert(diagnostic:find("dump: " .. lint_dump_dir .. "/sv_builder_lint_", 1, true), diagnostic)
+        assert(diagnostic:find("dump: " .. lint_dump_dir .. "/sv_builder_lint.sv", 1, true), diagnostic)
         assert(diagnostic:find("error: expected expression", 1, true), diagnostic)
         expect.equal(ctx:generate(), "")
 
@@ -724,7 +719,7 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:clean()
     end)
 
-    it("sv_lint dumps failing input below the build directory", function()
+    it("sv_lint dumps failing input below the artifacts directory", function()
         ctx:set_lint(true)
         ctx:clean()
 
@@ -758,7 +753,7 @@ default clocking @(negedge path.to.clock); endclocking
             "unexpected dump path: " .. dump_path
         )
         assert(
-            dump_path:match("/sv_builder_lint_.+%.sv$"),
+            dump_path == dump_dir .. "/sv_builder_lint.sv",
             "unexpected dump filename: " .. dump_path
         )
         assert(
@@ -795,7 +790,7 @@ default clocking @(negedge path.to.clock); endclocking
         expect.equal(ok, true, "expected name reusable after lint fail, got: " .. tostring(err))
         ctx:clean()
 
-        -- Second fail gets a new file; the first dump stays.
+        -- Second fail overwrites the same file with the latest input.
         ok, err = pcall(function()
             ctx:add "sequence" { name = "s_dump2", expr = "top.dut.req ##" }
         end)
@@ -803,10 +798,14 @@ default clocking @(negedge path.to.clock); endclocking
         local dump_path2 = tostring(err):match("dump: ([^\n]+)")
         assert(dump_path2, "expected second dumped path, got: " .. tostring(err))
         ---@cast dump_path2 string
-        assert(dump_path2 ~= dump_path, "expected unique dump paths")
+        expect.equal(dump_path2, dump_path)
         local fh1 = io.open(dump_path, "r")
-        assert(fh1, "first dump was overwritten/removed: " .. dump_path)
+        assert(fh1, "latest dump is missing: " .. dump_path)
+        local dumped2 = fh1:read("*a")
         fh1:close()
+        assert(dumped2:find("top.dut.req ##", 1, true), dumped2)
+        assert(not dumped2:find("s_dump();", 1, true), dumped2)
+        assert(dumped2:find("s_dump2", 1, true), dumped2)
         ctx:clean()
 
         -- set_lint(false) does not dump.
