@@ -75,7 +75,8 @@ target("test-all-lua", function()
         local function run_lua_test_files(files)
             for index, file in ipairs(files) do
                 run_case(path.filename(file), function()
-                    print(string.format("=== [%d/%d] start test %s ==================================", index, #files, file))
+                    print(string.format("=== [%d/%d] start test %s ==================================", index, #files,
+                        file))
                     os.exec("luajit %s --stop-on-fail --no-quiet", file)
                     print("")
                 end)
@@ -240,27 +241,27 @@ end
 -- All sim-based test cases — each directory gets its own parallel target
 ---@type SimTestCase[]
 local sim_test_cases = {
-    { dir = "test_edge", name = "test_edge" },
-    { dir = "test_set_value", name = "test_set_value" },
-    { dir = "test_set_imm", name = "test_set_imm" },
-    { dir = "test_issue11", name = "test_issue11", no_internal_clock = true },
-    { dir = "test_basic_signal", name = "test_basic_signal", no_internal_clock = true },
-    { dir = "test_scheduler", name = "test_scheduler" },
-    { dir = "test_comb", name = "test_comb", no_internal_clock = true },
-    { dir = "test_comb_await_rw", name = "test_comb_await_rw" },
-    { dir = "test_await_rw_corner", name = "test_await_rw_corner" },
-    { dir = "test_rw_flush", name = "test_rw_flush" },
-    { dir = "test_comb_1", name = "test_comb_1", no_internal_clock = true, min_verilator_version = 5.036 },
-    { dir = "test_bitvec_signal", name = "test_bitvec_signal" },
-    { dir = "test_no_internal_clock", name = "test_no_internal_clock" },
-    { dir = "test_handles", name = "test_handles" },
-    { dir = "test_chdl_write_api", name = "test_chdl_write_api" },
+    { dir = "test_edge",                   name = "test_edge" },
+    { dir = "test_set_value",              name = "test_set_value" },
+    { dir = "test_set_imm",                name = "test_set_imm" },
+    { dir = "test_issue11",                name = "test_issue11",                no_internal_clock = true },
+    { dir = "test_basic_signal",           name = "test_basic_signal",           no_internal_clock = true },
+    { dir = "test_scheduler",              name = "test_scheduler" },
+    { dir = "test_comb",                   name = "test_comb",                   no_internal_clock = true },
+    { dir = "test_comb_await_rw",          name = "test_comb_await_rw" },
+    { dir = "test_await_rw_corner",        name = "test_await_rw_corner" },
+    { dir = "test_rw_flush",               name = "test_rw_flush" },
+    { dir = "test_comb_1",                 name = "test_comb_1",                 no_internal_clock = true,     min_verilator_version = 5.036 },
+    { dir = "test_bitvec_signal",          name = "test_bitvec_signal" },
+    { dir = "test_no_internal_clock",      name = "test_no_internal_clock" },
+    { dir = "test_handles",                name = "test_handles" },
+    { dir = "test_chdl_write_api",         name = "test_chdl_write_api" },
     -- Entire case is force/release coalesce; needs Verilator >= 5.050 + forceable
     { dir = "test_force_release_coalesce", name = "test_force_release_coalesce", min_verilator_version = 5.050 },
-    { dir = "test_native_clock", name = "test_native_clock" },
-    { dir = "test_queue_waitable", name = "test_queue_waitable" },
-    { dir = "test_dpic", name = "test_dpic" },
-    { dir = "test_rw_reflush_panic", name = "test_rw_reflush_panic" },
+    { dir = "test_native_clock",           name = "test_native_clock" },
+    { dir = "test_queue_waitable",         name = "test_queue_waitable" },
+    { dir = "test_dpic",                   name = "test_dpic" },
+    { dir = "test_rw_reflush_panic",       name = "test_rw_reflush_panic" },
 }
 
 -- Create a per-directory sim test target for each case (build + run for all sims).
@@ -337,8 +338,12 @@ add_group_target("test-readonly-write-error", function(ctx)
             ctx.run_cmd(cwd, "xmake build -v -P .", { SIM = sim })
             local log = path.join(cwd, "readonly-write-error-" .. sim .. ".log")
             local log_q = shell_quote(log)
-            local script = "if xmake run -v -P . > " .. log_q .. " 2>&1; then cat " .. log_q .. "; rm -f " .. log_q .. "; exit 1; fi; " ..
-                "content=$(cat " .. log_q .. "); case \"$content\" in *'ReadOnly phase'*'inc'*) rm -f " .. log_q .. " ;; *) cat " .. log_q .. "; exit 1 ;; esac"
+            local script = "if xmake run -v -P . > " ..
+                log_q .. " 2>&1; then cat " .. log_q .. "; rm -f " .. log_q .. "; exit 1; fi; " ..
+                "content=$(cat " ..
+                log_q ..
+                "); case \"$content\" in *'ReadOnly phase'*'inc'*) rm -f " ..
+                log_q .. " ;; *) cat " .. log_q .. "; exit 1 ;; esac"
             ctx.run_cmd(cwd, "sh -c " .. shell_quote(script), { SIM = sim })
         end)
     end
