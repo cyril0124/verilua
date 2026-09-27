@@ -246,9 +246,9 @@ flowchart LR
 
 ### 切换到 nosim 时复用其他仿真器的 flags
 
-对应配置：`set_values("verilua.infer_nosim_flags", "1")`
+对应配置：`set_values("verilua.infer_nosim_flags", <simulators>)`
 
-`nosim` 后端底层是 slang，只能理解 slang 自己的参数。打开这个开关后，构建 `nosim` 时会扫描 `verilator.flags`、`vcs.flags`、`iverilog.flags`、`xcelium.flags`，把两边都支持的写法翻译成 slang 拼写后追加进 `nosim.flags`，切到 `nosim` 时无需重复维护这些参数。
+`nosim` 后端底层是 slang，只能理解 slang 自己的参数。打开这个开关后，构建 `nosim` 时会扫描 `verilator.flags`、`vcs.flags`、`iverilog.flags`、`xcelium.flags`，把两边都支持的写法翻译成 slang 拼写后追加进 `nosim.flags`，切到 `nosim` 时无需重复维护这些参数。取值写 `"1"` 表示复用全部四个来源，也可以写逗号分隔的名单，只复用其中一部分。
 
 ```lua title="xmake.lua"
 set_values("vcs.flags", "+incdir+/path/to/include", "+define+MY_MACRO=1", "-timescale=1ps/1ps")
@@ -256,9 +256,12 @@ set_values("verilator.flags", "-I/path/to/include", "-DMY_MACRO=1")
 
 -- 切到 nosim（add_toolchains("@nosim")）时自动带上上面的 -I / -D / --timescale
 set_values("verilua.infer_nosim_flags", "1")
+
+-- 也可以只复用其中一个来源
+-- set_values("verilua.infer_nosim_flags", "vcs")
 ```
 
-翻译范围（其余参数一律丢弃，因为 slang 不认识这些厂商私有选项）。识别只看写法，不看来自哪个仿真器：同一个写法写在任何一个 `*.flags` 里都会被翻译（报错文案里的仿真器名只是提示来源）：
+翻译范围（其余参数一律丢弃，因为 slang 不认识这些厂商私有选项）。识别只看写法：同一个写法写在任何一个 `*.flags` 里都会被翻译，报错文案里的仿真器名用于指明来源：
 
 | nosim(slang) | 识别到的写法 |
 |--------------|--------------|
@@ -274,7 +277,10 @@ set_values("verilua.infer_nosim_flags", "1")
 - `+incdir+dir_a+dir_b` 这种 `+` 分隔的多值会展开成多个 `-I`。`+` 在这里就是分隔符，所以路径本身含 `+` 时请改用 `-I <dir>` 写法。
 - 参数按空白切分，值里不能带空格，否则只会取到第一个词。
 - 没有 nosim 等价写法的参数会被丢弃，并在构建时打印一行提示（按来源 `*.flags` 分组）；需要照样传给 nosim 时写进 `nosim.flags`。
-- 推断结果内部会去重；`timescale` 是单值，按 `verilator`、`vcs`、`iverilog`、`xcelium` 的顺序后写覆盖前写。用户自己写的 `nosim.flags` 不会被去重或覆盖。
+- 合并以参数种类为单位：`-I` / `-y` 按规范化后的目录比较，`+libext+` 比较扩展名，`-D` 比较宏名，`--timescale` 按单值处理。因此同一个目录的两种写法（例如 `-I a/../b` 和 `-I b`）只会进 `nosim.flags` 一次。
+- 宏和 `timescale` 是单值。两个来源给出不同的值时，构建会直接报错并列出两侧的来源与取值。宏名写法不同但取值相同（例如 `-DNAME` 和 `-DNAME=`）视为同一个定义，只保留一种写法。
+- 自己写在 `nosim.flags` 里的同类参数不重复追加；与推断结果冲突时，报错会指出 `nosim.flags` 里的取值。
+- 只指定部分来源（例如 `"verilator,vcs"`）时，其余仿真器的 `*.flags` 不参与推断。同时维护多个仿真器时，可以让 nosim 只复用其中一部分。
 - 推断出的 `-I` 同时会传给 `testbench_gen`；宏定义不会，`testbench_gen` 需要用 `verilua.tb_gen_flags` 自行传 `-D`。
 - `-f` / `-F` 文件列表不在翻译范围内，`-top` / `--top-module` 等顶部模块参数也不翻译（由 `verilua.top` / `tb_top` 决定）。
 

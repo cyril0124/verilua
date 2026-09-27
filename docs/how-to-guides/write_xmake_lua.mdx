@@ -255,7 +255,7 @@ end)
 - 读值接口（`<chdl>:get()`、`get_hex_str()` 等）和 `NativeClock` 会直接报错，报错信息说明 nosim 没有仿真时间且不读写信号值。
 - 需要驱动信号或等待时间的 testbench 请换用真实仿真器。
 
-构建阶段可以复用其他仿真器的 `*.flags`（`-I`、`-D`、`--timescale` 等），写法见 [xmake 参数详细说明](../reference/xmake_params.mdx) 中的 `verilua.infer_nosim_flag`。
+构建阶段可以复用其他仿真器的 `*.flags`（`-I`、`-D`、`--timescale` 等），写法见 [xmake 参数详细说明](../reference/xmake_params.mdx) 中的 `verilua.infer_nosim_flags`。
 
 ---
 
