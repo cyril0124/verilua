@@ -99,6 +99,111 @@ endmodule
 `SV_GEN=1` 时不加 `--iif` flag，不然 testbench_gen 尝试 compile `svbuilder_output.sv` 时 tb_top 还不存在会报错。
 :::
 
+## Lua 到 SV 的覆盖同步
+
+### 背景
+
+Verilua 里很大一部分验证逻辑天然在 Lua 侧：Lua 产生激励、Lua monitor 解析事务、Lua reference model 算期望值。这些组件看到的是事务级信息，有些覆盖点用几行 Lua 判断就够了，比如一个事务的 beat 数超过 4、读写交替且地址跨 4KB 边界。
+
+SV covergroup 的采样事件来自时钟和信号，看不到 Lua 的判定结果。覆盖点在 Lua 里已经成立，覆盖率报告里却没有记录。
+
+covergroup 的写法见 [Covergroup 生成](#covergroup-生成)。这里要补的是同步：Lua 判定命中后，把这次命中记进 SV 的 covergroup。
+
+### 通道
+
+命中时机由 Lua 决定，所以 covergroup 不能挂在时钟事件上，要用显式采样（`with function sample(...)`），再用 `export "DPI-C"` 包一层交给 Lua 调用：
+
+```systemverilog
+covergroup cg_lua_cov with function sample(int unsigned bin_id);
+    cp_bin: coverpoint bin_id {
+        bins burst_len_gt4 = {0};
+        bins rd_wr_alt     = {1};
+    }
+endgroup
+
+cg_lua_cov cg_lua_cov_inst = new();
+
+export "DPI-C" function verilua_cov_sample;
+function void verilua_cov_sample(int unsigned bin_id);
+    cg_lua_cov_inst.sample(bin_id);
+endfunction
+```
+
+Lua 侧用 [SymbolHelper](./symbol_helper.mdx) 取到这个符号，判定命中哪个 bin 后调用；scope 的取值见 [调用 C 函数](../how-to-guides/call_c_functions.mdx)：
+
+```lua
+local SymbolHelper = require "verilua.utils.SymbolHelper"
+local cov_sample = SymbolHelper.try_ffi_cast("void verilua_cov_sample(unsigned int bin_id);")
+
+-- DPI export 在声明它的 module 作用域里执行，作用域会跨调度点重置，所以每次调用前设一次
+sim.set_dpi_scope("tb_top") -- 参数是声明这个 export 的 module 作用域，省略时用 cfg.top
+cov_sample(bin_id)
+```
+
+这样 Lua 判定的命中和 SV 自己采样的 bin 落在同一份覆盖率数据里，和直接在 SV 里 `sample()` 没有区别。
+
+这段 SV 必须放进 `tb_top`：DPI export 要在 module 作用域里。`tb_top` 每次 build 都会重新生成，所以用 `--inject-inner-file` 注入，见下文 [注入方式：文件与字符串](#注入方式文件与字符串)；仓库里 `tests/test_lua_cov_bridge/` 是一个可运行的例子。
+
+### 用 SVBuilder 生成
+
+covergroup 本体交给 SVBuilder，`sample_event` 用 `with function sample(...)` 不挂时钟；`export "DPI-C"` 包一层放进 `add "raw"`，用 `$(cov:name)` 引用生成的实例名：
+
+```lua
+local cov = ctx:add "covergroup" {
+    name = "cg_lua_cov",
+    sample_event = "with function sample(int unsigned bin_id)",
+    expr = [[    cp_bin: coverpoint bin_id {
+        bins burst_len_gt4 = {0};
+        bins rd_wr_alt     = {1};
+    }]],
+}
+
+ctx:add "raw" {
+    name = "lua_cov_sample_export",
+    expr = [[export "DPI-C" function verilua_cov_sample;
+function void verilua_cov_sample(int unsigned bin_id);
+    $(cov:cg_lua_cov).sample(bin_id);
+endfunction]],
+}
+```
+
+:::warning
+`verilua_cov_sample` 只在 Lua 侧被调用，Verilator 会当作没有引用把 DPI export 链接掉，需要显式保留：
+
+```lua
+add_ldflags("-u verilua_cov_sample")
+```
+
+另外，Verilator 会静默丢弃仿真初始化完成前的 DPI export 调用，第一次采样要等第一个时钟沿之后。
+:::
+
+## 注入方式：文件与字符串
+
+`testbench_gen` 提供两组注入选项，正名和短名都可用：
+
+- `--inject-inner-file`（`--iif`）/ `--inject-outer-file`（`--iof`）：注入一个文件的内容
+- `--inject-inner-str`（`--iis`）/ `--inject-outer-str`（`--ios`）：直接注入字符串
+
+`inner` 落在 testbench module 内部、`endmodule` 之前；`outer` 落在 `module` 声明之前，适合放宏定义、`include`、package import。
+
+SVBuilder 的输出是多行 SV，通常还会纳入版本控制，用文件形式更合适：可以单独 diff 审查，编辑器也能按 SV 语法高亮；需要放宏或 import 时换成 `--inject-outer-file`。
+
+```lua
+set_values("verilua.tb_gen_flags", { "--inject-inner-file", sv_file })
+```
+
+路径可以是 `path.join(os.scriptdir(), ...)` 拼出的绝对路径，也可以直接给相对路径，按 project dir 解析（Verilua 规则调用 `testbench_gen` 前会切到 project dir）。
+
+注入的文件只交给 `testbench_gen`，不要再写进 `add_files`，否则同一段内容会被编译两次。
+
+:::warning
+`testbench_gen` 判断能否跳过重新生成时，只比对命令行（含注入文件的路径）、`others.sv` 和各 RTL 源文件，不读注入文件的内容。所以只改了被注入的 `.sv`（例如重跑一次 `SV_GEN=1`），它会打 `up-to-date` 并复用旧的 `tb_top.sv`，新内容不会进仿真。
+
+要强制刷新 `tb_top.sv`：删掉 `build/<sim>/<top>/tb_top.sv`，或在 `verilua.tb_gen_flags` 里加 `--regen`（每次 build 都重新生成）。
+:::
+
+完整的选项表和插入位置示意见 [testbench 生成](./testbench_generate.mdx)。
+
 ## 自动生成：build 前用 nosim 刷新
 
 `nosim` 是 Verilua 的不仿真后端，用 slang 做 elaborate，不推进仿真时间，也不读写信号值。

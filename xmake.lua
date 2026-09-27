@@ -985,6 +985,7 @@ target("test", function()
             "test-native-clock",
             "test-queue-waitable",
             "test-dpic",
+            "test-lua-cov-bridge",
             -- Wave VPI tests (one per directory)
             "test-wave-vpi",
             "test-wave-vpi-x",

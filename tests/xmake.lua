@@ -261,6 +261,7 @@ local sim_test_cases = {
     { dir = "test_native_clock",           name = "test_native_clock" },
     { dir = "test_queue_waitable",         name = "test_queue_waitable" },
     { dir = "test_dpic",                   name = "test_dpic" },
+    { dir = "test_lua_cov_bridge",         name = "test_lua_cov_bridge" },
     { dir = "test_rw_reflush_panic",       name = "test_rw_reflush_panic" },
 }
 
