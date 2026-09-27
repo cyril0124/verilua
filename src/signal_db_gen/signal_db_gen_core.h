@@ -27,6 +27,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 // For file locking
@@ -125,12 +126,19 @@ class FileLock {
 
 class SignalGetter : public ASTVisitor<SignalGetter> {
   public:
+    // Per-signal data collected during AST traversal
     std::vector<std::string> hierPathVec;
     std::vector<size_t> bitWidthVec;
-    std::vector<std::string> typeStrVec;
     std::vector<std::string> vpiTypeVec;
 
-    SignalGetter(std::vector<std::string> enableModules, std::vector<std::string> disableModules, bool ignoreChiselTrivialSignals = true, bool ignoreUnderscoreSignals = true, bool verbose = false) : enableModules(enableModules), disableModules(disableModules), ignoreChiselTrivialSignals(ignoreChiselTrivialSignals), ignoreUnderscoreSignals(ignoreUnderscoreSignals), verbose(verbose) {}
+    SignalGetter(std::unordered_set<std::string> enableModules, std::unordered_set<std::string> disableModules, bool ignoreChiselTrivialSignals = true, bool ignoreUnderscoreSignals = true, bool verbose = false)
+        : enableModules(std::move(enableModules)), disableModules(std::move(disableModules)), ignoreChiselTrivialSignals(ignoreChiselTrivialSignals), ignoreUnderscoreSignals(ignoreUnderscoreSignals), verbose(verbose) {
+        // Reserve for typical design signal counts to avoid reallocation
+        static constexpr size_t INITIAL_SIGNAL_RESERVE = 65536;
+        hierPathVec.reserve(INITIAL_SIGNAL_RESERVE);
+        bitWidthVec.reserve(INITIAL_SIGNAL_RESERVE);
+        vpiTypeVec.reserve(INITIAL_SIGNAL_RESERVE);
+    }
 
     void handle(const InstanceBodySymbol &ast) {
         auto moduleName = ast.getDefinition().name;
@@ -139,7 +147,7 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
             fflush(stdout);
         }
 
-        if (!enableModules.empty() && std::find(enableModules.begin(), enableModules.end(), moduleName) == enableModules.end()) {
+        if (!enableModules.empty() && enableModules.count(std::string(moduleName)) == 0) {
             if (verbose) {
                 fmt::println("[SignalGetter] [whitelist] skip module {}", moduleName);
                 fflush(stdout);
@@ -147,7 +155,7 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
             visitDefault(ast);
             return;
         }
-        if (!disableModules.empty() && std::find(disableModules.begin(), disableModules.end(), moduleName) != disableModules.end()) {
+        if (!disableModules.empty() && disableModules.count(std::string(moduleName)) != 0) {
             if (verbose) {
                 fmt::println("[SignalGetter] [blacklist] skip module {}", moduleName);
                 fflush(stdout);
@@ -189,13 +197,13 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
     }
 
   private:
-    std::vector<std::string> enableModules;
-    std::vector<std::string> disableModules;
+    std::unordered_set<std::string> enableModules;
+    std::unordered_set<std::string> disableModules;
     bool verbose                    = false;
     bool ignoreChiselTrivialSignals = true;
     bool ignoreUnderscoreSignals    = true;
 
-    void collectSignalInfo(std::string_view hierPath, size_t bitWidth, std::string typeStr, std::string_view vpiType) {
+    void collectSignalInfo(std::string_view hierPath, size_t bitWidth, std::string_view typeStr, std::string_view vpiType) {
         if (hierPath.starts_with(".")) {
             // TODO: Handle this case
             return;
@@ -213,7 +221,6 @@ class SignalGetter : public ASTVisitor<SignalGetter> {
 
             hierPathVec.emplace_back(hierPath);
             bitWidthVec.emplace_back(bitWidth);
-            typeStrVec.emplace_back(typeStr);
             vpiTypeVec.emplace_back(vpiType);
         }
     }
@@ -353,7 +360,10 @@ class WrappedDriver {
     void generateSignalDB() {
         ASSERT(alreadyParsed, "You must call `parseCmdLine` first!");
 
-        SignalGetter getter(enableModules, disableModules, ignoreChiselTrivialSignals.value_or(false), ignoreUnderscoreSignals.value_or(false), verbose.value_or(false));
+        // Convert vectors to sets for O(1) module name lookup
+        std::unordered_set<std::string> enableSet(enableModules.begin(), enableModules.end());
+        std::unordered_set<std::string> disableSet(disableModules.begin(), disableModules.end());
+        SignalGetter getter(std::move(enableSet), std::move(disableSet), ignoreChiselTrivialSignals.value_or(false), ignoreUnderscoreSignals.value_or(false), verbose.value_or(false));
         this->getCompilation()->getRoot().visit(getter);
 
         auto ret = lua["insert_signal_db"](getter.hierPathVec.size(), getter.hierPathVec, getter.bitWidthVec, getter.vpiTypeVec);
