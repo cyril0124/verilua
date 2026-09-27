@@ -72,7 +72,7 @@ The following files are generated (in `libverilua/src/gen/`):
 
 ## Running Tests
 
-**Important:** When adding or implementing any new feature, please include relevant tests to ensure correctness and avoid future breakage.
+**Important:** When adding or implementing any new feature, include the smallest test that covers the new behavior. Skip tests for changes with no behavioral risk, such as docs, comments, formatting, examples, and generated files.
 
 **Running comprehensive test suite:**
 - `xmake run test` - Run complete test suite including all example projects(This may take a few minutes to complete!)

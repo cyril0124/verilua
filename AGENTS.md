@@ -81,16 +81,18 @@ F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
 
 ## TDD Workflow
 
-- Use TDD by default for bug fixes and feature work.
-- Start with a failing test that reproduces the bug or captures the expected behavior before changing production code.
+- For bug fixes and behavioral changes, reproduce the bug or capture the expected behavior in a test before changing production code. Use the smallest existing test that can fail; add a new case only when nothing covers that path.
 - Prefer the smallest relevant test first: run one Lua test file with `cd tests && luajit test_xxx.lua --stop-on-fail --no-quiet`, or run one focused integration target with `xmake build -P tests/<case>` and `xmake run -P tests/<case>`.
+- Do not add tests for changes that carry no behavioral risk: docs, comments, formatting, examples, CHANGELOG, and generated files.
+- Do not stand up a new test harness, directory, or case for a trivial fix. Extending an existing test is the default.
+- When the user says to skip tests for a change, skip them and do not raise the topic again in that session.
 - Make the minimum code change needed to turn the test green, then refactor with the test still passing.
 - Before finishing, rerun the targeted test(s) you added or changed and then run the required format and static checks for the files you touched.
 
 ## Running Tests
 
 - Run only the smallest relevant build or test commands for the files you changed. Do not run a full-project build such as `xmake b`.
-- When adding or changing features, include relevant tests.
+- When adding or changing a feature, extend or add the smallest test that covers the new behavior, unless the change carries no behavioral risk or the user asked to skip tests.
 - To run the broader regression suite, use `xmake run test`.
 - To run the full regression suite in one command, use `./test-all.sh` (sets `VL_TEST_JOBS` to `nproc/2` automatically). Extra env vars such as `STOP_ON_FAIL=1` or `VL_TEST_FILTER=<token>` can be prepended as usual.
 - To control parallelism for `xmake run test`, set `VL_TEST_JOBS=<n>`. The default is `4`.
@@ -146,12 +148,21 @@ F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
 
 - When implementing a new feature or fixing a bug, complete the full delivery in one pass without waiting for user reminders:
   1. Implementation code
-  2. Tests (unit and/or integration)
+  2. Tests (unit and/or integration) — skip when the change carries no behavioral risk or the user opted out
   3. Documentation updates (`./docs` if user-facing behavior changes)
   4. `CHANGELOG.md` entry under `## Unreleased` (skip pure doc-only changes like typos/formatting, and anything not user-visible: internal tooling, agent rules, private scripts, CI-only, etc.)
   5. If new or renamed xmake `verilua.*` / rule config flags were introduced, update `./src/lua/meta.lua` (`verilua.xmake.set_add_values.cmd`)
   6. Format checks (`xmake r format-lua` / `xmake r format-cpp`)
   7. Static checks (`xmake r lsp-check-lua` / `cargo clippy`)
+
+## Git History Discipline
+
+- Run `commit --amend`, `rebase`, `reset`, `cherry-pick`, or `push --force` only when the user explicitly asks for it in the current turn. A request from an earlier turn does not carry over.
+- Never fold your own follow-up fixes (sanitize cleanup, renames, review fixes) into an existing commit. Create a new commit for them.
+- Fixing a problem you introduced must not rewrite or drop already-published commits. Add a new commit on top instead.
+- In a worktree, rebase onto the latest `master` before merging, then merge so `master` does not accumulate extra merge commits.
+- Resolve merge and rebase conflicts yourself when the intent of both sides is clear: keep the union of both changes, then verify by building or testing. Stop and ask only when the conflict is semantic (the two sides disagree on behavior, not on text).
+- Leave unrelated working-tree changes untouched. Never stash, drop, or commit the user's uncommitted work without asking.
 
 ## Pull Requests
 
