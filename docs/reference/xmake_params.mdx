@@ -246,7 +246,7 @@ flowchart LR
 
 ### 切换到 nosim 时复用其他仿真器的 flags
 
-对应配置：`set_values("verilua.infer_nosim_flag", "1")`
+对应配置：`set_values("verilua.infer_nosim_flags", "1")`
 
 `nosim` 后端底层是 slang，只能理解 slang 自己的参数。打开这个开关后，构建 `nosim` 时会扫描 `verilator.flags`、`vcs.flags`、`iverilog.flags`、`xcelium.flags`，把两边都支持的写法翻译成 slang 拼写后追加进 `nosim.flags`，切到 `nosim` 时无需重复维护这些参数。
 
@@ -255,7 +255,7 @@ set_values("vcs.flags", "+incdir+/path/to/include", "+define+MY_MACRO=1", "-time
 set_values("verilator.flags", "-I/path/to/include", "-DMY_MACRO=1")
 
 -- 切到 nosim（add_toolchains("@nosim")）时自动带上上面的 -I / -D / --timescale
-set_values("verilua.infer_nosim_flag", "1")
+set_values("verilua.infer_nosim_flags", "1")
 ```
 
 翻译范围（其余参数一律丢弃，因为 slang 不认识这些厂商私有选项）。识别只看写法，不看来自哪个仿真器：同一个写法写在任何一个 `*.flags` 里都会被翻译（报错文案里的仿真器名只是提示来源）：

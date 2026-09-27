@@ -1,6 +1,6 @@
 // Each probe header lives in a directory that only one source simulator's flags can add to the
 // include search path, and each header references a macro that only that simulator's flags define.
-// The module therefore only elaborates when `verilua.infer_nosim_flag` translated the flags of
+// The module therefore only elaborates when `verilua.infer_nosim_flags` translated the flags of
 // verilator/vcs/iverilog/xcelium into `nosim.flags`.
 module top(
     input  wire        clk,

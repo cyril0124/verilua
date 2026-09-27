@@ -13,7 +13,7 @@ end
 --- translated into `nosim.flags`.
 ---@param name string xmake target name
 ---@param build_dir_name string distinct build directory name under `build/nosim`
----@param infer boolean whether `verilua.infer_nosim_flag` is enabled
+---@param infer boolean whether `verilua.infer_nosim_flags` is enabled
 local function add_nosim_target(name, build_dir_name, infer)
     target(name, function()
         add_rules("verilua")
@@ -26,7 +26,7 @@ local function add_nosim_target(name, build_dir_name, infer)
         set_values("verilua.build_dir_name", build_dir_name)
 
         if infer then
-            set_values("verilua.infer_nosim_flag", "1")
+            set_values("verilua.infer_nosim_flags", "1")
         end
 
         -- A user-written nosim flag must survive next to the inferred ones.
@@ -76,9 +76,9 @@ target("test", function()
         local function check(condition, message)
             checks = checks + 1
             if condition then
-                print("[infer_nosim_flag] PASSED: " .. message)
+                print("[infer_nosim_flags] PASSED: " .. message)
             else
-                print("[infer_nosim_flag] FAILED: " .. message)
+                print("[infer_nosim_flags] FAILED: " .. message)
                 failures[#failures + 1] = message
             end
         end
@@ -108,14 +108,14 @@ target("test", function()
         os.tryrm(build_root)
         local off_ok, off_output = build("nosim_infer_off")
         check(off_ok == false,
-            "nosim_infer_off must fail to build while verilua.infer_nosim_flag is unset")
+            "nosim_infer_off must fail to build while verilua.infer_nosim_flags is unset")
         check(off_output:find("no nosim equivalent", 1, true) == nil,
-            "no drop report may be printed while verilua.infer_nosim_flag is unset")
+            "no drop report may be printed while verilua.infer_nosim_flags is unset")
 
         -- With the switch on, slang resolves the includes and the probe headers' macro references
         -- stay silent, which only holds if both the `-I` and the `-D` arrived.
         local on_ok, on_output = build("nosim_infer_on")
-        check(on_ok == true, "nosim_infer_on must build with verilua.infer_nosim_flag enabled")
+        check(on_ok == true, "nosim_infer_on must build with verilua.infer_nosim_flags enabled")
 
         local cmdline_file = path.join(build_root, "infer_on", "nosim_cmdline_args.lua")
         check(os.isfile(cmdline_file), "nosim_infer_on must write nosim_cmdline_args.lua")
@@ -163,9 +163,9 @@ target("test", function()
                 "dropped flag must not reach the nosim command line: " .. dropped_flag)
         end
 
-        print(string.format("[infer_nosim_flag] %d/%d checks passed", checks - #failures, checks))
+        print(string.format("[infer_nosim_flags] %d/%d checks passed", checks - #failures, checks))
         if #failures > 0 then
-            raise("infer_nosim_flag: %d check(s) failed", #failures)
+            raise("infer_nosim_flags: %d check(s) failed", #failures)
         end
     end)
 end)

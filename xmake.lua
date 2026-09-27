@@ -991,7 +991,7 @@ target("test", function()
             "test-wave-vpi-print-hier",
             "test-wave-vpi-module-name",
             -- nosim flag inference (runs once, no SIM loop)
-            "test-infer-nosim-flag",
+            "test-infer-nosim-flags",
             -- Benchmarks
             "test-benchmarks",
             "test-benchmarks-wave-vpi",

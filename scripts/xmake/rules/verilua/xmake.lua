@@ -70,7 +70,7 @@ local function get_verilua_value(target, key)
     return nil
 end
 
---- Simulators whose `<sim>.flags` are scanned when `verilua.infer_nosim_flag` is enabled.
+--- Simulators whose `<sim>.flags` are scanned when `verilua.infer_nosim_flags` is enabled.
 local NOSIM_FLAG_SOURCE_SIMS = { "verilator", "vcs", "iverilog", "xcelium" }
 
 --- Split the value part of `+incdir+` / `+libext+`, whose VCS-style spelling joins several
@@ -182,11 +182,11 @@ local function translate_to_nosim_flags(flags, sim)
 end
 
 --- Collect the nosim flags inferred from every other simulator's `<sim>.flags`.
---- Returns nothing unless `set_values("verilua.infer_nosim_flag", "1")` is set.
+--- Returns nothing unless `set_values("verilua.infer_nosim_flags", "1")` is set.
 ---@param target table xmake target
 ---@return { flags: string[], error?: string, dropped?: { sim: string, flags: string[] }[] }
 local function infer_nosim_flags(target)
-    local enabled = get_verilua_value(target, "verilua.infer_nosim_flag")
+    local enabled = get_verilua_value(target, "verilua.infer_nosim_flags")
     if type(enabled) == "table" then
         enabled = enabled[1]
     end
@@ -1210,7 +1210,7 @@ rule("verilua", function()
             --- `nosim.flags`.
             --- e.g.(in your xmake.lua)
             --- ```lua
-            ---     set_values("verilua.infer_nosim_flag", "1")
+            ---     set_values("verilua.infer_nosim_flags", "1")
             --- ```
             local inference = infer_nosim_flags(target)
             if inference.error then
