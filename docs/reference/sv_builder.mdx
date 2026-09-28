@@ -16,283 +16,130 @@ SVBuilder 是 Verilua 提供的 SystemVerilog 生成工具，用于生成 SVA �
 - 只有少量固定的断言，直接写 SV 更简单
 - 不使用 Verilua 做 testbench，没有可复用的 handle
 
-## 推荐用法
+## 对比：手写 SV vs SVBuilder
 
-生成通常不需要在每次仿真时都执行。推荐通过环境变量控制，只在需要重新生成时才运行：
+### 示例 1：信号路径自动提取
 
-```lua
-if os.getenv("SV_GEN") == "1" then
-    fork {
-        function()
-            local ctx = require "verilua.sv.SVBuilder"
-            ctx:clean()
-            ctx:default_clocking(dut.clk, "posedge")
-
-            -- 定义 sequences / properties / assertions ...
-            ctx:add "sequence" { name = "hs", expr = "$(req) ##1 $(ack)", envs = { req = dut.req, ack = dut.ack } }
-            ctx:add "assert" { name = "chk_hs", expr = "$(seq:hs) |-> $(valid)", envs = { valid = dut.valid } }
-
-            -- 写入文件，后续通过 testbench_gen --iif 注入 tb_top
-            local output_path = require("verilua.LuaUtils").get_scriptdir() .. "/svbuilder_output.sv"
-            local f = io.open(output_path, "w")
-            f:write(ctx:generate())
-            f:close()
-
-            sim.finish()
-        end
-    }
-end
-```
-
-`sim.finish()` 在生成完成后立即结束仿真，避免继续执行后续 testbench 逻辑（此时只需要生成文件，不需要跑真正的测试）。
-
-运行时通过环境变量触发：
-
-```bash
-SV_GEN=1 xmake run -P tests/test_xxx
-```
-
-这样做的好处：
-
-- 生成逻辑和 testbench 在同一个进程里，能直接复用所有 handle
-- 正常仿真时不会执行生成代码，零开销
-- 生成的 `.sv` 文件可以纳入版本控制，如有变化可以 diff 审查
-
-如果不想每次手动跑两遍（先 `SV_GEN=1 xmake r` 生成、再 `xmake b` 注入），可以用 `before_build` + `nosim` 在每次 build 前自动重新生成，见 [自动生成：build 前用 nosim 刷新](#自动生成build-前用-nosim-刷新)。
-
-## 集成到 RTL
-
-生成的 `.sv` 文件通过 `verilua.tb_gen_flags` 传给 `testbench_gen`，用 `--iif`（inject-inner-file）将内容注入到 `tb_top` module 内部。生成内容内部使用 handle 渲染出的 XMR 路径（如 `tb_top.clk`），在 tb_top 内部上下文中完全合法。
-
-在 `xmake.lua` 里配置：
-
-```lua
-local sv_file = path.join(os.scriptdir(), "svbuilder_output.sv")
-if os.isfile(sv_file) and not os.getenv("SV_GEN") then
-    set_values("verilua.tb_gen_flags", { "--iif", sv_file })
-end
-```
-
-这样 `testbench_gen` 会把 `svbuilder_output.sv` 的内容插入到生成的 `tb_top.sv` 末尾（endmodule 之前）。
-
-生成的 `tb_top.sv` 效果如下：
+手写 SV 时，你需要手动拼写完整的层次路径：
 
 ```systemverilog
-module tb_top(...);
+// 手写：每个信号都要写完整 XMR 路径
+sequence handshake();
+    top.u_soc.u_axi_master.awvalid ##1 top.u_soc.u_axi_master.awready;
+endsequence
 
-// ... testbench_gen 自动生成的内容（时钟、DUT 例化等）...
+property aw_valid_hold();
+    top.u_soc.u_axi_master.awvalid && !top.u_soc.u_axi_master.awready
+        |-> ##1 top.u_soc.u_axi_master.awvalid;
+endproperty
 
-// --- SVBuilder 生成的内容（通过 --iif 注入） ---
-default clocking @(posedge tb_top.clk); endclocking
-
-sequence req_to_ack(); tb_top.req ##[1:2] tb_top.ack; endsequence
-
-property handshake_valid(); (tb_top.req && tb_top.ack) |-> ##1 tb_top.valid; endproperty
-
-chk_handshake_valid: assert property (handshake_valid);
-cov_handshake: cover property (tb_top.req && tb_top.ack);
-
-endmodule
+assert property (aw_valid_hold);
 ```
 
-:::tip
-`SV_GEN=1` 时不加 `--iif` flag，不然 testbench_gen 尝试 compile `svbuilder_output.sv` 时 tb_top 还不存在会报错。
-:::
-
-## Lua 到 SV 的覆盖同步
-
-### 背景
-
-Verilua 里很大一部分验证逻辑天然在 Lua 侧：Lua 产生激励、Lua monitor 解析事务、Lua reference model 算期望值。这些组件看到的是事务级信息，有些覆盖点用几行 Lua 判断就够了，比如一个事务的 beat 数超过 4、读写交替且地址跨 4KB 边界。
-
-SV covergroup 的采样事件来自时钟和信号，看不到 Lua 的判定结果。覆盖点在 Lua 里已经成立，覆盖率报告里却没有记录。
-
-covergroup 的写法见 [Covergroup 生成](#covergroup-生成)。这里要补的是同步：Lua 判定命中后，把这次命中记进 SV 的 covergroup。
-
-### 通道
-
-命中时机由 Lua 决定，所以 covergroup 不能挂在时钟事件上，要用显式采样（`with function sample(...)`），再用 `export "DPI-C"` 包一层交给 Lua 调用：
-
-```systemverilog
-covergroup cg_lua_cov with function sample(int unsigned bin_id);
-    cp_bin: coverpoint bin_id {
-        bins burst_len_gt4 = {0};
-        bins rd_wr_alt     = {1};
-    }
-endgroup
-
-cg_lua_cov cg_lua_cov_inst = new();
-
-export "DPI-C" function verilua_cov_sample;
-function void verilua_cov_sample(int unsigned bin_id);
-    cg_lua_cov_inst.sample(bin_id);
-endfunction
-```
-
-Lua 侧用 [SymbolHelper](./symbol_helper.mdx) 取到这个符号，判定命中哪个 bin 后调用；scope 的取值见 [调用 C 函数](../how-to-guides/call_c_functions.mdx)：
+用 SVBuilder，信号路径从 testbench 已有的 handle 自动提取。路径变了（比如模块重命名）只需改 testbench 一处，生成的 SVA 随之更新：
 
 ```lua
-local SymbolHelper = require "verilua.utils.SymbolHelper"
-local cov_sample = SymbolHelper.try_ffi_cast("void verilua_cov_sample(unsigned int bin_id);")
-
--- DPI export 在声明它的 module 作用域里执行，作用域会跨调度点重置，所以每次调用前设一次
-sim.set_dpi_scope("tb_top") -- 参数是声明这个 export 的 module 作用域，省略时用 cfg.top
-cov_sample(bin_id)
-```
-
-这样 Lua 判定的命中和 SV 自己采样的 bin 落在同一份覆盖率数据里，和直接在 SV 里 `sample()` 没有区别。
-
-这段 SV 必须放进 `tb_top`：DPI export 要在 module 作用域里。`tb_top` 每次 build 都会重新生成，所以用 `--inject-inner-file` 注入，见下文 [注入方式：文件与字符串](#注入方式文件与字符串)；仓库里 `tests/test_lua_cov_bridge/` 是一个可运行的例子。
-
-### 用 SVBuilder 生成
-
-covergroup 本体交给 SVBuilder，`sample_event` 用 `with function sample(...)` 不挂时钟；`export "DPI-C"` 包一层放进 `add "raw"`，用 `$(cov:name)` 引用生成的实例名：
-
-```lua
-local cov = ctx:add "covergroup" {
-    name = "cg_lua_cov",
-    sample_event = "with function sample(int unsigned bin_id)",
-    expr = [[    cp_bin: coverpoint bin_id {
-        bins burst_len_gt4 = {0};
-        bins rd_wr_alt     = {1};
-    }]],
+-- SVBuilder：复用 testbench 里的 handle，路径自动解析
+ctx:add "sequence" {
+    name = "handshake",
+    expr = "$(valid) ##1 $(ready)",
+    envs = { valid = dut.awvalid, ready = dut.awready },
 }
 
-ctx:add "raw" {
-    name = "lua_cov_sample_export",
-    expr = [[export "DPI-C" function verilua_cov_sample;
-function void verilua_cov_sample(int unsigned bin_id);
-    $(cov:cg_lua_cov).sample(bin_id);
-endfunction]],
+ctx:add "property" {
+    name = "aw_valid_hold",
+    expr = "$(valid) && !$(ready) |-> ##1 $(valid)",
+    envs = { valid = dut.awvalid, ready = dut.awready },
+}
+
+ctx:add "assert" {
+    name = "chk_aw",
+    expr = "$(prop:aw_valid_hold)",
 }
 ```
 
-:::warning
-`verilua_cov_sample` 只在 Lua 侧被调用，Verilator 会当作没有引用把 DPI export 链接掉，需要显式保留：
+### 示例 2：批量生成
 
-```lua
-add_ldflags("-u verilua_cov_sample")
+对 3 个 AXI channel 各生成一条 valid-hold 断言。手写需要重复 3 次：
+
+```systemverilog
+// 手写：每个 channel 重复一遍
+property aw_valid_hold();
+    top.dut.awvalid && !top.dut.awready |-> ##1 top.dut.awvalid;
+endproperty
+chk_aw: assert property (aw_valid_hold);
+
+property w_valid_hold();
+    top.dut.wvalid && !top.dut.wready |-> ##1 top.dut.wvalid;
+endproperty
+chk_w: assert property (w_valid_hold);
+
+property ar_valid_hold();
+    top.dut.arvalid && !top.dut.arready |-> ##1 top.dut.arvalid;
+endproperty
+chk_ar: assert property (ar_valid_hold);
 ```
 
-另外，Verilator 会静默丢弃仿真初始化完成前的 DPI export 调用，第一次采样要等第一个时钟沿之后。
-:::
-
-## 注入方式：文件与字符串
-
-`testbench_gen` 提供两组注入选项，正名和短名都可用：
-
-- `--inject-inner-file`（`--iif`）/ `--inject-outer-file`（`--iof`）：注入一个文件的内容
-- `--inject-inner-str`（`--iis`）/ `--inject-outer-str`（`--ios`）：直接注入字符串
-
-`inner` 落在 testbench module 内部、`endmodule` 之前；`outer` 落在 `module` 声明之前，适合放宏定义、`include`、package import。
-
-SVBuilder 的输出是多行 SV，通常还会纳入版本控制，用文件形式更合适：可以单独 diff 审查，编辑器也能按 SV 语法高亮；需要放宏或 import 时换成 `--inject-outer-file`。
+SVBuilder 只需一个循环。新增 channel 在 `channels` 表里加一行即可，断言逻辑只写一份，不会漏改某个 channel：
 
 ```lua
-set_values("verilua.tb_gen_flags", { "--inject-inner-file", sv_file })
-```
+local channels = {
+    { name = "aw", valid = dut.awvalid, ready = dut.awready },
+    { name = "w",  valid = dut.wvalid,  ready = dut.wready },
+    { name = "ar", valid = dut.arvalid, ready = dut.arready },
+}
 
-路径可以是 `path.join(os.scriptdir(), ...)` 拼出的绝对路径，也可以直接给相对路径，按 project dir 解析（Verilua 规则调用 `testbench_gen` 前会切到 project dir）。
-
-注入的文件只交给 `testbench_gen`，不要再写进 `add_files`，否则同一段内容会被编译两次。
-
-:::warning
-`testbench_gen` 判断能否跳过重新生成时，只比对命令行（含注入文件的路径）、`others.sv` 和各 RTL 源文件，不读注入文件的内容。所以只改了被注入的 `.sv`（例如重跑一次 `SV_GEN=1`），它会打 `up-to-date` 并复用旧的 `tb_top.sv`，新内容不会进仿真。
-
-要强制刷新 `tb_top.sv`：删掉 `build/<sim>/<top>/tb_top.sv`，或在 `verilua.tb_gen_flags` 里加 `--regen`（每次 build 都重新生成）。
-:::
-
-完整的选项表和插入位置示意见 [testbench 生成](./testbench_generate.mdx)。
-
-## 自动生成：build 前用 nosim 刷新
-
-`nosim` 是 Verilua 的不仿真后端，用 slang 做 elaborate，不推进仿真时间，也不读写信号值。
-
-手动流程要先生成、再 build 一次，因为 SVBuilder 的输出只能在运行阶段产生，注入的是下一次编译的 `tb_top.sv`。用 `before_build` + `nosim` 可以让 `xmake build` 一步到位：build 前先用 slang（nosim）跑一遍生成逻辑刷新输出文件，再让同一次 build 的 `testbench_gen` 注入。
-
-原理：
-
-1. 生成逻辑仍写在 `verilua.lua_main` 里，由 `SV_GEN` 环境变量控制。
-2. 在 `xmake.lua` 注册 `before_build`：当前后端不是 nosim 时，用子进程 xmake 以 `SIM=nosim SV_GEN=1` 先 `build` + `run` 一次刷新输出文件；输出路径写成 `SV_OUT` 传给生成进程，只在这一处定义。
-3. `before_build` 早于 Verilua 规则的 `testbench_gen`（后者在 `on_build` 阶段执行），所以刚生成的文件能在同一次 build 里被 `--iif` 注入 `tb_top.sv`。
-4. 子进程设置独立的 `XMAKE_CONFIGDIR`，否则会和外层 build 争用 `project.lock` 死锁。
-5. 生成进程带 `SV_GEN=1` 时不加 `--iif`，避免去注入一个还没生成的文件。
-
-`xmake.lua`：
-
-```lua
-local prj_dir = os.scriptdir()
-local sv_file = path.join(prj_dir, "svbuilder_output.sv")
-
-target("my_test", function()
-    add_rules("verilua")
-
-    on_config(function(target)
-        local sim = os.getenv("SIM") or "verilator"
-        -- 按 SIM 选择 @nosim / @verilator / @vcs / ...
-    end)
-
-    add_files("rtl/*.sv")
-    set_values("verilua.top", "Top")
-    set_values("verilua.lua_main", path.join(prj_dir, "main.lua"))
-
-    -- 生成进程（SV_GEN=1）不注入，其余后端把生成内容注入 tb_top
-    if not os.getenv("SV_GEN") then
-        add_values("verilua.tb_gen_flags", "--iif", sv_file)
-    end
-
-    before_build(function(target)
-        if (os.getenv("SIM") or "verilator") == "nosim" then
-            return
-        end
-        local gen_envs = {
-            SIM = "nosim",
-            SV_GEN = "1",
-            SV_OUT = sv_file,
-            -- 独立 config dir：避免与外层 build 争用 project.lock
-            XMAKE_CONFIGDIR = path.join(prj_dir, ".xmake", ".xmake-nosim"),
-        }
-        local target_name = target:name()
-        os.execv("xmake", { "build", "-P", prj_dir, target_name }, { envs = gen_envs })
-        os.execv("xmake", { "run", "-P", prj_dir, target_name }, { envs = gen_envs })
-    end)
-end)
-```
-
-`main.lua` 用同一个 gate，输出路径直接从环境变量读取：
-
-```lua
-if os.getenv("SV_GEN") == "1" then
-    fork {
-        function()
-            local ctx = require "verilua.sv.SVBuilder"
-            ctx:clean()
-            ctx:default_clocking(dut.clk, "posedge")
-
-            -- ... 定义 sequence / property / assert / covergroup ...
-
-            local out = assert(os.getenv("SV_OUT"))
-            local f = assert(io.open(out, "w"))
-            f:write(ctx:generate())
-            f:close()
-
-            sim.finish()
-        end,
+for _, ch in ipairs(channels) do
+    ctx:add "property" {
+        name = ch.name .. "_valid_hold",
+        expr = "$(valid) && !$(ready) |-> ##1 $(valid)",
+        envs = { valid = ch.valid, ready = ch.ready },
+    }
+    ctx:add "assert" {
+        name = "chk_" .. ch.name,
+        expr = "$(prop:" .. ch.name .. "_valid_hold)",
     }
 end
 ```
 
-之后每次只需要一条命令，注入的始终是本次 build 开始时生成的内容：
+### 示例 3：模板渲染能力
 
-```bash
-xmake build my_test
+当断言逻辑本身包含重复模式时，可以用 `expr` 内置的模板引擎（`#` 开头的 Lua 代码行 + `$(expr)` 内联求值）直接在表达式内部展开。
+
+例如，检查一个 4-beat burst 传输中每一拍的 data 都不为零：
+
+```systemverilog
+// 手写：每个 beat 单独列出
+sequence burst_nonzero();
+    (top.dut.wdata[0] != 0) ##1
+    (top.dut.wdata[1] != 0) ##1
+    (top.dut.wdata[2] != 0) ##1
+    (top.dut.wdata[3] != 0);
+endsequence
 ```
 
-注意：
+SVBuilder 用模板循环生成，beat 数量变化时只改循环边界，信号 handle 和循环变量可以混用：
 
-- 生成进程用 slang（nosim），`dut.*` handle 可用，但 `<chdl>:get()` 之类会报错。
-- nosim 与真实后端的 build 目录默认分开（`build/<sim>/...`），互不覆盖。
-- `xmake build` 会改写输出文件；若它已纳入版本控制，构建后需要自行确认 diff。
+```lua
+ctx:add "sequence" {
+    name = "burst_nonzero",
+    expr = [[
+# for i = 0, 3 do
+#   if i > 0 then
+    ##1
+#   end
+    ($(wdata)[$(i)] != 0)
+# end
+]],
+    envs = { wdata = dut.wdata },
+}
+```
+
+生成结果：
+
+```systemverilog
+sequence burst_nonzero(); (top.dut.wdata[0] != 0) ##1 (top.dut.wdata[1] != 0) ##1 (top.dut.wdata[2] != 0) ##1 (top.dut.wdata[3] != 0); endsequence
+```
 
 ## 初始化
 
@@ -615,147 +462,6 @@ end
 local sva_text = ctx:generate()
 ```
 
-## 输出格式
-
-`generate()` 输出的文本按以下顺序拼接：
-
-1. 所有 `raw` preamble（typedef / function / logic / always 等）
-2. `default clocking` 声明（如果设置了）
-3. 所有 `sequence` 定义
-4. 所有 `property` 定义
-5. 所有 `cover` / `assert` 语句（带 `// i/n` 编号注释）
-6. 所有 `covergroup` 定义与实例化
-7. `final` coverage 报告（若启用）
-
-`raw` 排在 `default clocking` 之前，这样 preamble 里声明的 bare `clock` / `reset` 能被 clocking 与后续 lint 解析（与注入 `tb_top` 后的常见写法一致）。
-
-每个语句之间用空行分隔，可直接嵌入 SystemVerilog module 中使用。
-
-## 对比：手写 SV vs SVBuilder
-
-### 示例 1：信号路径自动提取
-
-手写 SV 时，你需要手动拼写完整的层次路径：
-
-```systemverilog
-// 手写：每个信号都要写完整 XMR 路径
-sequence handshake();
-    top.u_soc.u_axi_master.awvalid ##1 top.u_soc.u_axi_master.awready;
-endsequence
-
-property aw_valid_hold();
-    top.u_soc.u_axi_master.awvalid && !top.u_soc.u_axi_master.awready
-        |-> ##1 top.u_soc.u_axi_master.awvalid;
-endproperty
-
-assert property (aw_valid_hold);
-```
-
-用 SVBuilder，信号路径从 testbench 已有的 handle 自动提取。路径变了（比如模块重命名）只需改 testbench 一处，生成的 SVA 随之更新：
-
-```lua
--- SVBuilder：复用 testbench 里的 handle，路径自动解析
-ctx:add "sequence" {
-    name = "handshake",
-    expr = "$(valid) ##1 $(ready)",
-    envs = { valid = dut.awvalid, ready = dut.awready },
-}
-
-ctx:add "property" {
-    name = "aw_valid_hold",
-    expr = "$(valid) && !$(ready) |-> ##1 $(valid)",
-    envs = { valid = dut.awvalid, ready = dut.awready },
-}
-
-ctx:add "assert" {
-    name = "chk_aw",
-    expr = "$(prop:aw_valid_hold)",
-}
-```
-
-### 示例 2：批量生成
-
-对 3 个 AXI channel 各生成一条 valid-hold 断言。手写需要重复 3 次：
-
-```systemverilog
-// 手写：每个 channel 重复一遍
-property aw_valid_hold();
-    top.dut.awvalid && !top.dut.awready |-> ##1 top.dut.awvalid;
-endproperty
-chk_aw: assert property (aw_valid_hold);
-
-property w_valid_hold();
-    top.dut.wvalid && !top.dut.wready |-> ##1 top.dut.wvalid;
-endproperty
-chk_w: assert property (w_valid_hold);
-
-property ar_valid_hold();
-    top.dut.arvalid && !top.dut.arready |-> ##1 top.dut.arvalid;
-endproperty
-chk_ar: assert property (ar_valid_hold);
-```
-
-SVBuilder 只需一个循环。新增 channel 在 `channels` 表里加一行即可，断言逻辑只写一份，不会漏改某个 channel：
-
-```lua
-local channels = {
-    { name = "aw", valid = dut.awvalid, ready = dut.awready },
-    { name = "w",  valid = dut.wvalid,  ready = dut.wready },
-    { name = "ar", valid = dut.arvalid, ready = dut.arready },
-}
-
-for _, ch in ipairs(channels) do
-    ctx:add "property" {
-        name = ch.name .. "_valid_hold",
-        expr = "$(valid) && !$(ready) |-> ##1 $(valid)",
-        envs = { valid = ch.valid, ready = ch.ready },
-    }
-    ctx:add "assert" {
-        name = "chk_" .. ch.name,
-        expr = "$(prop:" .. ch.name .. "_valid_hold)",
-    }
-end
-```
-
-### 示例 3：模板渲染能力
-
-当断言逻辑本身包含重复模式时，可以用 `expr` 内置的模板引擎（`#` 开头的 Lua 代码行 + `$(expr)` 内联求值）直接在表达式内部展开。
-
-例如，检查一个 4-beat burst 传输中每一拍的 data 都不为零：
-
-```systemverilog
-// 手写：每个 beat 单独列出
-sequence burst_nonzero();
-    (top.dut.wdata[0] != 0) ##1
-    (top.dut.wdata[1] != 0) ##1
-    (top.dut.wdata[2] != 0) ##1
-    (top.dut.wdata[3] != 0);
-endsequence
-```
-
-SVBuilder 用模板循环生成，beat 数量变化时只改循环边界，信号 handle 和循环变量可以混用：
-
-```lua
-ctx:add "sequence" {
-    name = "burst_nonzero",
-    expr = [[
-# for i = 0, 3 do
-#   if i > 0 then
-    ##1
-#   end
-    ($(wdata)[$(i)] != 0)
-# end
-]],
-    envs = { wdata = dut.wdata },
-}
-```
-
-生成结果：
-
-```systemverilog
-sequence burst_nonzero(); (top.dut.wdata[0] != 0) ##1 (top.dut.wdata[1] != 0) ##1 (top.dut.wdata[2] != 0) ##1 (top.dut.wdata[3] != 0); endsequence
-```
-
 ## Covergroup 生成
 
 SVBuilder 同样支持生成 SystemVerilog covergroup，用于功能覆盖率收集。
@@ -990,3 +696,297 @@ ctx:add "covergroup" {
 - 支持 `$(var)` 模板与 `envs`
 - 参与 `sv_lint`：raw 自身语法错误会立刻报；后续语句 lint 时能看到 preamble 里声明的标识符
 - 输出顺序固定为 `raw` → `default clocking` → …，与 `add` / `default_clocking` 的调用先后无关
+
+## Lua 到 SV 的覆盖同步
+
+### 背景
+
+Verilua 里很大一部分验证逻辑天然在 Lua 侧：Lua 产生激励、Lua monitor 解析事务、Lua reference model 算期望值。这些组件看到的是事务级信息，有些覆盖点用几行 Lua 判断就够了，比如一个事务的 beat 数超过 4、读写交替且地址跨 4KB 边界。
+
+SV covergroup 的采样事件来自时钟和信号，看不到 Lua 的判定结果。覆盖点在 Lua 里已经成立，覆盖率报告里却没有记录。
+
+covergroup 的写法见 [Covergroup 生成](#covergroup-生成)。这里要补的是同步：Lua 判定命中后，把这次命中记进 SV 的 covergroup。
+
+### 通道
+
+命中时机由 Lua 决定，所以 covergroup 不能挂在时钟事件上，要用显式采样（`with function sample(...)`），再用 `export "DPI-C"` 包一层交给 Lua 调用：
+
+```systemverilog
+covergroup cg_lua_cov with function sample(int unsigned bin_id);
+    cp_bin: coverpoint bin_id {
+        bins burst_len_gt4 = {0};
+        bins rd_wr_alt     = {1};
+    }
+endgroup
+
+cg_lua_cov cg_lua_cov_inst = new();
+
+export "DPI-C" function verilua_cov_sample;
+function void verilua_cov_sample(int unsigned bin_id);
+    cg_lua_cov_inst.sample(bin_id);
+endfunction
+```
+
+Lua 侧用 [SymbolHelper](./symbol_helper.mdx) 取到这个符号，判定命中哪个 bin 后调用；scope 的取值见 [调用 C 函数](../how-to-guides/call_c_functions.mdx)：
+
+```lua
+local SymbolHelper = require "verilua.utils.SymbolHelper"
+local cov_sample = SymbolHelper.try_ffi_cast("void verilua_cov_sample(unsigned int bin_id);")
+
+-- DPI export 在声明它的 module 作用域里执行，作用域会跨调度点重置，所以每次调用前设一次
+sim.set_dpi_scope("tb_top") -- 参数是声明这个 export 的 module 作用域，省略时用 cfg.top
+cov_sample(bin_id)
+```
+
+这样 Lua 判定的命中和 SV 自己采样的 bin 落在同一份覆盖率数据里，和直接在 SV 里 `sample()` 没有区别。
+
+这段 SV 必须放进 `tb_top`：DPI export 要在 module 作用域里。`tb_top` 每次 build 都会重新生成，所以用 `--inject-inner-file` 注入，见下文 [注入方式：文件与字符串](#注入方式文件与字符串)；仓库里 `tests/test_lua_cov_bridge/` 是一个可运行的例子。
+
+### 用 SVBuilder 生成
+
+covergroup 本体交给 SVBuilder，`sample_event` 用 `with function sample(...)` 不挂时钟；`export "DPI-C"` 包一层放进 `add "raw"`，用 `$(cov:name)` 引用生成的实例名：
+
+```lua
+local cov = ctx:add "covergroup" {
+    name = "cg_lua_cov",
+    sample_event = "with function sample(int unsigned bin_id)",
+    expr = [[    cp_bin: coverpoint bin_id {
+        bins burst_len_gt4 = {0};
+        bins rd_wr_alt     = {1};
+    }]],
+}
+
+ctx:add "raw" {
+    name = "lua_cov_sample_export",
+    expr = [[export "DPI-C" function verilua_cov_sample;
+function void verilua_cov_sample(int unsigned bin_id);
+    $(cov:cg_lua_cov).sample(bin_id);
+endfunction]],
+}
+```
+
+:::warning
+`verilua_cov_sample` 只在 Lua 侧被调用，Verilator 会当作没有引用把 DPI export 链接掉，需要显式保留：
+
+```lua
+add_ldflags("-u verilua_cov_sample")
+```
+
+另外，Verilator 会静默丢弃仿真初始化完成前的 DPI export 调用，第一次采样要等第一个时钟沿之后。
+:::
+
+## 推荐用法
+
+生成通常不需要在每次仿真时都执行。推荐通过环境变量控制，只在需要重新生成时才运行：
+
+```lua
+if os.getenv("SV_GEN") == "1" then
+    fork {
+        function()
+            local ctx = require "verilua.sv.SVBuilder"
+            ctx:clean()
+            ctx:default_clocking(dut.clk, "posedge")
+
+            -- 定义 sequences / properties / assertions ...
+            ctx:add "sequence" { name = "hs", expr = "$(req) ##1 $(ack)", envs = { req = dut.req, ack = dut.ack } }
+            ctx:add "assert" { name = "chk_hs", expr = "$(seq:hs) |-> $(valid)", envs = { valid = dut.valid } }
+
+            -- 写入文件，后续通过 testbench_gen --iif 注入 tb_top
+            local output_path = require("verilua.LuaUtils").get_scriptdir() .. "/svbuilder_output.sv"
+            local f = io.open(output_path, "w")
+            f:write(ctx:generate())
+            f:close()
+
+            sim.finish()
+        end
+    }
+end
+```
+
+`sim.finish()` 在生成完成后立即结束仿真，避免继续执行后续 testbench 逻辑（此时只需要生成文件，不需要跑真正的测试）。
+
+运行时通过环境变量触发：
+
+```bash
+SV_GEN=1 xmake run -P tests/test_xxx
+```
+
+这样做的好处：
+
+- 生成逻辑和 testbench 在同一个进程里，能直接复用所有 handle
+- 正常仿真时不会执行生成代码，零开销
+- 生成的 `.sv` 文件可以纳入版本控制，如有变化可以 diff 审查
+
+如果不想每次手动跑两遍（先 `SV_GEN=1 xmake r` 生成、再 `xmake b` 注入），可以用 `before_build` + `nosim` 在每次 build 前自动重新生成，见 [自动生成：build 前用 nosim 刷新](#自动生成build-前用-nosim-刷新)。
+
+## 集成到 RTL
+
+生成的 `.sv` 文件通过 `verilua.tb_gen_flags` 传给 `testbench_gen`，用 `--iif`（inject-inner-file）将内容注入到 `tb_top` module 内部。生成内容内部使用 handle 渲染出的 XMR 路径（如 `tb_top.clk`），在 tb_top 内部上下文中完全合法。
+
+在 `xmake.lua` 里配置：
+
+```lua
+local sv_file = path.join(os.scriptdir(), "svbuilder_output.sv")
+if os.isfile(sv_file) and not os.getenv("SV_GEN") then
+    set_values("verilua.tb_gen_flags", { "--iif", sv_file })
+end
+```
+
+这样 `testbench_gen` 会把 `svbuilder_output.sv` 的内容插入到生成的 `tb_top.sv` 末尾（endmodule 之前）。
+
+生成的 `tb_top.sv` 效果如下：
+
+```systemverilog
+module tb_top(...);
+
+// ... testbench_gen 自动生成的内容（时钟、DUT 例化等）...
+
+// --- SVBuilder 生成的内容（通过 --iif 注入） ---
+default clocking @(posedge tb_top.clk); endclocking
+
+sequence req_to_ack(); tb_top.req ##[1:2] tb_top.ack; endsequence
+
+property handshake_valid(); (tb_top.req && tb_top.ack) |-> ##1 tb_top.valid; endproperty
+
+chk_handshake_valid: assert property (handshake_valid);
+cov_handshake: cover property (tb_top.req && tb_top.ack);
+
+endmodule
+```
+
+:::tip
+`SV_GEN=1` 时不加 `--iif` flag，不然 testbench_gen 尝试 compile `svbuilder_output.sv` 时 tb_top 还不存在会报错。
+:::
+
+## 注入方式：文件与字符串
+
+`testbench_gen` 提供两组注入选项，正名和短名都可用：
+
+- `--inject-inner-file`（`--iif`）/ `--inject-outer-file`（`--iof`）：注入一个文件的内容
+- `--inject-inner-str`（`--iis`）/ `--inject-outer-str`（`--ios`）：直接注入字符串
+
+`inner` 落在 testbench module 内部、`endmodule` 之前；`outer` 落在 `module` 声明之前，适合放宏定义、`include`、package import。
+
+SVBuilder 的输出是多行 SV，通常还会纳入版本控制，用文件形式更合适：可以单独 diff 审查，编辑器也能按 SV 语法高亮；需要放宏或 import 时换成 `--inject-outer-file`。
+
+```lua
+set_values("verilua.tb_gen_flags", { "--inject-inner-file", sv_file })
+```
+
+路径可以是 `path.join(os.scriptdir(), ...)` 拼出的绝对路径，也可以直接给相对路径，按 project dir 解析（Verilua 规则调用 `testbench_gen` 前会切到 project dir）。
+
+注入的文件只交给 `testbench_gen`，不要再写进 `add_files`，否则同一段内容会被编译两次。
+
+:::warning
+`testbench_gen` 判断能否跳过重新生成时，只比对命令行（含注入文件的路径）、`others.sv` 和各 RTL 源文件，不读注入文件的内容。所以只改了被注入的 `.sv`（例如重跑一次 `SV_GEN=1`），它会打 `up-to-date` 并复用旧的 `tb_top.sv`，新内容不会进仿真。
+
+要强制刷新 `tb_top.sv`：删掉 `build/<sim>/<top>/tb_top.sv`，或在 `verilua.tb_gen_flags` 里加 `--regen`（每次 build 都重新生成）。
+:::
+
+完整的选项表和插入位置示意见 [testbench 生成](./testbench_generate.mdx)。
+
+## 自动生成：build 前用 nosim 刷新
+
+`nosim` 是 Verilua 的不仿真后端，用 slang 做 elaborate，不推进仿真时间，也不读写信号值。
+
+手动流程要先生成、再 build 一次，因为 SVBuilder 的输出只能在运行阶段产生，注入的是下一次编译的 `tb_top.sv`。用 `before_build` + `nosim` 可以让 `xmake build` 一步到位：build 前先用 slang（nosim）跑一遍生成逻辑刷新输出文件，再让同一次 build 的 `testbench_gen` 注入。
+
+原理：
+
+1. 生成逻辑仍写在 `verilua.lua_main` 里，由 `SV_GEN` 环境变量控制。
+2. 在 `xmake.lua` 注册 `before_build`：当前后端不是 nosim 时，用子进程 xmake 以 `SIM=nosim SV_GEN=1` 先 `build` + `run` 一次刷新输出文件；输出路径写成 `SV_OUT` 传给生成进程，只在这一处定义。
+3. `before_build` 早于 Verilua 规则的 `testbench_gen`（后者在 `on_build` 阶段执行），所以刚生成的文件能在同一次 build 里被 `--iif` 注入 `tb_top.sv`。
+4. 子进程设置独立的 `XMAKE_CONFIGDIR`，否则会和外层 build 争用 `project.lock` 死锁。
+5. 生成进程带 `SV_GEN=1` 时不加 `--iif`，避免去注入一个还没生成的文件。
+
+`xmake.lua`：
+
+```lua
+local prj_dir = os.scriptdir()
+local sv_file = path.join(prj_dir, "svbuilder_output.sv")
+
+target("my_test", function()
+    add_rules("verilua")
+
+    on_config(function(target)
+        local sim = os.getenv("SIM") or "verilator"
+        -- 按 SIM 选择 @nosim / @verilator / @vcs / ...
+    end)
+
+    add_files("rtl/*.sv")
+    set_values("verilua.top", "Top")
+    set_values("verilua.lua_main", path.join(prj_dir, "main.lua"))
+
+    -- 生成进程（SV_GEN=1）不注入，其余后端把生成内容注入 tb_top
+    if not os.getenv("SV_GEN") then
+        add_values("verilua.tb_gen_flags", "--iif", sv_file)
+    end
+
+    before_build(function(target)
+        if (os.getenv("SIM") or "verilator") == "nosim" then
+            return
+        end
+        local gen_envs = {
+            SIM = "nosim",
+            SV_GEN = "1",
+            SV_OUT = sv_file,
+            -- 独立 config dir：避免与外层 build 争用 project.lock
+            XMAKE_CONFIGDIR = path.join(prj_dir, ".xmake", ".xmake-nosim"),
+        }
+        local target_name = target:name()
+        os.execv("xmake", { "build", "-P", prj_dir, target_name }, { envs = gen_envs })
+        os.execv("xmake", { "run", "-P", prj_dir, target_name }, { envs = gen_envs })
+    end)
+end)
+```
+
+`main.lua` 用同一个 gate，输出路径直接从环境变量读取：
+
+```lua
+if os.getenv("SV_GEN") == "1" then
+    fork {
+        function()
+            local ctx = require "verilua.sv.SVBuilder"
+            ctx:clean()
+            ctx:default_clocking(dut.clk, "posedge")
+
+            -- ... 定义 sequence / property / assert / covergroup ...
+
+            local out = assert(os.getenv("SV_OUT"))
+            local f = assert(io.open(out, "w"))
+            f:write(ctx:generate())
+            f:close()
+
+            sim.finish()
+        end,
+    }
+end
+```
+
+之后每次只需要一条命令，注入的始终是本次 build 开始时生成的内容：
+
+```bash
+xmake build my_test
+```
+
+注意：
+
+- 生成进程用 slang（nosim），`dut.*` handle 可用，但 `<chdl>:get()` 之类会报错。
+- nosim 与真实后端的 build 目录默认分开（`build/<sim>/...`），互不覆盖。
+- `xmake build` 会改写输出文件；若它已纳入版本控制，构建后需要自行确认 diff。
+
+## 输出格式
+
+`generate()` 输出的文本按以下顺序拼接：
+
+1. 所有 `raw` preamble（typedef / function / logic / always 等）
+2. `default clocking` 声明（如果设置了）
+3. 所有 `sequence` 定义
+4. 所有 `property` 定义
+5. 所有 `cover` / `assert` 语句（带 `// i/n` 编号注释）
+6. 所有 `covergroup` 定义与实例化
+7. `final` coverage 报告（若启用）
+
+`raw` 排在 `default clocking` 之前，这样 preamble 里声明的 bare `clock` / `reset` 能被 clocking 与后续 lint 解析（与注入 `tb_top` 后的常见写法一致）。
+
+每个语句之间用空行分隔，可直接嵌入 SystemVerilog module 中使用。
