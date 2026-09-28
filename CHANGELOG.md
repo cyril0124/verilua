@@ -27,6 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **SVBuilder**: Lint failure errors now include both the Lua file/line of the `ctx:add(...)` call and the path of the generated SV dump, so a Lua definition can be traced to slang's line/column diagnostic. The dump file is now written to a fixed path, `VL_BUILD_DIR/svbuilder/lint/sv_builder_lint.sv` (falling back to `.svbuilder/lint/sv_builder_lint.sv` when running Lua directly) instead of the global `/tmp`, and only the most recent failing input is kept per build directory.
 - **testbench_gen**: `--help` now marks the `--cc` / `--ccs` / `--cco` / `--ccso` (`--custom-code*`) option names as deprecated aliases and points at `--iif` / `--iis` / `--iof` / `--ios` (`--inject-*`). The aliases keep working; only the help text changed.
 
+### 💥 Breaking Changes
+
+- **Lua coverage**: Removed the Lua runtime coverage module (`src/lua/verilua/coverage/`: `CoverGroup`, `CoverPoint`, `AccurateCoverPoint`) and every hook it owned: the global `default_cg`, the `("name"):cvhdl()` / `("name"):cover_point()` string extensions, the automatic `default_cg` report and JSON save at the end of a run, `texpect.expect_covergroup`, the `src/lua/verilua/coverage/?.lua` entry in `activate_verilua.sh`, and `scripts/merge_coverage.py`, which merged the JSON only this module produced. SystemVerilog functional coverage (`SVBuilder` covergroups) and `cov_exporter` DPI coverage are unrelated and unchanged.
+
 ---
 
 ## v4.1.0 - 2026-09-18

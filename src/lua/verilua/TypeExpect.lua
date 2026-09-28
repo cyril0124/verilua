@@ -756,22 +756,4 @@ function texpect.expect_database(value, name, elements_table)
     end
 end
 
-function texpect.expect_covergroup(value, name)
-    if type(value) ~= "table" or value.__type ~= "CoverGroup" then
-        local received_type = type(value) --[[@as string]]
-        if received_type == "table" and value.__type then
-            received_type = tostring(value.__type)
-        end
-        texpect_error(
-            string.format(
-                "  Argument: %s\n  Expected: %s\n  Received: %s (value: %s)",
-                Logger.colorize("`" .. name .. "`", colors.YELLOW),
-                Logger.colorize("CoverGroup", colors.GREEN),
-                Logger.colorize(received_type, colors.RED),
-                smart_inspect(value)
-            )
-        )
-    end
-end
-
 return texpect

@@ -97,7 +97,6 @@ verilua/
 │   │   ├── TypeExpect.lua                     # Runtime type checking
 │   │   ├── TccWrapper.lua                     # TCC runtime C-compiler wrapper
 │   │   ├── strict.lua                         # Strict-mode global checking
-│   │   ├── coverage/                          # Coverage-related Lua helpers
 │   │   ├── handles/                           # Signal handles
 │   │   │   ├── LuaCallableHDL.lua             # CallableHDL implementation
 │   │   │   ├── LuaBundle.lua                  # Bundle implementation

@@ -67,10 +67,6 @@ local function mock_db(elements)
     return db
 end
 
-local function mock_cg()
-    return { __type = "CoverGroup" }
-end
-
 local function strip_ansi(s)
     return s:gsub("\27%[[0-9;]*m", "")
 end
@@ -438,14 +434,5 @@ describe("TypeExpect test", function()
         expect.equal(status, false)
         err = strip_ansi(err)
         expect.truthy(err:find("elements_table is not equal", 1, true))
-    end)
-
-    it("should work for expect_covergroup", function()
-        local cg = mock_cg()
-        texpect.expect_covergroup(cg, "my_cg")
-        local status, err = pcall(function() texpect.expect_covergroup({}, "my_cg") end)
-        expect.equal(status, false)
-        err = strip_ansi(err)
-        expect.truthy(err:find("expect_covergroup", 1, true))
     end)
 end)
