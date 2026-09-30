@@ -267,7 +267,9 @@ target("build_all_tools", function()
             "dpi_exporter",
             "cov_exporter",
             "signal_db_gen",
+            "libsignal_db_gen",
             "sv_lint",
+            "libsv_lint",
             "wave_vpi_main",
             "nosim"
         }
@@ -461,8 +463,6 @@ target("setup_verilua", function()
         cprint("[setup_verilua] this shell: ${green}%s${reset}", activate)
 
         os.exec("xmake run -P %s -y -v build_libverilua", prj_dir)
-        os.exec("xmake build -P %s -y -v libsignal_db_gen", prj_dir)
-        os.exec("xmake build -P %s -y -v libsv_lint", prj_dir)
         os.exec("xmake build -P %s -y -v turso_ffi", prj_dir)
         os.exec("xmake build -P %s -y -v bigint_ffi", prj_dir)
         os.exec("xmake run -P %s -y -v build_all_tools", prj_dir)
