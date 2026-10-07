@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **StrBitsUtils**: Restored range validation in `bitfield_hex_str()` and `set_bitfield_hex_str()`. Both reject negative indices and reversed ranges. Extraction rejects indices at or beyond the explicit `bitwidth`, or `#hex_str * 4` when omitted. Writes reject indices at or beyond an explicit `bitwidth` instead of silently discarding the write; without `bitwidth`, they still auto-expand. Non-nibble-aligned widths are checked exactly.
+
 - **xmake toolchains**: Removed the deprecated `toolchain:configs_save()` call from the `vcs`, `xcelium`, `wave_vpi` and `nosim` toolchains. xmake has persisted toolchain configs by itself since 2.9.5, and Verilua already requires xmake >= 2.9.9 (`add_toolchaindirs`), so the call was a no-op that printed `toolchain:configs_save() is deprecated, please remove it` on every toolchain check.
 - **nosim**: `vpiml_get_simulator_auto()` returns `"nosim"` instead of aborting, so a script that asks which simulator is running no longer crashes.
 - **nosim**: The `nosim` backend accepts the stimulus interfaces as no-ops (`set_*`, `force_*`, `release_*`, `shuffled_range_*`, `reset_shuffled_range`, `register_*`), so `xmake run` on a nosim target reaches the end of a time-0 script instead of aborting on its first stimulus call. Value reads and the native clock still fail, and their error now states that nosim has no simulation time and never reads or drives signal values.

@@ -1,5 +1,7 @@
 local utils = require "verilua.LuaUtils"
 local sbu = require "verilua.utils.StrBitsUtils"
+-- The test runner adds src/lua/thirdparty_lib to package.path.
+---@diagnostic disable-next-line: unresolved-require
 local lester = require "lester"
 
 local describe, it, expect = lester.describe, lester.it, lester.expect
@@ -29,7 +31,7 @@ local function run_tests()
             expect.equal(sbu.bitfield_hex_str("ffffffff", 0, 31),
                 f("%x", utils.bitfield64(0, 31, 0xffffffffULL)))
             expect.equal(sbu.bitfield_hex_str("ffffffffffffffff", 0, 63),
-                f("%x", utils.bitfield64(0, 63, 0xffffffffffffffffULL)))
+                f("%x", utils.bitfield64(0, 63, 0xffffffffffffffffULL --[[@as integer]])))
 
             expect.equal(sbu.bitfield_hex_str("1234", 2, 5), f("%x", utils.bitfield64(2, 5, 0x1234ULL)))
             expect.equal(sbu.bitfield_hex_str("abcd", 6, 9), f("%x", utils.bitfield64(6, 9, 0xabcdULL)))
@@ -76,7 +78,7 @@ local function run_tests()
                 f("%x", utils.bitfield64(31, 31, 0x80000000ULL)))
             expect.equal(sbu.bitfield_hex_str("1", 63, 63, 64), f("%x", utils.bitfield64(63, 63, 0x1ULL)))
             expect.equal(sbu.bitfield_hex_str("8000000000000000", 63, 63, 64),
-                f("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL)))
+                f("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL --[[@as integer]])))
 
             expect.equal(sbu.bitfield_hex_str("5555", 0, 15), f("%x", utils.bitfield64(0, 15, 0x5555ULL)))
             expect.equal(sbu.bitfield_hex_str("aaaa", 0, 15), f("%x", utils.bitfield64(0, 15, 0xaaaaULL)))
@@ -89,12 +91,44 @@ local function run_tests()
             expect.equal(sbu.bitfield_hex_str("ffff", 0, 15), f("%x", utils.bitfield64(0, 15, 0xffffULL)))
             expect.equal(sbu.bitfield_hex_str("1", 0, 0), f("%x", utils.bitfield64(0, 0, 0x1ULL)))
             expect.equal(sbu.bitfield_hex_str("8000000000000000", 63, 63),
-                f("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL)))
+                f("%x", utils.bitfield64(63, 63, 0x8000000000000000ULL --[[@as integer]])))
 
             expect.equal(sbu.bitfield_hex_str("1234567890abcdef1234567890abcdef", 4, 19), "bcde")
             expect.equal(sbu.bitfield_hex_str("ffffffffffffffffffffffffffffffff", 32, 63), "ffffffff")
             expect.equal(sbu.bitfield_hex_str("abcdabcdabcdabcdabcdabcdabcdabcd", 60, 79), "abcda")
             expect.equal(sbu.bitfield_hex_str("1234567890abcdef1234567890abcdef1234567890abcdef", 10, 35), "2242af3")
+        end)
+
+        it("should reject out-of-range bitfield_hex_str() slices", function()
+            ---@type { hex: string, s: integer, e: integer, width: integer? }[]
+            local cases = {
+                { hex = "f",                 s = 0,   e = 4 },
+                { hex = "f",                 s = 4,   e = 4 },
+                { hex = "f",                 s = 8,   e = 11 },
+                { hex = "f",                 s = -1,  e = 0 },
+                { hex = "f",                 s = -2,  e = -1 },
+                { hex = "f",                 s = 3,   e = 2 },
+                { hex = "f",                 s = 0,   e = 8,  width = 8 },
+                { hex = "ff",                s = 0,   e = 4,  width = 4 },
+                { hex = "ff",                s = 0,   e = 5,  width = 5 },
+                { hex = string.rep("f", 32), s = 127, e = 128 },
+            }
+            for _, case in ipairs(cases) do
+                expect.fail(function()
+                    return sbu.bitfield_hex_str(case.hex, case.s, case.e, case.width)
+                end, "Invalid bitfield range")
+            end
+        end)
+
+        it("should honor bitfield_hex_str() width boundaries", function()
+            expect.equal(sbu.bitfield_hex_str("f", 3, 3), "1")
+            expect.equal(sbu.bitfield_hex_str("000f", 15, 15), "0")
+            expect.equal(sbu.bitfield_hex_str("f", 4, 7, 8), "0")
+            expect.equal(sbu.bitfield_hex_str("ff", 0, 3, 4), "f")
+            expect.equal(sbu.bitfield_hex_str("ff", 0, 4, 5), "1f")
+            expect.equal(sbu.bitfield_hex_str("1", 0, 4, 5), "1")
+            expect.equal(sbu.bitfield_hex_str("ff", 4ULL, 4ULL, 5), "1")
+            expect.equal(sbu.bitfield_hex_str(string.rep("f", 32), 127, 127), "1")
         end)
 
         it("should work properly for trim_leading_zeros", function()
@@ -1388,7 +1422,7 @@ local function run_tests()
                 if bits % 4 == 0 then
                     expected_max = string.rep("f", hex_chars)
                 else
-                    local bits_in_msb = bits % 4
+                    local bits_in_msb = (bits % 4) --[[@as integer]]
                     local msb_mask = bit.lshift(1, bits_in_msb) - 1
                     local msb_hex = f("%x", msb_mask)
                     expected_max = msb_hex .. string.rep("f", hex_chars - 1)
@@ -1506,6 +1540,35 @@ local function run_tests()
             end
 
             print("\nAll bnot_hex_str tests passed!")
+        end)
+
+        it("should reject invalid set_bitfield_hex_str() ranges", function()
+            ---@type { s: integer, e: integer, width: integer? }[]
+            local cases = {
+                { s = 8,   e = 11,  width = 8 },
+                { s = 0,   e = 8,   width = 8 },
+                { s = 0,   e = 5,   width = 5 },
+                { s = 127, e = 128, width = 128 },
+                { s = -1,  e = 0 },
+                { s = -2,  e = -1 },
+                { s = -1,  e = 0,   width = 8 },
+                { s = 3,   e = 2 },
+            }
+            for _, case in ipairs(cases) do
+                expect.fail(function()
+                    return sbu.set_bitfield_hex_str("0", case.s, case.e, "f", case.width)
+                end, "Invalid bitfield range")
+            end
+        end)
+
+        it("should preserve valid set_bitfield_hex_str() boundaries and expansion", function()
+            expect.equal(sbu.set_bitfield_hex_str("0", 7, 7, "1", 8), "80")
+            expect.equal(sbu.set_bitfield_hex_str("0", 4, 4, "1", 5), "10")
+            expect.equal(sbu.set_bitfield_hex_str("0", 127, 127, "1", 128),
+                "8" .. string.rep("0", 31))
+            expect.equal(sbu.set_bitfield_hex_str("0", 8, 11, "f"), "f00")
+            expect.equal(sbu.set_bitfield_hex_str("0", 4ULL, 4ULL, "1", 5), "10")
+            expect.equal(sbu.set_bitfield_hex_str("ffff", 0, 3, "0", 8), "f0")
         end)
 
         it("should work properly for set_bitfield_hex_str()", function()

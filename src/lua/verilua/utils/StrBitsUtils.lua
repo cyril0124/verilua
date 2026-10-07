@@ -204,18 +204,21 @@ local function check_hex_ret(ret, what, hex_str, hex_str2)
     return ffi_string(ret)
 end
 
+--- Extract an inclusive bit range; reject negative, reversed, or out-of-width ranges.
 ---@nodiscard Return value should not be discarded
 ---@param hex_str string The hexadecimal string without "0x" prefix
----@param s integer The start bit
----@param e integer The end bit
----@param bitwidth integer? The bitwidth of the input string (optional)
+---@param s integer The start bit (0-based LSB)
+---@param e integer The end bit (inclusive, less than the input bitwidth)
+---@param bitwidth integer? The input bitwidth; defaults to #hex_str * 4
 ---@return string The hexadecimal string representation of the extracted bitfield
 function M.bitfield_hex_str(hex_str, s, e, bitwidth)
-    if s > e then
-        assert(false, "[StrBitsUtils.bitfield_hex_str] s must be less than or equal to e")
+    local input_bitwidth = bitwidth or #hex_str * 4
+    if s < 0 or e < 0 or s > e or e >= input_bitwidth then
+        error(f("[StrBitsUtils.bitfield_hex_str] Invalid bitfield range. s:%d, e:%d, bitwidth:%d",
+            s, e, input_bitwidth))
     end
 
-    -- If bitwidth is provided, ensure input is padded to bitwidth
+    -- Apply the declared input width before extracting the field.
     if bitwidth then
         hex_str = adjust_hex_bitwidth(hex_str, bitwidth)
     end
@@ -225,16 +228,18 @@ function M.bitfield_hex_str(hex_str, s, e, bitwidth)
     return M.trim_leading_zeros(ret)
 end
 
+--- Replace an inclusive bit range; reject negative, reversed, or explicitly out-of-width ranges.
 ---@nodiscard Return value should not be discarded
 ---@param hex_str string The original hexadecimal string without "0x" prefix
----@param s integer The start bit
----@param e integer The end bit
+---@param s integer The start bit (0-based LSB)
+---@param e integer The end bit (inclusive)
 ---@param val_hex_str string The value to set in hexadecimal string format without "0x" prefix
----@param bitwidth integer? The bitwidth of the original string (optional)
+---@param bitwidth integer? The output bitwidth; constrains the range when provided, otherwise allows expansion
 ---@return string The new hexadecimal string
 function M.set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth)
-    if s > e then
-        assert(false, "[StrBitsUtils.set_bitfield_hex_str] s must be less than or equal to e")
+    if s < 0 or e < 0 or s > e or (bitwidth and e >= bitwidth) then
+        error(f("[StrBitsUtils.set_bitfield_hex_str] Invalid bitfield range. s:%d, e:%d, bitwidth:%s",
+            s, e, tostring(bitwidth)))
     end
 
     local ret = check_hex_ret(

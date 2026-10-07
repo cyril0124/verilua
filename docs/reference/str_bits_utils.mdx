@@ -29,23 +29,32 @@
 - `hex_str`：原始十六进制字符串（无前缀）。
 - `s`：起始位（LSB，0‑based）。
 - `e`：结束位（MSB，0‑based）。
-- `bitwidth`：可选，指定原始值的位宽（用于确定字符串长度）。
-- 返回：提取的位域对应的十六进制字符串。
+- `bitwidth`：可选，指定输入位宽；输入不足时高位补零，超出时保留低位。省略时使用 `#hex_str * 4`（包括前导零）。
+- 范围包含两端，必须满足 `0 <= s <= e < 输入位宽`，否则报错；显式位宽不是 4 的倍数时，也按实际位数检查。
+- 返回：不含前导零的十六进制字符串，全零返回 `"0"`。
 
 ```lua
 local sbu = require "verilua.utils.StrBitsUtils"
 local hex = "deadbeef"
 local field = sbu.bitfield_hex_str(hex, 0, 15)   -- 提取低 16 位
 print(field)  --> "beef"
+
+print(sbu.bitfield_hex_str("f", 4, 7, 8))  --> "0"
+sbu.bitfield_hex_str("f", 0, 4)           -- 报错：4 位输入的最大索引为 3
 ```
 
 #### `set_bitfield_hex_str(hex_str, s, e, val_hex_str, bitwidth?)`
 
 - 将 `hex_str` 中 `[s, e]` 范围内的位替换为 `val_hex_str` 表示的值，返回新字符串。
+- 必须满足 `0 <= s <= e`；指定 `bitwidth` 时还要求 `e < bitwidth`，否则报错。未指定时允许向高位自动扩展。
+- 指定 `bitwidth` 时结果按该位宽截断或补零；未指定时返回值去掉前导零。
 
 ```lua
 local new = sbu.set_bitfield_hex_str("00000000", 16, 31, "abcd")
 print(new)  --> "abcd0000"
+
+print(sbu.set_bitfield_hex_str("0", 8, 11, "f"))  --> "f00"（自动扩展）
+sbu.set_bitfield_hex_str("0", 8, 11, "f", 8)     -- 报错：写入范围超出 8 位
 ```
 
 ### 移位运算
