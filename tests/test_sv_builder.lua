@@ -886,7 +886,7 @@ default clocking @(negedge path.to.clock); endclocking
         assert(result:find("endgroup", 1, true),
             "expected endgroup, got: " .. result)
         -- Should contain instantiation
-        assert(result:find("cg_basic _GEN_cg_basic_inst = new;", 1, true),
+        assert(result:find("cg_basic _GEN_cg_basic_inst = new();", 1, true),
             "expected instantiation, got: " .. result)
         -- Should contain final block with coverage report
         assert(result:find("final begin", 1, true),
@@ -912,7 +912,7 @@ default clocking @(negedge path.to.clock); endclocking
         expect.equal(cov.name, "cg_handle")
         expect.equal(cov.inst_name, "_GEN_cg_handle_inst")
         -- The inst_name is the identifier the covergroup is instantiated as.
-        assert(tostring(ctx):find("cg_handle _GEN_cg_handle_inst = new;", 1, true),
+        assert(tostring(ctx):find("cg_handle _GEN_cg_handle_inst = new();", 1, true),
             "expected the inst_name to be the instantiated identifier, got: " .. tostring(ctx))
 
         -- The handle is usable as a template variable via .inst_name.

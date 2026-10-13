@@ -510,7 +510,7 @@ covergroup cg_axi_cmd @(posedge top.dut.clk);
     }
     cross cp_burst, cp_size;
 endgroup
-cg_axi_cmd _GEN_cg_axi_cmd_inst = new;
+cg_axi_cmd _GEN_cg_axi_cmd_inst = new();
 
 final begin
     $display("[COVERAGE] cg_axi_cmd: %.2f%%", _GEN_cg_axi_cmd_inst.get_coverage());
@@ -531,7 +531,7 @@ end
 SVBuilder 自动处理：
 
 1. **外层包裹**：`covergroup name @(event); ... endgroup`
-2. **实例化**：`name _GEN_name_inst = new;`
+2. **实例化**：`name _GEN_name_inst = new();`
 3. **Coverage 报告**：`final begin ... $display ... end`
 
 用户只需写 covergroup 体（coverpoint + bins + cross + option）。
@@ -615,7 +615,7 @@ covergroup cg_axi_cmd with function sample(bit [3:0] burst, bit [7:0] len);
     cp_burst: coverpoint burst { bins incr = {4'd1}; }
     cp_len: coverpoint len     { bins short = {[0:15]}; bins long = {[16:255]}; }
 endgroup
-cg_axi_cmd _GEN_cg_axi_cmd_inst = new;
+cg_axi_cmd _GEN_cg_axi_cmd_inst = new();
 
 final begin
     $display("[COVERAGE] cg_axi_cmd: %.2f%%", _GEN_cg_axi_cmd_inst.get_coverage());

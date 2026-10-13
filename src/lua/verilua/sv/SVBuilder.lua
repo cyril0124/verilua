@@ -666,9 +666,11 @@ function SVBuilder:add(typ)
 
             -- Build the full covergroup text
             local cg_raw = f("%s\n%s\nendgroup", cg_header, ret)
+            -- Lint input and stored text share this declaration, so it is built once
+            local cg_instance_decl = f("%s %s = new();", params.name, inst_name)
 
             if self.lint_enabled then
-                local lint_err = run_sv_lint(self, cg_raw .. "\n" .. f("%s %s = new;", params.name, inst_name),
+                local lint_err = run_sv_lint(self, cg_raw .. "\n" .. cg_instance_decl,
                     params.name)
                 if lint_err then
                     raise_lint_error(params.name, lint_err, source_info)
@@ -676,7 +678,7 @@ function SVBuilder:add(typ)
             end
 
             -- Store the covergroup definition + instantiation
-            local content = cg_raw .. "\n" .. f("%s %s = new;", params.name, inst_name)
+            local content = cg_raw .. "\n" .. cg_instance_decl
             self.covergroup_vec[#self.covergroup_vec + 1] = content
             self.unique_stmt_name_map[params.name] = true
             self.unique_stmt_name_map[inst_name] = true
