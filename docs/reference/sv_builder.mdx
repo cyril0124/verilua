@@ -567,7 +567,7 @@ ctx:set_coverage_report(false)  -- 禁用 final block 生成
 - **`$(cov:name)`**：直接在 raw expr 里通过 `cov:` 命名空间引用（推荐）
 - **`.inst_name`**：把 handle 的 `.inst_name` 字段放进 `envs`，通过普通模板变量引用
 
-`raw` 里的内容统一输出在 covergroup 之前，而 module 作用域内只要求声明与使用同属一个 module，所以这条前向引用合法：
+在 covergroup 后添加采样 `raw`，生成结果会先定义并实例化 covergroup，再输出采样调用：
 
 ```lua
 ctx:add "raw" {
@@ -607,22 +607,22 @@ logic clk;
 logic [3:0] burst;
 logic [7:0] len;
 
-always @(posedge clk) begin
-    _GEN_cg_axi_cmd_inst.sample(burst, len);
-end
-
 covergroup cg_axi_cmd with function sample(bit [3:0] burst, bit [7:0] len);
     cp_burst: coverpoint burst { bins incr = {4'd1}; }
     cp_len: coverpoint len     { bins short = {[0:15]}; bins long = {[16:255]}; }
 endgroup
 cg_axi_cmd _GEN_cg_axi_cmd_inst = new();
 
+always @(posedge clk) begin
+    _GEN_cg_axi_cmd_inst.sample(burst, len);
+end
+
 final begin
     $display("[COVERAGE] cg_axi_cmd: %.2f%%", _GEN_cg_axi_cmd_inst.get_coverage());
 end
 ```
 
-返回的是普通字符串，用 `..` 直接拼接也可以。
+`.inst_name` 是普通字符串，用 `..` 直接拼接也可以。
 
 ### 使用模板批量生成 coverpoint
 
@@ -651,10 +651,10 @@ sv_lint 同样检查 covergroup，能在定义时捕获：
 
 ## Raw preamble（辅助逻辑）
 
-功能覆盖经常需要 covergroup 之外的辅助 SV：`typedef`、function、中间 `logic`、`always` 采样状态机。用 `add "raw"` 把这些内容放进 preamble（在 `default clocking` / sequence/property/covergroup 之前），后续 covergroup 可直接引用这些信号；lint 上下文也会包含 preamble。
+`add "raw"` 可插入 `typedef`、function、`logic` 和 `always` 等 SV 代码。把声明放在引用它们的语句前；后续 `raw` 保留在添加位置。完整规则见[输出格式](#输出格式)。
 
 ```lua
--- bare clock/reset：先在 raw 里声明，再 default_clocking（输出/lint 顺序固定为 preamble → clocking）
+-- bare clock/reset：在开头的 raw 里声明，生成与 lint 时会排在 default clocking 前
 ctx:add "raw" {
     name = "fcov_helper",
     expr = [[
@@ -694,8 +694,8 @@ ctx:add "covergroup" {
 
 - `expr` 原样保留换行（不会做 SVA 那套空白压缩）
 - 支持 `$(var)` 模板与 `envs`
-- 参与 `sv_lint`：raw 自身语法错误会立刻报；后续语句 lint 时能看到 preamble 里声明的标识符
-- 输出顺序固定为 `raw` → `default clocking` → …，与 `add` / `default_clocking` 的调用先后无关
+- 参与 `sv_lint`：检查当前语句及此前成功添加的全部语句，包括 covergroup 定义和实例；失败的语句不会加入 builder
+- 与其他语句的相对位置遵循 `add` 调用顺序，见[输出格式](#输出格式)
 
 ## Lua 到 SV 的覆盖同步
 
@@ -977,16 +977,15 @@ xmake build my_test
 
 ## 输出格式
 
-`generate()` 输出的文本按以下顺序拼接：
+`generate()` 保留所有 `add` 调用的顺序，不按语句类型重新分组：
 
-1. 所有 `raw` preamble（typedef / function / logic / always 等）
+1. 开头连续添加的 `raw` 辅助声明
 2. `default clocking` 声明（如果设置了）
-3. 所有 `sequence` 定义
-4. 所有 `property` 定义
-5. 所有 `cover` / `assert` 语句（带 `// i/n` 编号注释）
-6. 所有 `covergroup` 定义与实例化
-7. `final` coverage 报告（若启用）
+3. 其余语句按 `add` 顺序输出；每个 covergroup 的定义和实例化保持相邻
+4. `final` coverage 报告（若启用）
 
-`raw` 排在 `default clocking` 之前，这样 preamble 里声明的 bare `clock` / `reset` 能被 clocking 与后续 lint 解析（与注入 `tb_top` 后的常见写法一致）。
+即使先调用 `default_clocking`，开头的 `raw` 仍排在 clocking 前，让其中声明的 bare `clock` / `reset` 可供时钟使用。若只有 `raw`，clocking 放在这些块之后；其他 `raw` 与相邻语句保持 `add` 顺序。
+
+`cover` / `assert` 的 `// i/n` 编号仅统计这两类语句，在其他类型穿插时仍连续递增。Lint 使用相同的语句顺序。
 
 每个语句之间用空行分隔，可直接嵌入 SystemVerilog module 中使用。

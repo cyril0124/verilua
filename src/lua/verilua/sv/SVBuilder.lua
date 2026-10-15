@@ -1,4 +1,7 @@
+---@diagnostic disable: access-invisible
+
 local ffi = require "ffi"
+---@diagnostic disable-next-line: unresolved-require
 local stringx = require "pl.stringx"
 local template = require "verilua.sv.SVTemplate"
 
@@ -36,6 +39,10 @@ local debug_getinfo = debug.getinfo
 ---@field sample_event? string For `add "covergroup"` only: per-covergroup sampling event override (e.g. "posedge alt_clk").
 ---@field envs? table<string, any> Per-call template variables; merged on top of global_envs.
 
+---@class verilua.sv.SVBuilder.statement
+---@field typ "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"
+---@field content string Rendered SV text.
+
 --- Incremental builder for SystemVerilog SVA assertions and covergroups.
 --- Accumulates declarations via `add`, then emits the full SV text via `generate()`.
 ---@class (exact) verilua.sv.SVBuilder
@@ -46,11 +53,8 @@ local debug_getinfo = debug.getinfo
 ---@field private seq_envs table<string, verilua.sv.SVBuilder.sequence> Registry of defined sequences (accessed via `$(seq:name)`).
 ---@field private prop_envs table<string, verilua.sv.SVBuilder.property> Registry of defined properties (accessed via `$(prop:name)`).
 ---@field private cov_envs table<string, verilua.sv.SVBuilder.covergroup> Registry of defined covergroups (accessed via `$(cov:name)`).
----@field private preamble_vec string[] Ordered list of raw preamble SV (decls/functions/always) emitted before default_clocking and SVA/covergroups.
----@field private sequence_vec string[] Ordered list of rendered sequence statements.
----@field private property_vec string[] Ordered list of rendered property statements.
----@field private content_vec string[] Ordered list of rendered cover/assert statements.
----@field private covergroup_vec string[] Ordered list of rendered covergroup definitions + instantiations.
+---@field private statement_vec verilua.sv.SVBuilder.statement[] Statements in successful `add` call order.
+---@field private assertion_count integer Number of cover/assert statements, used for output numbering.
 ---@field private _covergroup_names {name: string, inst_name: string}[] Metadata for final-block coverage report generation.
 ---@field private coverage_report_enabled boolean Whether the final block coverage report is generated.
 ---@field private lint_enabled boolean Whether automatic sv_lint checking is active on each `add` call.
@@ -70,47 +74,55 @@ local SVBuilder = {
     seq_envs = {},
     prop_envs = {},
     cov_envs = {},
-    preamble_vec = {},
-    sequence_vec = {},
-    property_vec = {},
-    content_vec = {},
-    covergroup_vec = {},
+    statement_vec = {},
+    assertion_count = 0,
     _covergroup_names = {},
     lint_enabled = true,
     coverage_report_enabled = true,
     _lint_dump_paths = {},
 }
 
+-- Share statement order between generation and lint without committing a pending add.
+---@param self verilua.sv.SVBuilder
+---@param pending verilua.sv.SVBuilder.statement?
+---@param numbered boolean?
+---@return string[]
+local function collect_statements(self, pending, numbered)
+    local parts = {}
+    local clocking_emitted = false
+    local assertion_index = 0
+    local statement_count = #self.statement_vec
+    local total_count = statement_count + (pending and 1 or 0)
+    for i = 1, total_count do
+        local statement
+        if i <= statement_count then
+            statement = assert(self.statement_vec[i])
+        else
+            statement = assert(pending)
+        end
+        -- Leading raw declarations must remain visible to a bare default clock.
+        if not clocking_emitted and statement.typ ~= "raw" then
+            if self.default_clocking_expr ~= "" then
+                parts[#parts + 1] = self.default_clocking_expr
+            end
+            clocking_emitted = true
+        end
+        local content = statement.content
+        if numbered and (statement.typ == "cover" or statement.typ == "assert") then
+            assertion_index = assertion_index + 1
+            content = f("// %d/%d\n%s", assertion_index, self.assertion_count, content)
+        end
+        parts[#parts + 1] = content
+    end
+    if not clocking_emitted and self.default_clocking_expr ~= "" then
+        parts[#parts + 1] = self.default_clocking_expr
+    end
+    return parts
+end
+
 setmetatable(SVBuilder, {
     __tostring = function(self)
-        local parts = {}
-
-        -- Preamble first so bare clock/reset declared in raw are visible to
-        -- default_clocking (and match normal SV: declare signals, then clocking).
-        for _, v in ipairs(self.preamble_vec) do
-            parts[#parts + 1] = tostring(v)
-        end
-
-        if self.default_clocking_expr ~= "" then
-            parts[#parts + 1] = self.default_clocking_expr
-        end
-
-        for _, v in ipairs(self.sequence_vec) do
-            parts[#parts + 1] = tostring(v)
-        end
-
-        for _, v in ipairs(self.property_vec) do
-            parts[#parts + 1] = tostring(v)
-        end
-
-        local content_count = #self.content_vec
-        for i, v in ipairs(self.content_vec) do
-            parts[#parts + 1] = f("// %d/%d\n%s", i, content_count, tostring(v))
-        end
-
-        for _, v in ipairs(self.covergroup_vec) do
-            parts[#parts + 1] = tostring(v)
-        end
+        local parts = collect_statements(self, nil, true)
 
         -- Generate final block for coverage report.
         -- The report calls inst.get_coverage(), which returns type coverage.
@@ -307,35 +319,14 @@ local function raise_lint_error(name, lint_err, source_info)
     error(f("[SVBuilder] lint error in '%s'%s\n\n%s", name, source_line, lint_err), 0)
 end
 
--- Build a module shell containing all existing context + the new statement,
--- then invoke sv_lint (FFI or subprocess). Returns nil on success, or the
--- first diagnostic string on failure.
--- `as_preamble`: when true (add "raw"), insert new_statement with other
--- preamble chunks before default_clocking so bare clock decls resolve.
----@param as_preamble boolean?
-local function run_sv_lint(self, new_statement, _stmt_name, as_preamble)
-    -- Assemble the full SV text for lint (match generate() order).
-    local parts = { "module __sva_lint;" }
-    for _, v in ipairs(self.preamble_vec) do
-        parts[#parts + 1] = tostring(v)
-    end
-    if as_preamble then
-        parts[#parts + 1] = new_statement
-    end
-    if self.default_clocking_expr ~= "" then
-        parts[#parts + 1] = self.default_clocking_expr
-    end
-    for _, v in ipairs(self.sequence_vec) do
-        parts[#parts + 1] = tostring(v)
-    end
-    for _, v in ipairs(self.property_vec) do
-        parts[#parts + 1] = tostring(v)
-    end
-    if not as_preamble then
-        parts[#parts + 1] = new_statement
-    end
-    parts[#parts + 1] = "endmodule"
-    local sv_text = table.concat(parts, "\n")
+-- Lint the existing statements and candidate in their generated order.
+---@param self verilua.sv.SVBuilder
+---@param new_statement string
+---@param typ "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"
+---@return string? diagnostic
+local function run_sv_lint(self, new_statement, typ)
+    local parts = collect_statements(self, { typ = typ, content = new_statement })
+    local sv_text = "module __sva_lint;\n" .. table.concat(parts, "\n") .. "\nendmodule"
 
     -- Try FFI first
     local lib = get_sv_lint_lib()
@@ -547,7 +538,7 @@ function SVBuilder:add(typ)
             local pre_content_raw = f("%s %s(); %s; end%s", cov_type, pre_content_name, ret, cov_type)
 
             if self.lint_enabled then
-                local lint_err = run_sv_lint(self, pre_content_raw, params.name)
+                local lint_err = run_sv_lint(self, pre_content_raw, typ)
                 if lint_err then
                     raise_lint_error(params.name, lint_err, source_info)
                 end
@@ -556,7 +547,8 @@ function SVBuilder:add(typ)
             local pre_content = process_content(pre_content_raw)
             local content = pre_content .. "\n" .. f("%s: cover %s (%s);", params.name, cov_type, pre_content_name)
 
-            self.content_vec[#self.content_vec + 1] = content
+            self.statement_vec[#self.statement_vec + 1] = { typ = typ, content = content }
+            self.assertion_count = self.assertion_count + 1
             self.unique_stmt_name_map[params.name] = true
             self.unique_stmt_name_map[pre_content_name] = true
             return
@@ -565,7 +557,7 @@ function SVBuilder:add(typ)
             local pre_content_raw = f("property %s(); %s; endproperty", pre_content_name, ret)
 
             if self.lint_enabled then
-                local lint_err = run_sv_lint(self, pre_content_raw, params.name)
+                local lint_err = run_sv_lint(self, pre_content_raw, typ)
                 if lint_err then
                     raise_lint_error(params.name, lint_err, source_info)
                 end
@@ -574,7 +566,8 @@ function SVBuilder:add(typ)
             local pre_content = process_content(pre_content_raw)
             local content = pre_content .. "\n" .. f("%s: assert property (%s);", params.name, pre_content_name)
 
-            self.content_vec[#self.content_vec + 1] = content
+            self.statement_vec[#self.statement_vec + 1] = { typ = typ, content = content }
+            self.assertion_count = self.assertion_count + 1
             self.unique_stmt_name_map[params.name] = true
             self.unique_stmt_name_map[pre_content_name] = true
             return
@@ -583,14 +576,14 @@ function SVBuilder:add(typ)
             local content_raw = f("property %s(%s); %s; endproperty", params.name, formal_args, ret)
 
             if self.lint_enabled then
-                local lint_err = run_sv_lint(self, content_raw, params.name)
+                local lint_err = run_sv_lint(self, content_raw, typ)
                 if lint_err then
                     raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
             local processed = process_content(content_raw)
-            self.property_vec[#self.property_vec + 1] = processed
+            self.statement_vec[#self.statement_vec + 1] = { typ = typ, content = processed }
             self.unique_stmt_name_map[params.name] = true
 
             ---@type verilua.sv.SVBuilder.property
@@ -606,14 +599,14 @@ function SVBuilder:add(typ)
             local content_raw = f("sequence %s(%s); %s; endsequence", params.name, formal_args, ret)
 
             if self.lint_enabled then
-                local lint_err = run_sv_lint(self, content_raw, params.name)
+                local lint_err = run_sv_lint(self, content_raw, typ)
                 if lint_err then
                     raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
             local processed = process_content(content_raw)
-            self.sequence_vec[#self.sequence_vec + 1] = processed
+            self.statement_vec[#self.statement_vec + 1] = { typ = typ, content = processed }
             self.unique_stmt_name_map[params.name] = true
 
             ---@type verilua.sv.SVBuilder.sequence
@@ -626,15 +619,15 @@ function SVBuilder:add(typ)
             self.seq_envs[params.name] = sequence
             return sequence
         elseif typ == "raw" then
-            -- Free-form SV preamble (typedef/function/logic/always). Keep newlines.
+            -- Keep free-form SV at this add position, preserving its newlines.
             if self.lint_enabled then
-                local lint_err = run_sv_lint(self, ret, params.name, true)
+                local lint_err = run_sv_lint(self, ret, typ)
                 if lint_err then
                     raise_lint_error(params.name, lint_err, source_info)
                 end
             end
 
-            self.preamble_vec[#self.preamble_vec + 1] = ret
+            self.statement_vec[#self.statement_vec + 1] = { typ = typ, content = ret }
             self.unique_stmt_name_map[params.name] = true
             return
         elseif typ == "covergroup" then
@@ -670,8 +663,7 @@ function SVBuilder:add(typ)
             local cg_instance_decl = f("%s %s = new();", params.name, inst_name)
 
             if self.lint_enabled then
-                local lint_err = run_sv_lint(self, cg_raw .. "\n" .. cg_instance_decl,
-                    params.name)
+                local lint_err = run_sv_lint(self, cg_raw .. "\n" .. cg_instance_decl, typ)
                 if lint_err then
                     raise_lint_error(params.name, lint_err, source_info)
                 end
@@ -679,7 +671,7 @@ function SVBuilder:add(typ)
 
             -- Store the covergroup definition + instantiation
             local content = cg_raw .. "\n" .. cg_instance_decl
-            self.covergroup_vec[#self.covergroup_vec + 1] = content
+            self.statement_vec[#self.statement_vec + 1] = { typ = typ, content = content }
             self.unique_stmt_name_map[params.name] = true
             self.unique_stmt_name_map[inst_name] = true
 
@@ -780,11 +772,8 @@ function SVBuilder:clean()
     self.seq_envs = {}
     self.prop_envs = {}
     self.cov_envs = {}
-    self.preamble_vec = {}
-    self.sequence_vec = {}
-    self.property_vec = {}
-    self.content_vec = {}
-    self.covergroup_vec = {}
+    self.statement_vec = {}
+    self.assertion_count = 0
     self._covergroup_names = {}
     return self
 end

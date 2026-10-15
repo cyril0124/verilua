@@ -1,5 +1,6 @@
 ---@diagnostic disable: invisible, access-invisible, assign-type-mismatch
 
+---@diagnostic disable-next-line: unresolved-require
 local lester = require 'lester'
 local describe, it, expect = lester.describe, lester.it, lester.expect
 
@@ -908,6 +909,7 @@ default clocking @(negedge path.to.clock); endclocking
             expr = "coverpoint top.dut.d { bins b = {0}; }",
         }
         expect.equal(type(cov), "table")
+        ---@cast cov verilua.sv.SVBuilder.covergroup
         expect.equal(cov.__type, "Covergroup")
         expect.equal(cov.name, "cg_handle")
         expect.equal(cov.inst_name, "_GEN_cg_handle_inst")
@@ -938,6 +940,7 @@ default clocking @(negedge path.to.clock); endclocking
         bins incr = {4'd1};
     }]],
         }
+        ---@cast cov verilua.sv.SVBuilder.covergroup
 
         ctx:add "raw" {
             name = "sample_driver",
@@ -954,8 +957,78 @@ default clocking @(negedge path.to.clock); endclocking
         )
         assert(result:find('[COVERAGE] cg_axi_cmd', 1, true),
             "expected coverage report, got: " .. result)
+        local decl_pos = assert(result:find("logic clk;", 1, true))
+        local cg_pos = assert(result:find("covergroup cg_axi_cmd", 1, true))
+        local inst_pos = assert(result:find("cg_axi_cmd _GEN_cg_axi_cmd_inst = new();", 1, true))
+        local driver_pos = assert(result:find("always @(posedge clk)", 1, true))
+        local final_pos = assert(result:find("final begin", 1, true))
+        assert(decl_pos < cg_pos and cg_pos < inst_pos and inst_pos < driver_pos and driver_pos < final_pos,
+            "expected declarations, covergroup, instance, sample driver, final report in add order, got: " .. result)
 
         ctx:set_lint(false)
+        ctx:clean()
+    end)
+
+    it("preserves raw statements around a sequence", function()
+        ctx:set_lint(true)
+        ctx:default_clocking("clk", "posedge")
+        ctx:add "raw" { name = "signals", expr = "logic clk; logic pulse;" }
+        ctx:add "sequence" { name = "pulse_seen", expr = "pulse" }
+        ctx:add "raw" { name = "later_signal", expr = "logic done;" }
+
+        expect.equal(ctx:generate(), [[
+logic clk; logic pulse;
+
+default clocking @(posedge clk); endclocking
+
+sequence pulse_seen(); pulse; endsequence
+
+logic done;
+
+]])
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("keeps mixed statement types in add order with continuous assertion numbering", function()
+        ctx:set_lint(true)
+        ctx:default_clocking("clock", "posedge")
+        ctx:add "raw" { name = "signals", expr = "logic clock; logic req; logic ack;" }
+        ctx:add "property" { name = "req_high", expr = "req" }
+        ctx:add "assert" { name = "check_req", expr = "$(prop:req_high)" }
+        ctx:add "raw" { name = "helper", expr = "function automatic bit ready(); return ack; endfunction" }
+        ctx:add "sequence" { name = "handshake", expr = "req ##1 ack" }
+        ctx:add "covergroup" { name = "cg_mixed", expr = "coverpoint req;" }
+        ctx:add "cover" { name = "cover_handshake", cov_type = "sequence", expr = "$(seq:handshake)" }
+        ctx:add "raw" { name = "sample_mixed", expr = "always @(posedge clock) $(cov:cg_mixed).sample();" }
+        local result = ctx:generate()
+        local markers = {
+            "logic clock; logic req; logic ack;",
+            "default clocking @(posedge clock); endclocking",
+            "property req_high();",
+            "// 1/2\nproperty _GEN_check_req_PROPERTY();",
+            "function automatic bit ready();",
+            "sequence handshake();",
+            "covergroup cg_mixed",
+            "// 2/2\nsequence _GEN_cover_handshake_SEQUENCE();",
+            "always @(posedge clock) _GEN_cg_mixed_inst.sample();",
+            "final begin",
+        }
+        local last_pos = 0
+        for _, marker in ipairs(markers) do
+            local pos = assert(result:find(marker, 1, true), "missing " .. marker .. " in: " .. result)
+            assert(pos > last_pos, "unexpected position for " .. marker .. " in: " .. result)
+            last_pos = pos
+        end
+        ctx:set_coverage_report(false)
+        assert(not ctx:generate():find("final begin", 1, true), "coverage report should be disabled")
+        ctx:set_coverage_report(true)
+        ctx:clean()
+        expect.equal(ctx:generate(), "")
+        ctx:set_lint(false)
+        ctx:add "cover" { name = "fresh", expr = "1" }
+        assert(ctx:generate():find("// 1/1\n", 1, true), "clean should reset assertion numbering")
         ctx:clean()
     end)
 
@@ -986,10 +1059,11 @@ default clocking @(negedge path.to.clock); endclocking
             ctx:add "cover" { name = "bad", expr = "x", formal_args = "logic x" }
         end)
         expect.equal(ok, false)
-        assert(err:find("`formal_args` is only valid", 1, true),
-            "expected formal_args guard error, got: " .. tostring(err))
-        assert(err:find("`cover`", 1, true),
-            "expected type name in error, got: " .. tostring(err))
+        local err_str = tostring(err)
+        assert(err_str:find("`formal_args` is only valid", 1, true),
+            "expected formal_args guard error, got: " .. err_str)
+        assert(err_str:find("`cover`", 1, true),
+            "expected type name in error, got: " .. err_str)
 
         ctx:clean()
     end)
