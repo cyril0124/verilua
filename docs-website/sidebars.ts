@@ -36,6 +36,7 @@ const sidebars: SidebarsConfig = {
         'how-to-guides/call_c_functions',
         'how-to-guides/common_lua_pitfalls',
         'how-to-guides/combinational_logic',
+        'how-to-guides/website_deployment',
       ],
     },
     {

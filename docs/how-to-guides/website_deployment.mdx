@@ -1,0 +1,244 @@
+---
+title: 网站部署与维护
+description: 面向新维护者的 Verilua 文档网站构建、GitHub Pages 发布与排障指南。
+---
+
+# 网站部署与维护
+
+这份文档面向第一次接手 Verilua 的维护者。只维护网站时，不需要安装 Verilua、xmake 或硬件仿真器，准备 Git、Node.js 和 npm 即可。
+
+## 1. 先了解网站是怎么工作的
+
+Verilua 的网站是 **Docusaurus 静态文档网站**，不是需要持续运行后端服务的应用。Docusaurus 将 Markdown/MDX、页面组件和图片构建成 HTML、JavaScript、CSS，再交给 GitHub Pages 托管。
+
+仓库当前的自动发布流程是：
+
+```text
+修改 docs/ 或 docs-website/
+    -> 提交并推送到 master（或通过 PR 合并到 master）
+    -> GitHub Actions 的 ci 工作流检测变更
+    -> 安装 npm 依赖并构建 docs-website/build/
+    -> 将构建产物发布到同一仓库的 gh-pages 分支
+    -> GitHub Pages 提供网页访问
+```
+
+根据 `docs-website/docusaurus.config.ts`，原项目的网站地址配置为：
+
+[https://cyril0124.github.io/verilua/](https://cyril0124.github.io/verilua/)
+
+**这里描述的是仓库中的配置，不代表已经核验线上状态。** GitHub 后台的 Pages 设置、访问权限和实际发布结果，需要有权限的维护者确认。
+
+本文介绍的是文档站。README 中的 [Benchmark 结果站点](https://cyril0124.github.io/verilua-benchmark-results/dev/bench/) 是另一个站点：`.github/workflows/benchmark.yml` 将结果发布到独立的 `cyril0124/verilua-benchmark-results` 仓库，不走本文的 Docusaurus 部署流程。
+
+### 关键文件
+
+以下路径均相对于仓库根目录：
+
+| 文件或目录 | 用途 | 什么时候修改 |
+| --- | --- | --- |
+| `docs/` | 文档正文，主要是 `.mdx` 文件 | 增加或修改文档 |
+| `docs-website/src/pages/index.mdx` | 网站首页 | 修改首页内容 |
+| `docs-website/src/css/custom.css` | 网站公共样式 | 调整网站样式 |
+| `docs-website/static/` | 静态资源，如 Logo、`.nojekyll` | 增加资源或维护静态文件 |
+| `docs-website/sidebars.ts` | 文档侧边栏 | 新增、删除或移动文档页面 |
+| `docs-website/docusaurus.config.ts` | 站点域名、路径、导航、插件 | 更换发布地址或网站配置 |
+| `docs-website/package.json` | npm 命令和依赖声明 | 调整构建命令或依赖 |
+| `docs-website/package-lock.json` | 锁定实际安装的依赖版本 | 更新 npm 依赖 |
+| `.github/workflows/ci.yml` | 自动构建和发布网站 | 调整发布流程 |
+| `.github/filters.yml` | 判断哪些修改触发网站部署 | 调整部署触发范围 |
+
+`docs-website/build/` 是构建产物，不是手写源文件，也不需要提交到源码分支。它已经被 `docs-website/.gitignore` 忽略。
+
+## 2. 在本地预览
+
+以下命令使用 Bash，假设你已经取得仓库，并且当前位于仓库根目录。
+
+### 2.1 准备环境并安装依赖
+
+建议使用 **Node.js 22 LTS**，同时准备 npm 和 Git：
+
+```bash
+node --version
+npm --version
+git --version
+
+cd docs-website
+npm ci
+```
+
+虽然 `package.json` 声明 Node.js `>=18.0`，但当前锁定的 Docusaurus 3.10.1 要求 Node.js `>=20.0`，部分依赖还要求 `>=20.18.1`。不要仅根据项目声明选择 Node.js 18。CI 当前使用 Node.js 20。
+
+`npm ci` 根据锁文件安装依赖，适合接手项目和复现 CI。日常预览无需删除或重新生成锁文件；只有主动更新依赖时才使用相应的依赖更新命令，并审查锁文件变化。
+
+### 2.2 启动开发预览
+
+在 `docs-website/` 下运行：
+
+```bash
+npm run start
+```
+
+按终端输出的地址访问。默认端口通常是 `3000`，本站的基础路径为 `/verilua/`：
+
+```text
+http://localhost:3000/verilua/
+```
+
+修改文档后，开发服务器会自动刷新。按 `Ctrl+C` 停止服务。端口被占用时可以指定其他端口：
+
+```bash
+npm run start -- --port 3001
+```
+
+### 2.3 检查正式构建
+
+开发预览正常不等于正式构建一定成功。发布前，在 `docs-website/` 下依次执行：
+
+```bash
+npm run build
+npm run serve
+```
+
+`build` 生成 `build/`；`serve` 用本地服务器预览这些构建产物。按终端输出的地址访问，默认通常为 `http://localhost:3000/verilua/`。结束后按 `Ctrl+C`。
+
+检查首页、侧边栏、新增页面、图片和搜索，并直接刷新一个文档页面。搜索使用本地索引插件，应以正式构建的预览为准。
+
+## 3. 日常如何发布
+
+### 3.1 先确认你要发布哪个仓库
+
+在仓库根目录查看：
+
+```bash
+git remote -v
+```
+
+原项目的站点配置指向 `cyril0124/verilua`。如果你的 `origin` 指向自己的 Fork，例如 `YangtzFan/verilua`，**向 Fork 推送不会更新原项目的网站**。
+
+这里有两种不同的任务：
+
+- **维护原项目网站**：将修改通过 PR 合并到 `cyril0124/verilua` 的 `master`，或在有授权时直接推送到该分支。
+- **发布自己的 Fork 网站**：修改站点地址配置，并在 Fork 仓库中启用 Actions 和 Pages，具体见第 5 节。
+
+不要为了发布 Fork 而把原项目配置直接当作自己的配置使用。
+
+### 3.2 提交源文件
+
+先本地构建，再审查并提交自己修改的文件。以下是在仓库根目录提交一篇新文档的示例，请替换文件名：
+
+```bash
+git diff
+
+git add docs/how-to-guides/your_page.mdx docs-website/sidebars.ts
+git commit -m "docs: add your page"
+```
+
+新建文档时，需要在 `sidebars.ts` 中登记文档 ID，例如 `how-to-guides/your_page`，不带 `.mdx` 后缀。页面移动或重命名后，同时更新侧边栏和引用链接。
+
+通过团队既有的 PR 流程将提交合并到目标仓库的 `master`。有直接推送权限且团队允许时，才使用：
+
+```bash
+git push origin master
+```
+
+执行前确认本地 `master` 包含要发布的提交，并且 `origin` 是目标仓库。上述命令不是让你在任意分支下把工作发布出去。
+
+### 3.3 跟踪自动部署
+
+进入目标仓库的 **Actions** 页面，找到对应提交的 `ci` 工作流：
+
+1. `changes` 作业用 `.github/filters.yml` 判断是否修改了 `docs/**` 或 `docs-website/**`。
+2. 有上述变更时，`deploy` 作业才运行；否则会显示跳过。
+3. `deploy` 使用 Node.js 20，依次执行 `npm ci` 和 `npm run build`。
+4. `peaceiris/actions-gh-pages@v4` 用仓库的 `GITHUB_TOKEN` 将 `docs-website/build/` 发布到当前仓库，未指定发布分支时默认是 `gh-pages`。
+5. 再检查 Pages 的发布状态，并打开网站确认新内容。
+
+这个工作流只监听 **推送到 `master`**，没有配置 `pull_request` 或手动运行的 `workflow_dispatch`。因此，打开 PR 不会触发这个网站工作流；合并到 `master` 后才会触发。只修改根目录 `README.md`、`DEVELOPMENT.md` 或工作流文件本身，也不会让 `deploy` 作业运行。
+
+CI 已配置 `permissions: contents: write`，用于写入发布分支。按当前方案，一般不需要新建 PAT 或手动填写 `GITHUB_TOKEN`；它由 GitHub Actions 提供，但仍可能受到组织策略或分支规则限制。
+
+## 4. GitHub Pages 后台需要确认什么
+
+这部分设置不在 Git 文件里，接手时应找仓库管理员确认。
+
+当前工作流是**发布分支方案**，不是 `actions/upload-pages-artifact` 配合 `actions/deploy-pages` 的方案。与它匹配的 Pages 设置应为：
+
+1. 打开目标仓库的 **Settings → Pages**。
+2. 在 **Build and deployment** 中，将 **Source** 设置为 **Deploy from a branch**。
+3. 发布分支选择 **`gh-pages`**，目录选择 **`/ (root)`**。
+4. 保存后，查看页面显示的发布地址和状态。
+
+如果还没有 `gh-pages` 分支，可以先完成一次成功的 CI 发布，等分支创建后再选择。不要选择 `master` 下的 `docs/`：这里存放的是 Docusaurus 源文档，不是可直接托管的完整网站。
+
+`docs-website/static/.nojekyll` 会随静态资源进入构建产物，用于告诉 GitHub Pages 不要对这些文件再进行 Jekyll 处理，应保留它。
+
+如果后台已经采用另一套发布方案，不要直接覆盖设置；先确认是否有仓库外部或尚未同步到当前分支的流程。这份文档只覆盖当前检出的仓库配置。
+
+## 5. 发布自己的 Fork
+
+以 `YangtzFan/verilua` 为例，需要在 `docs-website/docusaurus.config.ts` 中调整：
+
+```ts
+url: 'https://YangtzFan.github.io',
+baseUrl: '/verilua/',
+organizationName: 'YangtzFan',
+projectName: 'verilua',
+```
+
+`url` 是域名部分，`baseUrl` 是网站在域名下的路径，前后都要有 `/`。如果仓库改名为 `my-verilua`，对应的 `projectName` 和 `baseUrl` 也应分别改为 `my-verilua` 和 `/my-verilua/`。
+
+还应检查并按实际维护目标调整：
+
+- `docusaurus.config.ts` 中的 `editUrl`、导航栏 GitHub 链接。
+- `src/pages/index.mdx` 中的 GitHub 链接。
+- Fork 的 Actions 是否已启用，Pages 设置是否符合第 4 节。
+- 源码分支是否仍是 `master`；如果改用 `main`，同步修改 `ci.yml` 的触发分支和 `editUrl` 中的分支路径。
+
+CI 的 `github_token` 发布步骤会写入**运行工作流的仓库**，不会因为 `organizationName` 仍是原作者就写回原仓库。地址配置错误却仍可能造成链接、资源路径或站点元信息错误。
+
+`package.json` 还提供 `npm run deploy`，但**日常发布请使用上述 CI 流程**。该命令走 Docusaurus 自带的 Git 发布逻辑，根据 `organizationName` 和 `projectName` 决定目标仓库，并可能强制推送发布分支。它与当前 CI 不是同一个发布入口；不要在未确认目标仓库、权限和团队策略时运行。
+
+## 6. 常见问题
+
+| 现象 | 优先检查 |
+| --- | --- |
+| 推送后没有网站工作流 | 是否推送到了目标仓库的 `master`；Fork 的 Actions 是否启用 |
+| `ci` 运行了，但 `deploy` 被跳过 | 是否实际修改了 `docs/**` 或 `docs-website/**` |
+| npm 安装提示 Node 版本不支持 | 使用 Node.js 22 LTS；不要只看 `package.json` 的 `>=18.0` |
+| `npm ci` 失败 | 查看具体错误；确认 `package.json` 与锁文件同步、npm registry 网络可用 |
+| 构建失败 | 阅读 `Build website` 日志，检查 MDX 语法、导入路径、图片和侧边栏文档 ID |
+| 发布提示权限不足或 403 | 仓库和组织的 Actions 策略、`contents: write` 权限、发布分支保护规则 |
+| CI 成功，网站仍然 404 | Pages 是否选择 `gh-pages` 的根目录；Pages 发布是否完成；访问 URL 是否正确 |
+| 页面能打开，但 CSS/图片丢失 | `url` 和 `baseUrl` 是否对应实际托管地址；项目站点路径不能漏掉仓库名 |
+| 页面内容没有更新 | 是否只推送到 Fork；核对 CI 对应提交、`gh-pages` 更新和 Pages 状态，再刷新浏览器 |
+| 新文档未出现在侧边栏 | 是否在 `sidebars.ts` 中登记正确的文档 ID |
+
+当前配置对断链使用 `warn`，对失效锚点使用 `ignore`。所以 **构建成功不代表所有链接都正确**，仍需阅读警告并手动点击关键链接。
+
+如果怀疑是 Docusaurus 缓存问题，可以在 `docs-website/` 下清理缓存并重新构建：
+
+```bash
+npm run clear
+npm run build
+```
+
+## 7. 接手检查清单
+
+- 确认你维护的是原站还是 Fork，记录目标仓库、源码分支和网站 URL。
+- 确认自己有查看 Actions 的权限，以及管理员能查看和修改 Pages 设置。
+- 用锁文件安装依赖，本地构建并预览一次。
+- 核对 `master` 的 `ci` 触发条件与 Pages 的 `gh-pages` 根目录设置。
+- 发布一次小的文档修改，核对源码提交、CI 日志和线上内容。
+- 保留可以恢复的源码提交；回退内容时用新的修复或回退提交触发部署，不要随意重写源码历史。
+
+## 配置依据
+
+本文根据仓库内以下文件编写；以后修改部署方式时，应同时更新本文：
+
+- [自动发布工作流](https://github.com/cyril0124/verilua/blob/master/.github/workflows/ci.yml)
+- [变更路径过滤规则](https://github.com/cyril0124/verilua/blob/master/.github/filters.yml)
+- [站点配置](https://github.com/cyril0124/verilua/blob/master/docs-website/docusaurus.config.ts)
+- [npm 命令和依赖](https://github.com/cyril0124/verilua/blob/master/docs-website/package.json)
+- [依赖锁文件](https://github.com/cyril0124/verilua/blob/master/docs-website/package-lock.json)
+
+以上链接指向原项目的 `master`，在线内容可能随提交变化。实际操作以你正在维护的仓库文件和 GitHub 后台设置为准。
