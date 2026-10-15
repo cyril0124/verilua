@@ -13,6 +13,13 @@ local lint_dump_dir = build_dir and build_dir ~= "" and build_dir .. "/svbuilder
 -- errors in slang. Lint-specific tests re-enable it explicitly.
 ctx:set_lint(false)
 
+-- Check source locations separately from layout goldens.
+---@param sv string
+---@return string
+local function normalize_source_locations(sv)
+    return (sv:gsub("(// %-%-%-%- [^\r\n]- begin %-%-%-%-) @ [^\r\n]+", "%1"))
+end
+
 lester.parse_args()
 
 describe("SVBuilder test", function()
@@ -28,6 +35,80 @@ describe("SVBuilder test", function()
         end
     end)
 
+    it("disables block comments by default and supports toggling", function()
+        ctx:set_lint(true)
+        ctx:default_clocking("clk", "posedge")
+        ctx:add "raw" { name = "signals", expr = "logic clk; logic flag;" }
+        ctx:add "assert" { name = "check_flag", expr = "flag" }
+        ctx:add "covergroup" { name = "cg_flag", expr = "coverpoint flag;" }
+
+        local expected = [[
+logic clk; logic flag;
+
+default clocking @(posedge clk); endclocking
+
+// 1/1
+property _GEN_check_flag_PROPERTY(); flag; endproperty
+check_flag: assert property (_GEN_check_flag_PROPERTY);
+
+covergroup cg_flag @(posedge clk);
+coverpoint flag;
+endgroup
+cg_flag _GEN_cg_flag_inst = new();
+
+final begin
+    $display("[COVERAGE] cg_flag: %.2f%%", _GEN_cg_flag_inst.get_coverage());
+end
+
+]]
+        expect.equal(ctx:generate(), expected)
+        expect.equal(ctx:set_block_comments(true), ctx)
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+// ---- signals (raw) begin ----
+logic clk; logic flag;
+// ---- signals (raw) end ----
+
+default clocking @(posedge clk); endclocking
+
+// ---- check_flag (assert) begin ----
+// 1/1
+property _GEN_check_flag_PROPERTY(); flag; endproperty
+check_flag: assert property (_GEN_check_flag_PROPERTY);
+// ---- check_flag (assert) end ----
+
+// ---- cg_flag (covergroup) begin ----
+covergroup cg_flag @(posedge clk);
+coverpoint flag;
+endgroup
+cg_flag _GEN_cg_flag_inst = new();
+// ---- cg_flag (covergroup) end ----
+
+final begin
+    $display("[COVERAGE] cg_flag: %.2f%%", _GEN_cg_flag_inst.get_coverage());
+end
+
+]])
+        expect.equal(ctx:set_block_comments(false), ctx)
+        expect.equal(ctx:generate(), expected)
+        ctx:clean()
+        ctx:add "raw" { name = "fresh", expr = "logic fresh;" }
+        expect.equal(ctx:generate(), "logic fresh;\n\n")
+        ctx:set_block_comments(true)
+        ctx:clean()
+        ctx:add "raw" { name = "fresh", expr = "logic fresh;" }
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+// ---- fresh (raw) begin ----
+logic fresh;
+// ---- fresh (raw) end ----
+
+]])
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    -- Remaining golden outputs exercise the optional block markers.
+    ctx:set_block_comments(true)
+
     it("can add cover/assert", function()
         local ret = ctx:add "cover" {
             name = "test",
@@ -35,16 +116,18 @@ describe("SVBuilder test", function()
             envs = { a = 123, bb = 456 }
         }
         expect.equal(ret, nil)
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 property _GEN_test_PROPERTY(); test + 123 + 456; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
 ]])
 
         -- Clean context
         ctx:clean()
-        expect.equal(tostring(ctx), "")
+        expect.equal(normalize_source_locations(tostring(ctx)), "")
 
         -- envs is a plain table
         ret = ctx:add "cover" {
@@ -54,16 +137,18 @@ test: cover property (_GEN_test_PROPERTY);
         }
         expect.equal(ret, nil)
         -- SVBuilder:generate() is equal to tostring(SVBuilder)
-        expect.equal(ctx:generate(), [[
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+// ---- test1 (cover) begin ----
 // 1/1
 property _GEN_test1_PROPERTY(); test1 + 123 + 456; endproperty
 test1: cover property (_GEN_test1_PROPERTY);
+// ---- test1 (cover) end ----
 
 ]])
 
         -- Clean context
         ctx:clean()
-        expect.equal(tostring(ctx), "")
+        expect.equal(normalize_source_locations(tostring(ctx)), "")
 
         ret = ctx:add "assert" {
             name = "test2",
@@ -71,16 +156,18 @@ test1: cover property (_GEN_test1_PROPERTY);
             envs = { a = 123, bb = "456", c = true }
         }
         expect.equal(ret, nil)
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test2 (assert) begin ----
 // 1/1
 property _GEN_test2_PROPERTY(); test2 + 123 + 456 + true; endproperty
 test2: assert property (_GEN_test2_PROPERTY);
+// ---- test2 (assert) end ----
 
 ]])
 
         -- Clean context
         ctx:clean()
-        expect.equal(tostring(ctx), "")
+        expect.equal(normalize_source_locations(tostring(ctx)), "")
     end)
 
     it("can change cover type", function()
@@ -90,10 +177,12 @@ test2: assert property (_GEN_test2_PROPERTY);
             expr = "test + $(a) + $(bb)",
             envs = { a = 123, bb = 456 }
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 sequence _GEN_test_SEQUENCE(); test + 123 + 456; endsequence
 test: cover sequence (_GEN_test_SEQUENCE);
+// ---- test (cover) end ----
 
 ]])
 
@@ -108,10 +197,12 @@ test: cover sequence (_GEN_test_SEQUENCE);
             expr = "test + $(a) + $(bb)",
         }
         expect.equal(ret, nil)
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 property _GEN_test_PROPERTY(); test + 123 + 456; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
 ]])
 
@@ -120,14 +211,18 @@ test: cover property (_GEN_test_PROPERTY);
             expr = "test1 + $(a) + $(bb)",
         }
         expect.equal(ret, nil)
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/2
 property _GEN_test_PROPERTY(); test + 123 + 456; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
+// ---- test1 (cover) begin ----
 // 2/2
 property _GEN_test1_PROPERTY(); test1 + 123 + 456; endproperty
 test1: cover property (_GEN_test1_PROPERTY);
+// ---- test1 (cover) end ----
 
 ]])
 
@@ -143,8 +238,10 @@ test1: cover property (_GEN_test1_PROPERTY);
         ---@cast ret verilua.sv.SVBuilder.sequence
         expect.equal(ret.__type, "Sequence")
         expect.equal(ret.name, "test")
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (sequence) begin ----
 sequence test(); test + 123 + 456; endsequence
+// ---- test (sequence) end ----
 
 ]])
 
@@ -156,10 +253,14 @@ sequence test(); test + 123 + 456; endsequence
         ---@cast ret1 verilua.sv.SVBuilder.property
         expect.equal(ret1.__type, "Property")
         expect.equal(ret1.name, "test1")
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (sequence) begin ----
 sequence test(); test + 123 + 456; endsequence
+// ---- test (sequence) end ----
 
+// ---- test1 (property) begin ----
 property test1(); test + 123 + 456; endproperty
+// ---- test1 (property) end ----
 
 ]])
 
@@ -173,20 +274,26 @@ property test1(); test + 123 + 456; endproperty
             name = "test2",
             expr = "test2 + $(seq:test) + $(prop:test1)",
         })
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (sequence) begin ----
 sequence test(); test + 123 + 456; endsequence
+// ---- test (sequence) end ----
 
+// ---- test1 (property) begin ----
 property test1(); test + 123 + 456; endproperty
+// ---- test1 (property) end ----
 
+// ---- test2 (cover) begin ----
 // 1/1
 property _GEN_test2_PROPERTY(); test2 + test + test1; endproperty
 test2: cover property (_GEN_test2_PROPERTY);
+// ---- test2 (cover) end ----
 
 ]])
 
         -- Clean context
         ctx:clean()
-        expect.equal(tostring(ctx), "")
+        expect.equal(normalize_source_locations(tostring(ctx)), "")
     end)
 
     it("can add sequence/property with formal_args", function()
@@ -198,8 +305,10 @@ test2: cover property (_GEN_test2_PROPERTY);
         ---@cast ret verilua.sv.SVBuilder.sequence
         expect.equal(ret.__type, "Sequence")
         expect.equal(ret.name, "handshake_p")
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- handshake_p (sequence) begin ----
 sequence handshake_p(logic req, logic ack); req ##1 ack; endsequence
+// ---- handshake_p (sequence) end ----
 
 ]])
 
@@ -214,8 +323,10 @@ sequence handshake_p(logic req, logic ack); req ##1 ack; endsequence
         ---@cast ret1 verilua.sv.SVBuilder.property
         expect.equal(ret1.__type, "Property")
         expect.equal(ret1.name, "no_overflow_p")
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- no_overflow_p (property) begin ----
 property no_overflow_p(logic ovf); !ovf; endproperty
+// ---- no_overflow_p (property) end ----
 
 ]])
 
@@ -279,14 +390,20 @@ property no_overflow_p(logic ovf); !ovf; endproperty
             name = "chk",
             expr = "$(seq:handshake) |-> $(prop:no_overflow)",
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- handshake (sequence) begin ----
 sequence handshake(); req ##1 ack; endsequence
+// ---- handshake (sequence) end ----
 
+// ---- no_overflow (property) begin ----
 property no_overflow(); !ovf; endproperty
+// ---- no_overflow (property) end ----
 
+// ---- chk (assert) begin ----
 // 1/1
 property _GEN_chk_PROPERTY(); handshake |-> no_overflow; endproperty
 chk: assert property (_GEN_chk_PROPERTY);
+// ---- chk (assert) end ----
 
 ]])
 
@@ -343,12 +460,16 @@ chk: assert property (_GEN_chk_PROPERTY);
             expr = "@{seq:hs2}",
             envs = { _inline_escape = "@", _brackets = "{}" },
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- hs2 (sequence) begin ----
 sequence hs2(); a ##1 b; endsequence
+// ---- hs2 (sequence) end ----
 
+// ---- cov2 (cover) begin ----
 // 1/1
 property _GEN_cov2_PROPERTY(); hs2; endproperty
 cov2: cover property (_GEN_cov2_PROPERTY);
+// ---- cov2 (cover) end ----
 
 ]])
 
@@ -370,10 +491,12 @@ cov2: cover property (_GEN_cov2_PROPERTY);
             expr = "test + $(c1) + $(c2)",
             envs = { c1 = c1, c2 = c2 }
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 property _GEN_test_PROPERTY(); test + path.to.c1 + path.to.c2; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
 ]])
 
@@ -400,10 +523,12 @@ test: cover property (_GEN_test_PROPERTY);
             expr = "test + $(c1) + $(c2)",
             envs = { c1 = c1, c2 = c2 }
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 property _GEN_test_PROPERTY(); test + path.to.c1 + path.to.c2; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
 ]])
 
@@ -420,10 +545,12 @@ test: cover property (_GEN_test_PROPERTY);
 # end
 ]]
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 property _GEN_test_PROPERTY(); 1 2 3; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
 ]])
         ctx:clean()
@@ -441,10 +568,12 @@ test: cover property (_GEN_test_PROPERTY);
 ]],
             envs = { _escape = "%" }
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 property _GEN_test_PROPERTY(); 2; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
 ]])
 
@@ -469,10 +598,12 @@ test: cover property (_GEN_test_PROPERTY);
                 }
             }
         }
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- test (cover) begin ----
 // 1/1
 property _GEN_test_PROPERTY(); 123 456 789 path.to.f; endproperty
 test: cover property (_GEN_test_PROPERTY);
+// ---- test (cover) end ----
 
 ]])
 
@@ -487,7 +618,7 @@ test: cover property (_GEN_test_PROPERTY);
         }
         ---@cast clock_signal verilua.handles.CallableHDL
         ctx:default_clocking(clock_signal, "posedge")
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
 default clocking @(posedge path.to.clock); endclocking
 
 ]])
@@ -502,7 +633,7 @@ default clocking @(posedge path.to.clock); endclocking
         }
         ---@cast clock_dut_signal verilua.handles.ProxyTableHandle
         ctx:default_clocking(clock_dut_signal, "negedge")
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
 default clocking @(negedge path.to.clock); endclocking
 
 ]])
@@ -620,7 +751,7 @@ default clocking @(negedge path.to.clock); endclocking
         assert(not diagnostic:find("\nsource:", 1, true), diagnostic)
         assert(diagnostic:find("dump: " .. lint_dump_dir .. "/sv_builder_lint.sv", 1, true), diagnostic)
         assert(diagnostic:find("error: expected expression", 1, true), diagnostic)
-        expect.equal(ctx:generate(), "")
+        expect.equal(normalize_source_locations(ctx:generate()), "")
 
         ctx:set_lint(false)
         ctx:clean()
@@ -913,14 +1044,42 @@ default clocking @(negedge path.to.clock); endclocking
         expect.equal(cov.__type, "Covergroup")
         expect.equal(cov.name, "cg_handle")
         expect.equal(cov.inst_name, "_GEN_cg_handle_inst")
-        -- The inst_name is the identifier the covergroup is instantiated as.
-        assert(tostring(ctx):find("cg_handle _GEN_cg_handle_inst = new();", 1, true),
-            "expected the inst_name to be the instantiated identifier, got: " .. tostring(ctx))
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+default clocking @(posedge top.dut.clk); endclocking
 
-        -- The handle is usable as a template variable via .inst_name.
+// ---- cg_handle (covergroup) begin ----
+covergroup cg_handle @(posedge top.dut.clk);
+coverpoint top.dut.d { bins b = {0}; }
+endgroup
+cg_handle _GEN_cg_handle_inst = new();
+// ---- cg_handle (covergroup) end ----
+
+final begin
+    $display("[COVERAGE] cg_handle: %.2f%%", _GEN_cg_handle_inst.get_coverage());
+end
+
+]])
+
         ctx:add "raw" { name = "inst_env", expr = "// using $(inst)", envs = { inst = cov.inst_name } }
-        assert(tostring(ctx):find("// using _GEN_cg_handle_inst", 1, true),
-            "expected the instance name to render, got: " .. tostring(ctx))
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+default clocking @(posedge top.dut.clk); endclocking
+
+// ---- cg_handle (covergroup) begin ----
+covergroup cg_handle @(posedge top.dut.clk);
+coverpoint top.dut.d { bins b = {0}; }
+endgroup
+cg_handle _GEN_cg_handle_inst = new();
+// ---- cg_handle (covergroup) end ----
+
+// ---- inst_env (raw) begin ----
+// using _GEN_cg_handle_inst
+// ---- inst_env (raw) end ----
+
+final begin
+    $display("[COVERAGE] cg_handle: %.2f%%", _GEN_cg_handle_inst.get_coverage());
+end
+
+]])
 
         ctx:clean()
     end)
@@ -948,22 +1107,33 @@ default clocking @(negedge path.to.clock); endclocking
             envs = { cg_inst = cov.inst_name, args = "burst, len" },
         }
 
-        local result = tostring(ctx)
-        assert(result:find("_GEN_cg_axi_cmd_inst.sample(burst, len);", 1, true),
-            "expected sample call site, got: " .. result)
-        assert(
-            result:find("covergroup cg_axi_cmd with function sample(bit [3:0] burst, bit [7:0] len);", 1, true),
-            "expected 'with function sample' header, got: " .. result
-        )
-        assert(result:find('[COVERAGE] cg_axi_cmd', 1, true),
-            "expected coverage report, got: " .. result)
-        local decl_pos = assert(result:find("logic clk;", 1, true))
-        local cg_pos = assert(result:find("covergroup cg_axi_cmd", 1, true))
-        local inst_pos = assert(result:find("cg_axi_cmd _GEN_cg_axi_cmd_inst = new();", 1, true))
-        local driver_pos = assert(result:find("always @(posedge clk)", 1, true))
-        local final_pos = assert(result:find("final begin", 1, true))
-        assert(decl_pos < cg_pos and cg_pos < inst_pos and inst_pos < driver_pos and driver_pos < final_pos,
-            "expected declarations, covergroup, instance, sample driver, final report in add order, got: " .. result)
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+// ---- sample_decls (raw) begin ----
+logic clk;
+logic [3:0] burst;
+logic [7:0] len;
+// ---- sample_decls (raw) end ----
+
+// ---- cg_axi_cmd (covergroup) begin ----
+covergroup cg_axi_cmd with function sample(bit [3:0] burst, bit [7:0] len);
+    cp_burst: coverpoint burst {
+        bins incr = {4'd1};
+    }
+endgroup
+cg_axi_cmd _GEN_cg_axi_cmd_inst = new();
+// ---- cg_axi_cmd (covergroup) end ----
+
+// ---- sample_driver (raw) begin ----
+always @(posedge clk) begin
+    _GEN_cg_axi_cmd_inst.sample(burst, len);
+end
+// ---- sample_driver (raw) end ----
+
+final begin
+    $display("[COVERAGE] cg_axi_cmd: %.2f%%", _GEN_cg_axi_cmd_inst.get_coverage());
+end
+
+]])
 
         ctx:set_lint(false)
         ctx:clean()
@@ -976,18 +1146,95 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:add "sequence" { name = "pulse_seen", expr = "pulse" }
         ctx:add "raw" { name = "later_signal", expr = "logic done;" }
 
-        expect.equal(ctx:generate(), [[
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+// ---- signals (raw) begin ----
 logic clk; logic pulse;
+// ---- signals (raw) end ----
 
 default clocking @(posedge clk); endclocking
 
+// ---- pulse_seen (sequence) begin ----
 sequence pulse_seen(); pulse; endsequence
+// ---- pulse_seen (sequence) end ----
 
+// ---- later_signal (raw) begin ----
 logic done;
+// ---- later_signal (raw) end ----
 
 ]])
 
         ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("keeps raw comments inside single-line markers", function()
+        ctx:set_lint(true)
+        ctx:add "raw" {
+            name = "helper\r\nblock */",
+            expr = "/* helper */\nlogic flag; // declared here",
+        }
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+// ---- helper  block */ (raw) begin ----
+/* helper */
+logic flag; // declared here
+// ---- helper  block */ (raw) end ----
+
+]])
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("includes each add callsite only in its begin marker", function()
+        ctx:set_lint(true)
+        ctx:set_coverage_report(false)
+        local add_statements = assert(loadstring([[
+local ctx = ...
+ctx:add "raw" { name = "signals", expr = "logic clk; logic pulse;" }
+ctx:default_clocking("clk", "posedge")
+ctx:add "sequence" { name = "pulse_seen", expr = "pulse" }
+ctx:add "property" { name = "pulse_high", expr = "pulse" }
+ctx:add "assert" { name = "check_pulse", expr = "$(prop:pulse_high)" }
+ctx:add "cover" { name = "cover_pulse", cov_type = "sequence", expr = "$(seq:pulse_seen)" }
+ctx:add "covergroup" { name = "cg_pulse", expr = "coverpoint pulse;" }
+]], "@examples/monitor.lua"))
+        add_statements(ctx)
+        expect.equal(ctx:generate(), [[
+// ---- signals (raw) begin ---- @ examples/monitor.lua:2
+logic clk; logic pulse;
+// ---- signals (raw) end ----
+
+default clocking @(posedge clk); endclocking
+
+// ---- pulse_seen (sequence) begin ---- @ examples/monitor.lua:4
+sequence pulse_seen(); pulse; endsequence
+// ---- pulse_seen (sequence) end ----
+
+// ---- pulse_high (property) begin ---- @ examples/monitor.lua:5
+property pulse_high(); pulse; endproperty
+// ---- pulse_high (property) end ----
+
+// ---- check_pulse (assert) begin ---- @ examples/monitor.lua:6
+// 1/2
+property _GEN_check_pulse_PROPERTY(); pulse_high; endproperty
+check_pulse: assert property (_GEN_check_pulse_PROPERTY);
+// ---- check_pulse (assert) end ----
+
+// ---- cover_pulse (cover) begin ---- @ examples/monitor.lua:7
+// 2/2
+sequence _GEN_cover_pulse_SEQUENCE(); pulse_seen; endsequence
+cover_pulse: cover sequence (_GEN_cover_pulse_SEQUENCE);
+// ---- cover_pulse (cover) end ----
+
+// ---- cg_pulse (covergroup) begin ---- @ examples/monitor.lua:8
+covergroup cg_pulse @(posedge clk);
+coverpoint pulse;
+endgroup
+cg_pulse _GEN_cg_pulse_inst = new();
+// ---- cg_pulse (covergroup) end ----
+
+]])
+        ctx:clean()
+        ctx:set_coverage_report(true)
         ctx:set_lint(false)
     end)
 
@@ -1002,33 +1249,70 @@ logic done;
         ctx:add "covergroup" { name = "cg_mixed", expr = "coverpoint req;" }
         ctx:add "cover" { name = "cover_handshake", cov_type = "sequence", expr = "$(seq:handshake)" }
         ctx:add "raw" { name = "sample_mixed", expr = "always @(posedge clock) $(cov:cg_mixed).sample();" }
-        local result = ctx:generate()
-        local markers = {
-            "logic clock; logic req; logic ack;",
-            "default clocking @(posedge clock); endclocking",
-            "property req_high();",
-            "// 1/2\nproperty _GEN_check_req_PROPERTY();",
-            "function automatic bit ready();",
-            "sequence handshake();",
-            "covergroup cg_mixed",
-            "// 2/2\nsequence _GEN_cover_handshake_SEQUENCE();",
-            "always @(posedge clock) _GEN_cg_mixed_inst.sample();",
-            "final begin",
-        }
-        local last_pos = 0
-        for _, marker in ipairs(markers) do
-            local pos = assert(result:find(marker, 1, true), "missing " .. marker .. " in: " .. result)
-            assert(pos > last_pos, "unexpected position for " .. marker .. " in: " .. result)
-            last_pos = pos
-        end
+        local expected = [[
+// ---- signals (raw) begin ----
+logic clock; logic req; logic ack;
+// ---- signals (raw) end ----
+
+default clocking @(posedge clock); endclocking
+
+// ---- req_high (property) begin ----
+property req_high(); req; endproperty
+// ---- req_high (property) end ----
+
+// ---- check_req (assert) begin ----
+// 1/2
+property _GEN_check_req_PROPERTY(); req_high; endproperty
+check_req: assert property (_GEN_check_req_PROPERTY);
+// ---- check_req (assert) end ----
+
+// ---- helper (raw) begin ----
+function automatic bit ready(); return ack; endfunction
+// ---- helper (raw) end ----
+
+// ---- handshake (sequence) begin ----
+sequence handshake(); req ##1 ack; endsequence
+// ---- handshake (sequence) end ----
+
+// ---- cg_mixed (covergroup) begin ----
+covergroup cg_mixed @(posedge clock);
+coverpoint req;
+endgroup
+cg_mixed _GEN_cg_mixed_inst = new();
+// ---- cg_mixed (covergroup) end ----
+
+// ---- cover_handshake (cover) begin ----
+// 2/2
+sequence _GEN_cover_handshake_SEQUENCE(); handshake; endsequence
+cover_handshake: cover sequence (_GEN_cover_handshake_SEQUENCE);
+// ---- cover_handshake (cover) end ----
+
+// ---- sample_mixed (raw) begin ----
+always @(posedge clock) _GEN_cg_mixed_inst.sample();
+// ---- sample_mixed (raw) end ----
+
+]]
+        expect.equal(normalize_source_locations(ctx:generate()), expected .. [[
+final begin
+    $display("[COVERAGE] cg_mixed: %.2f%%", _GEN_cg_mixed_inst.get_coverage());
+end
+
+]])
         ctx:set_coverage_report(false)
-        assert(not ctx:generate():find("final begin", 1, true), "coverage report should be disabled")
+        expect.equal(normalize_source_locations(ctx:generate()), expected)
         ctx:set_coverage_report(true)
         ctx:clean()
-        expect.equal(ctx:generate(), "")
+        expect.equal(normalize_source_locations(ctx:generate()), "")
         ctx:set_lint(false)
         ctx:add "cover" { name = "fresh", expr = "1" }
-        assert(ctx:generate():find("// 1/1\n", 1, true), "clean should reset assertion numbering")
+        expect.equal(normalize_source_locations(ctx:generate()), [[
+// ---- fresh (cover) begin ----
+// 1/1
+property _GEN_fresh_PROPERTY(); 1; endproperty
+fresh: cover property (_GEN_fresh_PROPERTY);
+// ---- fresh (cover) end ----
+
+]])
         ctx:clean()
     end)
 
@@ -1060,10 +1344,8 @@ logic done;
         end)
         expect.equal(ok, false)
         local err_str = tostring(err)
-        assert(err_str:find("`formal_args` is only valid", 1, true),
-            "expected formal_args guard error, got: " .. err_str)
-        assert(err_str:find("`cover`", 1, true),
-            "expected type name in error, got: " .. err_str)
+        expect.equal(err_str:match("%[SVBuilder%].*"),
+            "[SVBuilder] add error: `formal_args` is only valid for `sequence` or `property`, not `cover`")
 
         ctx:clean()
     end)
@@ -1521,7 +1803,7 @@ logic done;
 
     it("default_clocking accepts hierarchical path string", function()
         ctx:default_clocking("top.dut.clk", "posedge")
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
 default clocking @(posedge top.dut.clk); endclocking
 
 ]])
@@ -1542,7 +1824,7 @@ default clocking @(posedge top.dut.clk); endclocking
             ctx:default_clocking("top.dut.clk2", "negedge", true)
         end)
         assert(ok)
-        expect.equal(tostring(ctx), [[
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
 default clocking @(negedge top.dut.clk2); endclocking
 
 ]])

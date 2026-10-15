@@ -275,13 +275,24 @@ ctx:set_coverage_report(false)
 
 返回 `self`，支持链式调用。
 
+### `ctx:set_block_comments(enable)`
+
+控制每个 `add` 块的 begin/end 标记及 Lua 源码位置，默认关闭。不影响原有 `cover` / `assert` 的 `// i/n` 编号注释。
+
+```lua
+ctx:set_block_comments(true)   -- 输出名称、类型和 Lua 调用位置
+ctx:set_block_comments(false)  -- 不输出块标记
+```
+
+设置对已收集的语句同样生效，`clean()` 后保留。返回 `self`，支持链式调用。
+
 ### `ctx:generate()`
 
 返回生成的完整 SVA 文本字符串。等价于 `tostring(ctx)`。
 
 ### `ctx:clean()`
 
-重置所有状态（sequences、properties、content、envs、default clocking）。返回 `self`。
+清空已收集的语句、命名空间、模板变量和默认时钟，保留 lint、覆盖率报告及块注释设置。返回 `self`。
 
 ## 命名空间引用：`$(seq:name)` / `$(prop:name)` / `$(cov:name)`
 
@@ -848,8 +859,13 @@ sequence req_to_ack(); tb_top.req ##[1:2] tb_top.ack; endsequence
 
 property handshake_valid(); (tb_top.req && tb_top.ack) |-> ##1 tb_top.valid; endproperty
 
-chk_handshake_valid: assert property (handshake_valid);
-cov_handshake: cover property (tb_top.req && tb_top.ack);
+// 1/2
+property _GEN_chk_handshake_valid_PROPERTY(); handshake_valid; endproperty
+chk_handshake_valid: assert property (_GEN_chk_handshake_valid_PROPERTY);
+
+// 2/2
+property _GEN_cov_handshake_PROPERTY(); tb_top.req && tb_top.ack; endproperty
+cov_handshake: cover property (_GEN_cov_handshake_PROPERTY);
 
 endmodule
 ```
@@ -988,4 +1004,14 @@ xmake build my_test
 
 `cover` / `assert` 的 `// i/n` 编号仅统计这两类语句，在其他类型穿插时仍连续递增。Lint 使用相同的语句顺序。
 
-每个语句之间用空行分隔，可直接嵌入 SystemVerilog module 中使用。
+默认不输出块标记。调用 `ctx:set_block_comments(true)` 后，每次 `add` 的完整产物会带有名称和类型标记，`begin` 行末还会附上 Lua 调用位置：
+
+```systemverilog
+// ---- pulse_seen (sequence) begin ---- @ monitor.lua:42
+sequence pulse_seen(); pulse; endsequence
+// ---- pulse_seen (sequence) end ----
+```
+
+启用时，covergroup 的定义和实例化共用一对标记；`default clocking` 和末尾报告不加标记。路径使用 Lua 调试信息中的源码名；缺少调试信息时省略位置。名称和源码位置中的换行只在注释内替换为空格。
+
+各块之间用空行分隔，可直接嵌入 SystemVerilog module 中使用。
