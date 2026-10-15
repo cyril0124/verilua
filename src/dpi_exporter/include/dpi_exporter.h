@@ -38,6 +38,7 @@
 #define DEFAULT_OUTPUT_DIR ".dpi_exporter"
 #define DEFAULT_WORK_DIR ".dpi_exporter"
 #define DEFAULT_DPI_FILE_NAME "dpi_func.cpp"
+#define DEFAULT_PUBLIC_VLT_NAME "dpi_exporter.public.vlt"
 #define DEFAULT_CLOCK_NAME "clock"
 #define DEFAULT_SAMPLE_EDGE "negedge"
 
@@ -117,6 +118,11 @@ struct ConciseSignalPattern {
     std::string writableSignals;
     std::string disableSignals;
     std::string sensitiveSignals;
+    // meta_only group: signals are registered in the meta table (and pinned via
+    // a generated verilator `public_flat_rd` config) but get no DPI accessor,
+    // tick sampling, or write function. Value access is left to the runtime
+    // (mem_direct on verilator, a real VPI handle elsewhere).
+    bool metaOnly = false;
 
     bool checkValidSignal(std::string_view signal) { return checkValidSignal(std::string(signal)); }
 
@@ -186,10 +192,12 @@ struct SignalInfo {
     uint64_t handleId;
     bool isWritable;
     bool isSensitive;
+    bool isMetaOnly;
 
     std::string hierPathName;
     size_t beatSize;
-    SignalInfo(std::string hierPath, std::string modulePath, std::string signalName, std::string vpiTypeStr, bitwidth_t bitWidth, uint64_t handleId, bool isWritable, bool isSensitive) : hierPath(hierPath), modulePath(modulePath), signalName(signalName), vpiTypeStr(vpiTypeStr), bitWidth(bitWidth), handleId(handleId), isWritable(isWritable), isSensitive(isSensitive) {
+    SignalInfo(std::string hierPath, std::string modulePath, std::string signalName, std::string vpiTypeStr, bitwidth_t bitWidth, uint64_t handleId, bool isWritable, bool isSensitive, bool isMetaOnly)
+        : hierPath(hierPath), modulePath(modulePath), signalName(signalName), vpiTypeStr(vpiTypeStr), bitWidth(bitWidth), handleId(handleId), isWritable(isWritable), isSensitive(isSensitive), isMetaOnly(isMetaOnly) {
         hierPathName = getHierPathName();
         beatSize     = coverWith32(bitWidth);
     }

@@ -62,6 +62,15 @@ target("test", function()
         assert(meta:find('"exportedSignalInfos"', 1, true), "meta missing exportedSignalInfos")
         assert(not meta:find('"exportedSignals"', 1, true), "meta still has exportedSignals")
 
+        -- meta_only group (meta16) must be marked in meta and pinned via the
+        -- generated public vlt (not needed by this flow -- the verilua rule
+        -- defaults to public-flat-rw -- but the artifact must exist).
+        assert(meta:find('"metaOnly": true', 1, true), "meta missing metaOnly:true entry")
+        local dpi_vlt = path.join(dpi_od, "dpi_exporter.public.vlt")
+        assert(os.isfile(dpi_vlt), "dpi_exporter did not write dpi_exporter.public.vlt")
+        local vlt = io.readfile(dpi_vlt)
+        assert(vlt:find('public_flat_rd -module "top" -var "meta16"', 1, true), "public vlt missing meta16 pin")
+
         local snapshot = {}
         for _, sourcefile in ipairs(target:sourcefiles()) do
             snapshot[#snapshot + 1] = sourcefile

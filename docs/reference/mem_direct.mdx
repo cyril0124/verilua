@@ -1,0 +1,218 @@
+# mem_direct
+
+`mem_direct` 只支持 **Verilator**。构建时根据 `V*___024root.h` 生成成员偏移表并编译成独立的 `libmem_direct.so`；仿真时运行时通过 `ffi.load` 加载它，`CallableHDL` 的 `get` / `set_imm` 直接访问 `rootp + offset`，不再走 VPI。
+
+:::note
+- 普通 `set`（pending put）语义不变，仍走 VPI。
+- 打开构建选项后，脚本里还要自己调用 `MemDirect:try_init()` / `init()`，不会自动初始化。
+:::
+
+## 工作流程
+
+```text
+[Build]
+  Verilator
+      |
+      v
+  V*___024root.h
+      |
+      v
+  mem_direct_gen.py  ----->  mem_direct_generated.cpp
+  (optional filter)                |
+                                   v
+                            $CXX -shared -fPIC
+                                   |
+                                   v
+                            libmem_direct.so
+
+[Runtime]
+  verilua init.lua (自动, 检测到 VL_MEM_DIRECT_SO)
+      |-- ffi.load($VL_MEM_DIRECT_SO)
+      |-- rootp = mem_direct_base()          (.so 自定位: scope 表 -> Syms -> root)
+      |-- mem_direct_prepare()
+      `-- cfg.enable_mem_direct = true
+      |
+      v
+  create CallableHDL
+      |-- in map  -> get / set_imm (memory)
+      `-- not in map -> VPI
+```
+
+生成的 `.so` 只在编译期依赖 Verilator 头文件，**不链接进仿真程序**；因此也可以在仿真程序构建完成之后再补编（见下面的 vl-verilator 用法）。
+
+## 构建
+
+### 如何打开
+
+在 `xmake.lua` 里：
+
+```lua
+set_values("verilua.verilator_mem_direct", "1")
+```
+
+若工程里**没有**写上述 `set_values`，也可以用环境变量：
+
+```bash
+VL_XMK_VERILATOR_MEM_DIRECT=1 SIM=verilator xmake build -P . <target>
+```
+
+| | |
+| --- | --- |
+| 合法取值 | `0` 或 `1`（环境变量写别的会直接构建失败） |
+| 优先级 | `set_values` 高于环境变量 |
+| 作用范围 | 只影响**构建**（是否生成 `libmem_direct.so`）；运行期以产物是否存在为准，关闭重建会清理旧 `.so` |
+| 仿真器 | 仅 Verilator |
+
+### 过滤信号（可选）
+
+默认会把 `___024root.h` 里能识别的字段都导出。设计很大时，建议用 include / exclude 收窄范围：
+
+```lua
+set_values("verilua.verilator_mem_direct", "1")
+set_values("verilua.verilator_mem_direct_include", {
+    "tb_top.io_*",                -- 普通字符串，按 glob 理解（没有 * ? 就是精确匹配）
+    "glob:tb_top.u_dut.io_*",     -- 显式 glob
+    "re:^tb_top\\.u_dut\\.core\\..*", -- 正则
+})
+set_values("verilua.verilator_mem_direct_exclude", {
+    "re:.*__GEN_.*",
+})
+```
+
+规则作用在**层次路径**上（和 chdl 的 fullpath 一样，例如 `tb_top.u_top.reg32`）。
+
+| 写法 | 含义 |
+| --- | --- |
+| 普通字符串或 `glob:` | shell 风格通配；没有通配符时按完整路径匹配 |
+| `re:` | Python 正则（`re.search`） |
+
+处理顺序：
+
+1. 先解析 header 得到候选列表
+2. 若配置了 include：只保留能匹配任意一条 include 的项
+3. 若配置了 exclude：再删掉匹配 exclude 的项
+4. 配置了 include，但最后一条都没有 → **生成失败**（避免空表却当成功）
+
+始终自动忽略：以 `__` 开头的名字、`unnamedblk*`、`____Vxrand*`。
+
+生成结果写在目标 build 目录下（与 `sim_build/` 同级）：
+
+| 文件 | 说明 |
+| --- | --- |
+| `mem_direct_generated.cpp` | 表元数据与 `mem_direct_*` 接口（不引用 root header，秒编） |
+| `mem_direct_generated_chunk<i>.cpp` | `offsetof` 常量表，唯一引用巨型 root header 的 TU，构建时并行编译 |
+| `libmem_direct.so` | 链接产物，运行时由 `VL_MEM_DIRECT_SO` 指向并加载 |
+
+大设计提示：千余万行的 `V*___024root.h` 下，GCC 对每条 `offsetof` 的成员查找很慢；按块切分 + 并行编译后，3.6 万信号的表约半分钟内完成（单 TU 方案需 6 分钟以上）。
+
+## 运行
+
+xmake 流程会自动设置运行期环境变量 `VL_MEM_DIRECT_SO`，并在 verilua 初始化时**自动** `MemDirect:init()`（在任何 CHDL 创建之前），脚本无需任何改动；其它流程只需自己 `export` 该变量。手动调用 `try_init()` 仍然合法（幂等）：
+
+```lua
+local MemDirect = require "verilua.utils.MemDirect"
+assert(MemDirect:try_init()) -- 成功后 cfg.enable_mem_direct = true
+
+local reg = dut.u_top.reg32:chdl()
+print(reg:get())     -- 直接读内存
+reg:set_imm(0xA5)    -- 直接写内存（立刻生效）
+reg:set(1)           -- 仍走 pending / VPI
+```
+
+### API
+
+| API | 说明 |
+| --- | --- |
+| `MemDirect:init()` | 需要 `cfg.simulator == "verilator"` 且 `VL_MEM_DIRECT_SO` 已设置；文件缺失、符号无法解析、scope 表为空都会 assert（通常无需手调，verilua 初始化时自动执行） |
+| `MemDirect:try_init()` | 非 Verilator 或 `VL_MEM_DIRECT_SO` 未设置时返回 `false`；否则与 `init` 相同（失败同样报错） |
+| `MemDirect:lookup(fullpath)` | 返回表项，没有则 `nil`；`TOP.` 前缀（Verilator VPI 根作用域）会自动归一化 |
+| `MemDirect:ptr(fullpath, index?)` | 返回 `uint8_t*`，没有则 `nil` |
+| `MemDirect:GetSignalNames(pattern?)` | 返回排序后的名字列表；`pattern` 可选，做子串过滤 |
+
+在表中的信号走内存访问；不在表中的仍走原来的 VPI。
+
+## 语义与限制
+
+- **读**：`get` / `get64` / `get_hex_str` / `get_index*` 读设计状态内存。
+- **写**：只有 `set_imm` / `set_imm_index` 写内存；普通 `set` 仍是 pending/VPI。
+- 写入后组合逻辑是否马上看到，仍取决于后续 `eval` / 仿真步进。
+- 不要求全局 `--public-flat-rw`，但信号必须出现在 `___024root` 里。若完全不做 public，未用到的 reg 可能被优化掉；可用 `.vlt` 或 `verilua.verilator_config` 做精细 `public_flat` / `public_flat_rw`。参考 `tests/test_mem_direct`。
+- `posedge`、pending `set` 仍要求信号对 VPI 可见（例如只 public 时钟）。
+- 支持的类型：`CData` / `SData` / `IData` / `QData` / `VlWide` / `VlUnpacked<...>`。只有 `VL_IN*` / `VL_OUT*` 宏、没有对应 `*Data` 行的端口不会导出。
+
+成员特别多时，Verilator 会把状态塞进多层匿名 `struct`。生成器按类型正则扫全文，生成代码用 `base-><成员名>` 访问（与 GCC/Clang 对匿名 struct 成员提升的行为一致）。
+
+## 在 vl-verilator 流程中使用
+
+`vl-verilator` / `vl-verilator-p` / `vl-verilator-dpi` 都支持 wrapper 级 flag，verilator 成功后自动完成生成 + 编译（产物写在当前目录）：
+
+```bash
+vl-verilator --vl-mem-direct \
+    --cc --exe --build -Mdir sim_build main.cpp tb_top.sv Top.v
+
+# 运行时指定路径（wrapper 结尾会打印这行提示）
+export VL_MEM_DIRECT_SO=$PWD/libmem_direct.so
+./sim_build/Vtb_top
+```
+
+过滤语法与 xmake 的 `verilua.verilator_mem_direct_include` / `_exclude` 一致（裸串按 glob、`glob:`、`re:`），可重复传入：
+
+```bash
+vl-verilator --vl-mem-direct \
+    --vl-mem-direct-include 'glob:tb_top.u_dut.*' \
+    --vl-mem-direct-include 're:^tb_top\.clk$' \
+    --vl-mem-direct-exclude 're:.*__GEN_.*' \
+    --cc --exe --build -Mdir sim_build main.cpp tb_top.sv Top.v
+```
+
+`--vl-*` flag 不会传给 verilator；重跑 verilator 会一并重新生成 `.so`，不存在陈旧问题。
+
+各 wrapper 的可见性前提不同：
+
+| wrapper | 信号如何进入 `___024root` |
+| --- | --- |
+| `vl-verilator` | 默认 `--public-flat-rw`，全部可见 |
+| `vl-verilator-p` | 由用户 `.vlt` 控制（如 `public_flat_rd -module "top" -var "*"`） |
+| `vl-verilator-dpi` | 无默认 public；未被 DPI 引用的信号需额外 `.vlt` 标记，否则可能被优化掉 |
+
+dummy_vpi（`vl-verilator-dpi`）流程中两者各取所长：DPI 导出接口信号，未导出的信号由 mem_direct 原生读写。只读信号还可在 dpi_exporter 配置里标 [`meta_only`](./dpi_exporter.mdx)：元信息进 dpi 表、不生成采样代码，取值全部交给 mem_direct（配套生成的 `dpi_exporter.public.vlt` 负责保活信号）。
+
+等价的手工步骤（不用 flag、或需要自定义输出位置时）：
+
+```bash
+# 1. 照常一把梭构建
+vl-verilator --cc --exe --build -Mdir sim_build main.cpp tb_top.sv Top.v
+
+# 2. 从生成的 root header 生成偏移表（--include/--exclude 可选；产出主 TU + chunk TU）
+python3 $VERILUA_HOME/src/mem_direct_gen/mem_direct_gen.py \
+    sim_build/Vtb_top___024root.h mem_direct_generated.cpp Vtb_top___024root
+
+# 3. 编成 .so（小设计一条命令即可；大设计建议逐 TU `-c` 并行后再链接）
+g++ -std=c++20 -O2 -fPIC -shared \
+    -Isim_build -I$(verilator --getenv VERILATOR_ROOT)/include \
+    mem_direct_generated*.cpp -o libmem_direct.so
+
+# 4. 运行时指定路径
+export VL_MEM_DIRECT_SO=$PWD/libmem_direct.so
+./sim_build/Vtb_top
+```
+
+重新跑过 verilator 后要重新执行 2、3 两步，保证 `.so` 与当前产物同源（wrapper 的 `--vl-mem-direct` 会自动保证这一点）。
+
+### 自定义 main
+
+**不需要任何契约代码**：`libmem_direct.so` 自己通过 Verilator 公开的 scope 注册表定位设计状态（要求进程内只有一个 Verilated 模型，且至少有一个 public/DPI 信号使 scope 表非空——verilua 的各 Verilator 流程均满足）。
+
+## C 接口
+
+`libmem_direct.so` 导出（全部自动生成）：
+
+| 符号 | 作用 |
+| --- | --- |
+| `mem_direct_base` | 自定位：经 Verilator scope 注册表拿到 Syms，返回内嵌 root 对象地址 |
+| `mem_direct_prepare` / `mem_direct_count` / `mem_direct_entry_*` | 登记表查询 |
+
+## 相关
+
+- 测试：`tests/test_mem_direct`（xmake 全量表）、`tests/test_mem_direct_no_public_flat`（filter + 精细 public）、`tests/test_mem_direct_vl_verilator`（`vl-verilator[-p/-dpi] --vl-mem-direct` 端到端）；回归入口 `VL_TEST_FILTER=mem-direct xmake run test`
+- 环境变量：`VL_XMK_VERILATOR_MEM_DIRECT`（构建期）、`VL_MEM_DIRECT_SO`（运行期，见 [特殊环境变量](./special_env_variables.mdx)）

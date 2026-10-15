@@ -47,6 +47,11 @@ local colors = _G.colors
 --- ```
 ---@field enable_dpi_exporter boolean
 ---
+--- Enable mem_direct optimization (Verilator only). Value get / set_imm
+--- bypass VPI and read/write native design-state memory via rootp+offset.
+--- Set only by `MemDirect:init()` / `MemDirect:try_init()`.
+---@field enable_mem_direct boolean
+---
 ---@field get_or_else fun(self: verilua.LuaSimConfig, cfg_str: string, default: any): any
 ---@field get_or_else_log fun(self: verilua.LuaSimConfig, cfg_str: string, default: any, log_str: string): any
 ---@field resolve_seed fun(self: verilua.LuaSimConfig): integer
@@ -433,6 +438,9 @@ function cfg:post_config()
     ---      DpiExporter:init(<meta_info_file or nil>) -- cfg.enable_dpi_exporter will be set at the end of this function
     --- ```
     _cfg.enable_dpi_exporter = false
+
+    --- Enabled only by `MemDirect:init()` / `MemDirect:try_init()`.
+    _cfg.enable_mem_direct   = false
 
     -- Setup seed, <SEED> set by environment variable `SEED` has higher priority
     _cfg.seed                = _cfg:resolve_seed()

@@ -12,6 +12,7 @@ local f = string.format
 ---@field bitWidth integer
 ---@field vpiTypeStr string
 ---@field handleId integer
+---@field metaOnly boolean? True for meta_only groups: static meta only, no DPI accessor exists
 
 ---@class (exact) verilua.utils.DpiExporter.meta_info
 ---@field cmdLine string
@@ -173,7 +174,13 @@ end
 
 function DpiExporter:lookup(hierpath)
     assert(self.initialized, "DpiExporter not initialized")
-    return self.export_map[hierpath]
+    local info = self.export_map[hierpath]
+    if info == nil and hierpath:sub(1, 4) == "TOP." then
+        -- Verilator VPI exposes the design under an extra "TOP." root scope
+        -- (e.g. cfg.top = "TOP.tb_top"); exporter-side paths have no such prefix.
+        info = self.export_map[hierpath:sub(5)]
+    end
+    return info
 end
 
 function DpiExporter:fetch_trigger_func(trigger_name)
