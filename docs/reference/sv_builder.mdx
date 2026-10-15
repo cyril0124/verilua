@@ -517,6 +517,22 @@ final begin
 end
 ```
 
+在上述过程中，SVBuilder 自动处理：
+
+1. **外层包裹**：`covergroup name @(event); ... endgroup`
+2. **实例化**：`name _GEN_name_inst = new;`
+3. **Coverage 报告**：`final begin ... $display ... end`
+
+用户只需写 covergroup 体（coverpoint + bins + cross + option）。
+
+### Coverage 报告控制
+
+默认自动生成 `final` block 打印每个 covergroup 的覆盖率。可通过 `set_coverage_report(false)` 禁用：
+
+```lua
+ctx:set_coverage_report(false)  -- 禁用 final block 生成
+```
+
 ### 参数说明
 
 | 参数 | 类型 | 必填 | 说明 |
@@ -526,19 +542,9 @@ end
 | `sample_event` | string | ✗ | 覆盖默认采样事件（默认复用 `default_clocking`）；也支持 `"with function sample(...)"` 声明显式采样形参 |
 | `envs` | table | ✗ | 模板变量，handle 自动解析为 XMR 路径 |
 
-### 自动生成内容
-
-SVBuilder 自动处理：
-
-1. **外层包裹**：`covergroup name @(event); ... endgroup`
-2. **实例化**：`name _GEN_name_inst = new();`
-3. **Coverage 报告**：`final begin ... $display ... end`
-
-用户只需写 covergroup 体（coverpoint + bins + cross + option）。
-
 ### 覆盖采样事件
 
-默认使用 `default_clocking` 设置的时钟。可 per-covergroup 覆盖：
+默认使用 `default_clocking` 设置的时钟。可通过 `sample_event` 参数针对单个 covergroup 定义新采样事件：
 
 ```lua
 ctx:add "covergroup" {
@@ -550,17 +556,9 @@ ctx:add "covergroup" {
 }
 ```
 
-### Coverage 报告控制
-
-默认自动生成 `final` block 打印每个 covergroup 的覆盖率。可通过 `set_coverage_report(false)` 禁用：
-
-```lua
-ctx:set_coverage_report(false)  -- 禁用 final block 生成
-```
-
 ### 显式采样（with function sample）
 
-`sample_event` 写成 `with function sample(...)` 时，covergroup 头不带 `@()`，采样由外部显式调用 `sample()` 决定。形参在该 covergroup 体内直接可见，反过来说：这些形参在 `add "assert"` / `add "cover"` 生成的上行 SVA 里不可见，`envs` 也影响不到它们。
+`sample_event` 写成 `with function sample(...)` 时，covergroup 头不带 `@()`，需要在外部显式调用 `sample()` 实现信号采样。这些形参在该 covergroup 体内可直接调用。
 
 `add "covergroup"` 返回一个 `Covergroup` handle，`.inst_name` 字段持有生成的实例名。采样调用点要自己放进 SV，最方便是写进 `add "raw"`，有两种方式引用实例名：
 
@@ -578,7 +576,8 @@ ctx:add "raw" {
 local cov = ctx:add "covergroup" {
     name = "cg_axi_cmd",
     sample_event = "with function sample(bit [3:0] burst, bit [7:0] len)",
-    expr = [[    cp_burst: coverpoint burst { bins incr = {4'd1}; }
+    expr = [[
+    cp_burst: coverpoint burst { bins incr = {4'd1}; }
     cp_len: coverpoint len     { bins short = {[0:15]}; bins long = {[16:255]}; }]],
 }
 
