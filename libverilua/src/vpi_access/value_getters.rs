@@ -1,55 +1,38 @@
 use super::*;
 use num_bigint::BigUint;
 
-/// SAFETY:
-/// The returned pointer remains valid only until the next string-read call on the
-/// same `ComplexHandle`. Callers must copy it immediately and must not cache it.
-///
-/// The normalization intentionally matches the current backend-specific behavior:
-/// trim leading ASCII spaces when requested, and replace lowercase `x` with `0`
-/// only when `replace_lower_x_with_zero` is enabled.
+/// Reuses `get_value_str_buf`, so the pointer stays valid only until the next
+/// string-read call on the same `ComplexHandle`. Trims the spaces VCS pads with.
 #[inline(always)]
-fn normalize_value_str_to_c_ptr(
+fn trim_leading_spaces_to_c_ptr(
     complex_handle: &mut ComplexHandle,
     raw_ptr: *const c_char,
-    trim_leading_space: bool,
-    replace_lower_x_with_zero: bool,
 ) -> *const c_char {
-    if !trim_leading_space && !replace_lower_x_with_zero {
-        return raw_ptr;
-    }
-
     let raw = unsafe { CStr::from_ptr(raw_ptr) }.to_bytes();
-    let start = if trim_leading_space {
-        // VCS is known to pad string values with leading ASCII spaces. Keep the
-        // current behavior narrow here instead of doing generic whitespace trimming.
-        raw.iter()
-            .position(|&byte| byte != b' ')
-            .unwrap_or(raw.len())
-    } else {
-        0
-    };
-    let normalized = &raw[start..];
+    let first_non_space = raw
+        .iter()
+        .position(|&byte| byte != b' ')
+        .unwrap_or(raw.len());
 
-    if !replace_lower_x_with_zero && start == 0 {
+    if first_non_space == 0 {
         return raw_ptr;
     }
 
     let buf = &mut complex_handle.get_value_str_buf;
     buf.clear();
-
-    if replace_lower_x_with_zero && normalized.contains(&b'x') {
-        // Preserve the current iVerilog semantics: only lowercase `x` is resolved
-        // to `0` here, while other characters such as `X`/`Z` stay unchanged.
-        for &byte in normalized {
-            buf.push(if byte == b'x' { b'0' } else { byte });
-        }
-    } else {
-        buf.extend_from_slice(normalized);
-    }
-
+    buf.extend_from_slice(&raw[first_non_space..]);
     buf.push(0);
     buf.as_ptr() as *const c_char
+}
+
+/// `beat`'s value with the `x`/`z` bits read as `0`, keeping the other bits.
+#[inline(always)]
+fn aval_without_x_bits(beat: &t_vpi_vecval, resolve_x_as_zero: bool) -> i32 {
+    if resolve_x_as_zero {
+        beat.aval & !beat.bval
+    } else {
+        beat.aval
+    }
 }
 
 impl VeriluaEnv {
@@ -82,11 +65,12 @@ impl VeriluaEnv {
             t_vpi_vecval { aval: 0, bval: 0 }
         };
 
-        if cfg!(feature = "iverilog") && self.resolve_x_as_zero && (lo.bval != 0 || hi.bval != 0) {
-            return 0;
-        }
+        let resolve_x_as_zero = self.resolve_x_as_zero && !cfg!(feature = "verilator");
 
-        ((hi.aval as u32 as u64) << 32) | lo.aval as u32 as u64
+        let lo_aval = aval_without_x_bits(&lo, resolve_x_as_zero);
+        let hi_aval = aval_without_x_bits(&hi, resolve_x_as_zero);
+
+        ((hi_aval as u32 as u64) << 32) | lo_aval as u32 as u64
     }
 
     pub fn vpiml_get_value_multi(
@@ -103,26 +87,13 @@ impl VeriluaEnv {
 
         unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v as *mut _) };
 
-        if cfg!(feature = "iverilog") {
-            let resolve_x_as_zero = self.resolve_x_as_zero;
-            for i in 1..(len + 1) {
-                if resolve_x_as_zero && unsafe { v.value.vector.add((i - 1) as _).read().bval } != 0
-                {
-                    unsafe { ret.add(i as _).write(0) };
-                } else {
-                    unsafe {
-                        ret.add(i as _)
-                            .write(v.value.vector.add((i - 1) as _).read().aval as _)
-                    };
-                }
-            }
-        } else {
-            for i in 1..(len + 1) {
-                unsafe {
-                    ret.add(i as _)
-                        .write(v.value.vector.add((i - 1) as _).read().aval as _)
-                };
-            }
+        let resolve_x_as_zero = self.resolve_x_as_zero && !cfg!(feature = "verilator");
+
+        for i in 1..(len + 1) {
+            let beat = unsafe { v.value.vector.add((i - 1) as _).read() };
+            let aval = aval_without_x_bits(&beat, resolve_x_as_zero);
+
+            unsafe { ret.add(i as _).write(aval as _) };
         }
 
         unsafe { ret.add(0).write(len) }; // Number of the returned values
@@ -155,33 +126,7 @@ macro_rules! impl_gen_get_value_str {
 
                 unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-                #[cfg(feature = "vcs")]
-                {
-                    normalize_value_str_to_c_ptr(
-                        complex_handle,
-                        unsafe { v.value.str_ },
-                        true,
-                        false,
-                    )
-                }
-
-                #[cfg(not(feature = "vcs"))]
-                {
-                    if cfg!(feature = "iverilog") {
-                        if self.resolve_x_as_zero {
-                            normalize_value_str_to_c_ptr(
-                                complex_handle,
-                                unsafe { v.value.str_ },
-                                true,
-                                true,
-                            )
-                        } else {
-                            unsafe { v.value.str_ }
-                        }
-                    } else {
-                        unsafe { v.value.str_ }
-                    }
-                }
+                trim_leading_spaces_to_c_ptr(complex_handle, unsafe { v.value.str_ })
             }
         }
     };
@@ -254,28 +199,7 @@ impl VeriluaEnv {
 
             unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-            #[cfg(feature = "vcs")]
-            {
-                normalize_value_str_to_c_ptr(complex_handle, unsafe { v.value.str_ }, true, false)
-            }
-
-            #[cfg(not(feature = "vcs"))]
-            {
-                if cfg!(feature = "iverilog") {
-                    if self.resolve_x_as_zero {
-                        normalize_value_str_to_c_ptr(
-                            complex_handle,
-                            unsafe { v.value.str_ },
-                            true,
-                            true,
-                        )
-                    } else {
-                        unsafe { v.value.str_ }
-                    }
-                } else {
-                    unsafe { v.value.str_ }
-                }
-            }
+            trim_leading_spaces_to_c_ptr(complex_handle, unsafe { v.value.str_ })
         }
     }
 }

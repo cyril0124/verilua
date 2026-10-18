@@ -294,7 +294,8 @@ impl VeriluaEnv {
 
         let verilua_home = std::env::var("VERILUA_HOME").expect("VERILUA_HOME not set");
 
-        if cfg!(feature = "iverilog") {
+        // Verilator is 2-state: only 4-state backends need x/z resolution.
+        if !cfg!(feature = "verilator") {
             self.resolve_x_as_zero =
                 std::env::var("VL_RESOLVE_X_AS_ZERO").map_or(true, |v| v == "1" || v == "true");
         }

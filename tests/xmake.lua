@@ -235,6 +235,7 @@ end
 ---@field dir string Test directory name under tests/ (e.g. "test_edge")
 ---@field name string Test case display name (e.g. "test_edge")
 ---@field no_internal_clock? boolean Also run with VL_XMK_NO_INTERNAL_CLOCK=1
+---@field resolve_x_off? boolean Also run with VL_RESOLVE_X_AS_ZERO=0 (4-state simulators only)
 ---@field min_verilator_version? number Skip verilator if version < this (e.g. 5.036)
 ---@field skip_verilator? boolean Skip verilator entirely
 
@@ -255,7 +256,7 @@ local sim_test_cases = {
     { dir = "test_bitvec_signal",          name = "test_bitvec_signal" },
     { dir = "test_no_internal_clock",      name = "test_no_internal_clock" },
     { dir = "test_handles",                name = "test_handles" },
-    { dir = "test_chdl_write_api",         name = "test_chdl_write_api" },
+    { dir = "test_chdl_write_api",         name = "test_chdl_write_api",         resolve_x_off = true },
     -- Entire case is force/release coalesce; needs Verilator >= 5.050 + forceable
     { dir = "test_force_release_coalesce", name = "test_force_release_coalesce", min_verilator_version = 5.050 },
     { dir = "test_native_clock",           name = "test_native_clock" },
@@ -322,6 +323,21 @@ for _, case in ipairs(sim_test_cases) do
                     ctx.run_case(join_case_parts(case.name, sim, "no_internal_clock_native"), function()
                         ctx.clean(path.join(cwd, "build"))
                         local env = { SIM = sim, VL_XMK_NO_INTERNAL_CLOCK = "1", VL_XMK_USE_NATIVE_CLOCK = "1" }
+                        ctx.run_cmd(cwd, "xmake build -v -P .", env)
+                        ctx.run_cmd(cwd, "xmake run -v -P .", env)
+                    end)
+                end
+            end
+        end
+
+        -- Verilator does not read VL_RESOLVE_X_AS_ZERO (it is 2-state), so only the
+        -- 4-state simulators get this leg.
+        if case.resolve_x_off then
+            for _, sim in ipairs(ctx.simulators) do
+                if sim ~= "verilator" then
+                    ctx.run_case(join_case_parts(case.name, sim, "resolve_x_off"), function()
+                        ctx.clean(path.join(cwd, "build"))
+                        local env = { SIM = sim, VL_RESOLVE_X_AS_ZERO = "0" }
                         ctx.run_cmd(cwd, "xmake build -v -P .", env)
                         ctx.run_cmd(cwd, "xmake run -v -P .", env)
                     end)
