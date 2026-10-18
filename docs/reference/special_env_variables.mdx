@@ -22,7 +22,7 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_LOG_LEVEL` | 日志级别下限 |
 | `VL_PERF_TIME` | 启用性能时间统计 |
 | `VL_ACC_LUA_TIME` | 启用 libverilua 侧 Lua 执行时间统计（lua_time_taken / lua_overhead） |
-| `VL_RESOLVE_X_AS_ZERO` | 4 状态后端（iverilog / vcs / xcelium / wave_vpi）：数值读把 x/z 位按 `0` 返回、其余位保留，默认开启 |
+| `VL_RESOLVE_X_AS_ZERO` | 四态后端数值读按位清除 x/z；默认开启 |
 | `VL_WAVEFORM_FILE` | WAL/wave_vpi 波形文件路径 |
 | `VL_HIERARCHY_CACHE_FILE` | 层级缓存文件路径 |
 | `VL_PRINT_HIER_STYLE` | 层级打印样式 |
@@ -290,12 +290,14 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 
 控制 4 状态后端（例如 iverilog、vcs、xcelium、wave_vpi）上的数值读遇到 `x`/`z` 时返回什么。VPI 的向量读按标准编码 4 状态值（`ab: 00=0, 10=1, 11=X, 01=Z`）：`x` 位在 `aval` 里也是 `1`，`z` 位是 `0`，只有 `bval` 标记这两者。开启这个开关后 Verilua 把这些位读成 `0`、其余位保留原值，避免测试读到看似正常的 `1`。1~32 bit 的读走 `vpiIntVal`，仿真器自身就按这个规则给值，不受开关影响。
 
-只影响数值读：字符串读（`get_hex_str` / `get_bin_str` / `get_dec_str`）与写入路径都不会把 `x`/`z` 改写成 `0`，各 API 的返回格式见[信号句柄（CallableHDL）](./data_structure/callable_hdl.mdx)。
+iverilog 的字符串读（`get_str` / `get_hex_str` / `get_bin_str` / `get_dec_str`）也受此开关控制。
+
+写入路径及其他后端的字符串读不受此开关影响，各 API 的返回格式见[信号句柄（CallableHDL）](./data_structure/callable_hdl.mdx)。
 
 - **默认值**：开启（未设置即开启）
 - **取值**：只有 `1` 或 `true` 开启，其余取值（含 `0`、`false`、空串）关闭
-- **作用范围**：所有 4 状态后端（iverilog / vcs / xcelium / wave_vpi）。Verilator 是 2 状态，不读这个变量
-- **关闭后的行为**：33~64 bit 读、multi beat 读返回原始 `aval`（`x` 位读成 `1`、`z` 位读成 `0`）；1~32 bit 仍是按位 `0`，仿真器没有提供 `x` 信息
+- **作用范围**：数值读覆盖所有 4 状态后端（iverilog / vcs / xcelium / wave_vpi）；字符串转换仅限 iverilog。Verilator 是 2 状态，不读这个变量
+- **关闭后的行为**：33~64 bit 读、multi beat 读返回原始 `aval`（`x` 位读成 `1`、`z` 位读成 `0`）；1~32 bit 仍是按位 `0`，仿真器没有提供 `x` 信息；iverilog 字符串读保留原始未知值字符
 - **示例**：
   ```bash
   # 读原始 aval：x 位为 1、z 位为 0，而不是都读成 0

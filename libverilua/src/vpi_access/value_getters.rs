@@ -1,12 +1,14 @@
 use super::*;
 use num_bigint::BigUint;
 
-/// Reuses `get_value_str_buf`, so the pointer stays valid only until the next
-/// string-read call on the same `ComplexHandle`. Trims the spaces VCS pads with.
+/// Trims leading ASCII spaces and optionally replaces lowercase `x` with `0`.
+/// The pointer borrows simulator memory or the handle's reusable buffer; callers
+/// must copy the result before another string read.
 #[inline(always)]
-fn trim_leading_spaces_to_c_ptr(
+fn normalize_value_str_to_c_ptr(
     complex_handle: &mut ComplexHandle,
     raw_ptr: *const c_char,
+    resolve_lowercase_x: bool,
 ) -> *const c_char {
     let raw = unsafe { CStr::from_ptr(raw_ptr) }.to_bytes();
     let first_non_space = raw
@@ -14,13 +16,22 @@ fn trim_leading_spaces_to_c_ptr(
         .position(|&byte| byte != b' ')
         .unwrap_or(raw.len());
 
-    if first_non_space == 0 {
+    if first_non_space == 0 && !resolve_lowercase_x {
         return raw_ptr;
     }
 
     let buf = &mut complex_handle.get_value_str_buf;
     buf.clear();
-    buf.extend_from_slice(&raw[first_non_space..]);
+
+    if resolve_lowercase_x {
+        // Icarus distinguishes all-x digits from mixed-digit X; preserve X/z/Z.
+        for &byte in &raw[first_non_space..] {
+            buf.push(if byte == b'x' { b'0' } else { byte });
+        }
+    } else {
+        buf.extend_from_slice(&raw[first_non_space..]);
+    }
+
     buf.push(0);
     buf.as_ptr() as *const c_char
 }
@@ -126,7 +137,11 @@ macro_rules! impl_gen_get_value_str {
 
                 unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-                trim_leading_spaces_to_c_ptr(complex_handle, unsafe { v.value.str_ })
+                normalize_value_str_to_c_ptr(
+                    complex_handle,
+                    unsafe { v.value.str_ },
+                    cfg!(feature = "iverilog") && self.resolve_x_as_zero,
+                )
             }
         }
     };
@@ -199,7 +214,11 @@ impl VeriluaEnv {
 
             unsafe { vpi_get_value(complex_handle.vpi_handle, &mut v) };
 
-            trim_leading_spaces_to_c_ptr(complex_handle, unsafe { v.value.str_ })
+            normalize_value_str_to_c_ptr(
+                complex_handle,
+                unsafe { v.value.str_ },
+                cfg!(feature = "iverilog") && self.resolve_x_as_zero,
+            )
         }
     }
 }

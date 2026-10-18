@@ -6,6 +6,9 @@
 -- width, so a single expectation helper works for 8, 64 and 128 bit signals.
 
 local clock = dut.clock:chdl()
+local resolve_x_env = os.getenv("VL_RESOLVE_X_AS_ZERO")
+local resolve_x_as_zero = resolve_x_env == nil or resolve_x_env == "1" or resolve_x_env == "true"
+local resolve_string_x = cfg.simulator == "iverilog" and resolve_x_as_zero
 
 local function test_section(name)
     print(string.format("[TEST] %s", name))
@@ -80,8 +83,8 @@ local function check_scalar(sig, width, label)
     clock:posedge()
     is("c", "set_bin_str")
 
-    -- Verilator is 2-state and stores 0 for every x; every other simulator reports it.
-    local x_visible = cfg.simulator ~= "verilator"
+    -- Icarus resolves lowercase x in string reads only while the switch is on.
+    local x_visible = cfg.simulator ~= "verilator" and not resolve_string_x
 
     -- x alternating with f on the hex side and with 1 on the bit side, so x
     -- covers high and low positions and the readback also proves the order
@@ -90,8 +93,8 @@ local function check_scalar(sig, width, label)
     local hex_want = string.rep(x_visible and "fx" or "f0", byte_count)
     local bin_in = string.rep("1x1x1x1x", byte_count)
     local bin_want = string.rep(x_visible and "1x1x1x1x" or "10101010", byte_count)
-    -- Every nibble of bin_in holds an x, so the hex readback shows x per nibble
-    local bin_as_hex_want = string.rep(x_visible and "x" or "a", math.floor(width / 4))
+    -- Mixed nibbles remain X on 4-state simulators, even when Icarus resolves lowercase x.
+    local bin_as_hex_want = string.rep(cfg.simulator == "verilator" and "a" or "x", math.floor(width / 4))
 
     local function assert_x(got, want, api)
         got = got:lower()
@@ -112,6 +115,45 @@ local function check_scalar(sig, width, label)
     sig:set_bin_str(bin_in)
     clock:posedge()
     assert_x(sig:get_bin_str(), bin_want, "set_bin_str")
+
+    if cfg.simulator == "iverilog" then
+        ---@param got string
+        ---@param want string
+        ---@param api string
+        local function assert_raw(got, want, api)
+            assert(got == want, string.format("%s: %s read %s, expected %s", label, api, got, want))
+        end
+
+        local hex_digit_count = math.floor(width / 4)
+        local bit_pair_count = math.floor(width / 2)
+
+        -- Mixed known/unknown digits use uppercase X, which is not replaced.
+        assert_raw(sig:get_hex_str(), string.rep("X", hex_digit_count), "mixed-x hex")
+        assert_raw(sig:get_dec_str(), "X", "mixed-x decimal")
+
+        sig:set_imm_bin_str(string.rep("x", width))
+        local resolved_x = resolve_x_as_zero and "0" or "x"
+        assert_raw(sig:get_bin_str(), string.rep(resolved_x, width), "all-x binary")
+        assert_raw(sig:get_hex_str(), string.rep(resolved_x, hex_digit_count), "all-x hex")
+        assert_raw(sig:get_dec_str(), resolved_x, "all-x decimal")
+        assert_raw(sig:get_str(BinStr), string.rep(resolved_x, width), "all-x get_str binary")
+        assert_raw(sig:get_str(HexStr), string.rep(resolved_x, hex_digit_count), "all-x get_str hex")
+        assert_raw(sig:get_str(DecStr), resolved_x, "all-x get_str decimal")
+        assert_raw(sig:get_str(OctStr), string.rep(resolved_x, math.ceil(width / 3)), "all-x octal")
+        assert(sig:is_hex_str("00") == resolve_x_as_zero, label .. ": all-x zero comparison ignores the switch")
+
+        -- Neither lowercase z nor mixed-digit uppercase Z is resolved.
+        sig:set_imm_bin_str(string.rep("z", width))
+        assert_raw(sig:get_bin_str(), string.rep("z", width), "all-z binary")
+        assert_raw(sig:get_hex_str(), string.rep("z", hex_digit_count), "all-z hex")
+        assert_raw(sig:get_dec_str(), "z", "all-z decimal")
+        assert_raw(sig:get_str(OctStr), string.rep("z", math.ceil(width / 3)), "all-z octal")
+
+        sig:set_imm_bin_str(string.rep("1z", bit_pair_count))
+        assert_raw(sig:get_bin_str(), string.rep("1z", bit_pair_count), "mixed-z binary")
+        assert_raw(sig:get_hex_str(), string.rep("Z", hex_digit_count), "mixed-z hex")
+        assert_raw(sig:get_dec_str(), "Z", "mixed-z decimal")
+    end
 
     -- Verilator's VPI accepts vpiDecStrVal only for variables up to 64 bits
     -- (verilated_vpi.cpp lists VLVT_UINT8/16/32/64 but not VLVT_WDATA), so a
@@ -320,26 +362,24 @@ fork {
         -- A 4-state simulator reads an x bit as 0 under the VL_RESOLVE_X_AS_ZERO
         -- default, and as the raw aval bit (1) when that switch is off; either way
         -- the other bits keep their value, at every width.
-        local resolve_x_env = os.getenv("VL_RESOLVE_X_AS_ZERO")
         if cfg.simulator ~= "verilator" then
-            local x_is_zero = resolve_x_env == nil or resolve_x_env == "1" or resolve_x_env == "true"
             test_section("x-state numeric reads")
 
             -- x in the low beat: the high beat keeps its bits
             local double_64 = ("tb_top.u_top.double_64"):chdl()
             double_64:set_imm_hex_str("0000000f0000000x")
-            assert(double_64:get() == (x_is_zero and 0xf00000000 or 0xf0000000f),
+            assert(double_64:get() == (resolve_x_as_zero and 0xf00000000 or 0xf0000000f),
                 string.format("double_64: x in the low beat read %s", tostring(double_64:get())))
 
             -- x in the high beat: the low beat keeps its bits
             double_64:set_imm_hex_str("0000000x0000000f")
-            assert(double_64:get() == (x_is_zero and 0xf or 0xf0000000f),
+            assert(double_64:get() == (resolve_x_as_zero and 0xf or 0xf0000000f),
                 string.format("double_64: x in the high beat read %s", tostring(double_64:get())))
 
             local multi_128 = ("tb_top.u_top.multi_128"):chdl()
             multi_128:set_imm_hex_str(string.rep("f", 31) .. "x")
             local beats = multi_128:get()
-            assert(beats[1] == (x_is_zero and 0xfffffff0 or 0xffffffff),
+            assert(beats[1] == (resolve_x_as_zero and 0xfffffff0 or 0xffffffff),
                 string.format("multi_128: the beat holding x read %s", tostring(beats[1])))
             assert(beats[4] == 0xffffffff, "multi_128: beats without x must keep their value")
         end
