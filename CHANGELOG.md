@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **signal_db_gen**: Fixed `loadSources()` being called twice (once in `checkForRegenerate` and again in `doParseCmdLine`), which caused the second file-listing loop to silently enumerate zero files. The second call now reuses the already-collected `files` vector.
 - **signal_db_gen**: Fixed `getCompilelation` typo (renamed to `getCompilation`).
 - **signal_db_gen**: Fixed `singal_info` local variable name typo (renamed to `signal_info`).
+- **xmake / verilua rule**: The generated `run.sh` and `debug_run.sh` now include `<sim>.run_flags` and pass caller-supplied arguments through to the simulation binary.
 
 ### 🚀 Added
 

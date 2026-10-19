@@ -2092,33 +2092,53 @@ source setvars.sh
             buildcmd_str
         )
 
+        -- Append `<sim>.run_flags` so the manual `run.sh` runs the same command as `xmake run`.
+        -- `"$@"` precedes the pipe so caller-supplied args reach the simulator rather than `tee`.
+        local run_flags_suffix = ""
+        do
+            local _run_flags = target:values(sim .. ".run_flags")
+            if _run_flags then
+                if type(_run_flags) == "string" then
+                    _run_flags = { _run_flags }
+                end
+                local flags_str = table.concat(_run_flags, " "):trim()
+                if flags_str ~= "" then
+                    run_flags_suffix = " " .. flags_str
+                end
+            end
+        end
+
         local run_sh = ""
         if sim == "verilator" then
-            run_sh = f("%s/V%s 2>&1 | tee run.log", sim_build_dir, tb_top)
+            run_sh = f("%s/V%s%s \"$@\" 2>&1 | tee run.log", sim_build_dir, tb_top, run_flags_suffix)
         elseif sim == "vcs" then
             run_sh = f(
-                "%s/simv %s +notimingcheck 2>&1 | tee run.log",
+                "%s/simv %s +notimingcheck%s \"$@\" 2>&1 | tee run.log",
                 sim_build_dir,
-                (get_verilua_value(target, "verilua.vcs_no_initreg") == "1") and "" or "+vcs+initreg+0"
+                (get_verilua_value(target, "verilua.vcs_no_initreg") == "1") and "" or "+vcs+initreg+0",
+                run_flags_suffix
             )
         elseif sim == "xcelium" then
             run_sh = f(
-                "xrun -r %s_snapshot -xmlibdirpath %s -xmlibdirname %s -l %s %s -loadvpi %s:vlog_startup_routines_bootstrap",
+                "xrun -r %s_snapshot -xmlibdirpath %s -xmlibdirname %s -l %s %s -loadvpi %s:vlog_startup_routines_bootstrap%s \"$@\" 2>&1 | tee run.log",
                 tb_top,
                 build_dir,
                 path.basename(sim_build_dir),
                 path.join(build_dir, "xrun_run.log"),
                 (get_verilua_value(target, "verilua.xcelium_no_initreg") == "1") and "" or "-xminitialize 0",
-                path.join(verilua_libs_home, "libverilua_xcelium.so")
+                path.join(verilua_libs_home, "libverilua_xcelium.so"),
+                run_flags_suffix
             )
         elseif sim == "iverilog" then
-            run_sh = f("vvp -M %s -m libverilua_iverilog %s/simv.vvp | tee run.log", verilua_libs_home, sim_build_dir)
+            -- vvp takes options before the input file; `"$@"` stays after it as plusargs.
+            run_sh = f("vvp -M %s -m libverilua_iverilog%s %s/simv.vvp \"$@\" | tee run.log", verilua_libs_home,
+                run_flags_suffix, sim_build_dir)
         elseif sim == "wave_vpi" then
             local waveform_file = assert(
                 target:get("waveform_file"),
                 "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst, .fsdb)"
             )
-            run_sh = f("wave_vpi_main --wave-file %s 2>&1 | tee run.log", waveform_file)
+            run_sh = f("wave_vpi_main --wave-file %s%s \"$@\" 2>&1 | tee run.log", waveform_file, run_flags_suffix)
         elseif sim == "nosim" then
             -- TODO:
         end
