@@ -22,6 +22,44 @@ end
 local FILE_COUNT_THRESHOLD = 100 -- Threshold for using filelist instead of passing files directly
 local DEFAULT_TIMESCALE = "1ns/1ps"
 
+--- Default random seed, matching `cfg.seed` in `LuaSimConfig`.
+local DEFAULT_SEED = 1234
+
+--- Per-backend seed option: `option` is the template, `user_tokens` the spellings that mean the user
+--- picked a seed. Only `<sim>.run_flags` counts; the compile-time `<sim>.flags` never reaches the run
+--- (VCS ignores `+ntb_random_seed` there, Verilator rejects `+verilator+seed+`). `iverilog` has none.
+---@type table<string, { option: string, user_tokens: string[] }>
+local SEED_OPTIONS = {
+    verilator = { option = "+verilator+seed+%s", user_tokens = { "+verilator+seed+" } },
+    vcs = { option = "+ntb_random_seed=%s", user_tokens = { "+ntb_random_seed" } },
+    xcelium = { option = "-svseed %s", user_tokens = { "-svseed", "-seed" } },
+}
+
+--- Find a seed option the user passed, so injection is skipped instead of relying on the last option
+--- winning (that only holds for Verilator).
+---@param target table xmake target
+---@param sim string
+---@return string|nil user_token The user's token that names a seed option
+local function find_user_seed_option(target, sim)
+    local seed_entry = SEED_OPTIONS[sim]
+    if seed_entry == nil then
+        return nil
+    end
+
+    for _, value in ipairs(table.wrap(target:values(sim .. ".run_flags"))) do
+        if type(value) == "string" then
+            for _, token in ipairs(value:split(" ", { plain = true })) do
+                for _, pattern in ipairs(seed_entry.user_tokens) do
+                    if token == pattern or token:startswith(pattern) then
+                        return token
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
 -- Maps each `verilua.*` key to the deprecated key(s) it replaces, tried in order.
 -- Most old keys use the `cfg.*` prefix; a few had no prefix at all (e.g. `instrumentation`).
 -- get_verilua_value() reads the new key first, then falls back with a warning.
@@ -2058,15 +2096,36 @@ rule("verilua", function()
             end
         end
 
+        -- `run.sh` carries the same seed option as `on_run`; `VL_SEED` keeps it overridable through
+        -- `SEED` and sits in `setvars.sh` so `debug_run.sh` can still prefix the line with `gdb --args`.
+        local run_seed_suffix = ""
+        local setvars_seed_block = ""
+        local seed_entry = SEED_OPTIONS[sim]
+        if find_user_seed_option(target, sim) == nil and seed_entry ~= nil then
+            setvars_seed_block = f(
+                [[
+# Simulator seed for the run scripts, mirroring `on_run`.
+VL_SEED="${SEED:-%d}"
+if [ "$VL_SEED" = "0" ]; then VL_SEED=1; fi
+case "$VL_SEED" in
+    *[!0-9]*) echo "Invalid SEED: $VL_SEED, it should be a number!" >&2; exit 1 ;;
+esac
+]],
+                DEFAULT_SEED
+            )
+            run_seed_suffix = " " .. f(seed_entry.option, "${VL_SEED}")
+        end
+
         io.printf(
             path.join(build_dir, "setvars.sh"),
             [[#!/usr/bin/env bash
 export VL_CFG_FILE=%s
 export SIM=%s
-%s]],
+%s%s]],
             target:get("verilua_cfg_file"),
             sim,
-            extra_runenvs
+            extra_runenvs,
+            setvars_seed_block
         )
 
         io.printf(
@@ -2108,15 +2167,18 @@ source setvars.sh
             end
         end
 
+        -- Injected options first, then the user's own flags; `"$@"` follows them at run time.
+        local extra_suffix = run_seed_suffix .. run_flags_suffix
+
         local run_sh = ""
         if sim == "verilator" then
-            run_sh = f("%s/V%s%s \"$@\" 2>&1 | tee run.log", sim_build_dir, tb_top, run_flags_suffix)
+            run_sh = f("%s/V%s%s \"$@\" 2>&1 | tee run.log", sim_build_dir, tb_top, extra_suffix)
         elseif sim == "vcs" then
             run_sh = f(
                 "%s/simv %s +notimingcheck%s \"$@\" 2>&1 | tee run.log",
                 sim_build_dir,
                 (get_verilua_value(target, "verilua.vcs_no_initreg") == "1") and "" or "+vcs+initreg+0",
-                run_flags_suffix
+                extra_suffix
             )
         elseif sim == "xcelium" then
             run_sh = f(
@@ -2127,7 +2189,7 @@ source setvars.sh
                 path.join(build_dir, "xrun_run.log"),
                 (get_verilua_value(target, "verilua.xcelium_no_initreg") == "1") and "" or "-xminitialize 0",
                 path.join(verilua_libs_home, "libverilua_xcelium.so"),
-                run_flags_suffix
+                extra_suffix
             )
         elseif sim == "iverilog" then
             -- vvp takes options before the input file; `"$@"` stays after it as plusargs.
@@ -2234,6 +2296,41 @@ verdi -f filelist.f -sv -nologo $@]]
             os.addenvs(_env)
         end
 
+        --- Pick the simulator seed. The per-simulator branches below append it to their run flags.
+        local seed = nil
+        local seed_option = nil
+        local user_seed_option = find_user_seed_option(target, sim)
+        if user_seed_option ~= nil then
+            cprint(
+                "${✅} [verilua-xmake] [%s] `%s` already selects the simulator seed, `SEED` is not injected",
+                target:name(),
+                user_seed_option
+            )
+        else
+            local max_seed = 2147483647 -- Largest seed every backend accepts; each reads it as an `int`.
+            local env_seed = os.getenv("SEED")
+            if env_seed == nil then
+                -- xmake reports an empty `SEED` as nil; the runtime rejects it separately.
+                seed = DEFAULT_SEED
+            else
+                assert(
+                    env_seed:match("^%d+$") ~= nil,
+                    f("[on_run] Invalid <SEED>: %s, it should be a number!", env_seed)
+                )
+                seed = tonumber(env_seed) --[[@as integer]]
+                assert(
+                    seed <= max_seed,
+                    f("[on_run] Invalid <SEED>: %s, it should be between 0 and %d!", env_seed, max_seed)
+                )
+                -- `+verilator+seed+0` means "pick a random seed", so `0` becomes `1` for every backend.
+                if seed == 0 then
+                    seed = 1
+                end
+            end
+            local seed_entry = SEED_OPTIONS[sim]
+            seed_option = seed_entry and f(seed_entry.option, tostring(seed))
+        end
+
         --- Set VL_CFG_FILE for verilua
         --- VL_CFG_FILE is the path to the user/generated configuration file loaded by `init.lua`
         os.setenv("VL_CFG_FILE", target:get("verilua_cfg_file"))
@@ -2254,6 +2351,9 @@ verdi -f filelist.f -sv -nologo $@]]
             if _run_flags then
                 table.join2(run_flags, _run_flags)
             end
+            if seed_option ~= nil then
+                run_flags[#run_flags + 1] = seed_option
+            end
 
             local run_prefix = { "" }
             local _run_prefix = target:values("verilator.run_prefix")
@@ -2266,6 +2366,13 @@ verdi -f filelist.f -sv -nologo $@]]
                 table.concat(run_prefix, " ") ..
                 " " .. vtb_top .. " " .. table.concat(run_flags, " ")
         elseif sim == "iverilog" then
+            if seed ~= nil then
+                cprint(
+                    "${✅} [verilua-xmake] [%s] iverilog has no seed option, `SEED=%s` only affects the Verilua runtime",
+                    target:name(),
+                    tostring(seed)
+                )
+            end
             ---@type string[]
             local run_flags = { "-M", verilua_libs_home, "-m", "libverilua_iverilog" }
             local _run_flags = target:values("iverilog.run_flags")
@@ -2316,6 +2423,9 @@ verdi -f filelist.f -sv -nologo $@]]
 
             if get_verilua_value(target, "verilua.vcs_no_initreg") ~= "1" then
                 run_flags[#run_flags + 1] = "+vcs+initreg+0"
+            end
+            if seed_option ~= nil then
+                run_flags[#run_flags + 1] = seed_option
             end
 
             local run_prefix = { "" }
@@ -2388,6 +2498,9 @@ verdi -f filelist.f -sv -nologo $@]]
 
             if get_verilua_value(target, "verilua.xcelium_no_initreg") ~= "1" then
                 run_flags[#run_flags + 1] = "-xminitialize 0"
+            end
+            if seed_option ~= nil then
+                run_flags[#run_flags + 1] = seed_option
             end
 
             local run_prefix = { "" }

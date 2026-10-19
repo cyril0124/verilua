@@ -56,6 +56,25 @@ end)
 Verilator 的 `--x-assign` 可通过 `set_values("verilator.flags", "--x-assign 0")` 直接覆盖为其他值（`0`、`1`、`fast`），无需专用开关。
 :::
 
+## 随机种子注入
+
+[`SEED`](./special_env_variables.mdx#seed-可选) 会在运行阶段被注入为仿真器的随机种子参数，因此 RTL 里的 `$urandom` / `$urandom_range` 也随 `SEED` 变化，并在不同机器上一致（同一仿真器版本下）。
+
+| 后端 | 运行阶段注入参数 |
+|------|------------------|
+| Verilator | `+verilator+seed+<seed>` |
+| VCS | `+ntb_random_seed=<seed>` |
+| Xcelium | `-svseed <seed>` |
+| Icarus | —（无种子参数，注入时仅打印提示） |
+
+规则：
+
+- `SEED` 未设置时注入 `1234`，与 `cfg.seed` 的默认值一致。
+- `SEED=0` 注入为 `1`：Verilator 把 `+verilator+seed+0` 当作“随机取种”，会导致不可复现，三个后端统一映射。
+- 你自己在 `<sim>.run_flags` 里传了种子参数时，**以你的参数为准**，`SEED` 不再注入。识别的拼写：Verilator 的 `+verilator+seed+`，VCS 的 `+ntb_random_seed`，Xcelium 的 `-svseed` / `-seed`。
+- 写在编译阶段参数 `<sim>.flags` 里不算，因为它到不了运行阶段：VCS 会忽略 `+ntb_random_seed`，Verilator 直接报 `Invalid option`。
+- 生成的 `run.sh` / `debug_run.sh` 同样带这个参数，值取自 `setvars.sh` 的 `VL_SEED`（`${SEED:-1234}`，`0` 换成 `1`），所以手动复跑与 `xmake run` 一致，且仍受运行时 `SEED` 控制。
+
 ---
 
 ## Verilator 默认参数
