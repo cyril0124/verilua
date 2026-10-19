@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Introduction | Verilua</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" name="twitter:image" content="https://cyril0124.github.io/verilua/img/verilua-social-card.png"><meta data-rh="true" property="og:url" content="https://cyril0124.github.io/verilua/docs/"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Introduction | Verilua"><meta data-rh="true" name="description" content="The English version of this documentation is currently being prepared. We are working to translate the existing Chinese content into English as soon as possible. In the meantime, you may refer to the Chinese version of this documentation or use your browser&#x27;s translation tool to read it."><meta data-rh="true" property="og:description" content="The English version of this documentation is currently being prepared. We are working to translate the existing Chinese content into English as soon as possible. In the meantime, you may refer to the Chinese version of this documentation or use your browser&#x27;s translation tool to read it."><link data-rh="true" rel="icon" href="/verilua/img/logo-no-wordmark.svg"><link data-rh="true" rel="canonical" href="https://cyril0124.github.io/verilua/docs/"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/" hreflang="en"><link data-rh="true" rel="alternate" href="https://cyril0124.github.io/verilua/docs/" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Introduction","item":"https://cyril0124.github.io/verilua/docs/"}]}</script><link rel="stylesheet" href="/verilua/assets/css/styles.bc66b8d3.css">
-<script src="/verilua/assets/js/runtime~main.63333482.js" defer="defer"></script>
-<script src="/verilua/assets/js/main.aa156e40.js" defer="defer"></script>
+<script src="/verilua/assets/js/runtime~main.be0c25dd.js" defer="defer"></script>
+<script src="/verilua/assets/js/main.6c8f63fb.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -43,6 +43,7 @@
 <p><strong>Verilua 的特点：</strong></p>
 <ul>
 <li class="">✅ <strong>基于 Lua/LuaJIT</strong>：Lua 语言简单易学，功能完整，同样具备 coroutine 功能，能够实现并发控制逻辑。采用 LuaJIT 实现，性能远超 Python，能够满足硬件验证的性能需求。</li>
+<li class="">✅ <strong>修改逻辑无需重新编译</strong>：Monitor、Scoreboard、激励和环境配置等业务逻辑全部是 Lua 脚本，修改后直接重新运行仿真即可生效，无需重新编译；只有 RTL 或 C/C++ 代码变更才需要重新构建。相比 SystemVerilog + UVM 平台“改一处激励就要重编译整个平台”的迭代循环，可以省掉绝大部分编译等待时间。</li>
 <li class="">✅ <strong>优秀的开发体验</strong>：Lua 的使用人数远多于 SystemVerilog，开发者积极开发各种插件提高 Lua 语言的开发体验，例如：EmmyLuaLs、LuaLS。</li>
 <li class="">✅ <strong>VPIML 解耦架构</strong>：通过 VPIML 中间层将验证资产的执行模型与具体仿真后端解耦，使得同一套验证组件可以在 HVL、HSE、WAL 三种场景下无缝复用，从根本上解决验证生态碎片化问题。</li>
 <li class="">✅ <strong>全生命周期复用</strong>：Verilua 支持 HVL（硬件验证语言）、HSE（硬件脚本引擎）、WAL（波形分析语言）三种验证场景，能够实现验证组件的跨验证平台、跨场景复用，解决非 SV 验证平台的验证组件复用问题。无论是单元验证、系统协同仿真，还是离线波形分析，都可以使用同一套基于 Verilua 编写的验证组件。</li>
