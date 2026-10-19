@@ -17,7 +17,7 @@ compile_commands.json
 .verilua/
 .pi/
 .worktrees/
-/.xmake
+.xmake/
 conan_installed/
 __pycache__/
 
