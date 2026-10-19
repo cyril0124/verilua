@@ -151,6 +151,7 @@ F=/abs/path/to/LuaUtils.lua xmake r lsp-check-lua
   2. Tests (unit and/or integration) — skip when the change carries no behavioral risk or the user opted out
   3. Documentation updates (`./docs` if user-facing behavior changes)
   4. `CHANGELOG.md` entry under `## Unreleased` (skip pure doc-only changes like typos/formatting, and anything not user-visible: internal tooling, agent rules, private scripts, CI-only, etc.)
+     Keep an entry to one sentence describing the user-visible effect; do not narrate the previous behavior, add usage examples, or list caveats. The surrounding entries in the same section are the length reference.
   5. If new or renamed xmake `verilua.*` / rule config flags were introduced, update `./src/lua/meta.lua` (`verilua.xmake.set_add_values.cmd`)
   6. Format checks (`xmake r format-lua` / `xmake r format-cpp`)
   7. Static checks (`xmake r lsp-check-lua` / `cargo clippy`)
