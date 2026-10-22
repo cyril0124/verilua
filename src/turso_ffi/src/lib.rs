@@ -1,149 +1,309 @@
-//! Minimal SQLite-subset C ABI over Turso (`turso_sdk_kit` rsapi).
-//! Used by LuaDataBaseV2 via LuaJIT FFI.
+//! Minimal SQLite-subset C ABI over Turso (`turso_sdk_kit` rsapi), used by
+//! `LuaDataBaseV2` through LuaJIT FFI.
 //!
-//! # Safety
+//! # Safety contract
 //!
-//! All exported functions share one contract:
-//! - `db` / `stmt` handles must be pointers returned by [`turso_ffi_open`] /
+//! All exported functions share one contract, so their individual `# Safety`
+//! sections only point at the parts they rely on.
+//!
+//! - `db` / `statement` handles must be pointers returned by [`turso_ffi_open`] /
 //!   [`turso_ffi_prepare`] of this library. Null, closed, finalized, or foreign
-//!   pointers are rejected via the live-handle registries and report an error
-//!   instead of being dereferenced.
-//! - C string arguments must be valid NUL-terminated buffers; `text` with
+//!   pointers are rejected through the live-handle registries and report an
+//!   error instead of being dereferenced.
+//! - One handle must not be used by two calls at the same time. Every call may
+//!   therefore assume exclusive access to the state behind a live handle.
+//! - C string arguments must be valid NUL-terminated buffers, and `text` with
 //!   `len >= 0` must point to at least `len` readable bytes.
 //! - Returned strings (`errmsg` / `column_text`) are owned by the library and
 //!   only valid until the next call on the same handle.
-// The shared contract above replaces per-function `# Safety` sections.
-#![allow(clippy::missing_safety_doc)]
+//!
+//! # Why unsafe code is required
+//!
+//! The crate exists to expose a C ABI to LuaJIT FFI, which is only expressible
+//! through `extern "C"` functions over raw pointers. The unsafe surface is kept
+//! out of the logic: exported functions validate handles and forward to safe
+//! helpers, and every raw dereference is confined to one of those helpers with a
+//! `SAFETY` comment.
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(clippy::undocumented_unsafe_blocks)]
 
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::slice;
+use std::str;
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use turso_core::{IOResult, Numeric};
 use turso_sdk_kit::rsapi::{
-    TursoConnection, TursoDatabase, TursoDatabaseConfig, TursoError, TursoStatement,
-    TursoStatusCode, Value,
+    TursoConnection, TursoDatabase, TursoDatabaseConfig, TursoStatement, TursoStatusCode, Value,
 };
 use turso_sdk_kit::IoBackend;
 
+/// Successful completion; same value as `SQLITE_OK`.
 pub const TURSO_FFI_OK: c_int = 0;
+/// A result row is available; same value as `SQLITE_ROW`.
 pub const TURSO_FFI_ROW: c_int = 100;
+/// The statement has finished; same value as `SQLITE_DONE`.
 pub const TURSO_FFI_DONE: c_int = 101;
+/// Failure; see [`turso_ffi_errmsg`]. Same value as `SQLITE_ERROR`.
 pub const TURSO_FFI_ERR: c_int = 1;
 
-/// Last error when no live `Db` handle exists (e.g. open failure).
-static LAST_GLOBAL_ERR: OnceLock<Mutex<(String, CString)>> = OnceLock::new();
-static LIVE_DBS: OnceLock<Mutex<HashSet<usize>>> = OnceLock::new();
-static LIVE_STMTS: OnceLock<Mutex<HashSet<usize>>> = OnceLock::new();
-
-fn global_err_slot() -> &'static Mutex<(String, CString)> {
-    LAST_GLOBAL_ERR.get_or_init(|| Mutex::new((String::new(), CString::default())))
+/// Error message plus the NUL-terminated copy handed out over FFI.
+///
+/// `c_text` mirrors `text` so the pointer-returning calls hand out a stable
+/// buffer without reallocating on every read.
+#[derive(Default)]
+struct ErrorMessage {
+    text: String,
+    c_text: CString,
 }
 
-fn live_dbs() -> &'static Mutex<HashSet<usize>> {
-    LIVE_DBS.get_or_init(|| Mutex::new(HashSet::new()))
-}
+impl ErrorMessage {
+    fn clear(&mut self) {
+        self.text.clear();
+        self.c_text = CString::default();
+    }
 
-fn live_stmts() -> &'static Mutex<HashSet<usize>> {
-    LIVE_STMTS.get_or_init(|| Mutex::new(HashSet::new()))
-}
-
-fn set_global_err(msg: impl Into<String>) {
-    let msg = msg.into();
-    let c = CString::new(msg.replace('\0', "")).unwrap_or_default();
-    if let Ok(mut g) = global_err_slot().lock() {
-        *g = (msg, c);
+    fn set(&mut self, text: String) {
+        self.c_text = to_c_string(&text);
+        self.text = text;
     }
 }
 
-fn clear_global_err() {
-    if let Ok(mut g) = global_err_slot().lock() {
-        *g = (String::new(), CString::default());
-    }
-}
+/// Error slot used while no live database handle exists, e.g. when opening
+/// fails.
+static LAST_GLOBAL_ERROR: OnceLock<Mutex<ErrorMessage>> = OnceLock::new();
+/// Addresses of the database handles that callers may still use.
+static LIVE_DATABASES: OnceLock<Mutex<HashSet<usize>>> = OnceLock::new();
+/// Addresses of the statement handles that callers may still use.
+static LIVE_STATEMENTS: OnceLock<Mutex<HashSet<usize>>> = OnceLock::new();
 
-fn register_db(p: *mut Db) {
-    if let Ok(mut s) = live_dbs().lock() {
-        s.insert(p as usize);
-    }
-}
-
-fn unregister_db(p: *mut Db) -> bool {
-    live_dbs()
+fn global_error() -> MutexGuard<'static, ErrorMessage> {
+    LAST_GLOBAL_ERROR
+        .get_or_init(|| Mutex::new(ErrorMessage::default()))
         .lock()
-        .map(|mut s| s.remove(&(p as usize)))
-        .unwrap_or(false)
+        .expect("the global error mutex is never poisoned: no code panics while holding it")
 }
 
-fn is_live_db(p: *mut Db) -> bool {
-    if p.is_null() {
-        return false;
-    }
-    live_dbs()
+fn live_databases() -> MutexGuard<'static, HashSet<usize>> {
+    LIVE_DATABASES
+        .get_or_init(|| Mutex::new(HashSet::new()))
         .lock()
-        .map(|s| s.contains(&(p as usize)))
-        .unwrap_or(false)
+        .expect("the live-database registry mutex is never poisoned")
 }
 
-fn register_stmt(p: *mut Stmt) {
-    if let Ok(mut s) = live_stmts().lock() {
-        s.insert(p as usize);
-    }
-}
-
-fn unregister_stmt(p: *mut Stmt) -> bool {
-    live_stmts()
+fn live_statements() -> MutexGuard<'static, HashSet<usize>> {
+    LIVE_STATEMENTS
+        .get_or_init(|| Mutex::new(HashSet::new()))
         .lock()
-        .map(|mut s| s.remove(&(p as usize)))
-        .unwrap_or(false)
+        .expect("the live-statement registry mutex is never poisoned")
 }
 
-fn is_live_stmt(p: *mut Stmt) -> bool {
-    if p.is_null() {
-        return false;
-    }
-    live_stmts()
-        .lock()
-        .map(|s| s.contains(&(p as usize)))
-        .unwrap_or(false)
+/// Address that identifies a handle in the live-handle registries.
+fn handle_address<T>(handle: *const T) -> usize {
+    handle.addr()
 }
 
-struct Db {
+fn set_global_error(text: impl Into<String>) {
+    global_error().set(text.into());
+}
+
+fn clear_global_error() {
+    global_error().clear();
+}
+
+fn register_database(db: *mut DatabaseHandle) {
+    live_databases().insert(handle_address(db));
+}
+
+fn unregister_database(db: *mut DatabaseHandle) -> bool {
+    live_databases().remove(&handle_address(db))
+}
+
+fn is_live_database(db: *const DatabaseHandle) -> bool {
+    !db.is_null() && live_databases().contains(&handle_address(db))
+}
+
+fn register_statement(statement: *mut StatementHandle) {
+    live_statements().insert(handle_address(statement));
+}
+
+fn unregister_statement(statement: *mut StatementHandle) -> bool {
+    live_statements().remove(&handle_address(statement))
+}
+
+fn is_live_statement(statement: *const StatementHandle) -> bool {
+    !statement.is_null() && live_statements().contains(&handle_address(statement))
+}
+
+/// State owned by one database handle.
+struct DatabaseHandle {
+    /// Keeps the database alive for as long as its connection exists; the field
+    /// itself is never read.
     _database: Arc<TursoDatabase>,
-    conn: Arc<TursoConnection>,
-    errmsg: String,
-    errmsg_c: CString,
-    /// Scratch for column_text; valid until next column_text on this db.
-    col_text_c: CString,
+    connection: Arc<TursoConnection>,
+    error: ErrorMessage,
+    /// Scratch buffer for [`turso_ffi_column_text`], valid until the next call
+    /// on this handle.
+    column_text_c_string: CString,
 }
 
-struct Stmt {
-    db: *mut Db,
-    stmt: Box<TursoStatement>,
+/// State owned by one statement handle.
+struct StatementHandle {
+    /// Parent database. Becomes dangling once that database is closed, which is
+    /// why every use goes through [`is_usable_statement`] first.
+    db: *mut DatabaseHandle,
+    statement: Box<TursoStatement>,
 }
 
-fn set_err(db: &mut Db, err: TursoError) {
-    set_err_str(db, err.to_string());
+/// Stores `text` in a live handle's error slot and mirrors it into the global
+/// slot, which outlives the handle.
+fn set_handle_error(db: &mut DatabaseHandle, text: String) {
+    db.error.set(text);
+    set_global_error(db.error.text.clone());
 }
 
-fn set_err_str(db: &mut Db, msg: impl Into<String>) {
-    db.errmsg = msg.into();
-    db.errmsg_c = CString::new(db.errmsg.as_str().replace('\0', "")).unwrap_or_default();
-    set_global_err(db.errmsg.clone());
+/// Clears a live handle's error slot together with the mirrored global one.
+fn clear_handle_error(db: &mut DatabaseHandle) {
+    db.error.clear();
+    clear_global_error();
 }
 
-fn cstr_to_str<'a>(p: *const c_char) -> Result<&'a str, String> {
-    if p.is_null() {
-        return Err("null string".into());
+/// Routes `text` to the parent database's slot when it is still live, otherwise
+/// to the global slot. Statement operations need this because their parent
+/// database may already be closed.
+fn report_error(db: *mut DatabaseHandle, text: impl Into<String>) {
+    if is_live_database(db) {
+        // SAFETY: the registry says `db` is live, so it points to a
+        // `DatabaseHandle` owned by this library, and the C ABI contract
+        // guarantees no other call holds a reference to it.
+        set_handle_error(unsafe { &mut *db }, text.into());
+    } else {
+        set_global_error(text);
     }
-    unsafe { CStr::from_ptr(p) }
-        .to_str()
+}
+
+/// Runs `operation` on the database behind `db`.
+///
+/// A null or closed handle has no error slot of its own, so it reports a global
+/// error and returns `fallback`.
+fn with_database<T>(
+    db: *mut c_void,
+    context: &str,
+    fallback: T,
+    operation: impl FnOnce(&mut DatabaseHandle) -> T,
+) -> T {
+    let db = db.cast::<DatabaseHandle>();
+    if !is_live_database(db) {
+        set_global_error(format!("{context}: null or closed db"));
+        return fallback;
+    }
+    // SAFETY: the registry says `db` is live, so it is a valid, uniquely owned
+    // `DatabaseHandle`; the C ABI contract keeps the exclusive borrow confined
+    // to this call.
+    operation(unsafe { &mut *db })
+}
+
+/// Runs `operation` on the statement behind `statement`.
+///
+/// Reports a global error and returns `fallback` when either the statement or
+/// its parent database is gone.
+fn with_statement<T>(
+    statement: *mut c_void,
+    context: &str,
+    fallback: T,
+    operation: impl FnOnce(&mut StatementHandle) -> T,
+) -> T {
+    let statement = statement.cast::<StatementHandle>();
+    if !is_usable_statement(statement) {
+        set_global_error(format!("{context}: null/finalized stmt or closed db"));
+        return fallback;
+    }
+    // SAFETY: the statement and its parent database are both live, so the handle
+    // is valid; the C ABI contract keeps the exclusive borrow confined to this
+    // call.
+    operation(unsafe { &mut *statement })
+}
+
+/// Reports whether `statement` and its parent database are both still live, so
+/// the handle can be used.
+fn is_usable_statement(statement: *const StatementHandle) -> bool {
+    if !is_live_statement(statement) {
+        return false;
+    }
+    // SAFETY: the registry says `statement` is live, so the parent pointer is
+    // readable; the parent itself may already be closed, hence the extra check.
+    let parent = unsafe { &*statement }.db;
+    is_live_database(parent)
+}
+
+/// Returns a pointer to a static empty C string, used instead of null results.
+fn empty_c_string() -> *const c_char {
+    c"".as_ptr()
+}
+
+/// Copies `text` into the NUL-terminated form required by the C ABI.
+///
+/// Interior NUL bytes are dropped, since `CString` cannot hold them and a
+/// truncated message is better than a failed call.
+fn to_c_string(text: &str) -> CString {
+    let bytes: Vec<u8> = text.bytes().filter(|byte| *byte != 0).collect();
+    CString::new(bytes).expect("interior NUL bytes were filtered out above")
+}
+
+/// Borrows a NUL-terminated C string.
+///
+/// # Safety
+///
+/// `text` must be null or point to a NUL-terminated buffer that stays readable
+/// for the returned borrow.
+unsafe fn c_string_to_str<'text>(text: *const c_char) -> Result<&'text str, String> {
+    if text.is_null() {
+        return Err("null string".to_string());
+    }
+    // SAFETY: the caller guarantees a NUL-terminated buffer; `CStr::from_ptr`
+    // requires nothing else.
+    let text = unsafe { CStr::from_ptr(text) };
+    text.to_str().map_err(|e| e.to_string())
+}
+
+/// Copies a `(pointer, length)` text argument into an owned `String`, where a
+/// negative `len` means "read up to the terminating NUL".
+///
+/// # Safety
+///
+/// `text` must be non-null and either NUL-terminated (`len < 0`) or point to at
+/// least `len` readable bytes.
+unsafe fn copy_argument_text(text: *const c_char, len: c_int) -> Result<String, String> {
+    if text.is_null() {
+        return Err("null string".to_string());
+    }
+    if len < 0 {
+        // SAFETY: the caller guarantees a NUL-terminated buffer.
+        return unsafe { c_string_to_str(text) }.map(str::to_string);
+    }
+    let len = usize::try_from(len).expect("`len` is non-negative here");
+    // SAFETY: the caller guarantees at least `len` readable bytes.
+    let bytes = unsafe { slice::from_raw_parts(text.cast::<u8>(), len) };
+    str::from_utf8(bytes)
+        .map(str::to_string)
         .map_err(|e| e.to_string())
 }
 
-fn open_db(path: &str) -> Result<Db, String> {
+/// Converts a 1-based argument index from the FFI boundary.
+fn argument_index(index: c_int) -> Option<usize> {
+    usize::try_from(index).ok().filter(|index| *index >= 1)
+}
+
+/// Converts a 0-based column index from the FFI boundary.
+fn column_index(index: c_int) -> Option<usize> {
+    usize::try_from(index).ok()
+}
+
+/// Opens `path` over the default VFS with synchronous IO and connects to it.
+fn open_database(path: &str) -> Result<DatabaseHandle, String> {
     let database = TursoDatabase::new(TursoDatabaseConfig {
         path: path.to_string(),
         experimental_features: None,
@@ -155,46 +315,43 @@ fn open_db(path: &str) -> Result<Db, String> {
     });
     match database.open().map_err(|e| e.to_string())? {
         IOResult::Done(()) => {}
-        IOResult::IO(_) => return Err("open returned pending IO with async_io=false".into()),
+        IOResult::IO(_) => return Err("open returned pending IO with async_io=false".to_string()),
     }
-    let conn = database.connect().map_err(|e| e.to_string())?;
-    Ok(Db {
+    let connection = database.connect().map_err(|e| e.to_string())?;
+    Ok(DatabaseHandle {
         _database: database,
-        conn,
-        errmsg: String::new(),
-        errmsg_c: CString::default(),
-        col_text_c: CString::default(),
+        connection,
+        error: ErrorMessage::default(),
+        column_text_c_string: CString::default(),
     })
 }
 
-/// Execute all statements in `sql` (multi-statement supported).
-fn exec_sql(db: &mut Db, sql: &str) -> Result<(), String> {
+/// Executes every statement in `sql`; multi-statement input is supported.
+fn execute_sql(db: &mut DatabaseHandle, sql: &str) -> Result<(), String> {
     let mut remaining = sql;
     loop {
-        let trimmed = remaining.trim();
-        if trimmed.is_empty() {
+        if remaining.trim().is_empty() {
             break;
         }
-        let prepared = db
-            .conn
+        let Some((mut statement, tail)) = db
+            .connection
             .prepare_first(remaining)
-            .map_err(|e| e.to_string())?;
-        let Some((mut stmt, tail)) = prepared else {
+            .map_err(|e| e.to_string())?
+        else {
             break;
         };
-        match stmt.execute(None) {
+        match statement.execute(None) {
+            Ok(result) if result.status == TursoStatusCode::Done => {}
             Ok(result) => {
-                if result.status != TursoStatusCode::Done {
-                    let _ = stmt.finalize(None);
-                    return Err(format!("execute status: {:?}", result.status));
-                }
+                let _ = statement.finalize(None);
+                return Err(format!("execute status: {:?}", result.status));
             }
             Err(e) => {
-                let _ = stmt.finalize(None);
+                let _ = statement.finalize(None);
                 return Err(e.to_string());
             }
         }
-        match stmt.finalize(None) {
+        match statement.finalize(None) {
             Ok(TursoStatusCode::Done) => {}
             Ok(other) => return Err(format!("finalize status: {other:?}")),
             Err(e) => return Err(e.to_string()),
@@ -207,102 +364,123 @@ fn exec_sql(db: &mut Db, sql: &str) -> Result<(), String> {
     Ok(())
 }
 
-unsafe fn db_mut(db: *mut c_void) -> Option<&'static mut Db> {
-    let p = db as *mut Db;
-    if !is_live_db(p) {
-        return None;
+/// Copies `text` into the parent database's column-text scratch buffer and
+/// returns a pointer to it.
+fn store_column_text(db: *mut DatabaseHandle, text: &str) -> *const c_char {
+    if !is_live_database(db) {
+        set_global_error("column_text: parent db closed");
+        return empty_c_string();
     }
-    Some(&mut *p)
+    // SAFETY: the registry says `db` is live, so it is a valid, uniquely owned
+    // `DatabaseHandle`; the C ABI contract keeps the exclusive borrow confined
+    // to this call.
+    let db = unsafe { &mut *db };
+    db.column_text_c_string = to_c_string(text);
+    db.column_text_c_string.as_ptr()
 }
 
-unsafe fn stmt_mut(stmt: *mut c_void) -> Option<&'static mut Stmt> {
-    let p = stmt as *mut Stmt;
-    if !is_live_stmt(p) {
-        return None;
-    }
-    let s = &mut *p;
-    if !is_live_db(s.db) {
-        return None;
-    }
-    Some(s)
-}
-
+/// Opens `path` and returns the new handle in `out_db`.
+///
+/// # Safety
+///
+/// `out_db` must be non-null and writable; `path` must be a NUL-terminated
+/// buffer.
 #[no_mangle]
 pub unsafe extern "C" fn turso_ffi_open(path: *const c_char, out_db: *mut *mut c_void) -> c_int {
     if out_db.is_null() {
-        set_global_err("out_db is null");
+        set_global_error("open: out_db is null");
         return TURSO_FFI_ERR;
     }
-    *out_db = ptr::null_mut();
-    let path = match cstr_to_str(path) {
-        Ok(s) => s,
+    // SAFETY: `out_db` was checked non-null and the caller owns the slot.
+    unsafe { *out_db = ptr::null_mut() };
+    // SAFETY: the caller guarantees a NUL-terminated `path`.
+    let path = match unsafe { c_string_to_str(path) } {
+        Ok(path) => path,
         Err(e) => {
-            set_global_err(e);
+            set_global_error(e);
             return TURSO_FFI_ERR;
         }
     };
-    match open_db(path) {
+
+    match open_database(path) {
         Ok(db) => {
-            clear_global_err();
-            let raw = Box::into_raw(Box::new(db));
-            register_db(raw);
-            *out_db = raw as *mut c_void;
+            clear_global_error();
+            let handle = Box::into_raw(Box::new(db));
+            register_database(handle);
+            // SAFETY: `out_db` was checked non-null and the caller owns the slot.
+            unsafe { *out_db = handle.cast::<c_void>() };
             TURSO_FFI_OK
         }
         Err(e) => {
-            set_global_err(e);
+            set_global_error(e);
             TURSO_FFI_ERR
         }
     }
 }
 
+/// Closes and frees a database handle.
+///
+/// # Safety
+///
+/// `db` must be null or a live handle from [`turso_ffi_open`] that the caller
+/// does not use again afterwards.
 #[no_mangle]
 pub unsafe extern "C" fn turso_ffi_close(db: *mut c_void) -> c_int {
-    let p = db as *mut Db;
-    if !unregister_db(p) {
-        set_global_err("close: null or already closed db");
+    let db = db.cast::<DatabaseHandle>();
+    if !unregister_database(db) {
+        set_global_error("close: null or already closed db");
         return TURSO_FFI_ERR;
     }
-    let boxed = Box::from_raw(p);
-    match boxed.conn.close() {
+    // SAFETY: this call unregistered `db`, so no exported function can obtain a
+    // reference to it any more and the allocation is ours to free.
+    let handle = unsafe { Box::from_raw(db) };
+    match handle.connection.close() {
         Ok(()) => {
-            clear_global_err();
+            clear_global_error();
             TURSO_FFI_OK
         }
         Err(e) => {
-            set_global_err(e.to_string());
+            set_global_error(e.to_string());
             TURSO_FFI_ERR
         }
     }
 }
 
+/// Executes every statement in `sql`.
+///
+/// # Safety
+///
+/// `db` must be null or live; `sql` must be a NUL-terminated buffer.
 #[no_mangle]
 pub unsafe extern "C" fn turso_ffi_exec(db: *mut c_void, sql: *const c_char) -> c_int {
-    let Some(db) = db_mut(db) else {
-        set_global_err("exec: null or closed db");
-        return TURSO_FFI_ERR;
-    };
-    let sql = match cstr_to_str(sql) {
-        Ok(s) => s,
-        Err(e) => {
-            set_err_str(db, e);
-            return TURSO_FFI_ERR;
+    with_database(db, "exec", TURSO_FFI_ERR, |db| {
+        // SAFETY: the caller guarantees a NUL-terminated `sql`.
+        let sql = match unsafe { c_string_to_str(sql) } {
+            Ok(sql) => sql,
+            Err(e) => {
+                set_handle_error(db, e);
+                return TURSO_FFI_ERR;
+            }
+        };
+        match execute_sql(db, sql) {
+            Ok(()) => {
+                clear_handle_error(db);
+                TURSO_FFI_OK
+            }
+            Err(e) => {
+                set_handle_error(db, e);
+                TURSO_FFI_ERR
+            }
         }
-    };
-    match exec_sql(db, sql) {
-        Ok(()) => {
-            db.errmsg.clear();
-            db.errmsg_c = CString::default();
-            clear_global_err();
-            TURSO_FFI_OK
-        }
-        Err(e) => {
-            set_err_str(db, e);
-            TURSO_FFI_ERR
-        }
-    }
+    })
 }
 
+/// Prepares a single statement and returns it in `out_stmt`.
+///
+/// # Safety
+///
+/// `db` must be null or live; `sql` must be a NUL-terminated buffer; `out_stmt`
+/// must be non-null and writable.
 #[no_mangle]
 pub unsafe extern "C" fn turso_ffi_prepare(
     db: *mut c_void,
@@ -310,286 +488,284 @@ pub unsafe extern "C" fn turso_ffi_prepare(
     out_stmt: *mut *mut c_void,
 ) -> c_int {
     if out_stmt.is_null() {
-        set_global_err("prepare: out_stmt is null");
+        set_global_error("prepare: out_stmt is null");
         return TURSO_FFI_ERR;
     }
-    *out_stmt = ptr::null_mut();
-    let db_ptr = db as *mut Db;
-    let Some(db_ref) = db_mut(db) else {
-        set_global_err("prepare: null or closed db");
-        return TURSO_FFI_ERR;
-    };
-    let sql = match cstr_to_str(sql) {
-        Ok(s) => s,
-        Err(e) => {
-            set_err_str(db_ref, e);
-            return TURSO_FFI_ERR;
-        }
-    };
-    match db_ref.conn.prepare_single(sql) {
-        Ok(stmt) => {
-            db_ref.errmsg.clear();
-            db_ref.errmsg_c = CString::default();
-            clear_global_err();
-            let raw = Box::into_raw(Box::new(Stmt { db: db_ptr, stmt }));
-            register_stmt(raw);
-            *out_stmt = raw as *mut c_void;
-            TURSO_FFI_OK
-        }
-        Err(e) => {
-            set_err(db_ref, e);
-            TURSO_FFI_ERR
-        }
-    }
-}
+    // SAFETY: `out_stmt` was checked non-null and the caller owns the slot.
+    unsafe { *out_stmt = ptr::null_mut() };
 
-#[no_mangle]
-pub unsafe extern "C" fn turso_ffi_bind_int(stmt: *mut c_void, idx: c_int, value: i64) -> c_int {
-    if idx <= 0 {
-        set_global_err("bind_int: index must be >= 1");
-        return TURSO_FFI_ERR;
-    }
-    let Some(stmt) = stmt_mut(stmt) else {
-        set_global_err("bind_int: null/finalized stmt or closed db");
-        return TURSO_FFI_ERR;
-    };
-    match stmt
-        .stmt
-        .bind_positional(idx as usize, Value::from_i64(value))
-    {
-        Ok(()) => TURSO_FFI_OK,
-        Err(e) => {
-            if is_live_db(stmt.db) {
-                set_err(&mut *stmt.db, e);
-            } else {
-                set_global_err(e.to_string());
+    with_database(db, "prepare", TURSO_FFI_ERR, |db| {
+        // SAFETY: the caller guarantees a NUL-terminated `sql`.
+        let sql = match unsafe { c_string_to_str(sql) } {
+            Ok(sql) => sql,
+            Err(e) => {
+                set_handle_error(db, e);
+                return TURSO_FFI_ERR;
             }
-            TURSO_FFI_ERR
+        };
+        match db.connection.prepare_single(sql) {
+            Ok(statement) => {
+                clear_handle_error(db);
+                let handle = Box::into_raw(Box::new(StatementHandle {
+                    db: ptr::from_mut(db),
+                    statement,
+                }));
+                register_statement(handle);
+                // SAFETY: `out_stmt` was checked non-null and the caller owns
+                // the slot.
+                unsafe { *out_stmt = handle.cast::<c_void>() };
+                TURSO_FFI_OK
+            }
+            Err(e) => {
+                set_handle_error(db, e.to_string());
+                TURSO_FFI_ERR
+            }
         }
-    }
+    })
 }
 
+/// Binds an integer to the 1-based parameter `idx`.
+///
+/// # Safety
+///
+/// `statement` must be null or live.
+#[no_mangle]
+pub unsafe extern "C" fn turso_ffi_bind_int(
+    statement: *mut c_void,
+    idx: c_int,
+    value: i64,
+) -> c_int {
+    with_statement(statement, "bind_int", TURSO_FFI_ERR, |statement| {
+        let Some(index) = argument_index(idx) else {
+            report_error(
+                statement.db,
+                format!("bind_int: index must be >= 1, got {idx}"),
+            );
+            return TURSO_FFI_ERR;
+        };
+        match statement
+            .statement
+            .bind_positional(index, Value::from_i64(value))
+        {
+            Ok(()) => TURSO_FFI_OK,
+            Err(e) => {
+                report_error(statement.db, e.to_string());
+                TURSO_FFI_ERR
+            }
+        }
+    })
+}
+
+/// Binds text to the 1-based parameter `idx`; a negative `len` reads up to the
+/// terminating NUL.
+///
+/// # Safety
+///
+/// `statement` must be null or live; `text` must be non-null and either
+/// NUL-terminated (`len < 0`) or point to at least `len` readable bytes.
 #[no_mangle]
 pub unsafe extern "C" fn turso_ffi_bind_text(
-    stmt: *mut c_void,
+    statement: *mut c_void,
     idx: c_int,
     text: *const c_char,
     len: c_int,
 ) -> c_int {
-    if idx <= 0 || text.is_null() {
-        set_global_err("bind_text: bad args");
-        return TURSO_FFI_ERR;
-    }
-    let Some(stmt) = stmt_mut(stmt) else {
-        set_global_err("bind_text: null/finalized stmt or closed db");
-        return TURSO_FFI_ERR;
-    };
-    let s = if len < 0 {
-        match cstr_to_str(text) {
-            Ok(v) => v.to_string(),
+    with_statement(statement, "bind_text", TURSO_FFI_ERR, |statement| {
+        let Some(index) = argument_index(idx) else {
+            report_error(
+                statement.db,
+                format!("bind_text: index must be >= 1, got {idx}"),
+            );
+            return TURSO_FFI_ERR;
+        };
+        // SAFETY: the caller guarantees `text` matches `len` as documented.
+        let value = match unsafe { copy_argument_text(text, len) } {
+            Ok(value) => value,
             Err(e) => {
-                if is_live_db(stmt.db) {
-                    set_err_str(&mut *stmt.db, e);
-                } else {
-                    set_global_err(e);
-                }
+                report_error(statement.db, e);
                 return TURSO_FFI_ERR;
             }
-        }
-    } else {
-        let bytes = std::slice::from_raw_parts(text as *const u8, len as usize);
-        match std::str::from_utf8(bytes) {
-            Ok(v) => v.to_string(),
+        };
+        match statement
+            .statement
+            .bind_positional(index, Value::build_text(value))
+        {
+            Ok(()) => TURSO_FFI_OK,
             Err(e) => {
-                if is_live_db(stmt.db) {
-                    set_err_str(&mut *stmt.db, e.to_string());
-                } else {
-                    set_global_err(e.to_string());
-                }
-                return TURSO_FFI_ERR;
+                report_error(statement.db, e.to_string());
+                TURSO_FFI_ERR
             }
         }
-    };
-    match stmt
-        .stmt
-        .bind_positional(idx as usize, Value::build_text(s))
-    {
-        Ok(()) => TURSO_FFI_OK,
-        Err(e) => {
-            if is_live_db(stmt.db) {
-                set_err(&mut *stmt.db, e);
-            } else {
-                set_global_err(e.to_string());
-            }
-            TURSO_FFI_ERR
-        }
-    }
+    })
 }
 
+/// Advances the statement to the next row.
+///
+/// # Safety
+///
+/// `statement` must be null or live.
 #[no_mangle]
-pub unsafe extern "C" fn turso_ffi_step(stmt: *mut c_void) -> c_int {
-    let Some(stmt) = stmt_mut(stmt) else {
-        set_global_err("step: null/finalized stmt or closed db");
-        return TURSO_FFI_ERR;
-    };
-    match stmt.stmt.step(None) {
-        Ok(TursoStatusCode::Row) => TURSO_FFI_ROW,
-        Ok(TursoStatusCode::Done) => TURSO_FFI_DONE,
-        Ok(other) => {
-            if is_live_db(stmt.db) {
-                set_err_str(&mut *stmt.db, format!("step status: {other:?}"));
-            } else {
-                set_global_err(format!("step status: {other:?}"));
+pub unsafe extern "C" fn turso_ffi_step(statement: *mut c_void) -> c_int {
+    with_statement(
+        statement,
+        "step",
+        TURSO_FFI_ERR,
+        |statement| match statement.statement.step(None) {
+            Ok(TursoStatusCode::Row) => TURSO_FFI_ROW,
+            Ok(TursoStatusCode::Done) => TURSO_FFI_DONE,
+            Ok(other) => {
+                report_error(statement.db, format!("step status: {other:?}"));
+                TURSO_FFI_ERR
             }
-            TURSO_FFI_ERR
-        }
-        Err(e) => {
-            if is_live_db(stmt.db) {
-                set_err(&mut *stmt.db, e);
-            } else {
-                set_global_err(e.to_string());
+            Err(e) => {
+                report_error(statement.db, e.to_string());
+                TURSO_FFI_ERR
             }
-            TURSO_FFI_ERR
-        }
-    }
+        },
+    )
 }
 
+/// Resets the statement so it can be stepped again.
+///
+/// # Safety
+///
+/// `statement` must be null or live.
 #[no_mangle]
-pub unsafe extern "C" fn turso_ffi_reset(stmt: *mut c_void) -> c_int {
-    let Some(stmt) = stmt_mut(stmt) else {
-        set_global_err("reset: null/finalized stmt or closed db");
-        return TURSO_FFI_ERR;
-    };
-    match stmt.stmt.reset() {
-        Ok(()) => TURSO_FFI_OK,
-        Err(e) => {
-            if is_live_db(stmt.db) {
-                set_err(&mut *stmt.db, e);
-            } else {
-                set_global_err(e.to_string());
+pub unsafe extern "C" fn turso_ffi_reset(statement: *mut c_void) -> c_int {
+    with_statement(
+        statement,
+        "reset",
+        TURSO_FFI_ERR,
+        |statement| match statement.statement.reset() {
+            Ok(()) => TURSO_FFI_OK,
+            Err(e) => {
+                report_error(statement.db, e.to_string());
+                TURSO_FFI_ERR
             }
-            TURSO_FFI_ERR
-        }
-    }
+        },
+    )
 }
 
+/// Finalizes and frees a statement handle.
+///
+/// # Safety
+///
+/// `statement` must be null or a live handle from [`turso_ffi_prepare`] that the
+/// caller does not use again afterwards.
 #[no_mangle]
-pub unsafe extern "C" fn turso_ffi_finalize(stmt: *mut c_void) -> c_int {
-    let p = stmt as *mut Stmt;
-    if !unregister_stmt(p) {
-        set_global_err("finalize: null or already finalized stmt");
+pub unsafe extern "C" fn turso_ffi_finalize(statement: *mut c_void) -> c_int {
+    let statement = statement.cast::<StatementHandle>();
+    if !unregister_statement(statement) {
+        set_global_error("finalize: null or already finalized stmt");
         return TURSO_FFI_ERR;
     }
-    let mut boxed = Box::from_raw(p);
-    let db_ptr = boxed.db;
-    match boxed.stmt.finalize(None) {
+    // SAFETY: this call unregistered `statement`, so no exported function can
+    // reach it any more and the allocation is ours to free.
+    let mut handle = unsafe { Box::from_raw(statement) };
+    let db = handle.db;
+    match handle.statement.finalize(None) {
         Ok(TursoStatusCode::Done) => {
-            clear_global_err();
+            clear_global_error();
             TURSO_FFI_OK
         }
         Ok(other) => {
-            let msg = format!("finalize status: {other:?}");
-            if is_live_db(db_ptr) {
-                set_err_str(&mut *db_ptr, msg);
-            } else {
-                set_global_err(msg);
-            }
+            report_error(db, format!("finalize status: {other:?}"));
             TURSO_FFI_ERR
         }
         Err(e) => {
-            if is_live_db(db_ptr) {
-                set_err(&mut *db_ptr, e);
-            } else {
-                set_global_err(e.to_string());
-            }
+            report_error(db, e.to_string());
             TURSO_FFI_ERR
         }
     }
 }
 
-/// Error message for the given db, or the last global error if `db` is null/closed.
+/// Returns the last error of `db`, or the last global error when `db` is null or
+/// closed.
+///
+/// # Safety
+///
+/// `db` must be null or live. The returned pointer stays valid only until the
+/// next call on the same handle.
 #[no_mangle]
 pub unsafe extern "C" fn turso_ffi_errmsg(db: *mut c_void) -> *const c_char {
-    let p = db as *mut Db;
-    if is_live_db(p) {
-        return (*p).errmsg_c.as_ptr();
+    let db = db.cast::<DatabaseHandle>();
+    if is_live_database(db) {
+        // SAFETY: the registry says `db` is live; a shared reference is sound
+        // under the "no concurrent use" contract.
+        let db = unsafe { &*db };
+        return db.error.c_text.as_ptr();
     }
-    if let Ok(g) = global_err_slot().lock() {
-        return g.1.as_ptr();
-    }
-    c"".as_ptr()
+    global_error().c_text.as_ptr()
 }
 
+/// Returns column `idx` as an integer, coercing numeric values.
+///
+/// # Safety
+///
+/// `statement` must be null or live, and positioned on a row.
 #[no_mangle]
-pub unsafe extern "C" fn turso_ffi_column_int(stmt: *mut c_void, idx: c_int) -> i64 {
-    if idx < 0 {
-        set_global_err("column_int: index must be >= 0");
-        return 0;
-    }
-    let Some(stmt) = stmt_mut(stmt) else {
-        set_global_err("column_int: null/finalized stmt or closed db");
-        return 0;
-    };
-    match stmt.stmt.row_value(idx as usize) {
-        Ok(Value::Numeric(Numeric::Integer(v))) => v,
-        Ok(Value::Numeric(Numeric::Float(v))) => f64::from(v) as i64,
-        Ok(_) => {
-            if is_live_db(stmt.db) {
-                set_err_str(&mut *stmt.db, "column_int: value is not numeric");
+pub unsafe extern "C" fn turso_ffi_column_int(statement: *mut c_void, idx: c_int) -> i64 {
+    with_statement(statement, "column_int", 0, |statement| {
+        let Some(index) = column_index(idx) else {
+            report_error(
+                statement.db,
+                format!("column_int: index must be >= 0, got {idx}"),
+            );
+            return 0;
+        };
+        match statement.statement.row_value(index) {
+            Ok(Value::Numeric(Numeric::Integer(value))) => value,
+            // SQLite truncates the fraction and saturates on overflow; `as`
+            // matches that well-defined behavior.
+            Ok(Value::Numeric(Numeric::Float(value))) => f64::from(value) as i64,
+            Ok(_) => {
+                report_error(statement.db, "column_int: value is not numeric");
+                0
             }
-            0
-        }
-        Err(e) => {
-            if is_live_db(stmt.db) {
-                set_err(&mut *stmt.db, e);
-            } else {
-                set_global_err(e.to_string());
+            Err(e) => {
+                report_error(statement.db, e.to_string());
+                0
             }
-            0
         }
-    }
+    })
 }
 
+/// Returns column `idx` as text, coercing numeric values.
+///
+/// # Safety
+///
+/// `statement` must be null or live, and positioned on a row. The returned pointer
+/// stays valid only until the next call on the parent database.
 #[no_mangle]
-pub unsafe extern "C" fn turso_ffi_column_text(stmt: *mut c_void, idx: c_int) -> *const c_char {
-    if idx < 0 {
-        set_global_err("column_text: index must be >= 0");
-        return c"".as_ptr();
-    }
-    let Some(stmt) = stmt_mut(stmt) else {
-        set_global_err("column_text: null/finalized stmt or closed db");
-        return c"".as_ptr();
-    };
-    let s = match stmt.stmt.row_value(idx as usize) {
-        Ok(Value::Text(t)) => t.as_str().to_string(),
-        Ok(Value::Numeric(Numeric::Integer(v))) => v.to_string(),
-        Ok(Value::Numeric(Numeric::Float(v))) => f64::from(v).to_string(),
-        Ok(Value::Null) => {
-            if is_live_db(stmt.db) {
-                set_err_str(&mut *stmt.db, "column_text: NULL");
+pub unsafe extern "C" fn turso_ffi_column_text(
+    statement: *mut c_void,
+    idx: c_int,
+) -> *const c_char {
+    with_statement(statement, "column_text", empty_c_string(), |statement| {
+        let Some(index) = column_index(idx) else {
+            report_error(
+                statement.db,
+                format!("column_text: index must be >= 0, got {idx}"),
+            );
+            return empty_c_string();
+        };
+        let text = match statement.statement.row_value(index) {
+            Ok(Value::Text(text)) => text.as_str().to_string(),
+            Ok(Value::Numeric(Numeric::Integer(value))) => value.to_string(),
+            Ok(Value::Numeric(Numeric::Float(value))) => f64::from(value).to_string(),
+            Ok(Value::Null) => {
+                report_error(statement.db, "column_text: NULL");
+                return empty_c_string();
             }
-            return c"".as_ptr();
-        }
-        Ok(_) => {
-            if is_live_db(stmt.db) {
-                set_err_str(&mut *stmt.db, "column_text: unsupported type");
+            Ok(_) => {
+                report_error(statement.db, "column_text: unsupported type");
+                return empty_c_string();
             }
-            return c"".as_ptr();
-        }
-        Err(e) => {
-            if is_live_db(stmt.db) {
-                set_err(&mut *stmt.db, e);
-            } else {
-                set_global_err(e.to_string());
+            Err(e) => {
+                report_error(statement.db, e.to_string());
+                return empty_c_string();
             }
-            return c"".as_ptr();
-        }
-    };
-    if !is_live_db(stmt.db) {
-        set_global_err("column_text: parent db closed");
-        return c"".as_ptr();
-    }
-    let db = &mut *stmt.db;
-    db.col_text_c = CString::new(s.replace('\0', "")).unwrap_or_default();
-    db.col_text_c.as_ptr()
+        };
+        store_column_text(statement.db, &text)
+    })
 }
