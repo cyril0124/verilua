@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **signal_db_gen**: Fixed `getCompilelation` typo (renamed to `getCompilation`).
 - **signal_db_gen**: Fixed `singal_info` local variable name typo (renamed to `signal_info`).
 - **xmake / verilua rule**: The generated `run.sh` and `debug_run.sh` now include `<sim>.run_flags` and pass caller-supplied arguments through to the simulation binary.
+- **LuaJIT**: Bundled LuaJIT is updated to 2.1@a4c06453.
 
 ### 🚀 Added
 
