@@ -1,24 +1,68 @@
+//! Wellen-backed waveform reader exposing a VPI C ABI.
+//!
+//! The `wave_vpi` C++ front end calls these symbols to walk a waveform file's
+//! hierarchy and read signal values by time.
+//!
+//! # State and lifetime model
+//!
+//! [`wellen_initialize`] fills the process-wide slots once (time table,
+//! hierarchy, wave source, and the handle caches); every other entry point reads
+//! them. Pointers handed back to C stay valid until [`wellen_finalize`]: signal
+//! handles come from `Box::into_raw`, module handles are cached so their address
+//! never moves, and iterator objects are tracked in a registry so an unfinished
+//! iteration can be reclaimed at the end.
+//!
+//! # Panics
+//!
+//! The ABI has no error channel, so a violated contract or unparsable input
+//! aborts the process through `panic!`/`assert!` instead of returning a status.
+//!
+//! # Why unsafe code is required
+//!
+//! Every symbol is called from C++, so arguments and results must be raw
+//! pointers, and the caches must outlive any single call, which `static mut`
+//! slots express directly. The whole design rests on one invariant:
+//!
+//! > The backend is single-threaded - `wellen_initialize` finishes before any
+//! > other entry point runs, and `wellen_finalize` is the last one.
+//!
+//! That invariant is what makes each `static mut` access and each `UnsafeCell`
+//! dereference sound. Pointers received from C are additionally validated by the
+//! handle registries before being dereferenced.
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(clippy::undocumented_unsafe_blocks)]
+// Every name that trips these lints comes from the VPI C API this crate
+// implements: the exported symbols keep their C spelling, `refHandle` is the
+// parameter name from the header, and the `vpi*` constants used in match arms
+// are the ones bindgen generated.
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
 
-use byteorder::{BigEndian, ByteOrder};
-use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString};
-use std::fs;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 use std::os::raw::{c_char, c_void};
-use std::os::unix::fs::MetadataExt;
 use std::ptr::addr_of;
 use std::time::{Instant, UNIX_EPOCH};
-use wellen::*;
 
+use byteorder::{BigEndian, ByteOrder};
+use serde::{Deserialize, Serialize};
+use wellen::{
+    Hierarchy, LoadOptions, ScopeRef, ScopeType, Signal, SignalRef, SignalSource, SignalValueRef,
+    States, VarType, viewers,
+};
+
+// Bindgen output for the VPI C header. Safety comments cannot be added to
+// generated code, so the lint does not apply here, and the glob import keeps the
+// generated names spelled as in the header.
+#[allow(clippy::undocumented_unsafe_blocks)]
 mod vpi_user;
 use vpi_user::*;
 
+/// The VPI API spells this type `vpiHandle`; it is the id inside a signal handle.
 #[allow(non_camel_case_types)]
 type vpiHandle = SignalRef;
 
@@ -113,6 +157,9 @@ extern "C" fn init_env_logger() {
 
 #[inline(always)]
 fn get_time_table() -> &'static mut Vec<u64> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match TIME_TABLE {
             Some(ref mut time_table) => &mut *time_table.get(),
@@ -127,6 +174,8 @@ fn get_time_table() -> &'static mut Vec<u64> {
 
 #[inline(always)]
 fn get_hierarchy() -> &'static Hierarchy {
+    // SAFETY: `wellen_initialize` fills `HIERARCHY` once and nothing mutates it
+    // afterwards, so the immutable reference cannot overlap a writer.
     unsafe {
         match HIERARCHY {
             Some(ref hierarchy) => &*hierarchy.get(),
@@ -141,6 +190,9 @@ fn get_hierarchy() -> &'static Hierarchy {
 
 #[inline(always)]
 fn get_signal_ref_cache() -> &'static mut HashMap<String, SignalRef> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match SIGNAL_REF_CACHE {
             Some(ref mut signal_ref_cache) => &mut *signal_ref_cache.get(),
@@ -155,6 +207,9 @@ fn get_signal_ref_cache() -> &'static mut HashMap<String, SignalRef> {
 
 #[inline(always)]
 fn get_signal_ref_cache_null() -> &'static mut HashSet<String> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match SIGNAL_REF_CACHE_NULL {
             Some(ref mut signal_ref_cache_null) => &mut *signal_ref_cache_null.get(),
@@ -169,6 +224,8 @@ fn get_signal_ref_cache_null() -> &'static mut HashSet<String> {
 
 #[inline(always)]
 fn try_get_signal_ref_cache() -> Option<&'static mut HashMap<String, SignalRef>> {
+    // SAFETY: the `Some` arm forwards to the getter, whose safety comment covers the
+    // dereference; the `None` arm only inspects whether the slot is set.
     unsafe {
         match SIGNAL_REF_CACHE {
             Some(_) => Some(get_signal_ref_cache()),
@@ -179,6 +236,9 @@ fn try_get_signal_ref_cache() -> Option<&'static mut HashMap<String, SignalRef>>
 
 #[inline(always)]
 fn get_signal_cache() -> &'static mut HashMap<SignalRef, SignalInfo> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match SIGNAL_CACHE {
             Some(ref mut signal_cache) => &mut *signal_cache.get(),
@@ -193,6 +253,8 @@ fn get_signal_cache() -> &'static mut HashMap<SignalRef, SignalInfo> {
 
 #[inline(always)]
 fn try_get_signal_cache() -> Option<&'static mut HashMap<SignalRef, SignalInfo>> {
+    // SAFETY: the `Some` arm forwards to the getter, whose safety comment covers the
+    // dereference; the `None` arm only inspects whether the slot is set.
     unsafe {
         match SIGNAL_CACHE {
             Some(_) => Some(get_signal_cache()),
@@ -203,6 +265,9 @@ fn try_get_signal_cache() -> Option<&'static mut HashMap<SignalRef, SignalInfo>>
 
 #[inline(always)]
 fn get_signal_name_cache() -> &'static mut HashMap<SignalRef, CString> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match SIGNAL_NAME_CACHE {
             Some(ref mut signal_name_cache) => &mut *signal_name_cache.get(),
@@ -217,6 +282,8 @@ fn get_signal_name_cache() -> &'static mut HashMap<SignalRef, CString> {
 
 #[inline(always)]
 fn try_get_signal_name_cache() -> Option<&'static mut HashMap<SignalRef, CString>> {
+    // SAFETY: the `Some` arm forwards to the getter, whose safety comment covers the
+    // dereference; the `None` arm only inspects whether the slot is set.
     unsafe {
         match SIGNAL_NAME_CACHE {
             Some(_) => Some(get_signal_name_cache()),
@@ -227,6 +294,9 @@ fn try_get_signal_name_cache() -> Option<&'static mut HashMap<SignalRef, CString
 
 #[inline(always)]
 fn get_wave_source() -> &'static mut SignalSource {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match WAVE_SOURCE {
             Some(ref mut signal_source) => &mut *signal_source.get(),
@@ -241,6 +311,9 @@ fn get_wave_source() -> &'static mut SignalSource {
 
 #[inline(always)]
 fn get_module_handle_cache() -> &'static mut HashMap<ScopeRef, *mut WellenModuleHandle> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match MODULE_HANDLE_CACHE {
             Some(ref mut module_handle_cache) => &mut *module_handle_cache.get(),
@@ -256,6 +329,8 @@ fn get_module_handle_cache() -> &'static mut HashMap<ScopeRef, *mut WellenModule
 #[inline(always)]
 fn try_get_module_handle_cache() -> Option<&'static mut HashMap<ScopeRef, *mut WellenModuleHandle>>
 {
+    // SAFETY: the `Some` arm forwards to the getter, whose safety comment covers the
+    // dereference; the `None` arm only inspects whether the slot is set.
     unsafe {
         match MODULE_HANDLE_CACHE {
             Some(_) => Some(get_module_handle_cache()),
@@ -266,6 +341,9 @@ fn try_get_module_handle_cache() -> Option<&'static mut HashMap<ScopeRef, *mut W
 
 #[inline(always)]
 fn get_module_handle_ptr_map() -> &'static mut HashMap<usize, ScopeRef> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match MODULE_HANDLE_PTR_MAP {
             Some(ref mut module_handle_ptr_map) => &mut *module_handle_ptr_map.get(),
@@ -280,6 +358,8 @@ fn get_module_handle_ptr_map() -> &'static mut HashMap<usize, ScopeRef> {
 
 #[inline(always)]
 fn try_get_module_handle_ptr_map() -> Option<&'static mut HashMap<usize, ScopeRef>> {
+    // SAFETY: the `Some` arm forwards to the getter, whose safety comment covers the
+    // dereference; the `None` arm only inspects whether the slot is set.
     unsafe {
         match MODULE_HANDLE_PTR_MAP {
             Some(_) => Some(get_module_handle_ptr_map()),
@@ -290,6 +370,9 @@ fn try_get_module_handle_ptr_map() -> Option<&'static mut HashMap<usize, ScopeRe
 
 #[inline(always)]
 fn get_iterator_handle_ptr_set() -> &'static mut HashSet<usize> {
+    // SAFETY: the backend is single-threaded (`wellen_initialize` completes before
+    // any other entry point runs), so the exclusive reference handed to the caller
+    // cannot alias another access.
     unsafe {
         match ITERATOR_HANDLE_PTR_SET {
             Some(ref mut iterator_handle_ptr_set) => &mut *iterator_handle_ptr_set.get(),
@@ -304,6 +387,8 @@ fn get_iterator_handle_ptr_set() -> &'static mut HashSet<usize> {
 
 #[inline(always)]
 fn try_get_iterator_handle_ptr_set() -> Option<&'static mut HashSet<usize>> {
+    // SAFETY: the `Some` arm forwards to the getter, whose safety comment covers the
+    // dereference; the `None` arm only inspects whether the slot is set.
     unsafe {
         match ITERATOR_HANDLE_PTR_SET {
             Some(_) => Some(get_iterator_handle_ptr_set()),
@@ -360,16 +445,22 @@ fn get_most_likely_signal_name(name: &str, n: usize) -> Vec<String> {
     match_vec.into_iter().take(n).map(|(_, s)| s).collect()
 }
 
+/// Loads the waveform file and prepares every cache this module uses.
+///
 /// # Safety
 /// `filename` must be a valid, non-null, null-terminated C string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
+    // `MetadataExt::size()` is the only API of this trait the crate uses.
+    use std::os::unix::fs::MetadataExt;
+    // SAFETY: `filename` is non-null (asserted below) and NUL-terminated per this
+    // function's contract.
     let c_str = unsafe {
         assert!(!filename.is_null());
         CStr::from_ptr(filename)
     };
 
-    let r_str = c_str.to_str().unwrap();
+    let r_str = c_str.to_str().expect("wave file path is not valid UTF-8");
     let filename = r_str;
 
     let header =
@@ -382,6 +473,8 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     if hierarchy_only {
         log::info!("[wave_vpi::wellen_initialize] hierarchy-only mode: skipping body loading.");
 
+        // SAFETY: this is the first write of the initialization sequence, so no other
+        // entry point can be reading these slots yet.
         unsafe {
             TIME_TABLE = Some(UnsafeCell::new(Vec::new()));
             HIERARCHY = Some(UnsafeCell::new(hierarchy));
@@ -402,6 +495,7 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     let wave_source = body.source;
     wave_source.print_statistics();
 
+    // SAFETY: as above - the writer runs before any reader, on one thread.
     unsafe {
         let time_table_len = body.time_table.len();
         TIME_TABLE = Some(UnsafeCell::new(body.time_table));
@@ -422,10 +516,11 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
         .modified()
         .expect("Failed to get modified time")
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .expect("wave file mtime predates the Unix epoch")
         .as_secs();
 
     // Store for finalize to write back.
+    // SAFETY: only `wellen_finalize` reads this slot, after initialization finished.
     unsafe {
         WAVE_FILE_MODIFIED = Some(FileModifiedInfo {
             size: file_size,
@@ -480,10 +575,14 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
         if use_cached_data { "✅" } else { "❌" }
     );
 
+    // SAFETY: still inside initialization, before any reader can observe these
+    // caches; the backend is single-threaded.
     unsafe {
         if try_get_signal_ref_cache().is_none() {
             if use_cached_data {
-                let meta = cached_meta.as_ref().unwrap();
+                let meta = cached_meta
+                    .as_ref()
+                    .expect("`use_cached_data` is only set after cached meta was read");
                 log::info!(
                     "[wave_vpi::wellen_initialize] loading sigref cache from meta ({} entries, {} null)",
                     meta.sigref.len(),
@@ -568,6 +667,8 @@ pub unsafe extern "C" fn wellen_initialize(filename: *const c_char) {
     log::info!("[wave_vpi::wellen_initialize] init finish...");
 }
 
+/// Releases cached handles and writes the signal caches back to disk.
+///
 /// # Safety
 /// Must be called after `wellen_initialize` and only once.
 #[unsafe(no_mangle)]
@@ -576,6 +677,8 @@ pub unsafe extern "C" fn wellen_finalize() {
 
     let signal_ref_cache = get_signal_ref_cache();
     if signal_ref_cache.len() >= SIGNAL_REF_COUNT_THRESHOLD {
+        // SAFETY: single-threaded backend; only initialize/lookup set this flag and this
+        // write happens after they finished.
         unsafe {
             if HAS_NEWLY_ADD_SIGNAL_REF {
                 log::info!("[wave_vpi::wellen_finalize] saving cache files");
@@ -591,9 +694,11 @@ pub unsafe extern "C" fn wellen_finalize() {
                         sigref: sigref.clone(),
                         sigref_null: sigref_null.clone(),
                     };
-                    let file = File::create(META_FILE).unwrap();
+                    let file =
+                        File::create(META_FILE).expect("cannot create the wave_vpi meta file");
                     let writer = BufWriter::new(file);
-                    serde_yaml::to_writer(writer, &meta).unwrap();
+                    serde_yaml::to_writer(writer, &meta)
+                        .expect("cannot serialize the wave_vpi meta file");
                     log::info!(
                         "[wave_vpi::wellen_finalize] wrote {} in {:.3}s",
                         META_FILE,
@@ -604,9 +709,11 @@ pub unsafe extern "C" fn wellen_finalize() {
                 // Save signal cache (large binary format via rmp-serde + BufWriter).
                 let t0 = Instant::now();
                 let signal_cache = get_signal_cache();
-                let file = File::create(SIGNAL_CACHE_FILE).unwrap();
+                let file = File::create(SIGNAL_CACHE_FILE)
+                    .expect("cannot create the wave_vpi signal cache file");
                 let mut writer = BufWriter::new(file);
-                rmp_serde::encode::write(&mut writer, signal_cache).unwrap();
+                rmp_serde::encode::write(&mut writer, signal_cache)
+                    .expect("cannot serialize the wave_vpi signal cache file");
                 log::info!(
                     "[wave_vpi::wellen_finalize] wrote {} in {:.3}s",
                     SIGNAL_CACHE_FILE,
@@ -624,6 +731,9 @@ pub unsafe extern "C" fn wellen_finalize() {
         );
     }
 
+    // SAFETY: `wellen_finalize` runs after every other entry point, so these caches
+    // have no live user. Each handle pointer was produced by `Box::into_raw` in this
+    // module and is removed from its registry before its allocation is reclaimed.
     unsafe {
         if let Some(ref cache_cell) = SIGNAL_NAME_CACHE {
             (&mut *cache_cell.get()).clear();
@@ -654,16 +764,21 @@ pub unsafe extern "C" fn wellen_finalize() {
     }
 }
 
+/// Returns an opaque handle for a hierarchical signal name, or null when the
+/// name does not resolve.
+///
 /// # Safety
 /// `name` must be a valid, non-null, null-terminated C string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut c_void {
+    // SAFETY: `name` is non-null (asserted below) and NUL-terminated per this
+    // function's contract.
     let name = unsafe {
         assert!(!name.is_null());
         CStr::from_ptr(name)
     }
     .to_str()
-    .unwrap();
+    .expect("signal name is not valid UTF-8");
 
     let id_opt = get_signal_ref_cache().get(&name.to_string());
     if let Some(id) = id_opt {
@@ -687,7 +802,7 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
 
         let hierarchy = get_hierarchy();
         let var_ref_opt = &hierarchy.lookup_var(path_slice, signal_name);
-        if var_ref_opt.is_none() {
+        let Some(var_ref) = var_ref_opt else {
             let v = get_most_likely_signal_name(name, 5);
             log::debug!(
                 "Failed to lookup var, name: {}, path: {}, siangl: {}\nMost likely signal names: {:#?}",
@@ -703,19 +818,23 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
 
             // If the signal is not found, we add it to the null cache to avoid looking it up again.
             get_signal_ref_cache_null().insert(String::from(name));
+            // SAFETY: single-threaded backend; only this path and `wellen_finalize`
+            // touch the flag.
             unsafe {
                 HAS_NEWLY_ADD_SIGNAL_REF = true;
             }
 
             // Return null if the signal is not found.
             return std::ptr::null_mut();
-        }
-        let var_ref = &var_ref_opt.unwrap();
+        };
 
         let var = &hierarchy[*var_ref];
         let ids = [var.signal_ref(); 1];
         let loaded = get_wave_source().load_signals(&ids, hierarchy, LOAD_OPTS.multi_thread);
-        let loaded_signal = loaded.into_iter().next().unwrap();
+        let loaded_signal = loaded
+            .into_iter()
+            .next()
+            .expect("`load_signals` returns one signal per requested ref");
         let loaded_id = loaded_signal.signal_ref();
         assert_eq!(loaded_id, ids[0], "Failed to load signal, name: {}", name);
 
@@ -744,12 +863,15 @@ pub unsafe extern "C" fn wellen_vpi_handle_by_name(name: *const c_char) -> *mut 
 
     log::debug!("find vpiHandle => name:{} id:{:?}", name, id);
 
-    get_signal_ref_cache().insert(name.to_string(), id.unwrap());
+    let id = id.expect("`id` is Some, asserted above");
+    get_signal_ref_cache().insert(name.to_string(), id);
+    // SAFETY: single-threaded backend; only this path and `wellen_finalize` touch the
+    // flag.
     unsafe {
         HAS_NEWLY_ADD_SIGNAL_REF = true;
     }
 
-    let value = Box::new(id.unwrap() as vpiHandle);
+    let value = Box::new(id as vpiHandle);
     Box::into_raw(value) as *mut c_void
 }
 
@@ -850,14 +972,20 @@ fn find_nearest_time_index(time_table: &[u64], time: u64) -> usize {
     }
 }
 
+/// Returns the low 32 bits of the value stored at `time_table_idx`, or 0 for
+/// four-state values and missing entries.
+///
 /// # Safety
 /// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_idx: u64) -> u32 {
+    // SAFETY: `handle` points to a live `vpiHandle` boxed by
+    // `wellen_vpi_handle_by_name`, per this function's contract; the value is copied
+    // out, so the borrow ends immediately.
     let handle = unsafe { *{ handle as *mut vpiHandle } };
     let loaded_signal = get_signal_cache()
         .get(&(handle as vpiHandle))
-        .unwrap()
+        .expect("signal handle is registered in the signal cache")
         .signal
         .borrow();
 
@@ -866,7 +994,9 @@ pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_id
         match signal_v {
             SignalValueRef::BitVec(bv) => {
                 if bv.states() == States::Two {
-                    let data = bv.be_bytes().unwrap();
+                    let data = bv
+                        .be_bytes()
+                        .expect("two-state bit vector stores packed bytes");
                     let value = bytes_last_u32_be(data) as i32;
                     value as _
                 } else {
@@ -884,6 +1014,9 @@ pub unsafe extern "C" fn wellen_get_int_value(handle: *mut c_void, time_table_id
     }
 }
 
+/// Fills `value_p` with the value stored at `time_table_idx`, in the format
+/// requested by `value_p.format`.
+///
 /// # Safety
 /// `handle` must be a valid pointer. `value_p` must point to a valid `t_vpi_value`.
 #[unsafe(no_mangle)]
@@ -892,12 +1025,17 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
     time_table_idx: u64,
     value_p: p_vpi_value,
 ) {
+    // SAFETY: `handle` points to a live `vpiHandle` boxed by
+    // `wellen_vpi_handle_by_name`, per this function's contract; the value is copied
+    // out, so the borrow ends immediately.
     let handle = unsafe { *{ handle as *mut vpiHandle } };
+    // SAFETY: `value_p` points to a caller-owned `t_vpi_value` per this function's
+    // contract.
     let v_format = unsafe { value_p.read().format };
 
     let loaded_signal = get_signal_cache()
         .get(&(handle as vpiHandle))
-        .unwrap()
+        .expect("signal handle is registered in the signal cache")
         .signal
         .borrow();
 
@@ -908,7 +1046,9 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
         match signal_v {
             SignalValueRef::BitVec(bv) => {
                 if bv.states() == States::Two {
-                    let data = bv.be_bytes().unwrap();
+                    let data = bv
+                        .be_bytes()
+                        .expect("two-state bit vector stores packed bytes");
                     let words = bytes_to_u32s_be(data);
 
                     match v_format as u32 {
@@ -926,19 +1066,25 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                             let vecvals_box = vecvals.into_boxed_slice();
                             let vecvals_ptr = vecvals_box.as_ptr() as *mut t_vpi_vecval;
                             let _ = Box::into_raw(vecvals_box);
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.vector = vecvals_ptr;
                             }
                         }
                         vpiIntVal => {
                             let value = words[words.len() - 1] as i32;
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.integer = value;
                             }
                         }
                         vpiHexStrVal => {
-                            let signal_bit_string =
-                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let signal_bit_string = loaded_signal
+                                .get_value_at(&off, 0)
+                                .to_bit_string()
+                                .expect("bit vector value has a bit string");
 
                             let len = signal_bit_string.len();
                             let padding = (4 - (len % 4)) % 4;
@@ -978,17 +1124,25 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                                 idx += 4;
                             }
 
+                            // SAFETY: `hex_chars` holds only the ASCII digit bytes built
+                            // above (`b'0'..=b'f'`), so the buffer is valid UTF-8.
                             let hex_string = unsafe { String::from_utf8_unchecked(hex_chars) };
                             let c_str_ptr = store_value_str(&hex_string);
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                             }
                         }
                         vpiBinStrVal => {
-                            let signal_bit_string =
-                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let signal_bit_string = loaded_signal
+                                .get_value_at(&off, 0)
+                                .to_bit_string()
+                                .expect("bit vector value has a bit string");
                             let c_str_ptr = store_value_str(&signal_bit_string);
 
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                             }
@@ -998,6 +1152,8 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                             let value = words[words.len() - 1] as u64;
                             let dec_string = value.to_string();
                             let c_str_ptr = store_value_str(&dec_string);
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                             }
@@ -1019,35 +1175,50 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                             let vecvals_box = vecvals.into_boxed_slice();
                             let vecvals_ptr = vecvals_box.as_ptr() as *mut t_vpi_vecval;
                             let _ = Box::into_raw(vecvals_box);
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.vector = vecvals_ptr;
                             }
                         }
-                        vpiIntVal => unsafe {
+                        vpiIntVal =>
+                        // SAFETY: `value_p` is caller-owned and writable
+                        // for the duration of this call.
+                        unsafe {
                             (*value_p).value.integer = 0;
                         },
                         vpiHexStrVal => {
-                            let signal_bit_string =
-                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let signal_bit_string = loaded_signal
+                                .get_value_at(&off, 0)
+                                .to_bit_string()
+                                .expect("bit vector value has a bit string");
                             let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
                             let c_str_ptr = store_value_str(&hex_string);
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                             }
                         }
                         vpiBinStrVal => {
-                            let signal_bit_string =
-                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let signal_bit_string = loaded_signal
+                                .get_value_at(&off, 0)
+                                .to_bit_string()
+                                .expect("bit vector value has a bit string");
                             let c_str_ptr = store_value_str(&signal_bit_string);
 
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                             }
                         }
                         vpiDecStrVal => {
                             // FourValue (4-state): check for X/Z in hex representation
-                            let signal_bit_string =
-                                loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+                            let signal_bit_string = loaded_signal
+                                .get_value_at(&off, 0)
+                                .to_bit_string()
+                                .expect("bit vector value has a bit string");
                             let hex_string = bit_string_to_hex_with_xz(&signal_bit_string);
                             let dec_string = if hex_string.contains('x') || hex_string.contains('z')
                             {
@@ -1059,6 +1230,8 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                                 }
                             };
                             let c_str_ptr = store_value_str(&dec_string);
+                            // SAFETY: `value_p` is caller-owned and writable
+                            // for the duration of this call.
                             unsafe {
                                 (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                             }
@@ -1083,27 +1256,38 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
                 let vecvals_box = vecvals.into_boxed_slice();
                 let vecvals_ptr = vecvals_box.as_ptr() as *mut t_vpi_vecval;
                 let _ = Box::into_raw(vecvals_box);
+                // SAFETY: `value_p` is caller-owned and writable
+                // for the duration of this call.
                 unsafe {
                     (*value_p).value.vector = vecvals_ptr;
                 }
             }
-            vpiIntVal => unsafe {
+            vpiIntVal =>
+            // SAFETY: `value_p` is caller-owned and writable
+            // for the duration of this call.
+            unsafe {
                 (*value_p).value.integer = 0;
             },
             vpiHexStrVal => {
                 let c_str_ptr = store_value_str("0");
+                // SAFETY: `value_p` is caller-owned and writable
+                // for the duration of this call.
                 unsafe {
                     (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                 }
             }
             vpiBinStrVal => {
                 let c_str_ptr = store_value_str("0");
+                // SAFETY: `value_p` is caller-owned and writable
+                // for the duration of this call.
                 unsafe {
                     (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                 }
             }
             vpiDecStrVal => {
                 let c_str_ptr = store_value_str("0");
+                // SAFETY: `value_p` is caller-owned and writable
+                // for the duration of this call.
                 unsafe {
                     (*value_p).value.str_ = c_str_ptr as *mut PLI_BYTE8;
                 }
@@ -1117,6 +1301,8 @@ pub unsafe extern "C" fn wellen_vpi_get_value_from_index(
     // println!("[wellen_vpi_get_value] handle is {:?} format is {:?} value is {:?} signal_v is {:?}", handle, v_format, signal_bit_string, signal_v);
 }
 
+/// Fills `value_p` with the value at the time-table slot nearest to `time`.
+///
 /// # Safety
 /// `handle` must be a valid pointer. `value_p` must point to a valid `t_vpi_value`.
 #[unsafe(no_mangle)]
@@ -1126,11 +1312,15 @@ pub unsafe extern "C" fn wellen_vpi_get_value(
     value_p: p_vpi_value,
 ) {
     let time_table_idx = find_nearest_time_index(get_time_table(), time);
+    // SAFETY: this call forwards its own pointer contract unchanged.
     unsafe {
         wellen_vpi_get_value_from_index(handle, time_table_idx as u64, value_p);
     }
 }
 
+/// Returns the value at `time_table_idx` as a binary bit string in the
+/// thread-local buffer.
+///
 /// # Safety
 /// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
@@ -1138,16 +1328,22 @@ pub unsafe extern "C" fn wellen_get_value_str(
     handle: *mut c_void,
     time_table_idx: u64,
 ) -> *mut c_char {
+    // SAFETY: `handle` points to a live `vpiHandle` boxed by
+    // `wellen_vpi_handle_by_name`, per this function's contract; the value is copied
+    // out, so the borrow ends immediately.
     let handle = unsafe { *{ handle as *mut vpiHandle } };
     let loaded_signal = get_signal_cache()
         .get(&(handle as vpiHandle))
-        .unwrap()
+        .expect("signal handle is registered in the signal cache")
         .signal
         .borrow();
     let off = loaded_signal.get_offset(time_table_idx as u32);
 
     if let Some(off) = off {
-        let signal_bit_string = loaded_signal.get_value_at(&off, 0).to_bit_string().unwrap();
+        let signal_bit_string = loaded_signal
+            .get_value_at(&off, 0)
+            .to_bit_string()
+            .expect("bit vector value has a bit string");
         store_value_str(&signal_bit_string)
     } else {
         // No value found at time index 0, use default value: 0
@@ -1157,30 +1353,40 @@ pub unsafe extern "C" fn wellen_get_value_str(
     }
 }
 
+/// Implements `vpi_get`: returns the `vpiSize` of a signal handle.
+///
 /// # Safety
 /// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_get(property: PLI_INT32, handle: *mut c_void) -> PLI_INT32 {
+    // SAFETY: `handle` points to a live `vpiHandle` boxed by
+    // `wellen_vpi_handle_by_name`, per this function's contract; the value is copied
+    // out, so the borrow ends immediately.
     let handle = unsafe { *{ handle as *mut vpiHandle } };
     let loaded_signal = get_signal_cache()
         .get(&(handle as vpiHandle))
-        .unwrap()
+        .expect("signal handle is registered in the signal cache")
         .signal
         .borrow();
-    let first_indx = loaded_signal.get_first_time_idx().unwrap();
+    let first_indx = loaded_signal
+        .get_first_time_idx()
+        .expect("loaded signal has at least one stored time index");
     let off = loaded_signal
         .get_offset(first_indx)
         .unwrap_or_else(|| panic!("failed to get offset, signal => {:?}", loaded_signal));
     let signal_v = loaded_signal.get_value_at(&off, 0);
 
     match property as u32 {
-        vpiSize => signal_v.width().unwrap() as PLI_INT32,
+        vpiSize => signal_v.width().expect("bit vector value has a width") as PLI_INT32,
         _ => {
             todo!("property => {}", property)
         }
     }
 }
 
+/// Implements `vpi_get_str` for `vpiName`, `vpiDefName`, and `vpiType` on both
+/// signal and module handles; any other property yields null.
+///
 /// # Safety
 /// `handle` must be a valid pointer obtained from `wellen_vpi_handle_by_name`.
 #[unsafe(no_mangle)]
@@ -1191,6 +1397,9 @@ pub unsafe extern "C" fn wellen_vpi_get_str(
     let handle_addr = handle as usize;
     // First check module handle registry. Signal handles and module handles are both opaque pointers.
     if get_module_handle_ptr_map().contains_key(&handle_addr) {
+        // SAFETY: the registry lookup above proved this address is a live module handle
+        // created by `get_or_create_module_handle`; single-threaded backend, so the
+        // shared reference cannot overlap a mutation.
         let module_handle = unsafe { &*(handle as *const WellenModuleHandle) };
         match property as u32 {
             vpiName => module_handle.name.as_ptr() as *mut c_void,
@@ -1200,6 +1409,9 @@ pub unsafe extern "C" fn wellen_vpi_get_str(
             _ => std::ptr::null_mut(),
         }
     } else {
+        // SAFETY: `handle` points to a live `vpiHandle` boxed by
+        // `wellen_vpi_handle_by_name`, per this function's contract; the value is copied
+        // out, so the borrow ends immediately.
         let handle = unsafe { *{ handle as *mut vpiHandle } };
         match property as u32 {
             vpiName => get_signal_name_cache()
@@ -1209,7 +1421,7 @@ pub unsafe extern "C" fn wellen_vpi_get_str(
             vpiType => {
                 let var_type = get_signal_cache()
                     .get(&(handle as vpiHandle))
-                    .unwrap()
+                    .expect("signal handle is registered in the signal cache")
                     .var_type
                     .borrow();
                 match var_type {
@@ -1235,8 +1447,8 @@ fn is_valid_top_module_scope(hierarchy: &Hierarchy, scope_ref: ScopeRef) -> bool
 }
 
 #[inline]
-fn collect_module_scopes(_type: PLI_INT32, refHandle: *mut c_void) -> Vec<ScopeRef> {
-    if _type as u32 != vpiModule {
+fn collect_module_scopes(iter_type: PLI_INT32, refHandle: *mut c_void) -> Vec<ScopeRef> {
+    if iter_type as u32 != vpiModule {
         return Vec::new();
     }
 
@@ -1272,8 +1484,8 @@ fn map_var_type_to_vpi_iter_type(var_type: VarType) -> PLI_INT32 {
 }
 
 #[inline]
-fn collect_signal_handles(_type: PLI_INT32, refHandle: *mut c_void) -> Vec<*mut c_void> {
-    if _type as u32 != vpiNet && _type as u32 != vpiReg && _type as u32 != vpiMemory {
+fn collect_signal_handles(iter_type: PLI_INT32, refHandle: *mut c_void) -> Vec<*mut c_void> {
+    if iter_type as u32 != vpiNet && iter_type as u32 != vpiReg && iter_type as u32 != vpiMemory {
         return Vec::new();
     }
     if refHandle.is_null() {
@@ -1291,7 +1503,7 @@ fn collect_signal_handles(_type: PLI_INT32, refHandle: *mut c_void) -> Vec<*mut 
     let mut visited_signal_refs = HashSet::new();
     for var_ref in hierarchy[scope_ref].vars(hierarchy) {
         let var = &hierarchy[var_ref];
-        if map_var_type_to_vpi_iter_type(var.var_type()) != _type {
+        if map_var_type_to_vpi_iter_type(var.var_type()) != iter_type {
             continue;
         }
 
@@ -1302,6 +1514,8 @@ fn collect_signal_handles(_type: PLI_INT32, refHandle: *mut c_void) -> Vec<*mut 
 
         let full_name = var.full_name(hierarchy);
         let full_name_cstr = CString::new(full_name.as_str()).expect("signal name contains NUL");
+        // SAFETY: `full_name_cstr` is a `CString`, so the pointer is non-null and
+        // NUL-terminated.
         let signal_handle = unsafe { wellen_vpi_handle_by_name(full_name_cstr.as_ptr()) };
         if signal_handle.is_null() {
             continue;
@@ -1311,20 +1525,26 @@ fn collect_signal_handles(_type: PLI_INT32, refHandle: *mut c_void) -> Vec<*mut 
     signal_handles
 }
 
+/// Starts an iteration over the modules or signals of `refHandle`, or over the
+/// top-level modules when it is null; null means nothing to iterate.
+///
 /// # Safety
 /// `refHandle` must be a valid pointer or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wellen_vpi_iterate(
-    _type: PLI_INT32,
+    iter_type: PLI_INT32,
     refHandle: *mut c_void,
 ) -> *mut c_void {
-    let items = if _type as u32 == vpiModule {
-        collect_module_scopes(_type, refHandle)
+    let items = if iter_type as u32 == vpiModule {
+        collect_module_scopes(iter_type, refHandle)
             .into_iter()
             .map(WellenIteratorItem::Module)
             .collect::<Vec<_>>()
-    } else if _type as u32 == vpiNet || _type as u32 == vpiReg || _type as u32 == vpiMemory {
-        collect_signal_handles(_type, refHandle)
+    } else if iter_type as u32 == vpiNet
+        || iter_type as u32 == vpiReg
+        || iter_type as u32 == vpiMemory
+    {
+        collect_signal_handles(iter_type, refHandle)
             .into_iter()
             .map(WellenIteratorItem::Signal)
             .collect::<Vec<_>>()
@@ -1343,6 +1563,8 @@ pub unsafe extern "C" fn wellen_vpi_iterate(
     iterator_ptr as *mut c_void
 }
 
+/// Returns the next handle of `iterator`, or null once it is exhausted.
+///
 /// # Safety
 /// `iterator` must be a valid pointer returned by `wellen_vpi_iterate`.
 #[unsafe(no_mangle)]
@@ -1356,10 +1578,15 @@ pub unsafe extern "C" fn wellen_vpi_scan(iterator: *mut c_void) -> *mut c_void {
         return std::ptr::null_mut();
     }
 
+    // SAFETY: the registry check above proved `iterator` came from `Box::into_raw` in
+    // `wellen_vpi_iterate` and is still live; single-threaded backend, so this is the
+    // only mutable reference to it.
     let iter = unsafe { &mut *(iterator as *mut WellenModuleIterator) };
     if iter.index >= iter.items.len() {
         // Match VPI behavior: once exhausted, iterator is consumed and released.
         get_iterator_handle_ptr_set().remove(&iterator_addr);
+        // SAFETY: the iterator was just removed from the registry, so nothing else can
+        // reach it and this call owns the allocation.
         let _ = unsafe { Box::from_raw(iterator as *mut WellenModuleIterator) };
         return std::ptr::null_mut();
     }
@@ -1375,18 +1602,25 @@ pub unsafe extern "C" fn wellen_vpi_scan(iterator: *mut c_void) -> *mut c_void {
     }
 }
 
+/// Returns the simulation time stored in a time-table slot.
+///
+/// # Panics
+/// Panics when `index` is not below the time-table length.
 #[unsafe(no_mangle)]
 pub extern "C" fn wellen_get_time_from_index(index: u64) -> u64 {
     let time_table = get_time_table();
     time_table[index as usize]
 }
 
+/// Returns the index of the time-table slot nearest to `time`.
 #[unsafe(no_mangle)]
 pub extern "C" fn wellen_get_index_from_time(time: u64) -> u64 {
     let time_table = get_time_table();
     find_nearest_time_index(time_table, time) as u64
 }
 
+/// Returns the last valid time-table index.
+///
 /// # Safety
 /// Must be called after `wellen_initialize`.
 #[unsafe(no_mangle)]
@@ -1395,8 +1629,8 @@ pub unsafe extern "C" fn wellen_get_max_index() -> u64 {
     time_table.len().saturating_sub(1) as u64
 }
 
-/// Get time precision from waveform file
-/// Returns the exponent (e.g., -9 for ns, -12 for ps)
+/// Returns the waveform time precision as an exponent, e.g. -9 for ns and -12
+/// for ps; a file without timescale information reports -9.
 #[unsafe(no_mangle)]
 pub extern "C" fn wellen_get_time_precision() -> i32 {
     let hierarchy = get_hierarchy();
@@ -1438,7 +1672,7 @@ mod tests {
 
         for data in &test_cases {
             let full = bytes_to_u32s_be(data);
-            let last_full = *full.last().unwrap();
+            let last_full = *full.last().expect("test case is non-empty");
             let last_opt = bytes_last_u32_be(data);
             assert_eq!(
                 last_full, last_opt,
