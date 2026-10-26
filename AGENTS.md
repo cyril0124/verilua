@@ -51,6 +51,7 @@
 - Add concise English comments for important or non-obvious code blocks when they improve readability.
 - After modifying Lua files, run `xmake r format-lua` (uses `scripts/emmylua_format.py`; `F` can select a file/dir).
 - After modifying C or C++ files, run `xmake r format-cpp`.
+- Rust code follows the Google Rust Style Guide (`https://google.github.io/styleguide/rustguide.html`): every `unsafe` block needs a `// SAFETY:` comment, and crates enable `#![deny(clippy::undocumented_unsafe_blocks)]`.
 
 ## Environment Variable Naming
 
