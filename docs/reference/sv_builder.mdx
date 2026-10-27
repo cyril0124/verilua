@@ -216,7 +216,7 @@ ctx:add "raw"        { name = "helper", expr = "logic sample_en;" }
 |------|------|------|------|
 | `name` | string | ✓ | 语句名称，整个 context 内唯一 |
 | `expr` | string | ✓ | SVA/SV 表达式，支持 `$(var)` 模板语法 |
-| `envs` | table | | 模板变量表，key→value 映射 |
+| `envs` | table | | 模板变量表，key→value 映射；`seq` / `prop` / `cov` 为保留键（见后文命名空间引用） |
 | `formal_args` | string | | 仅 `sequence`/`property` 有效：形参列表，如 `"logic req, logic ack"`，直接插入括号内 |
 | `cov_type` | string | | 仅 cover 有效：`"property"`（默认）或 `"sequence"` |
 | `sample_event` | string | | 仅 covergroup 有效：覆盖默认采样事件 |
@@ -295,6 +295,14 @@ ctx:set_block_comments(false)  -- 不输出块标记
 清空已收集的语句、命名空间、模板变量和默认时钟，保留 lint、覆盖率报告及块注释设置。返回 `self`。
 
 ## 命名空间引用：`$(seq:name)` / `$(prop:name)` / `$(cov:name)`
+
+`envs` 和 `with_global_envs` 里的 `seq` / `prop` / `cov` 是保留键，三个命名空间表由 SVBuilder 在每次 `add` 时注入。`with_global_envs` 设置时不校验这三个键，错误在下一次 `add` 时抛出：
+
+```lua
+ctx:with_global_envs { seq = "my_seq" }
+ctx:add "raw" { name = "r1", expr = "x" }
+-- [SVBuilder] add error: `envs` contains reserved key `seq`; this name is used for the sequence namespace
+```
 
 通过 `ctx:add "sequence"` 或 `ctx:add "property"` 定义的语句，必须通过命名空间前缀引用：
 
@@ -551,7 +559,7 @@ ctx:set_coverage_report(false)  -- 禁用 final block 生成
 | `name` | string | ✓ | covergroup 名称（必须唯一） |
 | `expr` | string | ✓ | covergroup 体（coverpoint/bins/cross/option），支持 `$(var)` 模板语法 |
 | `sample_event` | string | ✗ | 覆盖默认采样事件（默认复用 `default_clocking`）；也支持 `"with function sample(...)"` 声明显式采样形参 |
-| `envs` | table | ✗ | 模板变量，handle 自动解析为 XMR 路径 |
+| `envs` | table | ✗ | 模板变量，handle 自动解析为 XMR 路径；`seq` / `prop` / `cov` 为保留键 |
 
 ### 覆盖采样事件
 

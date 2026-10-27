@@ -37,7 +37,7 @@ local debug_getinfo = debug.getinfo
 ---@field formal_args? string For `add "sequence"` and `add "property"` only: formal parameter list, e.g. `"logic req, logic ack"`. Emitted verbatim between the parentheses.
 ---@field cov_type? "sequence" | "property" For `add "cover"` only: wrap as sequence or property (default: "property").
 ---@field sample_event? string For `add "covergroup"` only: per-covergroup sampling event override (e.g. "posedge alt_clk").
----@field envs? table<string, any> Per-call template variables; merged on top of global_envs.
+---@field envs? table<string, any> Per-call template variables; merged on top of global_envs. Keys `seq`, `prop`, `cov` are reserved for the namespace handles; using them fails at the next `add`.
 
 ---@class verilua.sv.SVBuilder.statement
 ---@field typ "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"
@@ -62,7 +62,7 @@ local debug_getinfo = debug.getinfo
 ---@field private block_comments_enabled boolean Whether named begin/end markers and Lua source locations are emitted (default false).
 ---@field private lint_enabled boolean Whether automatic sv_lint checking is active on each `add` call.
 ---@field private _lint_dump_paths string[] Absolute paths of lint-fail dumps written this process.
----@field with_global_envs fun(self: verilua.sv.SVBuilder, envs: table<string, any>): verilua.sv.SVBuilder Register global template variables for all subsequent `add` calls.
+---@field with_global_envs fun(self: verilua.sv.SVBuilder, envs: table<string, any>): verilua.sv.SVBuilder Register global template variables for all subsequent `add` calls. Keys `seq`, `prop`, `cov` are reserved for the namespace handles; using them fails at the next `add`.
 ---@field add fun(self: verilua.sv.SVBuilder, typ: "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"): fun(params: verilua.sv.SVBuilder.add.params): verilua.sv.SVBuilder.property | verilua.sv.SVBuilder.sequence | verilua.sv.SVBuilder.covergroup | nil Curried entry point: select type, then pass params. `add "covergroup"` returns a `covergroup` handle whose `.inst_name` field holds the generated instance name; the handle is also accessible via `$(cov:name)` in subsequent `add "raw"` expressions.
 ---@field default_clocking fun(self: verilua.sv.SVBuilder, signal: string|verilua.handles.CallableHDL|verilua.handles.ProxyTableHandle, edge_type: "posedge" | "negedge", overwrite: boolean?): verilua.sv.SVBuilder Set the default sampling clock for SVA and covergroups.
 ---@field clean fun(self: verilua.sv.SVBuilder): verilua.sv.SVBuilder Reset all internal state to empty.
