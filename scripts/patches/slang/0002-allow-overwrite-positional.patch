@@ -1,16 +1,20 @@
 From 0000000000000000000000000000000000000002 Mon Sep 17 00:00:00 2001
 From: cyril0124 <211998078@qq.com>
-Date: Tue, 1 Apr 2025 14:52:37 +0800
+Date: Tue, 27 Oct 2026 00:00:00 +0800
 Subject: [PATCH 2/4] feat: add allowOverWrite parameter to setPositional
  methods for CommandLine
 
-Rebased for slang v11.0.
+Rebased for slang v12.1.
 ---
+ include/slang/util/CommandLine.h | 4 ++--
+ source/util/CommandLine.cpp      | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
 diff --git a/include/slang/util/CommandLine.h b/include/slang/util/CommandLine.h
-index 5849829..7d1f54b 100644
+index 87f3cb3..6769cef 100644
 --- a/include/slang/util/CommandLine.h
 +++ b/include/slang/util/CommandLine.h
-@@ -293,7 +293,7 @@ public:
+@@ -304,7 +304,7 @@ public:
      /// @param flags additional flags that control how the option behaves
      /// @note only one variable or callback be set to receive positional arguments
      void setPositional(std::vector<std::string>& values, std::string_view valueName,
@@ -19,7 +23,7 @@ index 5849829..7d1f54b 100644
  
      /// Set a callback that will receive any positional arguments provided
      /// on the command line.
-@@ -303,7 +303,7 @@ public:
+@@ -314,7 +314,7 @@ public:
      /// @param flags additional flags that control how the option behaves
      /// @note only one variable or callback be set to receive positional arguments
      void setPositional(const OptionStrCallback& cb, std::string_view valueName,
@@ -29,10 +33,10 @@ index 5849829..7d1f54b 100644
      /// Adds a command that will be ignored if encountered during argument parsing.
      ///
 diff --git a/source/util/CommandLine.cpp b/source/util/CommandLine.cpp
-index 8a62b3a..7bc6712 100644
+index 3de116a..77945c2 100644
 --- a/source/util/CommandLine.cpp
 +++ b/source/util/CommandLine.cpp
-@@ -142,8 +142,8 @@ void CommandLine::addInternal(std::string_view name, OptionStorage storage, std:
+@@ -147,8 +147,8 @@ void CommandLine::addInternal(std::string_view name, OptionStorage storage, std:
  }
  
  void CommandLine::setPositional(std::vector<std::string>& values, std::string_view valueName,
@@ -43,7 +47,7 @@ index 8a62b3a..7bc6712 100644
          SLANG_THROW(std::runtime_error("Can only set one positional argument"));
  
      positional = std::make_shared<Option>(*this);
-@@ -153,8 +153,8 @@ void CommandLine::setPositional(std::vector<std::string>& values, std::string_vi
+@@ -158,8 +158,8 @@ void CommandLine::setPositional(std::vector<std::string>& values, std::string_vi
  }
  
  void CommandLine::setPositional(const OptionStrCallback& cb, std::string_view valueName,
@@ -55,4 +59,5 @@ index 8a62b3a..7bc6712 100644
  
      positional = std::make_shared<Option>(*this);
 -- 
-2.52.0
+2.34.1
+

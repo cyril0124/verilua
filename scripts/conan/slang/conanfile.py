@@ -7,11 +7,14 @@ from conan.tools.files import get, copy, patch
 
 class SlangConan(ConanFile):
     name = "slang"
-    version = "11.0"
+    version = "12.1"
     license = "MIT"
     url = "https://github.com/MikePopoloski/slang"
     description = "SystemVerilog compiler and language services"
     settings = "os", "compiler", "build_type", "arch"
+    # slang 12 keeps fmt private; requiring it here lets SLANG_USE_SYSTEM_FMT link
+    # the same fmt version as the rest of Verilua instead of a bundled copy.
+    requires = "fmt/12.1.0"
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {"shared": False, "fPIC": True}
     generators = "CMakeDeps"
@@ -25,7 +28,7 @@ class SlangConan(ConanFile):
                  dst=os.path.join(self.export_sources_folder, "patches"))
 
     def source(self):
-        get(self, "https://github.com/MikePopoloski/slang/archive/refs/tags/v11.0.tar.gz",
+        get(self, "https://github.com/MikePopoloski/slang/archive/refs/tags/v12.1.tar.gz",
             strip_root=True)
         self._apply_patches()
 
@@ -41,6 +44,11 @@ class SlangConan(ConanFile):
                 self.output.info(f"Applying patch: {os.path.basename(pf)}")
                 patch(self, patch_file=pf)
 
+    def configure(self):
+        # slang 12 requires C++20; force it so a profile defaulting to an older
+        # standard cannot break the build.
+        self.settings.compiler.cppstd = "20" if self.settings.compiler == "msvc" else "gnu20"
+
     def layout(self):
         cmake_layout(self)
 
@@ -48,7 +56,9 @@ class SlangConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["SLANG_INCLUDE_TOOLS"] = "OFF"
         tc.variables["SLANG_INCLUDE_TESTS"] = "OFF"
-        tc.variables["SLANG_USE_MIMALLOC"] = "ON"
+        # slang 12 fetches mimalloc 3.5 on its own; Verilua already links mimalloc.
+        tc.variables["SLANG_USE_MIMALLOC"] = "OFF"
+        tc.variables["SLANG_USE_SYSTEM_FMT"] = "ON"
         tc.variables["CMAKE_POSITION_INDEPENDENT_CODE"] = "ON"
         tc.variables["BUILD_SHARED_LIBS"] = "ON" if self.options.shared else "OFF"
         tc.generate()

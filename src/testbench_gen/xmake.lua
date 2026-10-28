@@ -25,8 +25,6 @@ target("testbench_gen", function()
         path.join(slang_common_dir, "*.cpp")
     )
 
-    add_defines("SLANG_BOOST_SINGLE_HEADER")
-
     add_includedirs(
         curr_dir,
         slang_common_dir,

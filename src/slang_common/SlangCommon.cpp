@@ -308,6 +308,8 @@ bool Driver::processOptions(bool singleUnit) {
     driver.options.singleUnit = singleUnit;
     bool success              = driver.processOptions();
 
+    keepInputPortsAsVars(driver);
+
     auto &options = driver.options;
 
     // Parser options
@@ -418,17 +420,13 @@ std::unique_ptr<slang::ast::Compilation> Driver::createAndReportCompilation(bool
 
 std::shared_ptr<SyntaxTree> Driver::rebuildSyntaxTree(const SyntaxTree &oldTree, bool printTree, int errorLimit) { return slang_common::rebuildSyntaxTree(oldTree, printTree, errorLimit, this->getEmptySourceManager(), this->getBag()); }
 
+void keepInputPortsAsVars(slang::driver::Driver &driver) {
+    driver.options.compilationFlags[CompilationFlags::InferInputPortsAsVars] = true;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers — symbol lookup and hierarchy traversal
 // ---------------------------------------------------------------------------
-
-// Look up the DefinitionSymbol for a module declaration syntax node.
-const DefinitionSymbol *getDefSymbol(std::shared_ptr<SyntaxTree> tree, const ModuleDeclarationSyntax &syntax) {
-    Compilation compilation;
-    compilation.addSyntaxTree(tree);
-
-    return compilation.getDefinition(static_cast<const Scope &>(compilation.getRoot()), syntax);
-}
 
 // Create a default instance of the module described by `syntax`.
 const InstanceSymbol *getInstSymbol(Compilation &compilation, const ModuleDeclarationSyntax &syntax) {

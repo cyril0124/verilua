@@ -16,8 +16,6 @@ target("cov_exporter", function()
         path.join(slang_common_dir, "*.cpp")
     )
 
-    add_defines("SLANG_BOOST_SINGLE_HEADER")
-
     add_includedirs(
         slang_common_dir,
         path.join(libs_dir, "include"),

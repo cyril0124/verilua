@@ -73,6 +73,8 @@ inline LintResult lint(std::string_view sv_text) {
     // Run lint-mode compilation
     CompilationOptions compOptions;
     compOptions.flags |= CompilationFlags::LintMode;
+    // No driver here to run keepInputPortsAsVars on, so set the same input-port rule directly.
+    compOptions.flags |= CompilationFlags::InferInputPortsAsVars;
     Bag compBag;
     compBag.set(compOptions);
 

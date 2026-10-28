@@ -26,8 +26,6 @@ target("signal_db_gen", function()
         path.join(slang_common_dir, "*.cpp")
     )
 
-    add_defines("SLANG_BOOST_SINGLE_HEADER")
-
     add_includedirs(
         curr_dir,
         slang_common_dir,
@@ -71,8 +69,6 @@ target("libsignal_db_gen", function()
         path.join(curr_dir, "signal_db_gen_lib.cpp"),
         path.join(slang_common_dir, "*.cpp")
     )
-
-    add_defines("SLANG_BOOST_SINGLE_HEADER")
 
     add_includedirs(
         curr_dir,

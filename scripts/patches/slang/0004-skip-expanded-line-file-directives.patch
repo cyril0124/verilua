@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000004 Mon Sep 17 00:00:00 2001
 From: cyril0124 <211998078@qq.com>
-Date: Sun, 29 Dec 2024 19:42:55 +0800
+Date: Tue, 27 Oct 2026 00:00:00 +0800
 Subject: [PATCH 4/4] fix: skip expanded `__LINE__ and `__FILE__ literals in
  SyntaxPrinter
 
@@ -8,8 +8,12 @@ When reprinting a modified syntax tree, the expanded integer/string
 literals following `__LINE__ / `__FILE__ directives are stale.
 Suppress them so only the directive itself is emitted.
 
-Rebased for slang v11.0.
+Rebased for slang v12.1.
 ---
+ include/slang/syntax/SyntaxPrinter.h |  8 ++++++-
+ source/syntax/SyntaxPrinter.cpp      | 33 ++++++++++++++++++++++++++--
+ 2 files changed, 38 insertions(+), 3 deletions(-)
+
 diff --git a/include/slang/syntax/SyntaxPrinter.h b/include/slang/syntax/SyntaxPrinter.h
 index 32632e6..cc79a00 100644
 --- a/include/slang/syntax/SyntaxPrinter.h
@@ -109,4 +113,5 @@ index 8ccc008..273d632 100644
          buffer.append(text);
          return *this;
 -- 
-2.52.0
+2.34.1
+

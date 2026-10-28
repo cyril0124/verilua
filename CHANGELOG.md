@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **SVBuilder**: Emit statements in `add` call order instead of grouping them by type. Leading `raw` declarations precede `default clocking`; the coverage report remains last. Lint checks preceding statements in the same order, including covergroup instances.
 - **SVBuilder**: Lint failure errors now include both the Lua file/line of the `ctx:add(...)` call and the path of the generated SV dump, so a Lua definition can be traced to slang's line/column diagnostic. The dump file is now written to a fixed path, `VL_BUILD_DIR/svbuilder/lint/sv_builder_lint.sv` (falling back to `.svbuilder/lint/sv_builder_lint.sv` when running Lua directly) instead of the global `/tmp`, and only the most recent failing input is kept per build directory.
 - **testbench_gen**: `--help` now marks the `--cc` / `--ccs` / `--cco` / `--ccso` (`--custom-code*`) option names as deprecated aliases and points at `--iif` / `--iis` / `--iof` / `--ios` (`--inject-*`). The aliases keep working; only the help text changed.
+- **deps / slang**: Upgrade slang from v11.0 to [v12.1](https://github.com/MikePopoloski/slang/releases/tag/v12.1); building from source now needs CMake 3.28 and C++20.
 
 ### 💥 Breaking Changes
 

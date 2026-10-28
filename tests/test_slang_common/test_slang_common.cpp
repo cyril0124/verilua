@@ -5,6 +5,8 @@
 #include "SemanticModel.h"
 #include "SlangCommon.h"
 
+#include "slang/ast/symbols/CompilationUnitSymbols.h"
+
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
@@ -84,8 +86,8 @@ endmodule
     auto instSymbol = model.syntaxToInstanceSymbol(modDecl);
     assert(instSymbol != nullptr);
 
-    // getDefSymbol / getInstSymbol helpers
-    auto defSym = slang_common::getDefSymbol(tree, modDecl);
+    // getDefinition / getInstSymbol helpers
+    auto *defSym = compilation.getDefinition(static_cast<const Scope &>(compilation.getRoot()), modDecl);
     assert(defSym != nullptr);
     assert(defSym->name == "adder");
 

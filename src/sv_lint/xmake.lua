@@ -20,8 +20,6 @@ target("sv_lint", function()
 
     add_files(path.join(curr_dir, "main.cpp"))
 
-    add_defines("SLANG_BOOST_SINGLE_HEADER")
-
     add_includedirs(
         curr_dir,
         path.join(libs_dir, "include"),
@@ -60,8 +58,6 @@ target("libsv_lint", function()
     end
 
     add_files(path.join(curr_dir, "sv_lint_lib.cpp"))
-
-    add_defines("SLANG_BOOST_SINGLE_HEADER")
 
     add_includedirs(
         curr_dir,

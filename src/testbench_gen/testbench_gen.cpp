@@ -87,6 +87,7 @@ int main(int argc, const char *argv[]) {
     }
 
     ASSERT(driver.processOptions());
+    slang_common::keepInputPortsAsVars(driver);
 
     std::string tbtopName           = _tbtopName.value_or("tb_top");
     std::string dutName             = _dutName.value_or("");
@@ -863,6 +864,7 @@ endmodule
         driver.options.topModules.push_back(tbtopName);
 
         ASSERT(driver.processOptions());
+        slang_common::keepInputPortsAsVars(driver);
         ASSERT(driver.parseAllSources());
 
         ASSERT(driver.runFullCompilation(!verbose));

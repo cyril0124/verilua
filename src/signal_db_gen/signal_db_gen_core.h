@@ -15,6 +15,7 @@
 #include "slang/driver/Driver.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/util/Util.h"
+#include "SlangCommon.h"
 #include "sol/sol.hpp"
 #include "vl_assert.h"
 #include <algorithm>
@@ -483,6 +484,7 @@ class WrappedDriver {
         }
 
         ASSERT(driver.processOptions());
+        slang_common::keepInputPortsAsVars(driver);
         ASSERT(driver.parseAllSources());
         ASSERT(driver.reportParseDiags());
 

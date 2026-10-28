@@ -95,7 +95,11 @@ class Driver {
     std::shared_ptr<SyntaxTree> rebuildSyntaxTree(const SyntaxTree &oldTree, bool printTree = false, int errorLimit = 0);
 };
 
-const DefinitionSymbol *getDefSymbol(std::shared_ptr<SyntaxTree> tree, const ModuleDeclarationSyntax &syntax);
+/// Keep ANSI input ports that omit the net/var kind as variables.
+///
+/// The LRM makes them nets (slang 12 follows it), but Verilua enumerates ports as
+/// variables, so every slang-backed tool calls this after parsing its options.
+void keepInputPortsAsVars(slang::driver::Driver &driver);
 
 const InstanceSymbol *getInstSymbol(Compilation &compilation, const ModuleDeclarationSyntax &syntax);
 
