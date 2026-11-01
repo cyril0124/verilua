@@ -4,13 +4,13 @@ local data_wide = dut.data_wide:chdl()
 
 fork {
     function()
-        -- Advance one cycle to be at a known good state
-        clock:posedge()
+        -- Sample the reset assignment from the first edge before the second edge.
+        clock:posedge(2)
 
         local hex_b = data_b:get_hex_str()
         local bin_b = data_b:get_bin_str()
-        print("[cycle 1] data_b hex_str: " .. hex_b)
-        print("[cycle 1] data_b bin_str: " .. bin_b)
+        print("[during reset] data_b hex_str: " .. hex_b)
+        print("[during reset] data_b bin_str: " .. bin_b)
 
         -- data_b should have X values: upper nibble = 0xA (1010), lower nibble = X
         assert(
@@ -24,7 +24,7 @@ fork {
 
         -- get_dec_str should return "x" when X-state is present
         local dec_b = data_b:get_dec_str()
-        print("[cycle 1] data_b dec_str: " .. dec_b)
+        print("[during reset] data_b dec_str: " .. dec_b)
         assert(
             dec_b == "x",
             string.format("Expected 'x' for data_b dec_str with X-state, got: %s", dec_b)

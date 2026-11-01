@@ -34,6 +34,31 @@ inline char *uint32_to_dec_str(char *buf, size_t buf_size, uint32_t value) {
 
 namespace vpi_compat {
 
+// Set by the CLI before waveform initialization.
+inline bool ignoreWrites = false;
+
+// During cbValueChange, the triggering handle reads "current"; other handles
+// read "before". Outside callbacks or after a cursor jump, all reads are current.
+// Reading either view leaves the cursor and simulation time unchanged.
+//
+// Example: count changes 5 -> 6 at tick 100; no changes occur between 90 and 100.
+// clang-format off
+// tick     90                  100                 110
+//           |                   |                   |
+// clock                         +-------------------+
+//           --------------------+                   +-----
+// count     ========= 5 ========|========== 6 ============
+// sample    A                 B C D
+//
+//         before                     current (JIT buffer)
+// FSDB    B: 99 (t - 1 tick)          D: 101 (t + 1 tick)
+// Wellen  A: 90 (index i - 1)         C: 100 (index i)
+// clang-format on
+//
+// optValueVec caches current snapshots, not before values. Before reads bypass
+// that cache; FSDB bounds current reader sampling at the waveform end.
+inline vpiHandle samplingEventObject = nullptr;
+
 extern bool vpiControlTerminate;
 extern std::string terminateReason;
 

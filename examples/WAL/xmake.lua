@@ -2,6 +2,19 @@
 
 local sim = os.getenv("SIM") or "verilator"
 
+target("replay_wave", function()
+    set_default(false)
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")
+    local extension = sim == "vcs" and "vcd.fsdb" or "vcd"
+    add_files("./build/" .. sim .. "/Counter/wave/test." .. extension)
+    add_files("./Monitor.lua")
+    set_values("verilua.top", "tb_top")
+    set_values("verilua.build_dir_name", "replay_wave")
+    set_values("verilua.lua_main", "./main.lua")
+    set_values("wave_vpi.run_flags", "--ignore-writes")
+end)
+
 target("gen_wave", function()
     add_rules("verilua")
 

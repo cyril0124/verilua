@@ -1,4 +1,5 @@
 #include "jit_options.h"
+#include "vpi_compat.h"
 #include "wave_vpi.h"
 #include <cstdint>
 
@@ -16,9 +17,13 @@ extern "C" uint64_t wave_vpi_ctrl_get_max_cursor_index() { return cursor.maxInde
 
 extern "C" uint64_t wave_vpi_ctrl_get_max_cursor_time() { return cursor.maxTime; }
 
-extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) { cursor.index = index; }
+extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) {
+    vpi_compat::samplingEventObject = nullptr;
+    cursor.index                    = index;
+}
 
 extern "C" void wave_vpi_ctrl_set_cursor_index_percent(double percent) {
+    vpi_compat::samplingEventObject = nullptr;
     if (percent >= 100) {
         cursor.index = cursor.maxIndex - 1;
     } else {
@@ -66,6 +71,7 @@ extern "C" uint64_t wave_vpi_ctrl_get_jit_options(const char *opt_name) {
 }
 
 extern "C" void wave_vpi_ctrl_set_cursor_time(uint64_t time) {
+    vpi_compat::samplingEventObject = nullptr;
     uint64_t targetIndex;
 #ifdef USE_FSDB
     targetIndex = fsdb_wave_vpi::fsdbWaveVpi->findNearestTimeIndex(time);

@@ -1,6 +1,7 @@
 local wctrl = require "verilua.utils.WaveVpiCtrl"
 
 local clock = dut.clock:chdl()
+local reset_proxy = dut.reset --[[@as verilua.handles.ProxyTableHandle]]
 local wtype = os.getenv("WTYPE") or "fsdb"
 local final_cycles = wtype == "fsdb" and 111 or 112
 
@@ -28,24 +29,24 @@ if tc_name == "basic" then
     fork {
         function()
             dut.cycles:expect(0)
-            dut.reset:expect(1)
+            reset_proxy:expect(1)
 
             clock:posedge(10, function()
                 -- Reset is always `1`
                 dut.u_top.count:expect(0)
             end)
-            dut.cycles:expect(10)
-            dut.reset:expect(1)
+            dut.cycles:expect(9)
+            reset_proxy:expect(1)
 
             clock:posedge()
-            dut.reset:expect(0)
+            reset_proxy:expect(1)
 
             dut.u_top.count:expect(0)
 
             clock:posedge(100, function(c)
-                dut.u_top.count:expect(c - 1)
+                dut.u_top.count:expect(math.max(c - 2, 0))
             end)
-            dut.cycles:expect(111)
+            dut.cycles:expect(110)
 
             tc_finish()
         end
@@ -103,7 +104,7 @@ elseif tc_name == "to_end_2" then
 
             clock:posedge(11)
 
-            dut.cycles:expect(11)
+            dut.cycles:expect(10)
             assert(cnt == 10)
 
             wctrl:to_percent(50, true)
@@ -224,13 +225,111 @@ elseif tc_name == "set_cursor_time_unit" then
             tc_finish()
         end
     }
+elseif tc_name == "sampling_phase" then
+    local reached_eof = false
+    final {
+        function()
+            assert(reached_eof, "the final waveform timestamp was not dispatched")
+        end,
+    }
+    fork {
+        function()
+            clock:posedge()
+            clock:expect(1)
+            dut.cycles:expect(0)
+
+            local edge_time = sim.get_sim_time()
+            wctrl:set_cursor_index(wctrl:get_cursor_index(), true)
+            dut.cycles:expect(1)
+            assert(sim.get_sim_time() == edge_time, "a same-index query changed event time")
+
+            local reset = ("tb_top.reset"):chdl()
+            reset:negedge()
+            reset:expect(0)
+            clock:expect(0)
+            local before_reset_cycle = tonumber(dut.cycles:get())
+            assert(before_reset_cycle)
+            ---@cast before_reset_cycle integer
+            wctrl:set_cursor_time(sim.get_sim_time(), "step", true)
+            clock:expect(1)
+            dut.cycles:expect(before_reset_cycle + 1)
+
+            clock:posedge()
+            wctrl:to_percent(50, true)
+            dut.cycles:expect(56)
+
+            local max_time = tonumber(wctrl:get_max_cursor_time())
+            assert(max_time)
+            local remaining = math.floor(max_time - sim.get_sim_time())
+            assert(remaining > 0)
+            await_time(remaining)
+            assert(sim.get_sim_time() == max_time, "final timestamp callback ran at the wrong time")
+            assert(wctrl:get_cursor_index() == wctrl:get_max_cursor_index())
+            reached_eof = true
+            tc_finish()
+        end,
+    }
+elseif tc_name == "sampling_boundary" then
+    fork {
+        function()
+            io.stdout:setvbuf("no")
+            local cycles = dut.cycles:chdl()
+            local reset_signal = reset_proxy:chdl()
+            local use_jit = wctrl.jit_options:get("enable") == true
+            local jit_label = use_jit and "1" or "0"
+            local reset_release_edge = 11
+
+            wctrl.jit_options:set("enable", false)
+            cycles:expect(0)
+            reset_signal:expect(1)
+            if use_jit then
+                wctrl.jit_options:set("verbose", true)
+                wctrl.jit_options:set("hot_access_threshold", 1)
+                wctrl.jit_options:set("compile_window_size", 32)
+                wctrl.jit_options:set("recompile_window_size", 32)
+                wctrl.jit_options:set("enable", true)
+                -- Request a second window through a cache hit; the runner verifies its log.
+                local warmup_deadline = os.clock() + 0.1
+                repeat
+                    reset_signal:expect(1)
+                until os.clock() >= warmup_deadline
+                wctrl.jit_options:set("enable", false)
+            end
+
+            print("SAMPLING_BOUNDARY_BEGIN jit=" .. jit_label)
+            for edge = 1, reset_release_edge + 1 do
+                -- Keep callback detection out of the cache warmup under test.
+                clock:posedge()
+                clock:expect(1)
+                wctrl.jit_options:set("enable", use_jit)
+                cycles:expect(edge - 1)
+                reset_signal:expect(edge <= reset_release_edge and 1 or 0)
+
+                local edge_time = sim.get_sim_time()
+                wctrl:set_cursor_index(wctrl:get_cursor_index(), true)
+                cycles:expect(edge)
+                reset_signal:expect(edge < reset_release_edge and 1 or 0)
+                assert(sim.get_sim_time() == edge_time, "snapshot query changed event time")
+
+                wctrl.jit_options:set("enable", false)
+                clock:negedge()
+                clock:expect(0)
+                wctrl.jit_options:set("enable", use_jit)
+                cycles:expect(edge)
+                reset_signal:expect(edge < reset_release_edge and 1 or 0)
+                wctrl.jit_options:set("enable", false)
+            end
+            print("SAMPLING_BOUNDARY_PASS jit=" .. jit_label)
+            tc_finish()
+        end,
+    }
 elseif tc_name == "padding" then
     -- Test reading a 50-bit register (non-power-of-2 width) to verify padding correctness
     fork {
         function()
-            dut.reset:expect(1)
-            clock:posedge()
-            -- During reset, 50-bit value should be 0x10000000
+            reset_proxy:expect(1)
+            clock:posedge(2)
+            -- The first reset edge has initialized the 50-bit register.
             dut.u_top.value:expect_hex_str("10000000")
 
             tc_finish()

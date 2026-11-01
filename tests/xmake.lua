@@ -402,6 +402,7 @@ end)
 -- Wave VPI tests — each directory gets its own parallel target
 for _, dir in ipairs({
     "test_wave_vpi",
+    "test_wave_vpi_replay",
     "test_wave_vpi_x",
     "test_wave_vpi_print_hier",
     "test_wave_vpi_module_name",

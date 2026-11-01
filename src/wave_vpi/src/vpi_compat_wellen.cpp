@@ -4,8 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-// Unsupported:
-//      vpi_put_value(handle, &v, NULL, vpiNoDelay); // wave_vpi is considered a read-only waveform simulate backend in verilua
+// Signal writes are rejected by default; --ignore-writes accepts them as no-ops.
 //
 // Supported:
 //      OK => vpi_get_value(handle, &v);
@@ -178,7 +177,7 @@ PLI_INT32 vpi_free_object(vpiHandle object) {
 PLI_INT32 vpi_release_handle(vpiHandle object) { return vpi_free_object(object); }
 
 vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
-    VL_FATAL(false, "Unsupported in wave_vpi, all signals are read-only!");
+    VL_FATAL(ignoreWrites, "Unsupported in wave_vpi, all signals are read-only! Use --ignore-writes to discard writes during replay.");
     return nullptr;
 }
 
@@ -453,8 +452,6 @@ static void wellenOptThreadTask(SignalHandlePtr sigHdl) {
 
     optFunc(currentCursorIdx, optFinishIdx);
 
-    // No longer need optFinish flag — optFinishIdx is progressively updated by optFunc
-
     // lock.unlock();
 
 #ifdef PROFILE_JIT
@@ -525,9 +522,15 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
 
     auto _sigHdl = reinterpret_cast<SignalHandlePtr>(sigHdl);
     auto vpiHdl  = _sigHdl->vpiHdl;
+    uint64_t sampleIndex;
+
+    const bool preEdgeRead = samplingEventObject != nullptr && sigHdl != samplingEventObject;
+    // The JIT buffer stores current snapshots; before reads use the reader.
+    if (preEdgeRead)
+        goto ReadBefore;
 
     if (!_sigHdl->canOpt || !jit_options::enableJIT)
-        goto ReadFromWellen;
+        goto ReadCurrent;
 
     {
         // Progressive read: check optFinishIdx (atomic) to determine if fast path is available.
@@ -537,7 +540,7 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
             auto _optBaseIdx = _sigHdl->optBaseIdx.load(std::memory_order_acquire);
             if (cursor.index < _optBaseIdx || cursor.index >= _optFinishIdx) {
                 // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, _optFinishIdx, _sigHdl->name);
-                goto ReadFromWellen;
+                goto ReadCurrent;
             }
 
             if (!_sigHdl->continueOpt && cursor.index >= (_optFinishIdx - jit_options::recompileWindowSize)) {
@@ -628,8 +631,20 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
         }
     }
 
-ReadFromWellen:
+// Current: use the cursor's recorded snapshot, matching the JIT buffer.
+ReadCurrent:
+    sampleIndex = cursor.index;
+    goto ReadFromReader;
 
+// Before: use the previous recorded timestamp, which may be multiple ticks
+// earlier. Index zero stays on the first snapshot.
+ReadBefore:
+    sampleIndex = cursor.index;
+    if (sampleIndex > 0) {
+        sampleIndex--;
+    }
+
+ReadFromReader:
 #ifdef PROFILE_JIT
     jit_options::statistic.readFromNormal++;
     if (!_sigHdl->canOpt) {
@@ -637,7 +652,7 @@ ReadFromWellen:
     }
 #endif
 
-    wellen_vpi_get_value_from_index(reinterpret_cast<void *>(vpiHdl), cursor.index, value_p);
+    wellen_vpi_get_value_from_index(reinterpret_cast<void *>(vpiHdl), sampleIndex, value_p);
 
 #ifdef PROFILE_JIT
     auto _normalEnd         = std::chrono::high_resolution_clock::now();

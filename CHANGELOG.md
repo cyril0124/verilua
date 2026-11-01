@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **wave_vpi**: Add `--ignore-writes` for signal-write-tolerant replay and make trace controls unconditional no-ops.
 - **xmake / verilua rule**: `SEED` now also seeds each simulator's own RNG (`+verilator+seed+`, `+ntb_random_seed=`, `-svseed`), so RTL `$urandom` is reproducible, and a seed passed in `<sim>.run_flags` takes precedence.
 - **xmake / rcfile**: `scripts/xmakerc.lua` prints `verilua: xmake >= 2.9.9 is required (found <version>), please upgrade xmake` when it is loaded by an older xmake. Verilua injects rules and toolchains through `add_toolchaindirs`, which xmake only provides since 2.9.9; previously that version only produced the raw `global 'add_toolchaindirs' is not callable`. The minimum is now also stated in the install prerequisites.
 - **xmake / verilua rule**: `set_values("verilua.infer_nosim_flags", "1")` makes a nosim build reuse the flags of the other backends. `verilator.flags`, `vcs.flags`, `iverilog.flags` and `xcelium.flags` are scanned and their common subset (include dirs, macro defines, library dirs/extensions, timescale) is translated into the slang spelling and appended to `nosim.flags`, so switching a target to nosim no longer requires duplicating those flags. The scan merges by option kind: a directory already present in `nosim.flags`, or reached through another simulator's spelling, is not appended twice, while a macro or the timescale defined with two different values fails the build and names both sources. Naming the sources (`"verilator,vcs"`) restricts the scan to those backends. Flags with no nosim equivalent are listed on the build output. The switch is off by default; when unset, nothing is read.
@@ -30,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
+- **wave_vpi**: Value-change callbacks sample non-triggering signals before the event by default, independently of write handling, and replay includes the final waveform timestamp.
 - **SVBuilder**: Add `ctx:set_block_comments(true)` to wrap generated `add` blocks in `// ---- <name> (<type>) begin/end ----` comments; disabled by default. Begin markers include `@ file:line` when Lua debug information is available. Covergroup definitions and instances share a block; default clocking and the final coverage report remain outside the markers.
 - **SVBuilder**: Emit statements in `add` call order instead of grouping them by type. Leading `raw` declarations precede `default clocking`; the coverage report remains last. Lint checks preceding statements in the same order, including covergroup instances.
 - **SVBuilder**: Lint failure errors now include both the Lua file/line of the `ctx:add(...)` call and the path of the generated SV dump, so a Lua definition can be traced to slang's line/column diagnostic. The dump file is now written to a fixed path, `VL_BUILD_DIR/svbuilder/lint/sv_builder_lint.sv` (falling back to `.svbuilder/lint/sv_builder_lint.sv` when running Lua directly) instead of the global `/tmp`, and only the most recent failing input is kept per build directory.

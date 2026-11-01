@@ -14,7 +14,6 @@ local cfg = _G.cfg
 local simulator = cfg.simulator
 
 local is_hse = cfg.is_hse
-local is_wal = cfg.is_wal
 
 local is_vcs = simulator == "vcs"
 local is_xcelium = simulator == "xcelium"
@@ -467,7 +466,13 @@ local get_sim_time = function(unit)
     return steps * scale
 end
 
-if is_hse or is_wal then
+if is_wave_vpi then
+    -- Replay consumes an existing waveform; trace controls must not touch the filesystem.
+    initialize_trace = function(_) end
+    enable_trace = function() end
+    disable_trace = function() end
+    dump_wave = function(_) end
+elseif is_hse then
     initialize_trace = function()
         assert(false, "[initialize_trace] not supported for HSE/WAL scenario")
     end
@@ -484,18 +489,14 @@ if is_hse or is_wal then
         assert(false, "[dump_wave] not supported for HSE/WAL scenario")
     end
 
-    iterate_vpi_type = function()
-        assert(false, "[iterate_vpi_type] not supported for HSE/WAL scenario")
-    end
-end
-
-if is_hse then
     print_hierarchy = function()
-        assert(false, "[print_hierarchy] not supported for HSE scenario (dummy_vpi does not implement vpi_iterate/vpi_scan)")
+        assert(false,
+            "[print_hierarchy] not supported for HSE scenario (dummy_vpi does not implement vpi_iterate/vpi_scan)")
     end
 
     get_hierarchy = function()
-        assert(false, "[get_hierarchy] not supported for HSE scenario (dummy_vpi does not implement vpi_iterate/vpi_scan)")
+        assert(false,
+            "[get_hierarchy] not supported for HSE scenario (dummy_vpi does not implement vpi_iterate/vpi_scan)")
         return {}
     end
 
@@ -505,14 +506,9 @@ if is_hse then
     end
 end
 
-if is_wal and not is_wave_vpi then
-    print_hierarchy = function()
-        assert(false, "[print_hierarchy] not supported for WAL(non-wave_vpi) scenario (dummy_vpi may not implement vpi_iterate/vpi_scan)")
-    end
-
-    get_hierarchy = function()
-        assert(false, "[get_hierarchy] not supported for WAL(non-wave_vpi) scenario (dummy_vpi may not implement vpi_iterate/vpi_scan)")
-        return {}
+if is_hse or is_wave_vpi then
+    iterate_vpi_type = function()
+        assert(false, "[iterate_vpi_type] not supported for HSE/WAL scenario")
     end
 end
 

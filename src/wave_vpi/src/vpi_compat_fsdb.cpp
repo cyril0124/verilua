@@ -6,8 +6,7 @@
 
 #include "fsdb_wave_vpi.h"
 
-// Unsupported:
-//      vpi_put_value(handle, &v, NULL, vpiNoDelay); // wave_vpi is considered a read-only waveform simulate backend in verilua
+// Signal writes are rejected by default; --ignore-writes accepts them as no-ops.
 //
 // Supported:
 //      OK => vpi_get_value(handle, &v);
@@ -329,8 +328,11 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
         VL_FATAL(cb_data_p->time != nullptr && cb_data_p->time->type == vpiSuppressTime, "cb_data_p->time is nullptr or cb_data_p->time->type is not vpiSuppressTime");
         VL_FATAL(cb_data_p->value != nullptr && cb_data_p->value->format == vpiIntVal, "cb_data_p->value is nullptr or cb_data_p->value->format is not vpiIntVal");
 
-        auto t         = *cb_data_p;
-        size_t bitSize = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(cb_data_p->obj)->bitSize;
+        // Register against the current snapshot, not the pre-edge view.
+        auto previousSamplingEventObject = samplingEventObject;
+        samplingEventObject              = nullptr;
+        auto t                           = *cb_data_p;
+        size_t bitSize                   = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(cb_data_p->obj)->bitSize;
         if (bitSize == 1) [[likely]] {
             willAppendValueCb.emplace_back(std::make_pair(vpiHandleAllcator, ValueCbInfo{
                                                                                  .cbData   = std::make_shared<t_cb_data>(*cb_data_p),
@@ -348,6 +350,7 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
                                                                                  .valueStr = fsdbGetBinStr(cb_data_p->obj),
                                                                              }));
         }
+        samplingEventObject = previousSamplingEventObject;
         break;
     }
     case cbAfterDelay: {
@@ -410,7 +413,7 @@ PLI_INT32 vpi_free_object(vpiHandle object) {
 PLI_INT32 vpi_release_handle(vpiHandle object) { return vpi_free_object(object); }
 
 vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) {
-    VL_FATAL(false, "Unsupported in wave_vpi, all signals are read-only!");
+    VL_FATAL(ignoreWrites, "Unsupported in wave_vpi, all signals are read-only! Use --ignore-writes to discard writes during replay.");
     return nullptr;
 }
 
@@ -978,9 +981,16 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
     static byte_T buffer[FSDB_MAX_BIT_SIZE + 1];
     static s_vpi_vecval vpiValueVecs[100];
     auto fsdbSigHdl = reinterpret_cast<fsdb_wave_vpi::FsdbSignalHandlePtr>(sigHdl);
+    fsdbXTag time;
+    uint64_t sampleTime;
+
+    const bool preEdgeRead = samplingEventObject != nullptr && sigHdl != samplingEventObject;
+    // The JIT buffer stores current snapshots; before reads use the reader.
+    if (preEdgeRead)
+        goto ReadBefore;
 
     if (!fsdbSigHdl->canOpt || !jit_options::enableJIT)
-        goto ReadFromFSDB;
+        goto ReadCurrent;
 
     {
         // Progressive read: check optFinishIdx (atomic) to determine if fast path is available.
@@ -990,7 +1000,7 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
             auto _optBaseIdx = fsdbSigHdl->optBaseIdx.load(std::memory_order_acquire);
             if (cursor.index < _optBaseIdx || cursor.index >= _optFinishIdx) {
                 // fmt::println("[WARN] JIT need recompile! cursor.index:{} optFinishIdx:{} signalName:{}", cursor.index, _optFinishIdx, fsdbSigHdl->name);
-                goto ReadFromFSDB;
+                goto ReadCurrent;
             }
 
             if (!fsdbSigHdl->continueOpt && cursor.index >= (_optFinishIdx - jit_options::recompileWindowSize)) {
@@ -1082,8 +1092,29 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
         }
     }
 
-ReadFromFSDB:
+// Current: sample t + 1 tick, matching the JIT buffer, without passing EOF.
+ReadCurrent:
+    sampleTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
+    if (sampleTime < cursor.maxTime) {
+        sampleTime++;
+    }
+    time         = fsdb_wave_vpi::fsdbWaveVpi->xtagVec[cursor.index];
+    time.hltag.H = static_cast<uint32_t>(sampleTime >> 32);
+    time.hltag.L = static_cast<uint32_t>(sampleTime);
+    goto ReadFromReader;
 
+// Before: sample t - 1 tick, bypassing the current-value JIT buffer.
+// At time zero, use ReadCurrent because no earlier tick exists.
+ReadBefore:
+    sampleTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
+    if (sampleTime == 0)
+        goto ReadCurrent;
+    sampleTime--;
+    time         = fsdb_wave_vpi::fsdbWaveVpi->xtagVec[cursor.index];
+    time.hltag.H = static_cast<uint32_t>(sampleTime >> 32);
+    time.hltag.L = static_cast<uint32_t>(sampleTime);
+
+ReadFromReader:
 #ifdef PROFILE_JIT
     jit_options::statistic.readFromNormal++;
     if (!fsdbSigHdl->canOpt) {
@@ -1095,9 +1126,6 @@ ReadFromFSDB:
     byte_T *retVC;
     fsdbBytesPerBit bpb;
     size_t bitSize = fsdbSigHdl->bitSize;
-
-    auto time    = fsdb_wave_vpi::fsdbWaveVpi->xtagVec[cursor.index];
-    time.hltag.L = time.hltag.L + 1; // Move a little bit further to ensure we are not in the sensitive clock edge which may lead to signal value confusion.
 
     if (FSDB_RC_SUCCESS != vcTrvsHdl->ffrGotoXTag(&time)) [[unlikely]] {
         auto currIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];

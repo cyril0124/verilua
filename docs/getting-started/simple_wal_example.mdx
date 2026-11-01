@@ -225,7 +225,9 @@ fork {
 
 :::
 
-:::danger[WAL 场景下，不允许出现赋值的语句，例如 `set` 等，否则会导致报错，目前 WAL 场景下所有的信号都是只读的！]
+:::warning[wave_vpi 默认拒绝写入，信号始终只读]
+
+若要保留原 TB 的驱动代码，可显式启用[忽略写入回放](../how-to-guides/replay_testbench.mdx)。
 
 :::
 
@@ -328,6 +330,7 @@ xmake run -P . sim_wave
 
 ## 相关文档
 
+- [用已有波形回放 Testbench](../how-to-guides/replay_testbench.mdx)：修改 monitor 后复用原 TB，无需重新运行 RTL 仿真。
 - [HVL 示例](./simple_hvl_example.mdx)：先生成波形，再对照本文理解 WAL 工作流。
 - [仿真器控制](../reference/simulator_control.mdx)：查看 `sim.dump_wave()` 等波形控制接口。
 - [xmake 参数说明](../reference/xmake_params.mdx)：查看 WAL 工程中常见的构建参数和运行配置方式。

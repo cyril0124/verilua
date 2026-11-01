@@ -94,7 +94,7 @@ void wave_vpi_loop() {
         fmt::println("[wave_vpi::loop] START! cursor.maxIndex => {} cursor.maxTime => {}", cursor.maxIndex, cursor.maxTime);
     }
 
-    while (cursor.index < cursor.maxIndex && !vpi_compat::vpiControlTerminate) {
+    while (cursor.index <= cursor.maxIndex && !vpi_compat::vpiControlTerminate) {
         // Deal with cbAfterDelay(time) callbacks
         if (!vpi_compat::timeCbMap.empty()) {
             for (auto it = vpi_compat::timeCbMap.begin(); it != vpi_compat::timeCbMap.end();) {
@@ -163,7 +163,9 @@ void wave_vpi_loop() {
                         VL_FATAL(false, "cb.second.cbData->value->format should be vpiIntVal");
                         break;
                     }
+                    vpi_compat::samplingEventObject = cb.second.cbData->obj;
                     cb.second.cbData->cb_rtn(cb.second.cbData.get());
+                    vpi_compat::samplingEventObject = nullptr;
                 }
             }
         }
@@ -183,7 +185,10 @@ void wave_vpi_loop() {
         // Register newly registered cbValueChange callbacks from the previous cbNextSimTime callback
         vpi_compat::appendValueCb();
 
-        // Next simulation step
+        // Keep the final cursor valid after processing its callbacks.
+        if (cursor.index == cursor.maxIndex) {
+            break;
+        }
         cursor.index++;
     }
 

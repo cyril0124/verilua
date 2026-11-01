@@ -1,0 +1,138 @@
+# 用已有波形回放 Testbench
+
+录好的波形本身可以当仿真激励：wave_vpi 用波形里的信号值和边沿事件驱动原来的 Lua 入口，不必再运行 RTL 仿真。因此回放的作用不止是补几条打印——改打印内容、换检查条件、补上原来没做的比对、重写分析逻辑，都只改 Lua 侧并重新回放即可；driver 的写入不会修改录制结果。
+
+```text
+  +----------------------------------------------+
+  | RTL + Lua TB (drivers, monitor)              |
+  +----------------------+-----------------------+
+                         | dump
+                         v
+  +----------------------------------------------+
+  | waveform: FST / VCD / FSDB                   |
+  | recorded values and clock edges              |
+  +----------------------+-----------------------+
+                         | replay, no RTL run
+                         v
+  +----------------------------------------------+
+  | wave_vpi + the same Lua entry                |
+  | reads come from the waveform                 |
+  | writes never change the waveform             |
+  +----------------------+-----------------------+
+                         |
+                         v
+  prints / logs / checks   (edit here, rerun only the replay)
+```
+
+同一份波形可以反复回放：RTL 仿真只做一次，之后每次调整都只重跑回放。
+
+## 为什么用回放
+
+- **不必重复长仿真**：改检查、补比对、重写分析逻辑都只动 Lua，但真实仿真每次都要把 RTL 从头跑一遍；回放复用同一份录制，只重跑 Lua。只要逻辑只依赖已录制的信号和边沿、不改变刺激，就属于这个范围。
+- **失败现场可重复**：回放固定读同一份波形，输入与时序完全一致；真实仿真受随机种子、线程调度和机器负载影响，同样的失败未必复现。
+- **波形可以留档**：把失败那次的波形单独保存，之后随时离线重跑同一段，不需要重新搭建环境或占用仿真资源。
+
+## 调试修改范围
+
+复现原仿真时，只在原有 task 的既有执行点加入无副作用（side-effect-free）的操作，保持任务结构和调度代码不变。副作用指会改变信号值、任务调度或后续读取结果的操作：
+
+- **可加入**：读取已录制的信号、添加 `print` 或日志、局部计算、只读检查，以及修改这些代码本身的写法。新增断言失败会提前结束回放，但不会改变其他任务的执行。
+- **信号写入**：`set`、`force`、`release` 会改变信号值，属于副作用。保留原有 driver，不新增这类调用；`--ignore-writes` 只丢弃写入，相关 Lua 代码仍会执行，可能改变共享状态或随机数消耗。
+- **新增任务**：`fork`、`jfork` 会插入新的调度实体，即使任务只读取信号，也可能改变原有任务的执行顺序。保留原有任务的创建和启动顺序。
+- **新增等待**：新增、删除或移动 `clock:posedge()`、`await_time()` 等让出执行权的操作，会改变各任务的执行点；`await_rd()` 等调度调用同样带副作用。
+
+wave_vpi 不会自动检测任务结构或调度代码是否变化。改变任务结构、刺激或控制流程后，应重新运行真实仿真。
+
+## 操作步骤
+
+1. 确认原入口依赖的信号与时钟均已录制、层次路径一致，在原有 task 的既有执行点加入无副作用的操作，不改动任务结构和等待点。
+2. 添加回放 target，输入已有波形，保留原 Lua 入口：
+
+   ```lua title="xmake.lua"
+   target("replay_wave", function()
+       add_rules("verilua")
+       add_toolchains("@wave_vpi")
+       add_files("./build/verilator/Counter/wave/test.vcd")
+       add_files("./Monitor.lua")
+       set_values("verilua.top", "tb_top")
+       set_values("verilua.lua_main", "./main.lua")
+       set_values("wave_vpi.run_flags", "--ignore-writes")
+   end)
+   ```
+
+3. 仅构建并运行回放 target：
+
+   ```shell
+   xmake build -P . replay_wave
+   xmake run -P . replay_wave
+   ```
+
+[examples/WAL](https://github.com/cyril0124/verilua/tree/master/examples/WAL) 包含上述 `replay_wave` target。没有波形时先运行一次 `gen_wave`；之后改 Lua 只运行 `replay_wave`，新增输出即来自已有录制。
+
+### 复用同一个 target
+
+已有工程不必单独建 target：用 `SIM` 选工具链、`WAVE` 指定波形，录制和回放共用一份定义。
+
+```lua title="xmake.lua"
+local sim = os.getenv("SIM") or "verilator"
+local wave = os.getenv("WAVE")
+local is_wave_vpi = sim == "wave_vpi"
+
+target("tb", function()
+    add_rules("verilua")
+    add_toolchains(is_wave_vpi and "@wave_vpi" or "@verilator")
+    add_files("./Counter.v")
+    add_files("./Monitor.lua")
+    set_values("verilua.lua_main", "./main.lua")
+    set_values("verilator.flags", "--trace", "--no-trace-top")
+
+    if is_wave_vpi then
+        add_files(path.absolute(wave, os.projectdir()))
+        set_values("verilua.top", "tb_top")
+        set_values("wave_vpi.run_flags", "--ignore-writes")
+    else
+        set_values("verilua.top", "Counter")
+    end
+end)
+```
+
+```shell
+xmake b tb && xmake r tb                                          # 真实仿真并录制波形
+SIM=wave_vpi WAVE=build/verilator/Counter/wave/test.vcd xmake b tb  # 切到回放模式并重新生成运行脚本
+SIM=wave_vpi WAVE=build/verilator/Counter/wave/test.vcd xmake r tb
+```
+
+RTL 与 Lua 文件始终加进 target，wave_vpi 只挑出 `.vcd`/`.fst`/`.fsdb` 波形，其余条目自动忽略。回放真正改变的只有三处：工具链、层次根（`tb_top`）和 `--ignore-writes`。
+
+## 回调中的采样语义
+
+值变化回调期间，触发回调的句柄读取变化后的值，其他信号默认读取该时间点之前的值。这个规则与 `--ignore-writes` 无关。
+
+例如在 `clock:posedge()` 返回后，时钟为高电平，同一边沿更新的计数器仍是更新前的值。普通查询和显式游标跳转后读取目标时间点的当前值；仿真时间本身不回退。依赖边沿更新后数据的脚本，需要在对应时间点显式查询。
+
+FSDB 与 VCD/FST 使用同一规则。前沿读取不走 JIT 缓存（缓存中保存的是边沿后的值），直接查询 reader。
+
+<div id="ignore-writes"></div>
+
+## 信号写入开关
+
+`wave_vpi_main` 和 `wave_vpi_main_fsdb` 默认拒绝信号写入。只有显式传入 `--ignore-writes` 才会忽略写入；xmake 项目通过 `set_values("wave_vpi.run_flags", "--ignore-writes")` 传入该参数。
+
+开启后，普通/立即数值赋值、字符串写入及 force/release 均被丢弃，不修改波形值或添加写事件。信号查找、参数校验和脚本断言仍然有效。
+
+[波形导出调用](../reference/simulator_control.mdx#wave_vpi-trace)在 wave_vpi 下始终为空操作，不受信号写入开关影响。
+
+:::warning[回放不是重新仿真]
+
+- 波形必须覆盖所需时间范围和信号；缺失信号仍然报错，未录制的时间与信号值无法恢复。到达波形末尾即结束回放，即使 TB 仍在等待事件。
+- 改变刺激、RTL、随机种子或依赖写后读的新行为，需要重新仿真。忽略写入不会恢复 Lua 对象、随机数状态或外部 I/O；复用原配置和输入只能减少这些差异。
+- 前沿采样不等于恢复仿真器完整的 delta-cycle 调度；不保证 `await_rw()`、`await_rd()` 或任意原 TB 均可直接运行。
+- `NativeClock`、仿真器专用 DPI 和数组索引等未受 wave_vpi 支持的路径仍需适配。时钟读取使用波形中的时钟边沿。
+
+:::
+
+## 相关文档
+
+- [WAL 示例](../getting-started/simple_wal_example.mdx)：生成波形与复用 monitor 的基础流程。
+- [xmake 配置参数](../reference/xmake_params.mdx)：为回放 target 配置运行参数。
+- [仿真器控制](../reference/simulator_control.mdx#wave_vpi-trace)：回放中的波形导出接口。

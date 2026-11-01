@@ -988,6 +988,7 @@ target("test", function()
             "test-lua-cov-bridge",
             -- Wave VPI tests (one per directory)
             "test-wave-vpi",
+            "test-wave-vpi-replay",
             "test-wave-vpi-x",
             "test-wave-vpi-print-hier",
             "test-wave-vpi-module-name",

@@ -5,14 +5,17 @@ module top(
 
 reg [63:0] count;
 reg [49:0] value;
+reg [127:0] wide_value;
 
 always @(posedge clock) begin
     if (reset) begin
         count <= 0;
         value <= 50'h10000000;
+        wide_value <= 128'h123456789abcdef0123456789abcdef0;
     end else begin
         count <= count + 1;
         value <= value + 1'b1;
+        wide_value <= wide_value + 1'b1;
     end
 end
 

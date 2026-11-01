@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <csignal>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <queue>
 #include <string>

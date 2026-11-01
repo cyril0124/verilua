@@ -1,4 +1,5 @@
 #include "verilua_version.h"
+#include "vpi_compat.h"
 #include "wave_vpi.h"
 
 #include <csignal>
@@ -33,6 +34,7 @@ int main(int argc, const char *argv[]) {
         std::cerr << prog << " " << VERILUA_VERSION << "\n"
                   << "  -w, --wave-file FILE   " << waveHelp << "\n"
                   << "  --hierarchy-only       only load hierarchy, skip signal data and time table\n"
+                  << "  --ignore-writes        ignore signal writes during replay\n"
                   << "  --version              print version information and exit\n"
                   << "  -h, --help             show this help\n";
     };
@@ -44,6 +46,10 @@ int main(int argc, const char *argv[]) {
         if (std::strcmp(arg, "-h") == 0 || std::strcmp(arg, "--help") == 0) {
             print_usage();
             return 0;
+        }
+        if (std::strcmp(arg, "--ignore-writes") == 0) {
+            vpi_compat::ignoreWrites = true;
+            continue;
         }
         if (std::strcmp(arg, "--hierarchy-only") == 0) {
             hierarchyOnly = true;

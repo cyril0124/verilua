@@ -43,8 +43,17 @@ Verilua 提供了一些接口用来控制底层的仿真器：
          print(string.format("Time: %d ns", ns))
          ```
 
+<div id="wave_vpi-trace"></div>
+
+## wave_vpi 回放中的波形控制
+
+wave_vpi 消费已有波形，`sim.dump_wave()`、`sim.initialize_trace()`、`sim.enable_trace()`、`sim.disable_trace()` 始终为空操作，不创建文件或目录，无需任何开关，可以保留原 TB 的调用。`sim.finish()` 与读取仿真时间的行为不变。
+
+信号写入由 [`--ignore-writes`](../how-to-guides/replay_testbench.mdx#ignore-writes) 单独控制，默认拒绝；其他后端的波形控制行为不变。
+
 ## 相关文档
 
+- [用已有波形回放 Testbench](../how-to-guides/replay_testbench.mdx)：保留原 TB 入口进行离线调试。
 - [时间等待 API](./await_time.mdx)：结合 `sim.get_sim_time()` 理解时间单位和等待行为。
 - [时钟驱动策略](../how-to-guides/clock_driving.mdx)：查看波形控制与时钟驱动配置的关系。
 - [WAL 示例](../getting-started/simple_wal_example.mdx)：查看 `sim.dump_wave()` 在生成波形时的实际用法。
