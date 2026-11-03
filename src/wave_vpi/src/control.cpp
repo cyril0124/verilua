@@ -25,7 +25,7 @@ extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) {
 extern "C" void wave_vpi_ctrl_set_cursor_index_percent(double percent) {
     vpi_compat::samplingEventObject = nullptr;
     if (percent >= 100) {
-        cursor.index = cursor.maxIndex - 1;
+        cursor.index = cursor.maxIndex > 0 ? cursor.maxIndex - 1 : 0;
     } else {
         uint64_t targetIndex = cursor.maxIndex * (percent / 100.0);
         cursor.index         = targetIndex;
@@ -78,5 +78,6 @@ extern "C" void wave_vpi_ctrl_set_cursor_time(uint64_t time) {
 #else
     targetIndex = wellen_get_index_from_time(time);
 #endif
-    cursor.index = targetIndex >= cursor.maxIndex ? cursor.maxIndex - 1 : targetIndex;
+    const uint64_t lastIndex = cursor.maxIndex > 0 ? cursor.maxIndex - 1 : 0;
+    cursor.index             = targetIndex >= cursor.maxIndex ? lastIndex : targetIndex;
 }

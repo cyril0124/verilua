@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **wave_vpi**: Keep cursor indices valid when jumping in single-timestamp waveforms.
 - **libverilua**: `VL_RESOLVE_X_AS_ZERO` now covers every 4-state backend (iVerilog, VCS, xcelium, wave_vpi) and resolves `x`/`z` bit by bit: only those bits read `0`, so a 64 bit value written as `fffffffffffffffx` reads `0xfffffffffffffff0` instead of `0`, and VCS no longer returns `x` bits as `1`. `VL_RESOLVE_X_AS_ZERO=0` returns the raw `aval`, where an `x` bit is `1` and a `z` bit is `0` (VPI `ab: 11=X, 01=Z`).
 - **libverilua**: Restored iVerilog string-read compatibility: `VL_RESOLVE_X_AS_ZERO` (enabled by default) replaces lowercase `x` with `0` in binary, octal, decimal, and hexadecimal readbacks. Disabling it preserves the unknown-value characters. Uppercase `X` and `z`/`Z` remain unchanged. Other backends' string reads are unaffected, and numeric reads retain per-bit resolution.
 - **StrBitsUtils**: Restored range validation in `bitfield_hex_str()` and `set_bitfield_hex_str()`. Both reject negative indices and reversed ranges. Extraction rejects indices at or beyond the explicit `bitwidth`, or `#hex_str * 4` when omitted. Writes reject indices at or beyond an explicit `bitwidth` instead of silently discarding the write; without `bitwidth`, they still auto-expand. Non-nibble-aligned widths are checked exactly.

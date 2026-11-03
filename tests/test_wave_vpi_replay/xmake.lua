@@ -35,6 +35,15 @@ target("replay_readonly", function()
     set_values("verilua.lua_main", "replay_readonly.lua")
 end)
 
+target("short_cursor_wave", function()
+    set_default(false)
+    add_rules("verilua")
+    add_toolchains("@wave_vpi")
+    add_files("short_cursor.vcd")
+    set_values("verilua.top", "tb_top")
+    set_values("verilua.lua_main", "short_cursor_tb.lua")
+end)
+
 target("run_test", function()
     set_default(true)
     set_kind("phony")
@@ -78,6 +87,10 @@ target("run_test", function()
         local readonly_code, readonly = run("replay_readonly")
         assert(readonly_code ~= 0 and readonly:find("read-only", 1, true),
             "a write without --ignore-writes must be rejected: " .. readonly)
+
+        local short_code, short_output = run("short_cursor_wave")
+        assert(short_code == 0 and short_output:find("SHORT_CURSOR_PASS", 1, true),
+            "single-timestamp cursor jump failed: " .. short_output)
 
         print("REPLAY_SUITE_PASS")
     end)
