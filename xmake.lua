@@ -154,8 +154,8 @@ target("install_other_libs", function()
                 import("net.http")
                 import("utils.archive")
 
-                local url = "https://github.com/conan-io/conan/releases/download/2.14.0/conan-2.14.0-linux-x86_64.tgz"
-                local tgz_path = path.join(build_dir, "conan-2.14.0.tgz")
+                local url = "https://github.com/conan-io/conan/releases/download/2.34.0/conan-2.34.0-linux-x86_64.tgz"
+                local tgz_path = path.join(build_dir, "conan-2.34.0.tgz")
 
                 print("[xmake.lua] [install_other_libs] Downloading conan...")
                 local downloaded = false
