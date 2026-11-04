@@ -4,6 +4,8 @@
 #include "jit_options.h"
 #include <cinttypes>
 #include <cstdio>
+#include <functional>
+#include <map>
 #include <wave_vpi.h>
 
 #if __cplusplus >= 201703L
@@ -72,7 +74,8 @@ extern std::vector<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> willAppendTi
 extern std::vector<std::shared_ptr<t_cb_data>> nextSimTimeQueue;
 extern std::vector<std::shared_ptr<t_cb_data>> willAppendNextSimTimeQueue;
 
-extern boost::unordered_flat_map<vpiHandleRaw, ValueCbInfo> valueCbMap;
+// Callback IDs increase at registration; dispatch newer waiters first.
+extern std::map<vpiHandleRaw, ValueCbInfo, std::greater<vpiHandleRaw>> valueCbMap;
 extern std::vector<std::pair<vpiHandleRaw, ValueCbInfo>> willAppendValueCb;
 extern std::vector<vpiHandleRaw> willRemoveValueCb;
 
@@ -82,6 +85,9 @@ extern vpiHandleRaw vpiHandleAllcator;
 void startOfSimulation();
 
 void endOfSimulation();
+
+// A cursor jump changes the sampling baseline without causing a value-change event.
+void resyncValueCallbacks();
 
 inline void appendTimeCb() {
     for (auto &cbPair : willAppendTimeCbQueue) {

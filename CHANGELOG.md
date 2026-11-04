@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **wave_vpi**: Prioritize newly registered edge callbacks over persistent callbacks during replay and reset their sampling baseline after cursor jumps to avoid false edges.
+- **wave_vpi**: Preserve same-timestamp edge callbacks when `to_percent()` leaves the replay cursor unchanged.
 - **wave_vpi**: Keep cursor indices valid when jumping in single-timestamp waveforms.
 - **libverilua**: `VL_RESOLVE_X_AS_ZERO` now covers every 4-state backend (iVerilog, VCS, xcelium, wave_vpi) and resolves `x`/`z` bit by bit: only those bits read `0`, so a 64 bit value written as `fffffffffffffffx` reads `0xfffffffffffffff0` instead of `0`, and VCS no longer returns `x` bits as `1`. `VL_RESOLVE_X_AS_ZERO=0` returns the raw `aval`, where an `x` bit is `1` and a `z` bit is `0` (VPI `ab: 11=X, 01=Z`).
 - **libverilua**: Restored iVerilog string-read compatibility: `VL_RESOLVE_X_AS_ZERO` (enabled by default) replaces lowercase `x` with `0` in binary, octal, decimal, and hexadecimal readbacks. Disabling it preserves the unknown-value characters. Uppercase `X` and `z`/`Z` remain unchanged. Other backends' string reads are unaffected, and numeric reads retain per-bit resolution.

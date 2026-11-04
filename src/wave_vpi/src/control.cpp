@@ -9,6 +9,31 @@
 
 extern WaveCursor cursor;
 
+namespace vpi_compat {
+void resyncValueCallbacks() {
+    // Cursor jumps skip normal value-change callbacks. Sample the destination
+    // so skipped transitions do not appear as new edges on the next step.
+    auto resync = [](ValueCbInfo &callback) {
+#ifdef USE_FSDB
+        if (callback.bitSize == 1) {
+            callback.bitValue = fsdbGetSingleBitValue(callback.handle);
+        } else {
+            callback.valueStr = fsdbGetBinStr(callback.handle);
+        }
+#else
+        callback.valueStr = _wellen_get_value_str(callback.handle);
+#endif
+    };
+
+    for (auto &entry : valueCbMap) {
+        resync(entry.second);
+    }
+    for (auto &entry : willAppendValueCb) {
+        resync(entry.second);
+    }
+}
+} // namespace vpi_compat
+
 // Below are interfaces used by WaveVpiCtrl.lua to control the wave_vpi.
 
 extern "C" uint64_t wave_vpi_ctrl_get_cursor_index() { return cursor.index; }
@@ -20,15 +45,20 @@ extern "C" uint64_t wave_vpi_ctrl_get_max_cursor_time() { return cursor.maxTime;
 extern "C" void wave_vpi_ctrl_set_cursor_index(uint64_t index) {
     vpi_compat::samplingEventObject = nullptr;
     cursor.index                    = index;
+    vpi_compat::resyncValueCallbacks();
 }
 
 extern "C" void wave_vpi_ctrl_set_cursor_index_percent(double percent) {
+    const uint64_t previousIndex    = cursor.index;
     vpi_compat::samplingEventObject = nullptr;
     if (percent >= 100) {
         cursor.index = cursor.maxIndex > 0 ? cursor.maxIndex - 1 : 0;
     } else {
         uint64_t targetIndex = cursor.maxIndex * (percent / 100.0);
         cursor.index         = targetIndex;
+    }
+    if (cursor.index != previousIndex) {
+        vpi_compat::resyncValueCallbacks();
     }
 }
 
@@ -80,4 +110,5 @@ extern "C" void wave_vpi_ctrl_set_cursor_time(uint64_t time) {
 #endif
     const uint64_t lastIndex = cursor.maxIndex > 0 ? cursor.maxIndex - 1 : 0;
     cursor.index             = targetIndex >= cursor.maxIndex ? lastIndex : targetIndex;
+    vpi_compat::resyncValueCallbacks();
 }

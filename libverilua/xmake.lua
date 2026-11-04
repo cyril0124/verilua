@@ -11,7 +11,7 @@ local verilator_features = "chunk_task verilator_inner_step_callback " .. common
 local vcs_features = "chunk_task merge_cb " .. common_features
 local xcelium_features = vcs_features .. " promote_luajit_global"
 local iverilog_features = "chunk_task merge_cb " .. common_features
-local wave_vpi_features = "chunk_task inertial_put " .. common_features
+local wave_vpi_features = "chunk_task merge_cb inertial_put " .. common_features
 local nosim_features = "chunk_task " .. common_features
 
 local build_iverilog_vpi_module_cmd = format(

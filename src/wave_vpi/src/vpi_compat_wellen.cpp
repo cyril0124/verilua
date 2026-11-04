@@ -42,7 +42,7 @@ std::vector<std::pair<uint64_t, std::shared_ptr<t_cb_data>>> willAppendTimeCbQue
 std::vector<std::shared_ptr<t_cb_data>> nextSimTimeQueue;
 std::vector<std::shared_ptr<t_cb_data>> willAppendNextSimTimeQueue;
 
-boost::unordered_flat_map<vpiHandleRaw, ValueCbInfo> valueCbMap;
+std::map<vpiHandleRaw, ValueCbInfo, std::greater<vpiHandleRaw>> valueCbMap;
 std::vector<std::pair<vpiHandleRaw, ValueCbInfo>> willAppendValueCb;
 std::vector<vpiHandleRaw> willRemoveValueCb;
 

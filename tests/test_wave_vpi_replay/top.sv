@@ -19,4 +19,12 @@ always @(posedge clock) begin
     end
 end
 
+`ifdef SIM_IVERILOG
+// Capture the first clock edge before Icarus applies Lua trace controls.
+initial begin
+    $dumpfile("random_order.vcd");
+    $dumpvars(0);
+end
+`endif
+
 endmodule
