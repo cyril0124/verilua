@@ -2,7 +2,7 @@
 
 local project_dir = os.projectdir()
 local waveform = path.join(project_dir, "build", "replay.fst")
-local simulator = os.getenv("SIM") or "vcs"
+local simulator = os.getenv("SIM") or "verilator"
 local random_wave_name = simulator == "vcs" and "random_order.vcd.fsdb" or "random_order.vcd"
 local random_waveform = path.join(project_dir, "build", random_wave_name)
 
@@ -89,6 +89,7 @@ target("test_random_order", function()
     set_default(false)
     set_kind("phony")
     on_run(function()
+        assert(os.getenv("SIM"), "random-order test requires an explicit SIM")
         assert(simulator == "vcs" or simulator == "verilator" or simulator == "iverilog",
             "random-order test supports SIM=vcs, verilator or iverilog")
         local find_file = import("lib.detect.find_file")
