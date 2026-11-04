@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **SVBuilder**: `validate()` checks the complete generated model in one sv_lint pass, even with per-add lint disabled, and identifies the originating Lua statement when the error is in an `add` block.
 - **wave_vpi**: Add `--ignore-writes` for signal-write-tolerant replay and make trace controls unconditional no-ops.
 - **xmake / verilua rule**: `SEED` now also seeds each simulator's own RNG (`+verilator+seed+`, `+ntb_random_seed=`, `-svseed`), so RTL `$urandom` is reproducible, and a seed passed in `<sim>.run_flags` takes precedence.
 - **xmake / rcfile**: `scripts/xmakerc.lua` prints `verilua: xmake >= 2.9.9 is required (found <version>), please upgrade xmake` when it is loaded by an older xmake. Verilua injects rules and toolchains through `add_toolchaindirs`, which xmake only provides since 2.9.9; previously that version only produced the raw `global 'add_toolchaindirs' is not callable`. The minimum is now also stated in the install prerequisites.

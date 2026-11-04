@@ -69,6 +69,7 @@ local debug_getinfo = debug.getinfo
 ---@field set_lint fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable automatic sv_lint checking on each `add` call.
 ---@field set_coverage_report fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable the `final` block coverage report for covergroups.
 ---@field set_block_comments fun(self: verilua.sv.SVBuilder, enable: boolean): verilua.sv.SVBuilder Enable or disable named begin/end markers and Lua source locations (default false).
+---@field validate fun(self: verilua.sv.SVBuilder): verilua.sv.SVBuilder Lint the complete generated SV model, even when per-add lint is disabled. Raises on errors and reports the originating `add` callsite when available.
 ---@field generate fun(self: verilua.sv.SVBuilder): string Return the full generated SV text. Equivalent to `tostring(ctx)`.
 local SVBuilder = {
     default_clocking_expr = "",
@@ -87,13 +88,26 @@ local SVBuilder = {
     _lint_dump_paths = {},
 }
 
+---@class verilua.sv.SVBuilder.lint_source_range
+---@field first_line integer First line of the statement in the lint input.
+---@field last_line integer Last line of the statement in the lint input.
+---@field statement verilua.sv.SVBuilder.statement
+
 -- Share statement order between generation and lint without committing a pending add.
 ---@param self verilua.sv.SVBuilder
 ---@param pending verilua.sv.SVBuilder.statement?
 ---@param numbered boolean?
+---@param track_sources boolean?
 ---@return string[]
-local function collect_statements(self, pending, numbered)
+---@return verilua.sv.SVBuilder.lint_source_range[]?
+local function collect_statements(self, pending, numbered, track_sources)
     local parts = {}
+    local source_ranges ---@type verilua.sv.SVBuilder.lint_source_range[]?
+    if track_sources then
+        source_ranges = {}
+    end
+    local line_number = 2 -- The lint input begins with `module __sva_lint;`.
+    local separator_lines = numbered and 2 or 1
     local clocking_emitted = false
     local assertion_index = 0
     local statement_count = #self.statement_vec
@@ -109,6 +123,9 @@ local function collect_statements(self, pending, numbered)
         if not clocking_emitted and statement.typ ~= "raw" then
             if self.default_clocking_expr ~= "" then
                 parts[#parts + 1] = self.default_clocking_expr
+                if source_ranges then
+                    line_number = line_number + separator_lines
+                end
             end
             clocking_emitted = true
         end
@@ -125,11 +142,25 @@ local function collect_statements(self, pending, numbered)
                 name, statement.typ, location, content, name, statement.typ)
         end
         parts[#parts + 1] = content
+        if source_ranges then
+            local normalized_newlines = content:gsub("\r\n", "\n")
+            local last_line = line_number + select(2, normalized_newlines:gsub("[\r\n]", ""))
+            source_ranges[#source_ranges + 1] = {
+                first_line = line_number,
+                last_line = last_line,
+                statement = statement,
+            }
+            line_number = last_line + separator_lines
+            -- A trailing CR and the first separator LF form one CRLF.
+            if content:sub(-1) == "\r" then
+                line_number = line_number - 1
+            end
+        end
     end
     if not clocking_emitted and self.default_clocking_expr ~= "" then
         parts[#parts + 1] = self.default_clocking_expr
     end
-    return parts
+    return parts, source_ranges
 end
 
 setmetatable(SVBuilder, {
@@ -331,16 +362,43 @@ local function raise_lint_error(name, lint_err, source_info)
     error(f("[SVBuilder] lint error in '%s'%s\n\n%s", name, source_line, lint_err), 0)
 end
 
--- Lint the existing statements and candidate in their generated order.
+---@param diagnostic string
+---@param source_ranges verilua.sv.SVBuilder.lint_source_range[]?
+---@return verilua.sv.SVBuilder.statement?
+local function find_lint_source(diagnostic, source_ranges)
+    local line = tonumber(diagnostic:match("sv_lint_input:(%d+):%d+"))
+    if not line or not source_ranges then
+        return nil
+    end
+
+    for _, range in ipairs(source_ranges) do
+        if line >= range.first_line and line <= range.last_line then
+            return range.statement
+        end
+    end
+    return nil
+end
+
+-- Lint the accumulated model, optionally including an uncommitted add.
 ---@param self verilua.sv.SVBuilder
----@param new_statement string
----@param typ "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"
----@param name string
+---@param new_statement string?
+---@param typ? "cover" | "assert" | "property" | "sequence" | "covergroup" | "raw"
+---@param name? string
 ---@param source_info string?
 ---@return string? diagnostic
+---@return verilua.sv.SVBuilder.statement? source
+---@return boolean checked
 local function run_sv_lint(self, new_statement, typ, name, source_info)
-    local parts = collect_statements(self, { typ = typ, name = name, source_info = source_info, content = new_statement })
-    local sv_text = "module __sva_lint;\n" .. table.concat(parts, "\n") .. "\nendmodule"
+    local sv_text
+    local source_ranges ---@type verilua.sv.SVBuilder.lint_source_range[]?
+    if new_statement then
+        local pending = { typ = assert(typ), name = assert(name), source_info = source_info, content = new_statement }
+        local parts = collect_statements(self, pending)
+        sv_text = "module __sva_lint;\n" .. table.concat(parts, "\n") .. "\nendmodule"
+    else
+        source_ranges = select(2, collect_statements(self, nil, true, true))
+        sv_text = "module __sva_lint;\n" .. self:generate() .. "\nendmodule"
+    end
 
     -- Try FFI first
     local lib = get_sv_lint_lib()
@@ -348,9 +406,10 @@ local function run_sv_lint(self, new_statement, typ, name, source_info)
         local call_ok, rc = pcall(lib.sv_lint_text, sv_text, diag_buf, 4096)
         if call_ok then
             if rc == 0 then
-                return nil
+                return nil, nil, true
             end
-            return lint_fail_message(sv_text, ffi.string(diag_buf))
+            local diagnostic = ffi.string(diag_buf)
+            return lint_fail_message(sv_text, diagnostic), find_lint_source(diagnostic, source_ranges), true
         end
         -- FFI call failed (e.g. lazy-binding glibc mismatch): disable FFI,
         -- fall through to subprocess.
@@ -361,23 +420,26 @@ local function run_sv_lint(self, new_statement, typ, name, source_info)
     -- Subprocess fallback
     local bin = find_sv_lint_bin()
     if not bin then
-        return nil -- sv_lint not available, skip silently
+        return nil, nil, false
     end
 
     local escaped = sv_text:gsub("'", "'\\''")
     local cmd = f("%s --text '%s' 2>&1", bin, escaped)
     local handle = io.popen(cmd)
     if not handle then
-        return nil
+        return nil, nil, false
     end
     local output = handle:read("*a")
     local _, _, exit_code = handle:close()
 
-    if exit_code ~= 0 and output and #output > 0 then
-        -- Trim trailing whitespace
-        return lint_fail_message(sv_text, output:gsub("%s+$", ""))
+    if exit_code ~= 0 then
+        if output and #output > 0 then
+            local diagnostic = output:gsub("%s+$", "")
+            return lint_fail_message(sv_text, diagnostic), find_lint_source(diagnostic, source_ranges), true
+        end
+        return nil, nil, false
     end
-    return nil
+    return nil, nil, true
 end
 
 --- Enable or disable automatic sv_lint checking on each add() call.
@@ -401,6 +463,24 @@ end
 ---@return verilua.sv.SVBuilder
 function SVBuilder:set_block_comments(enable)
     self.block_comments_enabled = enable
+    return self
+end
+
+--- Lint all generated statements in one pass, including the coverage report.
+--- Unlike per-add lint, this checks the model even after `set_lint(false)`.
+--- On failure, the diagnostic names the originating `add` call when available.
+---@return verilua.sv.SVBuilder
+function SVBuilder:validate()
+    local diagnostic, statement, checked = run_sv_lint(self)
+    if not checked then
+        error("[SVBuilder] validate error: sv_lint is unavailable", 0)
+    end
+    if diagnostic then
+        if statement then
+            raise_lint_error(statement.name, diagnostic, statement.source_info)
+        end
+        raise_lint_error("validate", diagnostic)
+    end
     return self
 end
 

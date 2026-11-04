@@ -256,14 +256,29 @@ ctx:with_global_envs { clk = dut.clk, rst = dut.rst }
 
 ### `ctx:set_lint(enable)`
 
-启用或禁用 sv_lint 自动检查（默认开启）。
+启用或禁用每次 `add` 时的 sv_lint 自动检查（默认开启）。即使关闭自动检查，仍可用 `ctx:validate()` 检查完整模型。
 
 ```lua
-ctx:set_lint(false)  -- 关闭 lint
-ctx:set_lint(true)   -- 重新开启
+ctx:set_lint(false)  -- 关闭逐条 lint
+ctx:set_lint(true)   -- 重新开启逐条 lint
 ```
 
 返回 `self`，支持链式调用。
+
+### `ctx:validate()`
+
+对当前已收集的所有语句和生成的 `final` 覆盖率报告执行一次 sv_lint，与 `set_lint(false)` 无关。成功时返回 `self`；失败时抛出错误，保留 SV 报错位置和 lint 输入文件。若错误位于 `add` 生成的语句中，还会报告语句名和可用时的 Lua 调用位置；自动生成的 `final` 块没有对应的 `add` 调用。找不到 `libsv_lint.so` 和 `sv_lint` 时也会报错。
+
+```lua
+ctx:set_lint(false)
+ctx:add "raw" { name = "signals", expr = "logic clk; logic ready;" }
+ctx:default_clocking("clk", "posedge")
+ctx:add "assert" { name = "check_ready", expr = "ready" }
+ctx:validate()
+local sv = ctx:generate()
+```
+
+`validate()` 不更改 builder 的语句或逐条 lint 设置。需要延后 lint 时，在写入生成文件前调用它。
 
 ### `ctx:set_coverage_report(enable)`
 

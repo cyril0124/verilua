@@ -734,6 +734,60 @@ default clocking @(negedge path.to.clock); endclocking
         ctx:clean()
     end)
 
+    it("validates the complete model after per-add lint is disabled", function()
+        ctx:clean()
+        ctx:set_lint(false)
+        ctx:default_clocking("clk", "posedge")
+        ctx:add "raw" { name = "signals", expr = "logic clk; logic ready;" }
+        ctx:add "covergroup" { name = "cg_ready", expr = "cp: coverpoint ready;" }
+        ctx:add "assert" { name = "check_ready", expr = "ready" }
+
+        local generated = ctx:generate()
+        expect.equal(ctx:validate(), ctx)
+        expect.equal(ctx:generate(), generated)
+        ctx:clean()
+    end)
+
+    it("attributes deferred lint errors to the offending Lua statement", function()
+        local block_comments_enabled = ctx.block_comments_enabled
+        ctx:clean()
+        ctx:set_lint(false)
+        ctx:set_block_comments(false)
+        ctx:default_clocking("clk", "posedge")
+        ctx:add "raw" { name = "signals", expr = "logic clk; logic ready;" }
+
+        local source = assert(debug.getinfo(1, "S")).source:gsub("^[=@]", "")
+        local invalid_line = assert(debug.getinfo(1, "l")).currentline + 1
+        ctx:add "raw" { name = "bad_deferred", expr = "logic bad = ;" }
+        ctx:add "assert" { name = "later_assert", expr = "ready" }
+
+        local ok, err = pcall(function() ctx:validate() end)
+        expect.equal(ok, false)
+        local diagnostic = tostring(err)
+        assert(diagnostic:find("[SVBuilder] lint error in 'bad_deferred'", 1, true), diagnostic)
+        assert(diagnostic:find("source: " .. source .. ":" .. invalid_line, 1, true), diagnostic)
+
+        ctx:set_block_comments(block_comments_enabled)
+        ctx:clean()
+    end)
+
+    it("maps errors after CR-only newlines to the correct Lua block", function()
+        local block_comments_enabled = ctx.block_comments_enabled
+        ctx:clean()
+        ctx:set_lint(false)
+        ctx:set_block_comments(false)
+        ctx:add "raw" { name = "ports_cr", expr = "logic clk;\rlogic a;\rlogic b;\r" }
+        ctx:add "raw" { name = "bad_cr", expr = "logic bad = ;" }
+        ctx:add "raw" { name = "later_cr", expr = "logic after_bad;" }
+
+        local ok, err = pcall(function() ctx:validate() end)
+        expect.equal(ok, false)
+        assert(tostring(err):find("[SVBuilder] lint error in 'bad_cr'", 1, true), tostring(err))
+
+        ctx:set_block_comments(block_comments_enabled)
+        ctx:clean()
+    end)
+
     it("sv_lint preserves diagnostics without Lua debug information", function()
         ctx:clean()
         ctx:set_lint(true)
