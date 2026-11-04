@@ -382,6 +382,24 @@ expr = "$(req) ##1 $(ack)"
 -- req/ack 从 envs 或 global_envs 中查找，handle 自动渲染为 fullpath
 ```
 
+`#` 代码行和 `$(expr)` 共用渲染环境，可直接使用 `ipairs`、`pairs`、`string`、`table` 及 LuaJIT 的 `bit`。名字依次从本次 `envs`、`with_global_envs`、显式 `_parent`、上述库中查找；其他全局默认不可见。文件级常量要通过 env 传入：
+
+```lua
+local values = { 12, 34 }
+
+ctx:add "raw" {
+    name = "generated_constants",
+    expr = [[
+# for i, value in ipairs(values) do
+localparam int VALUE_$(i) = $(string.format("8'h%02x", bit.band(value, 0xff)));
+# end
+]],
+    envs = { values = values },
+}
+```
+
+传入 `_parent = _G` 会开放完整的 Lua 全局环境。
+
 ### Lua 代码行（`#` 开头）
 
 ```lua

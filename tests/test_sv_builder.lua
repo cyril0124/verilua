@@ -580,6 +580,112 @@ test: cover property (_GEN_test_PROPERTY);
         ctx:clean()
     end)
 
+    it("preserves caller-provided template environment metatables", function()
+        local template = require "verilua.sv.SVTemplate"
+        local fallback = { value = "inherited" }
+        local meta = { __index = fallback }
+        local env = setmetatable({}, meta)
+
+        local rendered, err = template.substitute([[
+# for _, item in ipairs({ 1 }) do
+    $(value) $(item)
+# end
+]], env)
+
+        expect.equal(err, nil)
+        expect.equal(rendered:match("%S+%s+%S+"), "inherited 1")
+        expect.equal(getmetatable(env), meta)
+    end)
+
+    it("exposes selected Lua libraries to templates", function()
+        ctx:add "cover" {
+            name = "template_libraries",
+            expr = [[
+# local items = { 0x1f, 0x22 }
+# local joined = table.concat(items, ",")
+# local pair_count = 0
+# for _ in pairs(items) do pair_count = pair_count + 1 end
+# for _, op in ipairs(items) do
+    $(string.format("%02x", bit.band(op, 0x0f)))
+# end
+    $(joined):$(pair_count):$(os == nil)
+]],
+        }
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- template_libraries (cover) begin ----
+// 1/1
+property _GEN_template_libraries_PROPERTY(); 0f 02 31,34:2:true; endproperty
+template_libraries: cover property (_GEN_template_libraries_PROPERTY);
+// ---- template_libraries (cover) end ----
+
+]])
+        ctx:clean()
+    end)
+
+    it("prefers envs over template libraries", function()
+        ctx:add "cover" {
+            name = "template_library_override",
+            expr = [[
+# for _, value in ipairs({ 1, 2 }) do
+    $(value)
+# end
+]],
+            envs = {
+                ipairs = function()
+                    local emitted = false
+                    return function()
+                        if not emitted then
+                            emitted = true
+                            return 1, 9
+                        end
+                    end
+                end,
+            },
+        }
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- template_library_override (cover) begin ----
+// 1/1
+property _GEN_template_library_override_PROPERTY(); 9; endproperty
+template_library_override: cover property (_GEN_template_library_override_PROPERTY);
+// ---- template_library_override (cover) end ----
+
+]])
+        ctx:clean()
+    end)
+
+    it("prefers explicit parent over template libraries", function()
+        ctx:add "cover" {
+            name = "template_parent_library_override",
+            expr = [[
+# for _, value in ipairs({ 1, 2 }) do
+    $(value)
+# end
+]],
+            envs = {
+                _parent = {
+                    ipairs = function()
+                        local emitted = false
+                        return function()
+                            if not emitted then
+                                emitted = true
+                                return 1, 8
+                            end
+                        end
+                    end,
+                },
+            },
+        }
+        expect.equal(normalize_source_locations(tostring(ctx)), [[
+// ---- template_parent_library_override (cover) begin ----
+// 1/1
+property _GEN_template_parent_library_override_PROPERTY(); 8; endproperty
+template_parent_library_override: cover property (_GEN_template_parent_library_override_PROPERTY);
+// ---- template_parent_library_override (cover) end ----
+
+]])
+        ctx:clean()
+    end)
+
     it("can handle table recursively", function()
         ctx:add "cover" {
             name = "test",

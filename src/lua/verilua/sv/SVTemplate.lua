@@ -36,6 +36,14 @@
 -- @module pl.template
 
 local utils = require 'pl.utils'
+local bit = require 'bit'
+local template_globals = {
+    ipairs = ipairs,
+    pairs = pairs,
+    string = string,
+    table = table,
+    bit = bit,
+}
 
 local append, concat = table.insert, table.concat
 local format, strsub, strfind, strgsub, strrep = string.format, string.sub, string.find, string.gsub, string.rep
@@ -165,10 +173,18 @@ end
 -- local rendered , err = ct:render(my_env, parent)
 local function render(self, env, parent, db)
     env = env or {}
-    if parent then -- parent is a bit silly, but for backward compatibility retained
+    if parent then
         setmetatable(env, { __index = parent })
     end
-    setmetatable(self.env, { __index = env })
+    setmetatable(self.env, {
+        __index = function(_, key)
+            local value = env[key]
+            if value ~= nil then
+                return value
+            end
+            return template_globals[key]
+        end,
+    })
 
     local res, out = xpcall(self.fn, debug.traceback)
     if not res then
