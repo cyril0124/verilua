@@ -220,6 +220,7 @@ ctx:add "raw"        { name = "helper", expr = "logic sample_en;" }
 | `formal_args` | string | | 仅 `sequence`/`property` 有效：形参列表，如 `"logic req, logic ack"`，直接插入括号内 |
 | `cov_type` | string | | 仅 cover 有效：`"property"`（默认）或 `"sequence"` |
 | `sample_event` | string | | 仅 covergroup 有效：覆盖默认采样事件 |
+| `scope` | boolean | | 仅 raw 有效：把注入的 SV 包进 `if (1) begin : <name> ... end`，使多个 raw 可以各自声明同名变量。块内声明的名字对后续语句和 `default_clocking` 不可见 |
 
 **返回值：**
 
@@ -382,6 +383,14 @@ expr = "$(req) ##1 $(ack)"
 -- req/ack 从 envs 或 global_envs 中查找，handle 自动渲染为 fullpath
 ```
 
+括号内是任意 Lua 表达式，不只是变量名，可以直接调用 envs 里的函数：
+
+```lua
+ctx:with_global_envs { hex = function(v) return string.format("%02x", v) end }
+
+expr = "$(hex(123))"  -- 渲染为 7b
+```
+
 `#` 代码行和 `$(expr)` 共用渲染环境，可直接使用 `ipairs`、`pairs`、`string`、`table` 及 LuaJIT 的 `bit`。名字依次从本次 `envs`、`with_global_envs`、显式 `_parent`、上述库中查找；其他全局默认不可见。文件级常量要通过 env 传入：
 
 ```lua
@@ -405,7 +414,7 @@ localparam int VALUE_$(i) = $(string.format("8'h%02x", bit.band(value, 0xff)));
 ```lua
 expr = [[
 # for i = 0, 3 do
-    $(bus)[$i] ##1 $(ack)
+    $(bus)[$(i)] ##1 $(ack)
 # end
 ]]
 ```
@@ -747,6 +756,26 @@ ctx:add "covergroup" {
 - 支持 `$(var)` 模板与 `envs`
 - 参与 `sv_lint`：检查当前语句及此前成功添加的全部语句，包括 covergroup 定义和实例；失败的语句不会加入 builder
 - 与其他语句的相对位置遵循 `add` 调用顺序，见[输出格式](#输出格式)
+
+### 用 `scope` 隔离同名变量
+
+多个 raw 需要各自声明同名变量时，加 `scope = true`。块名就是 `name`：
+
+```lua
+ctx:add "raw" { name = "r1", expr = "logic [7:0] cnt;", scope = true }
+ctx:add "raw" { name = "r2", expr = "logic [7:0] cnt;", scope = true }
+-- 生成：
+-- if (1) begin : r1
+-- logic [7:0] cnt;
+-- end
+```
+
+可见性只单向断开：块内能看到外层，外层看不到块内。所以下面两种用法会失效，且都在 `add` 时由 sv_lint 报错，不会拖到仿真编译：
+
+- `default_clocking` 引用块内声明的信号
+- 后续 raw、SVA 引用块内声明的信号
+
+第三类失效 lint 看不到：Verilua 的 `signal_db_gen` 不进入 generate 块，因此块内信号无法从 Lua 读写。
 
 ## Lua 到 SV 的覆盖同步
 
