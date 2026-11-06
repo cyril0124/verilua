@@ -23,7 +23,7 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_PERF_TIME` | 启用性能时间统计 |
 | `VL_ACC_LUA_TIME` | 启用 libverilua 侧 Lua 执行时间统计（lua_time_taken / lua_overhead） |
 | `VL_RESOLVE_X_AS_ZERO` | 四态后端数值读按位清除 x/z；默认开启 |
-| `VL_WAVEFORM_FILE` | WAL/wave_vpi 波形文件路径 |
+| `VL_WAVEFORM_FILE` | 波形文件路径，层级缓存用它判断波形是否变化 |
 | `VL_HIERARCHY_CACHE_FILE` | 层级缓存文件路径 |
 | `VL_PRINT_HIER_STYLE` | 层级打印样式 |
 | `VL_NOSIM_BUILD` | nosim 构建路径标记 |
@@ -32,6 +32,21 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
 | `VL_BUILD_DIR` | 当前 target 构建目录绝对路径（rule 自动注入） |
 | `VL_BUNDLE_KEY_HEX` | 编译 libverilua 时注入的打包密钥（64 hex 为裸密钥，否则 SHA-256；仅构建） |
 | `VERILUA_HOME` | Verilua 安装根路径 |
+
+### wave_vpi
+
+由 wave_vpi 程序读取，见下文 [wave_vpi 环境变量](#wave_vpi-环境变量)。
+
+| 变量名 | 简要说明 |
+| ------ | -------- |
+| `WAVE_FILE` | 要分析的波形文件路径 |
+| `WAVE_VPI_HIERARCHY_ONLY` | 只加载信号层级，不加载信号值 |
+| `WAVE_VPI_ENABLE_JIT` | 开启热点信号预取，加速重复读取 |
+| `WAVE_VPI_VERBOSE_JIT` | 打印预取过程的日志 |
+| `WAVE_VPI_JIT_MAX_OPT_THREADS` | 后台预取线程数上限 |
+| `WAVE_VPI_JIT_HOT_ACCESS_THRESHOLD` | 一个信号被读多少次后算热点 |
+| `WAVE_VPI_JIT_COMPILE_WINDOW_SIZE` | 一次预取多少个时间点 |
+| `WAVE_VPI_JIT_RECOMPILE_WINDOW_SIZE` | 读到离预取末尾多近时提前预取下一段 |
 
 ---
 
@@ -212,6 +227,128 @@ Verilua 支持通过环境变量来控制其行为和配置。所有环境变量
   # 永久设置（当前 shell 有效）
   export SEED=42
   ```
+
+---
+
+## wave_vpi 环境变量
+
+下面这些变量由 wave_vpi 可执行程序（`wave_vpi_main`，或处理 FSDB 的 `wave_vpi_main_fsdb`）在启动时读取。
+
+前两个控制加载哪些内容，其余都是 JIT 预取的调优项。所谓 JIT 预取，是指某个信号被反复读取后，wave_vpi 在后台提前取出它后续一段时间的值：
+
+```
+  被反复读的信号                        其他信号
+        |                                 |
+  读够阈值（默认 30 次）                  没读够阈值
+        |                                 |
+        v                                 v
+  后台线程预取后面一段值              每次仍然直接查波形文件
+        |
+        v
+  再读到这一段时直接查缓存
+```
+
+位宽超过 32 bit 的信号不参与预取。
+
+### `WAVE_FILE` (未传命令行参数时必填)
+
+要分析的波形文件路径。`wave_vpi_main` 支持 VCD/FST，`wave_vpi_main_fsdb` 支持 FSDB。
+
+- **默认值**：未设置
+- **命令行优先**：`-w` / `--wave-file` 优先于本变量，两者都没给会直接报错退出。走 xmake 构建运行时，rule 会自动带上 `--wave-file`，一般不需要自己设这个变量
+- **与层级缓存的关系**：`wave_vpi_main` 会把波形路径写入 `VL_WAVEFORM_FILE`，层级缓存据此判断波形是否变化
+- **示例**：
+  ```bash
+  WAVE_FILE=./build/wave/dump.fst xmake run -P . <target_name>
+  ```
+
+---
+
+### `WAVE_VPI_HIERARCHY_ONLY` (可选)
+
+只要信号层级，不要信号值。加载大波形时可以省下解析信号数据的时间。
+
+- **默认值**：关闭，层级和信号值都加载
+- **取值**：`1` 开启
+- **代价**：这种模式下读不到信号值，会报 `WAVE_SOURCE is not initialized`
+- **命令行等价写法**：`wave_vpi_main --hierarchy-only`，程序内部就是设置这个变量
+- **示例**：
+  ```bash
+  WAVE_VPI_HIERARCHY_ONLY=1 xmake run -P . <target_name>
+  ```
+
+---
+
+### `WAVE_VPI_ENABLE_JIT` (可选)
+
+JIT 预取的开关。只有位宽不超过 32 bit 的信号会被预取。
+
+- **默认值**：开启
+- **取值**：只有 `1` 开启，其他取值（含 `0`、空字符串）关闭
+- **需要关闭的情况**：预取缓存的是数值，不保留 x/z。命中缓存时，连 `get_hex_str` / `get_bin_str` 也只会返回 0/1，拿不到未知位。如果脚本要靠这些接口区分 x、z、0、1，就应当关闭
+- **运行时开关**：Lua 侧 `WaveVpiCtrl.jit_options:set("enableJIT", false)` 与设置本变量等效
+- **示例**：
+  ```bash
+  WAVE_VPI_ENABLE_JIT=0 xmake run -P . <target_name>
+  ```
+
+---
+
+### `WAVE_VPI_VERBOSE_JIT` (可选)
+
+打印预取过程的日志：什么时候开始预取、预取到哪、何时继续下一段。调预取参数时用。
+
+- **默认值**：关闭
+- **取值**：`1` 开启，仅在 JIT 开启时有效
+
+---
+
+### `WAVE_VPI_JIT_MAX_OPT_THREADS` (可选)
+
+允许同时做预取的后台线程数上限。
+
+- **默认值**：`20`（`wave_vpi_main_fsdb`）/ `900`（`wave_vpi_main`）
+- **怎么判断够不够**：运行结束时的 JIT 统计里，`optThreadNotEnough` 是因为线程占满、热点信号没能走预取的次数
+
+---
+
+### `WAVE_VPI_JIT_HOT_ACCESS_THRESHOLD` (可选)
+
+一个信号被读取多少次之后算热点，开始为它做预取。
+
+- **默认值**：`30`
+- **调节方向**：调小让更多信号进入预取，代价是给只读几次的信号也开了线程；调大则只有真正频繁读取的信号受益
+
+---
+
+### `WAVE_VPI_JIT_COMPILE_WINDOW_SIZE` (可选)
+
+一次预取多少个时间点的值。单位是波形 time table 的条目数，不是仿真时间：预取从当前读到的位置开始，覆盖后面这么多个条目。
+
+```
+读取位置沿着 time table 往前走：
+
+  预取开始        开始预取下一段                            预取末尾
+      |               |                                       |
+      v               v                                       v
+  +---+---------------+---------------------------------------+
+  |                   这一段已在缓存里                          |
+  +---+---------------+---------------------------------------+
+      |<------------ compileWindowSize ---------------------->|
+                      |<-- recompileWindowSize -------------->|
+```
+
+- **默认值**：`200000`
+
+---
+
+### `WAVE_VPI_JIT_RECOMPILE_WINDOW_SIZE` (可选)
+
+读到离预取末尾还剩这么多个条目时，就提前开始预取下一段，避免读到边界时等后台线程。单位同上，示意见 `WAVE_VPI_JIT_COMPILE_WINDOW_SIZE`。
+
+- **默认值**：`200000`
+- **取值**：`-1` 表示跟随 `WAVE_VPI_JIT_COMPILE_WINDOW_SIZE`
+- **约束**：不能大于 `WAVE_VPI_JIT_COMPILE_WINDOW_SIZE`，否则启动报错
 
 ---
 
