@@ -51,10 +51,25 @@ class FsdbWaveVpi {
 };
 
 struct FsdbSignalHandle_t {
+    // A saved signal value that can be reused at any tick in [firstTime, lastTime].
+    // Both endpoints are included; the owned data preserves 0/1/X/Z.
+    struct ValueInterval {
+        uint64_t firstTime = 0;
+        uint64_t lastTime  = 0;
+        bool valid         = false;
+        std::vector<byte_T> value;
+    };
+
     std::string name;
     ffrVCTrvsHdl vcTrvsHdl;
     fsdbVarIdcode varIdCode;
     size_t bitSize;
+
+    // At an edge at tick 200, before-edge sampling reads tick 199 and current
+    // sampling reads tick 201. Keep both values instead of evicting one when
+    // the callbacks switch to the other sampling view.
+    ValueInterval beforeInterval;
+    ValueInterval currentInterval;
 
     // Hot-Prefetch JIT fields
     uint64_t readCnt = 0;                  // Number of times signal has been read, triggers JIT when reaching threshold

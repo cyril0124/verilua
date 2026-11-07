@@ -36,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
+- **wave_vpi**: Cache FSDB signal values across unchanged time intervals to reduce repeated reader seeks.
 - **LuaUtils**: Reduce string allocations in `shuffle_bits_hex_str()` while preserving seeded output and random-number consumption.
 - **wave_vpi**: Value-change callbacks sample non-triggering signals before the event by default, independently of write handling, and replay includes the final waveform timestamp.
 - **SVBuilder**: Add `ctx:set_block_comments(true)` to wrap generated `add` blocks in `// ---- <name> (<type>) begin/end ----` comments; disabled by default. Begin markers include `@ file:line` when Lua debug information is available. Covergroup definitions and instances share a block; default clocking and the final coverage report remain outside the markers.

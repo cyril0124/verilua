@@ -985,7 +985,8 @@ void vpi_get_value(vpiHandle sigHdl, p_vpi_value value_p) {
     uint64_t sampleTime;
 
     const bool preEdgeRead = samplingEventObject != nullptr && sigHdl != samplingEventObject;
-    // The JIT buffer stores current snapshots; before reads use the reader.
+    // The JIT buffer holds current snapshots only. Before-edge reads instead
+    // use the reader path's interval cache, which retains raw four-state values.
     if (preEdgeRead)
         goto ReadBefore;
 
@@ -1122,21 +1123,75 @@ ReadFromReader:
     }
 #endif
 
+    // Reuse a signal's value until its next change, even across different times.
+    // Example (sampling ticks; spacing is schematic):
+    //
+    // clang-format off
+    //   time               100         110         120         130     ...     199   200
+    //   signal 1            +---------------------------------------------------------+
+    //                       |                                                         |
+    //          0    --------+                                                         +-------
+    //   cache = 1                       [=======================================]
+    //   read                            ^           ^           ^                     ^
+    //                                 MISS         HIT         HIT                  MISS
+    // clang-format on
+    //
+    // The first read at 110 gets 1 from FSDB and caches [110, 199].
+    // Reads at 120 and 130 reuse 1 without seeking or reading FSDB.
+    // At 200, fetch the new value 0 and find its next change.
+    //
+    // Other signals may change between these reads; that does not invalidate
+    // this signal's saved value. The bounds use sampleTime, after the t-1/t+1
+    // adjustment above, not cursor indices. We save raw 0/1/X/Z data and still
+    // convert it to the requested VPI format below.
     auto vcTrvsHdl = fsdbSigHdl->vcTrvsHdl;
     byte_T *retVC;
-    fsdbBytesPerBit bpb;
-    size_t bitSize = fsdbSigHdl->bitSize;
+    fsdbBytesPerBit bpb = FSDB_BYTES_PER_BIT_1B;
+    size_t bitSize      = fsdbSigHdl->bitSize;
+    auto &interval      = preEdgeRead ? fsdbSigHdl->beforeInterval : fsdbSigHdl->currentInterval;
 
-    if (FSDB_RC_SUCCESS != vcTrvsHdl->ffrGotoXTag(&time)) [[unlikely]] {
-        auto currIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
-        auto maxIndexTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.maxIndex];
-        VL_FATAL(false, "vcTrvsHdl->ffrGotoXTag() failed! time.hltag.L: {}, time.hltag.H: {}, maxIndexTime: {}, currIndexTime: {}, cursor.maxIndex: {}, cursor.index: {}", time.hltag.L, time.hltag.H, maxIndexTime, currIndexTime, cursor.maxIndex, cursor.index);
-    }
-    if (FSDB_RC_SUCCESS != vcTrvsHdl->ffrGetVC(&retVC)) [[unlikely]] {
-        VL_FATAL(false, "vcTrvsHdl->ffrGetVC() failed!");
-    }
+    // Recorded data does not change during replay, so a jump inside the saved
+    // range can reuse the value. A jump outside it must seek and read again.
+    if (interval.valid && sampleTime >= interval.firstTime && sampleTime <= interval.lastTime) {
+        retVC = interval.value.data();
+    } else {
+        if (FSDB_RC_SUCCESS != vcTrvsHdl->ffrGotoXTag(&time)) [[unlikely]] {
+            auto currIndexTime = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.index];
+            auto maxIndexTime  = fsdb_wave_vpi::fsdbWaveVpi->xtagU64Vec[cursor.maxIndex];
+            VL_FATAL(false, "vcTrvsHdl->ffrGotoXTag() failed! time.hltag.L: {}, time.hltag.H: {}, maxIndexTime: {}, currIndexTime: {}, cursor.maxIndex: {}, cursor.index: {}", time.hltag.L, time.hltag.H, maxIndexTime, currIndexTime, cursor.maxIndex, cursor.index);
+        }
+        if (FSDB_RC_SUCCESS != vcTrvsHdl->ffrGetVC(&retVC)) [[unlikely]] {
+            VL_FATAL(false, "vcTrvsHdl->ffrGetVC() failed!");
+        }
 
-    bpb = vcTrvsHdl->ffrGetBytesPerBit();
+        bpb = vcTrvsHdl->ffrGetBytesPerBit();
+        if (bpb == FSDB_BYTES_PER_BIT_1B) {
+            // Asking for the next change moves the SDK iterator and may overwrite retVC.
+            // Copy the value first; the next miss will seek to its own requested time.
+            interval.value.assign(retVC, retVC + bitSize);
+
+            // Initially trust only the tick we just read. Widen the range only
+            // when the next change or the end of this signal's changes is confirmed.
+            interval.firstTime = sampleTime;
+            interval.lastTime  = sampleTime;
+
+            fsdbXTag boundary{};
+            if (vcTrvsHdl->ffrGotoNextVC() == FSDB_RC_SUCCESS) {
+                if (vcTrvsHdl->ffrGetXTag(&boundary) == FSDB_RC_SUCCESS) {
+                    const uint64_t nextTime = Xtag64ToUInt64(boundary.hltag);
+                    if (nextTime > sampleTime) {
+                        interval.lastTime = nextTime - 1;
+                    }
+                }
+            } else if (vcTrvsHdl->ffrGetMaxXTag(&boundary) == FSDB_RC_SUCCESS && Xtag64ToUInt64(boundary.hltag) <= sampleTime) {
+                // Extend to waveform EOF only after confirming this signal has no later change.
+                // Include maxTime itself instead of computing maxTime + 1, which can overflow.
+                interval.lastTime = cursor.maxTime;
+            }
+            interval.valid = true;
+            retVC          = interval.value.data();
+        }
+    }
 
     switch (value_p->format) {
     case vpiIntVal: {
