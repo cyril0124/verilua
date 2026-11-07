@@ -1,5 +1,6 @@
 local vpiml = require "verilua.vpiml.vpiml"
 local utils = require "verilua.LuaUtils"
+local TimeUtils = require "verilua.utils.TimeUtils"
 
 local ceil = math.ceil
 local tostring = tostring
@@ -27,37 +28,16 @@ local NOOP = 5555
 ---@type verilua.scheduler.CoroYieldFunc
 local coro_yield = coroutine.yield
 
---- Time unit to exponent mapping
-local UNIT_TO_EXPONENT = {
-    fs = -15,
-    ps = -12,
-    ns = -9,
-    us = -6,
-    ms = -3,
-    s = 0,
-}
-
-local time_precision = cfg.time_precision
-
 --- Convert time with unit to simulation steps
 ---@param time number Time value
 ---@param unit "fs" | "ps" | "ns" | "us" | "ms" | "s" Time unit ("fs", "ps", "ns", "us", "ms", "s")
 ---@return integer steps
 local function time_to_steps(time, unit)
-    local unit_exp = UNIT_TO_EXPONENT[unit]
-    if not unit_exp then
-        assert(false, "Unknown time unit:" .. tostring(unit))
-    end
+    local steps = TimeUtils.time_to_steps(time, unit)
 
-    ---@cast unit_exp -?
-    local scale = 10 ^ (unit_exp - time_precision)
-    local steps = math.floor(time * scale + 0.5) -- Round to nearest integer
-
+    -- Waiting for zero steps would never reach the requested time
     if steps < 1 then
-        assert(false, string.format(
-            "Time %g %s is smaller than simulation time_precision (10^%d s)",
-            time, unit, time_precision
-        ))
+        assert(false, TimeUtils.below_precision_msg(time, unit))
     end
 
     return steps

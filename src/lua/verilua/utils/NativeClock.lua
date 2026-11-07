@@ -17,6 +17,7 @@
 local class = require "pl.class"
 local texpect = require "verilua.TypeExpect"
 local vpiml = require "verilua.vpiml.vpiml"
+local TimeUtils = require "verilua.utils.TimeUtils"
 
 ---@class NativeClockOpts
 ---@field high? number High time (same unit as period). Default: period/2
@@ -37,39 +38,16 @@ local EIO = 5
 ---@field private _chdl verilua.handles.CallableHDL The CallableHDL passed to create
 local NativeClock = class()
 
---- Time unit to exponent mapping (same as LuaSchedulerCommonV2)
-local UNIT_TO_EXPONENT = {
-    fs = -15,
-    ps = -12,
-    ns = -9,
-    us = -6,
-    ms = -3,
-    s = 0,
-}
-
 --- Convert time value to simulation steps
---- Reference: LuaSchedulerCommonV2.time_to_steps
 ---@param value number The time value
 ---@param unit TimeUnit The time unit
 ---@return integer steps Time in simulation steps
 local function convert_to_steps(value, unit)
-    -- "step" is a special case: return the value directly
-    if unit == "step" then
-        return math.floor(value)
-    end
+    local steps = TimeUtils.time_to_steps(value, unit)
 
-    local unit_exp = UNIT_TO_EXPONENT[unit]
-    assert(unit_exp, string.format(
-        "Invalid time unit: %s. Valid units: step, fs, ps, ns, us, ms, s", unit))
-
-    local scale = 10 ^ (unit_exp - cfg.time_precision)
-    local steps = math.floor(value * scale + 0.5) -- Round to nearest integer
-
+    -- A clock period below one step cannot toggle the signal
     if steps < 1 then
-        assert(false, string.format(
-            "Time %g %s is smaller than simulation time_precision (10^%d s)",
-            value, unit, cfg.time_precision
-        ))
+        assert(false, TimeUtils.below_precision_msg(value, unit))
     end
 
     return steps

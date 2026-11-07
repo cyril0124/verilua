@@ -6,6 +6,7 @@ local ffi = require "ffi"
 local path = require "pl.path"
 local vpiml = require "verilua.vpiml.vpiml"
 local SymbolHelper = require "verilua.utils.SymbolHelper"
+local TimeUtils = require "verilua.utils.TimeUtils"
 
 local assert = assert
 local table_insert = table.insert
@@ -432,17 +433,6 @@ local iterate_vpi_type = function(module_name, type)
     ffi.C.vpiml_iterate_vpi_type(module_name, type)
 end
 
---- Time unit to exponent mapping
-local UNIT_TO_EXPONENT = {
-    fs = -15,
-    ps = -12,
-    ns = -9,
-    us = -6,
-    ms = -3,
-    s = 0,
-    sec = 0,
-}
-
 --- Get current simulation time
 ---@param unit? "fs"|"ps"|"ns"|"us"|"ms"|"s" Time unit ("fs", "ps", "ns", "us", "ms", "s"), default returns steps
 ---@return number Simulation time
@@ -450,20 +440,7 @@ local get_sim_time = function(unit)
     ---@diagnostic disable-next-line
     local steps = vpiml.vpiml_get_sim_time()
 
-    if unit == nil or unit == "step" then
-        return steps
-    end
-
-    local target_exp = UNIT_TO_EXPONENT[unit]
-    if target_exp == nil then
-        assert(false, "Unknown time unit: " .. tostring(unit))
-    end
-
-    ---@diagnostic disable-next-line
-    local precision = vpiml.vpiml_get_time_precision()
-    local scale = 10 ^ (precision - target_exp)
-
-    return steps * scale
+    return TimeUtils.steps_to_time(steps, unit)
 end
 
 if is_wave_vpi then

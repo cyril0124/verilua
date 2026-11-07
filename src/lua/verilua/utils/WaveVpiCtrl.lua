@@ -2,19 +2,11 @@
 
 local SymbolHelper = require "verilua.utils.SymbolHelper"
 local Logger = require "verilua.utils.Logger"
+local TimeUtils = require "verilua.utils.TimeUtils"
 
 local logger = Logger.new("WaveVpiCtrl")
 
 local f = string.format
-
-local UNIT_TO_EXPONENT = {
-    fs = -15,
-    ps = -12,
-    ns = -9,
-    us = -6,
-    ms = -3,
-    s = 0,
-}
 
 -- LuaJIT numbers are IEEE-754 doubles, so integers greater than 2^53 - 1
 -- lose exact precision after uint64_t -> Lua number conversion.
@@ -146,14 +138,7 @@ function WaveVpiCtrl:get_max_cursor_time(unit)
         return raw_time
     end
 
-    local target_exp = UNIT_TO_EXPONENT[unit]
-    if target_exp == nil then
-        assert(false, "Unknown time unit: " .. tostring(unit))
-    end
-
-    local precision = cfg.time_precision
-    local scale = 10 ^ (precision - target_exp)
-    return tonumber(raw_time) --[[@as number]] * scale
+    return TimeUtils.steps_to_time(tonumber(raw_time) --[[@as number]], unit)
 end
 
 local function do_flush_scheduler()
@@ -244,22 +229,10 @@ function WaveVpiCtrl:set_cursor_time(time, unit, flush_scheduler)
         ) --[[@as fun(time: integer)]]
     end
 
-    -- Convert time to simulation steps if unit is specified
+    -- Same rounding as await_time_*: a cursor at 2.5 ps with 1 ps precision lands on the
+    -- step the scheduler waits for
     ---@type integer
-    local step_time
-    if unit ~= nil and unit ~= "step" then
-        local target_exp = UNIT_TO_EXPONENT[unit]
-        if target_exp == nil then
-            assert(false, "Unknown time unit: " .. tostring(unit))
-        end
-
-        local precision = cfg.time_precision
-        -- Convert from target unit to simulation steps: time_in_steps = time * 10^(target_exp - precision)
-        local scale = 10 ^ (target_exp - precision)
-        step_time = math.floor(tonumber(time) --[[@as number]] * scale)
-    else
-        step_time = math.floor(tonumber(time) --[[@as number]])
-    end
+    local step_time = TimeUtils.time_to_steps(tonumber(time) --[[@as number]], unit)
 
     if step_time < 0 then
         assert(false, f(
