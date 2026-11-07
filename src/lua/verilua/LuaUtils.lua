@@ -8,6 +8,7 @@ local math = require "math"
 ---@diagnostic disable-next-line: unresolved-require
 local path = require "pl.path"
 local table_new = require "table.new"
+local string_buffer = require "string.buffer"
 local logger = require("verilua.utils.Logger").new("verilua.LuaUtils")
 
 local type = type
@@ -19,9 +20,11 @@ local ipairs = ipairs
 local assert = assert
 local rawset = rawset
 local f = string.format
+local string_byte = string.byte
 local tonumber = tonumber
 local tostring = tostring
 local math_ceil = math.ceil
+local math_min = math.min
 local math_floor = math.floor
 local ffi_istype = ffi.istype
 local math_random = math.random
@@ -864,18 +867,20 @@ function utils.shuffle_bits_hex_str(bitwidth)
     if bitwidth <= 32 then
         return bit_tohex(utils.shuffle_bits(bitwidth) --[[@as integer]])
     else
-        local u32_chunk = utils.cover_with_n(bitwidth, 32)
-        local result = ""
+        local byte_count = utils.cover_with_n(bitwidth, 32) * 8
+        local buffer = string_buffer.new(byte_count)
+        local output = buffer:reserve(byte_count) --[[@as table<integer, integer>]]
         local total_bits = bitwidth
-        for _i = 1, u32_chunk do
-            if total_bits >= 32 then
-                result = bit_tohex(utils.shuffle_bits(32) --[[@as integer]]) .. result
-            else
-                result = bit_tohex(utils.shuffle_bits(total_bits) --[[@as integer]]) .. result
+        -- Draw low words first, writing them at their final offsets without intermediate strings.
+        for offset = byte_count - 8, 0, -8 do
+            local value = utils.shuffle_bits(math_min(total_bits, 32)) --[[@as integer]]
+            for digit = 7, 0, -1 do
+                output[offset + digit] = string_byte("0123456789abcdef", bit_band(value, 15) + 1)
+                value = bit_rshift(value, 4)
             end
             total_bits = total_bits - 32
         end
-        return result
+        return buffer:commit(byte_count):get()
     end
 end
 

@@ -36,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
+- **LuaUtils**: Reduce string allocations in `shuffle_bits_hex_str()` while preserving seeded output and random-number consumption.
 - **wave_vpi**: Value-change callbacks sample non-triggering signals before the event by default, independently of write handling, and replay includes the final waveform timestamp.
 - **SVBuilder**: Add `ctx:set_block_comments(true)` to wrap generated `add` blocks in `// ---- <name> (<type>) begin/end ----` comments; disabled by default. Begin markers include `@ file:line` when Lua debug information is available. Covergroup definitions and instances share a block; default clocking and the final coverage report remain outside the markers.
 - **SVBuilder**: Emit statements in `add` call order instead of grouping them by type. Leading `raw` declarations precede `default clocking`; the coverage report remains last. Lint checks preceding statements in the same order, including covergroup instances.
