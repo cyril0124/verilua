@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **verilator**: SystemVerilog `final` blocks run before verilua `final {}` callbacks, matching VCS/iVerilog and the ordering required by IEEE 1800-2017 9.2.3.
 - **wave_vpi**: Prioritize newly registered edge callbacks over persistent callbacks during replay and reset their sampling baseline after cursor jumps to avoid false edges.
 - **wave_vpi**: Preserve same-timestamp edge callbacks when `to_percent()` leaves the replay cursor unchanged.
 - **wave_vpi**: Keep cursor indices valid when jumping in single-timestamp waveforms.

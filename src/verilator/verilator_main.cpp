@@ -375,10 +375,7 @@ void Emulator::start_simulation() {
     VerilatedVpi::callCbs(cbStartOfSimulation);
 }
 
-void Emulator::end_simulation(bool success) {
-    VerilatedVpi::callCbs(cbEndOfSimulation);
-    this->finalize(success);
-}
+void Emulator::end_simulation(bool success) { this->finalize(success); }
 
 void Emulator::dump_wave() {
 #if VM_TRACE
@@ -611,6 +608,9 @@ void Emulator::finalize(bool success = true) {
 #endif
 
     dut_ptr->final();
+
+    // End-of-simulation callbacks run after the model's `final` blocks (IEEE 1800-2017 9.2.3).
+    VerilatedVpi::callCbs(cbEndOfSimulation);
 
 #if VM_TRACE
     if (args.enable_wave) {

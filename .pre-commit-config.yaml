@@ -32,12 +32,15 @@ repos:
         pass_filenames: false
         files: \.(lua)$
         exclude: (^|/)xmake\.lua$
+      # Formats the staged files only. `xmake run format-cpp` walks all of
+      # src/** and rewrites files that predate the current format config, which
+      # fails every commit that touches an unrelated C/C++ file.
       - id: format-cpp
         name: format-cpp
-        entry: xmake run format-cpp
+        entry: clang-format -i
         language: system
-        pass_filenames: false
         files: \.(cpp|hpp|h|c)$
+        exclude: (^|/)(svdpi|vpi_user|lightsss)
       - id: cargo-fmt
         name: cargo-fmt
         entry: cargo fmt --all --check

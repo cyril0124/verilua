@@ -602,6 +602,8 @@ Verilua 中，可以创建一些在仿真开始或者结束时调用的任务，
     }
     ```
 
+- `final { ... }` 中的函数在仿真结束时执行，晚于 SystemVerilog 的 `final begin ... end` 块。
+
 ## 相关文档
 
 - [时间等待 API](./await_time.mdx)：查看 `await_time_ns`、`await_time_us` 等带单位的等待接口。
