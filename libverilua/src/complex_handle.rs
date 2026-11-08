@@ -36,8 +36,7 @@ use crate::TaskID;
 /// Raw handle type for FFI boundary - a pointer cast to i64 for Lua compatibility
 pub type ComplexHandleRaw = libc::c_longlong;
 
-/// Maximum number of 32-bit words supported for vector values.
-/// Signals wider than 32 * MAX_VECTOR_SIZE bits will cause a panic.
+/// Inline capacity for vector values; wider signals use heap storage.
 const MAX_VECTOR_SIZE: usize = 32;
 
 /// Container for pre-shuffled random values.
@@ -153,14 +152,6 @@ impl ComplexHandle {
     pub fn new(vpi_handle: vpiHandle, name: *mut libc::c_char, width: usize) -> Self {
         let beat_num = (width as f64 / 32.0).ceil() as usize;
 
-        assert!(
-            beat_num <= MAX_VECTOR_SIZE,
-            "beat_num is too large: {}, width: {}, name: {}",
-            beat_num,
-            width,
-            utils::c_char_to_string(name)
-        );
-
         #[cfg(feature = "merge_cb")]
         {
             Self {
@@ -177,7 +168,7 @@ impl ComplexHandle {
                 put_value_vectors: smallvec::smallvec![t_vpi_vecval {
                     aval: 0,
                     bval: 0,
-                }; MAX_VECTOR_SIZE],
+                }; beat_num.max(MAX_VECTOR_SIZE)],
                 posedge_cb_count: HashMap::new(),
                 negedge_cb_count: HashMap::new(),
                 edge_cb_count: HashMap::new(),
@@ -213,7 +204,7 @@ impl ComplexHandle {
                 put_value_vectors: smallvec::smallvec![t_vpi_vecval {
                     aval: 0,
                     bval: 0,
-                }; MAX_VECTOR_SIZE],
+                }; beat_num.max(MAX_VECTOR_SIZE)],
                 random_value_vec_type: ShuffledValueVecType::None,
                 random_value_u32_vec: ShuffledValueVec {
                     vec: Vec::new(),
