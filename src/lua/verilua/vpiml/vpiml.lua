@@ -7,11 +7,10 @@ else
     vpiml = require "verilua.vpiml.VpimlNormal"
 end
 
-local vpiml_handle_by_name = vpiml.vpiml_handle_by_name
-local vpiml_handle_by_name_safe = vpiml.vpiml_handle_by_name_safe
-
----@cast vpiml_handle_by_name -?
----@cast vpiml_handle_by_name_safe -?
+local vpiml_handle_by_name = assert(vpiml.vpiml_handle_by_name,
+    "backend module does not provide vpiml_handle_by_name")
+local vpiml_handle_by_name_safe = assert(vpiml.vpiml_handle_by_name_safe,
+    "backend module does not provide vpiml_handle_by_name_safe")
 
 ---@diagnostic disable-next-line: duplicate-set-field
 vpiml.vpiml_handle_by_name = function(name)
