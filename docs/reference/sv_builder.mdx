@@ -834,6 +834,121 @@ add_ldflags("-u verilua_cov_sample")
 另外，Verilator 会静默丢弃仿真初始化完成前的 DPI export 调用，第一次采样要等第一个时钟沿之后。
 :::
 
+## 编写建议
+
+这些写法主要用于减少重复代码和生成错误，可按项目情况选用。
+
+- 重复的 bins、声明和采样调用可以用 `# for` 展开。Lua 侧只准备数据，不必先拼好 SV 片段再填入 `expr`。
+- 拼接列表时，`table.concat` 比自己处理尾部分隔符更方便。花括号等 SV 语法留在模板中，如 `{$(table.concat(paths, ", "))}`。用于位拼接时，列表顺序就是位序；位宽也要随元素数量和单元素位宽调整。
+- 公共的时钟、复位和 helper 可以在 `clean()` 后通过 `with_global_envs` 注册，局部 `envs` 只放当前语句特有的值。文件级常量和函数需要显式传入，一般不必通过 `_parent = _G` 开放整个全局环境。
+- 信号路径可以用 handle 或 `chdl()` 获取，避免手写 XMR。动态引用可以使用命名空间或 `add` 返回的 handle，不要嵌套 `$(...)`。重复的数值格式转换可以写成名称明确的 helper，这样不必在多处重复格式串，也不用额外维护派生数据表。
+- 实例数和数组长度可以在生成时探测。若预期结果非空，探测为 0 时应直接报错；相关的位宽、采样次数和 bins 数量也要随之调整。
+- 默认情况下，每次 `add` 都会触发一次 lint，而每次检查都要执行编译相关操作。语句较多时，可以先调用 `set_lint(false)`，等所有 `add` 完成后、调用 `generate()` 前再执行 `validate()`，这样只需对完整模型做一次编译检查。例如，逐条 lint 累计可能花费 100 s，而最后一次 `validate()` 可能只需 1 s；实际耗时取决于语句数量和工程规模。
+
+### Good / Bad 示例
+
+以下片段省略外围的 `ctx:add`；模板使用的表仍需通过 `envs` 传入。
+
+重复结构交给模板：
+
+```lua
+-- Bad：在 Lua 中拼接 SV 片段
+local bins = {}
+for _, op in ipairs(ops) do
+    bins[#bins + 1] = ("bins %s = {%d};"):format(op.name, op.value)
+end
+expr = table.concat(bins, "\n")
+
+-- Good：在模板中展开重复结构
+expr = [[
+# for _, op in ipairs(ops) do
+    bins $(op.name) = {$(op.value)};
+# end
+]]
+```
+
+列表拼接：
+
+```lua
+-- Bad：在模板循环中手动维护分隔符
+expr = [[{
+# for i, path in ipairs(paths) do
+    $(path)
+#   if i < #paths then
+    ,
+#   end
+# end
+}]]
+
+-- Good：分隔符由 table.concat 处理，花括号留在 SV 模板中
+local paths = {}
+for i, signal in ipairs(signals) do
+    paths[i] = signal:chdl().fullpath
+end
+expr = [[{$(table.concat(paths, ", "))}]]
+```
+
+动态引用：
+
+```lua
+-- Bad：内层 $(id) 不会被求值
+expr = "$(cov:cg_$(id)).sample(value);"
+
+-- Good：cg 是 add "covergroup" 返回的 handle
+expr = "$(cg).sample(value);"
+envs = { cg = cg }
+```
+
+公共 env 和格式化 helper：
+
+```lua
+-- Bad：重复注册共享值，并开放整个全局环境
+envs = { clock = dut.clock, reset = dut.reset, _parent = _G }
+expr = [[bins op = {7'h$(string.format("%02x", opcode))};]]
+
+-- Good：在生成入口注册共享值和具名 helper
+ctx:clean()
+ctx:with_global_envs {
+    clock = dut.clock,
+    reset = dut.reset,
+    hex = function(value) return ("%02x"):format(value) end,
+}
+expr = [[bins op = {7'h$(hex(opcode))};]]
+```
+
+实例数量和位宽：
+
+```lua
+-- Bad：实例数量和位宽都写死
+local count = 4
+expr = "wire [3:0] valid;"
+
+-- Good：用每个实例都有的时钟探测数量，并派生位宽
+local count = 0
+while try { function()
+    (instance_prefix .. count .. ".clock"):chdl()
+    return true
+end } do
+    count = count + 1
+end
+assert(count > 0, "no instances found")
+expr = "wire [$(count - 1):0] valid;"
+envs = { count = count }
+```
+
+把检查放到所有 `add` 完成后：
+
+```lua
+-- Bad：关闭 add 时的检查后，直接生成
+ctx:set_lint(false)
+local sv = ctx:generate()
+
+-- Good：所有 add 完成后，只做一次完整检查
+ctx:set_lint(false)
+ctx:validate()
+local sv = ctx:generate()
+```
+
 ## 推荐用法
 
 生成通常不需要在每次仿真时都执行。推荐通过环境变量控制，只在需要重新生成时才运行：
