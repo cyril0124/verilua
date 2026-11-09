@@ -1,16 +1,3 @@
---==============================================================================
--- Utility function for robust task removal synchronization
--- This handles simulator-specific timing differences in task cleanup
-local function wait_for_task_removal(task_id, max_nsim)
-    max_nsim = max_nsim or 3
-    local wait_count = 0
-    while scheduler:check_task_exists(task_id) and wait_count < max_nsim do
-        await_nsim()
-        wait_count = wait_count + 1
-    end
-    return wait_count
-end
-
 assert(
     scheduler:get_curr_task_id() == scheduler.NULL_TASK_ID,
     "Expected scheduler.curr_task_id to be NULL_TASK_ID when not inside a task"
@@ -798,14 +785,7 @@ fork {
         }
 
         scheduler:remove_task(task4_id)
-        local nsim_waited = wait_for_task_removal(task4_id)
-        assert(not scheduler:check_task_exists(task4_id), "Task4 should be removed after " .. nsim_waited .. " nsim")
-        print("Task4 removal took " .. nsim_waited .. " nsim")
-        if cfg.simulator == "iverilog" then
-            assert(nsim_waited == 2)
-        else
-            assert(nsim_waited == 1)
-        end
+        assert(not scheduler:check_task_exists(task4_id), "Task4 must be removed without advancing time")
 
         -- Test 5: Remove task immediately after creation
         local _, task5_id = jfork {
@@ -820,7 +800,60 @@ fork {
         clock:posedge()
         assert(not scheduler:check_task_exists(task5_id), "Task5 should be removed")
 
-        -- Test 6: Remove task multiple times
+        -- Test 6: Restart a task that just finished, before the cleanup sweep runs
+        local restart_counter = 0
+        local restart_id = scheduler:append_task(nil, "restart_task", function()
+            restart_counter = restart_counter + 1
+        end, true)
+
+        assert(restart_counter == 1, "Restart task should run and finish")
+        assert(not scheduler:check_task_exists(restart_id), "Finished task must not report as existing")
+
+        scheduler:try_wakeup_task(restart_id)
+        assert(restart_counter == 2, "Finished task should restart immediately after try_wakeup_task")
+
+        -- Test 7: Replace a finished task's body with the same ID
+        local replace_counter = 0
+        restart_id = scheduler:append_task(restart_id, "replaced_task", function()
+            replace_counter = replace_counter + 1
+        end, true)
+
+        assert(replace_counter == 1, "Replacement task should run")
+        assert(not scheduler:check_task_exists(restart_id), "Replacement task should have finished")
+
+        -- Test 8: The same immediate restart through jfork
+        local jfork_restart_counter = 0
+        local _, jfork_restart_id = jfork {
+            jfork_restart_task = function()
+                jfork_restart_counter = jfork_restart_counter + 1
+            end
+        }
+
+        -- jfork runs the body right away, so the task has finished before any scheduling.
+        assert(jfork_restart_counter == 1, "jfork task should run once")
+        assert(not scheduler:check_task_exists(jfork_restart_id), "Finished jfork task must not report as existing")
+
+        scheduler:try_wakeup_task(jfork_restart_id)
+        assert(jfork_restart_counter == 2, "Finished jfork task should restart immediately")
+
+        -- Test 9: Restart a finished task that is also marked for removal
+        local removed_restart_counter = 0
+        local removed_restart_id = scheduler:append_task(nil, "removed_restart_task", function()
+            removed_restart_counter = removed_restart_counter + 1
+            if removed_restart_counter == 2 then
+                clock:posedge()
+            end
+        end, true)
+
+        scheduler:remove_task(removed_restart_id)
+        scheduler:try_wakeup_task(removed_restart_id)
+
+        assert(removed_restart_counter == 2, "Finished and removed task should restart")
+        assert(scheduler:check_task_exists(removed_restart_id), "Restarted task must remain registered while waiting")
+        clock:posedge()
+        assert(not scheduler:check_task_exists(removed_restart_id), "Restarted task should finish after its wait")
+
+        -- Test 10: Remove task multiple times
         do
             local e = (""):ehdl()
             local v = 0

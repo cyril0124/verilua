@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🐛 Fixed
 
+- **scheduler**: Finished or removed tasks can now be restarted or replaced immediately with the same ID, without waiting for deferred cleanup.
 - **verilator**: SystemVerilog `final` blocks run before verilua `final {}` callbacks, matching VCS/iVerilog and the ordering required by IEEE 1800-2017 9.2.3.
 - **wave_vpi**: Prioritize newly registered edge callbacks over persistent callbacks during replay and reset their sampling baseline after cursor jumps to avoid false edges.
 - **wave_vpi**: Preserve same-timestamp edge callbacks when `to_percent()` leaves the replay cursor unchanged.

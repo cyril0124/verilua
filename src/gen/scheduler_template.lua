@@ -158,6 +158,16 @@ function Scheduler:_is_valid_event_id(id)
 end
 
 function Scheduler:check_task_exists(id)
+    -- The running map is cleared only by the deferred cleanup, so a finished or
+    -- cancelled task is still listed there. Both removal queues answer first.
+    if self.user_removal_tasks_set[id] then
+        return false
+    end
+    for _, pending_id in ipairs(self.pending_removal_tasks) do
+        if pending_id == id then
+            return false
+        end
+    end
     return self.task_name_map_running[id] ~= nil
 end
 
@@ -305,7 +315,19 @@ function Scheduler:append_task(id, name, task_body, start_now)
             assert(false, "[Scheduler] Invalid coroutine task id!")
         end
 
-        if self:check_task_exists(id) and not self.user_removal_tasks_set[id] then
+        -- Drop the old completion state: the cleanup sweep would otherwise clear the
+        -- replacement's running entry, and the stale bookkeeping blocks the append.
+        for index = #self.pending_removal_tasks, 1, -1 do
+            if self.pending_removal_tasks[index] == id then
+                table_remove(self.pending_removal_tasks, index)
+                self.nr_pending_removal_tasks = self.nr_pending_removal_tasks - 1
+                self.task_name_map_running[id] = nil
+                self.task_execution_count_map[id] = 0
+                self.task_fired_status_map[id] = false
+            end
+        end
+
+        if self:check_task_exists(id) then
             local task_name = self.task_name_map_running[id]
             assert(false, "[Scheduler] Task already exists! task_id: " .. id .. ", task_name: " .. task_name)
         end
@@ -374,6 +396,16 @@ function Scheduler:wakeup_task(id)
         self.user_removal_tasks_set[id] = nil
         self.nr_user_removal_tasks = self.nr_user_removal_tasks - 1
         self.task_name_map_running[id] = nil
+
+        -- A finished task can be in both removal queues. Clear its pending
+        -- entry too so schedule_task cannot erase the restarted running state.
+        for i, pending_id in ipairs(self.pending_removal_tasks) do
+            if pending_id == id then
+                table_remove(self.pending_removal_tasks, i)
+                self.nr_pending_removal_tasks = self.nr_pending_removal_tasks - 1
+                break
+            end
+        end
     elseif found_in_removal_tasks then
         table_remove(self.pending_removal_tasks, removal_task_id)
         self.nr_pending_removal_tasks = self.nr_pending_removal_tasks - 1
@@ -386,25 +418,11 @@ function Scheduler:wakeup_task(id)
 end
 
 function Scheduler:try_wakeup_task(id)
-    if self:check_task_exists(id) and not self.user_removal_tasks_set[id] then
+    if self:check_task_exists(id) then
         return
-    else
-        local task_name = self.task_name_map_archived[id]
-        if task_name == nil then
-            assert(false, "[Scheduler] Task not registered! task_id: " .. id)
-        end
-
-        self.task_name_map_running[id] = task_name
-        self.task_fired_status_map[id] = true
-        self.task_coroutine_map[id] = coro_create(self.task_body_map[id])
-        -- Clear any stale user_removal flag so the new coroutine is not
-        -- immediately skipped by schedule_task's user_removal check.
-        if self.user_removal_tasks_set[id] then
-            self.user_removal_tasks_set[id] = nil
-            self.nr_user_removal_tasks = self.nr_user_removal_tasks - 1
-        end
-        self:schedule_task(id)
     end
+    -- wakeup_task validates the id and drops the stale pending-removal entry.
+    self:wakeup_task(id)
 end
 
 function Scheduler:schedule_task(id)
