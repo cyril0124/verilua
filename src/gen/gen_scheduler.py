@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Generate the six scheduler variants from `scheduler_template.lua`.
+"""Generate the scheduler variants from `scheduler_template.lua`.
 
 The template keeps its mode switches as `_G.<FLAG>` reads so it stays valid,
-lintable Lua. This generator rewrites them into chunk-level `local`s that are
-assigned exactly once, so every method sees them as immutable upvalues and
-LuaJIT constifies them while recording a trace (`rec_upvalue_constify` in
-lj_record.c). The branches belonging to the other modes therefore fold away at
-JIT time and cost nothing on the hot path.
+lintable Lua. This generator inlines each read as a literal followed by the flag
+name in a block comment (`if false --[[EDGE_STEP]] then`), so a variant shows
+which switches were compiled in without declaring any locals. The disabled
+branches are literal `false` conditions: the parser skips them and LuaJIT never
+records a trace for them.
 
 Usage: ./gen_scheduler.py
 """
@@ -47,15 +47,13 @@ HEADER = """\
 def generate(template: str, name: str, enabled: set) -> str:
     src = template
 
-    # Emit the switches as write-once chunk-level locals so methods capture
-    # them as immutable upvalues.
-    decls = []
+    # Inline every switch as a literal while keeping the flag name visible.
     for flag in FLAGS:
-        decls.append(f"local {flag} = {'true' if flag in enabled else 'false'}")
+        literal = "true" if flag in enabled else "false"
 
         # Word boundary required: a plain substring match would rewrite
         # `_G.NORMAL_EXTRA` into the bare (nil) global `NORMAL_EXTRA`.
-        src, count = re.subn(rf"_G\.{flag}\b", flag, src)
+        src, count = re.subn(rf"_G\.{flag}\b", f"{literal} --[[{flag}]]", src)
         if count == 0:
             raise SystemExit(f"template does not reference _G.{flag}")
 
@@ -64,14 +62,14 @@ def generate(template: str, name: str, enabled: set) -> str:
     if leftover:
         raise SystemExit(f"unexpected `{leftover.group()}` reference in {TEMPLATE_FILE}")
 
-    # Each variant needs its own class name, otherwise the six generated files
+    # Each variant needs its own class name, otherwise the generated files
     # would all define the same EmmyLua class. Word boundary for the same reason
     # as above: a longer class name sharing this prefix must not be mangled.
     src, count = re.subn(rf"{re.escape(GEN_CLASS)}\b", f"verilua.LuaScheduler_gen_{name}", src)
     if count == 0:
         raise SystemExit(f"template does not define the `{GEN_CLASS}` class")
 
-    return HEADER + "\n".join(decls) + "\n\n" + src
+    return HEADER + src
 
 
 def main() -> None:

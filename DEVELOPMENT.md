@@ -20,7 +20,7 @@ Verilua requires multiple scheduler variants to support different simulation mod
 
 Each mode has two variants - with and without performance profiling (P suffix).
 
-The shared implementation lives in `src/gen/scheduler_template.lua`, which reads its mode switches as `_G.NORMAL`, `_G.STEP`, `_G.EDGE_STEP`, `_G.ACC_TIME` and `_G.SAFETY` so the template itself stays valid, lintable Lua. The generator rewrites those reads into chunk-level `local`s that are assigned exactly once, so every method captures them as immutable upvalues and LuaJIT constifies them while recording a trace (`rec_upvalue_constify` in `lj_record.c`). The branches of the other modes are therefore folded away at JIT time and cost nothing on the hot path.
+The shared implementation lives in `src/gen/scheduler_template.lua`, which reads its mode switches as `_G.NORMAL`, `_G.STEP`, `_G.EDGE_STEP`, `_G.ACC_TIME` and `_G.SAFETY` so the template itself stays valid, lintable Lua. The generator inlines each read as a literal followed by the flag name in a block comment (`if false --[[EDGE_STEP]] then`), so a generated variant shows which switches were compiled in without declaring any locals. The disabled branches are literal `false` conditions: the parser skips them, so LuaJIT never records a trace for them and they cost nothing on the hot path.
 
 **To modify scheduler files:**
 1. Edit the template: `src/gen/scheduler_template.lua`
