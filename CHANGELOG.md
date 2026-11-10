@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **SVBuilder**: Covergroup `sample_event` accepts complete `@(...)` sampling declarations alongside bare event expressions.
 - **SVBuilder**: `#` template lines and `$(...)` expressions can use `ipairs`, `pairs`, `string`, `table`, and LuaJIT's `bit` library without exposing the full global environment.
 - **SVBuilder**: `validate()` checks the complete generated model in one sv_lint pass, even with per-add lint disabled, and identifies the originating Lua statement when the error is in an `add` block.
 - **wave_vpi**: Add `--ignore-writes` for signal-write-tolerant replay and make trace controls unconditional no-ops.

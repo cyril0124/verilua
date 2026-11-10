@@ -36,7 +36,7 @@ local debug_getinfo = debug.getinfo
 ---@field expr string SV expression body; supports `$(var)` template substitution.
 ---@field formal_args? string For `add "sequence"` and `add "property"` only: formal parameter list, e.g. `"logic req, logic ack"`. Emitted verbatim between the parentheses.
 ---@field cov_type? "sequence" | "property" For `add "cover"` only: wrap as sequence or property (default: "property").
----@field sample_event? string For `add "covergroup"` only: per-covergroup sampling event override (e.g. "posedge alt_clk").
+---@field sample_event? string For `add "covergroup"` only: sampling declaration (e.g. "@(posedge clk)" or "with function sample(int value)"); bare event expressions are wrapped in @().
 ---@field envs? table<string, any> Per-call template variables; merged on top of global_envs. Keys `seq`, `prop`, `cov` are reserved for the namespace handles; using them fails at the next `add`.
 
 ---@class verilua.sv.SVBuilder.statement
@@ -777,11 +777,12 @@ function SVBuilder:add(typ)
             -- Trim whitespace and determine header format
             local sample_event_trimmed = sample_event_expanded:match("^%s*(.-)%s*$")
             local cg_header
-            if sample_event_trimmed:match("^with%s") or sample_event_trimmed:match("^with$") then
-                -- "with function sample(...)" syntax: no @() wrapping
+            if sample_event_trimmed:sub(1, 1) == "@"
+                or sample_event_trimmed:match("^with%s")
+                or sample_event_trimmed:match("^with$") then
                 cg_header = f("covergroup %s %s;", params.name, sample_event_trimmed)
             else
-                -- Event-based: wrap with @()
+                -- Bare event expressions support existing callers and default_clocking.
                 cg_header = f("covergroup %s @(%s);", params.name, sample_event_trimmed)
             end
 

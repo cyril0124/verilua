@@ -1858,6 +1858,75 @@ fresh: cover property (_GEN_fresh_PROPERTY);
         ctx:set_lint(false)
     end)
 
+    it("sample_event accepts complete event controls alongside legacy expressions", function()
+        ctx:set_lint(true)
+
+        local cases = {
+            { "posedge clk",                      "@(posedge clk)" },
+            { "negedge alt_clk",                  " \t@(negedge alt_clk)\n" },
+            { "posedge clk iff (valid && ready)", "@(posedge clk iff (valid && ready))" },
+            { "posedge clk or posedge alt_clk",   "@(posedge clk or posedge alt_clk)" },
+            { "txn_done",                         "@(txn_done)" },
+            { "posedge $(clock) iff ($(valid) && $(ready))",
+                "@(posedge $(clock) iff ($(valid) && $(ready)))" },
+            { "negedge alt_clk", "$(sampling)" },
+        }
+
+        for _, use_default_clock in ipairs({ false, true }) do
+            for _, case in ipairs(cases) do
+                local outputs = {} ---@type string[]
+                for _, sample_event in ipairs(case) do
+                    ctx:clean()
+                    ctx:add "raw" {
+                        name = "signals",
+                        expr = "logic clk, alt_clk, valid, ready; logic [1:0] status; event txn_done;",
+                    }
+                    if use_default_clock then
+                        ctx:default_clocking("clk", "posedge")
+                    end
+                    ctx:add "covergroup" {
+                        name = "cg_event",
+                        sample_event = sample_event,
+                        expr = "cp_status: coverpoint status { bins idle = {0}; bins busy = {[1:3]}; }",
+                        envs = {
+                            clock = "alt_clk",
+                            valid = "valid",
+                            ready = "ready",
+                            sampling = "@(negedge alt_clk)",
+                        },
+                    }
+                    ctx:validate()
+                    outputs[#outputs + 1] = normalize_source_locations(ctx:generate())
+                end
+                expect.equal(outputs[1], outputs[2])
+            end
+        end
+
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
+    it("sample_event keeps lint validation for malformed complete event controls", function()
+        ctx:set_lint(true)
+        for _, sample_event in ipairs({ "@(posedge clk", "@()" }) do
+            ctx:clean()
+            ctx:add "raw" { name = "signals", expr = "logic clk, status;" }
+            local before = ctx:generate()
+            local ok, err = pcall(function()
+                ctx:add "covergroup" {
+                    name = "cg_invalid",
+                    sample_event = sample_event,
+                    expr = "coverpoint status;",
+                }
+            end)
+            expect.equal(ok, false)
+            assert(tostring(err):find("[SVBuilder] lint error in 'cg_invalid'", 1, true), tostring(err))
+            expect.equal(ctx:generate(), before)
+        end
+        ctx:clean()
+        ctx:set_lint(false)
+    end)
+
     it("sample_event supports template expansion", function()
         local clock_signal = {
             __type = "CallableHDL",
