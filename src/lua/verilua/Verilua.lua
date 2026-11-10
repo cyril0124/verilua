@@ -105,7 +105,13 @@ verilua.finish_callback = function()
 
     verilua.end_time = os.clock()
 
-    local elapsed_time = verilua.end_time - verilua.start_time
+    -- `verilua_init` assigns `start_time`; a failure before it leaves the default `0.0`.
+    local start_time = verilua.start_time
+    if start_time == 0.0 then
+        start_time = verilua.end_time
+    end
+
+    local elapsed_time = verilua.end_time - start_time
     logger:sim_summary(elapsed_time)
 end
 

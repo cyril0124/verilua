@@ -233,6 +233,21 @@ class Emulator final {
 
 std::unique_ptr<Emulator> global_emu = nullptr;
 
+// Libverilua resolves this symbol with `dlsym` and calls it when a Lua failure cannot be
+// recovered. Report the failure, run the normal end-of-simulation path, and exit with a
+// failure code.
+extern "C" void verilua_backend_fail(const char *message) {
+    printf("[%s:%s:%d] [%sFATAL%s] %s\n", __FILE__, __FUNCTION__, __LINE__, ANSI_COLOR_RED, ANSI_COLOR_RESET, message);
+    fflush(stdout);
+    fflush(stderr);
+
+    if (global_emu) {
+        global_emu->end_simulation(false);
+    }
+
+    exit(1);
+}
+
 extern "C" void _verilator_simulation_initializeTrace(void *traceFilePath) {
 #if VM_TRACE
     global_emu->args.trace_file = std::string((char *)traceFilePath);
