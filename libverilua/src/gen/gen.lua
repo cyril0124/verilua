@@ -262,7 +262,7 @@ unsafe extern "C" fn edge_callback_chunk_{{i}}(cb_data: *mut t_cb_data) -> PLI_I
 
         if let Err(e) = env.call_sim_event_chunk({{i}}, &user_data.task_id_vec) {
             env.finalize();
-            panic!("{}", e);
+            crate::utils::fatal_error(&e);
         }
 
         if let Some(s) = s {

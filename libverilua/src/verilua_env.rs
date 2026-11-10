@@ -311,7 +311,7 @@ impl VeriluaEnv {
 
         let init_file = verilua_home + "/src/lua/verilua/init.lua";
         if let Err(e) = lua_dofile.call::<()>(init_file) {
-            panic!("Failed to load init.lua: {e}");
+            crate::utils::fatal_error(&format!("Failed to load init.lua: {e}"));
         };
 
         if std::env::var("VL_DUT_TOP").is_err() {
@@ -349,11 +349,8 @@ impl VeriluaEnv {
 
         // Environment variable `VL_LUA_SCRIPT` is set while loading `init.lua`
         let lua_script = std::env::var("VL_LUA_SCRIPT").expect("VL_LUA_SCRIPT not set!");
-        if let Err(e) = lua_dofile.call::<()>(lua_script) {
-            panic!(
-                "Failed to load {} => {e}",
-                std::env::var("VL_LUA_SCRIPT").unwrap()
-            );
+        if let Err(e) = lua_dofile.call::<()>(lua_script.as_str()) {
+            crate::utils::fatal_error(&format!("Failed to load {lua_script} => {e}"));
         };
 
         self.start_time = Instant::now();
@@ -410,9 +407,11 @@ impl VeriluaEnv {
             self.finalized = true;
         }
 
-        let finish_callback: LuaFunction = self.lua.globals().get("finish_callback").unwrap();
-        if let Err(err) = finish_callback.call::<()>(()) {
-            panic!("Error calling finish_callback: {err}");
+        // Initialization can fail before the framework installs its finish callback.
+        if let Ok(finish_callback) = self.lua.globals().get::<LuaFunction>("finish_callback")
+            && let Err(err) = finish_callback.call::<()>(())
+        {
+            crate::utils::fatal_error(&format!("Error calling finish_callback: {err}"));
         }
 
         let total_time = self.start_time.elapsed();

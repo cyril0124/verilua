@@ -349,6 +349,44 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
 // Simulation Control
 // ────────────────────────────────────────────────────────────────────────────────
 
+/// Optional backend hook: `void verilua_backend_fail(const char *message)`.
+///
+/// A backend that owns the simulation process implements it to stop the run and report the
+/// failure through its own lifecycle. Backends without the symbol keep the panic behaviour.
+type BackendFailHook = unsafe extern "C" fn(*const c_char);
+
+fn backend_fail_hook() -> Option<BackendFailHook> {
+    static HOOK: OnceCell<Option<BackendFailHook>> = OnceCell::new();
+    *HOOK.get_or_init(|| {
+        let name =
+            CString::new("verilua_backend_fail").expect("hook symbol name has no interior NUL");
+        // SAFETY: `name` is NUL-terminated. `dlsym` returns a symbol address or null.
+        let address = unsafe { libc::dlsym(libc::RTLD_DEFAULT, name.as_ptr()) };
+        if address.is_null() {
+            return None;
+        }
+        // SAFETY: the symbol was resolved from this process image, and the hook signature is
+        // fixed by the `verilua_backend_fail` contract.
+        Some(unsafe { std::mem::transmute::<*mut c_void, BackendFailHook>(address) })
+    })
+}
+
+/// Report a fatal Lua failure without unwinding through the Rust FFI boundary.
+///
+/// The backend hook stops the simulation; a backend that keeps running after the hook
+/// would hide the failure, so an abort follows it. Without a hook the failure panics.
+pub fn fatal_error(message: &str) -> ! {
+    if let Some(hook) = backend_fail_hook() {
+        // NUL bytes are dropped by `CString`, so replace them instead of losing the message.
+        let text = CString::new(message.replace('\0', " "))
+            .expect("a message without NUL bytes is a valid C string");
+        // SAFETY: the hook only reads the message and stops the simulation.
+        unsafe { hook(text.as_ptr()) };
+        std::process::abort();
+    }
+    panic!("{message}");
+}
+
 /// Controls the simulator state (stop, finish, reset).
 ///
 /// Wraps vpi_control with human-readable logging.
