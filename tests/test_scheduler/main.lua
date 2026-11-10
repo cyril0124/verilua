@@ -800,6 +800,29 @@ fork {
         clock:posedge()
         assert(not scheduler:check_task_exists(task5_id), "Task5 should be removed")
 
+        -- TODO: Enable after callbacks distinguish task incarnations when an ID is reused.
+        -- Known bug: after cancellation, the old timer wakes the replacement after 100 ns
+        -- instead of its requested 200 ns. Reproduced on Icarus, Verilator and VCS.
+        --[[
+        do
+            local time_utils = require "verilua.utils.TimeUtils"
+            local completed = false
+            local id = scheduler:append_task(nil, "cancelled_timer", function()
+                await_time_ns(100)
+                error("cancelled task resumed")
+            end, true)
+            scheduler:remove_task(id)
+            local expected = sim.get_sim_time() + time_utils.time_to_steps(200, "ns")
+            scheduler:append_task(id, "replacement_timer", function()
+                await_time_ns(200)
+                assert(sim.get_sim_time() == expected, "old timer resumed replacement early")
+                completed = true
+            end, true)
+            await_time_ns(300)
+            assert(completed, "replacement timer did not fire")
+        end
+        ]]
+
         -- Test 6: Restart a task that just finished, before the cleanup sweep runs
         local restart_counter = 0
         local restart_id = scheduler:append_task(nil, "restart_task", function()
