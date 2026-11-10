@@ -327,12 +327,14 @@ impl VeriluaEnv {
         // Optional post-init hook: existing file path or Lua source string.
         if let Ok(post_init) = std::env::var("VL_POST_INIT_SCRIPT") {
             if post_init.is_empty() {
-                panic!("VL_POST_INIT_SCRIPT is set but empty");
+                crate::utils::fatal_error("VL_POST_INIT_SCRIPT is set but empty");
             }
             if std::path::Path::new(&post_init).is_file() {
                 log::info!("Loading VL_POST_INIT_SCRIPT as file: {post_init}");
                 if let Err(e) = lua_dofile.call::<()>(post_init.as_str()) {
-                    panic!("Failed to load VL_POST_INIT_SCRIPT file `{post_init}` => {e}");
+                    crate::utils::fatal_error(&format!(
+                        "Failed to load VL_POST_INIT_SCRIPT file `{post_init}` => {e}"
+                    ));
                 }
             } else {
                 log::info!("Loading VL_POST_INIT_SCRIPT as Lua source string");
@@ -342,7 +344,9 @@ impl VeriluaEnv {
                     .set_name("=VL_POST_INIT_SCRIPT")
                     .exec()
                 {
-                    panic!("Failed to execute VL_POST_INIT_SCRIPT source => {e}");
+                    crate::utils::fatal_error(&format!(
+                        "Failed to execute VL_POST_INIT_SCRIPT source => {e}"
+                    ));
                 }
             }
         }
@@ -361,7 +365,7 @@ impl VeriluaEnv {
             .get("verilua_init")
             .expect("Failed to load verilua_init");
         if let Err(e) = verilua_init.call::<()>(()) {
-            panic!("Failed to call verilua_init: {e}");
+            crate::utils::fatal_error(&format!("Failed to call verilua_init: {e}"));
         };
 
         self.lua_sim_event = self.pin_global_fn("sim_event");
