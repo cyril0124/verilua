@@ -17,7 +17,7 @@
 
 #### 方法 A：从 GitHub Releases 下载（稳定版）
 
-访问 [GitHub Releases 页面](https://github.com/cyril0124/verilua/releases) 查看可用包，或用下面的 `latest` 链接直接下载最新稳定版：
+在 [GitHub Releases 页面](https://github.com/cyril0124/verilua/releases) 下载带版本号的稳定版包，或用下面的 `latest` 链接直接下载最新稳定版：
 
 - `verilua-x64-ubuntu-22.04.zip` (Ubuntu 22.04)
 - `verilua-x64-ubuntu-24.04.zip` (Ubuntu 24.04)
@@ -31,13 +31,11 @@ unzip verilua-x64-ubuntu-22.04.zip   # 解压后得到 verilua-x64-ubuntu-22.04/
 
 #### 方法 B：从 GitHub Actions 获取最新开发版（尝鲜）
 
-如果您想体验最新功能（可能尚未正式发布），可以从 CI 构建的 artifacts 中获取：
+打开 [最新开发版下载页面](https://nightly.link/cyril0124/verilua/workflows/regression/master)，下载对应平台的 `.zip` 包。
 
-1. 打开 [Actions 页面](https://github.com/cyril0124/verilua/actions/workflows/regression.yml)
-2. 选择最近一次成功运行的 **Regression** 工作流
-3. 下载对应平台的 artifact（例如 `verilua-x64-ubuntu-22.04-xxxxxxx`）
+下载包来自 `master` 分支最近一次成功构建，保留 30 天。
 
-> 💡 **提示**：这些包基于最新代码构建，包含最新的功能和修复。若没有适合您系统的包，可尝试使用 CentOS 7 的包（基于 glibc 2.17，通常兼容更高版本系统）。
+> 💡 **提示**：若没有适合您系统的包，可尝试使用 CentOS 7 的包（基于 glibc 2.17，通常兼容更高版本系统）。
 
 ### 2. 解压并激活环境
 

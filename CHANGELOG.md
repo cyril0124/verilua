@@ -42,6 +42,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### ⚙️ Changed
 
+- **Release packages**: Tagged releases provide versioned archives alongside unversioned archives for the existing latest-download links.
+- **CI packages**: Development package names include the UTC build date in `YYYYMMDD` format before the commit hash.
 - **wave_vpi**: Cache FSDB signal values across unchanged time intervals to reduce repeated reader seeks.
 - **LuaUtils**: Reduce string allocations in `shuffle_bits_hex_str()` while preserving seeded output and random-number consumption.
 - **wave_vpi**: Value-change callbacks sample non-triggering signals before the event by default, independently of write handling, and replay includes the final waveform timestamp.
