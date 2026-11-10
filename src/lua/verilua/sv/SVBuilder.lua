@@ -526,6 +526,7 @@ function SVBuilder:add(typ)
         for k, v in pairs(self.global_envs) do
             final_envs[k] = v
         end
+        final_envs["name"] = params.name
         if params.envs then
             assert(type(params.envs) == "table", "[SVBuilder] add error: `params.envs` should be a table")
             for k, v in pairs(params.envs) do
