@@ -32,7 +32,7 @@ local debug_getinfo = debug.getinfo
 
 --- Parameters accepted by the curried `add(typ)(params)` call.
 ---@class verilua.sv.SVBuilder.add.params
----@field name string Unique statement name (becomes the SV identifier).
+---@field name string Unique statement name (becomes the SV identifier). Also injected into the template environment as `name`; a same-named `envs` key overrides it.
 ---@field expr string SV expression body; supports `$(var)` template substitution.
 ---@field formal_args? string For `add "sequence"` and `add "property"` only: formal parameter list, e.g. `"logic req, logic ack"`. Emitted verbatim between the parentheses.
 ---@field cov_type? "sequence" | "property" For `add "cover"` only: wrap as sequence or property (default: "property").
