@@ -33,10 +33,11 @@ from pathlib import Path
 
 SEVERITY = {1: "Error", 2: "Warning", 3: "Info", 4: "Hint"}
 ROOT_MARKERS = (".emmyrc.json", ".emmyrc.lua", ".luarc.json", ".git")
+MAX_QUEUED_LSP_MESSAGES = 256
 RELEASE_BASE_URL = (
     "https://github.com/EmmyLuaLs/emmylua-analyzer-rust/releases/latest/download"
 )
-SCRIPT_VERSION = "1.0.1"
+SCRIPT_VERSION = "1.0.4"
 
 _USE_COLOR = False
 
@@ -258,10 +259,11 @@ class LspClient:
         self.writer = writer
         self._id = 0
         self._pending: dict[int, dict] = {}
-        self._notifs: queue.Queue = queue.Queue()
+        self._notifs: queue.Queue = queue.Queue(maxsize=MAX_QUEUED_LSP_MESSAGES)
         self._buf = b""
         self._alive = True
         self._closed = threading.Event()
+        self._index_finished = threading.Event()
         self._reader_error: Exception | None = None
         threading.Thread(target=self._reader_loop, daemon=True).start()
 
@@ -281,10 +283,32 @@ class LspClient:
                         if pending is not None:
                             pending["msg"] = msg
                             pending["event"].set()
-                        else:
-                            self._notifs.put(msg)
-                    else:
-                        self._notifs.put(msg)
+                            continue
+                    method = msg.get("method")
+                    if method not in (
+                        "window/workDoneProgress/create",
+                        "client/registerCapability",
+                        "workspace/configuration",
+                        "$/progress",
+                    ):
+                        continue
+                    if (
+                        method == "$/progress"
+                        and msg.get("params", {}).get("value", {}).get("kind") == "end"
+                    ):
+                        self._index_finished.set()
+                        if self._notifs.full():
+                            continue
+                    if (
+                        method == "$/progress"
+                        and msg.get("params", {}).get("value", {}).get("kind") != "end"
+                        and self._notifs.qsize() >= MAX_QUEUED_LSP_MESSAGES - 1
+                    ):
+                        continue
+                    try:
+                        self._notifs.put_nowait(msg)
+                    except queue.Full as error:
+                        raise RuntimeError("emmylua_ls LSP message queue exceeded limit") from error
         except Exception as error:
             self._reader_error = error
         finally:
@@ -486,6 +510,7 @@ def wait_index(client: LspClient, wait_index_s: float, n_files: int) -> bool:
         progress_end = (
             handle_server_requests(client, client.drain(wait=0.2), show_progress=True)
             or progress_end
+            or client._index_finished.is_set()
         )
     return progress_end
 
@@ -509,10 +534,10 @@ def check_files(
         stdout=subprocess.PIPE,
         bufsize=0,
     )
-    assert proc.stdin is not None and proc.stdout is not None
-
-    client = LspClient(proc.stdout, proc.stdin)
+    client: LspClient | None = None
     try:
+        assert proc.stdin is not None and proc.stdout is not None
+        client = LspClient(proc.stdout, proc.stdin)
         client.request(
             "initialize",
             {
@@ -553,7 +578,7 @@ def check_files(
         print(color(f"index complete ({t_index:.1f}s)", C.GREEN), file=sys.stderr, flush=True)
         handle_server_requests(client, client.drain(wait=0.05), show_progress=verbose)
 
-        # Fast path: no didOpen of file bodies — workspace already loaded from disk.
+        # Fast path: skip didOpen of file bodies. The workspace is already loaded from disk.
         # Prefer per-file textDocument/diagnostic (workspace/diagnostic is much slower).
         pull_timeout = 120.0
         all_items: list[dict] = []
@@ -577,17 +602,26 @@ def check_files(
         print(color(f"elapsed: {total:.1f}s (index {t_index:.1f}s)", C.DIM), file=sys.stderr)
         return diagnostic_exit_code(errors, warnings, warnings_as_errors)
     finally:
+        if client is not None:
+            try:
+                client.request("shutdown", None, timeout=5)
+                client.notify("exit")
+            except Exception:
+                pass
+            client.close()
         try:
-            client.request("shutdown", None, timeout=5)
-            client.notify("exit")
-        except Exception:
-            pass
-        client.close()
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=2)
+            if client is None and proc.poll() is None:
+                proc.kill()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=2)
+        finally:
+            if proc.stdin is not None:
+                proc.stdin.close()
+            if proc.stdout is not None:
+                proc.stdout.close()
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -10,6 +10,7 @@ Usage:
   ./scripts/emmylua_format.py --version
 
 The wrapper installs the official CodeFormat release when it is not available.
+Style is the nearest .editorconfig above each path, or CodeFormat defaults.
 Exit: 0 for success, 1 for --check differences, and 2 for wrapper errors.
 """
 
@@ -30,7 +31,7 @@ from pathlib import Path
 RELEASE_BASE_URL = (
     "https://github.com/CppCXY/EmmyLuaCodeStyle/releases/latest/download"
 )
-SCRIPT_VERSION = "1.0.1"
+SCRIPT_VERSION = "1.1.3"
 
 
 def user_install_path() -> Path:
@@ -180,14 +181,31 @@ def collect_paths(raw_paths: list[Path]) -> list[Path]:
     ]
 
 
+def nearest_editorconfig(start: Path) -> Path | None:
+    start = start.resolve()
+    for directory in [start, *start.parents]:
+        candidate = directory / ".editorconfig"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def config_args(path: Path) -> list[str]:
+    path = path.resolve()
+    start = path if path.is_dir() else path.parent
+    config = nearest_editorconfig(start)
+    if config is None:
+        return []
+    return ["-c", str(config)]
+
+
 def run_codeformat(binary: Path, path: Path, check: bool) -> int:
-    # Do not pass -d/--detect-config: walking the repo can hit broken symlink loops
-    # (e.g. a stale luarocks lockfile.lfs under luajit/) and abort CodeFormat.
     selector = "-w" if path.is_dir() else "-f"
+    config = config_args(path)
     if check:
-        command = [str(binary), "check", selector, str(path), "--diagnosis-as-error"]
+        command = [str(binary), "check", selector, str(path), *config, "--diagnosis-as-error"]
     else:
-        command = [str(binary), "format", selector, str(path), "-ow"]
+        command = [str(binary), "format", selector, str(path), *config, "-ow"]
     return subprocess.run(command, check=False).returncode
 
 
