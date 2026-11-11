@@ -263,6 +263,14 @@ fn edge_type_to_value(edge_type: &EdgeType) -> EdgeValue {
     }
 }
 
+#[inline(always)]
+fn edge_matches(edge_type: &EdgeType, value: PLI_INT32) -> bool {
+    let expected = edge_type_to_value(edge_type);
+    // cbValueChange already establishes a transition; vectors need no scalar-value filter.
+    expected == EdgeValue::DontCare
+        || EdgeValue::try_from(value as u8).is_ok_and(|value| value == expected)
+}
+
 // ────────────────────────────────────────────────────────────────────────────────
 // Chunk Task Generated Code
 // ────────────────────────────────────────────────────────────────────────────────
@@ -825,16 +833,14 @@ unsafe fn do_register_edge_callback(
 }
 
 unsafe extern "C" fn edge_callback(cb_data: *mut t_cb_data) -> PLI_INT32 {
+    // SAFETY: VPI supplies the callback data from do_register_edge_callback.
     let cb_data = unsafe { cb_data.read() };
-    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8)
-    else {
-        // Signal is in X/Z state, skip edge detection
-        return 0;
-    };
+    // SAFETY: Registration stores an EdgeCbData allocation that lives until callback removal.
     let user_data: &EdgeCbData = unsafe { &*(cb_data.user_data as *const EdgeCbData) };
-    let expected_edge_value = edge_type_to_value(&user_data.edge_type);
+    // SAFETY: This callback requests vpiIntVal and VPI supplies its value for this invocation.
+    let value = unsafe { cb_data.value.read().value.integer };
 
-    if new_value == expected_edge_value || expected_edge_value == EdgeValue::DontCare {
+    if edge_matches(&user_data.edge_type, value) {
         let env = VeriluaEnv::from_complex_handle_raw(user_data.complex_handle_raw);
 
         let s = env.acc_lua_time.then(std::time::Instant::now);
@@ -1063,16 +1069,14 @@ unsafe fn do_register_edge_callback_always(
 }
 
 unsafe extern "C" fn edge_callback_always(cb_data: *mut t_cb_data) -> PLI_INT32 {
+    // SAFETY: VPI supplies the callback data from do_register_edge_callback_always.
     let cb_data = unsafe { cb_data.read() };
-    let Ok(new_value) = EdgeValue::try_from(unsafe { cb_data.value.read().value.integer } as u8)
-    else {
-        // Signal is in X/Z state, skip edge detection
-        return 0;
-    };
+    // SAFETY: Registration stores an EdgeCbData allocation that lives until callback removal.
     let user_data: &EdgeCbData = unsafe { &*(cb_data.user_data as *const EdgeCbData) };
-    let expected_edge_value = edge_type_to_value(&user_data.edge_type);
+    // SAFETY: This callback requests vpiIntVal and VPI supplies its value for this invocation.
+    let value = unsafe { cb_data.value.read().value.integer };
 
-    if new_value == expected_edge_value || expected_edge_value == EdgeValue::DontCare {
+    if edge_matches(&user_data.edge_type, value) {
         let env = get_verilua_env();
 
         let s = env.acc_lua_time.then(std::time::Instant::now);

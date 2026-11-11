@@ -199,6 +199,73 @@ fork {
 
         -- TODO: Freeze/Force/Release signal
 
+        -- await_edge_hdl() must wake on any value change of a multi-bit signal.
+        -- A registered callback is installed at the next write/sync, so every wake
+        -- gets one extra clock edge before the next write.
+        local function test_await_edge_any_change()
+            local reg32 = dut.u_top.reg32:chdl()
+            local values = { 3, 0x80000000, 0xffffffff }
+            local woke = 0
+            local waiters = {}
+            for i = 1, 17 do -- 17 waiters split the chunked registration into 16 + 1
+                waiters[i] = jfork { function()
+                    for _, v in ipairs(values) do
+                        await_edge_hdl(reg32.hdl)
+                        reg32:expect(v)
+                        woke = woke + 1
+                    end
+                end }
+            end
+            clock:posedge() -- install the pending edge callbacks
+            for round, v in ipairs(values) do
+                reg32:set(v)
+                clock:posedge() -- change lands, waiters wake and re-register
+                clock:posedge() -- re-registration installs
+                assert(woke == 17 * round, "multi-bit change missed")
+
+                reg32:set(v) -- same value: no change, no wakeup
+                clock:posedge()
+                clock:posedge()
+                assert(woke == 17 * round, "unchanged value woke waiter")
+            end
+            join(waiters)
+
+            -- Upper-word-only change: the low 32 bits stay unchanged.
+            local reg128 = dut.u_top.reg128:chdl()
+            reg128:set_hex_str("80000000000000000000000000000003")
+            clock:posedge()
+            local wide_woke = false
+            local wide_waiter = jfork { function()
+                await_edge_hdl(reg128.hdl)
+                reg128:expect_hex_str("40000000000000000000000100000003")
+                wide_woke = true
+            end }
+            clock:posedge()
+            reg128:set_hex_str("40000000000000000000000100000003")
+            clock:posedge()
+            clock:posedge()
+            assert(wide_woke, "upper-bit change missed")
+            join(wide_waiter)
+
+            -- posedge must still filter by value on a multi-bit signal.
+            local posedges = 0
+            local posedge_waiter = jfork { function()
+                await_posedge_hdl(reg32.hdl)
+                posedges = posedges + 1
+            end }
+            clock:posedge()
+            reg32:set(0xff) -- not 1: no posedge
+            clock:posedge()
+            clock:posedge()
+            assert(posedges == 0, "posedge fired on a non-1 value")
+            reg32:set(1)
+            clock:posedge()
+            clock:posedge()
+            assert(posedges == 1, "posedge missed value 1")
+            join(posedge_waiter)
+        end
+        test_await_edge_any_change()
+
         sim.finish()
     end
 }
