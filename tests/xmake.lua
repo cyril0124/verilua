@@ -414,6 +414,38 @@ for _, dir in ipairs({
     end)
 end
 
+add_group_target("test-luasim", function(ctx)
+    local examples_dir = path.join(ctx.tests_dir, "..", "examples", "luasim")
+
+    --- Run one example model directly and require its self-check marker. The xmake
+    --- build path of the same examples is covered by the comparison cases below.
+    ---@param directory string
+    ---@param label string
+    local function run_example(directory, label)
+        ctx.run_case(label, function()
+            local script = "luasim main.lua > run.log 2>&1 || { cat run.log; exit 1; }; " ..
+                "grep -F \"PASS:\" run.log || { cat run.log; exit 1; }; rm -f run.log"
+            ctx.run_cmd(directory, "sh -c " .. shell_quote(script))
+        end)
+    end
+
+    run_example(examples_dir, "examples/luasim")
+    run_example(path.join(examples_dir, "comb_arbiter"), "examples/luasim/comb_arbiter")
+    run_example(path.join(examples_dir, "axi4_memory"), "examples/luasim/axi4_memory")
+
+    -- The comparison also builds the SystemVerilog model of each example.
+    for _, sim in ipairs(ctx.simulators) do
+        ctx.run_case(join_case_parts("examples", "luasim", "compare", sim), function()
+            ctx.run_cmd(examples_dir, "python3 compare.py", { SIM = sim })
+        end)
+    end
+
+    -- Last, so a red case here cannot stop the example coverage above.
+    ctx.run_case("test_luasim", function()
+        ctx.run_cmd(path.join(ctx.tests_dir, "test_luasim"), "xmake run -P . test")
+    end)
+end)
+
 add_group_target("test-infer-nosim-flags", function(ctx)
     if not ctx.find_file("nosim", { "$(env PATH)" }) then
         print("[test_infer_nosim_flags] SKIPPED: nosim not found in PATH")

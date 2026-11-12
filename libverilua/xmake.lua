@@ -76,6 +76,8 @@ local function build_lib_common(simulator)
             os.vrun([[cargo build -p libverilua --release --features "wave_vpi %s"]], wave_vpi_features)
         elseif simulator == "iverilog" then
             os.vrun(build_iverilog_vpi_module_cmd)
+        elseif simulator == "luasim" then
+            os.vrun([[cargo build -p libverilua --release --features "luasim chunk_task merge_cb"]])
         elseif simulator == "nosim" then
             os.vrun([[cargo build -p libverilua --release --features "nosim %s"]], nosim_features)
         else
@@ -102,6 +104,7 @@ for _, simulator in ipairs({
     "iverilog",
     "wave_vpi",
     "nosim",
+    "luasim",
     -- dpi variants are grouped at the end: they share the `mlua/send`
     -- feature, so mlua is rebuilt only once when entering this block.
     "verilator_dpi",
@@ -137,8 +140,9 @@ target("build_libverilua", function()
                 sim == "xcelium" or
                 sim == "verilator" or
                 sim == "wave_vpi" or
-                sim == "nosim",
-                "Invalid SIM environment variable value: " .. sim .. ". Expected one of: iverilog, vcs, xcelium, verilator, wave_vpi, nosim"
+                sim == "nosim" or
+                sim == "luasim",
+                ("Invalid SIM environment variable value: %s. Expected one of: iverilog, vcs, xcelium, verilator, wave_vpi, nosim, luasim"):format(sim)
             )
         end
 
@@ -218,7 +222,8 @@ target("build_libverilua_no_opt", function()
         os.mkdir(path.join(shared_dir, "no_opt"))
 
         print("[build libverilua_no_opt] build libverilua_verilator.so...")
-        os.vrun([[cargo build -p libverilua --release --features "verilator verilator_inner_step_callback %s"]], common_features)
+        os.vrun([[cargo build -p libverilua --release --features "verilator verilator_inner_step_callback %s"]],
+            common_features)
         os.cp(
             path.join(prj_dir, "target", "release", "libverilua.so"),
             path.join(shared_dir, "no_opt", "libverilua_verilator.so")

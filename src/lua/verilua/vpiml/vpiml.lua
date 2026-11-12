@@ -1,8 +1,14 @@
 local vpiml
 local handle_cache = {}
 
-if cfg.simulator == "nosim" then
+local sim = cfg.simulator
+if sim == "nosim" then
     vpiml = require "verilua.vpiml.VpimlNosim"
+elseif sim == "luasim" then
+    vpiml = require "verilua.vpiml.VpimlNormal"
+
+    ---@cast vpiml verilua.vpiml.VpimlNormal
+    vpiml = require("verilua.luasim.Api").patch_vpiml(vpiml)
 else
     vpiml = require "verilua.vpiml.VpimlNormal"
 end

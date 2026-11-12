@@ -31,6 +31,7 @@ const sidebars: SidebarsConfig = {
         'how-to-guides/emmylua_type_annotations',
         'how-to-guides/write_reusable_component',
         'how-to-guides/replay_testbench',
+        'how-to-guides/luasim_simulation',
         'how-to-guides/cross_stimulus_generation',
         'how-to-guides/clock_driving',
         'how-to-guides/multi_clock_testing',

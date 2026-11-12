@@ -29,6 +29,8 @@ Verilua 的 HVL/WAL 场景下的工程管理使用的是 [xmake](https://xmake.i
 - 对于 HVL 场景，目前 `<toolchain>` 的可选值为 `@verilator`、`@iverilog`、`@vcs`、 `@xcelium`，分别对应了开源的 [Verilator](https://github.com/verilator/verilator)、开源的 [Icarus Verilog](https://github.com/steveicarus/iverilog)、商业的 Synopsys VCS、Cadence Xcelium 等仿真器。
 - 对于 WAL 场景，目前 `<toolchain>` 的可选值为 `@wave_vpi`，`wave_vpi` 是 Verilua 开发的一个用于仿真波形的仿真后端，目前支持的波形格式为: VCD、FST、FSDB。
 
+- 对于不依赖 RTL 的组件测试，使用 `@luasim`。它只需要 Lua 文件作为输入，详见[虚拟时序测试](../how-to-guides/luasim_simulation.mdx)。
+
 ### 添加输入文件
 
 对应配置：`add_files(...)`

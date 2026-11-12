@@ -10,6 +10,7 @@ includes(path.join(prj_dir, "src", "signal_db_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "testbench_gen", "xmake.lua"))
 includes(path.join(prj_dir, "src", "wave_vpi", "xmake.lua"))
 includes(path.join(prj_dir, "src", "nosim", "xmake.lua"))
+includes(path.join(prj_dir, "src", "luasim", "xmake.lua"))
 includes(path.join(prj_dir, "src", "sv_lint", "xmake.lua"))
 includes(path.join(prj_dir, "src", "turso_ffi", "xmake.lua"))
 includes(path.join(prj_dir, "src", "bigint_ffi", "xmake.lua"))
@@ -271,7 +272,8 @@ target("build_all_tools", function()
             "sv_lint",
             "libsv_lint",
             "wave_vpi_main",
-            "nosim"
+            "nosim",
+            "luasim"
         }
         for _, target in ipairs(tools_target) do
             os.exec("xmake build -P %s -y -v %s", prj_dir, target)
@@ -992,6 +994,8 @@ target("test", function()
             "test-wave-vpi-x",
             "test-wave-vpi-print-hier",
             "test-wave-vpi-module-name",
+            -- Lua virtual-time tests (no RTL simulator required)
+            "test-luasim",
             -- nosim flag inference (runs once, no SIM loop)
             "test-infer-nosim-flags",
             -- Benchmarks

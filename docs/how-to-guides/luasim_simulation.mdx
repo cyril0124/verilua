@@ -1,0 +1,173 @@
+# 无 RTL 的虚拟时序测试
+
+`luasim` 让验证组件在没有 RTL、也没有外部仿真器的情况下跑起来。信号用 Lua 声明，行为模型也用 Lua 写。现有接口保持不变：`CallableHDL`、`dut`、显式的 `Bundle/AliasBundle`、`fork/join`，以及时间和边沿等待。
+
+## 声明信号
+
+真实仿真里，信号表来自 RTL 的层次结构。这里没有 RTL，所以要先自己定义这份表：每个信号的名字、位宽和初值。表在时间推进前确定，之后只能按路径查找和读写。
+
+信号必须在 `luasim.declare` 的块内声明。块返回后立即封存，之后按路径取到的句柄指向同一份存储：
+
+```lua
+local luasim = require "verilua.luasim.Sim"
+local data
+luasim.declare(function()
+    data = luasim.signal("tb_top.req.data", { width = 128, initial = 0 })
+end)
+
+-- Both handles refer to the same stored signal.
+local alias = ("tb_top.req.data"):chdl()
+
+fork { function()
+    data:set_hex_str("123456789abcdef0123456789abcdef0")
+    await_rw()
+    alias:expect_hex_str("123456789abcdef0123456789abcdef0")
+    sim.finish()
+end }
+```
+
+在块外调用 `luasim.signal` 会报错，`declare` 之后也不能再次声明。
+
+`signal(path, options)` 返回普通 `CallableHDL`。`width` 必须为正整数，`initial` 默认 0，支持超过 1024 位的打包向量。路径必须唯一，查找不存在的信号会报错。层次路径只用于命名，不需要声明模块。普通读写、宽数据字符串读写和断言沿用现有 API。
+
+## 时间与赋值
+
+这些接口与接真实 RTL 时的用法相同：`set()`、`await_rw()`、`posedge()` 等照常写，没有额外的时间 API。
+
+| 操作 | 行为 |
+| --- | --- |
+| `set(v)` | 延迟到当前更新轮次结束后批量提交。同一批次对同一信号的最后一次写入生效。 |
+| `set_imm(v)` | 立即更新当前值。相关回调排队执行，不递归进入其他任务。 |
+| `posedge()` / `negedge()` | 等待实际值变化产生的对应边沿。 |
+| `await_rw()` | 等待已有写入及它们触发的更新稳定。返回后仍可写入。 |
+| `await_rd()` | 在当前时间点的最终只读阶段采样。此后不得写入，也不得退回同一时间点的可写阶段。 |
+
+`await_time(0)` 等待同一时间点的后续更新轮次。`await_nsim()` 等待下一个已安排的时间点，它不会自行产生时钟。使用 Lua 时钟时，可以为每个时钟创建一个任务：
+
+```lua
+fork { function()
+    while true do
+        await_time_ns(5)
+        clock:set(1)
+        await_time_ns(5)
+        clock:set(0)
+    end
+end }
+```
+
+固定周期时钟可以用 [NativeClock](../reference/native_clock.mdx)，它省去 Lua 时钟任务在每个边沿的恢复开销。对已声明的 `clock` 句柄：
+
+```lua
+local NativeClock = require "verilua.utils.NativeClock"
+local driver = NativeClock(clock)
+driver:start(20, "ns", { start_high = false })
+
+fork { function()
+    clock:posedge(100)
+    driver:stop()
+    driver:destroy()
+    sim.finish()
+end }
+```
+
+周期按 `cfg.time_precision` 换算，至少为 2 个仿真步。高电平时长必须在 1 步到周期减 1 步之间。`start()` 和后续翻转沿用 `set()` 的延迟提交语义。luasim 没有自动生成的 RTL 时钟，因此不需要设置 `verilua.no_internal_clock`。
+
+在同一个时间点里，使用 `set()` 的模型先读到旧值，再看到本轮的批量更新。显式立即赋值、共享 Lua 变量和多任务写同一信号仍依赖执行顺序，虚拟后端不承诺复现所有 RTL 仿真器的调度差异。
+
+## 配置与结束
+
+默认顶层路径为 `tb_top`，默认时间精度为 1 ps。配置文件通过 `VL_CFG_FILE` 或现有的 `verilua.user_cfg` 加载：
+
+```lua title="main.lua"
+local luasim = require "verilua.luasim.Sim"
+luasim.configure {
+    max_time = 200000,
+    max_delta_cycles = 10000,
+}
+```
+
+`time_precision` 仍来自配置文件。`max_time` 是绝对仿真步数上限，默认不设置，示例配置对应 200 ns。`max_delta_cycles` 限制同一时间点的更新轮次数，默认 10000。它不能中断不让出执行权的无限 Lua 循环，这类测试还应设置进程级超时。
+
+`sim.finish()` 可以从入口、`initial` 或任务中结束仿真。在 `final` 中调用时，它只结束当前回调，其余结束回调继续执行。
+
+事件队列为空时仿真结束，未完成的任务不再恢复，这与 `vcs`、`iverilog` 在事件耗尽后的行为一致。Lua 错误不被捕获，进程以非零状态中止，结束回调也不再保证完整执行。`max_time`、`max_delta_cycles` 之类的上限同样以 `[luasim] <原因>` 打印并以非零状态退出。
+
+取消任务后如果立刻复用同一个任务编号，仍可能被旧的等待提前唤醒。
+
+用 `sim.dump_wave("luasim.vcd")` 输出波形，结束时文件自动关闭。波形在声明封存时建立信号表，之后按时间记录每次赋值。`disable_trace()` 到下一次 `enable_trace()` 之间不记录，重新 `enable_trace` 时写入当时的快照。
+
+## xmake 工程
+
+```lua title="xmake.lua"
+target("test", function()
+    add_rules("verilua")
+    add_toolchains("@luasim")
+    add_files("main.lua")
+    set_values("verilua.top", "tb_top")
+    set_values("verilua.lua_main", "main.lua")
+end)
+```
+
+项目构建只生成运行配置和启动脚本，不生成也不编译 RTL，修改 Lua 模型无需重新编译。配置选项见 [xmake 配置参数](../reference/xmake_params.mdx)。
+## 基础请求/响应示例
+
+`examples/luasim` 发送 128 位请求，由 Lua 对端制造背压，并延迟返回数据：
+
+```shell
+xmake build -P examples/luasim
+xmake run -P examples/luasim
+```
+
+成功时输出 `PASS: 128-bit request survives backpressure and delayed response`，波形写入 `examples/luasim/build/luasim/tb_top/luasim.vcd`。
+
+也可以直接运行入口。相对输出路径以当前目录为准。
+
+```shell
+luasim examples/luasim/main.lua
+```
+
+## 组合逻辑示例
+
+`examples/luasim/comb_arbiter` 演示无时钟的两路 ready/valid 固定优先级仲裁器：
+
+```shell
+xmake build -P examples/luasim/comb_arbiter
+xmake run -P examples/luasim/comb_arbiter
+```
+
+输入 0 优先。调用 `CombArbiter.start()` 后，模型用 `await_edge_hdl()` 监听两路 VALID、DATA 和下游 READY，并在输入变化时自动重算输出。驱动只需写入输入，再 `await_rw()` 检查稳定输出。传播不推进仿真时间，也不需要时钟或轮询。
+
+该选择器没有缓存和锁定。背压期间如果输入有效性变化，输出数据仍可能改变。
+
+示例自校验 13 个场景，并生成 `examples/luasim/comb_arbiter/build/luasim/tb_top/comb_arbiter.vcd`。逻辑细节和使用边界见 [示例 README](https://github.com/cyril0124/verilua/tree/master/examples/luasim/comb_arbiter)。
+
+## AXI4Memory 示例
+
+`examples/luasim/axi4_memory` 用 Lua 建模 4 KiB AXI4 内存，通过 AW/W/B/AR/R 五个通道自校验读写：
+
+```shell
+xmake build -P examples/luasim/axi4_memory
+xmake run -P examples/luasim/axi4_memory
+```
+
+`AXI4Memory.lua` 接收时钟、复位和信号句柄表。`main.lua` 负责信号绑定。`AXI4Driver.lua` 提供两种实现共用的 NativeClock 和主设备驱动。
+
+示例覆盖 32 位对齐 INCR 突发、WSTRB 部分字节写入、W 先于 AW 到达、B/R 背压、读写并行，以及复位后数据保留。每个方向最多一个未完成突发，未初始化字节读出零。
+
+其他突发类型、窄传输、非对齐访问和非法请求会报错。模型不生成错误响应，也不实现完整的 AXI4 协议检查。
+
+成功时输出 `PASS: AXI4Memory bursts, WSTRB, channel backpressure, concurrent read/write and reset`，波形位于 `examples/luasim/axi4_memory/build/luasim/tb_top/axi4_memory.vcd`。完整接口和运行说明见 [示例 README](https://github.com/cyril0124/verilua/tree/master/examples/luasim/axi4_memory)。
+
+## 与 SystemVerilog 模型对照
+
+两个示例各带一份 SV 模型：`CombArbiter.sv` 和 `AXI4Memory.sv`。设置 `SIM=iverilog`、`SIM=vcs` 或 `SIM=verilator` 时使用 SV 模型，不设置 `SIM` 时使用 luasim。每个示例的两种实现共用一份驱动和全部断言。
+
+```shell
+SIM=iverilog xmake build -P examples/luasim/comb_arbiter
+SIM=iverilog xmake run -P examples/luasim/comb_arbiter
+SIM=iverilog python3 examples/luasim/compare.py
+```
+
+对照脚本依次运行 Lua 模型和 SV 模型。组合逻辑比较每次稳定后的全部输入输出，AXI4Memory 比较每个上升沿采样到的全部通道字段。构建日志、运行日志和 CSV 输出到 `examples/luasim/build/comparison/`。发现差异时脚本生成 `difference.diff`，并以非零状态退出。
+
+比较覆盖当前驱动的二态输入场景。它不是形式化等价证明，也不要求不同仿真器内部的调度顺序一致，X/Z 不在覆盖范围。

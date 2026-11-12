@@ -34,6 +34,7 @@ result
 tools/cov_exporter
 tools/dpi_exporter
 tools/nosim
+tools/luasim
 tools/signal_db_gen
 tools/testbench_gen
 tools/verilua_prebuild
@@ -50,3 +51,9 @@ tools/sv_lint
 bpad_*
 FsdbReader
 xcelium.d/
+luasim.vcd
+
+# luasim examples dump their waveform and trace next to the sources
+examples/luasim/*.vcd
+examples/luasim/*/*.vcd
+examples/luasim/*/*_trace.csv
