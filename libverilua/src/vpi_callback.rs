@@ -709,6 +709,24 @@ pub unsafe extern "C" fn libverilua_next_sim_time_cb(cb_data: *mut t_cb_data) ->
     env.rw_phase_passed = false;
     env.rw_cb_re_registered = false;
 
+    vpiml_flush_callbacks();
+
+    if cfg!(feature = "wave_vpi") {
+        let handle = unsafe { vpi_register_cb(cb_data) };
+        unsafe { vpi_free_object(handle) };
+    } else {
+        // NextSimTime callback will be registered in ReadWriteSynch callback
+        unsafe { libverilua_register_rw_synch_cb() };
+    }
+
+    0
+}
+
+/// Publish pending edge subscriptions without advancing time or resetting RW state.
+#[unsafe(no_mangle)]
+pub extern "C" fn vpiml_flush_callbacks() {
+    let env = get_verilua_env();
+
     if cfg!(feature = "opt_cb_task") {
         #[cfg(all(feature = "chunk_task", feature = "merge_cb"))]
         {
@@ -781,16 +799,6 @@ pub unsafe extern "C" fn libverilua_next_sim_time_cb(cb_data: *mut t_cb_data) ->
         #[cfg(not(feature = "chunk_task"))]
         env.pending_edge_cb_map.clear();
     }
-
-    if cfg!(feature = "wave_vpi") {
-        let handle = unsafe { vpi_register_cb(cb_data) };
-        unsafe { vpi_free_object(handle) };
-    } else {
-        // NextSimTime callback will be registered in ReadWriteSynch callback
-        unsafe { libverilua_register_rw_synch_cb() };
-    }
-
-    0
 }
 
 #[inline(always)]

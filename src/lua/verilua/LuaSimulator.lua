@@ -22,9 +22,12 @@ local is_verilator = simulator == "verilator"
 local is_iverilog = simulator == "iverilog"
 local is_wave_vpi = simulator == "wave_vpi"
 local is_nosim = simulator == "nosim"
+local is_luasim = simulator == "luasim"
 
 ---@type fun(scope_name: string?)
 local set_dpi_scope
+local collect_signals
+local auto_bundle_via_hierarchy
 if is_verilator or is_vcs or is_xcelium then
     local svSetScope = SymbolHelper.try_ffi_cast(
         "void svSetScope(void *scope);"
@@ -243,19 +246,23 @@ local function normalize_hierarchy_options(options)
         wildcard = options.wildcard
     end
     if options.module_name ~= nil then
-        assert(type(options.module_name) == "string", "[print_hierarchy/get_hierarchy] options.module_name must be string")
+        assert(type(options.module_name) == "string",
+            "[print_hierarchy/get_hierarchy] options.module_name must be string")
         module_name = options.module_name
     end
     if options.show_def_name ~= nil then
-        assert(type(options.show_def_name) == "boolean", "[print_hierarchy/get_hierarchy] options.show_def_name must be boolean")
+        assert(type(options.show_def_name) == "boolean",
+            "[print_hierarchy/get_hierarchy] options.show_def_name must be boolean")
         show_def_name = options.show_def_name
     end
     if options.show_sig_type ~= nil then
-        assert(type(options.show_sig_type) == "boolean", "[print_hierarchy/get_hierarchy] options.show_sig_type must be boolean")
+        assert(type(options.show_sig_type) == "boolean",
+            "[print_hierarchy/get_hierarchy] options.show_sig_type must be boolean")
         show_sig_type = options.show_sig_type
     end
     if options.show_bitwidth ~= nil then
-        assert(type(options.show_bitwidth) == "boolean", "[print_hierarchy/get_hierarchy] options.show_bitwidth must be boolean")
+        assert(type(options.show_bitwidth) == "boolean",
+            "[print_hierarchy/get_hierarchy] options.show_bitwidth must be boolean")
         show_bitwidth = options.show_bitwidth
     end
 
@@ -303,27 +310,28 @@ local function collect_hierarchy_paths(normalized_options, include_tree_prefixes
     local sig_type_by_path = {}
     ---@type table<string, integer>
     local bitwidth_by_path = {}
-    local callback = ffi.cast("vpiml_hierarchy_cb_t", function(full_path_c, _name_c, module_name_c, sig_type_c, _level, bitwidth)
-        local full_path = ffi.string(full_path_c)
-        if module_name_c ~= nil then
-            local module_name_raw = ffi.string(module_name_c)
-            if module_name_raw ~= "" then
-                -- Only module scopes carry def-name; leaf objects (net/reg/memory) pass null/empty.
-                module_name_by_path[full_path] = module_name_raw
+    local callback = ffi.cast("vpiml_hierarchy_cb_t",
+        function(full_path_c, _name_c, module_name_c, sig_type_c, _level, bitwidth)
+            local full_path = ffi.string(full_path_c)
+            if module_name_c ~= nil then
+                local module_name_raw = ffi.string(module_name_c)
+                if module_name_raw ~= "" then
+                    -- Only module scopes carry def-name; leaf objects (net/reg/memory) pass null/empty.
+                    module_name_by_path[full_path] = module_name_raw
+                end
             end
-        end
-        if sig_type_c ~= nil then
-            local sig_type_raw = ffi.string(sig_type_c)
-            if sig_type_raw ~= "" then
-                sig_type_by_path[full_path] = sig_type_raw
+            if sig_type_c ~= nil then
+                local sig_type_raw = ffi.string(sig_type_c)
+                if sig_type_raw ~= "" then
+                    sig_type_by_path[full_path] = sig_type_raw
+                end
             end
-        end
-        if bitwidth >= 0 then
-            bitwidth_by_path[full_path] = bitwidth
-        end
+            if bitwidth >= 0 then
+                bitwidth_by_path[full_path] = bitwidth
+            end
 
-        table_insert(hierarchy_paths, full_path)
-    end)
+            table_insert(hierarchy_paths, full_path)
+        end)
     local err_msg_c = ffi.C.vpiml_collect_hierarchy(
         normalized_options.max_level,
         normalized_options.wildcard,
@@ -347,7 +355,8 @@ end
 ---@return table<integer, string>
 local get_hierarchy = function(options)
     local normalized_options = normalize_hierarchy_options(options)
-    local hierarchy_paths, _, sig_type_by_path, bitwidth_by_path = collect_hierarchy_paths(normalized_options, false, false)
+    local hierarchy_paths, _, sig_type_by_path, bitwidth_by_path = collect_hierarchy_paths(normalized_options, false,
+        false)
     if not normalized_options.show_sig_type and not normalized_options.show_bitwidth then
         return hierarchy_paths
     end
@@ -499,7 +508,7 @@ local SIG_TYPE_TO_VPI_TYPE = {
 --- Returns an array of SignalInfo tuples compatible with SignalDB format.
 ---@param hier_path string Hierarchy path, e.g. "tb_top.u_top"
 ---@return verilua.utils.SignalInfo[]
-local collect_signals = function(hier_path)
+collect_signals = function(hier_path)
     local normalized_options = normalize_hierarchy_options({ wildcard = hier_path .. ".*" })
     local hierarchy_paths, _, sig_type_by_path, bitwidth_by_path =
         collect_hierarchy_paths(normalized_options, false, false)
@@ -537,7 +546,7 @@ end
 ---@param hier_path string The hierarchy path to search (e.g., "tb_top.u_top")
 ---@param params verilua.utils.SignalDB.auto_bundle.params Matching parameters
 ---@return verilua.handles.Bundle
-local auto_bundle_via_hierarchy = function(hier_path, params)
+auto_bundle_via_hierarchy = function(hier_path, params)
     local inspect = require "inspect"
     local stringx = require "pl.stringx"
     local texpect = require "verilua.TypeExpect"
@@ -555,11 +564,11 @@ local auto_bundle_via_hierarchy = function(hier_path, params)
 
     assert(
         type(params.filter) == "function"
-            or type(params.matches) == "string"
-            or type(params.wildmatch) == "string"
-            or type(params.startswith) == "string"
-            or type(params.endswith) == "string"
-            or type(params.prefix) == "string",
+        or type(params.matches) == "string"
+        or type(params.wildmatch) == "string"
+        or type(params.startswith) == "string"
+        or type(params.endswith) == "string"
+        or type(params.prefix) == "string",
         "[auto_bundle] One of the `startswith`, `endswith`, `prefix`, `matches` or `filter` should be valid!"
     )
 
@@ -647,6 +656,31 @@ local auto_bundle_via_hierarchy = function(hier_path, params)
     end
 end
 
+if is_luasim then
+    local Api = require "verilua.luasim.Api"
+    local function unsupported()
+        error("[luasim] DPI and hierarchy discovery are unsupported", 2)
+    end
+    initialize_trace = Api.dump
+    enable_trace = function() Api.dump_enabled(true) end
+    disable_trace = function() Api.dump_enabled(false) end
+    dump_wave = function(trace_file_path)
+        local filename = trace_file_path or default_wave_name .. ".vcd"
+        local directory = path.abspath(path.dirname(filename))
+        if not path.exists(directory) then
+            assert(path.mkdir(directory))
+        end
+        initialize_trace(filename)
+        enable_trace()
+    end
+    set_dpi_scope = unsupported
+    print_hierarchy = unsupported
+    get_hierarchy = unsupported
+    iterate_vpi_type = unsupported
+    collect_signals = unsupported
+    auto_bundle_via_hierarchy = unsupported
+end
+
 ---@class verilua.LuaSimulator
 ---@field SimCtrl table<string, integer>
 ---@field set_dpi_scope fun(scope_name?: string)
@@ -665,20 +699,20 @@ end
 ---@field collect_signals fun(hier_path: string): verilua.utils.SignalInfo[]
 ---@field auto_bundle_via_hierarchy fun(hier_path: string, params: verilua.utils.SignalDB.auto_bundle.params): verilua.handles.Bundle
 local LuaSimulator = {
-    set_dpi_scope     = set_dpi_scope,
-    initialize_trace  = initialize_trace,
-    enable_trace      = enable_trace,
-    disable_trace     = disable_trace,
-    dump_wave         = dump_wave,
-    simulator_control = simulator_control,
-    SimCtrl           = SimCtrl,
-    finish            = finish,
-    bypass_initial    = bypass_initial,
-    print_hierarchy   = print_hierarchy,
-    get_hierarchy     = get_hierarchy,
-    iterate_vpi_type  = iterate_vpi_type,
-    get_sim_time      = get_sim_time,
-    collect_signals   = collect_signals,
+    set_dpi_scope             = set_dpi_scope,
+    initialize_trace          = initialize_trace,
+    enable_trace              = enable_trace,
+    disable_trace             = disable_trace,
+    dump_wave                 = dump_wave,
+    simulator_control         = simulator_control,
+    SimCtrl                   = SimCtrl,
+    finish                    = finish,
+    bypass_initial            = bypass_initial,
+    print_hierarchy           = print_hierarchy,
+    get_hierarchy             = get_hierarchy,
+    iterate_vpi_type          = iterate_vpi_type,
+    get_sim_time              = get_sim_time,
+    collect_signals           = collect_signals,
     auto_bundle_via_hierarchy = auto_bundle_via_hierarchy,
 }
 

@@ -377,7 +377,7 @@ local function infer_nosim_flags(target)
     return { flags = inferred_flags, sources = sources, dropped = dropped }
 end
 
----@alias SimulatorType "iverilog" | "verilator" | "vcs" | "xcelium" | "wave_vpi" | "nosim"
+---@alias SimulatorType "iverilog" | "verilator" | "vcs" | "xcelium" | "wave_vpi" | "nosim" | "luasim"
 
 ---@alias InstrumentationType "cov_exporter"
 
@@ -401,6 +401,8 @@ local function get_simulator_type(target)
         return "wave_vpi"
     elseif target:toolchain("nosim") then
         return "nosim"
+    elseif target:toolchain("luasim") then
+        return "luasim"
     else
         return nil
     end
@@ -457,6 +459,7 @@ local function before_build_or_run(target)
                 - add_toolchains("@xcelium")
                 - add_toolchains("@wave_vpi") => For waveform simulation only
                 - add_toolchains("@nosim") => For no simulation
+                - add_toolchains("@luasim") => For Lua virtual-time simulation
     ]])
 
     -- Used in `on_build` or `on_run` phase
@@ -469,7 +472,7 @@ local function before_build_or_run(target)
     ---     set_values("verilua.top", "TestModule")
     --- ```
     local top = assert(
-        get_verilua_value(target, "verilua.top"),
+        get_verilua_value(target, "verilua.top") or (sim == "luasim" and "tb_top"),
         [[
                 [before_build_or_run] Unknown top module name!
                     You should set 'top' by `set_values("verilua.top", "<your_top_module_name>")`
@@ -483,7 +486,7 @@ local function before_build_or_run(target)
     do
         -- For wave_vpi simulator, there is no testbench concept, so tb_top should be the same as top
         -- This ensures verilua.top in verilua_cfg.lua points to the actual top module instead of "tb_top"
-        if sim == "wave_vpi" then
+        if sim == "wave_vpi" or sim == "luasim" then
             tb_top = top
         end
         target:set("tb_top", tb_top)
@@ -1481,7 +1484,7 @@ rule("verilua", function()
         elseif _not_gen_tb_t == "table" and _not_gen_tb[1] == "1" then
             not_gen_tb = true
         end
-        if sim ~= "wave_vpi" and not not_gen_tb then
+        if sim ~= "wave_vpi" and sim ~= "luasim" and not not_gen_tb then
             local vfiles = {}
             for _, sourcefile in ipairs(target:sourcefiles()) do
                 local ext = path.extension(sourcefile)
@@ -1883,6 +1886,8 @@ rule("verilua", function()
             )
             buildcmd = find_file("xrun", { "$(env PATH)" }) or
                 assert(toolchain:config("xcelium"), "[on_build] vcs not found!")
+        elseif sim == "luasim" then
+            -- Do nothing
         elseif sim == "wave_vpi" then
             -- Do nothing
         elseif sim == "nosim" then
@@ -1901,7 +1906,9 @@ rule("verilua", function()
         local filelist_dut = {} -- only v/sv files
         local filelist_sim = {} -- including c/c++ files
         local full_buildcmd = ""
-        if sim == "wave_vpi" then
+        if sim == "luasim" then
+            -- Nothing to compile: `luasim` runs the Lua model against the native engine.
+        elseif sim == "wave_vpi" then
             local waveform_file = assert(
                 target:get("waveform_file"),
                 "[on_build] waveform_file not found! Please use add_files to add waveform files (.vcd, .fst, .fsdb)"
@@ -2137,7 +2144,9 @@ rm -rf %s]],
         )
 
         local buildcmd_str = ""
-        if sim == "wave_vpi" then
+        if sim == "luasim" then
+            buildcmd_str = "# luasim did not support build.sh \n#"
+        elseif sim == "wave_vpi" then
             buildcmd_str = "# wave_vpi did not support build.sh \n#"
         else
             buildcmd_str = buildcmd .. " " .. table.concat(argv, " ")
@@ -2203,13 +2212,24 @@ source setvars.sh
             run_sh = f("wave_vpi_main --wave-file %s%s \"$@\" 2>&1 | tee run.log", waveform_file, run_flags_suffix)
         elseif sim == "nosim" then
             -- TODO:
+        elseif sim == "luasim" then
+            local luasim_runner = find_file("luasim", { "$(env PATH)" })
+            if not luasim_runner then
+                local _toolchain = assert(
+                    target:toolchain("luasim"),
+                    '[on_build] we need to set_toolchains("@luasim") in target("%s")',
+                    target:name()
+                )
+                luasim_runner = assert(_toolchain:config("luasim"), "[on_build] luasim not found!")
+            end
+            -- `--` keeps script arguments from being read as the entry script.
+            run_sh = f("%s -- \"$@\" 2>&1 | tee run.log", shell_quote(luasim_runner))
         end
 
         io.writefile(
             path.join(build_dir, "run.sh"),
             "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh
-        )
-        io.writefile(
+        )        io.writefile(
             path.join(build_dir, "debug_run.sh"),
             "#!/usr/bin/env bash\nsource setvars.sh\n" .. "gdb --args " .. run_sh
         )
@@ -2345,7 +2365,18 @@ verdi -f filelist.f -sv -nologo $@]]
         ---     add_values("verilator.run_prefix", "gdb --args")
         --- ```
         local full_runcmd = ""
-        if sim == "verilator" then
+        if sim == "luasim" then
+            local luasim_runner = find_file("luasim", { "$(env PATH)" })
+            if not luasim_runner then
+                local _toolchain = assert(
+                    target:toolchain("luasim"),
+                    '[on_run] we need to set_toolchains("@luasim") in target("%s")',
+                    target:name()
+                )
+                luasim_runner = assert(_toolchain:config("luasim"), "[on_run] luasim not found!")
+            end
+            full_runcmd = shell_quote(luasim_runner)
+        elseif sim == "verilator" then
             local run_flags = { "" }
             local _run_flags = target:values("verilator.run_flags")
             if _run_flags then

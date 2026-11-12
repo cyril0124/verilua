@@ -93,6 +93,7 @@ function await_nsim() end
 --- | "@xcelium"
 --- | "@wave_vpi"
 --- | "@nosim"
+--- | "@luasim"
 
 ---@alias verilua.xmake.set_add_values.yes_or_not
 --- | "1"

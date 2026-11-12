@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **signal_db_gen**: Fixed `loadSources()` being called twice (once in `checkForRegenerate` and again in `doParseCmdLine`), which caused the second file-listing loop to silently enumerate zero files. The second call now reuses the already-collected `files` vector.
 - **signal_db_gen**: Fixed `getCompilelation` typo (renamed to `getCompilation`).
 - **signal_db_gen**: Fixed `singal_info` local variable name typo (renamed to `signal_info`).
+- **xmake / verilua rule**: `xmake run` works for `@luasim` targets, which declare no build artifact.
 - **xmake / verilua rule**: The generated `run.sh` and `debug_run.sh` now include `<sim>.run_flags` and pass caller-supplied arguments through to the simulation binary.
 - **wave_vpi**: `WaveVpiCtrl:set_cursor_time()` rounds to the nearest simulation step, so a cursor lands on the step `await_time_*` waits for.
 - **LuaJIT**: Bundled LuaJIT is updated to 2.1@a4c06453.
@@ -32,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### 🚀 Added
 
 - **SVBuilder**: Covergroup `sample_event` accepts complete `@(...)` sampling declarations alongside bare event expressions.
+- **luasim**: Test verification components without RTL using Lua-declared signals, NativeClock, a native C++ virtual-time simulator with common VPI task dispatch, and VCD output.
 - **SVBuilder**: `#` template lines and `$(...)` expressions can use `ipairs`, `pairs`, `string`, `table`, and LuaJIT's `bit` library without exposing the full global environment.
 - **SVBuilder**: `validate()` checks the complete generated model in one sv_lint pass, even with per-add lint disabled, and identifies the originating Lua statement when the error is in an `add` block.
 - **wave_vpi**: Add `--ignore-writes` for signal-write-tolerant replay and make trace controls unconditional no-ops.

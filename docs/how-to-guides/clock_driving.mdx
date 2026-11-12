@@ -13,8 +13,10 @@
 | 策略 | 时钟生成位置 | 运行时动态调频/门控 | 多时钟控制 | 性能 | 额外要求 |
 | --- | --- | --- | --- | --- | --- |
 | `Internal Clock` | 生成的 RTL testbench | 不支持 | 不适合 | 最优 | 无 |
-| `Lua Clock` | Lua 协程 | 支持 | 支持 | 最低 | 需要 `verilua.no_internal_clock`；Verilator 下基于 `await_time*()` 时通常需要 `--timing` |
-| `NativeClock` | Rust 原生层 | 有限支持（通过 `stop()` / `restart()`） | 支持 | 高于 Lua，低于 Internal | 需要 `verilua.no_internal_clock`；Verilator 下需要 `--timing`；仅支持 HVL |
+| `Lua Clock` | Lua 协程 | 支持 | 支持 | 最低 | RTL testbench 需设置 `verilua.no_internal_clock`；Verilator 下基于 `await_time*()` 时通常需要 `--timing` |
+| `NativeClock` | Rust 原生层 | 有限支持（通过 `stop()` / `restart()`） | 支持 | 高于 Lua，低于 Internal | RTL testbench 需设置 `verilua.no_internal_clock`；Verilator 下需要 `--timing`；仅支持 HVL |
+
+`luasim` 使用 Lua 声明的信号，可以选择 Lua Clock 或 NativeClock，不需要内部时钟配置。表中的性能比较只针对同一仿真后端。跨后端比较应测量完整工作负载。
 
 ## 选择建议
 
@@ -209,11 +211,12 @@ fork {
 
 ## 3. NativeClock
 
-`NativeClock` 适合“禁用内部时钟后，仍希望降低 Lua 时钟开销”的场景。它在 Rust 原生层完成时钟切换，避免了每个边沿都回到 Lua。
+`NativeClock` 在 Rust 原生层驱动固定周期时钟，省去 Lua 时钟任务在每个边沿的恢复开销。
 
 ### 使用前提
 
-- 需要先禁用内部时钟：`set_values("verilua.no_internal_clock", "1")`
+- 使用生成的 RTL testbench 时，先禁用内部时钟：`set_values("verilua.no_internal_clock", "1")`
+- `luasim` 可直接对已声明的信号使用 `NativeClock`，无需内部时钟配置
 - 使用 Verilator 时需要启用 `--timing`
 - 仅支持 HVL，不支持 HSE 和 WAL
 - 同一时刻同一信号只能由一个 `NativeClock` 驱动
@@ -303,7 +306,7 @@ clk:destroy()
 
 ## 常见踩坑
 
-1. 使用 `Lua Clock` 或 `NativeClock` 时忘记设置 `verilua.no_internal_clock`
+1. 在生成的 RTL testbench 中使用 `Lua Clock` 或 `NativeClock` 时，忘记设置 `verilua.no_internal_clock`
 2. 在 Verilator 下使用 `await_time*()` 或 `NativeClock` 时忘记加 `set_values("verilator.flags", "--timing")`
 3. 把 `await_time(5)` 误以为是 `5ns`，实际上它表示 5 个原始仿真时间步
 4. 多个驱动同时驱动同一根时钟信号，例如内部时钟和 Lua 时钟同时存在

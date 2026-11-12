@@ -335,6 +335,9 @@ pub extern "C" fn get_simulator_auto() -> *const c_char {
         } else if string.contains("libverilua_wave_vpi.so") {
             *cached_result = Some("wave_vpi".to_string());
             return string_to_c_char_owned("wave_vpi");
+        } else if string.contains("libverilua_luasim.so") {
+            *cached_result = Some("luasim".to_string());
+            return string_to_c_char_owned("luasim");
         } else if string.contains("libverilua_nosim.so") {
             *cached_result = Some("nosim".to_string());
             return string_to_c_char_owned("nosim");

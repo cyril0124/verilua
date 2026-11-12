@@ -45,6 +45,7 @@ iverilog_vpi_mod = []
 vcs = []
 wave_vpi = []
 nosim = []
+luasim = []
 hierarchy_cache = ["memmap2"]
 
 verilator_inner_step_callback = []
