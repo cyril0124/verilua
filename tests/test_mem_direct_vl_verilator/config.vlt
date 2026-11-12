@@ -1,0 +1,4 @@
+`verilator_config
+
+public_flat_rd -module "tb_top" -var "*"
+public_flat_rd -module "top" -var "*"

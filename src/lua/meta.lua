@@ -137,6 +137,9 @@ function await_nsim() end
 --- | "verilua.infer_nosim_flags" Reuse other simulators' `*.flags` when building with nosim
 --- | "verilua.verilator_config" Inline Verilator control-file (.vlt) content
 --- | "verilua.verilator_no_public_flat_rw" Skip default --public-flat-rw
+--- | "verilua.verilator_mem_direct" Enable mem_direct (rootp+offset access)
+--- | "verilua.verilator_mem_direct_include" mem_direct generator include patterns
+--- | "verilua.verilator_mem_direct_exclude" mem_direct generator exclude patterns
 --- | "verilua.verilator_opt_slow" Optimization options for slow-path code (make OPT_SLOW)
 --- | "verilua.verilator_opt_fast" Optimization options for fast-path code (make OPT_FAST)
 --- | "verilua.instrument" Instrumentation configuration function for runtime coverage collection
