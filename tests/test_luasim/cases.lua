@@ -234,11 +234,10 @@ local function run_common_dispatcher()
     local ffi = require "ffi"
     ffi.cdef [[
         const char *luasim_backend_kind(void);
-        const char *vpiml_get_simulator_auto(void);
         int verilua_host_pcall(void *state, int nargs, int phase);
     ]]
     assert(ffi.string(ffi.C.luasim_backend_kind()) == "cpp", "luasim must use the C++ kernel")
-    assert(ffi.string(ffi.C.vpiml_get_simulator_auto()) == "luasim", "native backend detection mismatch")
+    assert(cfg.simulator == "luasim", "native backend configuration mismatch")
     assert(not pcall(function() return ffi.C.verilua_host_pcall end),
         "native backend must use standard VPI without host hooks")
     assert(package.loaded["verilua.luasim.Runtime"] == nil, "Lua simulation kernel must not be loaded")
