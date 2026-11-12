@@ -2229,7 +2229,8 @@ source setvars.sh
         io.writefile(
             path.join(build_dir, "run.sh"),
             "#!/usr/bin/env bash\nsource setvars.sh\n" .. run_sh
-        )        io.writefile(
+        )
+        io.writefile(
             path.join(build_dir, "debug_run.sh"),
             "#!/usr/bin/env bash\nsource setvars.sh\n" .. "gdb --args " .. run_sh
         )
@@ -2254,7 +2255,7 @@ verdi -f filelist.f -sv -nologo $@]]
             local target_file = path.join(sim_build_dir, "simv")
             os.cp(target_file, target:targetdir())
             os.cp(target_file, path.join(target:targetdir(), target:name())) -- make xmake happy, otherwise it would fail to find the binary
-        elseif sim == "wave_vpi" or sim == "xcelium" then
+        elseif sim == "wave_vpi" or sim == "xcelium" or sim == "luasim" then
             os.touch(path.join(target:targetdir(), target:name()))           -- make xmake happy, otherwise it would fail to find the binary
         elseif sim == "nosim" then
             -- Save cmdline into a separate file which can be used in `SignalDB.lua`

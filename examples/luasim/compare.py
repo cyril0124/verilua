@@ -30,10 +30,10 @@ CASES = {
 }
 
 
-def execute(command, environment, log_path, timeout):
+def execute(command, environment, log_path, timeout, project):
     with log_path.open("w") as log:
         process = subprocess.Popen(
-            command, cwd=ROOT, env=environment,
+            command, cwd=project, env=environment,
             stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
         )
         try:
@@ -100,13 +100,13 @@ def main():
             top = "tb_top" if simulator == "luasim" else specification["top"]
             trace_path = project / "build" / simulator / top / specification["trace"]
             try:
-                execute(["xmake", "f", "-y", "-P", str(project)],
-                        run_env, directory / "configure.log", args.build_timeout)
-                execute(["xmake", "build", "-P", str(project), target],
-                        run_env, directory / "build.log", args.build_timeout)
+                execute(["xmake", "f", "-y", "-P", "."],
+                        run_env, directory / "configure.log", args.build_timeout, project)
+                execute(["xmake", "build", "-P", ".", target],
+                        run_env, directory / "build.log", args.build_timeout, project)
                 trace_path.unlink(missing_ok=True)
-                execute(["xmake", "run", "-P", str(project), target],
-                        run_env, directory / "run.log", args.timeout)
+                execute(["xmake", "run", "-P", ".", target],
+                        run_env, directory / "run.log", args.timeout, project)
                 if specification["marker"] not in (directory / "run.log").read_text():
                     raise RuntimeError("Self-check pass marker is missing")
                 content = trace_path.read_text()
