@@ -198,9 +198,11 @@ function SignalDB:init(_params)
             self.regenerate and "--no-cache" or ""
         ))
     else
+        -- Written by the nosim build next to the generated testbench.
         local nosim_cmdline_args_file = "./nosim_cmdline_args.lua"
         assert(pl_path.isfile(nosim_cmdline_args_file),
-            f("[SignalDB] can not find `%s`", nosim_cmdline_args_file))
+            f("[SignalDB] can not find `%s` in the current directory; the nosim build writes it, " ..
+                "rebuild the target before running", nosim_cmdline_args_file))
 
         local args_func = loadfile(nosim_cmdline_args_file)
         assert(type(args_func) == "function")

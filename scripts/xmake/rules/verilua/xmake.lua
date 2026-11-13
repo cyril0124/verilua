@@ -2359,6 +2359,14 @@ verdi -f filelist.f -sv -nologo $@]]
         -- Move into build directory to execute our simulation.
         os.cd(build_dir)
 
+        -- Written by the nosim build and read at run time by `SignalDB.lua`; a build that
+        -- never finished, or a `clean` that removed the directory, leaves it missing.
+        if sim == "nosim" and not os.isfile(path.join(build_dir, "nosim_cmdline_args.lua")) then
+            raise(f("[on_run] [%s] %s has no completed nosim build " ..
+                "(missing nosim_cmdline_args.lua), run `xmake b %s` first",
+                target:name(), build_dir, target:name()))
+        end
+
         --- `<sim>.run_flags` and `<sim>.run_prefix` is provided for the user to controlling the simulation runtime behavior.
         --- e.g. (in your xmake.lua)
         --- ```lua
