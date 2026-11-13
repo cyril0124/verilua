@@ -109,7 +109,8 @@ end)
 ```
 
 项目构建只生成运行配置和启动脚本，不生成也不编译 RTL，修改 Lua 模型无需重新编译。配置选项见 [xmake 配置参数](../reference/xmake_params.mdx)。
-## 基础请求/响应示例
+
+## 最小可运行示例
 
 `examples/luasim` 发送 128 位请求，由 Lua 对端制造背压，并延迟返回数据：
 
@@ -120,11 +121,69 @@ xmake run -P examples/luasim
 
 成功时输出 `PASS: 128-bit request survives backpressure and delayed response`，波形写入 `examples/luasim/build/luasim/tb_top/luasim.vcd`。
 
-也可以直接运行入口。相对输出路径以当前目录为准。
+## 推荐工程结构
+
+小型工程只需要 `xmake.lua` 和 `main.lua`。需要复用模型、驱动或组织多个测试场景时，推荐按职责拆成以下结构：
+
+```text
+my_luasim_project/
+├── xmake.lua
+├── README.md
+├── main.lua                     -- 唯一入口：声明信号、绑定并启动各模块
+├── src/
+│   └── my_project/              -- 工程命名空间，避免模块重名
+│       ├── MyModel.lua          -- 行为模型
+│       └── MyDriver.lua         -- 可复用驱动和检查
+└── test_cases/
+    ├── 001_basic.lua
+    └── 002_backpressure.lua
+```
+
+`main.lua` 只负责组装工程。协议状态机放在独立模块中。`src/<namespace>/` 存放可复用实现。模型和驱动通过参数接收信号句柄，不依赖具体测试场景。信号集中在入口的 `luasim.declare` 块中声明。`test_cases/` 只组合激励、检查和模型配置，不重复实现底层握手。
+
+测试用例使用 `001_xxx.lua` 格式：三位数字、下划线和小写 `snake_case` 描述。一个文件聚焦一个场景，编号用于稳定排序和引用，不表示用例之间存在依赖。新用例使用下一个未占用的编号，不因插入或删除用例而重排已有编号。
+
+模块按命名空间引用，例如 `require "my_project.MyModel"`。新增 Lua 模块后，将它加入 `xmake.lua` 的 `add_files(...)`。多目录工程可以使用 `add_files("src/**/*.lua", "test_cases/*.lua")`。
+
+`build/` 是生成目录，包含启动脚本、日志和波形，不应手工修改。仓库现有 luasim 示例是单场景工程，因此保留扁平布局。
+
+### 使用 TC 选择测试用例
+
+多场景工程可使用 `TC` 指定本次运行的用例：
 
 ```shell
-luasim examples/luasim/main.lua
+xmake build -P .
+TC=001 xmake r -P .
 ```
+
+xmake 根据编号匹配唯一文件。它通过 `TC_NAME` 将不带扩展名的文件名传给入口：
+
+```lua title="xmake.lua"
+on_load(function(target)
+    local tc = os.getenv("TC")
+    if tc then
+        if not tc:match("^%d%d%d$") then
+            raise("TC must be a three-digit ID")
+        end
+        local matches = os.files(path.join(os.projectdir(), "test_cases", tc .. "_*.lua"))
+        if #matches ~= 1 then
+            raise("TC must match exactly one test case: " .. tc)
+        end
+        target:add("runenvs", "TC_NAME", path.basename(matches[1]))
+    end
+end)
+```
+
+每个用例模块返回一个函数。`main.lua` 加载选中的模块并调用该函数：
+
+```lua title="main.lua"
+local tc_name = assert(os.getenv("TC_NAME"), "failed to get TC_NAME")
+---@type function
+local tc = require(tc_name)
+tc()
+```
+
+未设置 `TC` 或找不到匹配用例时应报错。每次运行只执行一条用例。
 
 ## 组合逻辑示例
 
