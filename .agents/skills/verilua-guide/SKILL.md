@@ -41,7 +41,8 @@ verilua/
 │   │   ├── common_lua_pitfalls.mdx            # Common Lua/LuaJIT traps in hardware verification
 │   │   ├── call_c_functions.mdx               # Calling C functions from Lua via FFI
 │   │   ├── cross_stimulus_generation.mdx      # Combinatorial stimulus generation with Cross
-│   │   └── combinational_logic.mdx            # Drive/read combinational logic correctly after set()
+│   │   ├── combinational_logic.mdx            # Drive/read combinational logic correctly after set()
+│   │   └── luasim_simulation.mdx              # No-RTL virtual-timing simulation with luasim
 │   └── reference/
 │       ├── multi_task.mdx                     # fork, jfork, join, task_group, coroutine scheduling
 │       ├── await_time.mdx                     # Time-based waiting primitives
@@ -82,7 +83,8 @@ verilua/
 │   ├── WAL/                                   # Offline waveform analysis examples
 │   ├── HSE/                                   # HSE mode: embed Lua in running simulation
 │   ├── HSE_dummy_vpi/                         # HSE with dummy VPI (DPI-based signal access)
-│   └── HSE_virtual_rtl/                       # HSE with virtual RTL
+│   ├── HSE_virtual_rtl/                       # HSE with virtual RTL
+│   └── luasim/                                # No-RTL luasim examples (basic, comb_arbiter, axi4_memory)
 ├── tests/                                     # Integration tests and Lua unit tests (also serve as API usage examples)
 ├── docs-website/                              # Docusaurus site sources (sidebars.ts)
 ├── src/
@@ -118,6 +120,7 @@ verilua/
 │   │   ├── random/                            # Randomization utilities
 │   │   ├── sv/                                # SVBuilder + SV templates (assertion/coverage generation)
 │   │   ├── vpiml/                             # VPI markup layer (normal / nosim backends)
+│   │   ├── luasim/                            # luasim backend (Sim.lua: declare/signal/configure, Api.lua)
 │   │   ├── ext/                               # stdlib extensions (stringx, tablex)
 │   │   └── tcc_snippet/                       # C snippets compiled at runtime via TCC
 │   ├── wave_vpi/                              # Waveform backend (VCD/FST/FSDB readers)
@@ -141,7 +144,8 @@ verilua/
 │           ├── vcs/                           # VCS toolchain
 │           ├── xcelium/                       # Xcelium toolchain
 │           ├── wave_vpi/                      # WAL waveform toolchain
-│           └── nosim/                         # No-simulation toolchain
+│           ├── nosim/                         # No-simulation toolchain
+│           └── luasim/                        # luasim toolchain
 ├── xmake.lua                                  # Top-level build entry
 └── ...                                        # AGENTS.md, DEVELOPMENT.md, CHANGELOG.md, etc.
 ```
