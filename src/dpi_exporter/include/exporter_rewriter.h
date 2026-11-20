@@ -52,6 +52,9 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
                 std::vector<std::string> paramVec;
 
                 for (auto &s : sg.signalInfoVec) {
+                    if (s.isMetaOnly) {
+                        continue; // meta_only signals are not tick-sampled
+                    }
                     if (s.bitWidth == 1) {
                         declParamVec.push_back(fmt::format("\t{} bit {}", s.isWritable ? "output" : "input", s.hierPathName));
                     } else {
@@ -97,6 +100,9 @@ struct ExporterRewriter : public slang::syntax::SyntaxRewriter<ExporterRewriter>
             for (auto &sg : signalGroupVec) {
                 std::vector<std::string> paramVec;
                 for (auto &s : sg.signalInfoVec) {
+                    if (s.isMetaOnly) {
+                        continue; // meta_only signals are not tick-sampled
+                    }
                     paramVec.push_back(fmt::format("\t\t\t{}", s.hierPath));
                 }
                 dpiTickFuncParamDirectVec.emplace_back(joinStrVec(paramVec, ",\n"));

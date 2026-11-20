@@ -11,6 +11,7 @@
 ---@field writable_signals? dpi_exporter.regex_pattern
 ---@field disable_signals? dpi_exporter.regex_pattern
 ---@field sensitive_signals? dpi_exporter.regex_pattern
+---@field meta_only? boolean Register signals in the meta table only: no DPI accessor/tick/write is generated, and matched signals are pinned via a generated `dpi_exporter.public.vlt` (verilator `public_flat_rd`). Value access is left to the runtime (mem_direct on verilator, real VPI elsewhere). Mutually exclusive with `writable`/`writable_signals`/`sensitive_signals`.
 
 ---@class (exact) dpi_exporter.sensitive_trigger_params
 ---@field name string name of the sensitive trigger
