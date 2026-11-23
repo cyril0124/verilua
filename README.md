@@ -24,7 +24,7 @@
 
 ## 🔧 Introduction
 
-`Verilua` is a versatile simulation framework for Hardware Verification based on `LuaJIT`. It can be used as a Hardwave Verification Language (`HVL`) to write testbenches and simulate hardware designs. Or it can be used as a Hardware Script Engine (`HSE`) to embed Lua scripts into the simulation. It can also be used as a Waveform Analysis Language(`WAL`) to analyze the provided waveform files(VCD, FST, FSDB, etc).
+`Verilua` is a versatile simulation framework for Hardware Verification based on `LuaJIT`. It can be used as a Hardware Verification Language (`HVL`) to write testbenches and simulate hardware designs. Or it can be used as a Hardware Script Engine (`HSE`) to embed Lua scripts into the simulation. It can also be used as a Waveform Analysis Language(`WAL`) to analyze the provided waveform files(VCD, FST, FSDB, etc).
 
 
 ## 🚀 Getting Started
@@ -42,6 +42,7 @@ verilua/
 │   ├── gen/                 # Lua generators (scheduler, CHDL access)
 │   ├── verilator/           # Verilator main program
 │   ├── wave_vpi/            # Waveform backend (VCD/FST/FSDB)
+│   ├── luasim/              # Simulation backend for Lua models
 │   ├── nosim/               # No-simulation analysis backend
 │   ├── sv_lint/             # SystemVerilog lint (slang-backed)
 │   ├── slang_common/        # Shared slang helpers for generators
