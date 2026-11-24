@@ -38,7 +38,9 @@
     "@babel/plugin-transform-modules-systemjs": "^7.29.4",
     "fast-uri": "^3.1.2",
     "node-forge": "^1.4.0",
-    "undici": "^7.24.0"
+    "undici": "^7.24.0",
+    "tinypool": "^2.1.2",
+    "katex": "0.18.2"
   },
   "browserslist": {
     "production": [
@@ -53,6 +55,6 @@
     ]
   },
   "engines": {
-    "node": ">=18.0"
+    "node": "^20.0.0 || >=22.0.0"
   }
 }
