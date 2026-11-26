@@ -32,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### 🚀 Added
 
+- **LuaUtils**: Add `rand_sample()` for sampling array elements without replacement.
 - **SVBuilder**: Covergroup `sample_event` accepts complete `@(...)` sampling declarations alongside bare event expressions.
 - **luasim**: Test verification components without RTL using Lua-declared signals, NativeClock, a native C++ virtual-time simulator with common VPI task dispatch, and VCD output.
 - **SVBuilder**: `#` template lines and `$(...)` expressions can use `ipairs`, `pairs`, `string`, `table`, and LuaJIT's `bit` library without exposing the full global environment.

@@ -43,6 +43,7 @@ local utils = require "verilua.LuaUtils"
 | `rand_int(min, max)` | 在 `[min, max]` 范围内生成整数 |
 | `rand_bool(p?)` | 按概率生成布尔值，`p` 默认为 `0.5` |
 | `rand_choice(choices, weights?)` | 从非空数组中随机选择一个元素，可传相对权重 |
+| `rand_sample(choices, k)` | 从数组中随机抽取 `k` 个元素，不放回 |
 | `urandom64()` | 生成 64 位随机无符号整数 |
 | `urandom64_range(min, max)` | 在 `[min, max]` 范围内生成 64 位随机数 |
 | `shuffle(t)` | 原地随机打乱 table |
@@ -217,6 +218,14 @@ local depth = utils.rand_int(1, 16)              -- 1 ~ 16
 local enable_delay = utils.rand_bool(0.25)       -- 25% 概率为 true
 local mode = utils.rand_choice({ "a", "b" })   -- 从非空数组中选择
 local biased = utils.rand_choice({ "a", "b", "c" }, { 10, 1, 0 })
+```
+
+#### `rand_sample(choices, k)`
+
+从数组中等概率抽取 `k` 个不同位置，按抽取顺序返回新数组。原数组保持不变，原数组中相同的值可以被抽到多次。`k` 必须是 `0` 到 `#choices` 之间的整数，`0` 返回空数组。
+
+```lua
+local active_ports = utils.rand_sample({ 0, 1, 2, 3, 4, 5, 6, 7 }, 3)
 ```
 
 #### `urandom64()` / `urandom64_range(min, max)`

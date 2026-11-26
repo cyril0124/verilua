@@ -157,6 +157,36 @@ describe("LuaUtils test", function()
         assert(err_msg:find("[utils.rand_choice] total weight must be > 0", 1, true), err_msg)
     end)
 
+    it("should sample distinct array positions without changing the input", function()
+        local choices = {}
+        for i = 1, 64 do
+            choices[i] = i
+        end
+
+        for _ = 1, 16 do
+            local sample = utils.rand_sample(choices, 37)
+            expect.equal(#sample, 37)
+            local seen = {}
+            for _, value in ipairs(sample) do
+                expect.equal(choices[value], value)
+                assert(not seen[value], "sample repeated an input position")
+                seen[value] = true
+            end
+            for i = 1, #choices do
+                expect.equal(choices[i], i)
+            end
+            expect.equal(#choices, 64)
+        end
+
+        local duplicates = utils.rand_sample({ "a", "a" }, 2)
+        expect.equal(table.concat(duplicates), "aa")
+        expect.equal(#utils.rand_sample({}, 0), 0)
+        for _, invalid_k in ipairs({ -1, 0.5, 65 }) do
+            local ok, err = pcall(utils.rand_sample, choices, invalid_k)
+            assert(not ok and tostring(err):find("[utils.rand_sample] k must be", 1, true), tostring(err))
+        end
+    end)
+
     it("should work for bitfield32() and bitfiled64()", function()
         local tests = {
             { 0xffffffff, 0,  1,  3 },

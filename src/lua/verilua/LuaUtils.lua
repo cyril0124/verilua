@@ -683,6 +683,32 @@ function utils.rand_choice(choices, weights)
     return choices[n]
 end
 
+--- Sample distinct array positions uniformly, leaving the input array unchanged.
+---@nodiscard Return value should not be discarded
+---@generic T
+---@param choices T[] Input array (may be empty when k is 0)
+---@param k integer Number of elements to draw, in [0, #choices]
+---@return T[] sample Elements in draw order
+function utils.rand_sample(choices, k)
+    assert(type(choices) == "table", "[utils.rand_sample] choices must be a table")
+    local count = #choices
+    assert(type(k) == "number" and math_floor(k) == k and k >= 0 and k <= count,
+        "[utils.rand_sample] k must be an integer in [0, #choices]")
+
+    local sample = table_new(k, 0)
+    ---@type table<integer, integer>
+    local position_to_index = {}
+    -- An unmapped slot still refers to its original input index.
+    for draw = 1, k do
+        local remaining = count - draw + 1
+        local slot = math_random(1, remaining)
+        local index = position_to_index[slot] or slot
+        sample[draw] = choices[index]
+        position_to_index[slot] = position_to_index[remaining] or remaining
+    end
+    return sample
+end
+
 ---@param t any[] The table to be shuffled
 ---@return table The shuffled table
 function utils.shuffle(t)
